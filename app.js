@@ -286,13 +286,42 @@ function recalculateAccounting() {
 
 // Cập nhật toàn bộ giao diện dựa trên tab đang hiển thị
 function refreshUI() {
-  // Render lại các bảng dữ liệu
-  renderDashboard();
-  renderPurchaseTable();
-  renderSalesTable();
-  renderInventoryTable();
-  renderEscrowTable();
-  generateReport(); // Tự động làm mới báo cáo hiện hành
+  // Render lại các bảng dữ liệu bằng các khối try/catch cô lập để tránh lỗi dây chuyền
+  try {
+    renderDashboard();
+  } catch (e) {
+    console.error("Lỗi vẽ bảng Dashboard:", e);
+  }
+  
+  try {
+    renderPurchaseTable();
+  } catch (e) {
+    console.error("Lỗi vẽ bảng mua hàng:", e);
+  }
+  
+  try {
+    renderSalesTable();
+  } catch (e) {
+    console.error("Lỗi vẽ bảng bán hàng:", e);
+  }
+  
+  try {
+    renderInventoryTable();
+  } catch (e) {
+    console.error("Lỗi vẽ bảng tồn kho:", e);
+  }
+  
+  try {
+    renderEscrowTable();
+  } catch (e) {
+    console.error("Lỗi vẽ bảng ký quỹ:", e);
+  }
+  
+  try {
+    generateReport(); // Tự động làm mới báo cáo hiện hành
+  } catch (e) {
+    console.error("Lỗi tạo báo cáo kế toán:", e);
+  }
 }
 
 // 4. ĐIỀU HƯỚNG TAB CHỨNG TỪ (UI TABS SWITCHER)
@@ -343,6 +372,7 @@ function switchTab(tabId) {
     handleEscrowTypeChange();
   } else if (tabId === "inventory") {
     populateProductLedgerDropdown();
+    renderInventoryTable(); // Đảm bảo bảng tồn kho luôn được vẽ lại khi vào tab
     renderStockLedger();
   } else if (tabId === "reports") {
     populateReportAccountDropdown();
@@ -653,21 +683,23 @@ function renderInventoryTable() {
   const tbody = document.getElementById("inventory-table-body");
   if (!tbody) return;
 
-  if (state.products.length === 0) {
+  const products = state.products || [];
+
+  if (products.length === 0) {
     tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">Không có sản phẩm nào trong kho.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = state.products.map(p => {
-    const isLow = p.stock <= p.minStock;
+  tbody.innerHTML = products.map(p => {
+    const isLow = (p.stock || 0) <= (p.minStock || 0);
     return `
       <tr>
         <td class="font-numeric" style="font-weight:700;">${p.id}</td>
         <td><span style="font-weight:600; color:var(--text-primary);">${p.name}</span></td>
-        <td>${p.unit}</td>
-        <td class="text-right font-numeric" style="font-weight:700; ${isLow ? 'color: var(--color-danger);' : ''}">${p.stock}</td>
-        <td class="text-right font-numeric">${formatVND(p.avgCost)}</td>
-        <td class="text-right font-numeric" style="font-weight:700;">${formatVND(p.totalValue)}</td>
+        <td>${p.unit || "Cái"}</td>
+        <td class="text-right font-numeric" style="font-weight:700; ${isLow ? 'color: var(--color-danger);' : ''}">${p.stock || 0}</td>
+        <td class="text-right font-numeric">${formatVND(p.avgCost || 0)}</td>
+        <td class="text-right font-numeric" style="font-weight:700;">${formatVND(p.totalValue || 0)}</td>
         <td>
           <span class="badge ${isLow ? 'badge-danger' : 'badge-success'}">
             ${isLow ? 'Cảnh báo tồn thấp' : 'Đầy đủ'}
@@ -2060,20 +2092,24 @@ function viewVoucher(id) {
 
 // Tìm số dư của tài khoản (111, 112, 156, etc.) phục vụ Dashboard và báo cáo
 function getAccountBalance(acctCode) {
-  const initBalObj = state.initialBalances[acctCode] || { type: "debit", balance: 0 };
+  const initBalObj = (state.initialBalances && state.initialBalances[acctCode]) || { type: "debit", balance: 0 };
   let bal = initBalObj.balance;
   const isDebit = initBalObj.type === "debit";
 
-  state.vouchers.forEach(v => {
-    v.entries.forEach(e => {
-      if (e.debit === acctCode) {
-        bal += isDebit ? e.amount : -e.amount;
-      }
-      if (e.credit === acctCode) {
-        bal += isDebit ? -e.amount : e.amount;
+  if (state.vouchers) {
+    state.vouchers.forEach(v => {
+      if (v.entries && Array.isArray(v.entries)) {
+        v.entries.forEach(e => {
+          if (e.debit === acctCode) {
+            bal += isDebit ? e.amount : -e.amount;
+          }
+          if (e.credit === acctCode) {
+            bal += isDebit ? -e.amount : e.amount;
+          }
+        });
       }
     });
-  });
+  }
 
   return bal;
 }
