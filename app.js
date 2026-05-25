@@ -86,6 +86,11 @@ function initApp() {
   // Chạy lại thuật toán tính toán kế toán & giá vốn để đồng bộ
   recalculateAccounting();
   
+  // Tách số điện thoại từ địa chỉ tự động nếu có
+  if (typeof autoExtractPhonesAndCleanAddresses === "function") {
+    autoExtractPhonesAndCleanAddresses();
+  }
+  
   // Nạp cấu hình & khởi tạo đồng bộ trực tuyến
   if (typeof loadCloudSettings === "function") {
     loadCloudSettings();
@@ -2793,6 +2798,60 @@ function deletePartner(id) {
   }
 }
 
+function autoExtractPhonesAndCleanAddresses() {
+  let count = 0;
+  if (!state.partners) return 0;
+  
+  state.partners.forEach(p => {
+    const addr = p.address || "";
+    const currentPhone = (p.phone || "").trim();
+    
+    // Thực hiện nếu chưa có số điện thoại (hoặc số điện thoại trống, null, hoặc chỉ là dấu gạch ngang)
+    if (!currentPhone || currentPhone === "-" || currentPhone === "null" || currentPhone === "") {
+      // Tìm số điện thoại (9-11 số, bắt đầu bằng 0, có thể chứa cách, chấm, gạch ngang)
+      const phoneRegex = /(0[1-9][\s.-]?\d(?:[\s.-]?\d){7,9})/g;
+      const matches = addr.match(phoneRegex);
+      
+      if (matches && matches.length > 0) {
+        // Gán số điện thoại tìm được
+        p.phone = matches.join(" / ");
+        
+        // Làm sạch địa chỉ: Loại bỏ số điện thoại và các ký tự phân tách thừa
+        let cleanAddr = addr;
+        matches.forEach(m => {
+          cleanAddr = cleanAddr.replace(m, "");
+        });
+        
+        // Dọn dẹp khoảng trắng, dấu gạch ngang thừa ở đầu, cuối hoặc giữa địa chỉ
+        cleanAddr = cleanAddr
+          .replace(/\s*-\s*-\s*/g, " - ") // Tránh double dash
+          .replace(/\s*-\s*$/g, "")        // Bỏ gạch ngang ở cuối
+          .replace(/^\s*-\s*/g, "")        // Bỏ gạch ngang ở đầu
+          .replace(/\s+/g, " ")            // Thu gọn khoảng trắng
+          .trim();
+          
+        p.address = cleanAddr;
+        count++;
+      }
+    }
+  });
+  
+  if (count > 0) {
+    saveState();
+    if (typeof filterPartners === "function") filterPartners();
+  }
+  return count;
+}
+
+function triggerAutoExtractPhones() {
+  const count = autoExtractPhonesAndCleanAddresses();
+  if (count > 0) {
+    showToast(`Đã tự động tách thành công số điện thoại cho ${count} đối tác!`, "success");
+  } else {
+    showToast("Không tìm thấy đối tác nào cần tách số điện thoại từ địa chỉ.", "info");
+  }
+}
+
 function convertStyle(s) {
   if (!s) return undefined;
   const out = {};
@@ -5039,3 +5098,5 @@ window.saveCloudConfig = saveCloudConfig;
 window.toggleCloudSyncInputs = toggleCloudSyncInputs;
 window.forcePullFromCloud = forcePullFromCloud;
 window.updateCloudSyncBadge = updateCloudSyncBadge;
+window.triggerAutoExtractPhones = triggerAutoExtractPhones;
+window.autoExtractPhonesAndCleanAddresses = autoExtractPhonesAndCleanAddresses;

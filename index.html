@@ -733,6 +733,7 @@
               </div>
               <div style="display: flex; gap: 8px;">
                 <button class="btn btn-primary" onclick="openAddPartnerModal()">+ Thêm đối tác</button>
+                <button class="btn btn-secondary" onclick="triggerAutoExtractPhones()" style="color: #d97706; border-color: #d97706;">Tách SĐT từ địa chỉ</button>
                 <button class="btn btn-secondary" onclick="triggerFileInput('excel-file-partners-view')" style="color: var(--color-success); border-color: var(--color-success);">Nhập Excel</button>
                 <button class="btn btn-secondary" onclick="exportPartnersToExcel()">Xuất Excel</button>
                 <input type="file" id="excel-file-partners-view" accept=".xlsx, .xls" style="display: none;" onchange="handleExcelImport(event, 'partners')">
