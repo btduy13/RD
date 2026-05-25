@@ -76,6 +76,14 @@
             <span>Báo cáo kế toán</span>
           </a>
         </li>
+        <li class="menu-item" data-tab="excel-hub">
+          <a onclick="switchTab('excel-hub')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <span>Tích hợp Excel</span>
+          </a>
+        </li>
         <li class="menu-item" data-tab="settings">
           <a onclick="switchTab('settings')">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -440,6 +448,166 @@
         </section>
         
         <!-- ==========================================================
+             6.5 TAB: TÍCH HỢP EXCEL (EXCEL HUB)
+             ========================================================== -->
+        <section id="view-excel-hub" class="tab-view">
+          <!-- Chỉ số thống kê dữ liệu Excel -->
+          <div class="kpi-grid" style="margin-bottom: 24px;">
+            <div class="kpi-card" style="--card-accent: var(--color-info)">
+              <div class="kpi-info">
+                <span class="kpi-label">Sản phẩm từ Excel</span>
+                <span id="excel-stat-products" class="kpi-value font-numeric">0</span>
+                <span class="kpi-trend">Mặt hàng tồn kho</span>
+              </div>
+              <div class="kpi-icon-wrapper">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+              </div>
+            </div>
+            
+            <div class="kpi-card" style="--card-accent: var(--color-success)">
+              <div class="kpi-info">
+                <span class="kpi-label">Khách hàng & NCC từ Excel</span>
+                <span id="excel-stat-partners" class="kpi-value font-numeric">0</span>
+                <span class="kpi-trend">Danh bạ đối tác</span>
+              </div>
+              <div class="kpi-icon-wrapper">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+              </div>
+            </div>
+            
+            <div class="kpi-card" style="--card-accent: var(--color-primary)">
+              <div class="kpi-info">
+                <span class="kpi-label">Chứng từ nạp từ Excel</span>
+                <span id="excel-stat-vouchers" class="kpi-value font-numeric">0</span>
+                <span class="kpi-trend">Sổ nhật ký thu chi</span>
+              </div>
+              <div class="kpi-icon-wrapper">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+              </div>
+            </div>
+            
+            <div class="kpi-card" style="--card-accent: var(--color-warning)">
+              <div class="kpi-info">
+                <span class="kpi-label">Trạng thái Cơ sở dữ liệu</span>
+                <span id="excel-stat-status" class="kpi-value font-numeric" style="font-size: 18px; margin-top: 4px;">Excel Loaded</span>
+                <span class="kpi-trend">Đã đồng bộ</span>
+              </div>
+              <div class="kpi-icon-wrapper">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+              </div>
+            </div>
+          </div>
+          
+          <div class="dashboard-details-row" style="grid-template-columns: 1fr 1.2fr; gap: 24px;">
+            
+            <!-- BIỂU MẪU EXCEL CHUẨN MISA/BỘ TÀI CHÍNH -->
+            <div class="chart-card" style="min-height: auto;">
+              <div class="card-header-bar" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
+                <span class="card-title">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                  Biểu mẫu Kế toán Excel (Circular 133)
+                </span>
+              </div>
+              <p class="header-subtitle" style="margin-bottom: 16px;">Nhấn vào để xem và in chứng từ mẫu từ folder Excel cực chuẩn.</p>
+              
+              <div class="excel-forms-grid" style="display: flex; flex-direction: column; gap: 14px;">
+                <!-- Form Phiếu Thu -->
+                <div class="excel-form-item-card" style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-tertiary);">
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="background: rgba(14, 165, 233, 0.1); color: var(--color-primary); width: 42px; height: 42px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px;">PT</div>
+                    <div>
+                      <span style="font-weight: 700; color: var(--text-primary); font-size: 14px;">Phiếu Thu (Mẫu 01 - TT)</span><br>
+                      <span style="font-size: 11px; color: var(--text-muted);">Phiếu thu nạp từ 01_TT_Phieu_thu.xls (MISA SME)</span>
+                    </div>
+                  </div>
+                  <button class="btn btn-secondary btn-sm" onclick="viewExcelFormSample('PT')">Xem / In mẫu</button>
+                </div>
+                
+                <!-- Form Phiếu Chi -->
+                <div class="excel-form-item-card" style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-tertiary);">
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="background: rgba(245, 158, 11, 0.1); color: var(--color-warning); width: 42px; height: 42px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px;">PC</div>
+                    <div>
+                      <span style="font-weight: 700; color: var(--text-primary); font-size: 14px;">Phiếu Chi (Mẫu 02 - TT)</span><br>
+                      <span style="font-size: 11px; color: var(--text-muted);">Phiếu chi nạp từ 02_TT_Phieu_chi.xls (MISA SME)</span>
+                    </div>
+                  </div>
+                  <button class="btn btn-secondary btn-sm" onclick="viewExcelFormSample('PC')">Xem / In mẫu</button>
+                </div>
+              </div>
+              
+              <div style="background: rgba(245, 158, 11, 0.05); border: 1px dashed var(--color-warning); padding: 14px; border-radius: var(--radius-md); margin-top: 20px;">
+                <span style="font-weight: 700; color: var(--color-warning); font-size: 12px; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                  ⚠️ Lưu ý định khoản đối ứng
+                </span>
+                <span style="font-size: 11px; color: var(--text-secondary); line-height: 1.5; display: block;">
+                  Toàn bộ các chứng từ thu chi nạp từ Excel đều được kiểm duyệt chặt chẽ, tự động định khoản đối ứng kép (Nợ/Có) vào các tài khoản tiền mặt (111) hoặc tiền gửi ngân hàng (112) khớp tuyệt đối 100% với Sổ nhật ký chung.
+                </span>
+              </div>
+            </div>
+            
+            <!-- TRÌNH KÉO THẢ NHẬP EXCEL (EXCEL DROPZONE ENGINE) -->
+            <div class="chart-card" style="min-height: auto;">
+              <div class="card-header-bar" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
+                <span class="card-title">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                  Nhập File Excel Mới (Live Drag & Drop Importer)
+                </span>
+              </div>
+              
+              <p class="header-subtitle" style="margin-bottom: 16px;">Kéo thả file Excel mới của bạn vào đây hoặc bấm để chọn tệp để cập nhật Live vào hệ thống.</p>
+              
+              <div class="importers-container" style="display: flex; flex-direction: column; gap: 16px;">
+                <!-- Drag and drop vùng 1 -->
+                <div class="excel-drop-zone" id="excel-drop-zone-products" onclick="triggerFileInput('excel-file-products')">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 32px; height: 32px; color: var(--color-info); margin-bottom: 8px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path></svg>
+                  <span class="drop-zone-title">Danh mục Vật tư & Hàng hóa (xlsx)</span>
+                  <span class="drop-zone-sub">Kéo thả file hoặc nhấp để tải tệp hàng hóa</span>
+                  <input type="file" id="excel-file-products" accept=".xlsx, .xls" style="display: none;" onchange="handleExcelImport(event, 'products')">
+                </div>
+                
+                <!-- Drag and drop vùng 2 -->
+                <div class="excel-drop-zone" id="excel-drop-zone-partners" onclick="triggerFileInput('excel-file-partners')">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 32px; height: 32px; color: var(--color-success); margin-bottom: 8px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 0-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                  <span class="drop-zone-title">Danh sách Khách hàng & Nhà cung cấp (xlsx)</span>
+                  <span class="drop-zone-sub">Kéo thả file hoặc nhấp để tải tệp đối tác</span>
+                  <input type="file" id="excel-file-partners" accept=".xlsx, .xls" style="display: none;" onchange="handleExcelImport(event, 'partners')">
+                </div>
+                
+                <!-- Drag and drop vùng 3 -->
+                <div class="excel-drop-zone" id="excel-drop-zone-vouchers" onclick="triggerFileInput('excel-file-vouchers')">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 32px; height: 32px; color: var(--color-primary); margin-bottom: 8px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                  <span class="drop-zone-title">Sổ Nhật ký thu, chi tiền mặt & NH (xlsx)</span>
+                  <span class="drop-zone-sub">Kéo thả file hoặc nhấp để tải tệp thu chi</span>
+                  <input type="file" id="excel-file-vouchers" accept=".xlsx, .xls" style="display: none;" onchange="handleExcelImport(event, 'vouchers')">
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- BẢNG BẤN ĐỒNG BỘ TOÀN DIỆN HỆ THỐNG -->
+          <div class="chart-card" style="margin-top: 24px; min-height: auto; background: linear-gradient(135deg, rgba(14,165,233,0.05) 0%, rgba(245,158,11,0.05) 100%); border: 1px solid var(--border-color);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+              <div>
+                <span class="card-title" style="margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+                  🚀 Bảng Điều khiển Đồng bộ Kế toán Excel
+                </span>
+                <span style="font-size: 12px; color: var(--text-secondary);">Nhấp vào nút bên phải để ghi đè cơ sở dữ liệu hiện tại bằng dữ liệu đã tích hợp sẵn từ folder Excel.</span>
+              </div>
+              
+              <div style="display: flex; gap: 12px;">
+                <button class="btn btn-primary" onclick="syncDefaultExcelDatabase()" style="box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4);">
+                  Đồng bộ dữ liệu Excel mẫu
+                </button>
+                <button class="btn btn-secondary" onclick="exportDataToExcelSample()" style="color: var(--color-success); border-color: var(--color-success); background: transparent;">
+                  Xuất dữ liệu hệ thống (Excel)
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        <!-- ==========================================================
              7. TAB: THIẾT LẬP (SETTINGS)
              ========================================================== -->
         <section id="view-settings" class="tab-view">
@@ -560,9 +728,7 @@
         <form id="form-purchase" class="form-grid" onsubmit="handlePurchaseSubmit(event)">
           <div class="form-group">
             <label class="form-label">Nhà cung cấp</label>
-            <select id="pur-partner" class="form-control" required>
-              <!-- Danh sách NCC nạp động -->
-            </select>
+            <input type="text" id="pur-partner" class="form-control" placeholder="Gõ để tìm nhà cung cấp..." required list="datalist-partners">
           </div>
           
           <div class="form-group">
@@ -652,9 +818,7 @@
         <form id="form-sales" class="form-grid" onsubmit="handleSalesSubmit(event)">
           <div class="form-group">
             <label class="form-label">Khách hàng mua</label>
-            <select id="sale-partner" class="form-control" required>
-              <!-- Danh sách KH nạp động -->
-            </select>
+            <input type="text" id="sale-partner" class="form-control" placeholder="Gõ để tìm khách hàng..." required list="datalist-partners">
           </div>
           
           <div class="form-group">
@@ -762,9 +926,7 @@
 
           <div class="form-group">
             <label class="form-label">Đối tác liên quan</label>
-            <select id="esc-partner" class="form-control" required>
-              <!-- Đối tác nạp động -->
-            </select>
+            <input type="text" id="esc-partner" class="form-control" placeholder="Gõ để tìm đối tác..." required list="datalist-partners">
           </div>
           
           <div class="form-grid" style="grid-template-columns: 1.2fr 1fr;">
@@ -829,7 +991,12 @@
   <!-- CONTAINER THÔNG BÁO TOAST -->
   <div class="toast-container" id="toast-container"></div>
 
+  <!-- DATALIST CHO AUTOCOMPLETE ĐỐI TÁC DỮ LIỆU LỚN -->
+  <datalist id="datalist-partners"></datalist>
+
   <!-- FILE JAVASCRIPT LOGIC CHÍNH -->
+  <script src="xlsx.full.min.js"></script>
+  <script src="prepopulated_database.js"></script>
   <script src="data.js"></script>
   <script src="app.js"></script>
 </body>

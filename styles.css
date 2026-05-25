@@ -1189,3 +1189,59 @@ body {
     background-color: transparent !important;
   }
 }
+
+/* ==========================================================
+   BỔ SUNG THIẾT KẾ CHO PHÂN HỆ TÍCH HỢP EXCEL HUB
+   ========================================================== */
+.excel-drop-zone {
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 22px 16px;
+  text-align: center;
+  background-color: var(--bg-secondary);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-normal);
+  border-color: rgba(14, 165, 233, 0.25);
+}
+
+.excel-drop-zone:hover {
+  border-color: var(--color-primary);
+  background-color: rgba(14, 165, 233, 0.04);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.excel-drop-zone.dragover {
+  border-color: var(--color-success);
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+.drop-zone-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 6px;
+  margin-bottom: 2px;
+}
+
+.drop-zone-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.excel-form-item-card {
+  transition: all var(--transition-fast);
+}
+
+.excel-form-item-card:hover {
+  border-color: var(--color-primary) !important;
+  transform: translateX(4px);
+}
+
+/* Các nhãn thu chi phụ */
+.activity-item.type-receipt { border-left-color: var(--color-success); }
+.activity-item.type-payment { border-left-color: var(--color-danger); }
