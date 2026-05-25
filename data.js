@@ -24,6 +24,12 @@ const DEFAULT_DATA = {
     { id: "NCC003", name: "Tổng công ty Bất động sản Hà Nội (Cho thuê xưởng)", type: "supplier", phone: "0905111222", email: "leasing@hanoiland.com", address: "Số 10 Trần Duy Hưng, Quận Cầu Giấy, Hà Nội" }
   ],
 
+  // Số dư đầu kỳ đối tác
+  partnerOpeningBalances: {
+    "KH001": { debit: 250000000, credit: 0 },
+    "NCC001": { debit: 0, credit: 40000000 }
+  },
+
   // Số dư đầu kỳ tài khoản kế toán (Tính đến 01/01/2026)
   // Tổng Nợ phải bằng Tổng Có để cân đối
   initialBalances: {

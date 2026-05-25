@@ -1245,3 +1245,7 @@ body {
 /* Các nhãn thu chi phụ */
 .activity-item.type-receipt { border-left-color: var(--color-success); }
 .activity-item.type-payment { border-left-color: var(--color-danger); }
+
+.badge-secondary { background-color: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color); }
+.badge-muted { background-color: rgba(100, 116, 139, 0.1); color: rgb(100, 116, 139); }
+

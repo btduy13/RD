@@ -44,6 +44,19 @@ function initApp() {
     saveState();
   }
 
+  // Đảm bảo khởi tạo các tài khoản số dư đầu kỳ và số dư đối tác
+  if (!state.initialBalances || Object.keys(state.initialBalances).length === 0) {
+    state.initialBalances = JSON.parse(JSON.stringify(DEFAULT_DATA.initialBalances));
+  }
+  if (!state.partnerOpeningBalances || Object.keys(state.partnerOpeningBalances).length === 0) {
+    if (typeof PREPOPULATED_DATABASE !== "undefined" && PREPOPULATED_DATABASE.partnerOpeningBalances) {
+      state.partnerOpeningBalances = JSON.parse(JSON.stringify(PREPOPULATED_DATABASE.partnerOpeningBalances));
+    } else {
+      state.partnerOpeningBalances = {};
+    }
+  }
+
+
   // Đặt theme mặc định (Tối)
   const isLightTheme = localStorage.getItem("theme") === "light";
   if (isLightTheme) {
@@ -352,6 +365,10 @@ function switchTab(tabId) {
     inventory: { title: "Quản lý kho hàng", sub: "Theo dõi thẻ kho và giá trị tồn kho theo phương pháp bình quân liên hoàn" },
     escrow: { title: "Ký quỹ & Ký cược", sub: "Theo dõi các khoản đặt cọc mang đi và nhận bảo lãnh từ đại lý" },
     reports: { title: "Hệ thống báo cáo kế toán", sub: "Nhật ký chung, Sổ cái tài khoản và Bảng cân đối phát sinh" },
+    "excel-hub": { title: "Tích hợp Excel", sub: "Nạp và kết xuất dữ liệu tự động giữa phần mềm và file Excel" },
+    partners: { title: "Danh mục Đối tác", sub: "Quản lý hồ sơ khách hàng, nhà cung cấp và thông tin liên hệ" },
+    debts: { title: "Quản lý Công nợ", sub: "Sổ tổng hợp chi tiết công nợ phải thu (TK 131) và phải trả (TK 331)" },
+    cash: { title: "Quỹ tiền Thu & Chi", sub: "Sổ quỹ tiền mặt, tiền gửi ngân hàng và hạch toán phiếu thu/chi" },
     settings: { title: "Thiết lập hệ thống", sub: "Cấu hình doanh nghiệp và quản lý cơ sở dữ liệu" }
   };
 
@@ -376,6 +393,13 @@ function switchTab(tabId) {
     renderStockLedger();
   } else if (tabId === "reports") {
     populateReportAccountDropdown();
+  } else if (tabId === "partners") {
+    filterPartners();
+  } else if (tabId === "debts") {
+    filterDebts();
+  } else if (tabId === "cash") {
+    filterCash();
+    recalculateCashKpis();
   }
 
   // Scroll to top
@@ -2307,6 +2331,725 @@ function clearAllData() {
 }
 
 // ==========================================================
+// CÁC PHÂN HỆ NÂNG CẤP: KHÁCH HÀNG, CÔNG NỢ & QUỸ TIỀN
+// ==========================================================
+
+let partnersPage = 1;
+let debtsPage = 1;
+let cashPage = 1;
+const itemsPerPage = 50;
+
+let filteredPartnersList = [];
+let filteredDebtsList = [];
+let filteredCashList = [];
+
+// --- Phân hệ Khách hàng ---
+function renderPartnersTable() {
+  const tbody = document.getElementById("partners-table-body");
+  if (!tbody) return;
+
+  const startIdx = (partnersPage - 1) * itemsPerPage;
+  const endIdx = startIdx + itemsPerPage;
+  const pageItems = filteredPartnersList.slice(startIdx, endIdx);
+
+  tbody.innerHTML = "";
+  if (pageItems.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy đối tác nào</td></tr>`;
+  } else {
+    pageItems.forEach(p => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td style="font-weight:bold; color:var(--color-primary);">${p.id}</td>
+        <td style="font-weight:600;">${p.name}</td>
+        <td>
+          <span class="badge ${p.type === 'supplier' ? 'badge-warning' : 'badge-info'}">
+            ${p.type === 'supplier' ? 'Nhà cung cấp' : 'Khách hàng'}
+          </span>
+        </td>
+        <td class="font-numeric">${p.phone || "-"}</td>
+        <td>${p.address || "-"}</td>
+        <td>
+          <span class="badge ${p.inactive ? 'badge-danger' : 'badge-success'}">
+            ${p.inactive ? 'Ngừng theo dõi' : 'Đang theo dõi'}
+          </span>
+        </td>
+        <td style="text-align:center;">
+          <button class="btn btn-secondary btn-sm" onclick="openEditPartnerModal('${p.id}')" style="padding: 2px 6px; margin-right: 4px;">Sửa</button>
+          <button class="btn btn-secondary btn-sm" onclick="deletePartner('${p.id}')" style="padding: 2px 6px; color:var(--color-danger); border-color:rgba(239, 68, 68, 0.2);">Xóa</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  const total = filteredPartnersList.length;
+  const paginationInfo = document.getElementById("partners-pagination-info");
+  if (paginationInfo) {
+    paginationInfo.innerText = total > 0
+      ? `Hiển thị ${startIdx + 1} - ${Math.min(endIdx, total)} trong số ${total} đối tác`
+      : `Hiển thị 0 - 0 trong số 0 đối tác`;
+  }
+
+  const btnPrev = document.getElementById("btn-partners-prev");
+  const btnNext = document.getElementById("btn-partners-next");
+  if (btnPrev) btnPrev.disabled = partnersPage === 1;
+  if (btnNext) btnNext.disabled = endIdx >= total;
+}
+
+function changePartnersPage(dir) {
+  partnersPage += dir;
+  renderPartnersTable();
+}
+
+function filterPartners() {
+  const query = document.getElementById("partner-search-input") ? document.getElementById("partner-search-input").value.toLowerCase().trim() : "";
+  const filterType = document.getElementById("partner-type-filter") ? document.getElementById("partner-type-filter").value : "all";
+
+  filteredPartnersList = state.partners.filter(p => {
+    const matchesQuery = p.id.toLowerCase().includes(query) || p.name.toLowerCase().includes(query) || (p.phone && p.phone.includes(query));
+    const matchesType = filterType === "all" || p.type === filterType;
+    return matchesQuery && matchesType;
+  });
+
+  partnersPage = 1;
+  renderPartnersTable();
+}
+
+function openAddPartnerModal() {
+  document.getElementById("edit-partner-index").value = "-1";
+  document.getElementById("form-partner").reset();
+  document.getElementById("partner-id").disabled = false;
+  document.getElementById("modal-partner-title").innerText = "Khai báo Đối tác mới";
+  openModal("modal-add-partner");
+}
+
+function openEditPartnerModal(id) {
+  const p = state.partners.find(item => item.id === id);
+  if (!p) return;
+
+  document.getElementById("edit-partner-index").value = p.id;
+  document.getElementById("partner-id").value = p.id;
+  document.getElementById("partner-id").disabled = true;
+  document.getElementById("partner-name").value = p.name;
+  document.getElementById("partner-type").value = p.type;
+  document.getElementById("partner-phone").value = p.phone || "";
+  document.getElementById("partner-address").value = p.address || "";
+  document.getElementById("partner-taxcode").value = p.taxCode || "";
+  document.getElementById("partner-inactive").checked = !!p.inactive;
+
+  document.getElementById("modal-partner-title").innerText = "Chỉnh sửa Đối tác";
+  openModal("modal-add-partner");
+}
+
+function handlePartnerSubmit(e) {
+  e.preventDefault();
+  
+  const editIndex = document.getElementById("edit-partner-index").value;
+  const idVal = document.getElementById("partner-id").value.trim();
+  const name = document.getElementById("partner-name").value.trim();
+  const type = document.getElementById("partner-type").value;
+  const phone = document.getElementById("partner-phone").value.trim();
+  const address = document.getElementById("partner-address").value.trim();
+  const taxCode = document.getElementById("partner-taxcode").value.trim();
+  const inactive = document.getElementById("partner-inactive").checked;
+
+  if (editIndex !== "-1") {
+    const idx = state.partners.findIndex(p => p.id === editIndex);
+    if (idx !== -1) {
+      state.partners[idx] = { id: editIndex, name, type, phone, email: "", address, taxCode, inactive };
+      showToast("Cập nhật đối tác thành công!", "success");
+    }
+  } else {
+    let id = idVal.toUpperCase();
+    if (!id) {
+      const prefix = type === "supplier" ? "NCC" : "KH";
+      const nextNum = (state.partners.filter(p => p.type === type).length + 1).toString().padStart(3, '0');
+      id = `${prefix}${nextNum}`;
+    }
+    
+    if (state.partners.some(p => p.id === id)) {
+      showToast(`Mã đối tác "${id}" đã tồn tại!`, "danger");
+      return;
+    }
+
+    state.partners.push({ id, name, type, phone, email: "", address, taxCode, inactive });
+    showToast("Thêm đối tác mới thành công!", "success");
+  }
+
+  saveState();
+  initExcelIntegration();
+  closeModal("modal-add-partner");
+  document.getElementById("form-partner").reset();
+  filterPartners();
+}
+
+function deletePartner(id) {
+  if (confirm(`Bạn có chắc chắn muốn xóa đối tác "${id}" không?`)) {
+    state.partners = state.partners.filter(p => p.id !== id);
+    saveState();
+    initExcelIntegration();
+    filterPartners();
+    showToast(`Đã xóa đối tác "${id}"!`, "success");
+  }
+}
+
+function exportPartnersToExcel() {
+  if (typeof XLSX === "undefined") {
+    showToast("Thư viện SheetJS chưa được nạp!", "danger");
+    return;
+  }
+  try {
+    const wb = XLSX.utils.book_new();
+    const rows = [
+      ["DANH SÁCH KHÁCH HÀNG"],
+      ["Mã khách hàng", "Tên khách hàng", "Địa chỉ", "Nhóm KH, NCC", "Mã số thuế", "Điện thoại", "Ngừng theo dõi"]
+    ];
+    state.partners.forEach(p => {
+      rows.push([
+        p.id,
+        p.name,
+        p.address || "",
+        p.type === "supplier" ? "NCC" : "KH",
+        p.taxCode || "",
+        p.phone || "",
+        p.inactive ? "TRUE" : "FALSE"
+      ]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    XLSX.utils.book_append_sheet(wb, ws, "Khach_hang");
+    XLSX.writeFile(wb, `Khach_hang - RANGDONG_${new Date().toISOString().split("T")[0]}.xlsx`);
+    showToast("Xuất danh mục khách hàng ra Excel thành công!", "success");
+  } catch (err) {
+    console.error(err);
+    showToast("Lỗi xuất Excel khách hàng!", "danger");
+  }
+}
+
+// --- Phân hệ Công nợ ---
+function calculatePartnerDebts() {
+  const debts = {};
+  
+  state.partners.forEach(p => {
+    const opening = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
+    debts[p.id] = {
+      id: p.id,
+      name: p.name,
+      type: p.type,
+      address: p.address || "",
+      taxCode: p.taxCode || "",
+      phone: p.phone || "",
+      openingDebit: opening.debit || 0,
+      openingCredit: opening.credit || 0,
+      debitTrans: 0,
+      creditTrans: 0,
+      closingDebit: 0,
+      closingCredit: 0
+    };
+  });
+
+  state.vouchers.forEach(v => {
+    if (!v.entries) return;
+    
+    v.entries.forEach(e => {
+      if (e.debit.startsWith("131")) {
+        const pId = v.partnerId;
+        if (debts[pId]) debts[pId].debitTrans += e.amount;
+      }
+      if (e.credit.startsWith("131")) {
+        const pId = v.partnerId;
+        if (debts[pId]) debts[pId].creditTrans += e.amount;
+      }
+      
+      if (e.debit.startsWith("331")) {
+        const pId = v.partnerId;
+        if (debts[pId]) debts[pId].debitTrans += e.amount;
+      }
+      if (e.credit.startsWith("331")) {
+        const pId = v.partnerId;
+        if (debts[pId]) debts[pId].creditTrans += e.amount;
+      }
+    });
+  });
+
+  Object.keys(debts).forEach(id => {
+    const d = debts[id];
+    if (d.type === "customer") {
+      const balance = d.openingDebit - d.openingCredit + d.debitTrans - d.creditTrans;
+      if (balance >= 0) {
+        d.closingDebit = balance;
+        d.closingCredit = 0;
+      } else {
+        d.closingDebit = 0;
+        d.closingCredit = -balance;
+      }
+    } else {
+      const balance = d.openingCredit - d.openingDebit + d.creditTrans - d.debitTrans;
+      if (balance >= 0) {
+        d.closingCredit = balance;
+        d.closingDebit = 0;
+      } else {
+        d.closingCredit = 0;
+        d.closingDebit = -balance;
+      }
+    }
+  });
+
+  return Object.values(debts);
+}
+
+function renderDebtsTable() {
+  const tbody = document.getElementById("debts-table-body");
+  if (!tbody) return;
+
+  const startIdx = (debtsPage - 1) * itemsPerPage;
+  const endIdx = startIdx + itemsPerPage;
+  const pageItems = filteredDebtsList.slice(startIdx, endIdx);
+
+  tbody.innerHTML = "";
+  if (pageItems.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy công nợ đối tác nào</td></tr>`;
+  } else {
+    pageItems.forEach(d => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td style="font-weight:bold;">${d.id}</td>
+        <td style="font-weight:600;">${d.name}</td>
+        <td style="text-align:right; font-weight:500;" class="font-numeric">${d.openingDebit > 0 ? formatVND(d.openingDebit).replace("đ","") : "-"}</td>
+        <td style="text-align:right; font-weight:500;" class="font-numeric">${d.openingCredit > 0 ? formatVND(d.openingCredit).replace("đ","") : "-"}</td>
+        <td style="text-align:right; color:var(--color-primary); font-weight:500;" class="font-numeric">${d.debitTrans > 0 ? formatVND(d.debitTrans).replace("đ","") : "-"}</td>
+        <td style="text-align:right; color:var(--color-warning); font-weight:500;" class="font-numeric">${d.creditTrans > 0 ? formatVND(d.creditTrans).replace("đ","") : "-"}</td>
+        <td style="text-align:right; font-weight:700;" class="font-numeric ${d.closingDebit > 0 ? 'text-success' : ''}">${d.closingDebit > 0 ? formatVND(d.closingDebit).replace("đ","") : "-"}</td>
+        <td style="text-align:right; font-weight:700;" class="font-numeric ${d.closingCredit > 0 ? 'text-warning' : ''}">${d.closingCredit > 0 ? formatVND(d.closingCredit).replace("đ","") : "-"}</td>
+        <td style="text-align:center;">
+          <button class="btn btn-secondary btn-sm" onclick="viewPartnerLedger('${d.id}')" style="padding: 2px 8px;">Xem Sổ</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  const total = filteredDebtsList.length;
+  const paginationInfo = document.getElementById("debts-pagination-info");
+  if (paginationInfo) {
+    paginationInfo.innerText = total > 0
+      ? `Hiển thị ${startIdx + 1} - ${Math.min(endIdx, total)} trong số ${total} đối tác`
+      : `Hiển thị 0 - 0 trong số 0 đối tác`;
+  }
+
+  const btnPrev = document.getElementById("btn-debts-prev");
+  const btnNext = document.getElementById("btn-debts-next");
+  if (btnPrev) btnPrev.disabled = debtsPage === 1;
+  if (btnNext) btnNext.disabled = endIdx >= total;
+}
+
+function changeDebtsPage(dir) {
+  debtsPage += dir;
+  renderDebtsTable();
+}
+
+function filterDebts() {
+  const query = document.getElementById("debt-search-input") ? document.getElementById("debt-search-input").value.toLowerCase().trim() : "";
+  const filterType = document.getElementById("debt-type-filter") ? document.getElementById("debt-type-filter").value : "all";
+
+  const allDebts = calculatePartnerDebts();
+
+  filteredDebtsList = allDebts.filter(d => {
+    const matchesQuery = d.id.toLowerCase().includes(query) || d.name.toLowerCase().includes(query);
+    let matchesType = true;
+    if (filterType === "131") {
+      matchesType = d.type === "customer";
+    } else if (filterType === "331") {
+      matchesType = d.type === "supplier";
+    }
+    return matchesQuery && matchesType;
+  });
+
+  debtsPage = 1;
+  renderDebtsTable();
+}
+
+function viewPartnerLedger(partnerId) {
+  const p = state.partners.find(item => item.id === partnerId);
+  if (!p) return;
+
+  const opening = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
+  const openingText = p.type === "customer" 
+    ? (opening.debit >= opening.credit ? `${formatVND(opening.debit - opening.credit)} (Nợ)` : `${formatVND(opening.credit - opening.debit)} (Có)`)
+    : (opening.credit >= opening.debit ? `${formatVND(opening.credit - opening.debit)} (Có)` : `${formatVND(opening.debit - opening.credit)} (Nợ)`);
+
+  document.getElementById("partner-ledger-subtitle").innerText = `Đối tác: ${p.id} - ${p.name} | Loại: ${p.type === 'customer' ? 'Khách hàng' : 'Nhà cung cấp'}`;
+  document.getElementById("partner-ledger-opening").innerText = openingText;
+
+  const tbody = document.getElementById("partner-ledger-table-body");
+  tbody.innerHTML = "";
+
+  let debitSum = 0;
+  let creditSum = 0;
+
+  const ledgerEntries = [];
+  state.vouchers.forEach(v => {
+    if (v.partnerId !== p.id) return;
+    if (!v.entries) return;
+
+    v.entries.forEach(e => {
+      const is131 = e.debit.startsWith("131") || e.credit.startsWith("131");
+      const is331 = e.debit.startsWith("331") || e.credit.startsWith("331");
+      if (!is131 && !is331) return;
+
+      let debitAmount = 0;
+      let creditAmount = 0;
+      let offsetAccount = "";
+
+      if (e.debit.startsWith("131") || e.debit.startsWith("331")) {
+        debitAmount = e.amount;
+        offsetAccount = e.credit;
+      } else {
+        creditAmount = e.amount;
+        offsetAccount = e.debit;
+      }
+
+      ledgerEntries.push({
+        date: v.date,
+        id: v.id,
+        desc: e.desc || v.description,
+        offsetAccount,
+        debit: debitAmount,
+        credit: creditAmount
+      });
+
+      debitSum += debitAmount;
+      creditSum += creditAmount;
+    });
+  });
+
+  ledgerEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  if (ledgerEntries.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px;">Không có giao dịch phát sinh công nợ trong kỳ</td></tr>`;
+  } else {
+    ledgerEntries.forEach(le => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${le.date}</td>
+        <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${le.id}'); return false;" style="font-weight:bold; color:var(--color-primary);">${le.id}</a></td>
+        <td>${le.desc}</td>
+        <td style="text-align:center; font-weight:700;">${le.offsetAccount}</td>
+        <td style="text-align:right; font-weight:500;">${le.debit > 0 ? formatVND(le.debit).replace("đ","") : "-"}</td>
+        <td style="text-align:right; font-weight:500;">${le.credit > 0 ? formatVND(le.credit).replace("đ","") : "-"}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  let closingVal = 0;
+  let closingText = "";
+  if (p.type === "customer") {
+    closingVal = (opening.debit - opening.credit) + debitSum - creditSum;
+    closingText = closingVal >= 0 ? `${formatVND(closingVal)} (Nợ)` : `${formatVND(-closingVal)} (Có)`;
+  } else {
+    closingVal = (opening.credit - opening.debit) + creditSum - debitSum;
+    closingText = closingVal >= 0 ? `${formatVND(closingVal)} (Có)` : `${formatVND(-closingVal)} (Nợ)`;
+  }
+
+  document.getElementById("partner-ledger-closing").innerText = closingText;
+
+  openModal("modal-view-partner-ledger");
+}
+
+function exportDebtsToExcel() {
+  if (typeof XLSX === "undefined") {
+    showToast("Thư viện SheetJS chưa được nạp!", "danger");
+    return;
+  }
+  try {
+    const wb = XLSX.utils.book_new();
+    const rows = [
+      ["DANH SÁCH CÔNG NỢ KHÁCH HÀNG"],
+      ["Mã khách hàng", "Tên khách hàng", "Số còn phải thu theo HĐ", "Số thu trước/Giảm trừ khác", "Số còn phải thu", "Địa chỉ", "Mã số thuế", "Điện thoại"]
+    ];
+    
+    const calculatedDebts = calculatePartnerDebts();
+    calculatedDebts.forEach(d => {
+      const netDebt = d.type === "customer" ? (d.closingDebit - d.closingCredit) : (d.closingCredit - d.closingDebit);
+      rows.push([
+        d.id,
+        d.name,
+        d.type === "customer" ? d.closingDebit : 0,
+        d.type === "customer" ? d.closingCredit : 0,
+        netDebt,
+        d.address || "",
+        d.taxCode || "",
+        d.phone || ""
+      ]);
+    });
+    
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    XLSX.utils.book_append_sheet(wb, ws, "Cong_no_khach_hang");
+    XLSX.writeFile(wb, `Cong_no_khach_hang_${new Date().toISOString().split("T")[0]}.xlsx`);
+    showToast("Xuất báo cáo công nợ ra Excel thành công!", "success");
+  } catch (err) {
+    console.error(err);
+    showToast("Lỗi xuất Excel công nợ!", "danger");
+  }
+}
+
+// --- Phân hệ Thu/Chi ---
+function recalculateCashKpis() {
+  const balance111 = getAccountBalance("111");
+  const balance112 = getAccountBalance("112");
+  
+  let totalReceipts = 0;
+  let totalPayments = 0;
+
+  state.vouchers.forEach(v => {
+    const isCashVoucher = v.type === "receipt" || v.type === "payment" || v.type.startsWith("escrow_");
+    if (!isCashVoucher) return;
+
+    if (v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay") {
+      totalReceipts += v.amount;
+    } else if (v.type === "payment" || v.type === "escrow_pay" || v.type === "escrow_refund_receive") {
+      totalPayments += v.amount;
+    }
+  });
+
+  const cashEl = document.getElementById("cash-kpi-cash");
+  const bankEl = document.getElementById("cash-kpi-bank");
+  const recEl = document.getElementById("cash-kpi-receipts");
+  const payEl = document.getElementById("cash-kpi-payments");
+
+  if (cashEl) cashEl.innerText = formatVND(balance111);
+  if (bankEl) bankEl.innerText = formatVND(balance112);
+  if (recEl) recEl.innerText = formatVND(totalReceipts);
+  if (payEl) payEl.innerText = formatVND(totalPayments);
+}
+
+function renderCashTable() {
+  const tbody = document.getElementById("cash-table-body");
+  if (!tbody) return;
+
+  const startIdx = (cashPage - 1) * itemsPerPage;
+  const endIdx = startIdx + itemsPerPage;
+  const pageItems = filteredCashList.slice(startIdx, endIdx);
+
+  tbody.innerHTML = "";
+  if (pageItems.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy chứng từ nào</td></tr>`;
+  } else {
+    pageItems.forEach(v => {
+      const typeLabel = (v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay") ? "Phiếu Thu" : "Phiếu Chi";
+      const isReceipt = v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay";
+      const methodLabel = v.paymentMethod === "111" ? "Tiền mặt (111)" : "Ngân hàng (112)";
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${v.date}</td>
+        <td>${v.date}</td>
+        <td style="font-weight:bold;">${v.id}</td>
+        <td>${v.partnerName}</td>
+        <td>${v.description}</td>
+        <td style="text-align:right; font-weight:700;" class="font-numeric">${formatVND(v.amount).replace("đ","")}</td>
+        <td>
+          <span class="badge ${isReceipt ? 'badge-success' : 'badge-danger'}">
+            ${typeLabel}
+          </span>
+        </td>
+        <td>${methodLabel}</td>
+        <td style="text-align:center;">
+          <button class="btn btn-secondary btn-sm" onclick="viewVoucher('${v.id}')" style="padding: 2px 8px;">In mẫu</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  const total = filteredCashList.length;
+  const paginationInfo = document.getElementById("cash-pagination-info");
+  if (paginationInfo) {
+    paginationInfo.innerText = total > 0
+      ? `Hiển thị ${startIdx + 1} - ${Math.min(endIdx, total)} trong số ${total} chứng từ`
+      : `Hiển thị 0 - 0 trong số 0 chứng từ`;
+  }
+
+  const btnPrev = document.getElementById("btn-cash-prev");
+  const btnNext = document.getElementById("btn-cash-next");
+  if (btnPrev) btnPrev.disabled = cashPage === 1;
+  if (btnNext) btnNext.disabled = endIdx >= total;
+}
+
+function changeCashPage(dir) {
+  cashPage += dir;
+  renderCashTable();
+}
+
+function filterCash() {
+  const query = document.getElementById("cash-search-input") ? document.getElementById("cash-search-input").value.toLowerCase().trim() : "";
+  const filterType = document.getElementById("cash-type-filter") ? document.getElementById("cash-type-filter").value : "all";
+  const filterMethod = document.getElementById("cash-method-filter") ? document.getElementById("cash-method-filter").value : "all";
+
+  filteredCashList = state.vouchers.filter(v => {
+    const isCash = v.type === "receipt" || v.type === "payment" || v.type.startsWith("escrow_");
+    if (!isCash) return false;
+
+    const matchesQuery = v.id.toLowerCase().includes(query) || v.partnerName.toLowerCase().includes(query) || v.description.toLowerCase().includes(query);
+    
+    let matchesType = true;
+    if (filterType === "receipt") {
+      matchesType = v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay";
+    } else if (filterType === "payment") {
+      matchesType = v.type === "payment" || v.type === "escrow_pay" || v.type === "escrow_refund_receive";
+    }
+
+    let matchesMethod = true;
+    if (filterMethod !== "all") {
+      matchesMethod = v.paymentMethod === filterMethod;
+    }
+
+    return matchesQuery && matchesType && matchesMethod;
+  });
+
+  filteredCashList.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  cashPage = 1;
+  renderCashTable();
+}
+
+function openAddReceiptModal() {
+  document.getElementById("form-receipt").reset();
+  document.getElementById("receipt-date").value = new Date().toISOString().split("T")[0];
+  openModal("modal-add-receipt");
+}
+
+function openAddPaymentModal() {
+  document.getElementById("form-payment").reset();
+  document.getElementById("payment-date").value = new Date().toISOString().split("T")[0];
+  openModal("modal-add-payment");
+}
+
+function handleReceiptSubmit(e) {
+  e.preventDefault();
+  
+  const date = document.getElementById("receipt-date").value;
+  const partnerVal = document.getElementById("receipt-partner").value;
+  const debit = document.getElementById("receipt-debit").value;
+  const credit = document.getElementById("receipt-credit").value;
+  const amount = parseInt(document.getElementById("receipt-amount").value) || 0;
+  const desc = document.getElementById("receipt-desc").value.trim();
+
+  const partnerObj = resolvePartner(partnerVal);
+  
+  const nextNum = (state.vouchers.filter(v => v.type === 'receipt').length + 1).toString().padStart(4, '0');
+  const id = `PT-${new Date().getFullYear().toString().substring(2)}-${nextNum}`;
+
+  const newVoucher = {
+    id,
+    type: "receipt",
+    date,
+    partnerId: partnerObj.id,
+    partnerName: partnerObj.name,
+    paymentMethod: debit,
+    description: desc,
+    amount,
+    entries: [
+      { debit, credit, amount, desc }
+    ]
+  };
+
+  state.vouchers.push(newVoucher);
+  saveState();
+  recalculateAccounting();
+  
+  closeModal("modal-add-receipt");
+  document.getElementById("form-receipt").reset();
+  showToast("Lập phiếu thu thành công!", "success");
+  
+  filterCash();
+  recalculateCashKpis();
+}
+
+function handlePaymentSubmit(e) {
+  e.preventDefault();
+  
+  const date = document.getElementById("payment-date").value;
+  const partnerVal = document.getElementById("payment-partner").value;
+  const debit = document.getElementById("payment-debit").value;
+  const credit = document.getElementById("payment-credit").value;
+  const amount = parseInt(document.getElementById("payment-amount").value) || 0;
+  const desc = document.getElementById("payment-desc").value.trim();
+
+  const partnerObj = resolvePartner(partnerVal);
+  
+  const nextNum = (state.vouchers.filter(v => v.type === 'payment').length + 1).toString().padStart(4, '0');
+  const id = `PC-${new Date().getFullYear().toString().substring(2)}-${nextNum}`;
+
+  const newVoucher = {
+    id,
+    type: "payment",
+    date,
+    partnerId: partnerObj.id,
+    partnerName: partnerObj.name,
+    paymentMethod: credit,
+    description: desc,
+    amount,
+    entries: [
+      { debit, credit, amount, desc }
+    ]
+  };
+
+  state.vouchers.push(newVoucher);
+  saveState();
+  recalculateAccounting();
+  
+  closeModal("modal-add-payment");
+  document.getElementById("form-payment").reset();
+  showToast("Lập phiếu chi thành công!", "success");
+  
+  filterCash();
+  recalculateCashKpis();
+}
+
+function exportCashToExcel() {
+  if (typeof XLSX === "undefined") {
+    showToast("Thư viện SheetJS chưa được nạp!", "danger");
+    return;
+  }
+  try {
+    const wb = XLSX.utils.book_new();
+    const rows = [
+      ["DANH SÁCH THU, CHI TIỀN"],
+      ["Ngày hạch toán", "Ngày chứng từ", "Số chứng từ", "Diễn giải", "Số tiền", "Đối tượng", "Lý do thu/chi", "Ngày ghi sổ quỹ", "Loại chứng từ", "Số chứng từ CUKCUK"]
+    ];
+    
+    state.vouchers.forEach(v => {
+      const isCash = v.type === "receipt" || v.type === "payment" || v.type.startsWith("escrow_");
+      if (!isCash) return;
+      
+      const typeLabel = (v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay") ? "Phiếu thu" : "Phiếu chi";
+      
+      rows.push([
+        v.date,
+        v.date,
+        v.id,
+        v.description,
+        v.amount,
+        v.partnerName,
+        v.description,
+        "",
+        typeLabel,
+        ""
+      ]);
+    });
+    
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    XLSX.utils.book_append_sheet(wb, ws, "Thu__chi_tien");
+    XLSX.writeFile(wb, `Thu__chi_tien_${new Date().toISOString().split("T")[0]}.xlsx`);
+    showToast("Xuất nhật ký thu chi ra Excel thành công!", "success");
+  } catch (err) {
+    console.error(err);
+    showToast("Lỗi xuất Excel quỹ tiền!", "danger");
+  }
+}
+
+// ==========================================================
 // CÁC HÀM TÍCH HỢP EXCEL HUB & AUTOCOMPLETE (EXCEL HUB UTILITIES)
 // ==========================================================
 
@@ -2523,9 +3266,11 @@ function parseExcelFile(file, type) {
           const taxCode = (row[4] || "").toString().trim();
           const phone = (row[5] || "").toString().trim();
           const type = (group.includes("NCC") || id.startsWith("NCC")) ? "supplier" : "customer";
+          const inactiveVal = row[6];
+          const inactive = inactiveVal === true || (inactiveVal || "").toString().toLowerCase().includes("true");
 
           const idx = state.partners.findIndex(p => p.id === id);
-          const pObj = { id, name, type, phone, email: "", address };
+          const pObj = { id, name, type, phone, email: "", address, taxCode, group, inactive };
           if (idx !== -1) {
             state.partners[idx] = pObj;
           } else {
@@ -2544,6 +3289,55 @@ function parseExcelFile(file, type) {
 
         saveState();
         showToast(`Đã nạp thành công ${count} đối tác từ file Excel!`, "success");
+        filterPartners();
+      } 
+      
+      else if (type === 'debts_opening') {
+        let count = 0;
+        state.partnerOpeningBalances = state.partnerOpeningBalances || {};
+        for (let i = 2; i < rows.length; i++) {
+          const row = rows[i];
+          const id = (row[0] || "").toString().trim();
+          if (!id || id === "Mã khách hàng") continue;
+
+          const name = (row[1] || "").toString().trim();
+          const debit = Number(row[2]) || 0;
+          const credit = Number(row[3]) || 0;
+          
+          state.partnerOpeningBalances[id] = { debit, credit };
+          
+          const idx = state.partners.findIndex(p => p.id === id);
+          if (idx === -1) {
+            const address = (row[5] || "").toString().trim();
+            const taxCode = (row[6] || "").toString().trim();
+            const phone = (row[7] || "").toString().trim();
+            state.partners.push({
+              id,
+              name,
+              type: id.startsWith("NCC") ? "supplier" : "customer",
+              phone,
+              email: "",
+              address,
+              taxCode,
+              group: id.startsWith("NCC") ? "NCC" : "KH",
+              inactive: false
+            });
+          }
+          count++;
+        }
+        
+        // Cập nhật datalist
+        const datalist = document.getElementById("datalist-partners");
+        if (datalist) {
+          datalist.innerHTML = state.partners.map(p => 
+            `<option value="${p.id}">${p.name} [${p.type === 'supplier' ? 'NCC' : 'KH'}]</option>`
+          ).join("");
+        }
+
+        saveState();
+        recalculateAccounting();
+        showToast(`Đã nạp số dư đầu kỳ cho ${count} đối tác từ file Excel!`, "success");
+        filterDebts();
       } 
       
       else if (type === 'vouchers') {

@@ -68,6 +68,30 @@
             <span>Ký quỹ, ký cược</span>
           </a>
         </li>
+        <li class="menu-item" data-tab="partners">
+          <a onclick="switchTab('partners')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+            </svg>
+            <span>Khách hàng & NCC</span>
+          </a>
+        </li>
+        <li class="menu-item" data-tab="debts">
+          <a onclick="switchTab('debts')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <span>Quản lý Công nợ</span>
+          </a>
+        </li>
+        <li class="menu-item" data-tab="cash">
+          <a onclick="switchTab('cash')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>Quỹ tiền Thu/Chi</span>
+          </a>
+        </li>
         <li class="menu-item" data-tab="reports">
           <a onclick="switchTab('reports')">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -608,6 +632,224 @@
         </section>
         
         <!-- ==========================================================
+             TAB: KHÁCH HÀNG & NCC (PARTNERS)
+             ========================================================== -->
+        <section id="view-partners" class="tab-view">
+          <div class="chart-card" style="min-height: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+              <div style="display: flex; gap: 12px; flex-grow: 1; max-width: 600px;">
+                <input type="text" id="partner-search-input" class="form-control" placeholder="Tìm theo mã hoặc tên đối tác..." oninput="filterPartners()">
+                <select id="partner-type-filter" class="form-control" style="max-width: 180px;" onchange="filterPartners()">
+                  <option value="all">Tất cả đối tác</option>
+                  <option value="customer">Khách hàng (KH)</option>
+                  <option value="supplier">Nhà cung cấp (NCC)</option>
+                </select>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-primary" onclick="openAddPartnerModal()">+ Thêm đối tác</button>
+                <button class="btn btn-secondary" onclick="triggerFileInput('excel-file-partners-view')" style="color: var(--color-success); border-color: var(--color-success);">Nhập Excel</button>
+                <button class="btn btn-secondary" onclick="exportPartnersToExcel()">Xuất Excel</button>
+                <input type="file" id="excel-file-partners-view" accept=".xlsx, .xls" style="display: none;" onchange="handleExcelImport(event, 'partners')">
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-card" style="flex-grow: 1;">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Mã đối tác</th>
+                    <th>Tên đối tác</th>
+                    <th>Phân loại</th>
+                    <th>Số điện thoại</th>
+                    <th>Địa chỉ</th>
+                    <th>Trạng thái</th>
+                    <th style="width: 120px; text-align: center;">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="partners-table-body">
+                  <!-- Được render động -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Phân trang -->
+            <div class="pagination-bar" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+              <span style="font-size: 13px; color: var(--text-secondary);" id="partners-pagination-info">Hiển thị 0 - 0 trong số 0 đối tác</span>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-secondary btn-sm" id="btn-partners-prev" onclick="changePartnersPage(-1)">Trước</button>
+                <button class="btn btn-secondary btn-sm" id="btn-partners-next" onclick="changePartnersPage(1)">Sau</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==========================================================
+             TAB: QUẢN LÝ CÔNG NỢ (DEBTS)
+             ========================================================== -->
+        <section id="view-debts" class="tab-view">
+          <div class="chart-card" style="min-height: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+              <div style="display: flex; gap: 12px; flex-grow: 1; max-width: 650px;">
+                <input type="text" id="debt-search-input" class="form-control" placeholder="Tìm theo mã hoặc tên đối tác..." oninput="filterDebts()">
+                <select id="debt-type-filter" class="form-control" style="max-width: 250px;" onchange="filterDebts()">
+                  <option value="all">Tất cả công nợ</option>
+                  <option value="131">Phải thu Khách hàng (TK 131)</option>
+                  <option value="331">Phải trả Nhà cung cấp (TK 331)</option>
+                </select>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-secondary" onclick="triggerFileInput('excel-file-debts-view')" style="color: var(--color-success); border-color: var(--color-success);">Nhập Công nợ Excel</button>
+                <button class="btn btn-secondary" onclick="exportDebtsToExcel()">Xuất Công nợ Excel</button>
+                <input type="file" id="excel-file-debts-view" accept=".xlsx, .xls" style="display: none;" onchange="handleExcelImport(event, 'debts_opening')">
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-card" style="flex-grow: 1;">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Mã đối tác</th>
+                    <th>Tên đối tác</th>
+                    <th style="text-align: right;">Dư đầu kỳ Nợ</th>
+                    <th style="text-align: right;">Dư đầu kỳ Có</th>
+                    <th style="text-align: right;">Phát sinh Nợ</th>
+                    <th style="text-align: right;">Phát sinh Có</th>
+                    <th style="text-align: right;">Dư cuối kỳ Nợ</th>
+                    <th style="text-align: right;">Dư cuối kỳ Có</th>
+                    <th style="width: 140px; text-align: center;">Sổ chi tiết</th>
+                  </tr>
+                </thead>
+                <tbody id="debts-table-body">
+                  <!-- Được render động -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Phân trang -->
+            <div class="pagination-bar" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+              <span style="font-size: 13px; color: var(--text-secondary);" id="debts-pagination-info">Hiển thị 0 - 0 trong số 0 đối tác</span>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-secondary btn-sm" id="btn-debts-prev" onclick="changeDebtsPage(-1)">Trước</button>
+                <button class="btn btn-secondary btn-sm" id="btn-debts-next" onclick="changeDebtsPage(1)">Sau</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==========================================================
+             TAB: QUỸ TIỀN THU/CHI (CASH)
+             ========================================================== -->
+        <section id="view-cash" class="tab-view">
+          <!-- KPI Quỹ -->
+          <div class="kpi-grid">
+            <div class="kpi-card" style="--card-accent: var(--color-success)">
+              <div class="kpi-info">
+                <span class="kpi-label">Số dư Tiền mặt (TK 111)</span>
+                <span id="cash-kpi-cash" class="kpi-value font-numeric">0đ</span>
+                <span class="kpi-trend">Tiền mặt tại quỹ</span>
+              </div>
+              <div class="kpi-icon-wrapper">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+              </div>
+            </div>
+
+            <div class="kpi-card" style="--card-accent: var(--color-info)">
+              <div class="kpi-info">
+                <span class="kpi-label">Số dư Tiền gửi NH (TK 112)</span>
+                <span id="cash-kpi-bank" class="kpi-value font-numeric">0đ</span>
+                <span class="kpi-trend">Tiền gửi ngân hàng</span>
+              </div>
+              <div class="kpi-icon-wrapper">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+              </div>
+            </div>
+
+            <div class="kpi-card" style="--card-accent: var(--color-primary)">
+              <div class="kpi-info">
+                <span class="kpi-label">Tổng thu tiền trong kỳ</span>
+                <span id="cash-kpi-receipts" class="kpi-value font-numeric">0đ</span>
+                <span class="kpi-trend">Phiếu thu & Khoản thu</span>
+              </div>
+              <div class="kpi-icon-wrapper">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+              </div>
+            </div>
+
+            <div class="kpi-card" style="--card-accent: var(--color-warning)">
+              <div class="kpi-info">
+                <span class="kpi-label">Tổng chi tiền trong kỳ</span>
+                <span id="cash-kpi-payments" class="kpi-value font-numeric">0đ</span>
+                <span class="kpi-trend">Phiếu chi & Khoản chi</span>
+              </div>
+              <div class="kpi-icon-wrapper">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path></svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-card" style="min-height: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+              <div style="display: flex; gap: 12px; flex-grow: 1; max-width: 650px;">
+                <input type="text" id="cash-search-input" class="form-control" placeholder="Tìm theo số CT, đối tượng, lý do..." oninput="filterCash()">
+                <select id="cash-type-filter" class="form-control" style="max-width: 150px;" onchange="filterCash()">
+                  <option value="all">Tất cả chứng từ</option>
+                  <option value="receipt">Phiếu Thu</option>
+                  <option value="payment">Phiếu Chi</option>
+                </select>
+                <select id="cash-method-filter" class="form-control" style="max-width: 150px;" onchange="filterCash()">
+                  <option value="all">Tất cả quỹ</option>
+                  <option value="111">Tiền mặt (111)</option>
+                  <option value="112">Ngân hàng (112)</option>
+                </select>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-primary" onclick="openAddReceiptModal()">+ Lập Phiếu Thu</button>
+                <button class="btn btn-primary" onclick="openAddPaymentModal()" style="background-color: var(--color-warning);">+ Lập Phiếu Chi</button>
+                <button class="btn btn-secondary" onclick="triggerFileInput('excel-file-cash-view')" style="color: var(--color-success); border-color: var(--color-success);">Nhập Excel</button>
+                <button class="btn btn-secondary" onclick="exportCashToExcel()">Xuất Excel</button>
+                <input type="file" id="excel-file-cash-view" accept=".xlsx, .xls" style="display: none;" onchange="handleExcelImport(event, 'vouchers')">
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-card" style="flex-grow: 1;">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Ngày hạch toán</th>
+                    <th>Ngày chứng từ</th>
+                    <th>Số chứng từ</th>
+                    <th>Đối tượng</th>
+                    <th>Diễn giải / Lý do thu chi</th>
+                    <th style="text-align: right;">Số tiền (đ)</th>
+                    <th>Loại chứng từ</th>
+                    <th>Quỹ tiền</th>
+                    <th style="width: 120px; text-align: center;">In mẫu</th>
+                  </tr>
+                </thead>
+                <tbody id="cash-table-body">
+                  <!-- Được render động -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Phân trang -->
+            <div class="pagination-bar" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+              <span style="font-size: 13px; color: var(--text-secondary);" id="cash-pagination-info">Hiển thị 0 - 0 trong số 0 chứng từ</span>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-secondary btn-sm" id="btn-cash-prev" onclick="changeCashPage(-1)">Trước</button>
+                <button class="btn btn-secondary btn-sm" id="btn-cash-next" onclick="changeCashPage(1)">Sau</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==========================================================
              7. TAB: THIẾT LẬP (SETTINGS)
              ========================================================== -->
         <section id="view-settings" class="tab-view">
@@ -672,6 +914,200 @@
   <!-- ==========================================================
        POPUP MODALS (CÁC HỘP THOẠI BIỂU MẪU NHẬP LIỆU)
        ========================================================== -->
+
+  <!-- A-1. MODAL: THÊM/SỬA ĐỐI TÁC -->
+  <div id="modal-add-partner" class="modal-overlay">
+    <div class="modal-content-container" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 class="card-title" id="modal-partner-title">Khai báo Đối tác (Khách hàng & NCC)</h3>
+        <button class="icon-btn" onclick="closeModal('modal-add-partner')" style="width: 32px; height: 32px;">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-partner" class="form-grid" style="grid-template-columns: 1fr;" onsubmit="handlePartnerSubmit(event)">
+          <input type="hidden" id="edit-partner-index" value="-1">
+          <div class="form-group">
+            <label class="form-label">Mã đối tác (ví dụ: KH001, NCC001)</label>
+            <input type="text" id="partner-id" class="form-control" placeholder="Hệ thống tự sinh nếu để trống">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tên đối tác (Tên khách hàng / nhà cung cấp)</label>
+            <input type="text" id="partner-name" class="form-control" required placeholder="Ví dụ: Đại lý Thiết bị Điện Đông Á">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phân loại</label>
+            <select id="partner-type" class="form-control" required>
+              <option value="customer">Khách hàng (KH)</option>
+              <option value="supplier">Nhà cung cấp (NCC)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Số điện thoại</label>
+            <input type="text" id="partner-phone" class="form-control" placeholder="Ví dụ: 0912345678">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Địa chỉ</label>
+            <input type="text" id="partner-address" class="form-control" placeholder="Số nhà, đường phố, tỉnh/thành...">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Mã số thuế</label>
+            <input type="text" id="partner-taxcode" class="form-control" placeholder="MST doanh nghiệp (nếu có)">
+          </div>
+          <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="partner-inactive" style="width: 18px; height: 18px; cursor: pointer;">
+            <label class="form-label" for="partner-inactive" style="margin-bottom: 0; cursor: pointer;">Ngừng theo dõi</label>
+          </div>
+          <div class="form-actions" style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-partner')">Hủy</button>
+            <button type="submit" class="btn btn-primary">Lưu lại</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- A-2. MODAL: LẬP PHIẾU THU -->
+  <div id="modal-add-receipt" class="modal-overlay">
+    <div class="modal-content-container" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 class="card-title">Lập Phiếu Thu Tiền (Cash Receipt)</h3>
+        <button class="icon-btn" onclick="closeModal('modal-add-receipt')" style="width: 32px; height: 32px;">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-receipt" class="form-grid" style="grid-template-columns: 1fr;" onsubmit="handleReceiptSubmit(event)">
+          <div class="form-group">
+            <label class="form-label">Ngày hạch toán</label>
+            <input type="date" id="receipt-date" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Khách hàng / Đối tượng nộp tiền</label>
+            <input type="text" id="receipt-partner" class="form-control" required placeholder="Gõ mã hoặc tên đối tác..." list="datalist-partners">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tài khoản Nợ</label>
+            <select id="receipt-debit" class="form-control" required>
+              <option value="111">Tiền mặt tại quỹ (1111)</option>
+              <option value="112">Tiền gửi ngân hàng (1121)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tài khoản Có</label>
+            <select id="receipt-credit" class="form-control" required>
+              <option value="131" selected>Phải thu khách hàng (TK 131)</option>
+              <option value="511">Doanh thu bán hàng (TK 511)</option>
+              <option value="344">Nhận ký quỹ, ký cược (TK 344/3386)</option>
+              <option value="711">Thu nhập khác (TK 711)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Số tiền (đ)</label>
+            <input type="number" id="receipt-amount" class="form-control text-right" required min="1" placeholder="Nhập số tiền VNĐ">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Lý do nộp tiền / Diễn giải</label>
+            <input type="text" id="receipt-desc" class="form-control" required value="Thu hồi công nợ khách hàng">
+          </div>
+          <div class="form-actions" style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-receipt')">Hủy</button>
+            <button type="submit" class="btn btn-primary">Ghi sổ</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- A-3. MODAL: LẬP PHIẾU CHI -->
+  <div id="modal-add-payment" class="modal-overlay">
+    <div class="modal-content-container" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 class="card-title">Lập Phiếu Chi Tiền (Cash Payment)</h3>
+        <button class="icon-btn" onclick="closeModal('modal-add-payment')" style="width: 32px; height: 32px;">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-payment" class="form-grid" style="grid-template-columns: 1fr;" onsubmit="handlePaymentSubmit(event)">
+          <div class="form-group">
+            <label class="form-label">Ngày hạch toán</label>
+            <input type="date" id="payment-date" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nhà cung cấp / Đối tượng nhận tiền</label>
+            <input type="text" id="payment-partner" class="form-control" required placeholder="Gõ mã hoặc tên đối tác..." list="datalist-partners">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tài khoản Nợ</label>
+            <select id="payment-debit" class="form-control" required>
+              <option value="331" selected>Phải trả người bán (TK 331)</option>
+              <option value="156">Nhập mua hàng hóa (TK 156)</option>
+              <option value="642">Chi phí quản lý DN / thuê xưởng (TK 642)</option>
+              <option value="244">Chi ký quỹ, ký cược (TK 244/1386)</option>
+              <option value="811">Chi phí khác (TK 811)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tài khoản Có</label>
+            <select id="payment-credit" class="form-control" required>
+              <option value="111">Tiền mặt tại quỹ (1111)</option>
+              <option value="112">Tiền gửi ngân hàng (1121)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Số tiền (đ)</label>
+            <input type="number" id="payment-amount" class="form-control text-right" required min="1" placeholder="Nhập số tiền VNĐ">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Lý do chi tiền / Diễn giải</label>
+            <input type="text" id="payment-desc" class="form-control" required value="Trả tiền mua hàng cho nhà cung cấp">
+          </div>
+          <div class="form-actions" style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-payment')">Hủy</button>
+            <button type="submit" class="btn btn-primary" style="background-color: var(--color-warning); border-color: var(--color-warning);">Ghi sổ</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- A-4. MODAL: XEM SỔ CHI TIẾT CÔNG NỢ ĐỐI TÁC -->
+  <div id="modal-view-partner-ledger" class="modal-overlay">
+    <div class="modal-content-container" style="max-width: 900px; max-height: 85vh;">
+      <div class="modal-header">
+        <div>
+          <h3 class="card-title">Sổ Chi Tiết Công Nợ Đối Tác</h3>
+          <span style="font-size:12px; color:var(--text-secondary);" id="partner-ledger-subtitle"></span>
+        </div>
+        <button class="icon-btn" onclick="closeModal('modal-view-partner-ledger')" style="width: 32px; height: 32px;">×</button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 12px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-tertiary);">
+          <div>
+            <span style="font-size:12px; color:var(--text-secondary);">Dư đầu kỳ:</span><br>
+            <span style="font-weight:700; color:var(--text-primary); font-size:14px;" id="partner-ledger-opening">0đ</span>
+          </div>
+          <div style="text-align: right;">
+            <span style="font-size:12px; color:var(--text-secondary);">Dư cuối kỳ:</span><br>
+            <span style="font-weight:700; color:var(--color-primary); font-size:14px;" id="partner-ledger-closing">0đ</span>
+          </div>
+        </div>
+
+        <div class="table-responsive" style="max-height: 45vh; overflow-y: auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Ngày CT</th>
+                <th>Số chứng từ</th>
+                <th>Diễn giải</th>
+                <th>Tài khoản đối ứng</th>
+                <th style="text-align: right;">Phát sinh Nợ (đ)</th>
+                <th style="text-align: right;">Phát sinh Có (đ)</th>
+              </tr>
+            </thead>
+            <tbody id="partner-ledger-table-body">
+              <!-- Render động -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- A. MODAL: THÊM MẶT HÀNG MỚI -->
   <div id="modal-add-product" class="modal-overlay">
