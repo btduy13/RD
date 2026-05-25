@@ -56,6 +56,17 @@ function initApp() {
     }
   }
 
+  // Dọn dẹp dữ liệu rác đối tác đầu kỳ không hợp lệ
+  if (state.partnerOpeningBalances) {
+    const validPartnerIds = new Set(state.partners.map(p => p.id));
+    Object.keys(state.partnerOpeningBalances).forEach(key => {
+      if (!validPartnerIds.has(key)) {
+        delete state.partnerOpeningBalances[key];
+      }
+    });
+  }
+
+
 
   // Đặt theme mặc định (Tối)
   const isLightTheme = localStorage.getItem("theme") === "light";
@@ -75,13 +86,24 @@ function initApp() {
   // Chạy lại thuật toán tính toán kế toán & giá vốn để đồng bộ
   recalculateAccounting();
   
+  // Nạp cấu hình & khởi tạo đồng bộ trực tuyến
+  if (typeof loadCloudSettings === "function") {
+    loadCloudSettings();
+  }
+  if (typeof initCloudSync === "function") {
+    initCloudSync();
+  }
+
   // Mở tab mặc định
   switchTab("dashboard");
 }
 
-// Lưu trạng thái vào localStorage
+// Lưu trạng thái vào localStorage & Đồng bộ lên Đám mây
 function saveState() {
   localStorage.setItem("rd_accounting_db", JSON.stringify(state));
+  if (typeof pushToCloud === "function") {
+    pushToCloud();
+  }
 }
 
 // Cập nhật các thông tin công ty lên giao diện
@@ -411,6 +433,10 @@ function switchTab(tabId) {
     recalculateCashKpis();
   } else if (tabId === "dashboard") {
     renderDashboard();
+  } else if (tabId === "settings") {
+    if (typeof updateErrorLogsUI === "function") {
+      updateErrorLogsUI();
+    }
   }
 
   // Scroll to top
@@ -466,15 +492,44 @@ function renderDashboardDebts() {
   if (unsettledTbody) {
     unsettledTbody.innerHTML = "";
     
-    const salesVouchers = state.vouchers.filter(v => v.type === "sales");
     const unsettled = [];
+    
+    // A. Thêm các hóa đơn bán hàng chưa tất toán
+    const salesVouchers = state.vouchers.filter(v => v.type === "sales");
     salesVouchers.forEach(v => {
       const totalAmt = v.totalAmount || v.amount || 0;
       if (v.remainingDebt === undefined) {
         v.remainingDebt = (v.paymentMethod === "131") ? totalAmt : 0;
       }
       if (v.remainingDebt > 0) {
-        unsettled.push(v);
+        unsettled.push({
+          id: v.id,
+          partnerId: v.partnerId,
+          partnerName: getPartnerNameForVoucher(v),
+          totalAmount: totalAmt,
+          remainingDebt: v.remainingDebt,
+          date: v.date,
+          isOpening: false
+        });
+      }
+    });
+
+    // B. Thêm các công nợ đầu kỳ của đối tác
+    state.partners.forEach(p => {
+      const opening = state.partnerOpeningBalances[p.id];
+      if (opening) {
+        const val = p.type === "customer" ? (opening.debit || 0) : (opening.credit || 0);
+        if (val > 0) {
+          unsettled.push({
+            id: `OP-${p.id}`,
+            partnerId: p.id,
+            partnerName: p.name,
+            totalAmount: val,
+            remainingDebt: val,
+            date: "2026-01-01",
+            isOpening: true
+          });
+        }
       }
     });
     
@@ -484,16 +539,22 @@ function renderDashboardDebts() {
     if (unsettled.length === 0) {
       unsettledTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:15px;">Không có đơn hàng nào đang nợ</td></tr>`;
     } else {
-      unsettled.forEach(v => {
+      unsettled.forEach(item => {
         const tr = document.createElement("tr");
-        const totalAmt = v.totalAmount || v.amount || 0;
+        const isOp = item.isOpening;
+        const escapedId = escapeHtmlAttr(item.id);
+        const escapedPartnerId = escapeHtmlAttr(item.partnerId);
+        const idCol = isOp 
+          ? `<span style="color:var(--text-secondary); font-style:italic;">Dư đầu kỳ</span>`
+          : `<a href="#" onclick="viewVoucher('${escapedId}'); return false;" style="color:var(--color-primary);">${escapedId}</a>`;
+        
         tr.innerHTML = `
-          <td style="font-weight:bold;"><a href="#" onclick="viewVoucher('${v.id}'); return false;" style="color:var(--color-primary);">${v.id}</a></td>
-          <td><a href="#" onclick="viewPartnerLedger('${v.partnerId}'); return false;" style="font-weight:600; color:var(--text-primary); text-decoration:underline;">${v.partnerName}</a></td>
-          <td style="text-align:right;" class="font-numeric">${formatVND(totalAmt).replace("đ","")}</td>
-          <td style="text-align:right; font-weight:700; color:var(--color-warning);" class="font-numeric">${formatVND(v.remainingDebt).replace("đ","")}</td>
+          <td style="font-weight:bold;">${idCol}</td>
+          <td><a href="#" onclick="viewPartnerLedger('${escapedPartnerId}'); return false;" style="font-weight:600; color:var(--text-primary); text-decoration:underline;">${item.partnerName}</a></td>
+          <td style="text-align:right;" class="font-numeric">${formatVND(item.totalAmount).replace("đ","")}</td>
+          <td style="text-align:right; font-weight:700; color:var(--color-warning);" class="font-numeric">${formatVND(item.remainingDebt).replace("đ","")}</td>
           <td style="text-align:center;">
-            <button class="btn btn-secondary btn-sm" onclick="promptEditOrderDebt('${v.id}')" style="padding: 2px 6px; font-size:11px;">Sửa</button>
+            <button class="btn btn-secondary btn-sm" onclick="promptEditOrderDebt('${escapedId}')" style="padding: 2px 6px; font-size:11px;">Sửa</button>
           </td>
         `;
         unsettledTbody.appendChild(tr);
@@ -506,10 +567,11 @@ function renderDashboardDebts() {
   if (agedTbody) {
     agedTbody.innerHTML = "";
     
-    const salesVouchers = state.vouchers.filter(v => v.type === "sales");
     const agedDebts = [];
     const today = new Date("2026-05-25"); // Lấy thời gian hiện tại theo metadata của hệ thống
     
+    // A. Thêm hóa đơn bán hàng chưa tất toán
+    const salesVouchers = state.vouchers.filter(v => v.type === "sales");
     salesVouchers.forEach(v => {
       const totalAmt = v.totalAmount || v.amount || 0;
       if (v.remainingDebt === undefined) {
@@ -522,9 +584,33 @@ function renderDashboardDebts() {
         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
         
         agedDebts.push({
-          voucher: v,
+          partnerId: v.partnerId,
+          partnerName: getPartnerNameForVoucher(v),
+          remainingDebt: v.remainingDebt,
+          date: v.date,
           days: diffDays
         });
+      }
+    });
+
+    // B. Thêm các công nợ đầu kỳ đối tác (đặc biệt là khách hàng nợ lâu ngày)
+    state.partners.forEach(p => {
+      if (p.type === "customer") {
+        const opening = state.partnerOpeningBalances[p.id];
+        const val = opening ? (opening.debit || 0) : 0;
+        if (val > 0) {
+          const docDate = new Date("2026-01-01");
+          const diffTime = today - docDate;
+          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+          
+          agedDebts.push({
+            partnerId: p.id,
+            partnerName: p.name,
+            remainingDebt: val,
+            date: "01/01/2026 (Đầu kỳ)",
+            days: diffDays
+          });
+        }
       }
     });
     
@@ -535,7 +621,6 @@ function renderDashboardDebts() {
       agedTbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:15px;">Không có công nợ quá hạn</td></tr>`;
     } else {
       agedDebts.forEach(item => {
-        const v = item.voucher;
         const tr = document.createElement("tr");
         
         let dayClass = "badge-info";
@@ -547,9 +632,9 @@ function renderDashboardDebts() {
         }
         
         tr.innerHTML = `
-          <td><a href="#" onclick="viewPartnerLedger('${v.partnerId}'); return false;" style="font-weight:600; color:var(--text-primary); text-decoration:underline;">${v.partnerName}</a></td>
-          <td style="text-align:right; font-weight:700; color:var(--color-warning);" class="font-numeric">${formatVND(v.remainingDebt).replace("đ","")}</td>
-          <td>${v.date}</td>
+          <td><a href="#" onclick="viewPartnerLedger('${escapeHtmlAttr(item.partnerId)}'); return false;" style="font-weight:600; color:var(--text-primary); text-decoration:underline;">${item.partnerName}</a></td>
+          <td style="text-align:right; font-weight:700; color:var(--color-warning);" class="font-numeric">${formatVND(item.remainingDebt).replace("đ","")}</td>
+          <td>${item.date}</td>
           <td style="text-align:center;"><span class="badge ${dayClass}">${dayLabel}</span></td>
         `;
         agedTbody.appendChild(tr);
@@ -703,6 +788,8 @@ function renderPurchaseTable() {
   if (!tbody) return;
 
   const purchases = state.vouchers.filter(v => v.type === "purchase");
+  // Sắp xếp số chứng từ giảm dần (to nhất lên trước)
+  purchases.sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' }));
 
   if (purchases.length === 0) {
     tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-muted); padding: 30px;">Chưa lập hóa đơn mua hàng nào. Vui lòng nhấn nút "Lập hóa đơn mua hàng".</td></tr>`;
@@ -715,7 +802,7 @@ function renderPurchaseTable() {
       <tr>
         <td class="font-numeric" style="color: var(--color-primary); font-weight:700;">${v.id}</td>
         <td>${v.date}</td>
-        <td><span style="font-weight:600;">${v.partnerName}</span></td>
+        <td><span style="font-weight:600;">${getPartnerNameForVoucher(v)}</span></td>
         <td>${v.description}</td>
         <td><span class="badge ${v.paymentMethod === '331' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '331' ? 'Công nợ (331)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
         <td class="text-right font-numeric">${formatVND(rawVal)}</td>
@@ -733,8 +820,10 @@ function renderPurchaseTable() {
         </td>
         <td style="text-align: center;">
           <div style="display:flex; justify-content:center; gap:6px;">
-            <button class="btn btn-secondary btn-sm" onclick="viewVoucher('${v.id}')">Xem/In</button>
-            <button class="trash-btn" onclick="deleteVoucher('${v.id}')" title="Xóa chứng từ">
+            <button class="print-btn" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')" title="Xem và In mẫu chứng từ">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            </button>
+            <button class="trash-btn" onclick="deleteVoucher('${escapeHtmlAttr(v.id)}')" title="Xóa chứng từ">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
             </button>
           </div>
@@ -769,6 +858,8 @@ function renderSalesTable() {
   if (!tbody) return;
 
   const sales = state.vouchers.filter(v => v.type === "sales");
+  // Sắp xếp số chứng từ giảm dần (to nhất lên trước)
+  sales.sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' }));
 
   if (sales.length === 0) {
     tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: var(--text-muted); padding: 30px;">Chưa lập hóa đơn bán hàng nào. Vui lòng nhấn nút "Lập hóa đơn bán hàng".</td></tr>`;
@@ -781,7 +872,7 @@ function renderSalesTable() {
       <tr>
         <td class="font-numeric" style="color: var(--color-success); font-weight:700;">${v.id}</td>
         <td>${v.date}</td>
-        <td><span style="font-weight:600;">${v.partnerName}</span></td>
+        <td><span style="font-weight:600;">${getPartnerNameForVoucher(v)}</span></td>
         <td>${v.description}</td>
         <td><span class="badge ${v.paymentMethod === '131' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '131' ? 'Công nợ (131)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
         <td class="text-right font-numeric">${formatVND(rawVal)}</td>
@@ -800,8 +891,10 @@ function renderSalesTable() {
         </td>
         <td style="text-align: center;">
           <div style="display:flex; justify-content:center; gap:6px;">
-            <button class="btn btn-secondary btn-sm" onclick="viewVoucher('${v.id}')">Xem/In</button>
-            <button class="trash-btn" onclick="deleteVoucher('${v.id}')" title="Xóa chứng từ">
+            <button class="print-btn" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')" title="Xem và In mẫu chứng từ">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            </button>
+            <button class="trash-btn" onclick="deleteVoucher('${escapeHtmlAttr(v.id)}')" title="Xóa chứng từ">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
             </button>
           </div>
@@ -846,12 +939,13 @@ function renderInventoryTable(filterQuery = "") {
   }
 
   if (products.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy sản phẩm phù hợp.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy sản phẩm phù hợp.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = products.map(p => {
     const isLow = (p.stock || 0) <= (p.minStock || 0);
+    const escapedId = escapeHtmlAttr(p.id);
     return `
       <tr>
         <td class="font-numeric" style="font-weight:700;">${p.id}</td>
@@ -864,6 +958,12 @@ function renderInventoryTable(filterQuery = "") {
           <span class="badge ${isLow ? 'badge-danger' : 'badge-success'}">
             ${isLow ? 'Cảnh báo tồn thấp' : 'Đầy đủ'}
           </span>
+        </td>
+        <td style="text-align: center;">
+          <div style="display: flex; gap: 6px; justify-content: center;">
+            <button class="btn btn-secondary btn-sm" onclick="promptQuickImport('${escapedId}')" style="padding: 2px 6px; font-size: 11px; color: var(--color-success); border-color: var(--color-success);">+ Nhập kho</button>
+            <button class="btn btn-secondary btn-sm" onclick="promptEditProductPrice('${escapedId}')" style="padding: 2px 6px; font-size: 11px; color: var(--color-primary); border-color: var(--color-primary);">Sửa giá/thông tin</button>
+          </div>
         </td>
       </tr>
     `;
@@ -920,7 +1020,7 @@ function renderStockLedger() {
       html += `
         <tr>
           <td>${v.date}</td>
-          <td class="font-numeric" style="color:var(--color-primary); cursor:pointer; font-weight:700;" onclick="viewVoucher('${v.id}')">${v.id}</td>
+          <td class="font-numeric" style="color:var(--color-primary); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${v.id}</td>
           <td class="text-right font-numeric" style="color: var(--color-primary); font-weight:700;">+${item.qty}</td>
           <td class="text-right font-numeric">-</td>
           <td class="text-right font-numeric">${formatVND(item.price)}</td>
@@ -930,7 +1030,7 @@ function renderStockLedger() {
       html += `
         <tr>
           <td>${v.date}</td>
-          <td class="font-numeric" style="color:var(--color-success); cursor:pointer; font-weight:700;" onclick="viewVoucher('${v.id}')">${v.id}</td>
+          <td class="font-numeric" style="color:var(--color-success); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${v.id}</td>
           <td class="text-right font-numeric">-</td>
           <td class="text-right font-numeric" style="color: var(--color-warning); font-weight:700;">-${item.qty}</td>
           <td class="text-right font-numeric" style="color: var(--text-secondary);">${formatVND(item.cogsUnit || 0)} (giá vốn)</td>
@@ -968,7 +1068,7 @@ function renderEscrowTable() {
       <tr>
         <td class="font-numeric" style="font-weight:700;">${v.id}</td>
         <td>${v.date}</td>
-        <td><span style="font-weight:600;">${v.partnerName}</span></td>
+        <td><span style="font-weight:600;">${getPartnerNameForVoucher(v)}</span></td>
         <td><span class="badge ${lbl.class}">${lbl.name}</span></td>
         <td>${v.description}</td>
         <td class="font-numeric" style="font-weight:700; color:var(--color-primary);">${lbl.acct}</td>
@@ -980,8 +1080,8 @@ function renderEscrowTable() {
         </td>
         <td style="text-align: center;">
           <div style="display:flex; justify-content:center; gap:6px;">
-            <button class="btn btn-secondary btn-sm" onclick="viewVoucher('${v.id}')">Xem/In</button>
-            <button class="trash-btn" onclick="deleteVoucher('${v.id}')" title="Xóa chứng từ">
+            <button class="btn btn-secondary btn-sm" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">Xem/In</button>
+            <button class="trash-btn" onclick="deleteVoucher('${escapeHtmlAttr(v.id)}')" title="Xóa chứng từ">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
             </button>
           </div>
@@ -1897,6 +1997,19 @@ function deleteVoucher(id) {
 
     saveState();
     recalculateAccounting();
+    
+    // Tự động làm tươi tất cả các bảng và KPIs trên mọi tab
+    if (typeof filterSales === "function") filterSales();
+    if (typeof filterPurchases === "function") filterPurchases();
+    if (typeof filterCash === "function") {
+      filterCash();
+      if (typeof recalculateCashKpis === "function") recalculateCashKpis();
+    }
+    if (typeof renderDashboard === "function") renderDashboard();
+    if (typeof filterDebts === "function") filterDebts();
+    if (typeof filterPartners === "function") filterPartners();
+    if (typeof renderInventoryTable === "function") renderInventoryTable();
+    
     showToast(`Đã xóa thành công chứng từ ${id}!`, "success");
   }
 }
@@ -1906,6 +2019,7 @@ function viewVoucher(id) {
   const v = state.vouchers.find(v => v.id === id);
   if (!v) return;
 
+  const partnerName = getPartnerNameForVoucher(v);
   const std = state.accountingStandard;
   const printArea = document.getElementById("voucher-print-area");
   if (!printArea) return;
@@ -1947,7 +2061,7 @@ function viewVoucher(id) {
         <div style="margin-top:20px;">
           <div class="voucher-info-row">
             <span class="info-label">- Họ và tên người giao:</span>
-            <span class="info-dotted">${v.partnerName}</span>
+            <span class="info-dotted">${partnerName}</span>
           </div>
           <div class="voucher-info-row">
             <span class="info-label">- Lý do nhập kho:</span>
@@ -2017,7 +2131,7 @@ function viewVoucher(id) {
             <span class="sig-title">Người giao hàng</span><br>
             <span class="sig-subtext">(Ký, họ tên)</span>
             <div class="sig-space"></div>
-            <span class="sig-name">${v.partnerName.split(" ").slice(-2).join(" ")}</span>
+            <span class="sig-name">${partnerName.split(" ").slice(-2).join(" ")}</span>
           </div>
           <div class="sig-block">
             <span class="sig-title">Thủ kho</span><br>
@@ -2035,124 +2149,155 @@ function viewVoucher(id) {
       </div>
     `;
   } else if (v.type === "sales") {
-    // Bán hàng -> Hóa Đơn Giá Trị Gia Tăng kiêm Phiếu Xuất Kho (Mẫu số 02 - VT)
+    // Bán hàng -> Phiếu giao hàng / hóa đơn bán hàng theo chuẩn mẫu thực tế của Rạng Đông
+    let grossTotal = 0;
+    let totalDiscount = 0;
+    
+    v.items.forEach(item => {
+      const itemGross = (item.qty || 0) * (item.price || 0);
+      const discountPercent = item.discount || 0;
+      const itemDiscountVal = itemGross * (discountPercent / 100);
+      grossTotal += itemGross;
+      totalDiscount += itemDiscountVal;
+    });
+
     content = `
-      <div class="printable-voucher">
-        <div class="voucher-header-top">
-          <div class="voucher-co-info">
-            <span class="voucher-co-name">${companyName}</span><br>
-            <span class="voucher-co-addr">Địa chỉ: ${companyAddr}</span><br>
-            <span class="voucher-co-addr">MST: ${companyTax}</span>
+      <div class="printable-voucher" style="max-width: 800px; padding: 30px; font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #000; line-height: 1.4;">
+        
+        <!-- Header: Logo Rạng Đông bên trái & Thông tin công ty bên phải -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 15px;">
+          <!-- Logo Rạng Đông thực tế từ file images (1).png -->
+          <div style="display: flex; align-items: center; justify-content: center; width: 140px; margin-right: 10px; height: 60px;">
+            <img src="images (1).png" style="max-height: 55px; max-width: 130px; object-fit: contain;" alt="Logo Rạng Đông" />
           </div>
-          <div class="voucher-template-code">
-            <span class="template-bold">Mẫu số 02 - VT</span><br>
-            <span>(Ban hành theo Thông tư số 200/2014/TT-BTC)</span>
+
+          <!-- Thông tin công ty chính xác theo mẫu giấy -->
+          <div style="text-align: center; flex-grow: 1; padding-left: 10px; color: #000;">
+            <div style="font-weight: bold; font-size: 13.5px; text-transform: uppercase; letter-spacing: 0.2px;">CÔNG TY CP SẢN XUẤT VÀ ĐT PHÁT TRIỂN RẠNG ĐÔNG</div>
+            <div style="font-weight: bold; font-size: 11px; text-transform: uppercase; margin-top: 2px;">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY</div>
+            <div style="font-size: 11px; margin-top: 3px;">Địa chỉ: 255 Trương Công Định, P. Vũng Tàu</div>
+            <div style="font-size: 11px; margin-top: 1px; font-weight: 500;">Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074</div>
           </div>
         </div>
-        
-        <div class="voucher-title-area">
-          <span class="voucher-title">PHIẾU XUẤT KHO KIÊM HÓA ĐƠN</span><br>
-          <span class="voucher-subtitle">Ngày ${v.date.substring(8,10)} tháng ${v.date.substring(5,7)} năm ${v.date.substring(0,4)}</span>
+
+        <!-- Tiêu đề Phiếu giao hàng -->
+        <div style="text-align: center; margin-bottom: 18px;">
+          <div style="font-size: 22px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase;">PHIẾU GIAO HÀNG</div>
         </div>
-        
-        <div class="voucher-entries-note">
-          <span>Số: <span class="template-bold">${v.id}</span></span><br>
-          <span>Nợ TK: <span class="template-bold">${v.paymentMethod}</span></span><br>
-          <span>Có TK: <span class="template-bold">511</span></span><br>
-          ${v.taxAmount > 0 ? `<span>Có TK: <span class="template-bold">3331</span></span>` : ""}
+
+        <!-- Phần thông tin khách hàng và ngày hóa đơn (chia cột giống giấy) -->
+        <div style="display: grid; grid-template-columns: 2fr 1fr; row-gap: 6px; column-gap: 15px; margin-bottom: 15px; font-size: 13px;">
+          <div>
+            <strong>Tên khách hàng:</strong> <span style="font-size: 13.5px;">${partnerName}</span>
+          </div>
+          <div style="text-align: right;">
+            <strong>Ngày:</strong> ${v.date.substring(8,10)}/${v.date.substring(5,7)}/${v.date.substring(0,4)}
+          </div>
+          
+          <div>
+            <strong>Địa chỉ:</strong> ${(state.partners.find(x => x.id === v.partnerId) || {}).address || "37 Phó Đức Chính"}
+          </div>
+          <div style="text-align: right;">
+            <strong>Số:</strong> <span style="font-family: monospace; font-weight: bold; font-size: 14px;">${v.id}</span>
+          </div>
+          
+          <div style="grid-column: span 2;">
+            <strong>Diễn giải:</strong> ${v.description || `Bán hàng ${partnerName}`}
+          </div>
         </div>
-        
-        <div style="margin-top:20px;">
-          <div class="voucher-info-row">
-            <span class="info-label">- Họ tên khách hàng:</span>
-            <span class="info-dotted">${v.partnerName}</span>
-          </div>
-          <div class="voucher-info-row">
-            <span class="info-label">- Lý do xuất kho:</span>
-            <span class="info-dotted">${v.description}</span>
-          </div>
-          <div class="voucher-info-row">
-            <span class="info-label">- Xuất tại kho:</span>
-            <span class="info-dotted">Kho thành phẩm Rạng Đông</span>
-          </div>
-        </div>
-        
-        <table class="voucher-table">
+
+        <!-- Bảng sản phẩm -->
+        <table class="voucher-table" style="width: 100%; border-collapse: collapse; margin-bottom: 15px; border: 1.5px solid #000;">
           <thead>
-            <tr>
-              <th style="width:5%;">STT</th>
-              <th style="width:12%;">Mã SP</th>
-              <th style="width:38%;">Tên sản phẩm thiết bị chiếu sáng Rạng Đông</th>
-              <th style="width:10%;">ĐVT</th>
-              <th style="width:10%;">Số lượng</th>
-              <th style="width:10%;">Đơn giá</th>
-              <th style="width:10%;">C.Khấu</th>
-              <th style="width:15%;">Thành tiền (đ)</th>
+            <tr style="background-color: #f3f4f6;">
+              <th style="border: 1px solid #000; padding: 6px 4px; text-align: center; font-weight: bold; width: 5%;">TT</th>
+              <th style="border: 1px solid #000; padding: 6px 8px; text-align: left; font-weight: bold; width: 45%;">Diễn giải</th>
+              <th style="border: 1px solid #000; padding: 6px 4px; text-align: center; font-weight: bold; width: 8%;">ĐV</th>
+              <th style="border: 1px solid #000; padding: 6px 6px; text-align: right; font-weight: bold; width: 10%;">Số lượng</th>
+              <th style="border: 1px solid #000; padding: 6px 6px; text-align: right; font-weight: bold; width: 12%;">Đơn giá</th>
+              <th style="border: 1px solid #000; padding: 6px 6px; text-align: right; font-weight: bold; width: 15%;">Thành tiền</th>
+              <th style="border: 1px solid #000; padding: 6px 4px; text-align: center; font-weight: bold; width: 5%;">G.C</th>
             </tr>
           </thead>
           <tbody>
             ${v.items.map((item, idx) => {
-              const prod = state.products.find(p => p.id === item.productId) || { name: "Sản phẩm" };
-              const discountStr = item.discount ? `${item.discount}%` : "-";
+              const prod = state.products.find(p => p.id === item.productId) || { name: item.productId };
+              const qtyFormatted = Number.isInteger(item.qty) ? `${item.qty},0` : item.qty.toString().replace(".", ",");
+              const gcVal = (item.discount !== undefined && item.discount !== null) ? item.discount : "0";
               return `
                 <tr>
-                  <td style="text-align:center;">${idx + 1}</td>
-                  <td style="text-align:center; font-weight:bold;">${item.productId}</td>
-                  <td>${prod.name}</td>
-                  <td style="text-align:center;">${prod.unit || "Cái"}</td>
-                  <td style="text-align:right;">${item.qty}</td>
-                  <td style="text-align:right;">${formatVND(item.price).replace("đ","")}</td>
-                  <td style="text-align:center;">${discountStr}</td>
-                  <td style="text-align:right; font-weight:bold;">${formatVND(item.amount).replace("đ","")}</td>
+                  <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${idx + 1}</td>
+                  <td style="border: 1px solid #000; padding: 6px 8px; font-weight: 500;">${prod.name}</td>
+                  <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${prod.unit || "Cái"}</td>
+                  <td style="border: 1px solid #000; padding: 6px 6px; text-align: right;" class="font-numeric">${qtyFormatted}</td>
+                  <td style="border: 1px solid #000; padding: 6px 6px; text-align: right;" class="font-numeric">${formatVND(item.price).replace("đ","").trim()}</td>
+                  <td style="border: 1px solid #000; padding: 6px 6px; text-align: right; font-weight: bold;" class="font-numeric">${formatVND(item.amount).replace("đ","").trim()}</td>
+                  <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${gcVal}</td>
                 </tr>
               `;
             }).join("")}
             
+            <!-- Phần tổng tiền -->
             <tr>
-              <td colspan="7" style="text-align:right; font-weight:bold;">Cộng tiền doanh thu bán hàng:</td>
-              <td style="text-align:right; font-weight:bold;">${formatVND(v.totalAmount - v.taxAmount).replace("đ","")}</td>
+              <td colspan="5" style="border: 1px solid #000; padding: 5px 10px; text-align: right; font-weight: bold; border-top: 1.5px solid #000;">Cộng tiền hàng :</td>
+              <td style="border: 1px solid #000; padding: 5px 8px; text-align: right; font-weight: bold;" class="font-numeric">${formatVND(grossTotal).replace("đ","").trim()}</td>
+              <td style="border: 1px solid #000; border-top: 1.5px solid #000;"></td>
             </tr>
             <tr>
-              <td colspan="7" style="text-align:right;">Thuế GTGT đầu ra (${v.taxRate}%):</td>
-              <td style="text-align:right;">${formatVND(v.taxAmount).replace("đ","")}</td>
+              <td colspan="5" style="border: 1px solid #000; padding: 5px 10px; text-align: right; font-weight: 500;">Số tiền chiết khấu:</td>
+              <td style="border: 1px solid #000; padding: 5px 8px; text-align: right; font-weight: 500;" class="font-numeric">${formatVND(totalDiscount).replace("đ","").trim()}</td>
+              <td style="border: 1px solid #000;"></td>
             </tr>
-            <tr style="background-color:#e5e7eb;">
-              <td colspan="7" style="text-align:right; font-weight:bold; text-transform:uppercase;">Tổng cộng thanh toán phải thu:</td>
-              <td style="text-align:right; font-weight:bold; color:var(--color-success);">${formatVND(v.totalAmount).replace("đ","")}</td>
+            <tr style="background-color: #f9fafb;">
+              <td colspan="5" style="border: 1px solid #000; padding: 6px 10px; text-align: right; font-weight: bold; text-transform: uppercase;">Tổng tiền thanh toán:</td>
+              <td style="border: 1px solid #000; padding: 6px 8px; text-align: right; font-weight: bold;" class="font-numeric">${formatVND(v.totalAmount).replace("đ","").trim()}</td>
+              <td style="border: 1px solid #000;"></td>
             </tr>
           </tbody>
         </table>
-        
-        <div class="voucher-amount-word">
-          Tổng số tiền bán hàng (viết bằng chữ): <span style="font-weight:bold; font-style:italic;">${numberToVietnameseWords(v.totalAmount)}</span>
-        </div>
-        
-        <div class="voucher-signatures">
-          <div class="sig-block">
-            <span class="sig-title">Người lập phiếu</span><br>
-            <span class="sig-subtext">(Ký, họ tên)</span>
-            <div class="sig-space"></div>
-            <span class="sig-name">Kế toán bán hàng</span>
+
+        <!-- Chữ số tiền viết bằng chữ & ghi chú -->
+        <div style="margin-bottom: 20px; font-size: 13px; line-height: 1.5;">
+          <div style="margin-bottom: 4px;">
+            <strong>Số tiền viết bằng chữ:</strong> <span style="font-style: italic;">${numberToVietnameseWords(v.totalAmount)}</span>
           </div>
-          <div class="sig-block">
-            <span class="sig-title">Người nhận hàng</span><br>
-            <span class="sig-subtext">(Ký, họ tên)</span>
-            <div class="sig-space"></div>
-            <span class="sig-name">${v.partnerName.split(" ").slice(-2).join(" ")}</span>
-          </div>
-          <div class="sig-block">
-            <span class="sig-title">Thủ kho xuất</span><br>
-            <span class="sig-subtext">(Ký, họ tên)</span>
-            <div class="sig-space"></div>
-            <span class="sig-name">Trần Văn Kho</span>
-          </div>
-          <div class="sig-block">
-            <span class="sig-title">Giám đốc</span><br>
-            <span class="sig-subtext">(Ký, đóng dấu)</span>
-            <div class="sig-space"></div>
-            <span class="sig-name">Lê Hoàng Đông</span>
+          <div>
+            <strong>Ghi chú:</strong> <span style="font-style: italic; color: #374151;">${v.notes || "hàng thừa trả lại dơ bẩn không thu lại. Không thu lại nút bịt"}</span>
           </div>
         </div>
+
+        <!-- Chữ ký và dấu (Nhiệm vụ người lập, giao, nhận) -->
+        <div style="display: flex; justify-content: space-between; text-align: center; margin-top: 30px; font-size: 12.5px;">
+          <div style="width: 30%;">
+            <strong>Người nhận hàng</strong><br>
+            <span style="font-style: italic; font-size: 11px; color: #555;">(Ký, họ tên)</span>
+            <div style="height: 65px;"></div>
+            <div style="border-top: 1px dotted #888; width: 80%; margin: 0 auto; padding-top: 4px; color: #555; font-size: 11px;">Họ tên khách nhận</div>
+          </div>
+          
+          <div style="width: 30%;">
+            <strong>Người giao hàng</strong><br>
+            <span style="font-style: italic; font-size: 11px; color: #555;">(Ký, họ tên)</span>
+            <div style="height: 65px;"></div>
+            <div style="border-top: 1px dotted #888; width: 80%; margin: 0 auto; padding-top: 4px; color: #555; font-size: 11px;">Nhân viên giao nhận</div>
+          </div>
+          
+          <div style="width: 30%; position: relative;">
+            <strong>Người lập phiếu</strong><br>
+            <span style="font-style: italic; font-size: 11px; color: #555;">(Ký, họ tên)</span>
+            
+            <!-- Giả lập chữ ký nghệ thuật và dấu mộc đỏ siêu đẹp như mẫu -->
+            <div style="height: 65px; position: relative; display: flex; align-items: center; justify-content: center; margin-top: 5px;">
+              <!-- Nét vẽ chữ ký tay nghệ thuật -->
+              <span style="font-family: 'Brush Script MT', 'Courier New', cursive, sans-serif; font-size: 26px; color: #2563eb; transform: rotate(-5deg); position: absolute; top: 12px; font-weight: bold; opacity: 0.85; filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.1));">Nhung</span>
+              <!-- Dấu mộc chữ tên tròn hoặc đỏ giả lập của Rạng Đông -->
+              <div style="border: 2px solid #ef4444; border-radius: 4px; padding: 2px 6px; color: #ef4444; font-weight: bold; font-family: monospace; font-size: 10px; text-transform: uppercase; transform: rotate(5deg) scale(0.9); position: absolute; top: 22px; left: 55px; background-color: rgba(254, 226, 226, 0.4); box-shadow: 0 0 2px rgba(239, 68, 68, 0.2); opacity: 0.85;">NGUYỄN THỊ HỒNG NHUNG</div>
+            </div>
+            
+            <div style="font-weight: bold; color: #000; font-size: 13px; margin-top: 8px;">Nguyễn Thị Hồng Nhung</div>
+          </div>
+        </div>
+
       </div>
     `;
   } else if (v.type.startsWith("escrow_") || v.type === "receipt" || v.type === "payment") {
@@ -2192,7 +2337,7 @@ function viewVoucher(id) {
         <div style="margin-top:20px;">
           <div class="voucher-info-row">
             <span class="info-label">${isReceipt ? "- Người nộp tiền:" : "- Người nhận tiền:"}</span>
-            <span class="info-dotted" style="font-weight:bold;">${v.partnerName}</span>
+            <span class="info-dotted" style="font-weight:bold;">${partnerName}</span>
           </div>
           <div class="voucher-info-row">
             <span class="info-label">- Nội dung giao dịch:</span>
@@ -2235,7 +2380,7 @@ function viewVoucher(id) {
             <span class="sig-title">${isReceipt ? "Người nộp tiền" : "Người nhận tiền"}</span><br>
             <span class="sig-subtext">(Ký, họ tên)</span>
             <div class="sig-space"></div>
-            <span class="sig-name">${v.partnerName.split(" ").slice(-2).join(" ")}</span>
+            <span class="sig-name">${partnerName.split(" ").slice(-2).join(" ")}</span>
           </div>
         </div>
       </div>
@@ -2270,6 +2415,29 @@ function getAccountBalance(acctCode) {
   }
 
   return bal;
+}
+
+// Hàm escape thuộc tính HTML và JavaScript để tránh lỗi vỡ chuỗi khi ID hoặc Tên chứa dấu nháy kép / nháy đơn / dấu gạch chéo ngược
+function escapeHtmlAttr(str) {
+  if (str === undefined || str === null) return "";
+  // 1. Escape cho JS (gạch chéo ngược \ và nháy đơn ')
+  const jsEscaped = str.toString()
+                       .replace(/\\/g, "\\\\")
+                       .replace(/'/g, "\\'");
+  // 2. Escape cho HTML Attribute (các ký tự đặc biệt khác bao gồm dấu ngoặc nhọn, nháy kép, và &)
+  return jsEscaped.replace(/&/g, "&amp;")
+                  .replace(/"/g, "&quot;")
+                  .replace(/</g, "&lt;")
+                  .replace(/>/g, "&gt;");
+}
+
+// Lấy tên đối tác mới nhất một cách động dựa trên partnerId để liên kết CSDL
+function getPartnerNameForVoucher(v) {
+  if (v && v.partnerId) {
+    const p = state.partners.find(x => x.id === v.partnerId);
+    if (p) return p.name;
+  }
+  return (v && v.partnerName) ? v.partnerName : "Khách hàng vãng lai";
 }
 
 // Định dạng tiền tệ Việt Nam Đồng VNĐ
@@ -2486,9 +2654,10 @@ function renderPartnersTable() {
   } else {
     pageItems.forEach(p => {
       const tr = document.createElement("tr");
+      const escapedId = escapeHtmlAttr(p.id);
       tr.innerHTML = `
         <td style="font-weight:bold; color:var(--color-primary);">${p.id}</td>
-        <td style="font-weight:600;"><a href="#" onclick="viewPartnerLedger('${p.id}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${p.name}</a></td>
+        <td style="font-weight:600;"><a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${p.name}</a></td>
         <td>
           <span class="badge ${p.type === 'supplier' ? 'badge-warning' : 'badge-info'}">
             ${p.type === 'supplier' ? 'Nhà cung cấp' : 'Khách hàng'}
@@ -2502,8 +2671,8 @@ function renderPartnersTable() {
           </span>
         </td>
         <td style="text-align:center;">
-          <button class="btn btn-secondary btn-sm" onclick="openEditPartnerModal('${p.id}')" style="padding: 2px 6px; margin-right: 4px;">Sửa</button>
-          <button class="btn btn-secondary btn-sm" onclick="deletePartner('${p.id}')" style="padding: 2px 6px; color:var(--color-danger); border-color:rgba(239, 68, 68, 0.2);">Xóa</button>
+          <button class="btn btn-secondary btn-sm" onclick="openEditPartnerModal('${escapedId}')" style="padding: 2px 6px; margin-right: 4px;">Sửa</button>
+          <button class="btn btn-secondary btn-sm" onclick="deletePartner('${escapedId}')" style="padding: 2px 6px; color:var(--color-danger); border-color:rgba(239, 68, 68, 0.2);">Xóa</button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -2614,6 +2783,9 @@ function handlePartnerSubmit(e) {
 function deletePartner(id) {
   if (confirm(`Bạn có chắc chắn muốn xóa đối tác "${id}" không?`)) {
     state.partners = state.partners.filter(p => p.id !== id);
+    if (state.partnerOpeningBalances && state.partnerOpeningBalances[id]) {
+      delete state.partnerOpeningBalances[id];
+    }
     saveState();
     initExcelIntegration();
     filterPartners();
@@ -2728,16 +2900,18 @@ function createDefaultDebtExcelRow(id, d) {
 
 function createDefaultVoucherExcelRow(v) {
   const r = new Array(10).fill("");
-  const typeLabel = (v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay") ? "Phiếu thu" : "Phiếu chi";
-  r[0] = v.date;
-  r[1] = v.date;
-  r[2] = v.id;
-  r[3] = v.description;
-  r[4] = v.amount;
-  r[5] = v.partnerName;
-  r[6] = v.description;
+  const typeLabel = (v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay") ? "Phiếu thu" : 
+                    ((v.type === "payment" || v.type === "escrow_pay" || v.type === "escrow_refund_receive") ? "Phiếu chi" : 
+                     (v.type === "sales" ? "Hóa đơn bán hàng" : "Hóa đơn mua hàng"));
+  r[0] = v.date || "";
+  r[1] = v.date || "";
+  r[2] = v.id || "";
+  r[3] = v.description || "";
+  r[4] = v.amount !== undefined ? v.amount : (v.totalAmount !== undefined ? v.totalAmount : 0);
+  r[5] = v.partnerName || "";
+  r[6] = v.description || "";
   r[7] = "";
-  r[8] = typeLabel;
+  r[8] = typeLabel || "";
   r[9] = "";
   return r;
 }
@@ -3026,9 +3200,10 @@ function renderDebtsTable() {
   } else {
     pageItems.forEach(d => {
       const tr = document.createElement("tr");
+      const escapedId = escapeHtmlAttr(d.id);
       tr.innerHTML = `
         <td style="font-weight:bold;">${d.id}</td>
-        <td style="font-weight:600;"><a href="#" onclick="viewPartnerLedger('${d.id}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${d.name}</a></td>
+        <td style="font-weight:600;"><a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${d.name}</a></td>
         <td style="text-align:right; font-weight:500;" class="font-numeric">${d.openingDebit > 0 ? formatVND(d.openingDebit).replace("đ","") : "-"}</td>
         <td style="text-align:right; font-weight:500;" class="font-numeric">${d.openingCredit > 0 ? formatVND(d.openingCredit).replace("đ","") : "-"}</td>
         <td style="text-align:right; color:var(--color-primary); font-weight:500;" class="font-numeric">${d.debitTrans > 0 ? formatVND(d.debitTrans).replace("đ","") : "-"}</td>
@@ -3036,7 +3211,10 @@ function renderDebtsTable() {
         <td style="text-align:right; font-weight:700;" class="font-numeric ${d.closingDebit > 0 ? 'text-success' : ''}">${d.closingDebit > 0 ? formatVND(d.closingDebit).replace("đ","") : "-"}</td>
         <td style="text-align:right; font-weight:700;" class="font-numeric ${d.closingCredit > 0 ? 'text-warning' : ''}">${d.closingCredit > 0 ? formatVND(d.closingCredit).replace("đ","") : "-"}</td>
         <td style="text-align:center;">
-          <button class="btn btn-secondary btn-sm" onclick="viewPartnerLedger('${d.id}')" style="padding: 2px 8px;">Xem Sổ</button>
+          <div style="display: flex; gap: 4px; justify-content: center;">
+            <button class="btn btn-secondary btn-sm" onclick="viewPartnerLedger('${escapedId}')" style="padding: 2px 8px;">Xem Sổ</button>
+            <button class="btn btn-primary btn-sm" onclick="promptEditPartnerOpeningDebt('${escapedId}')" style="padding: 2px 8px; background-color: var(--color-primary); border-color: var(--color-primary);">Sửa</button>
+          </div>
         </td>
       `;
       tbody.appendChild(tr);
@@ -3065,18 +3243,26 @@ function changeDebtsPage(dir) {
 function filterDebts() {
   const query = document.getElementById("debt-search-input") ? document.getElementById("debt-search-input").value.toLowerCase().trim() : "";
   const filterType = document.getElementById("debt-type-filter") ? document.getElementById("debt-type-filter").value : "all";
+  const activeOnly = document.getElementById("debt-active-only-filter") ? document.getElementById("debt-active-only-filter").checked : false;
 
   const allDebts = calculatePartnerDebts();
 
   filteredDebtsList = allDebts.filter(d => {
     const matchesQuery = d.id.toLowerCase().includes(query) || d.name.toLowerCase().includes(query);
+    
     let matchesType = true;
     if (filterType === "131") {
       matchesType = d.type === "customer";
     } else if (filterType === "331") {
       matchesType = d.type === "supplier";
     }
-    return matchesQuery && matchesType;
+    
+    let matchesActive = true;
+    if (activeOnly) {
+      matchesActive = (d.closingDebit > 0 || d.closingCredit > 0);
+    }
+    
+    return matchesQuery && matchesType && matchesActive;
   });
 
   debtsPage = 1;
@@ -3149,9 +3335,10 @@ function viewPartnerLedger(partnerId) {
   } else {
     ledgerEntries.forEach(le => {
       const tr = document.createElement("tr");
+      const escapedLeId = escapeHtmlAttr(le.id);
       tr.innerHTML = `
         <td>${le.date}</td>
-        <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${le.id}'); return false;" style="font-weight:bold; color:var(--color-primary);">${le.id}</a></td>
+        <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedLeId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${le.id}</a></td>
         <td>${le.desc}</td>
         <td style="text-align:center; font-weight:700;">${le.offsetAccount}</td>
         <td style="text-align:right; font-weight:500;">${le.debit > 0 ? formatVND(le.debit).replace("đ","") : "-"}</td>
@@ -3236,14 +3423,15 @@ function renderPartnerLedgerOrders() {
     }
     
     const tr = document.createElement("tr");
+    const escapedOrderId = escapeHtmlAttr(o.id);
     tr.innerHTML = `
-      <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${o.id}'); return false;" style="font-weight:bold; color:var(--color-primary);">${o.id}</a></td>
+      <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedOrderId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${o.id}</a></td>
       <td>${o.date}</td>
       <td>${o.description}</td>
       <td style="text-align:right; font-weight:500;">${formatVND(totalAmt).replace("đ","")}</td>
       <td style="text-align:right; font-weight:700; color:${o.remainingDebt > 0 ? 'var(--color-warning)' : 'var(--color-success)'};">${formatVND(o.remainingDebt).replace("đ","")}</td>
       <td style="text-align:center;">
-        <button class="btn btn-secondary btn-sm" onclick="promptEditOrderDebt('${o.id}')" style="padding: 2px 8px;">Sửa nợ</button>
+        <button class="btn btn-secondary btn-sm" onclick="promptEditOrderDebt('${escapedOrderId}')" style="padding: 2px 8px;">Sửa nợ</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -3251,32 +3439,155 @@ function renderPartnerLedgerOrders() {
 }
 
 function promptEditOrderDebt(voucherId) {
-  const v = state.vouchers.find(x => x.id === voucherId);
-  if (!v) return;
-  
-  const totalAmt = v.totalAmount || v.amount || 0;
-  if (v.remainingDebt === undefined) {
-    v.remainingDebt = (v.paymentMethod === "131" || v.paymentMethod === "331") ? totalAmt : 0;
+  try {
+    console.log("promptEditOrderDebt custom modal called with:", voucherId);
+    if (voucherId && voucherId.startsWith("OP-")) {
+      const partnerId = voucherId.substring(3);
+      promptEditPartnerOpeningDebt(partnerId);
+      return;
+    }
+
+    const v = state.vouchers.find(x => x.id === voucherId);
+    if (!v) {
+      console.error("Voucher not found in state.vouchers for ID:", voucherId);
+      if (typeof addErrorLog === "function") {
+        addErrorLog("promptEditOrderDebt", `Không tìm thấy chứng từ với ID: ${voucherId}`);
+      }
+      return;
+    }
+    
+    const totalAmt = v.totalAmount || v.amount || 0;
+    if (v.remainingDebt === undefined) {
+      v.remainingDebt = (v.paymentMethod === "131" || v.paymentMethod === "331") ? totalAmt : 0;
+    }
+
+    // Mở modal sửa công nợ đơn hàng
+    document.getElementById("modal-edit-debt-title").innerText = "Chỉnh sửa Công nợ Đơn hàng";
+    document.getElementById("edit-debt-target-id").value = voucherId;
+    document.getElementById("edit-debt-type").value = "voucher";
+    
+    const partnerName = getPartnerNameForVoucher(v);
+    document.getElementById("edit-debt-info-text").innerHTML = `
+      <strong>Mã hóa đơn:</strong> ${v.id}<br>
+      <strong>Đối tác:</strong> ${partnerName}<br>
+      <strong>Tổng tiền hóa đơn:</strong> ${formatVND(totalAmt)}
+    `;
+
+    document.getElementById("group-edit-debt-voucher").style.display = "block";
+    document.getElementById("group-edit-debt-partner").style.display = "none";
+    
+    document.getElementById("edit-debt-voucher-value").value = v.remainingDebt;
+
+    openModal("modal-edit-debt");
+  } catch (err) {
+    if (typeof addErrorLog === "function") {
+      addErrorLog("promptEditOrderDebt", err.message, err);
+    }
   }
-  
-  const userInput = prompt(`Nhập số tiền nợ mới cho đơn hàng ${v.id} (Tối đa: ${formatVND(totalAmt)}):`, v.remainingDebt);
-  if (userInput === null) return; // Hủy
-  
-  const newDebt = parseInt(userInput.replace(/[^0-9]/g, "")) || 0;
-  if (newDebt < 0 || newDebt > totalAmt) {
-    showToast(`Số tiền nợ hợp lệ phải từ 0đ đến ${formatVND(totalAmt)}!`, "danger");
-    return;
+}
+
+function promptEditPartnerOpeningDebt(partnerId) {
+  try {
+    console.log("promptEditPartnerOpeningDebt custom modal called with:", partnerId);
+    const p = state.partners.find(x => x.id === partnerId);
+    if (!p) {
+      console.error("Partner not found for ID:", partnerId);
+      if (typeof addErrorLog === "function") {
+        addErrorLog("promptEditPartnerOpeningDebt", `Không tìm thấy đối tác với mã: ${partnerId}`);
+      }
+      showToast(`Không tìm thấy đối tác với mã: ${partnerId}`, "danger");
+      return;
+    }
+
+    const currentBal = state.partnerOpeningBalances[partnerId] || { debit: 0, credit: 0 };
+    const currentDebit = currentBal.debit || 0;
+    const currentCredit = currentBal.credit || 0;
+
+    // Mở modal sửa công nợ đầu kỳ
+    document.getElementById("modal-edit-debt-title").innerText = "Chỉnh sửa Số dư Công nợ đầu kỳ";
+    document.getElementById("edit-debt-target-id").value = partnerId;
+    document.getElementById("edit-debt-type").value = "partner";
+    
+    const typeLabel = p.type === "customer" ? "Khách hàng" : "Nhà cung cấp";
+    document.getElementById("edit-debt-info-text").innerHTML = `
+      <strong>Mã đối tác:</strong> ${p.id}<br>
+      <strong>Tên đối tác:</strong> ${p.name}<br>
+      <strong>Phân loại:</strong> ${typeLabel}
+    `;
+
+    document.getElementById("group-edit-debt-voucher").style.display = "none";
+    document.getElementById("group-edit-debt-partner").style.display = "block";
+    
+    document.getElementById("edit-debt-partner-debit").value = currentDebit;
+    document.getElementById("edit-debt-partner-credit").value = currentCredit;
+
+    openModal("modal-edit-debt");
+  } catch (err) {
+    if (typeof addErrorLog === "function") {
+      addErrorLog("promptEditPartnerOpeningDebt", err.message, err);
+    }
   }
-  
-  v.remainingDebt = newDebt;
-  saveState();
-  
-  showToast(`Cập nhật số dư nợ đơn hàng ${v.id} thành ${formatVND(newDebt)} thành công!`, "success");
-  
-  // Vẽ lại giao diện
-  renderDashboardDebts();
-  if (activePartnerIdForLedger) {
-    renderPartnerLedgerOrders();
+}
+
+function handleEditDebtSubmit(e) {
+  try {
+    e.preventDefault();
+    
+    const targetId = document.getElementById("edit-debt-target-id").value;
+    const editType = document.getElementById("edit-debt-type").value;
+
+    console.log("handleEditDebtSubmit targetId:", targetId, "type:", editType);
+
+    if (editType === "voucher") {
+      const v = state.vouchers.find(x => x.id === targetId);
+      if (!v) {
+        if (typeof addErrorLog === "function") {
+          addErrorLog("handleEditDebtSubmit", `Không tìm thấy chứng từ với ID: ${targetId}`);
+        }
+        return;
+      }
+      const totalAmt = v.totalAmount || v.amount || 0;
+      const newDebt = parseInt(document.getElementById("edit-debt-voucher-value").value) || 0;
+      
+      if (newDebt < 0 || newDebt > totalAmt) {
+        showToast(`Số tiền nợ hợp lệ phải từ 0đ đến ${formatVND(totalAmt)}!`, "danger");
+        return;
+      }
+      
+      v.remainingDebt = newDebt;
+      saveState();
+      showToast(`Cập nhật nợ đơn hàng ${v.id} thành ${formatVND(newDebt)} thành công!`, "success");
+    } 
+    
+    else if (editType === "partner") {
+      const newDebit = parseInt(document.getElementById("edit-debt-partner-debit").value) || 0;
+      const newCredit = parseInt(document.getElementById("edit-debt-partner-credit").value) || 0;
+      
+      if (newDebit < 0 || newCredit < 0) {
+        showToast("Số dư đầu kỳ phải lớn hơn hoặc bằng 0đ!", "danger");
+        return;
+      }
+      
+      state.partnerOpeningBalances = state.partnerOpeningBalances || {};
+      state.partnerOpeningBalances[targetId] = { debit: newDebit, credit: newCredit };
+      
+      saveState();
+      recalculateAccounting();
+      showToast(`Cập nhật số dư công nợ đầu kỳ đối tác ${targetId} thành công!`, "success");
+    }
+
+    closeModal("modal-edit-debt");
+    
+    // Vẽ lại toàn bộ giao diện liên quan
+    renderDashboardDebts();
+    filterDebts();
+    if (activePartnerIdForLedger) {
+      renderPartnerLedgerOrders();
+    }
+  } catch (err) {
+    if (typeof addErrorLog === "function") {
+      addErrorLog("handleEditDebtSubmit", err.message, err);
+    }
   }
 }
 
@@ -3362,11 +3673,13 @@ function renderCashTable() {
       const methodLabel = v.paymentMethod === "111" ? "Tiền mặt (111)" : "Ngân hàng (112)";
 
       const tr = document.createElement("tr");
+      const escapedPartnerId = escapeHtmlAttr(v.partnerId);
+      const escapedVoucherId = escapeHtmlAttr(v.id);
       tr.innerHTML = `
         <td>${v.date}</td>
         <td>${v.date}</td>
         <td style="font-weight:bold;">${v.id}</td>
-        <td><a href="#" onclick="const p = resolvePartner('${v.partnerName}'); viewPartnerLedger(p.id); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${v.partnerName}</a></td>
+        <td><a href="#" onclick="viewPartnerLedger('${escapedPartnerId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${getPartnerNameForVoucher(v)}</a></td>
         <td>${v.description}</td>
         <td style="text-align:right; font-weight:700;" class="font-numeric">${formatVND(v.amount).replace("đ","")}</td>
         <td>
@@ -3376,7 +3689,14 @@ function renderCashTable() {
         </td>
         <td>${methodLabel}</td>
         <td style="text-align:center;">
-          <button class="btn btn-secondary btn-sm" onclick="viewVoucher('${v.id}')" style="padding: 2px 8px;">In mẫu</button>
+          <div style="display:flex; justify-content:center; gap:6px;">
+            <button class="print-btn" onclick="viewVoucher('${escapedVoucherId}')" title="Xem và In mẫu chứng từ">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            </button>
+            <button class="trash-btn" onclick="deleteVoucher('${escapedVoucherId}')" title="Xóa và Hủy ghi sổ chứng từ">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+          </div>
         </td>
       `;
       tbody.appendChild(tr);
@@ -3428,7 +3748,11 @@ function filterCash() {
     return matchesQuery && matchesType && matchesMethod;
   });
 
-  filteredCashList.sort((a, b) => new Date(b.date) - new Date(a.date));
+  filteredCashList.sort((a, b) => {
+    const dateDiff = new Date(b.date) - new Date(a.date);
+    if (dateDiff !== 0) return dateDiff;
+    return b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' });
+  });
 
   cashPage = 1;
   renderCashTable();
@@ -4006,3 +4330,712 @@ function exportDataToExcelSample() {
     exportCashToExcel();
   }, 600);
 }
+
+// ==========================================================================
+// HỆ THỐNG GIÁM SÁT VÀ GHI NHẬT KÝ LỖI TOÀN CỤC (GLOBAL MONITOR & LOGGER)
+// ==========================================================================
+let errorLogs = [];
+try {
+  const savedLogs = localStorage.getItem("rd_accounting_error_logs");
+  if (savedLogs) {
+    errorLogs = JSON.parse(savedLogs);
+  }
+} catch(e) {
+  console.error("Error reading logs:", e);
+}
+
+function addErrorLog(context, message, err = null) {
+  const timestamp = new Date().toLocaleString();
+  const errorDetails = err ? {
+    message: err.message,
+    stack: err.stack
+  } : null;
+  
+  const logEntry = {
+    timestamp,
+    context,
+    message,
+    error: errorDetails
+  };
+  
+  errorLogs.unshift(logEntry);
+  if (errorLogs.length > 100) errorLogs.pop(); // Giữ tối đa 100 log
+  
+  try {
+    localStorage.setItem("rd_accounting_error_logs", JSON.stringify(errorLogs));
+  } catch(e) {
+    console.error("Error saving logs:", e);
+  }
+  
+  // Cập nhật giao diện log
+  updateErrorLogsUI();
+  
+  // Hiển thị toast cảnh báo nếu có lỗi mới
+  if (typeof showToast === "function") {
+    showToast(`Lỗi [${context}]: ${message}`, "danger");
+  }
+}
+
+function updateErrorLogsUI() {
+  const container = document.getElementById("error-logs-container");
+  if (!container) return;
+  
+  if (errorLogs.length === 0) {
+    container.innerHTML = "Không có lỗi nào được ghi nhận.";
+    container.style.color = "var(--text-secondary)";
+    return;
+  }
+  
+  container.innerHTML = errorLogs.map(log => {
+    let errStr = "";
+    if (log.error) {
+      errStr = `\nStack: ${log.error.stack || log.error.message}`;
+    }
+    return `[${log.timestamp}] [${log.context}] ${log.message}${errStr}`;
+  }).join("\n\n");
+  container.style.color = "#ef4444"; // Slate red for premium error contrast
+}
+
+function clearErrorLogs() {
+  errorLogs = [];
+  try {
+    localStorage.removeItem("rd_accounting_error_logs");
+  } catch(e) {
+    console.error(e);
+  }
+  updateErrorLogsUI();
+  if (typeof showToast === "function") {
+    showToast("Đã xóa sạch nhật ký lỗi!", "success");
+  }
+}
+
+function exportErrorLogs() {
+  if (errorLogs.length === 0) {
+    if (typeof showToast === "function") {
+      showToast("Nhật ký trống, không có gì để xuất!", "warning");
+    }
+    return;
+  }
+  
+  const logStr = errorLogs.map(log => {
+    let errStr = "";
+    if (log.error) {
+      errStr = `\nStack: ${log.error.stack || log.error.message}`;
+    }
+    return `[${log.timestamp}] [${log.context}] ${log.message}${errStr}`;
+  }).join("\n" + "=".repeat(80) + "\n");
+  
+  const blob = new Blob([logStr], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `RD_Accounting_Error_Logs_${new Date().toISOString().slice(0,10)}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Bắt lỗi runtime không được xử lý
+window.onerror = function(message, source, lineno, colno, error) {
+  const errMsg = `${message} tại ${source}:${lineno}:${colno}`;
+  addErrorLog("Global Runtime Error", errMsg, error);
+  return false;
+};
+
+// Bắt lỗi Promise bị Reject mà không được catch
+window.onunhandledrejection = function(event) {
+  const reason = event.reason;
+  const errMsg = reason ? (reason.message || String(reason)) : "Unhandled Promise Rejection";
+  addErrorLog("Unhandled Promise", errMsg, reason instanceof Error ? reason : null);
+};
+
+// Đăng ký toàn cục các hàm tương tác để chống lỗi Context / Scoping trong Electron
+window.promptEditOrderDebt = promptEditOrderDebt;
+window.promptEditPartnerOpeningDebt = promptEditPartnerOpeningDebt;
+window.handleEditDebtSubmit = handleEditDebtSubmit;
+window.viewVoucher = viewVoucher;
+window.viewPartnerLedger = viewPartnerLedger;
+window.deleteVoucher = deleteVoucher;
+window.openEditPartnerModal = openEditPartnerModal;
+window.closeModal = closeModal;
+window.openModal = openModal;
+window.switchTab = switchTab;
+window.escapeHtmlAttr = escapeHtmlAttr;
+window.clearErrorLogs = clearErrorLogs;
+window.exportErrorLogs = exportErrorLogs;
+window.addErrorLog = addErrorLog;
+window.updateErrorLogsUI = updateErrorLogsUI;
+window.promptQuickImport = promptQuickImport;
+window.handleQuickImportSubmit = handleQuickImportSubmit;
+window.promptEditProductPrice = promptEditProductPrice;
+window.handleEditProductPriceSubmit = handleEditProductPriceSubmit;
+
+// ==========================================================================
+// CÁC CHỨC NĂNG QUẢN LÝ KHO HÀNG MỞ RỘNG (EXTENDED INVENTORY MANAGEMENT)
+// ==========================================================================
+function promptQuickImport(productId) {
+  try {
+    console.log("promptQuickImport called with:", productId);
+    const p = state.products.find(x => x.id === productId);
+    if (!p) {
+      if (typeof addErrorLog === "function") {
+        addErrorLog("promptQuickImport", `Không tìm thấy sản phẩm với mã: ${productId}`);
+      }
+      showToast(`Không tìm thấy sản phẩm với mã: ${productId}`, "danger");
+      return;
+    }
+
+    document.getElementById("quick-import-prod-id").value = p.id;
+    document.getElementById("quick-import-info-text").innerHTML = `
+      <strong>Mã hàng:</strong> ${p.id}<br>
+      <strong>Tên hàng:</strong> ${p.name}<br>
+      <strong>ĐVT:</strong> ${p.unit || "Cái"}<br>
+      <strong>Tồn kho hiện tại:</strong> <span style="font-weight:bold; color:var(--color-primary);">${p.stock || 0}</span>
+    `;
+
+    document.getElementById("quick-import-qty").value = "";
+    document.getElementById("quick-import-price").value = p.avgCost || p.initialCost || "";
+
+    openModal("modal-quick-import");
+  } catch(err) {
+    if (typeof addErrorLog === "function") {
+      addErrorLog("promptQuickImport", err.message, err);
+    }
+  }
+}
+
+function handleQuickImportSubmit(e) {
+  try {
+    e.preventDefault();
+    
+    const prodId = document.getElementById("quick-import-prod-id").value;
+    const qty = parseInt(document.getElementById("quick-import-qty").value) || 0;
+    const price = parseInt(document.getElementById("quick-import-price").value) || 0;
+
+    if (qty <= 0 || price < 0) {
+      showToast("Số lượng nhập phải lớn hơn 0 và Đơn giá phải lớn hơn hoặc bằng 0đ!", "danger");
+      return;
+    }
+
+    const p = state.products.find(x => x.id === prodId);
+    if (!p) return;
+
+    // Tìm nhà cung cấp đầu tiên hoặc dùng mặc định
+    const supplier = state.partners.find(x => x.type === "supplier") || { id: "NCC001", name: "Nhà cung cấp vãng lai" };
+    
+    // Tạo mã chứng từ nhập kho nhanh
+    const quickId = "PNK-Q" + Math.floor(1000 + Math.random() * 9000);
+    const amount = qty * price;
+
+    // Tạo phiếu nhập kho
+    const voucher = {
+      id: quickId,
+      type: "purchase",
+      date: new Date().toISOString().slice(0, 10),
+      partnerId: supplier.id,
+      partnerName: supplier.name,
+      paymentMethod: "331", // Nợ TK 156 / Có TK 331
+      description: `Nhập kho nhanh hàng hóa: ${p.name} (Số lượng: ${qty})`,
+      amount: amount,
+      totalAmount: amount,
+      taxRate: 0,
+      taxAmount: 0,
+      items: [
+        {
+          productId: p.id,
+          qty: qty,
+          price: price,
+          amount: amount
+        }
+      ],
+      entries: [
+        {
+          debit: "156",
+          credit: "331",
+          amount: amount,
+          desc: `Nhập kho nhanh mặt hàng ${p.id}`
+        }
+      ]
+    };
+
+    state.vouchers.push(voucher);
+    
+    saveState();
+    recalculateAccounting();
+    closeModal("modal-quick-import");
+    showToast(`Nhập nhanh ${qty} ${p.unit || 'Cái'} hàng ${p.name} thành công!`, "success");
+    
+    // Vẽ lại bảng tồn kho và thẻ kho
+    renderInventoryTable();
+    populateProductLedgerDropdown();
+    renderStockLedger();
+  } catch(err) {
+    if (typeof addErrorLog === "function") {
+      addErrorLog("handleQuickImportSubmit", err.message, err);
+    }
+  }
+}
+
+function promptEditProductPrice(productId) {
+  try {
+    console.log("promptEditProductPrice called with:", productId);
+    const p = state.products.find(x => x.id === productId);
+    if (!p) {
+      if (typeof addErrorLog === "function") {
+        addErrorLog("promptEditProductPrice", `Không tìm thấy sản phẩm với mã: ${productId}`);
+      }
+      showToast(`Không tìm thấy sản phẩm với mã: ${productId}`, "danger");
+      return;
+    }
+
+    document.getElementById("edit-prod-id").value = p.id;
+    document.getElementById("edit-prod-id-display").value = p.id;
+    document.getElementById("edit-prod-name").value = p.name;
+    document.getElementById("edit-prod-unit").value = p.unit || "Cái";
+    document.getElementById("edit-prod-initial-cost").value = p.initialCost || 0;
+    document.getElementById("edit-prod-initial-stock").value = p.initialStock || 0;
+    document.getElementById("edit-prod-avg-cost").value = p.avgCost || 0;
+    document.getElementById("edit-prod-min-stock").value = p.minStock || 5;
+
+    openModal("modal-edit-product-price");
+  } catch(err) {
+    if (typeof addErrorLog === "function") {
+      addErrorLog("promptEditProductPrice", err.message, err);
+    }
+  }
+}
+
+function handleEditProductPriceSubmit(e) {
+  try {
+    e.preventDefault();
+    
+    const prodId = document.getElementById("edit-prod-id").value;
+    const name = document.getElementById("edit-prod-name").value.trim();
+    const unit = document.getElementById("edit-prod-unit").value.trim();
+    const initialCost = parseInt(document.getElementById("edit-prod-initial-cost").value) || 0;
+    const initialStock = parseInt(document.getElementById("edit-prod-initial-stock").value) || 0;
+    const avgCost = parseInt(document.getElementById("edit-prod-avg-cost").value) || 0;
+    const minStock = parseInt(document.getElementById("edit-prod-min-stock").value) || 0;
+
+    if (!name || !unit) {
+      showToast("Vui lòng điền đầy đủ Tên sản phẩm và Đơn vị tính!", "danger");
+      return;
+    }
+
+    const p = state.products.find(x => x.id === prodId);
+    if (!p) return;
+
+    p.name = name;
+    p.unit = unit;
+    p.initialCost = initialCost;
+    p.initialStock = initialStock;
+    p.avgCost = avgCost;
+    p.minStock = minStock;
+
+    // Cập nhật giá trị tồn ban đầu
+    p.stock = initialStock;
+    p.totalValue = initialStock * initialCost;
+
+    saveState();
+    recalculateAccounting();
+    closeModal("modal-edit-product-price");
+    showToast(`Đã cập nhật thông tin và đơn giá sản phẩm ${p.id} thành công!`, "success");
+    
+    // Vẽ lại bảng tồn kho và thẻ kho
+    renderInventoryTable();
+    populateProductLedgerDropdown();
+    renderStockLedger();
+  } catch(err) {
+    if (typeof addErrorLog === "function") {
+      addErrorLog("handleEditProductPriceSubmit", err.message, err);
+    }
+  }
+}
+
+// Khởi chạy đồng bộ logs UI ngay khi script load
+setTimeout(() => {
+  try {
+    updateErrorLogsUI();
+  } catch(e) {
+    console.error(e);
+  }
+}, 50);
+
+// ==========================================================================
+// HỆ THỐNG ĐỒNG BỘ CƠ SỞ DỮ LIỆU ĐÁM MÂY (FIREBASE REALTIME DATABASE CLOUD SYNC)
+// ==========================================================================
+function escapeFirebaseKey(key) {
+  if (typeof key !== 'string') return key;
+  return key
+    .replace(/%/g, '_esc_percent_')
+    .replace(/\./g, '_esc_dot_')
+    .replace(/#/g, '_esc_hash_')
+    .replace(/\$/g, '_esc_dollar_')
+    .replace(/\//g, '_esc_slash_')
+    .replace(/\[/g, '_esc_obrack_')
+    .replace(/\]/g, '_esc_cbrack_');
+}
+
+function unescapeFirebaseKey(key) {
+  if (typeof key !== 'string') return key;
+  return key
+    .replace(/_esc_dot_/g, '.')
+    .replace(/_esc_hash_/g, '#')
+    .replace(/_esc_dollar_/g, '$')
+    .replace(/_esc_slash_/g, '/')
+    .replace(/_esc_obrack_/g, '[')
+    .replace(/_esc_cbrack_/g, ']')
+    .replace(/_esc_percent_/g, '%');
+}
+
+function escapeFirebaseObject(obj) {
+  if (obj === null || obj === undefined) {
+    return "";
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(item => {
+      if (item === undefined || item === null) return "";
+      return escapeFirebaseObject(item);
+    });
+  }
+  if (typeof obj === 'object') {
+    const res = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        const val = obj[key];
+        const escapedKey = escapeFirebaseKey(key);
+        if (val === undefined || val === null) {
+          res[escapedKey] = "";
+        } else {
+          res[escapedKey] = escapeFirebaseObject(val);
+        }
+      }
+    }
+    return res;
+  }
+  return obj;
+}
+
+function unescapeFirebaseObject(obj) {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(item => unescapeFirebaseObject(item));
+  }
+  if (typeof obj === 'object') {
+    const res = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        const unescapedKey = unescapeFirebaseKey(key);
+        res[unescapedKey] = unescapeFirebaseObject(obj[key]);
+      }
+    }
+    return res;
+  }
+  return obj;
+}
+
+let firebaseApp = null;
+let firebaseDb = null;
+let cloudSyncActive = false;
+let cloudSyncSettings = {
+  enabled: true,
+  apiKey: "AIzaSyAe2A71K8H9YuFPzm62dI-cTq9ImREARG0",
+  databaseURL: "https://rangdong-accounting-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "rangdong-accounting",
+  appId: "1:317276892113:web:434f1da4d0c1db12184ef0"
+};
+
+function loadCloudSettings() {
+  try {
+    const saved = localStorage.getItem("rd_accounting_cloud_settings");
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.apiKey) {
+        cloudSyncSettings = parsed;
+      } else {
+        localStorage.setItem("rd_accounting_cloud_settings", JSON.stringify(cloudSyncSettings));
+      }
+    } else {
+      // Sử dụng cấu hình Firebase mặc định của người dùng
+      localStorage.setItem("rd_accounting_cloud_settings", JSON.stringify(cloudSyncSettings));
+    }
+    
+    const chk = document.getElementById("setting-cloud-enabled");
+    if (chk) chk.checked = cloudSyncSettings.enabled;
+    
+    const apiKey = document.getElementById("setting-cloud-apikey");
+    if (apiKey) apiKey.value = cloudSyncSettings.apiKey || "";
+    
+    const dburl = document.getElementById("setting-cloud-dburl");
+    if (dburl) dburl.value = cloudSyncSettings.databaseURL || "";
+    
+    const pid = document.getElementById("setting-cloud-projectid");
+    if (pid) pid.value = cloudSyncSettings.projectId || "";
+    
+    const appid = document.getElementById("setting-cloud-appid");
+    if (appid) appid.value = cloudSyncSettings.appId || "";
+    
+    toggleCloudSyncInputs();
+  } catch(e) {
+    console.error("Lỗi đọc cấu hình cloud:", e);
+  }
+}
+
+function initCloudSync() {
+  if (!cloudSyncSettings.enabled) {
+    updateCloudSyncBadge(false, "Mây: Tắt", "#64748b");
+    return;
+  }
+
+  if (!cloudSyncSettings.apiKey || !cloudSyncSettings.databaseURL || !cloudSyncSettings.projectId) {
+    updateCloudSyncBadge(false, "Mây: Chưa cấu hình", "#ef4444");
+    return;
+  }
+
+  try {
+    updateCloudSyncBadge(false, "Mây: Đang kết nối...", "#f59e0b");
+    
+    if (typeof firebase === "undefined") {
+      if (typeof addErrorLog === "function") {
+        addErrorLog("initCloudSync", "Thư viện Firebase chưa được tải. Vui lòng kiểm tra Internet.");
+      }
+      updateCloudSyncBadge(false, "Mây: Không có mạng", "#ef4444");
+      return;
+    }
+
+    if (firebase.apps.length > 0) {
+      firebase.app().delete().then(startFirebaseApp).catch(err => {
+        if (typeof addErrorLog === "function") {
+          addErrorLog("initCloudSync App Delete", err.message, err);
+        }
+      });
+    } else {
+      startFirebaseApp();
+    }
+  } catch(err) {
+    if (typeof addErrorLog === "function") {
+      addErrorLog("initCloudSync", err.message, err);
+    }
+    updateCloudSyncBadge(false, "Mây: Lỗi kết nối", "#ef4444");
+  }
+}
+
+function startFirebaseApp() {
+  try {
+    const config = {
+      apiKey: cloudSyncSettings.apiKey,
+      databaseURL: cloudSyncSettings.databaseURL,
+      projectId: cloudSyncSettings.projectId,
+      appId: cloudSyncSettings.appId
+    };
+    
+    firebaseApp = firebase.initializeApp(config);
+    firebaseDb = firebase.database();
+    cloudSyncActive = true;
+
+    // Lắng nghe kết nối mạng từ Firebase
+    const connectedRef = firebaseDb.ref(".info/connected");
+    connectedRef.on("value", (snap) => {
+      if (snap.val() === true) {
+        updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
+        showToast("Đã kết nối đám mây thời gian thực thành công!", "success");
+        
+        // Tải dữ liệu từ đám mây khi khởi động
+        pullFromCloudOnStartup();
+        // Lắng nghe thay đổi trực tuyến để đồng bộ đa máy
+        listenToCloudChanges();
+      } else {
+        updateCloudSyncBadge(false, "Mây: Ngoại tuyến", "#ef4444");
+      }
+    });
+
+    const forcePullBtn = document.getElementById("btn-force-pull");
+    if (forcePullBtn) forcePullBtn.style.display = "inline-block";
+  } catch(err) {
+    if (typeof addErrorLog === "function") {
+      addErrorLog("startFirebaseApp", err.message, err);
+    }
+    updateCloudSyncBadge(false, "Mây: Lỗi khởi tạo", "#ef4444");
+  }
+}
+
+function pullFromCloudOnStartup() {
+  if (!cloudSyncActive || !firebaseDb) return;
+  
+  firebaseDb.ref("rd_accounting_db").once("value")
+    .then((snapshot) => {
+      const rawData = snapshot.val();
+      if (rawData) {
+        const data = unescapeFirebaseObject(rawData);
+        state = data;
+        localStorage.setItem("rd_accounting_db", JSON.stringify(state));
+        console.log("Dữ liệu đám mây đã được nạp thành công khi khởi động!");
+        
+        // Cập nhật giao diện
+        recalculateAccounting();
+        renderDashboard();
+        filterDebts();
+        filterPartners();
+        filterCash();
+      }
+    })
+    .catch((err) => {
+      if (typeof addErrorLog === "function") {
+        addErrorLog("pullFromCloudOnStartup", err.message, err);
+      }
+    });
+}
+
+function forcePullFromCloud() {
+  if (!cloudSyncActive || !firebaseDb) {
+    showToast("Ứng dụng chưa kết nối Đám mây!", "danger");
+    return;
+  }
+
+  updateCloudSyncBadge(false, "Mây: Đang tải...", "#f59e0b");
+  firebaseDb.ref("rd_accounting_db").once("value")
+    .then((snapshot) => {
+      const rawData = snapshot.val();
+      if (rawData) {
+        const data = unescapeFirebaseObject(rawData);
+        state = data;
+        localStorage.setItem("rd_accounting_db", JSON.stringify(state));
+        recalculateAccounting();
+        renderDashboard();
+        filterDebts();
+        filterPartners();
+        filterCash();
+        updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
+        showToast("Tải dữ liệu từ Đám mây về máy này thành công!", "success");
+      } else {
+        showToast("Không tìm thấy dữ liệu trên Đám mây để tải về!", "warning");
+        updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
+      }
+    })
+    .catch((err) => {
+      if (typeof addErrorLog === "function") {
+        addErrorLog("forcePullFromCloud", err.message, err);
+      }
+      showToast("Lỗi khi tải dữ liệu đám mây: " + err.message, "danger");
+      updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
+    });
+}
+
+function pushToCloud() {
+  if (!cloudSyncActive || !firebaseDb) return;
+  
+  const escapedState = escapeFirebaseObject(state);
+  firebaseDb.ref("rd_accounting_db").set(escapedState)
+    .then(() => {
+      console.log("Đã đồng bộ hóa state lên đám mây thành công!");
+    })
+    .catch((err) => {
+      if (typeof addErrorLog === "function") {
+        addErrorLog("pushToCloud", err.message, err);
+      }
+    });
+}
+
+function listenToCloudChanges() {
+  if (!cloudSyncActive || !firebaseDb) return;
+  
+  firebaseDb.ref("rd_accounting_db").off("value");
+  firebaseDb.ref("rd_accounting_db").on("value", (snapshot) => {
+    const rawData = snapshot.val();
+    if (rawData) {
+      const data = unescapeFirebaseObject(rawData);
+      const localStr = localStorage.getItem("rd_accounting_db") || "";
+      const cloudStr = JSON.stringify(data);
+      
+      if (localStr !== cloudStr) {
+        console.log("Nhận thấy dữ liệu đám mây thay đổi từ máy khác, đang đồng bộ...");
+        state = data;
+        localStorage.setItem("rd_accounting_db", cloudStr);
+        
+        recalculateAccounting();
+        renderDashboard();
+        filterDebts();
+        filterPartners();
+        filterCash();
+      }
+    }
+  });
+}
+
+function toggleCloudSyncInputs() {
+  const chk = document.getElementById("setting-cloud-enabled");
+  const group = document.getElementById("cloud-sync-inputs-group");
+  if (chk && group) {
+    group.style.display = chk.checked ? "flex" : "none";
+  }
+}
+
+function saveCloudConfig(e) {
+  try {
+    e.preventDefault();
+    
+    const enabled = document.getElementById("setting-cloud-enabled").checked;
+    const apiKey = document.getElementById("setting-cloud-apikey").value.trim();
+    const databaseURL = document.getElementById("setting-cloud-dburl").value.trim();
+    const projectId = document.getElementById("setting-cloud-projectid").value.trim();
+    const appId = document.getElementById("setting-cloud-appid").value.trim();
+
+    if (enabled && (!apiKey || !databaseURL || !projectId)) {
+      showToast("Vui lòng điền các trường bắt buộc (API Key, Database URL, Project ID)!", "danger");
+      return;
+    }
+
+    cloudSyncSettings = {
+      enabled,
+      apiKey,
+      databaseURL,
+      projectId,
+      appId
+    };
+
+    localStorage.setItem("rd_accounting_cloud_settings", JSON.stringify(cloudSyncSettings));
+    showToast("Cấu hình đám mây đã được lưu thành công!", "success");
+
+    if (enabled) {
+      initCloudSync();
+    } else {
+      if (firebaseDb) firebaseDb.ref("rd_accounting_db").off("value");
+      cloudSyncActive = false;
+      const forcePullBtn = document.getElementById("btn-force-pull");
+      if (forcePullBtn) forcePullBtn.style.display = "none";
+      updateCloudSyncBadge(false, "Mây: Tắt", "#64748b");
+      showToast("Đã tắt đồng bộ trực tuyến đám mây.", "info");
+    }
+  } catch(err) {
+    if (typeof addErrorLog === "function") {
+      addErrorLog("saveCloudConfig", err.message, err);
+    }
+  }
+}
+
+function updateCloudSyncBadge(connected, text, color = "#64748b") {
+  const badge = document.getElementById("cloud-sync-badge");
+  const indicator = document.getElementById("cloud-sync-indicator");
+  const textEl = document.getElementById("cloud-sync-status-text");
+  
+  if (badge && indicator && textEl) {
+    textEl.innerText = text;
+    textEl.style.color = color;
+    indicator.style.backgroundColor = color;
+    
+    if (connected) {
+      indicator.classList.add("pulse-indicator");
+    } else {
+      indicator.classList.remove("pulse-indicator");
+    }
+  }
+}
+
+// Đăng ký toàn cục các hàm cho thiết bị Electron
+window.loadCloudSettings = loadCloudSettings;
+window.initCloudSync = initCloudSync;
+window.saveCloudConfig = saveCloudConfig;
+window.toggleCloudSyncInputs = toggleCloudSyncInputs;
+window.forcePullFromCloud = forcePullFromCloud;
+window.updateCloudSyncBadge = updateCloudSyncBadge;

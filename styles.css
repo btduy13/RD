@@ -1045,6 +1045,23 @@ body {
   background-color: var(--color-danger-bg);
 }
 
+.print-btn {
+  background: none;
+  border: none;
+  color: var(--color-primary, #3b82f6);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.print-btn:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
 /* 9. BÁO CÁO KẾ TOÁN (GENERAL LEDGER SELECTOR) */
 .report-selector-bar {
   display: flex;

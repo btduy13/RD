@@ -16,3 +16,4 @@ ehthumbs.db
 dist/
 out/
 .electron-builder/
+dist-installer/
