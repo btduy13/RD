@@ -1412,35 +1412,75 @@ function addSalesFormRow() {
   if (!tbody) return;
 
   const rowId = `sale-row-${Date.now()}`;
-  
-  // Tạo dropdown sản phẩm từ cache
-  const options = productOptionsSalesHTML || state.products.map(p => `<option value="${p.id}">${p.name} (Tồn: ${p.stock})</option>`).join("");
 
   const tr = document.createElement("tr");
   tr.id = rowId;
   tr.innerHTML = `
     <td>
-      <select class="form-control item-productId" required style="width:100%;" onchange="autoFillProductPrice(this)">
-        ${options}
-      </select>
+      <input type="text" class="form-control item-productId" placeholder="Gõ mã hoặc tên sản phẩm..." required list="datalist-sales-products" oninput="autoFillProductPrice(this)" onblur="autoFillProductPrice(this)">
     </td>
     <td>
       <input type="number" class="form-control item-qty text-right" required value="1" min="1" oninput="recalculateSalesTotals()">
     </td>
     <td>
-      <input type="number" class="form-control item-price text-right" required value="20000" min="0" oninput="recalculateSalesTotals()">
+      <input type="number" class="form-control item-price text-right" required value="0" min="0" oninput="recalculateSalesTotals()">
     </td>
-    <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">20.000đ</td>
+    <td>
+      <input type="number" class="form-control item-discount text-right" required value="0" min="0" max="100" oninput="recalculateSalesTotals()" placeholder="0">
+    </td>
+    <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
     <td style="text-align: center;">
       <button type="button" class="trash-btn" onclick="document.getElementById('${rowId}').remove(); recalculateSalesTotals();">×</button>
     </td>
   `;
 
   tbody.appendChild(tr);
+}
+
+// Gợi ý giá bán = Giá vốn bình quan + 35% lợi nhuận biên
+function autoFillProductPrice(selectEl) {
+  const prodVal = selectEl.value;
+  const prod = resolveProduct(prodVal);
+  const row = selectEl.closest("tr");
   
-  // Tự động thiết lập đơn giá bán gợi ý lần đầu
-  const sel = tr.querySelector(".item-productId");
-  autoFillProductPrice(sel);
+  if (prod && row) {
+    const suggestedPrice = Math.round(prod.avgCost * 1.35 / 1000) * 1000 || 50000;
+    row.querySelector(".item-price").value = suggestedPrice;
+    recalculateSalesTotals();
+  }
+}
+
+// Tính toán lại tổng tiền trong form Bán
+function recalculateSalesTotals() {
+  const rows = document.querySelectorAll("#sales-form-items-body tr");
+  let subtotal = 0;
+
+  rows.forEach(row => {
+    const qty = parseInt(row.querySelector(".item-qty").value) || 0;
+    const price = parseInt(row.querySelector(".item-price").value) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value) || 0;
+    const amount = Math.round(qty * price * (1 - discount / 100));
+    subtotal += amount;
+
+    row.querySelector(".item-total-display").innerText = formatVND(amount);
+  });
+
+  const taxRate = parseInt(document.getElementById("sale-tax-rate").value) || 0;
+  const taxAmount = Math.round(subtotal * (taxRate / 100));
+  const total = subtotal + taxAmount;
+
+  document.getElementById("sale-subtotal-display").value = formatVND(subtotal);
+  document.getElementById("sale-tax-display").value = formatVND(taxAmount);
+  document.getElementById("sale-total-display").value = formatVND(total);
+}
+
+// Reset form bán hàng
+function resetSalesForm() {
+  const tbody = document.getElementById("sales-form-items-body");
+  if (tbody) tbody.innerHTML = "";
+  document.getElementById("sale-desc").value = "Bán sản phẩm Rạng Đông xuất kho";
+  document.getElementById("sale-date").value = new Date().toISOString().split("T")[0];
+  addSalesFormRow();
 }
 
 // Gợi ý giá bán = Giá vốn bình quân + 30% lợi nhuận biên
@@ -1506,15 +1546,26 @@ function handleSalesSubmit(e) {
   const voucherItems = [];
   let isStockInsufficient = false;
 
-  rows.forEach(row => {
-    const productId = row.querySelector(".item-productId").value;
-    const qty = parseInt(row.querySelector(".item-qty").value);
-    const price = parseInt(row.querySelector(".item-price").value);
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const productInputVal = row.querySelector(".item-productId").value;
+    const resolvedProduct = resolveProduct(productInputVal);
+    
+    if (!resolvedProduct) {
+      showToast(`Không tìm thấy sản phẩm nào khớp với từ khóa "${productInputVal}"!`, "danger");
+      isStockInsufficient = true;
+      break;
+    }
+
+    const productId = resolvedProduct.id;
+    const qty = parseInt(row.querySelector(".item-qty").value) || 0;
+    const price = parseInt(row.querySelector(".item-price").value) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value) || 0;
+    const amount = Math.round(qty * price * (1 - discount / 100));
     
     // Kiểm tra hàng tồn kho khả dụng
-    const pObj = state.products.find(p => p.id === productId);
-    if (pObj && pObj.stock < qty) {
-      showToast(`Hàng tồn kho sản phẩm "${pObj.name}" không đủ (Còn tồn ${pObj.stock}, cần bán ${qty})!`, "danger");
+    if (resolvedProduct.stock < qty) {
+      showToast(`Hàng tồn kho sản phẩm "${resolvedProduct.name}" không đủ (Còn tồn ${resolvedProduct.stock}, cần bán ${qty})!`, "danger");
       isStockInsufficient = true;
     }
 
@@ -1522,9 +1573,10 @@ function handleSalesSubmit(e) {
       productId,
       qty,
       price,
-      amount: qty * price
+      discount,
+      amount
     });
-  });
+  }
 
   if (isStockInsufficient) return;
 
@@ -1922,17 +1974,19 @@ function viewVoucher(id) {
           <thead>
             <tr>
               <th style="width:5%;">STT</th>
-              <th style="width:15%;">Mã SP</th>
-              <th style="width:40%;">Tên sản phẩm thiết bị chiếu sáng Rạng Đông</th>
+              <th style="width:12%;">Mã SP</th>
+              <th style="width:38%;">Tên sản phẩm thiết bị chiếu sáng Rạng Đông</th>
               <th style="width:10%;">ĐVT</th>
               <th style="width:10%;">Số lượng</th>
-              <th style="width:10%;">Đơn giá bán</th>
+              <th style="width:10%;">Đơn giá</th>
+              <th style="width:10%;">C.Khấu</th>
               <th style="width:15%;">Thành tiền (đ)</th>
             </tr>
           </thead>
           <tbody>
             ${v.items.map((item, idx) => {
               const prod = state.products.find(p => p.id === item.productId) || { name: "Sản phẩm" };
+              const discountStr = item.discount ? `${item.discount}%` : "-";
               return `
                 <tr>
                   <td style="text-align:center;">${idx + 1}</td>
@@ -1941,21 +1995,22 @@ function viewVoucher(id) {
                   <td style="text-align:center;">${prod.unit || "Cái"}</td>
                   <td style="text-align:right;">${item.qty}</td>
                   <td style="text-align:right;">${formatVND(item.price).replace("đ","")}</td>
+                  <td style="text-align:center;">${discountStr}</td>
                   <td style="text-align:right; font-weight:bold;">${formatVND(item.amount).replace("đ","")}</td>
                 </tr>
               `;
             }).join("")}
             
             <tr>
-              <td colspan="6" style="text-align:right; font-weight:bold;">Cộng tiền doanh thu bán hàng:</td>
+              <td colspan="7" style="text-align:right; font-weight:bold;">Cộng tiền doanh thu bán hàng:</td>
               <td style="text-align:right; font-weight:bold;">${formatVND(v.totalAmount - v.taxAmount).replace("đ","")}</td>
             </tr>
             <tr>
-              <td colspan="6" style="text-align:right;">Thuế GTGT đầu ra (${v.taxRate}%):</td>
+              <td colspan="7" style="text-align:right;">Thuế GTGT đầu ra (${v.taxRate}%):</td>
               <td style="text-align:right;">${formatVND(v.taxAmount).replace("đ","")}</td>
             </tr>
             <tr style="background-color:#e5e7eb;">
-              <td colspan="6" style="text-align:right; font-weight:bold; text-transform:uppercase;">Tổng cộng thanh toán phải thu:</td>
+              <td colspan="7" style="text-align:right; font-weight:bold; text-transform:uppercase;">Tổng cộng thanh toán phải thu:</td>
               <td style="text-align:right; font-weight:bold; color:var(--color-success);">${formatVND(v.totalAmount).replace("đ","")}</td>
             </tr>
           </tbody>
@@ -2315,6 +2370,14 @@ function initExcelIntegration() {
     ).join("");
   }
 
+  // Nạp datalist sản phẩm phục vụ autocomplete trong hóa đơn bán hàng
+  const productDatalist = document.getElementById("datalist-sales-products");
+  if (productDatalist && state.products) {
+    productDatalist.innerHTML = state.products.map(p => 
+      `<option value="${p.id}">${p.name} (Tồn: ${p.stock})</option>`
+    ).join("");
+  }
+
   // Khởi tạo các sự kiện kéo thả (Drag & Drop) cho Excel Drop Zones
   initExcelDragAndDrop();
   
@@ -2327,6 +2390,13 @@ function cacheProductOptions() {
   if (!state.products) return;
   productOptionsHTML = state.products.map(p => `<option value="${p.id}">${p.name} (${p.id})</option>`).join("");
   productOptionsSalesHTML = state.products.map(p => `<option value="${p.id}">${p.name} (Tồn: ${p.stock})</option>`).join("");
+
+  const productDatalist = document.getElementById("datalist-sales-products");
+  if (productDatalist) {
+    productDatalist.innerHTML = state.products.map(p => 
+      `<option value="${p.id}">${p.name} (Tồn: ${p.stock})</option>`
+    ).join("");
+  }
 }
 
 // Cập nhật thống kê trên Excel Hub
@@ -2369,6 +2439,24 @@ function resolvePartner(value) {
   
   // 4. Tạo đối tác mới tự động nếu không tồn tại
   return { id: val, name: val };
+}
+
+// Tìm sản phẩm thông minh từ từ khóa nhập (ID hoặc Tên) phục vụ autocomplete
+function resolveProduct(value) {
+  const val = (value || "").toString().trim();
+  if (!val) return null;
+
+  // 1. Tìm chính xác theo ID
+  let p = state.products.find(item => item.id.toLowerCase() === val.toLowerCase());
+  if (p) return p;
+
+  // 2. Tìm chính xác theo Tên
+  p = state.products.find(item => item.name.toLowerCase() === val.toLowerCase());
+  if (p) return p;
+
+  // 3. Tìm tương đối theo Tên hoặc ID
+  p = state.products.find(item => item.name.toLowerCase().includes(val.toLowerCase()) || item.id.toLowerCase().includes(val.toLowerCase()));
+  return p || null;
 }
 
 // Thiết lập kéo thả File Excel
