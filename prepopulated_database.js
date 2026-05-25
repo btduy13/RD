@@ -17,6 +17,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -1,
     "avgCost": 29370,
     "totalValue": -29370,
+    "initialStock": -1,
+    "initialCost": 29370,
     "minStock": 0
   },
   {
@@ -26,6 +28,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -3,
     "avgCost": 88236,
     "totalValue": -264708,
+    "initialStock": -3,
+    "initialCost": 88236,
     "minStock": 0
   },
   {
@@ -35,6 +39,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -44,6 +50,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 48222999,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 48222999,
     "minStock": 0
   },
   {
@@ -53,6 +61,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1333.5,
     "avgCost": 67048,
     "totalValue": 89408508,
+    "initialStock": 1333.5,
+    "initialCost": 67048,
     "minStock": 0
   },
   {
@@ -62,6 +72,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 385.8,
     "avgCost": 2424,
     "totalValue": 935179.2000000001,
+    "initialStock": 385.8,
+    "initialCost": 2424,
     "minStock": 0
   },
   {
@@ -71,6 +83,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 42020,
     "totalValue": 84040,
+    "initialStock": 2,
+    "initialCost": 42020,
     "minStock": 0
   },
   {
@@ -80,6 +94,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 5500000,
     "totalValue": 5500000,
+    "initialStock": 1,
+    "initialCost": 5500000,
     "minStock": 0
   },
   {
@@ -89,6 +105,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 2010000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 2010000,
     "minStock": 0
   },
   {
@@ -98,6 +116,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 2550000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 2550000,
     "minStock": 0
   },
   {
@@ -107,6 +127,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 2644000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 2644000,
     "minStock": 0
   },
   {
@@ -116,6 +138,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 3545000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 3545000,
     "minStock": 0
   },
   {
@@ -125,6 +149,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 15,
     "avgCost": 19800,
     "totalValue": 297000,
+    "initialStock": 15,
+    "initialCost": 19800,
     "minStock": 0
   },
   {
@@ -134,6 +160,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 92,
     "avgCost": 14875,
     "totalValue": 1368500,
+    "initialStock": 92,
+    "initialCost": 14875,
     "minStock": 0
   },
   {
@@ -143,6 +171,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 369,
     "avgCost": 4940,
     "totalValue": 1822860,
+    "initialStock": 369,
+    "initialCost": 4940,
     "minStock": 0
   },
   {
@@ -152,6 +182,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 20,
     "avgCost": 15282,
     "totalValue": 305640,
+    "initialStock": 20,
+    "initialCost": 15282,
     "minStock": 0
   },
   {
@@ -161,6 +193,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 700000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 700000,
     "minStock": 0
   },
   {
@@ -170,6 +204,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -8,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": -8,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -179,6 +215,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 11957860,
     "totalValue": 71747160,
+    "initialStock": 6,
+    "initialCost": 11957860,
     "minStock": 0
   },
   {
@@ -188,6 +226,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 9448260,
     "totalValue": 18896520,
+    "initialStock": 2,
+    "initialCost": 9448260,
     "minStock": 0
   },
   {
@@ -197,6 +237,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 129500000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 129500000,
     "minStock": 0
   },
   {
@@ -206,6 +248,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 25300000,
     "totalValue": 25300000,
+    "initialStock": 1,
+    "initialCost": 25300000,
     "minStock": 0
   },
   {
@@ -215,6 +259,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 22500000,
     "totalValue": 22500000,
+    "initialStock": 1,
+    "initialCost": 22500000,
     "minStock": 0
   },
   {
@@ -224,6 +270,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 9128267,
     "totalValue": 54769602,
+    "initialStock": 6,
+    "initialCost": 9128267,
     "minStock": 0
   },
   {
@@ -233,6 +281,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -242,6 +292,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -251,6 +303,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 117,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 117,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -260,6 +314,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 281,
     "avgCost": 3600,
     "totalValue": 1011600,
+    "initialStock": 281,
+    "initialCost": 3600,
     "minStock": 0
   },
   {
@@ -269,6 +325,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -278,6 +336,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -287,6 +347,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 2606000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 2606000,
     "minStock": 0
   },
   {
@@ -296,6 +358,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 7310250,
     "totalValue": 14620500,
+    "initialStock": 2,
+    "initialCost": 7310250,
     "minStock": 0
   },
   {
@@ -305,6 +369,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 4082670,
     "totalValue": 36744030,
+    "initialStock": 9,
+    "initialCost": 4082670,
     "minStock": 0
   },
   {
@@ -314,6 +380,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -323,6 +391,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -332,6 +402,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 4169334,
     "totalValue": 4169334,
+    "initialStock": 1,
+    "initialCost": 4169334,
     "minStock": 0
   },
   {
@@ -341,6 +413,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 3600000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 3600000,
     "minStock": 0
   },
   {
@@ -350,6 +424,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -359,6 +435,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 7341667,
     "totalValue": 22025001,
+    "initialStock": 3,
+    "initialCost": 7341667,
     "minStock": 0
   },
   {
@@ -368,6 +446,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -377,6 +457,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 5378000,
     "totalValue": 5378000,
+    "initialStock": 1,
+    "initialCost": 5378000,
     "minStock": 0
   },
   {
@@ -386,6 +468,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 12015934,
     "totalValue": 36047802,
+    "initialStock": 3,
+    "initialCost": 12015934,
     "minStock": 0
   },
   {
@@ -395,6 +479,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -404,6 +490,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 5378000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 5378000,
     "minStock": 0
   },
   {
@@ -413,6 +501,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -422,6 +512,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -431,6 +523,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -440,6 +534,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -449,6 +545,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -458,6 +556,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -467,6 +567,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 2445000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 2445000,
     "minStock": 0
   },
   {
@@ -476,6 +578,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -485,6 +589,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -494,6 +600,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 1944000,
     "totalValue": 7776000,
+    "initialStock": 4,
+    "initialCost": 1944000,
     "minStock": 0
   },
   {
@@ -503,6 +611,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 3632800,
     "totalValue": 14531200,
+    "initialStock": 4,
+    "initialCost": 3632800,
     "minStock": 0
   },
   {
@@ -512,6 +622,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 2310000,
     "totalValue": 16170000,
+    "initialStock": 7,
+    "initialCost": 2310000,
     "minStock": 0
   },
   {
@@ -521,6 +633,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 1272500,
     "totalValue": 2545000,
+    "initialStock": 2,
+    "initialCost": 1272500,
     "minStock": 0
   },
   {
@@ -530,6 +644,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -539,6 +655,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 22,
     "avgCost": 827273,
     "totalValue": 18200006,
+    "initialStock": 22,
+    "initialCost": 827273,
     "minStock": 0
   },
   {
@@ -548,6 +666,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 722133,
     "totalValue": 3610665,
+    "initialStock": 5,
+    "initialCost": 722133,
     "minStock": 0
   },
   {
@@ -557,6 +677,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 21,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 21,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -566,6 +688,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 1585000,
     "totalValue": 3170000,
+    "initialStock": 2,
+    "initialCost": 1585000,
     "minStock": 0
   },
   {
@@ -575,6 +699,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 1370000,
     "totalValue": 4110000,
+    "initialStock": 3,
+    "initialCost": 1370000,
     "minStock": 0
   },
   {
@@ -584,6 +710,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 460000,
     "totalValue": 460000,
+    "initialStock": 1,
+    "initialCost": 460000,
     "minStock": 0
   },
   {
@@ -593,6 +721,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 40,
     "avgCost": 7438,
     "totalValue": 297520,
+    "initialStock": 40,
+    "initialCost": 7438,
     "minStock": 0
   },
   {
@@ -602,6 +732,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 17387,
     "totalValue": 121709,
+    "initialStock": 7,
+    "initialCost": 17387,
     "minStock": 0
   },
   {
@@ -611,6 +743,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 32,
     "avgCost": 5578,
     "totalValue": 178496,
+    "initialStock": 32,
+    "initialCost": 5578,
     "minStock": 0
   },
   {
@@ -620,6 +754,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 109,
     "avgCost": 6846,
     "totalValue": 746214,
+    "initialStock": 109,
+    "initialCost": 6846,
     "minStock": 0
   },
   {
@@ -629,6 +765,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 20,
     "avgCost": 8925,
     "totalValue": 178500,
+    "initialStock": 20,
+    "initialCost": 8925,
     "minStock": 0
   },
   {
@@ -638,6 +776,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 84,
     "avgCost": 4947,
     "totalValue": 415548,
+    "initialStock": 84,
+    "initialCost": 4947,
     "minStock": 0
   },
   {
@@ -647,6 +787,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -10,
     "avgCost": 5920,
     "totalValue": -59200,
+    "initialStock": -10,
+    "initialCost": 5920,
     "minStock": 0
   },
   {
@@ -656,6 +798,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -41,
     "avgCost": 11100,
     "totalValue": -455100,
+    "initialStock": -41,
+    "initialCost": 11100,
     "minStock": 0
   },
   {
@@ -665,6 +809,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 130,
     "avgCost": 6263,
     "totalValue": 814190,
+    "initialStock": 130,
+    "initialCost": 6263,
     "minStock": 0
   },
   {
@@ -674,6 +820,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 118,
     "avgCost": 3237,
     "totalValue": 381966,
+    "initialStock": 118,
+    "initialCost": 3237,
     "minStock": 0
   },
   {
@@ -683,6 +831,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 54,
     "avgCost": 5207,
     "totalValue": 281178,
+    "initialStock": 54,
+    "initialCost": 5207,
     "minStock": 0
   },
   {
@@ -692,6 +842,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 65,
     "avgCost": 4736,
     "totalValue": 307840,
+    "initialStock": 65,
+    "initialCost": 4736,
     "minStock": 0
   },
   {
@@ -701,6 +853,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 6,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -710,6 +864,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 7150,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 7150,
     "minStock": 0
   },
   {
@@ -719,6 +875,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -728,6 +886,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 6156,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 6156,
     "minStock": 0
   },
   {
@@ -737,6 +897,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 101736,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 101736,
     "minStock": 0
   },
   {
@@ -746,6 +908,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 106920,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 106920,
     "minStock": 0
   },
   {
@@ -755,6 +919,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 30000,
     "totalValue": 30000,
+    "initialStock": 1,
+    "initialCost": 30000,
     "minStock": 0
   },
   {
@@ -764,6 +930,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 7920,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 7920,
     "minStock": 0
   },
   {
@@ -773,6 +941,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 14872,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 14872,
     "minStock": 0
   },
   {
@@ -782,6 +952,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 11,
     "avgCost": 326187,
     "totalValue": 3588057,
+    "initialStock": 11,
+    "initialCost": 326187,
     "minStock": 0
   },
   {
@@ -791,6 +963,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 154548,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 154548,
     "minStock": 0
   },
   {
@@ -800,6 +974,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 78066,
     "totalValue": 156132,
+    "initialStock": 2,
+    "initialCost": 78066,
     "minStock": 0
   },
   {
@@ -809,6 +985,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 70500,
     "totalValue": 705000,
+    "initialStock": 10,
+    "initialCost": 70500,
     "minStock": 0
   },
   {
@@ -818,6 +996,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 516,
     "avgCost": 4540,
     "totalValue": 2342640,
+    "initialStock": 516,
+    "initialCost": 4540,
     "minStock": 0
   },
   {
@@ -827,6 +1007,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 6510,
     "totalValue": 19530,
+    "initialStock": 3,
+    "initialCost": 6510,
     "minStock": 0
   },
   {
@@ -836,6 +1018,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 5670000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 5670000,
     "minStock": 0
   },
   {
@@ -845,6 +1029,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 2500000,
     "totalValue": 7500000,
+    "initialStock": 3,
+    "initialCost": 2500000,
     "minStock": 0
   },
   {
@@ -854,6 +1040,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 16,
     "avgCost": 833889,
     "totalValue": 13342224,
+    "initialStock": 16,
+    "initialCost": 833889,
     "minStock": 0
   },
   {
@@ -863,6 +1051,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 22,
     "avgCost": 45534,
     "totalValue": 1001748,
+    "initialStock": 22,
+    "initialCost": 45534,
     "minStock": 0
   },
   {
@@ -872,6 +1062,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 130180,
     "totalValue": 650900,
+    "initialStock": 5,
+    "initialCost": 130180,
     "minStock": 0
   },
   {
@@ -881,6 +1073,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 213548,
     "totalValue": 2562576,
+    "initialStock": 12,
+    "initialCost": 213548,
     "minStock": 0
   },
   {
@@ -890,6 +1084,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 24,
     "avgCost": 76193,
     "totalValue": 1828632,
+    "initialStock": 24,
+    "initialCost": 76193,
     "minStock": 0
   },
   {
@@ -899,6 +1095,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 60712,
     "totalValue": 424984,
+    "initialStock": 7,
+    "initialCost": 60712,
     "minStock": 0
   },
   {
@@ -908,6 +1106,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 24,
     "avgCost": 76193,
     "totalValue": 1828632,
+    "initialStock": 24,
+    "initialCost": 76193,
     "minStock": 0
   },
   {
@@ -917,6 +1117,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 24,
     "avgCost": 165205,
     "totalValue": 3964920,
+    "initialStock": 24,
+    "initialCost": 165205,
     "minStock": 0
   },
   {
@@ -926,6 +1128,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 213548,
     "totalValue": 2562576,
+    "initialStock": 12,
+    "initialCost": 213548,
     "minStock": 0
   },
   {
@@ -935,6 +1139,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 17,
     "avgCost": 45534,
     "totalValue": 774078,
+    "initialStock": 17,
+    "initialCost": 45534,
     "minStock": 0
   },
   {
@@ -944,6 +1150,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 24,
     "avgCost": 76193,
     "totalValue": 1828632,
+    "initialStock": 24,
+    "initialCost": 76193,
     "minStock": 0
   },
   {
@@ -953,6 +1161,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 142635,
     "totalValue": 1711620,
+    "initialStock": 12,
+    "initialCost": 142635,
     "minStock": 0
   },
   {
@@ -962,6 +1172,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 213548,
     "totalValue": 2562576,
+    "initialStock": 12,
+    "initialCost": 213548,
     "minStock": 0
   },
   {
@@ -971,6 +1183,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 45534,
     "totalValue": 455340,
+    "initialStock": 10,
+    "initialCost": 45534,
     "minStock": 0
   },
   {
@@ -980,6 +1194,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 76193,
     "totalValue": 914316,
+    "initialStock": 12,
+    "initialCost": 76193,
     "minStock": 0
   },
   {
@@ -989,6 +1205,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 28,
     "avgCost": 149660,
     "totalValue": 4190480,
+    "initialStock": 28,
+    "initialCost": 149660,
     "minStock": 0
   },
   {
@@ -998,6 +1216,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 213548,
     "totalValue": 854192,
+    "initialStock": 4,
+    "initialCost": 213548,
     "minStock": 0
   },
   {
@@ -1007,6 +1227,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 60712,
     "totalValue": 303560,
+    "initialStock": 5,
+    "initialCost": 60712,
     "minStock": 0
   },
   {
@@ -1016,6 +1238,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 76193,
     "totalValue": 761930,
+    "initialStock": 10,
+    "initialCost": 76193,
     "minStock": 0
   },
   {
@@ -1025,6 +1249,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 15,
     "avgCost": 155628,
     "totalValue": 2334420,
+    "initialStock": 15,
+    "initialCost": 155628,
     "minStock": 0
   },
   {
@@ -1034,6 +1260,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 528000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 528000,
     "minStock": 0
   },
   {
@@ -1043,6 +1271,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 140140,
     "totalValue": 700700,
+    "initialStock": 5,
+    "initialCost": 140140,
     "minStock": 0
   },
   {
@@ -1052,6 +1282,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 140140,
     "totalValue": 1121120,
+    "initialStock": 8,
+    "initialCost": 140140,
     "minStock": 0
   },
   {
@@ -1061,6 +1293,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 190036,
     "totalValue": 380072,
+    "initialStock": 2,
+    "initialCost": 190036,
     "minStock": 0
   },
   {
@@ -1070,6 +1304,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 190036,
     "totalValue": 380072,
+    "initialStock": 2,
+    "initialCost": 190036,
     "minStock": 0
   },
   {
@@ -1079,6 +1315,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 81261,
     "totalValue": 812610,
+    "initialStock": 10,
+    "initialCost": 81261,
     "minStock": 0
   },
   {
@@ -1088,6 +1326,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 195271,
     "totalValue": 195271,
+    "initialStock": 1,
+    "initialCost": 195271,
     "minStock": 0
   },
   {
@@ -1097,6 +1337,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 256050,
     "totalValue": 1536300,
+    "initialStock": 6,
+    "initialCost": 256050,
     "minStock": 0
   },
   {
@@ -1106,6 +1348,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 91224,
     "totalValue": 1094688,
+    "initialStock": 12,
+    "initialCost": 91224,
     "minStock": 0
   },
   {
@@ -1115,6 +1359,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 107997,
     "totalValue": 1295964,
+    "initialStock": 12,
+    "initialCost": 107997,
     "minStock": 0
   },
   {
@@ -1124,6 +1370,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 11,
     "avgCost": 250687,
     "totalValue": 2757557,
+    "initialStock": 11,
+    "initialCost": 250687,
     "minStock": 0
   },
   {
@@ -1133,6 +1381,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 429169,
     "totalValue": 2145845,
+    "initialStock": 5,
+    "initialCost": 429169,
     "minStock": 0
   },
   {
@@ -1142,6 +1392,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 116622,
     "totalValue": 1399464,
+    "initialStock": 12,
+    "initialCost": 116622,
     "minStock": 0
   },
   {
@@ -1151,6 +1403,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 11,
     "avgCost": 117815,
     "totalValue": 1295965,
+    "initialStock": 11,
+    "initialCost": 117815,
     "minStock": 0
   },
   {
@@ -1160,6 +1414,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 264911,
     "totalValue": 2384199,
+    "initialStock": 9,
+    "initialCost": 264911,
     "minStock": 0
   },
   {
@@ -1169,6 +1425,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 357641,
     "totalValue": 1788205,
+    "initialStock": 5,
+    "initialCost": 357641,
     "minStock": 0
   },
   {
@@ -1178,6 +1436,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 116622,
     "totalValue": 1399464,
+    "initialStock": 12,
+    "initialCost": 116622,
     "minStock": 0
   },
   {
@@ -1187,6 +1447,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 47,
     "avgCost": 29583,
     "totalValue": 1390401,
+    "initialStock": 47,
+    "initialCost": 29583,
     "minStock": 0
   },
   {
@@ -1196,6 +1458,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 41,
     "avgCost": 30213,
     "totalValue": 1238733,
+    "initialStock": 41,
+    "initialCost": 30213,
     "minStock": 0
   },
   {
@@ -1205,6 +1469,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 13,
     "avgCost": 33718,
     "totalValue": 438334,
+    "initialStock": 13,
+    "initialCost": 33718,
     "minStock": 0
   },
   {
@@ -1214,6 +1480,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 2,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1223,6 +1491,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1232,6 +1502,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 9677,
     "totalValue": 67739,
+    "initialStock": 7,
+    "initialCost": 9677,
     "minStock": 0
   },
   {
@@ -1241,6 +1513,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 462000,
     "totalValue": 1386000,
+    "initialStock": 3,
+    "initialCost": 462000,
     "minStock": 0
   },
   {
@@ -1250,6 +1524,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 1,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1259,6 +1535,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 16,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 16,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1268,6 +1546,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 823750,
     "totalValue": 3295000,
+    "initialStock": 4,
+    "initialCost": 823750,
     "minStock": 0
   },
   {
@@ -1277,6 +1557,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 1,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1286,6 +1568,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 4,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1295,6 +1579,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 564132,
     "totalValue": 1128264,
+    "initialStock": 2,
+    "initialCost": 564132,
     "minStock": 0
   },
   {
@@ -1304,6 +1590,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 7205000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 7205000,
     "minStock": 0
   },
   {
@@ -1313,6 +1601,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1322,6 +1612,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 1,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1331,6 +1623,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 1,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1340,6 +1634,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1349,6 +1645,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 2,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1358,6 +1656,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 2,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1367,6 +1667,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1376,6 +1678,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 11,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 11,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1385,6 +1689,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 11,
     "avgCost": 102474,
     "totalValue": 1127214,
+    "initialStock": 11,
+    "initialCost": 102474,
     "minStock": 0
   },
   {
@@ -1394,6 +1700,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1403,6 +1711,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 6,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1412,6 +1722,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 97.5,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 97.5,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1421,6 +1733,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 52,
     "avgCost": 38198,
     "totalValue": 1986296,
+    "initialStock": 52,
+    "initialCost": 38198,
     "minStock": 0
   },
   {
@@ -1430,6 +1744,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 88,
     "avgCost": 27720,
     "totalValue": 2439360,
+    "initialStock": 88,
+    "initialCost": 27720,
     "minStock": 0
   },
   {
@@ -1439,6 +1755,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 146,
     "avgCost": 5635,
     "totalValue": 822710,
+    "initialStock": 146,
+    "initialCost": 5635,
     "minStock": 0
   },
   {
@@ -1448,6 +1766,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 49,
     "avgCost": 3479,
     "totalValue": 170471,
+    "initialStock": 49,
+    "initialCost": 3479,
     "minStock": 0
   },
   {
@@ -1457,6 +1777,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 69,
     "avgCost": 5079,
     "totalValue": 350451,
+    "initialStock": 69,
+    "initialCost": 5079,
     "minStock": 0
   },
   {
@@ -1466,6 +1788,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 36,
     "avgCost": 9288,
     "totalValue": 334368,
+    "initialStock": 36,
+    "initialCost": 9288,
     "minStock": 0
   },
   {
@@ -1475,6 +1799,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 62,
     "avgCost": 7120,
     "totalValue": 441440,
+    "initialStock": 62,
+    "initialCost": 7120,
     "minStock": 0
   },
   {
@@ -1484,6 +1810,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 48,
     "avgCost": 7699,
     "totalValue": 369552,
+    "initialStock": 48,
+    "initialCost": 7699,
     "minStock": 0
   },
   {
@@ -1493,6 +1821,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 63,
     "avgCost": 9807,
     "totalValue": 617841,
+    "initialStock": 63,
+    "initialCost": 9807,
     "minStock": 0
   },
   {
@@ -1502,6 +1832,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 50,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 50,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1511,6 +1843,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 49,
     "avgCost": 12284,
     "totalValue": 601916,
+    "initialStock": 49,
+    "initialCost": 12284,
     "minStock": 0
   },
   {
@@ -1520,6 +1854,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 33069,
     "totalValue": 99207,
+    "initialStock": 3,
+    "initialCost": 33069,
     "minStock": 0
   },
   {
@@ -1529,6 +1865,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 16,
     "avgCost": 15673,
     "totalValue": 250768,
+    "initialStock": 16,
+    "initialCost": 15673,
     "minStock": 0
   },
   {
@@ -1538,6 +1876,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 11,
     "avgCost": 6321,
     "totalValue": 69531,
+    "initialStock": 11,
+    "initialCost": 6321,
     "minStock": 0
   },
   {
@@ -1547,6 +1887,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 53676,
     "totalValue": 53676,
+    "initialStock": 1,
+    "initialCost": 53676,
     "minStock": 0
   },
   {
@@ -1556,6 +1898,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 89,
     "avgCost": 17970,
     "totalValue": 1599330,
+    "initialStock": 89,
+    "initialCost": 17970,
     "minStock": 0
   },
   {
@@ -1565,6 +1909,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 5,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1574,6 +1920,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1583,6 +1931,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 1124778,
     "totalValue": 2249556,
+    "initialStock": 2,
+    "initialCost": 1124778,
     "minStock": 0
   },
   {
@@ -1592,6 +1942,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 520000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 520000,
     "minStock": 0
   },
   {
@@ -1601,6 +1953,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 762000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 762000,
     "minStock": 0
   },
   {
@@ -1610,6 +1964,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 920000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 920000,
     "minStock": 0
   },
   {
@@ -1619,6 +1975,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 23,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 23,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1628,6 +1986,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 23,
     "avgCost": 1200000,
     "totalValue": 27600000,
+    "initialStock": 23,
+    "initialCost": 1200000,
     "minStock": 0
   },
   {
@@ -1637,6 +1997,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 20,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 20,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1646,6 +2008,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 17,
     "avgCost": 133775,
     "totalValue": 2274175,
+    "initialStock": 17,
+    "initialCost": 133775,
     "minStock": 0
   },
   {
@@ -1655,6 +2019,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 12,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1664,6 +2030,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 13,
     "avgCost": 51880,
     "totalValue": 674440,
+    "initialStock": 13,
+    "initialCost": 51880,
     "minStock": 0
   },
   {
@@ -1673,6 +2041,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 17,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 17,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1682,6 +2052,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 28,
     "avgCost": 454691,
     "totalValue": 12731348,
+    "initialStock": 28,
+    "initialCost": 454691,
     "minStock": 0
   },
   {
@@ -1691,6 +2063,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 18,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 18,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1700,6 +2074,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 11,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 11,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1709,6 +2085,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 10,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1718,6 +2096,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 11567,
     "totalValue": 34701,
+    "initialStock": 3,
+    "initialCost": 11567,
     "minStock": 0
   },
   {
@@ -1727,6 +2107,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 2,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1736,6 +2118,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 5,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1745,6 +2129,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 1,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1754,6 +2140,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 6,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1763,6 +2151,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 2600000,
     "totalValue": 7800000,
+    "initialStock": 3,
+    "initialCost": 2600000,
     "minStock": 0
   },
   {
@@ -1772,6 +2162,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 8,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1781,6 +2173,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 3000000,
     "totalValue": 9000000,
+    "initialStock": 3,
+    "initialCost": 3000000,
     "minStock": 0
   },
   {
@@ -1790,6 +2184,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1799,6 +2195,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1808,6 +2206,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1817,6 +2217,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1826,6 +2228,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -1,
     "avgCost": 1550000,
     "totalValue": -1550000,
+    "initialStock": -1,
+    "initialCost": 1550000,
     "minStock": 0
   },
   {
@@ -1835,6 +2239,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 520000,
     "totalValue": 520000,
+    "initialStock": 1,
+    "initialCost": 520000,
     "minStock": 0
   },
   {
@@ -1844,6 +2250,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 1350000,
     "totalValue": 4050000,
+    "initialStock": 3,
+    "initialCost": 1350000,
     "minStock": 0
   },
   {
@@ -1853,6 +2261,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 2831000,
     "totalValue": 5662000,
+    "initialStock": 2,
+    "initialCost": 2831000,
     "minStock": 0
   },
   {
@@ -1862,6 +2272,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 190000,
     "totalValue": 190000,
+    "initialStock": 1,
+    "initialCost": 190000,
     "minStock": 0
   },
   {
@@ -1871,6 +2283,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 1090000,
     "totalValue": 1090000,
+    "initialStock": 1,
+    "initialCost": 1090000,
     "minStock": 0
   },
   {
@@ -1880,6 +2294,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 4121600,
     "totalValue": 8243200,
+    "initialStock": 2,
+    "initialCost": 4121600,
     "minStock": 0
   },
   {
@@ -1889,6 +2305,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 1841400,
     "totalValue": 1841400,
+    "initialStock": 1,
+    "initialCost": 1841400,
     "minStock": 0
   },
   {
@@ -1898,6 +2316,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 1010000,
     "totalValue": 1010000,
+    "initialStock": 1,
+    "initialCost": 1010000,
     "minStock": 0
   },
   {
@@ -1907,6 +2327,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -1,
     "avgCost": 1585000,
     "totalValue": -1585000,
+    "initialStock": -1,
+    "initialCost": 1585000,
     "minStock": 0
   },
   {
@@ -1916,6 +2338,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 362000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 362000,
     "minStock": 0
   },
   {
@@ -1925,6 +2349,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 545000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 545000,
     "minStock": 0
   },
   {
@@ -1934,6 +2360,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 1801116,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 1801116,
     "minStock": 0
   },
   {
@@ -1943,6 +2371,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 53,
     "avgCost": 19309,
     "totalValue": 1023377,
+    "initialStock": 53,
+    "initialCost": 19309,
     "minStock": 0
   },
   {
@@ -1952,6 +2382,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -6,
     "avgCost": 5558,
     "totalValue": -33348,
+    "initialStock": -6,
+    "initialCost": 5558,
     "minStock": 0
   },
   {
@@ -1961,6 +2393,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 304,
     "avgCost": 2136,
     "totalValue": 649344,
+    "initialStock": 304,
+    "initialCost": 2136,
     "minStock": 0
   },
   {
@@ -1970,6 +2404,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 1870000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 1870000,
     "minStock": 0
   },
   {
@@ -1979,6 +2415,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 7540,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 7540,
     "minStock": 0
   },
   {
@@ -1988,6 +2426,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 124,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 124,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -1997,6 +2437,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4140,
     "avgCost": 1329,
     "totalValue": 5502060,
+    "initialStock": 4140,
+    "initialCost": 1329,
     "minStock": 0
   },
   {
@@ -2006,6 +2448,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 50000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 50000,
     "minStock": 0
   },
   {
@@ -2015,6 +2459,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 14960,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 14960,
     "minStock": 0
   },
   {
@@ -2024,6 +2470,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -2033,6 +2481,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 110160,
     "totalValue": 991440,
+    "initialStock": 9,
+    "initialCost": 110160,
     "minStock": 0
   },
   {
@@ -2042,6 +2492,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 67392,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 67392,
     "minStock": 0
   },
   {
@@ -2051,6 +2503,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 305800,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 305800,
     "minStock": 0
   },
   {
@@ -2060,6 +2514,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 20900,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 20900,
     "minStock": 0
   },
   {
@@ -2069,6 +2525,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 37250,
     "totalValue": 260750,
+    "initialStock": 7,
+    "initialCost": 37250,
     "minStock": 0
   },
   {
@@ -2078,6 +2536,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 71,
     "avgCost": 23113,
     "totalValue": 1641023,
+    "initialStock": 71,
+    "initialCost": 23113,
     "minStock": 0
   },
   {
@@ -2087,6 +2547,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 43,
     "avgCost": 37000,
     "totalValue": 1591000,
+    "initialStock": 43,
+    "initialCost": 37000,
     "minStock": 0
   },
   {
@@ -2096,6 +2558,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 18,
     "avgCost": 38764,
     "totalValue": 697752,
+    "initialStock": 18,
+    "initialCost": 38764,
     "minStock": 0
   },
   {
@@ -2105,6 +2569,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 99642,
     "totalValue": 498210,
+    "initialStock": 5,
+    "initialCost": 99642,
     "minStock": 0
   },
   {
@@ -2114,6 +2580,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 13,
     "avgCost": 63263,
     "totalValue": 822419,
+    "initialStock": 13,
+    "initialCost": 63263,
     "minStock": 0
   },
   {
@@ -2123,6 +2591,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -1,
     "avgCost": 93000,
     "totalValue": -93000,
+    "initialStock": -1,
+    "initialCost": 93000,
     "minStock": 0
   },
   {
@@ -2132,6 +2602,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 446160,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 446160,
     "minStock": 0
   },
   {
@@ -2141,6 +2613,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 65880,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 65880,
     "minStock": 0
   },
   {
@@ -2150,6 +2624,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 99,
     "avgCost": 142140,
     "totalValue": 14071860,
+    "initialStock": 99,
+    "initialCost": 142140,
     "minStock": 0
   },
   {
@@ -2159,6 +2635,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 252,
     "avgCost": 62989,
     "totalValue": 15873228,
+    "initialStock": 252,
+    "initialCost": 62989,
     "minStock": 0
   },
   {
@@ -2168,6 +2646,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 51,
     "avgCost": 83721,
     "totalValue": 4269771,
+    "initialStock": 51,
+    "initialCost": 83721,
     "minStock": 0
   },
   {
@@ -2177,6 +2657,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 51,
     "avgCost": 123189,
     "totalValue": 6282639,
+    "initialStock": 51,
+    "initialCost": 123189,
     "minStock": 0
   },
   {
@@ -2186,6 +2668,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 317,
     "avgCost": 1841,
     "totalValue": 583597,
+    "initialStock": 317,
+    "initialCost": 1841,
     "minStock": 0
   },
   {
@@ -2195,6 +2679,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 363096,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 363096,
     "minStock": 0
   },
   {
@@ -2204,6 +2690,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -8,
     "avgCost": 8748,
     "totalValue": -69984,
+    "initialStock": -8,
+    "initialCost": 8748,
     "minStock": 0
   },
   {
@@ -2213,6 +2701,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 1500,
     "totalValue": 3000,
+    "initialStock": 2,
+    "initialCost": 1500,
     "minStock": 0
   },
   {
@@ -2222,6 +2712,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 417,
     "avgCost": 2318,
     "totalValue": 966606,
+    "initialStock": 417,
+    "initialCost": 2318,
     "minStock": 0
   },
   {
@@ -2231,6 +2723,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 541.5,
     "avgCost": 3043,
     "totalValue": 1647784.5,
+    "initialStock": 541.5,
+    "initialCost": 3043,
     "minStock": 0
   },
   {
@@ -2240,6 +2734,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 325064,
     "totalValue": 1625320,
+    "initialStock": 5,
+    "initialCost": 325064,
     "minStock": 0
   },
   {
@@ -2249,6 +2745,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 979,
     "avgCost": 6418,
     "totalValue": 6283222,
+    "initialStock": 979,
+    "initialCost": 6418,
     "minStock": 0
   },
   {
@@ -2258,6 +2756,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 15950,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 15950,
     "minStock": 0
   },
   {
@@ -2267,6 +2767,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 481,
     "avgCost": 2937,
     "totalValue": 1412697,
+    "initialStock": 481,
+    "initialCost": 2937,
     "minStock": 0
   },
   {
@@ -2276,6 +2778,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 414,
     "avgCost": 3505,
     "totalValue": 1451070,
+    "initialStock": 414,
+    "initialCost": 3505,
     "minStock": 0
   },
   {
@@ -2285,6 +2789,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 124,
     "avgCost": 5035,
     "totalValue": 624340,
+    "initialStock": 124,
+    "initialCost": 5035,
     "minStock": 0
   },
   {
@@ -2294,6 +2800,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1978,
     "avgCost": 5398,
     "totalValue": 10677244,
+    "initialStock": 1978,
+    "initialCost": 5398,
     "minStock": 0
   },
   {
@@ -2303,6 +2811,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 284,
     "avgCost": 5652,
     "totalValue": 1605168,
+    "initialStock": 284,
+    "initialCost": 5652,
     "minStock": 0
   },
   {
@@ -2312,6 +2822,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 77,
     "avgCost": 5268,
     "totalValue": 405636,
+    "initialStock": 77,
+    "initialCost": 5268,
     "minStock": 0
   },
   {
@@ -2321,6 +2833,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 26180,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 26180,
     "minStock": 0
   },
   {
@@ -2330,6 +2844,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 35,
     "avgCost": 9817,
     "totalValue": 343595,
+    "initialStock": 35,
+    "initialCost": 9817,
     "minStock": 0
   },
   {
@@ -2339,6 +2855,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 398,
     "avgCost": 9772,
     "totalValue": 3889256,
+    "initialStock": 398,
+    "initialCost": 9772,
     "minStock": 0
   },
   {
@@ -2348,6 +2866,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 51,
     "avgCost": 10943,
     "totalValue": 558093,
+    "initialStock": 51,
+    "initialCost": 10943,
     "minStock": 0
   },
   {
@@ -2357,6 +2877,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 386,
     "avgCost": 12843,
     "totalValue": 4957398,
+    "initialStock": 386,
+    "initialCost": 12843,
     "minStock": 0
   },
   {
@@ -2366,6 +2888,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 574,
     "avgCost": 13898,
     "totalValue": 7977452,
+    "initialStock": 574,
+    "initialCost": 13898,
     "minStock": 0
   },
   {
@@ -2375,6 +2899,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 62,
     "avgCost": 16421,
     "totalValue": 1018102,
+    "initialStock": 62,
+    "initialCost": 16421,
     "minStock": 0
   },
   {
@@ -2384,6 +2910,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 212,
     "avgCost": 28683,
     "totalValue": 6080796,
+    "initialStock": 212,
+    "initialCost": 28683,
     "minStock": 0
   },
   {
@@ -2393,6 +2921,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 459,
     "avgCost": 14487,
     "totalValue": 6649533,
+    "initialStock": 459,
+    "initialCost": 14487,
     "minStock": 0
   },
   {
@@ -2402,6 +2932,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 53394,
     "totalValue": 640728,
+    "initialStock": 12,
+    "initialCost": 53394,
     "minStock": 0
   },
   {
@@ -2411,6 +2943,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 13812,
     "totalValue": 13812,
+    "initialStock": 1,
+    "initialCost": 13812,
     "minStock": 0
   },
   {
@@ -2420,6 +2954,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 169,
     "avgCost": 24939,
     "totalValue": 4214691,
+    "initialStock": 169,
+    "initialCost": 24939,
     "minStock": 0
   },
   {
@@ -2429,6 +2965,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 105,
     "avgCost": 62916,
     "totalValue": 6606180,
+    "initialStock": 105,
+    "initialCost": 62916,
     "minStock": 0
   },
   {
@@ -2438,6 +2976,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 63,
     "avgCost": 19532,
     "totalValue": 1230516,
+    "initialStock": 63,
+    "initialCost": 19532,
     "minStock": 0
   },
   {
@@ -2447,6 +2987,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 400,
     "avgCost": 27074,
     "totalValue": 10829600,
+    "initialStock": 400,
+    "initialCost": 27074,
     "minStock": 0
   },
   {
@@ -2456,6 +2998,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 209001,
     "totalValue": 1045005,
+    "initialStock": 5,
+    "initialCost": 209001,
     "minStock": 0
   },
   {
@@ -2465,6 +3009,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 14000,
     "totalValue": 168000,
+    "initialStock": 12,
+    "initialCost": 14000,
     "minStock": 0
   },
   {
@@ -2474,6 +3020,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 15,
     "avgCost": 8000,
     "totalValue": 120000,
+    "initialStock": 15,
+    "initialCost": 8000,
     "minStock": 0
   },
   {
@@ -2483,6 +3031,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 20,
     "avgCost": 3000,
     "totalValue": 60000,
+    "initialStock": 20,
+    "initialCost": 3000,
     "minStock": 0
   },
   {
@@ -2492,6 +3042,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 114,
     "avgCost": 30002,
     "totalValue": 3420228,
+    "initialStock": 114,
+    "initialCost": 30002,
     "minStock": 0
   },
   {
@@ -2501,6 +3053,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 381,
     "avgCost": 4605,
     "totalValue": 1754505,
+    "initialStock": 381,
+    "initialCost": 4605,
     "minStock": 0
   },
   {
@@ -2510,6 +3064,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 95,
     "avgCost": 4947,
     "totalValue": 469965,
+    "initialStock": 95,
+    "initialCost": 4947,
     "minStock": 0
   },
   {
@@ -2519,6 +3075,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 20,
     "avgCost": 9230,
     "totalValue": 184600,
+    "initialStock": 20,
+    "initialCost": 9230,
     "minStock": 0
   },
   {
@@ -2528,6 +3086,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 57179,
     "totalValue": 171537,
+    "initialStock": 3,
+    "initialCost": 57179,
     "minStock": 0
   },
   {
@@ -2537,6 +3097,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 1,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -2546,6 +3108,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -1,
     "avgCost": 26000,
     "totalValue": -26000,
+    "initialStock": -1,
+    "initialCost": 26000,
     "minStock": 0
   },
   {
@@ -2555,6 +3119,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 17,
     "avgCost": 7771,
     "totalValue": 132107,
+    "initialStock": 17,
+    "initialCost": 7771,
     "minStock": 0
   },
   {
@@ -2564,6 +3130,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -2573,6 +3141,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 97680,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 97680,
     "minStock": 0
   },
   {
@@ -2582,6 +3152,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 96,
     "avgCost": 65920,
     "totalValue": 6328320,
+    "initialStock": 96,
+    "initialCost": 65920,
     "minStock": 0
   },
   {
@@ -2591,6 +3163,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 211,
     "avgCost": 16279,
     "totalValue": 3434869,
+    "initialStock": 211,
+    "initialCost": 16279,
     "minStock": 0
   },
   {
@@ -2600,6 +3174,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 19,
     "avgCost": 31114,
     "totalValue": 591166,
+    "initialStock": 19,
+    "initialCost": 31114,
     "minStock": 0
   },
   {
@@ -2609,6 +3185,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 112200,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 112200,
     "minStock": 0
   },
   {
@@ -2618,6 +3196,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 27,
     "avgCost": 152053,
     "totalValue": 4105431,
+    "initialStock": 27,
+    "initialCost": 152053,
     "minStock": 0
   },
   {
@@ -2627,6 +3207,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 67,
     "avgCost": 23082,
     "totalValue": 1546494,
+    "initialStock": 67,
+    "initialCost": 23082,
     "minStock": 0
   },
   {
@@ -2636,6 +3218,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 386,
     "avgCost": 3800,
     "totalValue": 1466800,
+    "initialStock": 386,
+    "initialCost": 3800,
     "minStock": 0
   },
   {
@@ -2645,6 +3229,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 110,
     "avgCost": 22891,
     "totalValue": 2518010,
+    "initialStock": 110,
+    "initialCost": 22891,
     "minStock": 0
   },
   {
@@ -2654,6 +3240,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 28,
     "avgCost": 2843,
     "totalValue": 79604,
+    "initialStock": 28,
+    "initialCost": 2843,
     "minStock": 0
   },
   {
@@ -2663,6 +3251,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 54124,
     "totalValue": 432992,
+    "initialStock": 8,
+    "initialCost": 54124,
     "minStock": 0
   },
   {
@@ -2672,6 +3262,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 108000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 108000,
     "minStock": 0
   },
   {
@@ -2681,6 +3273,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 53406,
     "totalValue": 267030,
+    "initialStock": 5,
+    "initialCost": 53406,
     "minStock": 0
   },
   {
@@ -2690,6 +3284,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 32,
     "avgCost": 9551,
     "totalValue": 305632,
+    "initialStock": 32,
+    "initialCost": 9551,
     "minStock": 0
   },
   {
@@ -2699,6 +3295,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 78,
     "avgCost": 8388,
     "totalValue": 654264,
+    "initialStock": 78,
+    "initialCost": 8388,
     "minStock": 0
   },
   {
@@ -2708,6 +3306,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 41464,
     "totalValue": 248784,
+    "initialStock": 6,
+    "initialCost": 41464,
     "minStock": 0
   },
   {
@@ -2717,6 +3317,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 31,
     "avgCost": 26426,
     "totalValue": 819206,
+    "initialStock": 31,
+    "initialCost": 26426,
     "minStock": 0
   },
   {
@@ -2726,6 +3328,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 68750,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 68750,
     "minStock": 0
   },
   {
@@ -2735,6 +3339,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 354,
     "avgCost": 12460,
     "totalValue": 4410840,
+    "initialStock": 354,
+    "initialCost": 12460,
     "minStock": 0
   },
   {
@@ -2744,6 +3350,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 77,
     "avgCost": 16289,
     "totalValue": 1254253,
+    "initialStock": 77,
+    "initialCost": 16289,
     "minStock": 0
   },
   {
@@ -2753,6 +3361,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -1,
     "avgCost": 123228,
     "totalValue": -123228,
+    "initialStock": -1,
+    "initialCost": 123228,
     "minStock": 0
   },
   {
@@ -2762,6 +3372,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 269,
     "avgCost": 18309,
     "totalValue": 4925121,
+    "initialStock": 269,
+    "initialCost": 18309,
     "minStock": 0
   },
   {
@@ -2771,6 +3383,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 98,
     "avgCost": 32756,
     "totalValue": 3210088,
+    "initialStock": 98,
+    "initialCost": 32756,
     "minStock": 0
   },
   {
@@ -2780,6 +3394,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 439,
     "avgCost": 31973,
     "totalValue": 14036147,
+    "initialStock": 439,
+    "initialCost": 31973,
     "minStock": 0
   },
   {
@@ -2789,6 +3405,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 81400,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 81400,
     "minStock": 0
   },
   {
@@ -2798,6 +3416,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 138,
     "avgCost": 33344,
     "totalValue": 4601472,
+    "initialStock": 138,
+    "initialCost": 33344,
     "minStock": 0
   },
   {
@@ -2807,6 +3427,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 100760,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 100760,
     "minStock": 0
   },
   {
@@ -2816,6 +3438,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 970,
     "avgCost": 14032,
     "totalValue": 13611040,
+    "initialStock": 970,
+    "initialCost": 14032,
     "minStock": 0
   },
   {
@@ -2825,6 +3449,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -16,
     "avgCost": 25920,
     "totalValue": -414720,
+    "initialStock": -16,
+    "initialCost": 25920,
     "minStock": 0
   },
   {
@@ -2834,6 +3460,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 77,
     "avgCost": 32937,
     "totalValue": 2536149,
+    "initialStock": 77,
+    "initialCost": 32937,
     "minStock": 0
   },
   {
@@ -2843,6 +3471,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 50434,
     "totalValue": 252170,
+    "initialStock": 5,
+    "initialCost": 50434,
     "minStock": 0
   },
   {
@@ -2852,6 +3482,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 93,
     "avgCost": 2726,
     "totalValue": 253518,
+    "initialStock": 93,
+    "initialCost": 2726,
     "minStock": 0
   },
   {
@@ -2861,6 +3493,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 123,
     "avgCost": 5990,
     "totalValue": 736770,
+    "initialStock": 123,
+    "initialCost": 5990,
     "minStock": 0
   },
   {
@@ -2870,6 +3504,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -337,
     "avgCost": 3000,
     "totalValue": -1011000,
+    "initialStock": -337,
+    "initialCost": 3000,
     "minStock": 0
   },
   {
@@ -2879,6 +3515,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 4840,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 4840,
     "minStock": 0
   },
   {
@@ -2888,6 +3526,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 66960,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 66960,
     "minStock": 0
   },
   {
@@ -2897,6 +3537,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 124,
     "avgCost": 17371,
     "totalValue": 2154004,
+    "initialStock": 124,
+    "initialCost": 17371,
     "minStock": 0
   },
   {
@@ -2906,6 +3548,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 13,
     "avgCost": 62573,
     "totalValue": 813449,
+    "initialStock": 13,
+    "initialCost": 62573,
     "minStock": 0
   },
   {
@@ -2915,6 +3559,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 55000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 55000,
     "minStock": 0
   },
   {
@@ -2924,6 +3570,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 58,
     "avgCost": 32269,
     "totalValue": 1871602,
+    "initialStock": 58,
+    "initialCost": 32269,
     "minStock": 0
   },
   {
@@ -2933,6 +3581,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 66990,
     "totalValue": 267960,
+    "initialStock": 4,
+    "initialCost": 66990,
     "minStock": 0
   },
   {
@@ -2942,6 +3592,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 4125880,
     "totalValue": 12377640,
+    "initialStock": 3,
+    "initialCost": 4125880,
     "minStock": 0
   },
   {
@@ -2951,6 +3603,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 33176,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 33176,
     "minStock": 0
   },
   {
@@ -2960,6 +3614,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 275000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 275000,
     "minStock": 0
   },
   {
@@ -2969,6 +3625,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 133,
     "avgCost": 4662,
     "totalValue": 620046,
+    "initialStock": 133,
+    "initialCost": 4662,
     "minStock": 0
   },
   {
@@ -2978,6 +3636,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 10780,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 10780,
     "minStock": 0
   },
   {
@@ -2987,6 +3647,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 32,
     "avgCost": 17367,
     "totalValue": 555744,
+    "initialStock": 32,
+    "initialCost": 17367,
     "minStock": 0
   },
   {
@@ -2996,6 +3658,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 40,
     "avgCost": 6630,
     "totalValue": 265200,
+    "initialStock": 40,
+    "initialCost": 6630,
     "minStock": 0
   },
   {
@@ -3005,6 +3669,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 41,
     "avgCost": 32452,
     "totalValue": 1330532,
+    "initialStock": 41,
+    "initialCost": 32452,
     "minStock": 0
   },
   {
@@ -3014,6 +3680,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -1,
     "avgCost": 30000,
     "totalValue": -30000,
+    "initialStock": -1,
+    "initialCost": 30000,
     "minStock": 0
   },
   {
@@ -3023,6 +3691,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 129940,
     "totalValue": 519760,
+    "initialStock": 4,
+    "initialCost": 129940,
     "minStock": 0
   },
   {
@@ -3032,6 +3702,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 88185,
     "totalValue": 176370,
+    "initialStock": 2,
+    "initialCost": 88185,
     "minStock": 0
   },
   {
@@ -3041,6 +3713,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 27,
     "avgCost": 81324,
     "totalValue": 2195748,
+    "initialStock": 27,
+    "initialCost": 81324,
     "minStock": 0
   },
   {
@@ -3050,6 +3724,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 50000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 50000,
     "minStock": 0
   },
   {
@@ -3059,6 +3735,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 5,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -3068,6 +3746,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 436,
     "avgCost": 7832,
     "totalValue": 3414752,
+    "initialStock": 436,
+    "initialCost": 7832,
     "minStock": 0
   },
   {
@@ -3077,6 +3757,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 77,
     "avgCost": 10101,
     "totalValue": 777777,
+    "initialStock": 77,
+    "initialCost": 10101,
     "minStock": 0
   },
   {
@@ -3086,6 +3768,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 50,
     "avgCost": 17424,
     "totalValue": 871200,
+    "initialStock": 50,
+    "initialCost": 17424,
     "minStock": 0
   },
   {
@@ -3095,6 +3779,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 345,
     "avgCost": 3633,
     "totalValue": 1253385,
+    "initialStock": 345,
+    "initialCost": 3633,
     "minStock": 0
   },
   {
@@ -3104,6 +3790,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 4127,
     "totalValue": 8254,
+    "initialStock": 2,
+    "initialCost": 4127,
     "minStock": 0
   },
   {
@@ -3113,6 +3801,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 138,
     "avgCost": 5790,
     "totalValue": 799020,
+    "initialStock": 138,
+    "initialCost": 5790,
     "minStock": 0
   },
   {
@@ -3122,6 +3812,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 98,
     "avgCost": 6602,
     "totalValue": 646996,
+    "initialStock": 98,
+    "initialCost": 6602,
     "minStock": 0
   },
   {
@@ -3131,6 +3823,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 292,
     "avgCost": 5372,
     "totalValue": 1568624,
+    "initialStock": 292,
+    "initialCost": 5372,
     "minStock": 0
   },
   {
@@ -3140,6 +3834,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 362,
     "avgCost": 7379,
     "totalValue": 2671198,
+    "initialStock": 362,
+    "initialCost": 7379,
     "minStock": 0
   },
   {
@@ -3149,6 +3845,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 377,
     "avgCost": 9715,
     "totalValue": 3662555,
+    "initialStock": 377,
+    "initialCost": 9715,
     "minStock": 0
   },
   {
@@ -3158,6 +3856,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -6,
     "avgCost": 8000,
     "totalValue": -48000,
+    "initialStock": -6,
+    "initialCost": 8000,
     "minStock": 0
   },
   {
@@ -3167,6 +3867,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 4,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -3176,6 +3878,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -3185,6 +3889,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 6500,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 6500,
     "minStock": 0
   },
   {
@@ -3194,6 +3900,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 166,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 166,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -3203,6 +3911,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -3212,6 +3922,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 500,
     "avgCost": 9071,
     "totalValue": 4535500,
+    "initialStock": 500,
+    "initialCost": 9071,
     "minStock": 0
   },
   {
@@ -3221,6 +3933,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 715,
     "avgCost": 29819,
     "totalValue": 21320585,
+    "initialStock": 715,
+    "initialCost": 29819,
     "minStock": 0
   },
   {
@@ -3230,6 +3944,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 796,
     "avgCost": 6013,
     "totalValue": 4786348,
+    "initialStock": 796,
+    "initialCost": 6013,
     "minStock": 0
   },
   {
@@ -3239,6 +3955,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 441,
     "avgCost": 9966,
     "totalValue": 4395006,
+    "initialStock": 441,
+    "initialCost": 9966,
     "minStock": 0
   },
   {
@@ -3248,6 +3966,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 520,
     "avgCost": 38546,
     "totalValue": 20043920,
+    "initialStock": 520,
+    "initialCost": 38546,
     "minStock": 0
   },
   {
@@ -3257,6 +3977,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 64876,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 64876,
     "minStock": 0
   },
   {
@@ -3266,6 +3988,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 218,
     "avgCost": 35487,
     "totalValue": 7736166,
+    "initialStock": 218,
+    "initialCost": 35487,
     "minStock": 0
   },
   {
@@ -3275,6 +3999,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 105,
     "avgCost": 30243,
     "totalValue": 3175515,
+    "initialStock": 105,
+    "initialCost": 30243,
     "minStock": 0
   },
   {
@@ -3284,6 +4010,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 64876,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 64876,
     "minStock": 0
   },
   {
@@ -3293,6 +4021,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 187,
     "avgCost": 36963,
     "totalValue": 6912081,
+    "initialStock": 187,
+    "initialCost": 36963,
     "minStock": 0
   },
   {
@@ -3302,6 +4032,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 96358,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 96358,
     "minStock": 0
   },
   {
@@ -3311,6 +4043,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 400,
     "avgCost": 12982,
     "totalValue": 5192800,
+    "initialStock": 400,
+    "initialCost": 12982,
     "minStock": 0
   },
   {
@@ -3320,6 +4054,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 382.2,
     "avgCost": 33651,
     "totalValue": 12861412.2,
+    "initialStock": 382.2,
+    "initialCost": 33651,
     "minStock": 0
   },
   {
@@ -3329,6 +4065,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 330,
     "avgCost": 30593,
     "totalValue": 10095690,
+    "initialStock": 330,
+    "initialCost": 30593,
     "minStock": 0
   },
   {
@@ -3338,6 +4076,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 318,
     "avgCost": 31692,
     "totalValue": 10078056,
+    "initialStock": 318,
+    "initialCost": 31692,
     "minStock": 0
   },
   {
@@ -3347,6 +4087,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 470.6,
     "avgCost": 44589,
     "totalValue": 20983583.400000002,
+    "initialStock": 470.6,
+    "initialCost": 44589,
     "minStock": 0
   },
   {
@@ -3356,6 +4098,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 106788,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 106788,
     "minStock": 0
   },
   {
@@ -3365,6 +4109,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 157,
     "avgCost": 19094,
     "totalValue": 2997758,
+    "initialStock": 157,
+    "initialCost": 19094,
     "minStock": 0
   },
   {
@@ -3374,6 +4120,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 64,
     "avgCost": 25985,
     "totalValue": 1663040,
+    "initialStock": 64,
+    "initialCost": 25985,
     "minStock": 0
   },
   {
@@ -3383,6 +4131,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 341,
     "avgCost": 15119,
     "totalValue": 5155579,
+    "initialStock": 341,
+    "initialCost": 15119,
     "minStock": 0
   },
   {
@@ -3392,6 +4142,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 660.1,
     "avgCost": 18158,
     "totalValue": 11986095.8,
+    "initialStock": 660.1,
+    "initialCost": 18158,
     "minStock": 0
   },
   {
@@ -3401,6 +4153,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 300,
     "avgCost": 9815,
     "totalValue": 2944500,
+    "initialStock": 300,
+    "initialCost": 9815,
     "minStock": 0
   },
   {
@@ -3410,6 +4164,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 509.4,
     "avgCost": 13589,
     "totalValue": 6922236.6,
+    "initialStock": 509.4,
+    "initialCost": 13589,
     "minStock": 0
   },
   {
@@ -3419,6 +4175,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 656.5,
     "avgCost": 18800,
     "totalValue": 12342200,
+    "initialStock": 656.5,
+    "initialCost": 18800,
     "minStock": 0
   },
   {
@@ -3428,6 +4186,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 147752,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 147752,
     "minStock": 0
   },
   {
@@ -3437,6 +4197,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 505.8,
     "avgCost": 24156,
     "totalValue": 12218104.8,
+    "initialStock": 505.8,
+    "initialCost": 24156,
     "minStock": 0
   },
   {
@@ -3446,6 +4208,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 300,
     "avgCost": 15247,
     "totalValue": 4574100,
+    "initialStock": 300,
+    "initialCost": 15247,
     "minStock": 0
   },
   {
@@ -3455,6 +4219,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 743.9,
     "avgCost": 16641,
     "totalValue": 12379239.9,
+    "initialStock": 743.9,
+    "initialCost": 16641,
     "minStock": 0
   },
   {
@@ -3464,6 +4230,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 200,
     "avgCost": 23221,
     "totalValue": 4644200,
+    "initialStock": 200,
+    "initialCost": 23221,
     "minStock": 0
   },
   {
@@ -3473,6 +4241,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 200,
     "avgCost": 23221,
     "totalValue": 4644200,
+    "initialStock": 200,
+    "initialCost": 23221,
     "minStock": 0
   },
   {
@@ -3482,6 +4252,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 120,
     "avgCost": 50091,
     "totalValue": 6010920,
+    "initialStock": 120,
+    "initialCost": 50091,
     "minStock": 0
   },
   {
@@ -3491,6 +4263,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 400,
     "avgCost": 29853,
     "totalValue": 11941200,
+    "initialStock": 400,
+    "initialCost": 29853,
     "minStock": 0
   },
   {
@@ -3500,6 +4274,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 200,
     "avgCost": 24260,
     "totalValue": 4852000,
+    "initialStock": 200,
+    "initialCost": 24260,
     "minStock": 0
   },
   {
@@ -3509,6 +4285,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 41494,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 41494,
     "minStock": 0
   },
   {
@@ -3518,6 +4296,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 300.8,
     "avgCost": 38162,
     "totalValue": 11479129.6,
+    "initialStock": 300.8,
+    "initialCost": 38162,
     "minStock": 0
   },
   {
@@ -3527,6 +4307,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 141,
     "avgCost": 21894,
     "totalValue": 3087054,
+    "initialStock": 141,
+    "initialCost": 21894,
     "minStock": 0
   },
   {
@@ -3536,6 +4318,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 200,
     "avgCost": 73062,
     "totalValue": 14612400,
+    "initialStock": 200,
+    "initialCost": 73062,
     "minStock": 0
   },
   {
@@ -3545,6 +4329,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 105.8,
     "avgCost": 20431,
     "totalValue": 2161599.8,
+    "initialStock": 105.8,
+    "initialCost": 20431,
     "minStock": 0
   },
   {
@@ -3554,6 +4340,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 92730,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 92730,
     "minStock": 0
   },
   {
@@ -3563,6 +4351,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 107470,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 107470,
     "minStock": 0
   },
   {
@@ -3572,6 +4362,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -1,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": -1,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -3581,6 +4373,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -3590,6 +4384,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 100,
     "avgCost": 1000,
     "totalValue": 100000,
+    "initialStock": 100,
+    "initialCost": 1000,
     "minStock": 0
   },
   {
@@ -3599,6 +4395,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 147,
     "avgCost": 4530,
     "totalValue": 665910,
+    "initialStock": 147,
+    "initialCost": 4530,
     "minStock": 0
   },
   {
@@ -3608,6 +4406,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 116,
     "avgCost": 325,
     "totalValue": 37700,
+    "initialStock": 116,
+    "initialCost": 325,
     "minStock": 0
   },
   {
@@ -3617,6 +4417,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 279,
     "avgCost": 933,
     "totalValue": 260307,
+    "initialStock": 279,
+    "initialCost": 933,
     "minStock": 0
   },
   {
@@ -3626,6 +4428,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 399,
     "avgCost": 1772,
     "totalValue": 707028,
+    "initialStock": 399,
+    "initialCost": 1772,
     "minStock": 0
   },
   {
@@ -3635,6 +4439,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 493,
     "avgCost": 2483,
     "totalValue": 1224119,
+    "initialStock": 493,
+    "initialCost": 2483,
     "minStock": 0
   },
   {
@@ -3644,6 +4450,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 329,
     "avgCost": 2834,
     "totalValue": 932386,
+    "initialStock": 329,
+    "initialCost": 2834,
     "minStock": 0
   },
   {
@@ -3653,6 +4461,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 386,
     "avgCost": 3317,
     "totalValue": 1280362,
+    "initialStock": 386,
+    "initialCost": 3317,
     "minStock": 0
   },
   {
@@ -3662,6 +4472,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 252,
     "avgCost": 3987,
     "totalValue": 1004724,
+    "initialStock": 252,
+    "initialCost": 3987,
     "minStock": 0
   },
   {
@@ -3671,6 +4483,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 28,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 28,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -3680,6 +4494,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 125467,
     "totalValue": 376401,
+    "initialStock": 3,
+    "initialCost": 125467,
     "minStock": 0
   },
   {
@@ -3689,6 +4505,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 125000,
     "totalValue": 250000,
+    "initialStock": 2,
+    "initialCost": 125000,
     "minStock": 0
   },
   {
@@ -3698,6 +4516,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 174630,
     "totalValue": 1222410,
+    "initialStock": 7,
+    "initialCost": 174630,
     "minStock": 0
   },
   {
@@ -3707,6 +4527,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -3716,6 +4538,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -3725,6 +4549,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -3734,6 +4560,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 16979,
     "totalValue": 203748,
+    "initialStock": 12,
+    "initialCost": 16979,
     "minStock": 0
   },
   {
@@ -3743,6 +4571,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 66,
     "avgCost": 24912,
     "totalValue": 1644192,
+    "initialStock": 66,
+    "initialCost": 24912,
     "minStock": 0
   },
   {
@@ -3752,6 +4582,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 35,
     "avgCost": 55081,
     "totalValue": 1927835,
+    "initialStock": 35,
+    "initialCost": 55081,
     "minStock": 0
   },
   {
@@ -3761,6 +4593,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 27,
     "avgCost": 92890,
     "totalValue": 2508030,
+    "initialStock": 27,
+    "initialCost": 92890,
     "minStock": 0
   },
   {
@@ -3770,6 +4604,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 14,
     "avgCost": 53271,
     "totalValue": 745794,
+    "initialStock": 14,
+    "initialCost": 53271,
     "minStock": 0
   },
   {
@@ -3779,6 +4615,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 66667,
     "totalValue": 266668,
+    "initialStock": 4,
+    "initialCost": 66667,
     "minStock": 0
   },
   {
@@ -3788,6 +4626,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 200,
     "avgCost": 3275,
     "totalValue": 655000,
+    "initialStock": 200,
+    "initialCost": 3275,
     "minStock": 0
   },
   {
@@ -3797,6 +4637,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 3,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -3806,6 +4648,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 4000,
     "totalValue": 8000,
+    "initialStock": 2,
+    "initialCost": 4000,
     "minStock": 0
   },
   {
@@ -3815,6 +4659,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 9182,
     "totalValue": 55092,
+    "initialStock": 6,
+    "initialCost": 9182,
     "minStock": 0
   },
   {
@@ -3824,6 +4670,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 11000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 11000,
     "minStock": 0
   },
   {
@@ -3833,6 +4681,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 18000,
     "totalValue": 72000,
+    "initialStock": 4,
+    "initialCost": 18000,
     "minStock": 0
   },
   {
@@ -3842,6 +4692,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 13063,
     "totalValue": 65315,
+    "initialStock": 5,
+    "initialCost": 13063,
     "minStock": 0
   },
   {
@@ -3851,6 +4703,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 12000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 12000,
     "minStock": 0
   },
   {
@@ -3860,6 +4714,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 32000,
     "totalValue": 192000,
+    "initialStock": 6,
+    "initialCost": 32000,
     "minStock": 0
   },
   {
@@ -3869,6 +4725,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 32000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 32000,
     "minStock": 0
   },
   {
@@ -3878,6 +4736,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 55000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 55000,
     "minStock": 0
   },
   {
@@ -3887,6 +4747,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 79500,
     "totalValue": 318000,
+    "initialStock": 4,
+    "initialCost": 79500,
     "minStock": 0
   },
   {
@@ -3896,6 +4758,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 55300,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 55300,
     "minStock": 0
   },
   {
@@ -3905,6 +4769,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 66667,
     "totalValue": 200001,
+    "initialStock": 3,
+    "initialCost": 66667,
     "minStock": 0
   },
   {
@@ -3914,6 +4780,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 486,
     "avgCost": 2379,
     "totalValue": 1156194,
+    "initialStock": 486,
+    "initialCost": 2379,
     "minStock": 0
   },
   {
@@ -3923,6 +4791,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 300,
     "avgCost": 5219,
     "totalValue": 1565700,
+    "initialStock": 300,
+    "initialCost": 5219,
     "minStock": 0
   },
   {
@@ -3932,6 +4802,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 7900,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 7900,
     "minStock": 0
   },
   {
@@ -3941,6 +4813,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 254,
     "avgCost": 8571,
     "totalValue": 2177034,
+    "initialStock": 254,
+    "initialCost": 8571,
     "minStock": 0
   },
   {
@@ -3950,6 +4824,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 350,
     "avgCost": 3134,
     "totalValue": 1096900,
+    "initialStock": 350,
+    "initialCost": 3134,
     "minStock": 0
   },
   {
@@ -3959,6 +4835,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 118,
     "avgCost": 4340,
     "totalValue": 512120,
+    "initialStock": 118,
+    "initialCost": 4340,
     "minStock": 0
   },
   {
@@ -3968,6 +4846,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 25,
     "avgCost": 3432,
     "totalValue": 85800,
+    "initialStock": 25,
+    "initialCost": 3432,
     "minStock": 0
   },
   {
@@ -3977,6 +4857,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 245,
     "avgCost": 5282,
     "totalValue": 1294090,
+    "initialStock": 245,
+    "initialCost": 5282,
     "minStock": 0
   },
   {
@@ -3986,6 +4868,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 500,
     "avgCost": 22176,
     "totalValue": 11088000,
+    "initialStock": 500,
+    "initialCost": 22176,
     "minStock": 0
   },
   {
@@ -3995,6 +4879,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -2,
     "avgCost": 180400,
     "totalValue": -360800,
+    "initialStock": -2,
+    "initialCost": 180400,
     "minStock": 0
   },
   {
@@ -4004,6 +4890,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 18,
     "avgCost": 90231,
     "totalValue": 1624158,
+    "initialStock": 18,
+    "initialCost": 90231,
     "minStock": 0
   },
   {
@@ -4013,6 +4901,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 26,
     "avgCost": 11186,
     "totalValue": 290836,
+    "initialStock": 26,
+    "initialCost": 11186,
     "minStock": 0
   },
   {
@@ -4022,6 +4912,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 69,
     "avgCost": 4956,
     "totalValue": 341964,
+    "initialStock": 69,
+    "initialCost": 4956,
     "minStock": 0
   },
   {
@@ -4031,6 +4923,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -10,
     "avgCost": 230000,
     "totalValue": -2300000,
+    "initialStock": -10,
+    "initialCost": 230000,
     "minStock": 0
   },
   {
@@ -4040,6 +4934,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -4049,6 +4945,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 25000,
     "totalValue": 100000,
+    "initialStock": 4,
+    "initialCost": 25000,
     "minStock": 0
   },
   {
@@ -4058,6 +4956,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 50000,
     "totalValue": 50000,
+    "initialStock": 1,
+    "initialCost": 50000,
     "minStock": 0
   },
   {
@@ -4067,6 +4967,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -4,
     "avgCost": 295000,
     "totalValue": -1180000,
+    "initialStock": -4,
+    "initialCost": 295000,
     "minStock": 0
   },
   {
@@ -4076,6 +4978,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 18,
     "avgCost": 9750,
     "totalValue": 175500,
+    "initialStock": 18,
+    "initialCost": 9750,
     "minStock": 0
   },
   {
@@ -4085,6 +4989,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 92,
     "avgCost": 6097,
     "totalValue": 560924,
+    "initialStock": 92,
+    "initialCost": 6097,
     "minStock": 0
   },
   {
@@ -4094,6 +5000,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 85,
     "avgCost": 5724,
     "totalValue": 486540,
+    "initialStock": 85,
+    "initialCost": 5724,
     "minStock": 0
   },
   {
@@ -4103,6 +5011,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -4112,6 +5022,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -4121,6 +5033,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 2000000,
     "totalValue": 2000000,
+    "initialStock": 1,
+    "initialCost": 2000000,
     "minStock": 0
   },
   {
@@ -4130,6 +5044,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 351000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 351000,
     "minStock": 0
   },
   {
@@ -4139,6 +5055,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 98000,
     "totalValue": 196000,
+    "initialStock": 2,
+    "initialCost": 98000,
     "minStock": 0
   },
   {
@@ -4148,6 +5066,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 105000,
     "totalValue": 210000,
+    "initialStock": 2,
+    "initialCost": 105000,
     "minStock": 0
   },
   {
@@ -4157,6 +5077,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 79,
     "avgCost": 9234,
     "totalValue": 729486,
+    "initialStock": 79,
+    "initialCost": 9234,
     "minStock": 0
   },
   {
@@ -4166,6 +5088,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 19,
     "avgCost": 13011,
     "totalValue": 247209,
+    "initialStock": 19,
+    "initialCost": 13011,
     "minStock": 0
   },
   {
@@ -4175,6 +5099,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 61570,
     "totalValue": 615700,
+    "initialStock": 10,
+    "initialCost": 61570,
     "minStock": 0
   },
   {
@@ -4184,6 +5110,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 349250,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 349250,
     "minStock": 0
   },
   {
@@ -4193,6 +5121,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 13,
     "avgCost": 13000,
     "totalValue": 169000,
+    "initialStock": 13,
+    "initialCost": 13000,
     "minStock": 0
   },
   {
@@ -4202,6 +5132,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 105000,
     "totalValue": 315000,
+    "initialStock": 3,
+    "initialCost": 105000,
     "minStock": 0
   },
   {
@@ -4211,6 +5143,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 22,
     "avgCost": 9156,
     "totalValue": 201432,
+    "initialStock": 22,
+    "initialCost": 9156,
     "minStock": 0
   },
   {
@@ -4220,6 +5154,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 42000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 42000,
     "minStock": 0
   },
   {
@@ -4229,6 +5165,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 78,
     "avgCost": 31779,
     "totalValue": 2478762,
+    "initialStock": 78,
+    "initialCost": 31779,
     "minStock": 0
   },
   {
@@ -4238,6 +5176,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 13,
     "avgCost": 70029,
     "totalValue": 910377,
+    "initialStock": 13,
+    "initialCost": 70029,
     "minStock": 0
   },
   {
@@ -4247,6 +5187,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 45560,
     "totalValue": 45560,
+    "initialStock": 1,
+    "initialCost": 45560,
     "minStock": 0
   },
   {
@@ -4256,6 +5198,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 89640,
     "totalValue": 448200,
+    "initialStock": 5,
+    "initialCost": 89640,
     "minStock": 0
   },
   {
@@ -4265,6 +5209,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 63,
     "avgCost": 387983,
     "totalValue": 24442929,
+    "initialStock": 63,
+    "initialCost": 387983,
     "minStock": 0
   },
   {
@@ -4274,6 +5220,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 4,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -4283,6 +5231,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4110,
     "avgCost": 90610,
     "totalValue": 372407100,
+    "initialStock": 4110,
+    "initialCost": 90610,
     "minStock": 0
   },
   {
@@ -4292,6 +5242,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -4301,6 +5253,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 20196,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 20196,
     "minStock": 0
   },
   {
@@ -4310,6 +5264,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 177012,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 177012,
     "minStock": 0
   },
   {
@@ -4319,6 +5275,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 52.6,
     "avgCost": 55857,
     "totalValue": 2938078.2,
+    "initialStock": 52.6,
+    "initialCost": 55857,
     "minStock": 0
   },
   {
@@ -4328,6 +5286,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -1,
     "avgCost": 6480,
     "totalValue": -6480,
+    "initialStock": -1,
+    "initialCost": 6480,
     "minStock": 0
   },
   {
@@ -4337,6 +5297,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 82,
     "avgCost": 139040,
     "totalValue": 11401280,
+    "initialStock": 82,
+    "initialCost": 139040,
     "minStock": 0
   },
   {
@@ -4346,6 +5308,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 112069,
     "totalValue": 1008621,
+    "initialStock": 9,
+    "initialCost": 112069,
     "minStock": 0
   },
   {
@@ -4355,6 +5319,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 121,
     "avgCost": 8602,
     "totalValue": 1040842,
+    "initialStock": 121,
+    "initialCost": 8602,
     "minStock": 0
   },
   {
@@ -4364,6 +5330,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 700000,
     "totalValue": 700000,
+    "initialStock": 1,
+    "initialCost": 700000,
     "minStock": 0
   },
   {
@@ -4373,6 +5341,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 295000,
     "totalValue": 295000,
+    "initialStock": 1,
+    "initialCost": 295000,
     "minStock": 0
   },
   {
@@ -4382,6 +5352,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 125000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 125000,
     "minStock": 0
   },
   {
@@ -4391,6 +5363,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 1355000,
     "totalValue": 1355000,
+    "initialStock": 1,
+    "initialCost": 1355000,
     "minStock": 0
   },
   {
@@ -4400,6 +5374,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 120000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 120000,
     "minStock": 0
   },
   {
@@ -4409,6 +5385,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 180000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 180000,
     "minStock": 0
   },
   {
@@ -4418,6 +5396,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 217387,
     "totalValue": 1956483,
+    "initialStock": 9,
+    "initialCost": 217387,
     "minStock": 0
   },
   {
@@ -4427,6 +5407,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 242000,
     "totalValue": 242000,
+    "initialStock": 1,
+    "initialCost": 242000,
     "minStock": 0
   },
   {
@@ -4436,6 +5418,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 182000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 182000,
     "minStock": 0
   },
   {
@@ -4445,6 +5429,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 83334,
     "totalValue": 166668,
+    "initialStock": 2,
+    "initialCost": 83334,
     "minStock": 0
   },
   {
@@ -4454,6 +5440,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 91389,
     "totalValue": 1096668,
+    "initialStock": 12,
+    "initialCost": 91389,
     "minStock": 0
   },
   {
@@ -4463,6 +5451,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 276,
     "avgCost": 2040,
     "totalValue": 563040,
+    "initialStock": 276,
+    "initialCost": 2040,
     "minStock": 0
   },
   {
@@ -4472,6 +5462,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 301,
     "avgCost": 1776,
     "totalValue": 534576,
+    "initialStock": 301,
+    "initialCost": 1776,
     "minStock": 0
   },
   {
@@ -4481,6 +5473,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 227,
     "avgCost": 3958,
     "totalValue": 898466,
+    "initialStock": 227,
+    "initialCost": 3958,
     "minStock": 0
   },
   {
@@ -4490,6 +5484,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 564,
     "avgCost": 1869,
     "totalValue": 1054116,
+    "initialStock": 564,
+    "initialCost": 1869,
     "minStock": 0
   },
   {
@@ -4499,6 +5495,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 32,
     "avgCost": 26891,
     "totalValue": 860512,
+    "initialStock": 32,
+    "initialCost": 26891,
     "minStock": 0
   },
   {
@@ -4508,6 +5506,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 49,
     "avgCost": 3388,
     "totalValue": 166012,
+    "initialStock": 49,
+    "initialCost": 3388,
     "minStock": 0
   },
   {
@@ -4517,6 +5517,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 21250,
     "totalValue": 170000,
+    "initialStock": 8,
+    "initialCost": 21250,
     "minStock": 0
   },
   {
@@ -4526,6 +5528,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 100,
     "avgCost": 75000,
     "totalValue": 7500000,
+    "initialStock": 100,
+    "initialCost": 75000,
     "minStock": 0
   },
   {
@@ -4535,6 +5539,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 17,
     "avgCost": 14424,
     "totalValue": 245208,
+    "initialStock": 17,
+    "initialCost": 14424,
     "minStock": 0
   },
   {
@@ -4544,6 +5550,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 11519,
     "totalValue": 46076,
+    "initialStock": 4,
+    "initialCost": 11519,
     "minStock": 0
   },
   {
@@ -4553,6 +5561,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -4562,6 +5572,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 360000,
     "totalValue": 360000,
+    "initialStock": 1,
+    "initialCost": 360000,
     "minStock": 0
   },
   {
@@ -4571,6 +5583,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 360000,
     "totalValue": 720000,
+    "initialStock": 2,
+    "initialCost": 360000,
     "minStock": 0
   },
   {
@@ -4580,6 +5594,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -1,
     "avgCost": 320000,
     "totalValue": -320000,
+    "initialStock": -1,
+    "initialCost": 320000,
     "minStock": 0
   },
   {
@@ -4589,6 +5605,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 426066,
     "totalValue": 3834594,
+    "initialStock": 9,
+    "initialCost": 426066,
     "minStock": 0
   },
   {
@@ -4598,6 +5616,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 12528,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 12528,
     "minStock": 0
   },
   {
@@ -4607,6 +5627,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 17496,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 17496,
     "minStock": 0
   },
   {
@@ -4616,6 +5638,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10899,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 10899,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -4625,6 +5649,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 701,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 701,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -4634,6 +5660,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 100,
     "avgCost": 12049,
     "totalValue": 1204900,
+    "initialStock": 100,
+    "initialCost": 12049,
     "minStock": 0
   },
   {
@@ -4643,6 +5671,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 89,
     "avgCost": 16348,
     "totalValue": 1454972,
+    "initialStock": 89,
+    "initialCost": 16348,
     "minStock": 0
   },
   {
@@ -4652,6 +5682,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 54450,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 54450,
     "minStock": 0
   },
   {
@@ -4661,6 +5693,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -4670,6 +5704,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -4679,6 +5715,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 420000,
     "totalValue": 1260000,
+    "initialStock": 3,
+    "initialCost": 420000,
     "minStock": 0
   },
   {
@@ -4688,6 +5726,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 110,
     "avgCost": 2928,
     "totalValue": 322080,
+    "initialStock": 110,
+    "initialCost": 2928,
     "minStock": 0
   },
   {
@@ -4697,6 +5737,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 26,
     "avgCost": 88704,
     "totalValue": 2306304,
+    "initialStock": 26,
+    "initialCost": 88704,
     "minStock": 0
   },
   {
@@ -4706,6 +5748,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 45,
     "avgCost": 88695,
     "totalValue": 3991275,
+    "initialStock": 45,
+    "initialCost": 88695,
     "minStock": 0
   },
   {
@@ -4715,6 +5759,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 91960,
     "totalValue": 1103520,
+    "initialStock": 12,
+    "initialCost": 91960,
     "minStock": 0
   },
   {
@@ -4724,6 +5770,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 19,
     "avgCost": 88480,
     "totalValue": 1681120,
+    "initialStock": 19,
+    "initialCost": 88480,
     "minStock": 0
   },
   {
@@ -4733,6 +5781,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 1725636,
     "totalValue": 1725636,
+    "initialStock": 1,
+    "initialCost": 1725636,
     "minStock": 0
   },
   {
@@ -4742,6 +5792,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 110073,
     "totalValue": 770511,
+    "initialStock": 7,
+    "initialCost": 110073,
     "minStock": 0
   },
   {
@@ -4751,6 +5803,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 105,
     "avgCost": 83266,
     "totalValue": 8742930,
+    "initialStock": 105,
+    "initialCost": 83266,
     "minStock": 0
   },
   {
@@ -4760,6 +5814,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 87780,
     "totalValue": 702240,
+    "initialStock": 8,
+    "initialCost": 87780,
     "minStock": 0
   },
   {
@@ -4769,6 +5825,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 133650,
     "totalValue": 1202850,
+    "initialStock": 9,
+    "initialCost": 133650,
     "minStock": 0
   },
   {
@@ -4778,6 +5836,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 76205,
     "totalValue": 914460,
+    "initialStock": 12,
+    "initialCost": 76205,
     "minStock": 0
   },
   {
@@ -4787,6 +5847,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 23,
     "avgCost": 55067,
     "totalValue": 1266541,
+    "initialStock": 23,
+    "initialCost": 55067,
     "minStock": 0
   },
   {
@@ -4796,6 +5858,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 82241,
     "totalValue": 493446,
+    "initialStock": 6,
+    "initialCost": 82241,
     "minStock": 0
   },
   {
@@ -4805,6 +5869,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 121000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 121000,
     "minStock": 0
   },
   {
@@ -4814,6 +5880,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 24,
     "avgCost": 29260,
     "totalValue": 702240,
+    "initialStock": 24,
+    "initialCost": 29260,
     "minStock": 0
   },
   {
@@ -4823,6 +5891,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 22,
     "avgCost": 34067,
     "totalValue": 749474,
+    "initialStock": 22,
+    "initialCost": 34067,
     "minStock": 0
   },
   {
@@ -4832,6 +5902,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 68448,
     "totalValue": 479136,
+    "initialStock": 7,
+    "initialCost": 68448,
     "minStock": 0
   },
   {
@@ -4841,6 +5913,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 96245,
     "totalValue": 577470,
+    "initialStock": 6,
+    "initialCost": 96245,
     "minStock": 0
   },
   {
@@ -4850,6 +5924,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 117250,
     "totalValue": 1055250,
+    "initialStock": 9,
+    "initialCost": 117250,
     "minStock": 0
   },
   {
@@ -4859,6 +5935,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 15,
     "avgCost": 72034,
     "totalValue": 1080510,
+    "initialStock": 15,
+    "initialCost": 72034,
     "minStock": 0
   },
   {
@@ -4868,6 +5946,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 21,
     "avgCost": 118329,
     "totalValue": 2484909,
+    "initialStock": 21,
+    "initialCost": 118329,
     "minStock": 0
   },
   {
@@ -4877,6 +5957,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 38,
     "avgCost": 17304,
     "totalValue": 657552,
+    "initialStock": 38,
+    "initialCost": 17304,
     "minStock": 0
   },
   {
@@ -4886,6 +5968,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 30,
     "avgCost": 32568,
     "totalValue": 977040,
+    "initialStock": 30,
+    "initialCost": 32568,
     "minStock": 0
   },
   {
@@ -4895,6 +5979,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 3,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -4904,6 +5990,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -5,
     "avgCost": 28000,
     "totalValue": -140000,
+    "initialStock": -5,
+    "initialCost": 28000,
     "minStock": 0
   },
   {
@@ -4913,6 +6001,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 55383,
     "totalValue": 498447,
+    "initialStock": 9,
+    "initialCost": 55383,
     "minStock": 0
   },
   {
@@ -4922,6 +6012,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 60,
     "avgCost": 156768,
     "totalValue": 9406080,
+    "initialStock": 60,
+    "initialCost": 156768,
     "minStock": 0
   },
   {
@@ -4931,6 +6023,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 207,
     "avgCost": 81313,
     "totalValue": 16831791,
+    "initialStock": 207,
+    "initialCost": 81313,
     "minStock": 0
   },
   {
@@ -4940,6 +6034,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 205200,
     "totalValue": 205200,
+    "initialStock": 1,
+    "initialCost": 205200,
     "minStock": 0
   },
   {
@@ -4949,6 +6045,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 65,
     "avgCost": 76513,
     "totalValue": 4973345,
+    "initialStock": 65,
+    "initialCost": 76513,
     "minStock": 0
   },
   {
@@ -4958,6 +6056,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 55,
     "avgCost": 106736,
     "totalValue": 5870480,
+    "initialStock": 55,
+    "initialCost": 106736,
     "minStock": 0
   },
   {
@@ -4967,6 +6067,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 582336,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 582336,
     "minStock": 0
   },
   {
@@ -4976,6 +6078,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 216,
     "avgCost": 4576,
     "totalValue": 988416,
+    "initialStock": 216,
+    "initialCost": 4576,
     "minStock": 0
   },
   {
@@ -4985,6 +6089,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 9460,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 9460,
     "minStock": 0
   },
   {
@@ -4994,6 +6100,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 974,
     "avgCost": 2202,
     "totalValue": 2144748,
+    "initialStock": 974,
+    "initialCost": 2202,
     "minStock": 0
   },
   {
@@ -5003,6 +6111,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 511439,
     "totalValue": 2045756,
+    "initialStock": 4,
+    "initialCost": 511439,
     "minStock": 0
   },
   {
@@ -5012,6 +6122,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 266,
     "avgCost": 5760,
     "totalValue": 1532160,
+    "initialStock": 266,
+    "initialCost": 5760,
     "minStock": 0
   },
   {
@@ -5021,6 +6133,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 12980,
     "totalValue": 25960,
+    "initialStock": 2,
+    "initialCost": 12980,
     "minStock": 0
   },
   {
@@ -5030,6 +6144,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 208,
     "avgCost": 2749,
     "totalValue": 571792,
+    "initialStock": 208,
+    "initialCost": 2749,
     "minStock": 0
   },
   {
@@ -5039,6 +6155,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 87,
     "avgCost": 4288,
     "totalValue": 373056,
+    "initialStock": 87,
+    "initialCost": 4288,
     "minStock": 0
   },
   {
@@ -5048,6 +6166,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3942,
     "avgCost": 3302,
     "totalValue": 13016484,
+    "initialStock": 3942,
+    "initialCost": 3302,
     "minStock": 0
   },
   {
@@ -5057,6 +6177,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 183,
     "avgCost": 6875,
     "totalValue": 1258125,
+    "initialStock": 183,
+    "initialCost": 6875,
     "minStock": 0
   },
   {
@@ -5066,6 +6188,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 62,
     "avgCost": 8083,
     "totalValue": 501146,
+    "initialStock": 62,
+    "initialCost": 8083,
     "minStock": 0
   },
   {
@@ -5075,6 +6199,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 27060,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 27060,
     "minStock": 0
   },
   {
@@ -5084,6 +6210,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 395,
     "avgCost": 7836,
     "totalValue": 3095220,
+    "initialStock": 395,
+    "initialCost": 7836,
     "minStock": 0
   },
   {
@@ -5093,6 +6221,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 59,
     "avgCost": 14117,
     "totalValue": 832903,
+    "initialStock": 59,
+    "initialCost": 14117,
     "minStock": 0
   },
   {
@@ -5102,6 +6232,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 251,
     "avgCost": 9140,
     "totalValue": 2294140,
+    "initialStock": 251,
+    "initialCost": 9140,
     "minStock": 0
   },
   {
@@ -5111,6 +6243,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 489,
     "avgCost": 10887,
     "totalValue": 5323743,
+    "initialStock": 489,
+    "initialCost": 10887,
     "minStock": 0
   },
   {
@@ -5120,6 +6254,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 17,
     "avgCost": 51820,
     "totalValue": 880940,
+    "initialStock": 17,
+    "initialCost": 51820,
     "minStock": 0
   },
   {
@@ -5129,6 +6265,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 149,
     "avgCost": 28322,
     "totalValue": 4219978,
+    "initialStock": 149,
+    "initialCost": 28322,
     "minStock": 0
   },
   {
@@ -5138,6 +6276,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 231,
     "avgCost": 19823,
     "totalValue": 4579113,
+    "initialStock": 231,
+    "initialCost": 19823,
     "minStock": 0
   },
   {
@@ -5147,6 +6287,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 63632,
     "totalValue": 572688,
+    "initialStock": 9,
+    "initialCost": 63632,
     "minStock": 0
   },
   {
@@ -5156,6 +6298,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 152496,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 152496,
     "minStock": 0
   },
   {
@@ -5165,6 +6309,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 23,
     "avgCost": 44820,
     "totalValue": 1030860,
+    "initialStock": 23,
+    "initialCost": 44820,
     "minStock": 0
   },
   {
@@ -5174,6 +6320,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 150,
     "avgCost": 19712,
     "totalValue": 2956800,
+    "initialStock": 150,
+    "initialCost": 19712,
     "minStock": 0
   },
   {
@@ -5183,6 +6331,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 78,
     "avgCost": 77884,
     "totalValue": 6074952,
+    "initialStock": 78,
+    "initialCost": 77884,
     "minStock": 0
   },
   {
@@ -5192,6 +6342,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 331,
     "avgCost": 45226,
     "totalValue": 14969806,
+    "initialStock": 331,
+    "initialCost": 45226,
     "minStock": 0
   },
   {
@@ -5201,6 +6353,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 181548,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 181548,
     "minStock": 0
   },
   {
@@ -5210,6 +6364,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 7018,
     "totalValue": 70180,
+    "initialStock": 10,
+    "initialCost": 7018,
     "minStock": 0
   },
   {
@@ -5219,6 +6375,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 580,
     "avgCost": 400,
     "totalValue": 232000,
+    "initialStock": 580,
+    "initialCost": 400,
     "minStock": 0
   },
   {
@@ -5228,6 +6386,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 40000,
     "totalValue": 40000,
+    "initialStock": 1,
+    "initialCost": 40000,
     "minStock": 0
   },
   {
@@ -5237,6 +6397,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 50000,
     "totalValue": 100000,
+    "initialStock": 2,
+    "initialCost": 50000,
     "minStock": 0
   },
   {
@@ -5246,6 +6408,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -5255,6 +6419,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -5264,6 +6430,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 80,
     "avgCost": 5618,
     "totalValue": 449440,
+    "initialStock": 80,
+    "initialCost": 5618,
     "minStock": 0
   },
   {
@@ -5273,6 +6441,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 172.5,
     "avgCost": 9256,
     "totalValue": 1596660,
+    "initialStock": 172.5,
+    "initialCost": 9256,
     "minStock": 0
   },
   {
@@ -5282,6 +6452,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 40,
     "avgCost": 11044,
     "totalValue": 441760,
+    "initialStock": 40,
+    "initialCost": 11044,
     "minStock": 0
   },
   {
@@ -5291,6 +6463,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 17,
     "avgCost": 3834,
     "totalValue": 65178,
+    "initialStock": 17,
+    "initialCost": 3834,
     "minStock": 0
   },
   {
@@ -5300,6 +6474,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -5309,6 +6485,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 4,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -5318,6 +6496,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 4546,
     "totalValue": 45460,
+    "initialStock": 10,
+    "initialCost": 4546,
     "minStock": 0
   },
   {
@@ -5327,6 +6507,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 21000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 21000,
     "minStock": 0
   },
   {
@@ -5336,6 +6518,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 37,
     "avgCost": 13495,
     "totalValue": 499315,
+    "initialStock": 37,
+    "initialCost": 13495,
     "minStock": 0
   },
   {
@@ -5345,6 +6529,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 24,
     "avgCost": 33263,
     "totalValue": 798312,
+    "initialStock": 24,
+    "initialCost": 33263,
     "minStock": 0
   },
   {
@@ -5354,6 +6540,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 45,
     "avgCost": 29750,
     "totalValue": 1338750,
+    "initialStock": 45,
+    "initialCost": 29750,
     "minStock": 0
   },
   {
@@ -5363,6 +6551,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -5372,6 +6562,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 25,
     "avgCost": 32358,
     "totalValue": 808950,
+    "initialStock": 25,
+    "initialCost": 32358,
     "minStock": 0
   },
   {
@@ -5381,6 +6573,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 153678,
     "totalValue": 1383102,
+    "initialStock": 9,
+    "initialCost": 153678,
     "minStock": 0
   },
   {
@@ -5390,6 +6584,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 28600,
     "totalValue": 286000,
+    "initialStock": 10,
+    "initialCost": 28600,
     "minStock": 0
   },
   {
@@ -5399,6 +6595,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 16,
     "avgCost": 11029,
     "totalValue": 176464,
+    "initialStock": 16,
+    "initialCost": 11029,
     "minStock": 0
   },
   {
@@ -5408,6 +6606,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 10770,
     "totalValue": 129240,
+    "initialStock": 12,
+    "initialCost": 10770,
     "minStock": 0
   },
   {
@@ -5417,6 +6617,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 138,
     "avgCost": 10264,
     "totalValue": 1416432,
+    "initialStock": 138,
+    "initialCost": 10264,
     "minStock": 0
   },
   {
@@ -5426,6 +6628,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 21,
     "avgCost": 34634,
     "totalValue": 727314,
+    "initialStock": 21,
+    "initialCost": 34634,
     "minStock": 0
   },
   {
@@ -5435,6 +6639,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 20,
     "avgCost": 9375,
     "totalValue": 187500,
+    "initialStock": 20,
+    "initialCost": 9375,
     "minStock": 0
   },
   {
@@ -5444,6 +6650,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 41,
     "avgCost": 19296,
     "totalValue": 791136,
+    "initialStock": 41,
+    "initialCost": 19296,
     "minStock": 0
   },
   {
@@ -5453,6 +6661,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 126,
     "avgCost": 10075,
     "totalValue": 1269450,
+    "initialStock": 126,
+    "initialCost": 10075,
     "minStock": 0
   },
   {
@@ -5462,6 +6672,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 71,
     "avgCost": 15152,
     "totalValue": 1075792,
+    "initialStock": 71,
+    "initialCost": 15152,
     "minStock": 0
   },
   {
@@ -5471,6 +6683,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 63800,
     "totalValue": 63800,
+    "initialStock": 1,
+    "initialCost": 63800,
     "minStock": 0
   },
   {
@@ -5480,6 +6694,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 18,
     "avgCost": 10313,
     "totalValue": 185634,
+    "initialStock": 18,
+    "initialCost": 10313,
     "minStock": 0
   },
   {
@@ -5489,6 +6705,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 121,
     "avgCost": 11557,
     "totalValue": 1398397,
+    "initialStock": 121,
+    "initialCost": 11557,
     "minStock": 0
   },
   {
@@ -5498,6 +6716,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 22,
     "avgCost": 33060,
     "totalValue": 727320,
+    "initialStock": 22,
+    "initialCost": 33060,
     "minStock": 0
   },
   {
@@ -5507,6 +6727,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 43,
     "avgCost": 12892,
     "totalValue": 554356,
+    "initialStock": 43,
+    "initialCost": 12892,
     "minStock": 0
   },
   {
@@ -5516,6 +6738,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 23,
     "avgCost": 12000,
     "totalValue": 276000,
+    "initialStock": 23,
+    "initialCost": 12000,
     "minStock": 0
   },
   {
@@ -5525,6 +6749,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 29,
     "avgCost": 12000,
     "totalValue": 348000,
+    "initialStock": 29,
+    "initialCost": 12000,
     "minStock": 0
   },
   {
@@ -5534,6 +6760,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 1160460,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 1160460,
     "minStock": 0
   },
   {
@@ -5543,6 +6771,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 586548,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 586548,
     "minStock": 0
   },
   {
@@ -5552,6 +6782,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 745956,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 745956,
     "minStock": 0
   },
   {
@@ -5561,6 +6793,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 13854,
     "totalValue": 96978,
+    "initialStock": 7,
+    "initialCost": 13854,
     "minStock": 0
   },
   {
@@ -5570,6 +6804,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 38,
     "avgCost": 12760,
     "totalValue": 484880,
+    "initialStock": 38,
+    "initialCost": 12760,
     "minStock": 0
   },
   {
@@ -5579,6 +6815,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 31900,
     "totalValue": 255200,
+    "initialStock": 8,
+    "initialCost": 31900,
     "minStock": 0
   },
   {
@@ -5588,6 +6826,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 13,
     "avgCost": 12760,
     "totalValue": 165880,
+    "initialStock": 13,
+    "initialCost": 12760,
     "minStock": 0
   },
   {
@@ -5597,6 +6837,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 47,
     "avgCost": 6580,
     "totalValue": 309260,
+    "initialStock": 47,
+    "initialCost": 6580,
     "minStock": 0
   },
   {
@@ -5606,6 +6848,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 49,
     "avgCost": 9375,
     "totalValue": 459375,
+    "initialStock": 49,
+    "initialCost": 9375,
     "minStock": 0
   },
   {
@@ -5615,6 +6859,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 1090000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 1090000,
     "minStock": 0
   },
   {
@@ -5624,6 +6870,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -1,
     "avgCost": 4230000,
     "totalValue": -4230000,
+    "initialStock": -1,
+    "initialCost": 4230000,
     "minStock": 0
   },
   {
@@ -5633,6 +6881,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 2241643,
     "totalValue": 8966572,
+    "initialStock": 4,
+    "initialCost": 2241643,
     "minStock": 0
   },
   {
@@ -5642,6 +6892,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 6185286,
     "totalValue": 12370572,
+    "initialStock": 2,
+    "initialCost": 6185286,
     "minStock": 0
   },
   {
@@ -5651,6 +6903,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 4996000,
     "totalValue": 9992000,
+    "initialStock": 2,
+    "initialCost": 4996000,
     "minStock": 0
   },
   {
@@ -5660,6 +6914,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 2427850,
     "totalValue": 19422800,
+    "initialStock": 8,
+    "initialCost": 2427850,
     "minStock": 0
   },
   {
@@ -5669,6 +6925,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 3079500,
     "totalValue": 18477000,
+    "initialStock": 6,
+    "initialCost": 3079500,
     "minStock": 0
   },
   {
@@ -5678,6 +6936,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 4863108,
     "totalValue": 4863108,
+    "initialStock": 1,
+    "initialCost": 4863108,
     "minStock": 0
   },
   {
@@ -5687,6 +6947,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 1630000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 1630000,
     "minStock": 0
   },
   {
@@ -5696,6 +6958,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 684000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 684000,
     "minStock": 0
   },
   {
@@ -5705,6 +6969,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 220000,
     "totalValue": 1100000,
+    "initialStock": 5,
+    "initialCost": 220000,
     "minStock": 0
   },
   {
@@ -5714,6 +6980,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 1,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -5723,6 +6991,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 67608,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 67608,
     "minStock": 0
   },
   {
@@ -5732,6 +7002,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 478500,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 478500,
     "minStock": 0
   },
   {
@@ -5741,6 +7013,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 1595000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 1595000,
     "minStock": 0
   },
   {
@@ -5750,6 +7024,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 24000,
     "totalValue": 96000,
+    "initialStock": 4,
+    "initialCost": 24000,
     "minStock": 0
   },
   {
@@ -5759,6 +7035,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 83642,
     "totalValue": 836420,
+    "initialStock": 10,
+    "initialCost": 83642,
     "minStock": 0
   },
   {
@@ -5768,6 +7046,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -6,
     "avgCost": 5280,
     "totalValue": -31680,
+    "initialStock": -6,
+    "initialCost": 5280,
     "minStock": 0
   },
   {
@@ -5777,6 +7057,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 8140,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 8140,
     "minStock": 0
   },
   {
@@ -5786,6 +7068,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 54,
     "avgCost": 46188,
     "totalValue": 2494152,
+    "initialStock": 54,
+    "initialCost": 46188,
     "minStock": 0
   },
   {
@@ -5795,6 +7079,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 62,
     "avgCost": 30554,
     "totalValue": 1894348,
+    "initialStock": 62,
+    "initialCost": 30554,
     "minStock": 0
   },
   {
@@ -5804,6 +7090,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 22000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 22000,
     "minStock": 0
   },
   {
@@ -5813,6 +7101,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 48000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 48000,
     "minStock": 0
   },
   {
@@ -5822,6 +7112,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 91000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 91000,
     "minStock": 0
   },
   {
@@ -5831,6 +7123,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 250,
     "avgCost": 26572,
     "totalValue": 6643000,
+    "initialStock": 250,
+    "initialCost": 26572,
     "minStock": 0
   },
   {
@@ -5840,6 +7134,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 12,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -5849,6 +7145,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -5858,6 +7156,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 36,
     "avgCost": 18340,
     "totalValue": 660240,
+    "initialStock": 36,
+    "initialCost": 18340,
     "minStock": 0
   },
   {
@@ -5867,6 +7167,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 40000,
     "totalValue": 40000,
+    "initialStock": 1,
+    "initialCost": 40000,
     "minStock": 0
   },
   {
@@ -5876,6 +7178,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 40000,
     "totalValue": 40000,
+    "initialStock": 1,
+    "initialCost": 40000,
     "minStock": 0
   },
   {
@@ -5885,6 +7189,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 67321,
     "totalValue": 807852,
+    "initialStock": 12,
+    "initialCost": 67321,
     "minStock": 0
   },
   {
@@ -5894,6 +7200,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 57,
     "avgCost": 84617,
     "totalValue": 4823169,
+    "initialStock": 57,
+    "initialCost": 84617,
     "minStock": 0
   },
   {
@@ -5903,6 +7211,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 237,
     "avgCost": 16392,
     "totalValue": 3884904,
+    "initialStock": 237,
+    "initialCost": 16392,
     "minStock": 0
   },
   {
@@ -5912,6 +7222,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 15,
     "avgCost": 26726,
     "totalValue": 400890,
+    "initialStock": 15,
+    "initialCost": 26726,
     "minStock": 0
   },
   {
@@ -5921,6 +7233,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 67,
     "avgCost": 19464,
     "totalValue": 1304088,
+    "initialStock": 67,
+    "initialCost": 19464,
     "minStock": 0
   },
   {
@@ -5930,6 +7244,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 20,
     "avgCost": 66800,
     "totalValue": 1336000,
+    "initialStock": 20,
+    "initialCost": 66800,
     "minStock": 0
   },
   {
@@ -5939,6 +7255,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 353,
     "avgCost": 3223,
     "totalValue": 1137719,
+    "initialStock": 353,
+    "initialCost": 3223,
     "minStock": 0
   },
   {
@@ -5948,6 +7266,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 26,
     "avgCost": 1588,
     "totalValue": 41288,
+    "initialStock": 26,
+    "initialCost": 1588,
     "minStock": 0
   },
   {
@@ -5957,6 +7277,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 504,
     "avgCost": 868,
     "totalValue": 437472,
+    "initialStock": 504,
+    "initialCost": 868,
     "minStock": 0
   },
   {
@@ -5966,6 +7288,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 30,
     "avgCost": 53062,
     "totalValue": 1591860,
+    "initialStock": 30,
+    "initialCost": 53062,
     "minStock": 0
   },
   {
@@ -5975,6 +7299,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 141,
     "avgCost": 2293,
     "totalValue": 323313,
+    "initialStock": 141,
+    "initialCost": 2293,
     "minStock": 0
   },
   {
@@ -5984,6 +7310,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 30,
     "avgCost": 2939,
     "totalValue": 88170,
+    "initialStock": 30,
+    "initialCost": 2939,
     "minStock": 0
   },
   {
@@ -5993,6 +7321,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 461,
     "avgCost": 497,
     "totalValue": 229117,
+    "initialStock": 461,
+    "initialCost": 497,
     "minStock": 0
   },
   {
@@ -6002,6 +7332,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 191,
     "avgCost": 6302,
     "totalValue": 1203682,
+    "initialStock": 191,
+    "initialCost": 6302,
     "minStock": 0
   },
   {
@@ -6011,6 +7343,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 8107,
     "totalValue": 97284,
+    "initialStock": 12,
+    "initialCost": 8107,
     "minStock": 0
   },
   {
@@ -6020,6 +7354,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 69,
     "avgCost": 1036,
     "totalValue": 71484,
+    "initialStock": 69,
+    "initialCost": 1036,
     "minStock": 0
   },
   {
@@ -6029,6 +7365,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 13,
     "avgCost": 9940,
     "totalValue": 129220,
+    "initialStock": 13,
+    "initialCost": 9940,
     "minStock": 0
   },
   {
@@ -6038,6 +7376,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 24,
     "avgCost": 3959,
     "totalValue": 95016,
+    "initialStock": 24,
+    "initialCost": 3959,
     "minStock": 0
   },
   {
@@ -6047,6 +7387,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 23,
     "avgCost": 2780,
     "totalValue": 63940,
+    "initialStock": 23,
+    "initialCost": 2780,
     "minStock": 0
   },
   {
@@ -6056,6 +7398,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 17,
     "avgCost": 4928,
     "totalValue": 83776,
+    "initialStock": 17,
+    "initialCost": 4928,
     "minStock": 0
   },
   {
@@ -6065,6 +7409,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 109,
     "avgCost": 2579,
     "totalValue": 281111,
+    "initialStock": 109,
+    "initialCost": 2579,
     "minStock": 0
   },
   {
@@ -6074,6 +7420,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 15,
     "avgCost": 48620,
     "totalValue": 729300,
+    "initialStock": 15,
+    "initialCost": 48620,
     "minStock": 0
   },
   {
@@ -6083,6 +7431,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 59,
     "avgCost": 23932,
     "totalValue": 1411988,
+    "initialStock": 59,
+    "initialCost": 23932,
     "minStock": 0
   },
   {
@@ -6092,6 +7442,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 167,
     "avgCost": 5126,
     "totalValue": 856042,
+    "initialStock": 167,
+    "initialCost": 5126,
     "minStock": 0
   },
   {
@@ -6101,6 +7453,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 75871,
     "totalValue": 531097,
+    "initialStock": 7,
+    "initialCost": 75871,
     "minStock": 0
   },
   {
@@ -6110,6 +7464,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 180576,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 180576,
     "minStock": 0
   },
   {
@@ -6119,6 +7475,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 59,
     "avgCost": 52209,
     "totalValue": 3080331,
+    "initialStock": 59,
+    "initialCost": 52209,
     "minStock": 0
   },
   {
@@ -6128,6 +7486,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 192,
     "avgCost": 11557,
     "totalValue": 2218944,
+    "initialStock": 192,
+    "initialCost": 11557,
     "minStock": 0
   },
   {
@@ -6137,6 +7497,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 106,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 106,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -6146,6 +7508,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3011,
     "avgCost": 1918,
     "totalValue": 5775098,
+    "initialStock": 3011,
+    "initialCost": 1918,
     "minStock": 0
   },
   {
@@ -6155,6 +7519,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 198000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 198000,
     "minStock": 0
   },
   {
@@ -6164,6 +7530,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 26,
     "avgCost": 106897,
     "totalValue": 2779322,
+    "initialStock": 26,
+    "initialCost": 106897,
     "minStock": 0
   },
   {
@@ -6173,6 +7541,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 19,
     "avgCost": 5619,
     "totalValue": 106761,
+    "initialStock": 19,
+    "initialCost": 5619,
     "minStock": 0
   },
   {
@@ -6182,6 +7552,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 838,
     "avgCost": 1655,
     "totalValue": 1386890,
+    "initialStock": 838,
+    "initialCost": 1655,
     "minStock": 0
   },
   {
@@ -6191,6 +7563,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 47,
     "avgCost": 1122,
     "totalValue": 52734,
+    "initialStock": 47,
+    "initialCost": 1122,
     "minStock": 0
   },
   {
@@ -6200,6 +7574,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 17,
     "avgCost": 18889,
     "totalValue": 321113,
+    "initialStock": 17,
+    "initialCost": 18889,
     "minStock": 0
   },
   {
@@ -6209,6 +7585,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 103,
     "avgCost": 1175,
     "totalValue": 121025,
+    "initialStock": 103,
+    "initialCost": 1175,
     "minStock": 0
   },
   {
@@ -6218,6 +7596,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 38459,
     "totalValue": 115377,
+    "initialStock": 3,
+    "initialCost": 38459,
     "minStock": 0
   },
   {
@@ -6227,6 +7607,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 36500,
     "totalValue": 365000,
+    "initialStock": 10,
+    "initialCost": 36500,
     "minStock": 0
   },
   {
@@ -6236,6 +7618,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 49594,
     "totalValue": 595128,
+    "initialStock": 12,
+    "initialCost": 49594,
     "minStock": 0
   },
   {
@@ -6245,6 +7629,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 11,
     "avgCost": 65727,
     "totalValue": 722997,
+    "initialStock": 11,
+    "initialCost": 65727,
     "minStock": 0
   },
   {
@@ -6254,6 +7640,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 255,
     "avgCost": 1049,
     "totalValue": 267495,
+    "initialStock": 255,
+    "initialCost": 1049,
     "minStock": 0
   },
   {
@@ -6263,6 +7651,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 20,
     "avgCost": 14800,
     "totalValue": 296000,
+    "initialStock": 20,
+    "initialCost": 14800,
     "minStock": 0
   },
   {
@@ -6272,6 +7662,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 11,
     "avgCost": 2160,
     "totalValue": 23760,
+    "initialStock": 11,
+    "initialCost": 2160,
     "minStock": 0
   },
   {
@@ -6281,6 +7673,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 4644,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 4644,
     "minStock": 0
   },
   {
@@ -6290,6 +7684,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 32917,
     "totalValue": 197502,
+    "initialStock": 6,
+    "initialCost": 32917,
     "minStock": 0
   },
   {
@@ -6299,6 +7695,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 59345,
     "totalValue": 415415,
+    "initialStock": 7,
+    "initialCost": 59345,
     "minStock": 0
   },
   {
@@ -6308,6 +7706,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -6317,6 +7717,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 21600,
     "totalValue": 21600,
+    "initialStock": 1,
+    "initialCost": 21600,
     "minStock": 0
   },
   {
@@ -6326,6 +7728,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -6335,6 +7739,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 200000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 200000,
     "minStock": 0
   },
   {
@@ -6344,6 +7750,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 62,
     "avgCost": 2,
     "totalValue": 124,
+    "initialStock": 62,
+    "initialCost": 2,
     "minStock": 0
   },
   {
@@ -6353,6 +7761,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 13,
     "avgCost": 41685,
     "totalValue": 541905,
+    "initialStock": 13,
+    "initialCost": 41685,
     "minStock": 0
   },
   {
@@ -6362,6 +7772,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 17657,
     "totalValue": 158913,
+    "initialStock": 9,
+    "initialCost": 17657,
     "minStock": 0
   },
   {
@@ -6371,6 +7783,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 30,
     "avgCost": 37696,
     "totalValue": 1130880,
+    "initialStock": 30,
+    "initialCost": 37696,
     "minStock": 0
   },
   {
@@ -6380,6 +7794,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -6389,6 +7805,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 68000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 68000,
     "minStock": 0
   },
   {
@@ -6398,6 +7816,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 19800,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 19800,
     "minStock": 0
   },
   {
@@ -6407,6 +7827,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 7,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -6416,6 +7838,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 183060,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 183060,
     "minStock": 0
   },
   {
@@ -6425,6 +7849,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 133,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 133,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -6434,6 +7860,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 100,
     "avgCost": 21779,
     "totalValue": 2177900,
+    "initialStock": 100,
+    "initialCost": 21779,
     "minStock": 0
   },
   {
@@ -6443,6 +7871,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 158294,
     "totalValue": 1424646,
+    "initialStock": 9,
+    "initialCost": 158294,
     "minStock": 0
   },
   {
@@ -6452,6 +7882,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 22,
     "avgCost": 16540,
     "totalValue": 363880,
+    "initialStock": 22,
+    "initialCost": 16540,
     "minStock": 0
   },
   {
@@ -6461,6 +7893,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 35,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 35,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -6470,6 +7904,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 43,
     "avgCost": 16761,
     "totalValue": 720723,
+    "initialStock": 43,
+    "initialCost": 16761,
     "minStock": 0
   },
   {
@@ -6479,6 +7915,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 50,
     "avgCost": 52335,
     "totalValue": 2616750,
+    "initialStock": 50,
+    "initialCost": 52335,
     "minStock": 0
   },
   {
@@ -6488,6 +7926,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 23,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 23,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -6497,6 +7937,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 18,
     "avgCost": 40001,
     "totalValue": 720018,
+    "initialStock": 18,
+    "initialCost": 40001,
     "minStock": 0
   },
   {
@@ -6506,6 +7948,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 42,
     "avgCost": 27431,
     "totalValue": 1152102,
+    "initialStock": 42,
+    "initialCost": 27431,
     "minStock": 0
   },
   {
@@ -6515,6 +7959,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 83070,
     "totalValue": 830700,
+    "initialStock": 10,
+    "initialCost": 83070,
     "minStock": 0
   },
   {
@@ -6524,6 +7970,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 230,
     "avgCost": 19811,
     "totalValue": 4556530,
+    "initialStock": 230,
+    "initialCost": 19811,
     "minStock": 0
   },
   {
@@ -6533,6 +7981,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 54450,
     "totalValue": 490050,
+    "initialStock": 9,
+    "initialCost": 54450,
     "minStock": 0
   },
   {
@@ -6542,6 +7992,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 25920,
     "totalValue": 129600,
+    "initialStock": 5,
+    "initialCost": 25920,
     "minStock": 0
   },
   {
@@ -6551,6 +8003,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 125057,
     "totalValue": 125057,
+    "initialStock": 1,
+    "initialCost": 125057,
     "minStock": 0
   },
   {
@@ -6560,6 +8014,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 66111,
     "totalValue": 264444,
+    "initialStock": 4,
+    "initialCost": 66111,
     "minStock": 0
   },
   {
@@ -6569,6 +8025,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 62095,
     "totalValue": 496760,
+    "initialStock": 8,
+    "initialCost": 62095,
     "minStock": 0
   },
   {
@@ -6578,6 +8036,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 151066,
     "totalValue": 1359594,
+    "initialStock": 9,
+    "initialCost": 151066,
     "minStock": 0
   },
   {
@@ -6587,6 +8047,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 8690,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 8690,
     "minStock": 0
   },
   {
@@ -6596,6 +8058,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 277788,
     "totalValue": 1388940,
+    "initialStock": 5,
+    "initialCost": 277788,
     "minStock": 0
   },
   {
@@ -6605,6 +8069,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 766908,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 766908,
     "minStock": 0
   },
   {
@@ -6614,6 +8080,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 168,
     "avgCost": 3001,
     "totalValue": 504168,
+    "initialStock": 168,
+    "initialCost": 3001,
     "minStock": 0
   },
   {
@@ -6623,6 +8091,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 85,
     "avgCost": 3394,
     "totalValue": 288490,
+    "initialStock": 85,
+    "initialCost": 3394,
     "minStock": 0
   },
   {
@@ -6632,6 +8102,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 115,
     "avgCost": 5463,
     "totalValue": 628245,
+    "initialStock": 115,
+    "initialCost": 5463,
     "minStock": 0
   },
   {
@@ -6641,6 +8113,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 16720,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 16720,
     "minStock": 0
   },
   {
@@ -6650,6 +8124,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 92,
     "avgCost": 3624,
     "totalValue": 333408,
+    "initialStock": 92,
+    "initialCost": 3624,
     "minStock": 0
   },
   {
@@ -6659,6 +8135,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 70,
     "avgCost": 5844,
     "totalValue": 409080,
+    "initialStock": 70,
+    "initialCost": 5844,
     "minStock": 0
   },
   {
@@ -6668,6 +8146,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 168,
     "avgCost": 3285,
     "totalValue": 551880,
+    "initialStock": 168,
+    "initialCost": 3285,
     "minStock": 0
   },
   {
@@ -6677,6 +8157,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 280,
     "avgCost": 5541,
     "totalValue": 1551480,
+    "initialStock": 280,
+    "initialCost": 5541,
     "minStock": 0
   },
   {
@@ -6686,6 +8168,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 104,
     "avgCost": 3289,
     "totalValue": 342056,
+    "initialStock": 104,
+    "initialCost": 3289,
     "minStock": 0
   },
   {
@@ -6695,6 +8179,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 11,
     "avgCost": 6187,
     "totalValue": 68057,
+    "initialStock": 11,
+    "initialCost": 6187,
     "minStock": 0
   },
   {
@@ -6704,6 +8190,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 126,
     "avgCost": 7484,
     "totalValue": 942984,
+    "initialStock": 126,
+    "initialCost": 7484,
     "minStock": 0
   },
   {
@@ -6713,6 +8201,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 56,
     "avgCost": 4663,
     "totalValue": 261128,
+    "initialStock": 56,
+    "initialCost": 4663,
     "minStock": 0
   },
   {
@@ -6722,6 +8212,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 23,
     "avgCost": 6443,
     "totalValue": 148189,
+    "initialStock": 23,
+    "initialCost": 6443,
     "minStock": 0
   },
   {
@@ -6731,6 +8223,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 70,
     "avgCost": 5417,
     "totalValue": 379190,
+    "initialStock": 70,
+    "initialCost": 5417,
     "minStock": 0
   },
   {
@@ -6740,6 +8234,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 120,
     "avgCost": 7980,
     "totalValue": 957600,
+    "initialStock": 120,
+    "initialCost": 7980,
     "minStock": 0
   },
   {
@@ -6749,6 +8245,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 120,
     "avgCost": 8664,
     "totalValue": 1039680,
+    "initialStock": 120,
+    "initialCost": 8664,
     "minStock": 0
   },
   {
@@ -6758,6 +8256,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 141,
     "avgCost": 8841,
     "totalValue": 1246581,
+    "initialStock": 141,
+    "initialCost": 8841,
     "minStock": 0
   },
   {
@@ -6767,6 +8267,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 65,
     "avgCost": 18275,
     "totalValue": 1187875,
+    "initialStock": 65,
+    "initialCost": 18275,
     "minStock": 0
   },
   {
@@ -6776,6 +8278,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 49,
     "avgCost": 24621,
     "totalValue": 1206429,
+    "initialStock": 49,
+    "initialCost": 24621,
     "minStock": 0
   },
   {
@@ -6785,6 +8289,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 159,
     "avgCost": 8061,
     "totalValue": 1281699,
+    "initialStock": 159,
+    "initialCost": 8061,
     "minStock": 0
   },
   {
@@ -6794,6 +8300,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 191,
     "avgCost": 12582,
     "totalValue": 2403162,
+    "initialStock": 191,
+    "initialCost": 12582,
     "minStock": 0
   },
   {
@@ -6803,6 +8311,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 57,
     "avgCost": 16474,
     "totalValue": 939018,
+    "initialStock": 57,
+    "initialCost": 16474,
     "minStock": 0
   },
   {
@@ -6812,6 +8322,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 137,
     "avgCost": 15543,
     "totalValue": 2129391,
+    "initialStock": 137,
+    "initialCost": 15543,
     "minStock": 0
   },
   {
@@ -6821,6 +8333,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 24,
     "avgCost": 4989,
     "totalValue": 119736,
+    "initialStock": 24,
+    "initialCost": 4989,
     "minStock": 0
   },
   {
@@ -6830,6 +8344,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 93,
     "avgCost": 14329,
     "totalValue": 1332597,
+    "initialStock": 93,
+    "initialCost": 14329,
     "minStock": 0
   },
   {
@@ -6839,6 +8355,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 27,
     "avgCost": 5076,
     "totalValue": 137052,
+    "initialStock": 27,
+    "initialCost": 5076,
     "minStock": 0
   },
   {
@@ -6848,6 +8366,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 15650,
     "totalValue": 140850,
+    "initialStock": 9,
+    "initialCost": 15650,
     "minStock": 0
   },
   {
@@ -6857,6 +8377,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 18207,
     "totalValue": 109242,
+    "initialStock": 6,
+    "initialCost": 18207,
     "minStock": 0
   },
   {
@@ -6866,6 +8388,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 15929,
     "totalValue": 79645,
+    "initialStock": 5,
+    "initialCost": 15929,
     "minStock": 0
   },
   {
@@ -6875,6 +8399,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 27684,
     "totalValue": 55368,
+    "initialStock": 2,
+    "initialCost": 27684,
     "minStock": 0
   },
   {
@@ -6884,6 +8410,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 80460,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 80460,
     "minStock": 0
   },
   {
@@ -6893,6 +8421,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 114,
     "avgCost": 13431,
     "totalValue": 1531134,
+    "initialStock": 114,
+    "initialCost": 13431,
     "minStock": 0
   },
   {
@@ -6902,6 +8432,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 101736,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 101736,
     "minStock": 0
   },
   {
@@ -6911,6 +8443,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 75,
     "avgCost": 12730,
     "totalValue": 954750,
+    "initialStock": 75,
+    "initialCost": 12730,
     "minStock": 0
   },
   {
@@ -6920,6 +8454,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 24,
     "avgCost": 152752,
     "totalValue": 3666048,
+    "initialStock": 24,
+    "initialCost": 152752,
     "minStock": 0
   },
   {
@@ -6929,6 +8465,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 80,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 80,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -6938,6 +8476,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 25,
     "avgCost": 20669,
     "totalValue": 516725,
+    "initialStock": 25,
+    "initialCost": 20669,
     "minStock": 0
   },
   {
@@ -6947,6 +8487,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 59,
     "avgCost": 28613,
     "totalValue": 1688167,
+    "initialStock": 59,
+    "initialCost": 28613,
     "minStock": 0
   },
   {
@@ -6956,6 +8498,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 41,
     "avgCost": 14242,
     "totalValue": 583922,
+    "initialStock": 41,
+    "initialCost": 14242,
     "minStock": 0
   },
   {
@@ -6965,6 +8509,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 195,
     "avgCost": 12745,
     "totalValue": 2485275,
+    "initialStock": 195,
+    "initialCost": 12745,
     "minStock": 0
   },
   {
@@ -6974,6 +8520,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 12805,
     "totalValue": 51220,
+    "initialStock": 4,
+    "initialCost": 12805,
     "minStock": 0
   },
   {
@@ -6983,6 +8531,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 38,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 38,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -6992,6 +8542,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 2,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -7001,6 +8553,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 5335,
     "totalValue": 42680,
+    "initialStock": 8,
+    "initialCost": 5335,
     "minStock": 0
   },
   {
@@ -7010,6 +8564,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 243648,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 243648,
     "minStock": 0
   },
   {
@@ -7019,6 +8575,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 83,
     "avgCost": 76647,
     "totalValue": 6361701,
+    "initialStock": 83,
+    "initialCost": 76647,
     "minStock": 0
   },
   {
@@ -7028,6 +8586,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 231,
     "avgCost": 18257,
     "totalValue": 4217367,
+    "initialStock": 231,
+    "initialCost": 18257,
     "minStock": 0
   },
   {
@@ -7037,6 +8597,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 14,
     "avgCost": 57777,
     "totalValue": 808878,
+    "initialStock": 14,
+    "initialCost": 57777,
     "minStock": 0
   },
   {
@@ -7046,6 +8608,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 322272,
     "totalValue": 322272,
+    "initialStock": 1,
+    "initialCost": 322272,
     "minStock": 0
   },
   {
@@ -7055,6 +8619,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 11,
     "avgCost": 99596,
     "totalValue": 1095556,
+    "initialStock": 11,
+    "initialCost": 99596,
     "minStock": 0
   },
   {
@@ -7064,6 +8630,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 293,
     "avgCost": 812,
     "totalValue": 237916,
+    "initialStock": 293,
+    "initialCost": 812,
     "minStock": 0
   },
   {
@@ -7073,6 +8641,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 16,
     "avgCost": 3469,
     "totalValue": 55504,
+    "initialStock": 16,
+    "initialCost": 3469,
     "minStock": 0
   },
   {
@@ -7082,6 +8652,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 7590,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 7590,
     "minStock": 0
   },
   {
@@ -7091,6 +8663,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 365,
     "avgCost": 1454,
     "totalValue": 530710,
+    "initialStock": 365,
+    "initialCost": 1454,
     "minStock": 0
   },
   {
@@ -7100,6 +8674,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 67,
     "avgCost": 2546,
     "totalValue": 170582,
+    "initialStock": 67,
+    "initialCost": 2546,
     "minStock": 0
   },
   {
@@ -7109,6 +8685,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 297864,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 297864,
     "minStock": 0
   },
   {
@@ -7118,6 +8696,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 422,
     "avgCost": 4018,
     "totalValue": 1695596,
+    "initialStock": 422,
+    "initialCost": 4018,
     "minStock": 0
   },
   {
@@ -7127,6 +8707,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 10340,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 10340,
     "minStock": 0
   },
   {
@@ -7136,6 +8718,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 195,
     "avgCost": 4162,
     "totalValue": 811590,
+    "initialStock": 195,
+    "initialCost": 4162,
     "minStock": 0
   },
   {
@@ -7145,6 +8729,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 413,
     "avgCost": 1535,
     "totalValue": 633955,
+    "initialStock": 413,
+    "initialCost": 1535,
     "minStock": 0
   },
   {
@@ -7154,6 +8740,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 103,
     "avgCost": 2775,
     "totalValue": 285825,
+    "initialStock": 103,
+    "initialCost": 2775,
     "minStock": 0
   },
   {
@@ -7163,6 +8751,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 720,
     "avgCost": 2727,
     "totalValue": 1963440,
+    "initialStock": 720,
+    "initialCost": 2727,
     "minStock": 0
   },
   {
@@ -7172,6 +8762,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 13334,
     "totalValue": 53336,
+    "initialStock": 4,
+    "initialCost": 13334,
     "minStock": 0
   },
   {
@@ -7181,6 +8773,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 23,
     "avgCost": 2083,
     "totalValue": 47909,
+    "initialStock": 23,
+    "initialCost": 2083,
     "minStock": 0
   },
   {
@@ -7190,6 +8784,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 31,
     "avgCost": 4370,
     "totalValue": 135470,
+    "initialStock": 31,
+    "initialCost": 4370,
     "minStock": 0
   },
   {
@@ -7199,6 +8795,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 18590,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 18590,
     "minStock": 0
   },
   {
@@ -7208,6 +8806,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 22,
     "avgCost": 2058,
     "totalValue": 45276,
+    "initialStock": 22,
+    "initialCost": 2058,
     "minStock": 0
   },
   {
@@ -7217,6 +8817,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 449,
     "avgCost": 4638,
     "totalValue": 2082462,
+    "initialStock": 449,
+    "initialCost": 4638,
     "minStock": 0
   },
   {
@@ -7226,6 +8828,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 15935830,
     "totalValue": 63743320,
+    "initialStock": 4,
+    "initialCost": 15935830,
     "minStock": 0
   },
   {
@@ -7235,6 +8839,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 228,
     "avgCost": 7023,
     "totalValue": 1601244,
+    "initialStock": 228,
+    "initialCost": 7023,
     "minStock": 0
   },
   {
@@ -7244,6 +8850,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 213,
     "avgCost": 10267,
     "totalValue": 2186871,
+    "initialStock": 213,
+    "initialCost": 10267,
     "minStock": 0
   },
   {
@@ -7253,6 +8861,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 65,
     "avgCost": 13278,
     "totalValue": 863070,
+    "initialStock": 65,
+    "initialCost": 13278,
     "minStock": 0
   },
   {
@@ -7262,6 +8872,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 101,
     "avgCost": 16528,
     "totalValue": 1669328,
+    "initialStock": 101,
+    "initialCost": 16528,
     "minStock": 0
   },
   {
@@ -7271,6 +8883,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 308,
     "avgCost": 5947,
     "totalValue": 1831676,
+    "initialStock": 308,
+    "initialCost": 5947,
     "minStock": 0
   },
   {
@@ -7280,6 +8894,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 22,
     "avgCost": 62209,
     "totalValue": 1368598,
+    "initialStock": 22,
+    "initialCost": 62209,
     "minStock": 0
   },
   {
@@ -7289,6 +8905,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 26,
     "avgCost": 3342,
     "totalValue": 86892,
+    "initialStock": 26,
+    "initialCost": 3342,
     "minStock": 0
   },
   {
@@ -7298,6 +8916,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 88776,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 88776,
     "minStock": 0
   },
   {
@@ -7307,6 +8927,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 33,
     "avgCost": 46415,
     "totalValue": 1531695,
+    "initialStock": 33,
+    "initialCost": 46415,
     "minStock": 0
   },
   {
@@ -7316,6 +8938,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 270,
     "avgCost": 13966,
     "totalValue": 3770820,
+    "initialStock": 270,
+    "initialCost": 13966,
     "minStock": 0
   },
   {
@@ -7325,6 +8949,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 139200,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 139200,
     "minStock": 0
   },
   {
@@ -7334,6 +8960,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 2500,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 2500,
     "minStock": 0
   },
   {
@@ -7343,6 +8971,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 27,
     "avgCost": 26978,
     "totalValue": 728406,
+    "initialStock": 27,
+    "initialCost": 26978,
     "minStock": 0
   },
   {
@@ -7352,6 +8982,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 1,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -7361,6 +8993,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 24970,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 24970,
     "minStock": 0
   },
   {
@@ -7370,6 +9004,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 73332,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 73332,
     "minStock": 0
   },
   {
@@ -7379,6 +9015,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 75,
     "avgCost": 194564,
     "totalValue": 14592300,
+    "initialStock": 75,
+    "initialCost": 194564,
     "minStock": 0
   },
   {
@@ -7388,6 +9026,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 89650,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 89650,
     "minStock": 0
   },
   {
@@ -7397,6 +9037,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 323,
     "avgCost": 1912,
     "totalValue": 617576,
+    "initialStock": 323,
+    "initialCost": 1912,
     "minStock": 0
   },
   {
@@ -7406,6 +9048,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 208,
     "avgCost": 20663,
     "totalValue": 4297904,
+    "initialStock": 208,
+    "initialCost": 20663,
     "minStock": 0
   },
   {
@@ -7415,6 +9059,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 75,
     "avgCost": 42030,
     "totalValue": 3152250,
+    "initialStock": 75,
+    "initialCost": 42030,
     "minStock": 0
   },
   {
@@ -7424,6 +9070,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 272,
     "avgCost": 19165,
     "totalValue": 5212880,
+    "initialStock": 272,
+    "initialCost": 19165,
     "minStock": 0
   },
   {
@@ -7433,6 +9081,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 47,
     "avgCost": 41003,
     "totalValue": 1927141,
+    "initialStock": 47,
+    "initialCost": 41003,
     "minStock": 0
   },
   {
@@ -7442,6 +9092,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 95920,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 95920,
     "minStock": 0
   },
   {
@@ -7451,6 +9103,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 128,
     "avgCost": 41134,
     "totalValue": 5265152,
+    "initialStock": 128,
+    "initialCost": 41134,
     "minStock": 0
   },
   {
@@ -7460,6 +9114,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 138600,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 138600,
     "minStock": 0
   },
   {
@@ -7469,6 +9125,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 25,
     "avgCost": 2677,
     "totalValue": 66925,
+    "initialStock": 25,
+    "initialCost": 2677,
     "minStock": 0
   },
   {
@@ -7478,6 +9136,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 196,
     "avgCost": 13301,
     "totalValue": 2606996,
+    "initialStock": 196,
+    "initialCost": 13301,
     "minStock": 0
   },
   {
@@ -7487,6 +9147,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 274,
     "avgCost": 3658,
     "totalValue": 1002292,
+    "initialStock": 274,
+    "initialCost": 3658,
     "minStock": 0
   },
   {
@@ -7496,6 +9158,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 46,
     "avgCost": 31842,
     "totalValue": 1464732,
+    "initialStock": 46,
+    "initialCost": 31842,
     "minStock": 0
   },
   {
@@ -7505,6 +9169,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 5500,
     "totalValue": 5500,
+    "initialStock": 1,
+    "initialCost": 5500,
     "minStock": 0
   },
   {
@@ -7514,6 +9180,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -6,
     "avgCost": 4000,
     "totalValue": -24000,
+    "initialStock": -6,
+    "initialCost": 4000,
     "minStock": 0
   },
   {
@@ -7523,6 +9191,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 17500,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 17500,
     "minStock": 0
   },
   {
@@ -7532,6 +9202,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 40000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 40000,
     "minStock": 0
   },
   {
@@ -7541,6 +9213,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 165499,
     "totalValue": 1323992,
+    "initialStock": 8,
+    "initialCost": 165499,
     "minStock": 0
   },
   {
@@ -7550,6 +9224,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 14539,
     "totalValue": 174468,
+    "initialStock": 12,
+    "initialCost": 14539,
     "minStock": 0
   },
   {
@@ -7559,6 +9235,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 85000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 85000,
     "minStock": 0
   },
   {
@@ -7568,6 +9246,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 70100,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 70100,
     "minStock": 0
   },
   {
@@ -7577,6 +9257,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 177120,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 177120,
     "minStock": 0
   },
   {
@@ -7586,6 +9268,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 53,
     "avgCost": 47680,
     "totalValue": 2527040,
+    "initialStock": 53,
+    "initialCost": 47680,
     "minStock": 0
   },
   {
@@ -7595,6 +9279,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 30,
     "avgCost": 28561,
     "totalValue": 856830,
+    "initialStock": 30,
+    "initialCost": 28561,
     "minStock": 0
   },
   {
@@ -7604,6 +9290,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 256850,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 256850,
     "minStock": 0
   },
   {
@@ -7613,6 +9301,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 146,
     "avgCost": 2685,
     "totalValue": 392010,
+    "initialStock": 146,
+    "initialCost": 2685,
     "minStock": 0
   },
   {
@@ -7622,6 +9312,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -7631,6 +9323,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 158,
     "avgCost": 4772,
     "totalValue": 753976,
+    "initialStock": 158,
+    "initialCost": 4772,
     "minStock": 0
   },
   {
@@ -7640,6 +9334,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 163229,
     "totalValue": 1958748,
+    "initialStock": 12,
+    "initialCost": 163229,
     "minStock": 0
   },
   {
@@ -7649,6 +9345,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 548856,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 548856,
     "minStock": 0
   },
   {
@@ -7658,6 +9356,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -7667,6 +9367,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 7,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -7676,6 +9378,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 6940,
     "totalValue": 69400,
+    "initialStock": 10,
+    "initialCost": 6940,
     "minStock": 0
   },
   {
@@ -7685,6 +9389,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -7694,6 +9400,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 121,
     "avgCost": 7316,
     "totalValue": 885236,
+    "initialStock": 121,
+    "initialCost": 7316,
     "minStock": 0
   },
   {
@@ -7703,6 +9411,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 60,
     "avgCost": 3881,
     "totalValue": 232860,
+    "initialStock": 60,
+    "initialCost": 3881,
     "minStock": 0
   },
   {
@@ -7712,6 +9422,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 20,
     "avgCost": 6419,
     "totalValue": 128380,
+    "initialStock": 20,
+    "initialCost": 6419,
     "minStock": 0
   },
   {
@@ -7721,6 +9433,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 8424,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 8424,
     "minStock": 0
   },
   {
@@ -7730,6 +9444,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -7739,6 +9455,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 7,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -7748,6 +9466,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 49,
     "avgCost": 7181,
     "totalValue": 351869,
+    "initialStock": 49,
+    "initialCost": 7181,
     "minStock": 0
   },
   {
@@ -7757,6 +9477,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -7766,6 +9488,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 182,
     "avgCost": 7913,
     "totalValue": 1440166,
+    "initialStock": 182,
+    "initialCost": 7913,
     "minStock": 0
   },
   {
@@ -7775,6 +9499,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 230594,
     "totalValue": 461188,
+    "initialStock": 2,
+    "initialCost": 230594,
     "minStock": 0
   },
   {
@@ -7784,6 +9510,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 215,
     "avgCost": 11106,
     "totalValue": 2387790,
+    "initialStock": 215,
+    "initialCost": 11106,
     "minStock": 0
   },
   {
@@ -7793,6 +9521,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 321184,
     "totalValue": 321184,
+    "initialStock": 1,
+    "initialCost": 321184,
     "minStock": 0
   },
   {
@@ -7802,6 +9532,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 37800,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 37800,
     "minStock": 0
   },
   {
@@ -7811,6 +9543,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -7820,6 +9554,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 2422819,
     "totalValue": 2422819,
+    "initialStock": 1,
+    "initialCost": 2422819,
     "minStock": 0
   },
   {
@@ -7829,6 +9565,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 62480,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 62480,
     "minStock": 0
   },
   {
@@ -7838,6 +9576,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 243,
     "avgCost": 17267,
     "totalValue": 4195881,
+    "initialStock": 243,
+    "initialCost": 17267,
     "minStock": 0
   },
   {
@@ -7847,6 +9587,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 288,
     "avgCost": 7451,
     "totalValue": 2145888,
+    "initialStock": 288,
+    "initialCost": 7451,
     "minStock": 0
   },
   {
@@ -7856,6 +9598,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 195,
     "avgCost": 2026,
     "totalValue": 395070,
+    "initialStock": 195,
+    "initialCost": 2026,
     "minStock": 0
   },
   {
@@ -7865,6 +9609,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 304,
     "avgCost": 11898,
     "totalValue": 3616992,
+    "initialStock": 304,
+    "initialCost": 11898,
     "minStock": 0
   },
   {
@@ -7874,6 +9620,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 57.4,
     "avgCost": 30289,
     "totalValue": 1738588.5999999999,
+    "initialStock": 57.4,
+    "initialCost": 30289,
     "minStock": 0
   },
   {
@@ -7883,6 +9631,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 18,
     "avgCost": 12000,
     "totalValue": 216000,
+    "initialStock": 18,
+    "initialCost": 12000,
     "minStock": 0
   },
   {
@@ -7892,6 +9642,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 78100,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 78100,
     "minStock": 0
   },
   {
@@ -7901,6 +9653,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 69,
     "avgCost": 41239,
     "totalValue": 2845491,
+    "initialStock": 69,
+    "initialCost": 41239,
     "minStock": 0
   },
   {
@@ -7910,6 +9664,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 93,
     "avgCost": 15468,
     "totalValue": 1438524,
+    "initialStock": 93,
+    "initialCost": 15468,
     "minStock": 0
   },
   {
@@ -7919,6 +9675,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 46,
     "avgCost": 1650,
     "totalValue": 75900,
+    "initialStock": 46,
+    "initialCost": 1650,
     "minStock": 0
   },
   {
@@ -7928,6 +9686,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 26,
     "avgCost": 13390,
     "totalValue": 348140,
+    "initialStock": 26,
+    "initialCost": 13390,
     "minStock": 0
   },
   {
@@ -7937,6 +9697,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 285,
     "avgCost": 3247,
     "totalValue": 925395,
+    "initialStock": 285,
+    "initialCost": 3247,
     "minStock": 0
   },
   {
@@ -7946,6 +9708,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 135,
     "avgCost": 26548,
     "totalValue": 3583980,
+    "initialStock": 135,
+    "initialCost": 26548,
     "minStock": 0
   },
   {
@@ -7955,6 +9719,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 69197,
     "totalValue": 415182,
+    "initialStock": 6,
+    "initialCost": 69197,
     "minStock": 0
   },
   {
@@ -7964,6 +9730,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 51,
     "avgCost": 38496,
     "totalValue": 1963296,
+    "initialStock": 51,
+    "initialCost": 38496,
     "minStock": 0
   },
   {
@@ -7973,6 +9741,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 937330,
     "totalValue": 937330,
+    "initialStock": 1,
+    "initialCost": 937330,
     "minStock": 0
   },
   {
@@ -7982,6 +9752,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 196900,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 196900,
     "minStock": 0
   },
   {
@@ -7991,6 +9763,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 26,
     "avgCost": 4190,
     "totalValue": 108940,
+    "initialStock": 26,
+    "initialCost": 4190,
     "minStock": 0
   },
   {
@@ -8000,6 +9774,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 39,
     "avgCost": 2870,
     "totalValue": 111930,
+    "initialStock": 39,
+    "initialCost": 2870,
     "minStock": 0
   },
   {
@@ -8009,6 +9785,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 75,
     "avgCost": 5963,
     "totalValue": 447225,
+    "initialStock": 75,
+    "initialCost": 5963,
     "minStock": 0
   },
   {
@@ -8018,6 +9796,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 353808,
     "totalValue": 1061424,
+    "initialStock": 3,
+    "initialCost": 353808,
     "minStock": 0
   },
   {
@@ -8027,6 +9807,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 96942,
     "totalValue": 969420,
+    "initialStock": 10,
+    "initialCost": 96942,
     "minStock": 0
   },
   {
@@ -8036,6 +9818,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 65,
     "avgCost": 7173,
     "totalValue": 466245,
+    "initialStock": 65,
+    "initialCost": 7173,
     "minStock": 0
   },
   {
@@ -8045,6 +9829,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 92,
     "avgCost": 9121,
     "totalValue": 839132,
+    "initialStock": 92,
+    "initialCost": 9121,
     "minStock": 0
   },
   {
@@ -8054,6 +9840,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 164774,
     "totalValue": 164774,
+    "initialStock": 1,
+    "initialCost": 164774,
     "minStock": 0
   },
   {
@@ -8063,6 +9851,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 41,
     "avgCost": 16055,
     "totalValue": 658255,
+    "initialStock": 41,
+    "initialCost": 16055,
     "minStock": 0
   },
   {
@@ -8072,6 +9862,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 242231,
     "totalValue": 726693,
+    "initialStock": 3,
+    "initialCost": 242231,
     "minStock": 0
   },
   {
@@ -8081,6 +9873,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 45036,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 45036,
     "minStock": 0
   },
   {
@@ -8090,6 +9884,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 63,
     "avgCost": 2577,
     "totalValue": 162351,
+    "initialStock": 63,
+    "initialCost": 2577,
     "minStock": 0
   },
   {
@@ -8099,6 +9895,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 15311,
     "totalValue": 15311,
+    "initialStock": 1,
+    "initialCost": 15311,
     "minStock": 0
   },
   {
@@ -8108,6 +9906,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 162,
     "avgCost": 5352,
     "totalValue": 867024,
+    "initialStock": 162,
+    "initialCost": 5352,
     "minStock": 0
   },
   {
@@ -8117,6 +9917,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 89100,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 89100,
     "minStock": 0
   },
   {
@@ -8126,6 +9928,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -1,
     "avgCost": 47628,
     "totalValue": -47628,
+    "initialStock": -1,
+    "initialCost": 47628,
     "minStock": 0
   },
   {
@@ -8135,6 +9939,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 98,
     "avgCost": 14720,
     "totalValue": 1442560,
+    "initialStock": 98,
+    "initialCost": 14720,
     "minStock": 0
   },
   {
@@ -8144,6 +9950,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 47816,
     "totalValue": 573792,
+    "initialStock": 12,
+    "initialCost": 47816,
     "minStock": 0
   },
   {
@@ -8153,6 +9961,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 64,
     "avgCost": 16873,
     "totalValue": 1079872,
+    "initialStock": 64,
+    "initialCost": 16873,
     "minStock": 0
   },
   {
@@ -8162,6 +9972,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 24472,
     "totalValue": 24472,
+    "initialStock": 1,
+    "initialCost": 24472,
     "minStock": 0
   },
   {
@@ -8171,6 +9983,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 33696,
     "totalValue": 235872,
+    "initialStock": 7,
+    "initialCost": 33696,
     "minStock": 0
   },
   {
@@ -8180,6 +9994,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 206928,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 206928,
     "minStock": 0
   },
   {
@@ -8189,6 +10005,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 372708,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 372708,
     "minStock": 0
   },
   {
@@ -8198,6 +10016,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 20,
     "avgCost": 35620,
     "totalValue": 712400,
+    "initialStock": 20,
+    "initialCost": 35620,
     "minStock": 0
   },
   {
@@ -8207,6 +10027,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 29678,
     "totalValue": 296780,
+    "initialStock": 10,
+    "initialCost": 29678,
     "minStock": 0
   },
   {
@@ -8216,6 +10038,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 50402,
     "totalValue": 504020,
+    "initialStock": 10,
+    "initialCost": 50402,
     "minStock": 0
   },
   {
@@ -8225,6 +10049,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 88591,
     "totalValue": 620137,
+    "initialStock": 7,
+    "initialCost": 88591,
     "minStock": 0
   },
   {
@@ -8234,6 +10060,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 33,
     "avgCost": 15531,
     "totalValue": 512523,
+    "initialStock": 33,
+    "initialCost": 15531,
     "minStock": 0
   },
   {
@@ -8243,6 +10071,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 18,
     "avgCost": 34616,
     "totalValue": 623088,
+    "initialStock": 18,
+    "initialCost": 34616,
     "minStock": 0
   },
   {
@@ -8252,6 +10082,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 24,
     "avgCost": 37807,
     "totalValue": 907368,
+    "initialStock": 24,
+    "initialCost": 37807,
     "minStock": 0
   },
   {
@@ -8261,6 +10093,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 46,
     "avgCost": 20438,
     "totalValue": 940148,
+    "initialStock": 46,
+    "initialCost": 20438,
     "minStock": 0
   },
   {
@@ -8270,6 +10104,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 29,
     "avgCost": 54042,
     "totalValue": 1567218,
+    "initialStock": 29,
+    "initialCost": 54042,
     "minStock": 0
   },
   {
@@ -8279,6 +10115,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 23,
     "avgCost": 51490,
     "totalValue": 1184270,
+    "initialStock": 23,
+    "initialCost": 51490,
     "minStock": 0
   },
   {
@@ -8288,6 +10126,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 98890,
     "totalValue": 296670,
+    "initialStock": 3,
+    "initialCost": 98890,
     "minStock": 0
   },
   {
@@ -8297,6 +10137,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 15,
     "avgCost": 25702,
     "totalValue": 385530,
+    "initialStock": 15,
+    "initialCost": 25702,
     "minStock": 0
   },
   {
@@ -8306,6 +10148,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 19,
     "avgCost": 25702,
     "totalValue": 488338,
+    "initialStock": 19,
+    "initialCost": 25702,
     "minStock": 0
   },
   {
@@ -8315,6 +10159,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 159,
     "avgCost": 29566,
     "totalValue": 4700994,
+    "initialStock": 159,
+    "initialCost": 29566,
     "minStock": 0
   },
   {
@@ -8324,6 +10170,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 185,
     "avgCost": 14874,
     "totalValue": 2751690,
+    "initialStock": 185,
+    "initialCost": 14874,
     "minStock": 0
   },
   {
@@ -8333,6 +10181,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 45936,
     "totalValue": 459360,
+    "initialStock": 10,
+    "initialCost": 45936,
     "minStock": 0
   },
   {
@@ -8342,6 +10192,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 31595,
     "totalValue": 315950,
+    "initialStock": 10,
+    "initialCost": 31595,
     "minStock": 0
   },
   {
@@ -8351,6 +10203,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 31595,
     "totalValue": 315950,
+    "initialStock": 10,
+    "initialCost": 31595,
     "minStock": 0
   },
   {
@@ -8360,6 +10214,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 42108,
     "totalValue": 421080,
+    "initialStock": 10,
+    "initialCost": 42108,
     "minStock": 0
   },
   {
@@ -8369,6 +10225,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 85492,
     "totalValue": 256476,
+    "initialStock": 3,
+    "initialCost": 85492,
     "minStock": 0
   },
   {
@@ -8378,6 +10236,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 224576,
     "totalValue": 898304,
+    "initialStock": 4,
+    "initialCost": 224576,
     "minStock": 0
   },
   {
@@ -8387,6 +10247,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 56144,
     "totalValue": 561440,
+    "initialStock": 10,
+    "initialCost": 56144,
     "minStock": 0
   },
   {
@@ -8396,6 +10258,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 28260,
     "totalValue": 282600,
+    "initialStock": 10,
+    "initialCost": 28260,
     "minStock": 0
   },
   {
@@ -8405,6 +10269,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 88591,
     "totalValue": 620137,
+    "initialStock": 7,
+    "initialCost": 88591,
     "minStock": 0
   },
   {
@@ -8414,6 +10280,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 12650,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 12650,
     "minStock": 0
   },
   {
@@ -8423,6 +10291,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 24200,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 24200,
     "minStock": 0
   },
   {
@@ -8432,6 +10302,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 17050,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 17050,
     "minStock": 0
   },
   {
@@ -8441,6 +10313,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 204,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 204,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -8450,6 +10324,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2492,
     "avgCost": 72582,
     "totalValue": 180874344,
+    "initialStock": 2492,
+    "initialCost": 72582,
     "minStock": 0
   },
   {
@@ -8459,6 +10335,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 79,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 79,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -8468,6 +10346,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -8477,6 +10357,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 547.1,
     "avgCost": 224783,
     "totalValue": 122978779.30000001,
+    "initialStock": 547.1,
+    "initialCost": 224783,
     "minStock": 0
   },
   {
@@ -8486,6 +10368,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 378.8,
     "avgCost": 187674,
     "totalValue": 71090911.2,
+    "initialStock": 378.8,
+    "initialCost": 187674,
     "minStock": 0
   },
   {
@@ -8495,6 +10379,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 137.8,
     "avgCost": 187351,
     "totalValue": 25816967.8,
+    "initialStock": 137.8,
+    "initialCost": 187351,
     "minStock": 0
   },
   {
@@ -8504,6 +10390,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 278964,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 278964,
     "minStock": 0
   },
   {
@@ -8513,6 +10401,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 135.5,
     "avgCost": 182633,
     "totalValue": 24746771.5,
+    "initialStock": 135.5,
+    "initialCost": 182633,
     "minStock": 0
   },
   {
@@ -8522,6 +10412,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 828.7,
     "avgCost": 10692,
     "totalValue": 8860460.4,
+    "initialStock": 828.7,
+    "initialCost": 10692,
     "minStock": 0
   },
   {
@@ -8531,6 +10423,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 180,
     "avgCost": 12463,
     "totalValue": 2243340,
+    "initialStock": 180,
+    "initialCost": 12463,
     "minStock": 0
   },
   {
@@ -8540,6 +10434,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2233.7,
     "avgCost": 19105,
     "totalValue": 42674838.5,
+    "initialStock": 2233.7,
+    "initialCost": 19105,
     "minStock": 0
   },
   {
@@ -8549,6 +10445,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 620.7,
     "avgCost": 19570,
     "totalValue": 12147099,
+    "initialStock": 620.7,
+    "initialCost": 19570,
     "minStock": 0
   },
   {
@@ -8558,6 +10456,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 348,
     "avgCost": 24027,
     "totalValue": 8361396,
+    "initialStock": 348,
+    "initialCost": 24027,
     "minStock": 0
   },
   {
@@ -8567,6 +10467,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1561.1,
     "avgCost": 21764,
     "totalValue": 33975780.4,
+    "initialStock": 1561.1,
+    "initialCost": 21764,
     "minStock": 0
   },
   {
@@ -8576,6 +10478,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 408,
     "avgCost": 20575,
     "totalValue": 8394600,
+    "initialStock": 408,
+    "initialCost": 20575,
     "minStock": 0
   },
   {
@@ -8585,6 +10489,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 160.1,
     "avgCost": 32972,
     "totalValue": 5278817.2,
+    "initialStock": 160.1,
+    "initialCost": 32972,
     "minStock": 0
   },
   {
@@ -8594,6 +10500,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 52,
     "avgCost": 26960,
     "totalValue": 1401920,
+    "initialStock": 52,
+    "initialCost": 26960,
     "minStock": 0
   },
   {
@@ -8603,6 +10511,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 537.3,
     "avgCost": 29210,
     "totalValue": 15694532.999999998,
+    "initialStock": 537.3,
+    "initialCost": 29210,
     "minStock": 0
   },
   {
@@ -8612,6 +10522,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 85,
     "avgCost": 20838,
     "totalValue": 1771230,
+    "initialStock": 85,
+    "initialCost": 20838,
     "minStock": 0
   },
   {
@@ -8621,6 +10533,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 646.2,
     "avgCost": 24272,
     "totalValue": 15684566.4,
+    "initialStock": 646.2,
+    "initialCost": 24272,
     "minStock": 0
   },
   {
@@ -8630,6 +10544,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 511.9,
     "avgCost": 81309,
     "totalValue": 41622077.1,
+    "initialStock": 511.9,
+    "initialCost": 81309,
     "minStock": 0
   },
   {
@@ -8639,6 +10555,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 645.5,
     "avgCost": 59947,
     "totalValue": 38695788.5,
+    "initialStock": 645.5,
+    "initialCost": 59947,
     "minStock": 0
   },
   {
@@ -8648,6 +10566,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 542,
     "avgCost": 168878,
     "totalValue": 91531876,
+    "initialStock": 542,
+    "initialCost": 168878,
     "minStock": 0
   },
   {
@@ -8657,6 +10577,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 352,
     "avgCost": 112546,
     "totalValue": 39616192,
+    "initialStock": 352,
+    "initialCost": 112546,
     "minStock": 0
   },
   {
@@ -8666,6 +10588,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 79272,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 79272,
     "minStock": 0
   },
   {
@@ -8675,6 +10599,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 104868,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 104868,
     "minStock": 0
   },
   {
@@ -8684,6 +10610,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 125913,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 125913,
     "minStock": 0
   },
   {
@@ -8693,6 +10621,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 129120,
     "totalValue": 1032960,
+    "initialStock": 8,
+    "initialCost": 129120,
     "minStock": 0
   },
   {
@@ -8702,6 +10632,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 167940,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 167940,
     "minStock": 0
   },
   {
@@ -8711,6 +10643,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 329292,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 329292,
     "minStock": 0
   },
   {
@@ -8720,6 +10654,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 345600,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 345600,
     "minStock": 0
   },
   {
@@ -8729,6 +10665,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 358452,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 358452,
     "minStock": 0
   },
   {
@@ -8738,6 +10676,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 567648,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 567648,
     "minStock": 0
   },
   {
@@ -8747,6 +10687,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 9504,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 9504,
     "minStock": 0
   },
   {
@@ -8756,6 +10698,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 280368,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 280368,
     "minStock": 0
   },
   {
@@ -8765,6 +10709,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 320220,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 320220,
     "minStock": 0
   },
   {
@@ -8774,6 +10720,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 13392,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 13392,
     "minStock": 0
   },
   {
@@ -8783,6 +10731,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 131,
     "avgCost": 10174,
     "totalValue": 1332794,
+    "initialStock": 131,
+    "initialCost": 10174,
     "minStock": 0
   },
   {
@@ -8792,6 +10742,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 876636,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 876636,
     "minStock": 0
   },
   {
@@ -8801,6 +10753,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -8,
     "avgCost": 18792,
     "totalValue": -150336,
+    "initialStock": -8,
+    "initialCost": 18792,
     "minStock": 0
   },
   {
@@ -8810,6 +10764,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 21708,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 21708,
     "minStock": 0
   },
   {
@@ -8819,6 +10775,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 32508,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 32508,
     "minStock": 0
   },
   {
@@ -8828,6 +10786,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -1,
     "avgCost": 37044,
     "totalValue": -37044,
+    "initialStock": -1,
+    "initialCost": 37044,
     "minStock": 0
   },
   {
@@ -8837,6 +10797,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 34452,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 34452,
     "minStock": 0
   },
   {
@@ -8846,6 +10808,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 29.5,
     "avgCost": 37767,
     "totalValue": 1114126.5,
+    "initialStock": 29.5,
+    "initialCost": 37767,
     "minStock": 0
   },
   {
@@ -8855,6 +10819,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 50112,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 50112,
     "minStock": 0
   },
   {
@@ -8864,6 +10830,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 41204,
     "totalValue": 329632,
+    "initialStock": 8,
+    "initialCost": 41204,
     "minStock": 0
   },
   {
@@ -8873,6 +10841,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 43956,
     "totalValue": 175824,
+    "initialStock": 4,
+    "initialCost": 43956,
     "minStock": 0
   },
   {
@@ -8882,6 +10852,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 74412,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 74412,
     "minStock": 0
   },
   {
@@ -8891,6 +10863,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 96228,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 96228,
     "minStock": 0
   },
   {
@@ -8900,6 +10874,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 549936,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 549936,
     "minStock": 0
   },
   {
@@ -8909,6 +10885,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 207,
     "avgCost": 10962,
     "totalValue": 2269134,
+    "initialStock": 207,
+    "initialCost": 10962,
     "minStock": 0
   },
   {
@@ -8918,6 +10896,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 568.8,
     "avgCost": 20787,
     "totalValue": 11823645.6,
+    "initialStock": 568.8,
+    "initialCost": 20787,
     "minStock": 0
   },
   {
@@ -8927,6 +10907,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 190.8,
     "avgCost": 46065,
     "totalValue": 8789202,
+    "initialStock": 190.8,
+    "initialCost": 46065,
     "minStock": 0
   },
   {
@@ -8936,6 +10918,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 253692,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 253692,
     "minStock": 0
   },
   {
@@ -8945,6 +10929,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 354240,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 354240,
     "minStock": 0
   },
   {
@@ -8954,6 +10940,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 343872,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 343872,
     "minStock": 0
   },
   {
@@ -8963,6 +10951,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 868536,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 868536,
     "minStock": 0
   },
   {
@@ -8972,6 +10962,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 54890,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 54890,
     "minStock": 0
   },
   {
@@ -8981,6 +10973,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 305.1,
     "avgCost": 13904,
     "totalValue": 4242110.4,
+    "initialStock": 305.1,
+    "initialCost": 13904,
     "minStock": 0
   },
   {
@@ -8990,6 +10984,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 238,
     "avgCost": 28290,
     "totalValue": 6733020,
+    "initialStock": 238,
+    "initialCost": 28290,
     "minStock": 0
   },
   {
@@ -8999,6 +10995,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 84370,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 84370,
     "minStock": 0
   },
   {
@@ -9008,6 +11006,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 677.9,
     "avgCost": 59279,
     "totalValue": 40185234.1,
+    "initialStock": 677.9,
+    "initialCost": 59279,
     "minStock": 0
   },
   {
@@ -9017,6 +11017,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 535.2,
     "avgCost": 15931,
     "totalValue": 8526271.200000001,
+    "initialStock": 535.2,
+    "initialCost": 15931,
     "minStock": 0
   },
   {
@@ -9026,6 +11028,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 137060,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 137060,
     "minStock": 0
   },
   {
@@ -9035,6 +11039,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 477.3,
     "avgCost": 41351,
     "totalValue": 19736832.3,
+    "initialStock": 477.3,
+    "initialCost": 41351,
     "minStock": 0
   },
   {
@@ -9044,6 +11050,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 250.8,
     "avgCost": 23807,
     "totalValue": 5970795.600000001,
+    "initialStock": 250.8,
+    "initialCost": 23807,
     "minStock": 0
   },
   {
@@ -9053,6 +11061,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 76.7,
     "avgCost": 56898,
     "totalValue": 4364076.600000001,
+    "initialStock": 76.7,
+    "initialCost": 56898,
     "minStock": 0
   },
   {
@@ -9062,6 +11072,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 20.7,
     "avgCost": 82127,
     "totalValue": 1700028.9,
+    "initialStock": 20.7,
+    "initialCost": 82127,
     "minStock": 0
   },
   {
@@ -9071,6 +11083,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 15,
     "avgCost": 122045,
     "totalValue": 1830675,
+    "initialStock": 15,
+    "initialCost": 122045,
     "minStock": 0
   },
   {
@@ -9080,6 +11094,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 601776,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 601776,
     "minStock": 0
   },
   {
@@ -9089,6 +11105,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 674568,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 674568,
     "minStock": 0
   },
   {
@@ -9098,6 +11116,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 33,
     "avgCost": 68628,
     "totalValue": 2264724,
+    "initialStock": 33,
+    "initialCost": 68628,
     "minStock": 0
   },
   {
@@ -9107,6 +11127,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 165,
     "avgCost": 41842,
     "totalValue": 6903930,
+    "initialStock": 165,
+    "initialCost": 41842,
     "minStock": 0
   },
   {
@@ -9116,6 +11138,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 295,
     "avgCost": 31926,
     "totalValue": 9418170,
+    "initialStock": 295,
+    "initialCost": 31926,
     "minStock": 0
   },
   {
@@ -9125,6 +11149,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 15,
     "avgCost": 70741,
     "totalValue": 1061115,
+    "initialStock": 15,
+    "initialCost": 70741,
     "minStock": 0
   },
   {
@@ -9134,6 +11160,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 18,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 18,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -9143,6 +11171,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -9152,6 +11182,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 7535.29,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 7535.29,
     "minStock": 0
   },
   {
@@ -9161,6 +11193,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -9170,6 +11204,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 11,
     "avgCost": 49937,
     "totalValue": 549307,
+    "initialStock": 11,
+    "initialCost": 49937,
     "minStock": 0
   },
   {
@@ -9179,6 +11215,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 47000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 47000,
     "minStock": 0
   },
   {
@@ -9188,6 +11226,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 215000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 215000,
     "minStock": 0
   },
   {
@@ -9197,6 +11237,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -1,
     "avgCost": 71000,
     "totalValue": -71000,
+    "initialStock": -1,
+    "initialCost": 71000,
     "minStock": 0
   },
   {
@@ -9206,6 +11248,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 74,
     "avgCost": 321186,
     "totalValue": 23767764,
+    "initialStock": 74,
+    "initialCost": 321186,
     "minStock": 0
   },
   {
@@ -9215,6 +11259,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -2,
     "avgCost": 100000,
     "totalValue": -200000,
+    "initialStock": -2,
+    "initialCost": 100000,
     "minStock": 0
   },
   {
@@ -9224,6 +11270,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -9233,6 +11281,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 11,
     "avgCost": 109659,
     "totalValue": 1206249,
+    "initialStock": 11,
+    "initialCost": 109659,
     "minStock": 0
   },
   {
@@ -9242,6 +11292,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 31,
     "avgCost": 148530,
     "totalValue": 4604430,
+    "initialStock": 31,
+    "initialCost": 148530,
     "minStock": 0
   },
   {
@@ -9251,6 +11303,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 205000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 205000,
     "minStock": 0
   },
   {
@@ -9260,6 +11314,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 224500,
     "totalValue": 449000,
+    "initialStock": 2,
+    "initialCost": 224500,
     "minStock": 0
   },
   {
@@ -9269,6 +11325,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -9278,6 +11336,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 129700,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 129700,
     "minStock": 0
   },
   {
@@ -9287,6 +11347,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 379860,
     "totalValue": 759720,
+    "initialStock": 2,
+    "initialCost": 379860,
     "minStock": 0
   },
   {
@@ -9296,6 +11358,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 11,
     "avgCost": 75000,
     "totalValue": 825000,
+    "initialStock": 11,
+    "initialCost": 75000,
     "minStock": 0
   },
   {
@@ -9305,6 +11369,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 106,
     "avgCost": 7151,
     "totalValue": 758006,
+    "initialStock": 106,
+    "initialCost": 7151,
     "minStock": 0
   },
   {
@@ -9314,6 +11380,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 106,
     "avgCost": 4105,
     "totalValue": 435130,
+    "initialStock": 106,
+    "initialCost": 4105,
     "minStock": 0
   },
   {
@@ -9323,6 +11391,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 110763,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 110763,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -9332,6 +11402,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 906124,
     "totalValue": 906124,
+    "initialStock": 1,
+    "initialCost": 906124,
     "minStock": 0
   },
   {
@@ -9341,6 +11413,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -9350,6 +11424,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -9359,6 +11435,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -9368,6 +11446,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 90000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 90000,
     "minStock": 0
   },
   {
@@ -9377,6 +11457,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 28,
     "avgCost": 254906,
     "totalValue": 7137368,
+    "initialStock": 28,
+    "initialCost": 254906,
     "minStock": 0
   },
   {
@@ -9386,6 +11468,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 25,
     "avgCost": 79861,
     "totalValue": 1996525,
+    "initialStock": 25,
+    "initialCost": 79861,
     "minStock": 0
   },
   {
@@ -9395,6 +11479,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 50,
     "avgCost": 113026,
     "totalValue": 5651300,
+    "initialStock": 50,
+    "initialCost": 113026,
     "minStock": 0
   },
   {
@@ -9404,6 +11490,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 19,
     "avgCost": 20000,
     "totalValue": 380000,
+    "initialStock": 19,
+    "initialCost": 20000,
     "minStock": 0
   },
   {
@@ -9413,6 +11501,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 142106,
     "totalValue": 1136848,
+    "initialStock": 8,
+    "initialCost": 142106,
     "minStock": 0
   },
   {
@@ -9422,6 +11512,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 17,
     "avgCost": 87804,
     "totalValue": 1492668,
+    "initialStock": 17,
+    "initialCost": 87804,
     "minStock": 0
   },
   {
@@ -9431,6 +11523,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 138671,
     "totalValue": 1109368,
+    "initialStock": 8,
+    "initialCost": 138671,
     "minStock": 0
   },
   {
@@ -9440,6 +11534,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 213396,
     "totalValue": 2560752,
+    "initialStock": 12,
+    "initialCost": 213396,
     "minStock": 0
   },
   {
@@ -9449,6 +11545,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 21,
     "avgCost": 108229,
     "totalValue": 2272809,
+    "initialStock": 21,
+    "initialCost": 108229,
     "minStock": 0
   },
   {
@@ -9458,6 +11556,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -9467,6 +11567,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -9476,6 +11578,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 31,
     "avgCost": 30592,
     "totalValue": 948352,
+    "initialStock": 31,
+    "initialCost": 30592,
     "minStock": 0
   },
   {
@@ -9485,6 +11589,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 22,
     "avgCost": 23087,
     "totalValue": 507914,
+    "initialStock": 22,
+    "initialCost": 23087,
     "minStock": 0
   },
   {
@@ -9494,6 +11600,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 87741,
     "totalValue": 614187,
+    "initialStock": 7,
+    "initialCost": 87741,
     "minStock": 0
   },
   {
@@ -9503,6 +11611,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 13,
     "avgCost": 12333,
     "totalValue": 160329,
+    "initialStock": 13,
+    "initialCost": 12333,
     "minStock": 0
   },
   {
@@ -9512,6 +11622,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 18,
     "avgCost": 19101,
     "totalValue": 343818,
+    "initialStock": 18,
+    "initialCost": 19101,
     "minStock": 0
   },
   {
@@ -9521,6 +11633,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -9530,6 +11644,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 229155,
     "totalValue": 1145775,
+    "initialStock": 5,
+    "initialCost": 229155,
     "minStock": 0
   },
   {
@@ -9539,6 +11655,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -9548,6 +11666,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 21400,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 21400,
     "minStock": 0
   },
   {
@@ -9557,6 +11677,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 173800,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 173800,
     "minStock": 0
   },
   {
@@ -9566,6 +11688,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 19,
     "avgCost": 67431,
     "totalValue": 1281189,
+    "initialStock": 19,
+    "initialCost": 67431,
     "minStock": 0
   },
   {
@@ -9575,6 +11699,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 39240,
     "totalValue": 39240,
+    "initialStock": 1,
+    "initialCost": 39240,
     "minStock": 0
   },
   {
@@ -9584,6 +11710,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 49,
     "avgCost": 8534,
     "totalValue": 418166,
+    "initialStock": 49,
+    "initialCost": 8534,
     "minStock": 0
   },
   {
@@ -9593,6 +11721,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 8625,
     "totalValue": 60375,
+    "initialStock": 7,
+    "initialCost": 8625,
     "minStock": 0
   },
   {
@@ -9602,6 +11732,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 40,
     "avgCost": 27275,
     "totalValue": 1091000,
+    "initialStock": 40,
+    "initialCost": 27275,
     "minStock": 0
   },
   {
@@ -9611,6 +11743,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 219450,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 219450,
     "minStock": 0
   },
   {
@@ -9620,6 +11754,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 132,
     "avgCost": 11899,
     "totalValue": 1570668,
+    "initialStock": 132,
+    "initialCost": 11899,
     "minStock": 0
   },
   {
@@ -9629,6 +11765,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 14700,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 14700,
     "minStock": 0
   },
   {
@@ -9638,6 +11776,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 34,
     "avgCost": 49008,
     "totalValue": 1666272,
+    "initialStock": 34,
+    "initialCost": 49008,
     "minStock": 0
   },
   {
@@ -9647,6 +11787,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 309540,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 309540,
     "minStock": 0
   },
   {
@@ -9656,6 +11798,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 101,
     "avgCost": 18253,
     "totalValue": 1843553,
+    "initialStock": 101,
+    "initialCost": 18253,
     "minStock": 0
   },
   {
@@ -9665,6 +11809,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 18,
     "avgCost": 48619,
     "totalValue": 875142,
+    "initialStock": 18,
+    "initialCost": 48619,
     "minStock": 0
   },
   {
@@ -9674,6 +11820,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 105,
     "avgCost": 19934,
     "totalValue": 2093070,
+    "initialStock": 105,
+    "initialCost": 19934,
     "minStock": 0
   },
   {
@@ -9683,6 +11831,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 104229,
     "totalValue": 625374,
+    "initialStock": 6,
+    "initialCost": 104229,
     "minStock": 0
   },
   {
@@ -9692,6 +11842,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 129,
     "avgCost": 32596,
     "totalValue": 4204884,
+    "initialStock": 129,
+    "initialCost": 32596,
     "minStock": 0
   },
   {
@@ -9701,6 +11853,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 15,
     "avgCost": 55903,
     "totalValue": 838545,
+    "initialStock": 15,
+    "initialCost": 55903,
     "minStock": 0
   },
   {
@@ -9710,6 +11864,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 92676,
     "totalValue": 370704,
+    "initialStock": 4,
+    "initialCost": 92676,
     "minStock": 0
   },
   {
@@ -9719,6 +11875,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -3,
     "avgCost": 232200,
     "totalValue": -696600,
+    "initialStock": -3,
+    "initialCost": 232200,
     "minStock": 0
   },
   {
@@ -9728,6 +11886,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 29500,
     "totalValue": 29500,
+    "initialStock": 1,
+    "initialCost": 29500,
     "minStock": 0
   },
   {
@@ -9737,6 +11897,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 40300,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 40300,
     "minStock": 0
   },
   {
@@ -9746,6 +11908,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 42700,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 42700,
     "minStock": 0
   },
   {
@@ -9755,6 +11919,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 30,
     "avgCost": 32000,
     "totalValue": 960000,
+    "initialStock": 30,
+    "initialCost": 32000,
     "minStock": 0
   },
   {
@@ -9764,6 +11930,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -9773,6 +11941,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 64,
     "avgCost": 70294,
     "totalValue": 4498816,
+    "initialStock": 64,
+    "initialCost": 70294,
     "minStock": 0
   },
   {
@@ -9782,6 +11952,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 25,
     "avgCost": 56368,
     "totalValue": 1409200,
+    "initialStock": 25,
+    "initialCost": 56368,
     "minStock": 0
   },
   {
@@ -9791,6 +11963,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 18,
     "avgCost": 110848,
     "totalValue": 1995264,
+    "initialStock": 18,
+    "initialCost": 110848,
     "minStock": 0
   },
   {
@@ -9800,6 +11974,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 115507,
     "totalValue": 1039563,
+    "initialStock": 9,
+    "initialCost": 115507,
     "minStock": 0
   },
   {
@@ -9809,6 +11985,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 720263,
     "totalValue": 1440526,
+    "initialStock": 2,
+    "initialCost": 720263,
     "minStock": 0
   },
   {
@@ -9818,6 +11996,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 266161,
     "totalValue": 1064644,
+    "initialStock": 4,
+    "initialCost": 266161,
     "minStock": 0
   },
   {
@@ -9827,6 +12007,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 356242,
     "totalValue": 712484,
+    "initialStock": 2,
+    "initialCost": 356242,
     "minStock": 0
   },
   {
@@ -9836,6 +12018,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 59,
     "avgCost": 114070,
     "totalValue": 6730130,
+    "initialStock": 59,
+    "initialCost": 114070,
     "minStock": 0
   },
   {
@@ -9845,6 +12029,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 52,
     "avgCost": 67094,
     "totalValue": 3488888,
+    "initialStock": 52,
+    "initialCost": 67094,
     "minStock": 0
   },
   {
@@ -9854,6 +12040,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 148500,
     "totalValue": 594000,
+    "initialStock": 4,
+    "initialCost": 148500,
     "minStock": 0
   },
   {
@@ -9863,6 +12051,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 41,
     "avgCost": 89804,
     "totalValue": 3681964,
+    "initialStock": 41,
+    "initialCost": 89804,
     "minStock": 0
   },
   {
@@ -9872,6 +12062,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 407695,
     "totalValue": 407695,
+    "initialStock": 1,
+    "initialCost": 407695,
     "minStock": 0
   },
   {
@@ -9881,6 +12073,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 250250,
     "totalValue": 750750,
+    "initialStock": 3,
+    "initialCost": 250250,
     "minStock": 0
   },
   {
@@ -9890,6 +12084,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 326334,
     "totalValue": 3916008,
+    "initialStock": 12,
+    "initialCost": 326334,
     "minStock": 0
   },
   {
@@ -9899,6 +12095,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 144,
     "avgCost": 1950,
     "totalValue": 280800,
+    "initialStock": 144,
+    "initialCost": 1950,
     "minStock": 0
   },
   {
@@ -9908,6 +12106,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 132,
     "avgCost": 2470,
     "totalValue": 326040,
+    "initialStock": 132,
+    "initialCost": 2470,
     "minStock": 0
   },
   {
@@ -9917,6 +12117,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 30000,
     "totalValue": 60000,
+    "initialStock": 2,
+    "initialCost": 30000,
     "minStock": 0
   },
   {
@@ -9926,6 +12128,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 89,
     "avgCost": 1200,
     "totalValue": 106800,
+    "initialStock": 89,
+    "initialCost": 1200,
     "minStock": 0
   },
   {
@@ -9935,6 +12139,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7109,
     "avgCost": 2624,
     "totalValue": 18654016,
+    "initialStock": 7109,
+    "initialCost": 2624,
     "minStock": 0
   },
   {
@@ -9944,6 +12150,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3799,
     "avgCost": 1565,
     "totalValue": 5945435,
+    "initialStock": 3799,
+    "initialCost": 1565,
     "minStock": 0
   },
   {
@@ -9953,6 +12161,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 13,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 13,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -9962,6 +12172,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 237,
     "avgCost": 4995,
     "totalValue": 1183815,
+    "initialStock": 237,
+    "initialCost": 4995,
     "minStock": 0
   },
   {
@@ -9971,6 +12183,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 90000,
     "totalValue": 360000,
+    "initialStock": 4,
+    "initialCost": 90000,
     "minStock": 0
   },
   {
@@ -9980,6 +12194,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 208656,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 208656,
     "minStock": 0
   },
   {
@@ -9989,6 +12205,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 30000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 30000,
     "minStock": 0
   },
   {
@@ -9998,6 +12216,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 25000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 25000,
     "minStock": 0
   },
   {
@@ -10007,6 +12227,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 23,
     "avgCost": 120171,
     "totalValue": 2763933,
+    "initialStock": 23,
+    "initialCost": 120171,
     "minStock": 0
   },
   {
@@ -10016,6 +12238,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 120000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 120000,
     "minStock": 0
   },
   {
@@ -10025,6 +12249,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 86,
     "avgCost": 2407,
     "totalValue": 207002,
+    "initialStock": 86,
+    "initialCost": 2407,
     "minStock": 0
   },
   {
@@ -10034,6 +12260,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 913.4,
     "avgCost": 2481,
     "totalValue": 2266145.4,
+    "initialStock": 913.4,
+    "initialCost": 2481,
     "minStock": 0
   },
   {
@@ -10043,6 +12271,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 250,
     "avgCost": 5649,
     "totalValue": 1412250,
+    "initialStock": 250,
+    "initialCost": 5649,
     "minStock": 0
   },
   {
@@ -10052,6 +12282,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 434.5,
     "avgCost": 9096,
     "totalValue": 3952212,
+    "initialStock": 434.5,
+    "initialCost": 9096,
     "minStock": 0
   },
   {
@@ -10061,6 +12293,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 1860,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 1860,
     "minStock": 0
   },
   {
@@ -10070,6 +12304,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 566,
     "avgCost": 3381,
     "totalValue": 1913646,
+    "initialStock": 566,
+    "initialCost": 3381,
     "minStock": 0
   },
   {
@@ -10079,6 +12315,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 400,
     "avgCost": 4823,
     "totalValue": 1929200,
+    "initialStock": 400,
+    "initialCost": 4823,
     "minStock": 0
   },
   {
@@ -10088,6 +12326,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 510,
     "avgCost": 10499,
     "totalValue": 5354490,
+    "initialStock": 510,
+    "initialCost": 10499,
     "minStock": 0
   },
   {
@@ -10097,6 +12337,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 160,
     "avgCost": 4360,
     "totalValue": 697600,
+    "initialStock": 160,
+    "initialCost": 4360,
     "minStock": 0
   },
   {
@@ -10106,6 +12348,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -20,
     "avgCost": 5200,
     "totalValue": -104000,
+    "initialStock": -20,
+    "initialCost": 5200,
     "minStock": 0
   },
   {
@@ -10115,6 +12359,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 145,
     "avgCost": 9539,
     "totalValue": 1383155,
+    "initialStock": 145,
+    "initialCost": 9539,
     "minStock": 0
   },
   {
@@ -10124,6 +12370,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 126,
     "avgCost": 7891,
     "totalValue": 994266,
+    "initialStock": 126,
+    "initialCost": 7891,
     "minStock": 0
   },
   {
@@ -10133,6 +12381,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 18092,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 18092,
     "minStock": 0
   },
   {
@@ -10142,6 +12392,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 150,
     "avgCost": 24653,
     "totalValue": 3697950,
+    "initialStock": 150,
+    "initialCost": 24653,
     "minStock": 0
   },
   {
@@ -10151,6 +12403,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10160,6 +12414,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10169,6 +12425,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 3432000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 3432000,
     "minStock": 0
   },
   {
@@ -10178,6 +12436,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 19565800,
     "totalValue": 19565800,
+    "initialStock": 1,
+    "initialCost": 19565800,
     "minStock": 0
   },
   {
@@ -10187,6 +12447,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 3067400,
     "totalValue": 3067400,
+    "initialStock": 1,
+    "initialCost": 3067400,
     "minStock": 0
   },
   {
@@ -10196,6 +12458,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 10619556,
     "totalValue": 21239112,
+    "initialStock": 2,
+    "initialCost": 10619556,
     "minStock": 0
   },
   {
@@ -10205,6 +12469,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 2600000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 2600000,
     "minStock": 0
   },
   {
@@ -10214,6 +12480,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 1530000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 1530000,
     "minStock": 0
   },
   {
@@ -10223,6 +12491,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 2662540,
     "totalValue": 2662540,
+    "initialStock": 1,
+    "initialCost": 2662540,
     "minStock": 0
   },
   {
@@ -10232,6 +12502,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 900000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 900000,
     "minStock": 0
   },
   {
@@ -10241,6 +12513,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 3500000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 3500000,
     "minStock": 0
   },
   {
@@ -10250,6 +12524,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 58783,
     "totalValue": 117566,
+    "initialStock": 2,
+    "initialCost": 58783,
     "minStock": 0
   },
   {
@@ -10259,6 +12535,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 101010,
     "totalValue": 909090,
+    "initialStock": 9,
+    "initialCost": 101010,
     "minStock": 0
   },
   {
@@ -10268,6 +12546,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 10945000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 10945000,
     "minStock": 0
   },
   {
@@ -10277,6 +12557,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 2659228,
     "totalValue": 31910736,
+    "initialStock": 12,
+    "initialCost": 2659228,
     "minStock": 0
   },
   {
@@ -10286,6 +12568,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10295,6 +12579,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 21,
     "avgCost": 1810338,
     "totalValue": 38017098,
+    "initialStock": 21,
+    "initialCost": 1810338,
     "minStock": 0
   },
   {
@@ -10304,6 +12590,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 19,
     "avgCost": 1823574,
     "totalValue": 34647906,
+    "initialStock": 19,
+    "initialCost": 1823574,
     "minStock": 0
   },
   {
@@ -10313,6 +12601,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 3540,
     "totalValue": 7080,
+    "initialStock": 2,
+    "initialCost": 3540,
     "minStock": 0
   },
   {
@@ -10322,6 +12612,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 2351784,
     "totalValue": 23517840,
+    "initialStock": 10,
+    "initialCost": 2351784,
     "minStock": 0
   },
   {
@@ -10331,6 +12623,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 13,
     "avgCost": 2004682,
     "totalValue": 26060866,
+    "initialStock": 13,
+    "initialCost": 2004682,
     "minStock": 0
   },
   {
@@ -10340,6 +12634,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10349,6 +12645,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 18,
     "avgCost": 1767398,
     "totalValue": 31813164,
+    "initialStock": 18,
+    "initialCost": 1767398,
     "minStock": 0
   },
   {
@@ -10358,6 +12656,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 3200000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 3200000,
     "minStock": 0
   },
   {
@@ -10367,6 +12667,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 15,
     "avgCost": 2042576,
     "totalValue": 30638640,
+    "initialStock": 15,
+    "initialCost": 2042576,
     "minStock": 0
   },
   {
@@ -10376,6 +12678,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 1,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10385,6 +12689,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 14,
     "avgCost": 1757042,
     "totalValue": 24598588,
+    "initialStock": 14,
+    "initialCost": 1757042,
     "minStock": 0
   },
   {
@@ -10394,6 +12700,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10403,6 +12711,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 4140000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 4140000,
     "minStock": 0
   },
   {
@@ -10412,6 +12722,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 11,
     "avgCost": 3220469,
     "totalValue": 35425159,
+    "initialStock": 11,
+    "initialCost": 3220469,
     "minStock": 0
   },
   {
@@ -10421,6 +12733,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 25530,
     "totalValue": 76590,
+    "initialStock": 3,
+    "initialCost": 25530,
     "minStock": 0
   },
   {
@@ -10430,6 +12744,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 14,
     "avgCost": 2171111,
     "totalValue": 30395554,
+    "initialStock": 14,
+    "initialCost": 2171111,
     "minStock": 0
   },
   {
@@ -10439,6 +12755,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10448,6 +12766,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10457,6 +12777,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 4000000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 4000000,
     "minStock": 0
   },
   {
@@ -10466,6 +12788,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 3026936,
     "totalValue": 24215488,
+    "initialStock": 8,
+    "initialCost": 3026936,
     "minStock": 0
   },
   {
@@ -10475,6 +12799,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10484,6 +12810,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 11,
     "avgCost": 2543036,
     "totalValue": 27973396,
+    "initialStock": 11,
+    "initialCost": 2543036,
     "minStock": 0
   },
   {
@@ -10493,6 +12821,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 1,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10502,6 +12832,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 2427273,
     "totalValue": 9709092,
+    "initialStock": 4,
+    "initialCost": 2427273,
     "minStock": 0
   },
   {
@@ -10511,6 +12843,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 3960000,
     "totalValue": 7920000,
+    "initialStock": 2,
+    "initialCost": 3960000,
     "minStock": 0
   },
   {
@@ -10520,6 +12854,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 2510433,
     "totalValue": 15062598,
+    "initialStock": 6,
+    "initialCost": 2510433,
     "minStock": 0
   },
   {
@@ -10529,6 +12865,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 1,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10538,6 +12876,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 3116461,
     "totalValue": 12465844,
+    "initialStock": 4,
+    "initialCost": 3116461,
     "minStock": 0
   },
   {
@@ -10547,6 +12887,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10556,6 +12898,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 2902677,
     "totalValue": 5805354,
+    "initialStock": 2,
+    "initialCost": 2902677,
     "minStock": 0
   },
   {
@@ -10565,6 +12909,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 2121060,
     "totalValue": 4242120,
+    "initialStock": 2,
+    "initialCost": 2121060,
     "minStock": 0
   },
   {
@@ -10574,6 +12920,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10583,6 +12931,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 50781,
     "totalValue": 304686,
+    "initialStock": 6,
+    "initialCost": 50781,
     "minStock": 0
   },
   {
@@ -10592,6 +12942,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10601,6 +12953,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10610,6 +12964,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10619,6 +12975,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 3680144,
     "totalValue": 14720576,
+    "initialStock": 4,
+    "initialCost": 3680144,
     "minStock": 0
   },
   {
@@ -10628,6 +12986,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10637,6 +12997,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 3342884,
     "totalValue": 26743072,
+    "initialStock": 8,
+    "initialCost": 3342884,
     "minStock": 0
   },
   {
@@ -10646,6 +13008,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10655,6 +13019,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 47000000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 47000000,
     "minStock": 0
   },
   {
@@ -10664,6 +13030,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 43375000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 43375000,
     "minStock": 0
   },
   {
@@ -10673,6 +13041,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 14,
     "avgCost": 48750,
     "totalValue": 682500,
+    "initialStock": 14,
+    "initialCost": 48750,
     "minStock": 0
   },
   {
@@ -10682,6 +13052,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 47,
     "avgCost": 21621,
     "totalValue": 1016187,
+    "initialStock": 47,
+    "initialCost": 21621,
     "minStock": 0
   },
   {
@@ -10691,6 +13063,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10700,6 +13074,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 8090785,
     "totalValue": 32363140,
+    "initialStock": 4,
+    "initialCost": 8090785,
     "minStock": 0
   },
   {
@@ -10709,6 +13085,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 1,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10718,6 +13096,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 1,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10727,6 +13107,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 10547817,
     "totalValue": 63286902,
+    "initialStock": 6,
+    "initialCost": 10547817,
     "minStock": 0
   },
   {
@@ -10736,6 +13118,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10745,6 +13129,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 9086230,
     "totalValue": 54517380,
+    "initialStock": 6,
+    "initialCost": 9086230,
     "minStock": 0
   },
   {
@@ -10754,6 +13140,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 1,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10763,6 +13151,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10772,6 +13162,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 11376970,
     "totalValue": 45507880,
+    "initialStock": 4,
+    "initialCost": 11376970,
     "minStock": 0
   },
   {
@@ -10781,6 +13173,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10790,6 +13184,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 32382,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 32382,
     "minStock": 0
   },
   {
@@ -10799,6 +13195,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3100,
     "avgCost": 446,
     "totalValue": 1382600,
+    "initialStock": 3100,
+    "initialCost": 446,
     "minStock": 0
   },
   {
@@ -10808,6 +13206,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 943,
     "avgCost": 369,
     "totalValue": 347967,
+    "initialStock": 943,
+    "initialCost": 369,
     "minStock": 0
   },
   {
@@ -10817,6 +13217,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 460,
     "avgCost": 353,
     "totalValue": 162380,
+    "initialStock": 460,
+    "initialCost": 353,
     "minStock": 0
   },
   {
@@ -10826,6 +13228,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 95,
     "avgCost": 365,
     "totalValue": 34675,
+    "initialStock": 95,
+    "initialCost": 365,
     "minStock": 0
   },
   {
@@ -10835,6 +13239,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1215,
     "avgCost": 1667,
     "totalValue": 2025405,
+    "initialStock": 1215,
+    "initialCost": 1667,
     "minStock": 0
   },
   {
@@ -10844,6 +13250,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1074,
     "avgCost": 1799,
     "totalValue": 1932126,
+    "initialStock": 1074,
+    "initialCost": 1799,
     "minStock": 0
   },
   {
@@ -10853,6 +13261,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 2,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -10862,6 +13272,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 5222636,
     "totalValue": 41781088,
+    "initialStock": 8,
+    "initialCost": 5222636,
     "minStock": 0
   },
   {
@@ -10871,6 +13283,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 4387429,
     "totalValue": 30712003,
+    "initialStock": 7,
+    "initialCost": 4387429,
     "minStock": 0
   },
   {
@@ -10880,6 +13294,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 13,
     "avgCost": 596245,
     "totalValue": 7751185,
+    "initialStock": 13,
+    "initialCost": 596245,
     "minStock": 0
   },
   {
@@ -10889,6 +13305,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1697,
     "avgCost": 390,
     "totalValue": 661830,
+    "initialStock": 1697,
+    "initialCost": 390,
     "minStock": 0
   },
   {
@@ -10898,6 +13316,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1197,
     "avgCost": 331,
     "totalValue": 396207,
+    "initialStock": 1197,
+    "initialCost": 331,
     "minStock": 0
   },
   {
@@ -10907,6 +13327,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 354000,
     "totalValue": 1062000,
+    "initialStock": 3,
+    "initialCost": 354000,
     "minStock": 0
   },
   {
@@ -10916,6 +13338,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 47,
     "avgCost": 121105,
     "totalValue": 5691935,
+    "initialStock": 47,
+    "initialCost": 121105,
     "minStock": 0
   },
   {
@@ -10925,6 +13349,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 130000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 130000,
     "minStock": 0
   },
   {
@@ -10934,6 +13360,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 130000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 130000,
     "minStock": 0
   },
   {
@@ -10943,6 +13371,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 178,
     "avgCost": 87888,
     "totalValue": 15644064,
+    "initialStock": 178,
+    "initialCost": 87888,
     "minStock": 0
   },
   {
@@ -10952,6 +13382,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 141086,
     "totalValue": 987602,
+    "initialStock": 7,
+    "initialCost": 141086,
     "minStock": 0
   },
   {
@@ -10961,6 +13393,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 459335,
     "totalValue": 1378005,
+    "initialStock": 3,
+    "initialCost": 459335,
     "minStock": 0
   },
   {
@@ -10970,6 +13404,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 296,
     "avgCost": 23602,
     "totalValue": 6986192,
+    "initialStock": 296,
+    "initialCost": 23602,
     "minStock": 0
   },
   {
@@ -10979,6 +13415,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 338,
     "avgCost": 49415,
     "totalValue": 16702270,
+    "initialStock": 338,
+    "initialCost": 49415,
     "minStock": 0
   },
   {
@@ -10988,6 +13426,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 59,
     "avgCost": 13088,
     "totalValue": 772192,
+    "initialStock": 59,
+    "initialCost": 13088,
     "minStock": 0
   },
   {
@@ -10997,6 +13437,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 106,
     "avgCost": 40957,
     "totalValue": 4341442,
+    "initialStock": 106,
+    "initialCost": 40957,
     "minStock": 0
   },
   {
@@ -11006,6 +13448,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 15,
     "avgCost": 56548,
     "totalValue": 848220,
+    "initialStock": 15,
+    "initialCost": 56548,
     "minStock": 0
   },
   {
@@ -11015,6 +13459,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 130,
     "avgCost": 92707,
     "totalValue": 12051910,
+    "initialStock": 130,
+    "initialCost": 92707,
     "minStock": 0
   },
   {
@@ -11024,6 +13470,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 14,
     "avgCost": 139972,
     "totalValue": 1959608,
+    "initialStock": 14,
+    "initialCost": 139972,
     "minStock": 0
   },
   {
@@ -11033,6 +13481,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 115293,
     "totalValue": 922344,
+    "initialStock": 8,
+    "initialCost": 115293,
     "minStock": 0
   },
   {
@@ -11042,6 +13492,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 188400,
     "totalValue": 1130400,
+    "initialStock": 6,
+    "initialCost": 188400,
     "minStock": 0
   },
   {
@@ -11051,6 +13503,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 155165,
     "totalValue": 930990,
+    "initialStock": 6,
+    "initialCost": 155165,
     "minStock": 0
   },
   {
@@ -11060,6 +13514,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 79,
     "avgCost": 27159,
     "totalValue": 2145561,
+    "initialStock": 79,
+    "initialCost": 27159,
     "minStock": 0
   },
   {
@@ -11069,6 +13525,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 245190,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 245190,
     "minStock": 0
   },
   {
@@ -11078,6 +13536,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 6864,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 6864,
     "minStock": 0
   },
   {
@@ -11087,6 +13547,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 464616,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 464616,
     "minStock": 0
   },
   {
@@ -11096,6 +13558,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 20,
     "avgCost": 103007,
     "totalValue": 2060140,
+    "initialStock": 20,
+    "initialCost": 103007,
     "minStock": 0
   },
   {
@@ -11105,6 +13569,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 68,
     "avgCost": 65093,
     "totalValue": 4426324,
+    "initialStock": 68,
+    "initialCost": 65093,
     "minStock": 0
   },
   {
@@ -11114,6 +13580,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 211554,
     "totalValue": 423108,
+    "initialStock": 2,
+    "initialCost": 211554,
     "minStock": 0
   },
   {
@@ -11123,6 +13591,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 246768,
     "totalValue": 2220912,
+    "initialStock": 9,
+    "initialCost": 246768,
     "minStock": 0
   },
   {
@@ -11132,6 +13602,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 242,
     "avgCost": 1628,
     "totalValue": 393976,
+    "initialStock": 242,
+    "initialCost": 1628,
     "minStock": 0
   },
   {
@@ -11141,6 +13613,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 67,
     "avgCost": 590952,
     "totalValue": 39593784,
+    "initialStock": 67,
+    "initialCost": 590952,
     "minStock": 0
   },
   {
@@ -11150,6 +13624,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 120,
     "avgCost": 3474,
     "totalValue": 416880,
+    "initialStock": 120,
+    "initialCost": 3474,
     "minStock": 0
   },
   {
@@ -11159,6 +13635,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 11550,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 11550,
     "minStock": 0
   },
   {
@@ -11168,6 +13646,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 280,
     "avgCost": 4116,
     "totalValue": 1152480,
+    "initialStock": 280,
+    "initialCost": 4116,
     "minStock": 0
   },
   {
@@ -11177,6 +13657,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 52,
     "avgCost": 6431,
     "totalValue": 334412,
+    "initialStock": 52,
+    "initialCost": 6431,
     "minStock": 0
   },
   {
@@ -11186,6 +13668,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 467844,
     "totalValue": 2339220,
+    "initialStock": 5,
+    "initialCost": 467844,
     "minStock": 0
   },
   {
@@ -11195,6 +13679,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 339,
     "avgCost": 6734,
     "totalValue": 2282826,
+    "initialStock": 339,
+    "initialCost": 6734,
     "minStock": 0
   },
   {
@@ -11204,6 +13690,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 20790,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 20790,
     "minStock": 0
   },
   {
@@ -11213,6 +13701,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 207,
     "avgCost": 3202,
     "totalValue": 662814,
+    "initialStock": 207,
+    "initialCost": 3202,
     "minStock": 0
   },
   {
@@ -11222,6 +13712,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 212,
     "avgCost": 5134,
     "totalValue": 1088408,
+    "initialStock": 212,
+    "initialCost": 5134,
     "minStock": 0
   },
   {
@@ -11231,6 +13723,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 87,
     "avgCost": 5569,
     "totalValue": 484503,
+    "initialStock": 87,
+    "initialCost": 5569,
     "minStock": 0
   },
   {
@@ -11240,6 +13734,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 513,
     "avgCost": 6866,
     "totalValue": 3522258,
+    "initialStock": 513,
+    "initialCost": 6866,
     "minStock": 0
   },
   {
@@ -11249,6 +13745,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 33220,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 33220,
     "minStock": 0
   },
   {
@@ -11258,6 +13756,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 242,
     "avgCost": 7807,
     "totalValue": 1889294,
+    "initialStock": 242,
+    "initialCost": 7807,
     "minStock": 0
   },
   {
@@ -11267,6 +13767,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 60,
     "avgCost": 4453,
     "totalValue": 267180,
+    "initialStock": 60,
+    "initialCost": 4453,
     "minStock": 0
   },
   {
@@ -11276,6 +13778,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 50,
     "avgCost": 7377,
     "totalValue": 368850,
+    "initialStock": 50,
+    "initialCost": 7377,
     "minStock": 0
   },
   {
@@ -11285,6 +13789,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 521,
     "avgCost": 9060,
     "totalValue": 4720260,
+    "initialStock": 521,
+    "initialCost": 9060,
     "minStock": 0
   },
   {
@@ -11294,6 +13800,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -1,
     "avgCost": 17000,
     "totalValue": -17000,
+    "initialStock": -1,
+    "initialCost": 17000,
     "minStock": 0
   },
   {
@@ -11303,6 +13811,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 18,
     "avgCost": 34614,
     "totalValue": 623052,
+    "initialStock": 18,
+    "initialCost": 34614,
     "minStock": 0
   },
   {
@@ -11312,6 +13822,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 342,
     "avgCost": 11827,
     "totalValue": 4044834,
+    "initialStock": 342,
+    "initialCost": 11827,
     "minStock": 0
   },
   {
@@ -11321,6 +13833,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 318,
     "avgCost": 17444,
     "totalValue": 5547192,
+    "initialStock": 318,
+    "initialCost": 17444,
     "minStock": 0
   },
   {
@@ -11330,6 +13844,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 33,
     "avgCost": 63140,
     "totalValue": 2083620,
+    "initialStock": 33,
+    "initialCost": 63140,
     "minStock": 0
   },
   {
@@ -11339,6 +13855,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 163,
     "avgCost": 29670,
     "totalValue": 4836210,
+    "initialStock": 163,
+    "initialCost": 29670,
     "minStock": 0
   },
   {
@@ -11348,6 +13866,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 176,
     "avgCost": 16001,
     "totalValue": 2816176,
+    "initialStock": 176,
+    "initialCost": 16001,
     "minStock": 0
   },
   {
@@ -11357,6 +13877,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 139741,
     "totalValue": 698705,
+    "initialStock": 5,
+    "initialCost": 139741,
     "minStock": 0
   },
   {
@@ -11366,6 +13888,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 13,
     "avgCost": 30456,
     "totalValue": 395928,
+    "initialStock": 13,
+    "initialCost": 30456,
     "minStock": 0
   },
   {
@@ -11375,6 +13899,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 235656,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 235656,
     "minStock": 0
   },
   {
@@ -11384,6 +13910,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 83,
     "avgCost": 81708,
     "totalValue": 6781764,
+    "initialStock": 83,
+    "initialCost": 81708,
     "minStock": 0
   },
   {
@@ -11393,6 +13921,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 100,
     "avgCost": 36160,
     "totalValue": 3616000,
+    "initialStock": 100,
+    "initialCost": 36160,
     "minStock": 0
   },
   {
@@ -11402,6 +13932,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 346032,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 346032,
     "minStock": 0
   },
   {
@@ -11411,6 +13943,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 260,
     "avgCost": 3696,
     "totalValue": 960960,
+    "initialStock": 260,
+    "initialCost": 3696,
     "minStock": 0
   },
   {
@@ -11420,6 +13954,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 50,
     "avgCost": 16896,
     "totalValue": 844800,
+    "initialStock": 50,
+    "initialCost": 16896,
     "minStock": 0
   },
   {
@@ -11429,6 +13965,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 521640,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 521640,
     "minStock": 0
   },
   {
@@ -11438,6 +13976,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 86,
     "avgCost": 88361,
     "totalValue": 7599046,
+    "initialStock": 86,
+    "initialCost": 88361,
     "minStock": 0
   },
   {
@@ -11447,6 +13987,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 70,
     "avgCost": 35061,
     "totalValue": 2454270,
+    "initialStock": 70,
+    "initialCost": 35061,
     "minStock": 0
   },
   {
@@ -11456,6 +13998,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 11,
     "avgCost": 279655,
     "totalValue": 3076205,
+    "initialStock": 11,
+    "initialCost": 279655,
     "minStock": 0
   },
   {
@@ -11465,6 +14009,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 156,
     "avgCost": 50475,
     "totalValue": 7874100,
+    "initialStock": 156,
+    "initialCost": 50475,
     "minStock": 0
   },
   {
@@ -11474,6 +14020,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 104337,
     "totalValue": 626022,
+    "initialStock": 6,
+    "initialCost": 104337,
     "minStock": 0
   },
   {
@@ -11483,6 +14031,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 161526,
     "totalValue": 1130682,
+    "initialStock": 7,
+    "initialCost": 161526,
     "minStock": 0
   },
   {
@@ -11492,6 +14042,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 127537,
     "totalValue": 382611,
+    "initialStock": 3,
+    "initialCost": 127537,
     "minStock": 0
   },
   {
@@ -11501,6 +14053,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 176,
     "avgCost": 8095,
     "totalValue": 1424720,
+    "initialStock": 176,
+    "initialCost": 8095,
     "minStock": 0
   },
   {
@@ -11510,6 +14064,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 98,
     "avgCost": 6987,
     "totalValue": 684726,
+    "initialStock": 98,
+    "initialCost": 6987,
     "minStock": 0
   },
   {
@@ -11519,6 +14075,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 94,
     "avgCost": 12267,
     "totalValue": 1153098,
+    "initialStock": 94,
+    "initialCost": 12267,
     "minStock": 0
   },
   {
@@ -11528,6 +14086,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 64,
     "avgCost": 2029,
     "totalValue": 129856,
+    "initialStock": 64,
+    "initialCost": 2029,
     "minStock": 0
   },
   {
@@ -11537,6 +14097,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 183,
     "avgCost": 5282,
     "totalValue": 966606,
+    "initialStock": 183,
+    "initialCost": 5282,
     "minStock": 0
   },
   {
@@ -11546,6 +14108,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 59,
     "avgCost": 8111,
     "totalValue": 478549,
+    "initialStock": 59,
+    "initialCost": 8111,
     "minStock": 0
   },
   {
@@ -11555,6 +14119,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 78,
     "avgCost": 55569,
     "totalValue": 4334382,
+    "initialStock": 78,
+    "initialCost": 55569,
     "minStock": 0
   },
   {
@@ -11564,6 +14130,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 60435,
     "totalValue": 483480,
+    "initialStock": 8,
+    "initialCost": 60435,
     "minStock": 0
   },
   {
@@ -11573,6 +14141,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 96,
     "avgCost": 21016,
     "totalValue": 2017536,
+    "initialStock": 96,
+    "initialCost": 21016,
     "minStock": 0
   },
   {
@@ -11582,6 +14152,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 69,
     "avgCost": 10710,
     "totalValue": 738990,
+    "initialStock": 69,
+    "initialCost": 10710,
     "minStock": 0
   },
   {
@@ -11591,6 +14163,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 26,
     "avgCost": 16081,
     "totalValue": 418106,
+    "initialStock": 26,
+    "initialCost": 16081,
     "minStock": 0
   },
   {
@@ -11600,6 +14174,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 28,
     "avgCost": 10371,
     "totalValue": 290388,
+    "initialStock": 28,
+    "initialCost": 10371,
     "minStock": 0
   },
   {
@@ -11609,6 +14185,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 46,
     "avgCost": 8207,
     "totalValue": 377522,
+    "initialStock": 46,
+    "initialCost": 8207,
     "minStock": 0
   },
   {
@@ -11618,6 +14196,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 42,
     "avgCost": 13309,
     "totalValue": 558978,
+    "initialStock": 42,
+    "initialCost": 13309,
     "minStock": 0
   },
   {
@@ -11627,6 +14207,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 62,
     "avgCost": 14278,
     "totalValue": 885236,
+    "initialStock": 62,
+    "initialCost": 14278,
     "minStock": 0
   },
   {
@@ -11636,6 +14218,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 149,
     "avgCost": 6854,
     "totalValue": 1021246,
+    "initialStock": 149,
+    "initialCost": 6854,
     "minStock": 0
   },
   {
@@ -11645,6 +14229,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 18,
     "avgCost": 107460,
     "totalValue": 1934280,
+    "initialStock": 18,
+    "initialCost": 107460,
     "minStock": 0
   },
   {
@@ -11654,6 +14240,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 34,
     "avgCost": 49334,
     "totalValue": 1677356,
+    "initialStock": 34,
+    "initialCost": 49334,
     "minStock": 0
   },
   {
@@ -11663,6 +14251,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 20,
     "avgCost": 158359,
     "totalValue": 3167180,
+    "initialStock": 20,
+    "initialCost": 158359,
     "minStock": 0
   },
   {
@@ -11672,6 +14262,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 93,
     "avgCost": 47925,
     "totalValue": 4457025,
+    "initialStock": 93,
+    "initialCost": 47925,
     "minStock": 0
   },
   {
@@ -11681,6 +14273,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 96,
     "avgCost": 31176,
     "totalValue": 2992896,
+    "initialStock": 96,
+    "initialCost": 31176,
     "minStock": 0
   },
   {
@@ -11690,6 +14284,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 42,
     "avgCost": 19439,
     "totalValue": 816438,
+    "initialStock": 42,
+    "initialCost": 19439,
     "minStock": 0
   },
   {
@@ -11699,6 +14295,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 107,
     "avgCost": 23896,
     "totalValue": 2556872,
+    "initialStock": 107,
+    "initialCost": 23896,
     "minStock": 0
   },
   {
@@ -11708,6 +14306,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 98,
     "avgCost": 21486,
     "totalValue": 2105628,
+    "initialStock": 98,
+    "initialCost": 21486,
     "minStock": 0
   },
   {
@@ -11717,6 +14317,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 78,
     "avgCost": 23604,
     "totalValue": 1841112,
+    "initialStock": 78,
+    "initialCost": 23604,
     "minStock": 0
   },
   {
@@ -11726,6 +14328,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 95,
     "avgCost": 25944,
     "totalValue": 2464680,
+    "initialStock": 95,
+    "initialCost": 25944,
     "minStock": 0
   },
   {
@@ -11735,6 +14339,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 144974,
     "totalValue": 869844,
+    "initialStock": 6,
+    "initialCost": 144974,
     "minStock": 0
   },
   {
@@ -11744,6 +14350,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 55125,
     "totalValue": 110250,
+    "initialStock": 2,
+    "initialCost": 55125,
     "minStock": 0
   },
   {
@@ -11753,6 +14361,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 65,
     "avgCost": 49195,
     "totalValue": 3197675,
+    "initialStock": 65,
+    "initialCost": 49195,
     "minStock": 0
   },
   {
@@ -11762,6 +14372,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 27,
     "avgCost": 60209,
     "totalValue": 1625643,
+    "initialStock": 27,
+    "initialCost": 60209,
     "minStock": 0
   },
   {
@@ -11771,6 +14383,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 93,
     "avgCost": 22813,
     "totalValue": 2121609,
+    "initialStock": 93,
+    "initialCost": 22813,
     "minStock": 0
   },
   {
@@ -11780,6 +14394,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 48,
     "avgCost": 57850,
     "totalValue": 2776800,
+    "initialStock": 48,
+    "initialCost": 57850,
     "minStock": 0
   },
   {
@@ -11789,6 +14405,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 96,
     "avgCost": 27199,
     "totalValue": 2611104,
+    "initialStock": 96,
+    "initialCost": 27199,
     "minStock": 0
   },
   {
@@ -11798,6 +14416,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 59160,
     "totalValue": 59160,
+    "initialStock": 1,
+    "initialCost": 59160,
     "minStock": 0
   },
   {
@@ -11807,6 +14427,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 30,
     "avgCost": 40300,
     "totalValue": 1209000,
+    "initialStock": 30,
+    "initialCost": 40300,
     "minStock": 0
   },
   {
@@ -11816,6 +14438,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 26,
     "avgCost": 23276,
     "totalValue": 605176,
+    "initialStock": 26,
+    "initialCost": 23276,
     "minStock": 0
   },
   {
@@ -11825,6 +14449,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 19,
     "avgCost": 25752,
     "totalValue": 489288,
+    "initialStock": 19,
+    "initialCost": 25752,
     "minStock": 0
   },
   {
@@ -11834,6 +14460,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 67,
     "avgCost": 53648,
     "totalValue": 3594416,
+    "initialStock": 67,
+    "initialCost": 53648,
     "minStock": 0
   },
   {
@@ -11843,6 +14471,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 256,
     "avgCost": 66055,
     "totalValue": 16910080,
+    "initialStock": 256,
+    "initialCost": 66055,
     "minStock": 0
   },
   {
@@ -11852,6 +14482,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 108,
     "avgCost": 45011,
     "totalValue": 4861188,
+    "initialStock": 108,
+    "initialCost": 45011,
     "minStock": 0
   },
   {
@@ -11861,6 +14493,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 27,
     "avgCost": 59940,
     "totalValue": 1618380,
+    "initialStock": 27,
+    "initialCost": 59940,
     "minStock": 0
   },
   {
@@ -11870,6 +14504,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 97,
     "avgCost": 35026,
     "totalValue": 3397522,
+    "initialStock": 97,
+    "initialCost": 35026,
     "minStock": 0
   },
   {
@@ -11879,6 +14515,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 42,
     "avgCost": 35850,
     "totalValue": 1505700,
+    "initialStock": 42,
+    "initialCost": 35850,
     "minStock": 0
   },
   {
@@ -11888,6 +14526,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 119,
     "avgCost": 44636,
     "totalValue": 5311684,
+    "initialStock": 119,
+    "initialCost": 44636,
     "minStock": 0
   },
   {
@@ -11897,6 +14537,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 50,
     "avgCost": 48815,
     "totalValue": 2440750,
+    "initialStock": 50,
+    "initialCost": 48815,
     "minStock": 0
   },
   {
@@ -11906,6 +14548,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 186,
     "avgCost": 27072,
     "totalValue": 5035392,
+    "initialStock": 186,
+    "initialCost": 27072,
     "minStock": 0
   },
   {
@@ -11915,6 +14559,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 11000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 11000,
     "minStock": 0
   },
   {
@@ -11924,6 +14570,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 161.5,
     "avgCost": 23396,
     "totalValue": 3778454,
+    "initialStock": 161.5,
+    "initialCost": 23396,
     "minStock": 0
   },
   {
@@ -11933,6 +14581,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 4620000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 4620000,
     "minStock": 0
   },
   {
@@ -11942,6 +14592,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 1195000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 1195000,
     "minStock": 0
   },
   {
@@ -11951,6 +14603,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 6041,
     "totalValue": 6041,
+    "initialStock": 1,
+    "initialCost": 6041,
     "minStock": 0
   },
   {
@@ -11960,6 +14614,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 100116,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 100116,
     "minStock": 0
   },
   {
@@ -11969,6 +14625,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 119664,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 119664,
     "minStock": 0
   },
   {
@@ -11978,6 +14636,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 16725,
     "totalValue": 167250,
+    "initialStock": 10,
+    "initialCost": 16725,
     "minStock": 0
   },
   {
@@ -11987,6 +14647,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 103,
     "avgCost": 16082,
     "totalValue": 1656446,
+    "initialStock": 103,
+    "initialCost": 16082,
     "minStock": 0
   },
   {
@@ -11996,6 +14658,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 25,
     "avgCost": 31208,
     "totalValue": 780200,
+    "initialStock": 25,
+    "initialCost": 31208,
     "minStock": 0
   },
   {
@@ -12005,6 +14669,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 76504,
     "totalValue": 535528,
+    "initialStock": 7,
+    "initialCost": 76504,
     "minStock": 0
   },
   {
@@ -12014,6 +14680,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 105380,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 105380,
     "minStock": 0
   },
   {
@@ -12023,6 +14691,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 104720,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 104720,
     "minStock": 0
   },
   {
@@ -12032,6 +14702,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 86,
     "avgCost": 32279,
     "totalValue": 2775994,
+    "initialStock": 86,
+    "initialCost": 32279,
     "minStock": 0
   },
   {
@@ -12041,6 +14713,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 206,
     "avgCost": 30626,
     "totalValue": 6308956,
+    "initialStock": 206,
+    "initialCost": 30626,
     "minStock": 0
   },
   {
@@ -12050,6 +14724,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 112320,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 112320,
     "minStock": 0
   },
   {
@@ -12059,6 +14735,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 74580,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 74580,
     "minStock": 0
   },
   {
@@ -12068,6 +14746,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 208,
     "avgCost": 10842,
     "totalValue": 2255136,
+    "initialStock": 208,
+    "initialCost": 10842,
     "minStock": 0
   },
   {
@@ -12077,6 +14757,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 55,
     "avgCost": 65719,
     "totalValue": 3614545,
+    "initialStock": 55,
+    "initialCost": 65719,
     "minStock": 0
   },
   {
@@ -12086,6 +14768,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -3,
     "avgCost": 86940,
     "totalValue": -260820,
+    "initialStock": -3,
+    "initialCost": 86940,
     "minStock": 0
   },
   {
@@ -12095,6 +14779,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 70,
     "avgCost": 23991,
     "totalValue": 1679370,
+    "initialStock": 70,
+    "initialCost": 23991,
     "minStock": 0
   },
   {
@@ -12104,6 +14790,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 91300,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 91300,
     "minStock": 0
   },
   {
@@ -12113,6 +14801,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 20,
     "avgCost": 5765,
     "totalValue": 115300,
+    "initialStock": 20,
+    "initialCost": 5765,
     "minStock": 0
   },
   {
@@ -12122,6 +14812,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 584,
     "avgCost": 13751,
     "totalValue": 8030584,
+    "initialStock": 584,
+    "initialCost": 13751,
     "minStock": 0
   },
   {
@@ -12131,6 +14823,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 312,
     "avgCost": 6189,
     "totalValue": 1930968,
+    "initialStock": 312,
+    "initialCost": 6189,
     "minStock": 0
   },
   {
@@ -12140,6 +14834,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 16000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 16000,
     "minStock": 0
   },
   {
@@ -12149,6 +14845,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 21,
     "avgCost": 56560,
     "totalValue": 1187760,
+    "initialStock": 21,
+    "initialCost": 56560,
     "minStock": 0
   },
   {
@@ -12158,6 +14856,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 34500,
     "totalValue": 103500,
+    "initialStock": 3,
+    "initialCost": 34500,
     "minStock": 0
   },
   {
@@ -12167,6 +14867,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 50700,
     "totalValue": 253500,
+    "initialStock": 5,
+    "initialCost": 50700,
     "minStock": 0
   },
   {
@@ -12176,6 +14878,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 13,
     "avgCost": 4494,
     "totalValue": 58422,
+    "initialStock": 13,
+    "initialCost": 4494,
     "minStock": 0
   },
   {
@@ -12185,6 +14889,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 11,
     "avgCost": 5595,
     "totalValue": 61545,
+    "initialStock": 11,
+    "initialCost": 5595,
     "minStock": 0
   },
   {
@@ -12194,6 +14900,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -12203,6 +14911,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 4300000,
     "totalValue": 4300000,
+    "initialStock": 1,
+    "initialCost": 4300000,
     "minStock": 0
   },
   {
@@ -12212,6 +14922,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 24090,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 24090,
     "minStock": 0
   },
   {
@@ -12221,6 +14933,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 32670,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 32670,
     "minStock": 0
   },
   {
@@ -12230,6 +14944,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 33550,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 33550,
     "minStock": 0
   },
   {
@@ -12239,6 +14955,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 174960,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 174960,
     "minStock": 0
   },
   {
@@ -12248,6 +14966,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 175824,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 175824,
     "minStock": 0
   },
   {
@@ -12257,6 +14977,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 36,
     "avgCost": 119014,
     "totalValue": 4284504,
+    "initialStock": 36,
+    "initialCost": 119014,
     "minStock": 0
   },
   {
@@ -12266,6 +14988,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 8,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -12275,6 +14999,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -12284,6 +15010,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 268596,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 268596,
     "minStock": 0
   },
   {
@@ -12293,6 +15021,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 77000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 77000,
     "minStock": 0
   },
   {
@@ -12302,6 +15032,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 90000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 90000,
     "minStock": 0
   },
   {
@@ -12311,6 +15043,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 2,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -12320,6 +15054,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 258500,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 258500,
     "minStock": 0
   },
   {
@@ -12329,6 +15065,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 360258,
     "totalValue": 360258,
+    "initialStock": 1,
+    "initialCost": 360258,
     "minStock": 0
   },
   {
@@ -12338,6 +15076,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 75268,
     "totalValue": 526876,
+    "initialStock": 7,
+    "initialCost": 75268,
     "minStock": 0
   },
   {
@@ -12347,6 +15087,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 169427,
     "totalValue": 508281,
+    "initialStock": 3,
+    "initialCost": 169427,
     "minStock": 0
   },
   {
@@ -12356,6 +15098,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 226380,
     "totalValue": 452760,
+    "initialStock": 2,
+    "initialCost": 226380,
     "minStock": 0
   },
   {
@@ -12365,6 +15109,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 485000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 485000,
     "minStock": 0
   },
   {
@@ -12374,6 +15120,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 97640,
     "totalValue": 781120,
+    "initialStock": 8,
+    "initialCost": 97640,
     "minStock": 0
   },
   {
@@ -12383,6 +15131,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 163567,
     "totalValue": 1144969,
+    "initialStock": 7,
+    "initialCost": 163567,
     "minStock": 0
   },
   {
@@ -12392,6 +15142,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 66660,
     "totalValue": 133320,
+    "initialStock": 2,
+    "initialCost": 66660,
     "minStock": 0
   },
   {
@@ -12401,6 +15153,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 66660,
     "totalValue": 133320,
+    "initialStock": 2,
+    "initialCost": 66660,
     "minStock": 0
   },
   {
@@ -12410,6 +15164,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 146190,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 146190,
     "minStock": 0
   },
   {
@@ -12419,6 +15175,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 69190,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 69190,
     "minStock": 0
   },
   {
@@ -12428,6 +15186,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -1,
     "avgCost": 13000,
     "totalValue": -13000,
+    "initialStock": -1,
+    "initialCost": 13000,
     "minStock": 0
   },
   {
@@ -12437,6 +15197,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 18000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 18000,
     "minStock": 0
   },
   {
@@ -12446,6 +15208,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 39000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 39000,
     "minStock": 0
   },
   {
@@ -12455,6 +15219,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 59000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 59000,
     "minStock": 0
   },
   {
@@ -12464,6 +15230,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 270000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 270000,
     "minStock": 0
   },
   {
@@ -12473,6 +15241,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 35000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 35000,
     "minStock": 0
   },
   {
@@ -12482,6 +15252,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 53655,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 53655,
     "minStock": 0
   },
   {
@@ -12491,6 +15263,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 97,
     "avgCost": 55425,
     "totalValue": 5376225,
+    "initialStock": 97,
+    "initialCost": 55425,
     "minStock": 0
   },
   {
@@ -12500,6 +15274,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 102,
     "avgCost": 300900,
     "totalValue": 30691800,
+    "initialStock": 102,
+    "initialCost": 300900,
     "minStock": 0
   },
   {
@@ -12509,6 +15285,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 242844,
     "totalValue": 971376,
+    "initialStock": 4,
+    "initialCost": 242844,
     "minStock": 0
   },
   {
@@ -12518,6 +15296,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 272800,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 272800,
     "minStock": 0
   },
   {
@@ -12527,6 +15307,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 183,
     "avgCost": 174357,
     "totalValue": 31907331,
+    "initialStock": 183,
+    "initialCost": 174357,
     "minStock": 0
   },
   {
@@ -12536,6 +15318,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 218796,
     "totalValue": 218796,
+    "initialStock": 1,
+    "initialCost": 218796,
     "minStock": 0
   },
   {
@@ -12545,6 +15329,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 325160,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 325160,
     "minStock": 0
   },
   {
@@ -12554,6 +15340,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 23,
     "avgCost": 118973,
     "totalValue": 2736379,
+    "initialStock": 23,
+    "initialCost": 118973,
     "minStock": 0
   },
   {
@@ -12563,6 +15351,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 23,
     "avgCost": 121635,
     "totalValue": 2797605,
+    "initialStock": 23,
+    "initialCost": 121635,
     "minStock": 0
   },
   {
@@ -12572,6 +15362,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 1035000,
     "totalValue": 4140000,
+    "initialStock": 4,
+    "initialCost": 1035000,
     "minStock": 0
   },
   {
@@ -12581,6 +15373,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 31,
     "avgCost": 178778,
     "totalValue": 5542118,
+    "initialStock": 31,
+    "initialCost": 178778,
     "minStock": 0
   },
   {
@@ -12590,6 +15384,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 533940,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 533940,
     "minStock": 0
   },
   {
@@ -12599,6 +15395,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 18,
     "avgCost": 66904,
     "totalValue": 1204272,
+    "initialStock": 18,
+    "initialCost": 66904,
     "minStock": 0
   },
   {
@@ -12608,6 +15406,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 15,
     "avgCost": 262831,
     "totalValue": 3942465,
+    "initialStock": 15,
+    "initialCost": 262831,
     "minStock": 0
   },
   {
@@ -12617,6 +15417,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 414000,
     "totalValue": 414000,
+    "initialStock": 1,
+    "initialCost": 414000,
     "minStock": 0
   },
   {
@@ -12626,6 +15428,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 482262,
     "totalValue": 1446786,
+    "initialStock": 3,
+    "initialCost": 482262,
     "minStock": 0
   },
   {
@@ -12635,6 +15439,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 627234,
     "totalValue": 3136170,
+    "initialStock": 5,
+    "initialCost": 627234,
     "minStock": 0
   },
   {
@@ -12644,6 +15450,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 5439960,
     "totalValue": 10879920,
+    "initialStock": 2,
+    "initialCost": 5439960,
     "minStock": 0
   },
   {
@@ -12653,6 +15461,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 24500,
     "totalValue": 49000,
+    "initialStock": 2,
+    "initialCost": 24500,
     "minStock": 0
   },
   {
@@ -12662,6 +15472,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 20,
     "avgCost": 146557,
     "totalValue": 2931140,
+    "initialStock": 20,
+    "initialCost": 146557,
     "minStock": 0
   },
   {
@@ -12671,6 +15483,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 34,
     "avgCost": 71515,
     "totalValue": 2431510,
+    "initialStock": 34,
+    "initialCost": 71515,
     "minStock": 0
   },
   {
@@ -12680,6 +15494,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 105000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 105000,
     "minStock": 0
   },
   {
@@ -12689,6 +15505,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 25,
     "avgCost": 117788,
     "totalValue": 2944700,
+    "initialStock": 25,
+    "initialCost": 117788,
     "minStock": 0
   },
   {
@@ -12698,6 +15516,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -12707,6 +15527,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -12716,6 +15538,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 449250,
     "totalValue": 1347750,
+    "initialStock": 3,
+    "initialCost": 449250,
     "minStock": 0
   },
   {
@@ -12725,6 +15549,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 58000,
     "totalValue": 116000,
+    "initialStock": 2,
+    "initialCost": 58000,
     "minStock": 0
   },
   {
@@ -12734,6 +15560,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 129000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 129000,
     "minStock": 0
   },
   {
@@ -12743,6 +15571,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 183857,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 183857,
     "minStock": 0
   },
   {
@@ -12752,6 +15582,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 270285,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 270285,
     "minStock": 0
   },
   {
@@ -12761,6 +15593,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 392857,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 392857,
     "minStock": 0
   },
   {
@@ -12770,6 +15604,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 500000,
     "totalValue": 500000,
+    "initialStock": 1,
+    "initialCost": 500000,
     "minStock": 0
   },
   {
@@ -12779,6 +15615,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 66861,
     "totalValue": 601749,
+    "initialStock": 9,
+    "initialCost": 66861,
     "minStock": 0
   },
   {
@@ -12788,6 +15626,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 115,
     "avgCost": 98971,
     "totalValue": 11381665,
+    "initialStock": 115,
+    "initialCost": 98971,
     "minStock": 0
   },
   {
@@ -12797,6 +15637,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 166452,
     "totalValue": 1331616,
+    "initialStock": 8,
+    "initialCost": 166452,
     "minStock": 0
   },
   {
@@ -12806,6 +15648,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -12815,6 +15659,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -12824,6 +15670,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -12833,6 +15681,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -2,
     "avgCost": 500000,
     "totalValue": -1000000,
+    "initialStock": -2,
+    "initialCost": 500000,
     "minStock": 0
   },
   {
@@ -12842,6 +15692,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 134720,
     "totalValue": 1077760,
+    "initialStock": 8,
+    "initialCost": 134720,
     "minStock": 0
   },
   {
@@ -12851,6 +15703,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 29,
     "avgCost": 126662,
     "totalValue": 3673198,
+    "initialStock": 29,
+    "initialCost": 126662,
     "minStock": 0
   },
   {
@@ -12860,6 +15714,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 206,
     "avgCost": 121414,
     "totalValue": 25011284,
+    "initialStock": 206,
+    "initialCost": 121414,
     "minStock": 0
   },
   {
@@ -12869,6 +15725,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 181,
     "avgCost": 171547,
     "totalValue": 31050007,
+    "initialStock": 181,
+    "initialCost": 171547,
     "minStock": 0
   },
   {
@@ -12878,6 +15736,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 80000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 80000,
     "minStock": 0
   },
   {
@@ -12887,6 +15747,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 243646,
     "totalValue": 1949168,
+    "initialStock": 8,
+    "initialCost": 243646,
     "minStock": 0
   },
   {
@@ -12896,6 +15758,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 255000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 255000,
     "minStock": 0
   },
   {
@@ -12905,6 +15769,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 427262,
     "totalValue": 2563572,
+    "initialStock": 6,
+    "initialCost": 427262,
     "minStock": 0
   },
   {
@@ -12914,6 +15780,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 340000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 340000,
     "minStock": 0
   },
   {
@@ -12923,6 +15791,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 693000,
     "totalValue": 693000,
+    "initialStock": 1,
+    "initialCost": 693000,
     "minStock": 0
   },
   {
@@ -12932,6 +15802,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 393840,
     "totalValue": 1181520,
+    "initialStock": 3,
+    "initialCost": 393840,
     "minStock": 0
   },
   {
@@ -12941,6 +15813,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 138015,
     "totalValue": 1104120,
+    "initialStock": 8,
+    "initialCost": 138015,
     "minStock": 0
   },
   {
@@ -12950,6 +15824,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 13,
     "avgCost": 270585,
     "totalValue": 3517605,
+    "initialStock": 13,
+    "initialCost": 270585,
     "minStock": 0
   },
   {
@@ -12959,6 +15835,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 115000,
     "totalValue": 115000,
+    "initialStock": 1,
+    "initialCost": 115000,
     "minStock": 0
   },
   {
@@ -12968,6 +15846,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 1350000,
     "totalValue": 1350000,
+    "initialStock": 1,
+    "initialCost": 1350000,
     "minStock": 0
   },
   {
@@ -12977,6 +15857,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1166,
     "avgCost": 150,
     "totalValue": 174900,
+    "initialStock": 1166,
+    "initialCost": 150,
     "minStock": 0
   },
   {
@@ -12986,6 +15868,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 800,
     "avgCost": 161,
     "totalValue": 128800,
+    "initialStock": 800,
+    "initialCost": 161,
     "minStock": 0
   },
   {
@@ -12995,6 +15879,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 56,
     "avgCost": 29094,
     "totalValue": 1629264,
+    "initialStock": 56,
+    "initialCost": 29094,
     "minStock": 0
   },
   {
@@ -13004,6 +15890,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 62,
     "avgCost": 13599,
     "totalValue": 843138,
+    "initialStock": 62,
+    "initialCost": 13599,
     "minStock": 0
   },
   {
@@ -13013,6 +15901,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 15600,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 15600,
     "minStock": 0
   },
   {
@@ -13022,6 +15912,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 126,
     "avgCost": 33752,
     "totalValue": 4252752,
+    "initialStock": 126,
+    "initialCost": 33752,
     "minStock": 0
   },
   {
@@ -13031,6 +15923,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 58,
     "avgCost": 24865,
     "totalValue": 1442170,
+    "initialStock": 58,
+    "initialCost": 24865,
     "minStock": 0
   },
   {
@@ -13040,6 +15934,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 20100,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 20100,
     "minStock": 0
   },
   {
@@ -13049,6 +15945,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 67,
     "avgCost": 32678,
     "totalValue": 2189426,
+    "initialStock": 67,
+    "initialCost": 32678,
     "minStock": 0
   },
   {
@@ -13058,6 +15956,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 104,
     "avgCost": 31587,
     "totalValue": 3285048,
+    "initialStock": 104,
+    "initialCost": 31587,
     "minStock": 0
   },
   {
@@ -13067,6 +15967,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 28500,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 28500,
     "minStock": 0
   },
   {
@@ -13076,6 +15978,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 72,
     "avgCost": 56448,
     "totalValue": 4064256,
+    "initialStock": 72,
+    "initialCost": 56448,
     "minStock": 0
   },
   {
@@ -13085,6 +15989,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 42900,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 42900,
     "minStock": 0
   },
   {
@@ -13094,6 +16000,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 204,
     "avgCost": 67794,
     "totalValue": 13829976,
+    "initialStock": 204,
+    "initialCost": 67794,
     "minStock": 0
   },
   {
@@ -13103,6 +16011,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 64700,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 64700,
     "minStock": 0
   },
   {
@@ -13112,6 +16022,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 21,
     "avgCost": 75142,
     "totalValue": 1577982,
+    "initialStock": 21,
+    "initialCost": 75142,
     "minStock": 0
   },
   {
@@ -13121,6 +16033,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 1447100,
     "totalValue": 1447100,
+    "initialStock": 1,
+    "initialCost": 1447100,
     "minStock": 0
   },
   {
@@ -13130,6 +16044,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 27,
     "avgCost": 19771,
     "totalValue": 533817,
+    "initialStock": 27,
+    "initialCost": 19771,
     "minStock": 0
   },
   {
@@ -13139,6 +16055,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 53673,
     "totalValue": 161019,
+    "initialStock": 3,
+    "initialCost": 53673,
     "minStock": 0
   },
   {
@@ -13148,6 +16066,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 63900,
     "totalValue": 447300,
+    "initialStock": 7,
+    "initialCost": 63900,
     "minStock": 0
   },
   {
@@ -13157,6 +16077,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 122,
     "avgCost": 90241,
     "totalValue": 11009402,
+    "initialStock": 122,
+    "initialCost": 90241,
     "minStock": 0
   },
   {
@@ -13166,6 +16088,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 199819,
     "totalValue": 399638,
+    "initialStock": 2,
+    "initialCost": 199819,
     "minStock": 0
   },
   {
@@ -13175,6 +16099,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 22,
     "avgCost": 101667,
     "totalValue": 2236674,
+    "initialStock": 22,
+    "initialCost": 101667,
     "minStock": 0
   },
   {
@@ -13184,6 +16110,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 212666,
     "totalValue": 212666,
+    "initialStock": 1,
+    "initialCost": 212666,
     "minStock": 0
   },
   {
@@ -13193,6 +16121,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 399600,
     "totalValue": 799200,
+    "initialStock": 2,
+    "initialCost": 399600,
     "minStock": 0
   },
   {
@@ -13202,6 +16132,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 21,
     "avgCost": 60667,
     "totalValue": 1274007,
+    "initialStock": 21,
+    "initialCost": 60667,
     "minStock": 0
   },
   {
@@ -13211,6 +16143,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 131769,
     "totalValue": 1054152,
+    "initialStock": 8,
+    "initialCost": 131769,
     "minStock": 0
   },
   {
@@ -13220,6 +16154,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 30,
     "avgCost": 123623,
     "totalValue": 3708690,
+    "initialStock": 30,
+    "initialCost": 123623,
     "minStock": 0
   },
   {
@@ -13229,6 +16165,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 32,
     "avgCost": 222181,
     "totalValue": 7109792,
+    "initialStock": 32,
+    "initialCost": 222181,
     "minStock": 0
   },
   {
@@ -13238,6 +16176,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 25,
     "avgCost": 278008,
     "totalValue": 6950200,
+    "initialStock": 25,
+    "initialCost": 278008,
     "minStock": 0
   },
   {
@@ -13247,6 +16187,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 602031,
     "totalValue": 2408124,
+    "initialStock": 4,
+    "initialCost": 602031,
     "minStock": 0
   },
   {
@@ -13256,6 +16198,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -13265,6 +16209,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -13274,6 +16220,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -13283,6 +16231,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 72000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 72000,
     "minStock": 0
   },
   {
@@ -13292,6 +16242,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 480000,
     "totalValue": 480000,
+    "initialStock": 1,
+    "initialCost": 480000,
     "minStock": 0
   },
   {
@@ -13301,6 +16253,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 4945000,
     "totalValue": 4945000,
+    "initialStock": 1,
+    "initialCost": 4945000,
     "minStock": 0
   },
   {
@@ -13310,6 +16264,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 145000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 145000,
     "minStock": 0
   },
   {
@@ -13319,6 +16275,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 235000,
     "totalValue": 235000,
+    "initialStock": 1,
+    "initialCost": 235000,
     "minStock": 0
   },
   {
@@ -13328,6 +16286,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 13,
     "avgCost": 364583,
     "totalValue": 4739579,
+    "initialStock": 13,
+    "initialCost": 364583,
     "minStock": 0
   },
   {
@@ -13337,6 +16297,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 800000,
     "totalValue": 6400000,
+    "initialStock": 8,
+    "initialCost": 800000,
     "minStock": 0
   },
   {
@@ -13346,6 +16308,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 620000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 620000,
     "minStock": 0
   },
   {
@@ -13355,6 +16319,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 1050000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 1050000,
     "minStock": 0
   },
   {
@@ -13364,6 +16330,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 410000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 410000,
     "minStock": 0
   },
   {
@@ -13373,6 +16341,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 615000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 615000,
     "minStock": 0
   },
   {
@@ -13382,6 +16352,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 937500,
     "totalValue": 1875000,
+    "initialStock": 2,
+    "initialCost": 937500,
     "minStock": 0
   },
   {
@@ -13391,6 +16363,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 1300000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 1300000,
     "minStock": 0
   },
   {
@@ -13400,6 +16374,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 500000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 500000,
     "minStock": 0
   },
   {
@@ -13409,6 +16385,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 525000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 525000,
     "minStock": 0
   },
   {
@@ -13418,6 +16396,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 1398000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 1398000,
     "minStock": 0
   },
   {
@@ -13427,6 +16407,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 1137500,
     "totalValue": 1137500,
+    "initialStock": 1,
+    "initialCost": 1137500,
     "minStock": 0
   },
   {
@@ -13436,6 +16418,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 720000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 720000,
     "minStock": 0
   },
   {
@@ -13445,6 +16429,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 950000,
     "totalValue": 950000,
+    "initialStock": 1,
+    "initialCost": 950000,
     "minStock": 0
   },
   {
@@ -13454,6 +16440,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 415150,
     "totalValue": 415150,
+    "initialStock": 1,
+    "initialCost": 415150,
     "minStock": 0
   },
   {
@@ -13463,6 +16451,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -13472,6 +16462,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 100000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 100000,
     "minStock": 0
   },
   {
@@ -13481,6 +16473,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 50000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 50000,
     "minStock": 0
   },
   {
@@ -13490,6 +16484,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 60000,
     "totalValue": 240000,
+    "initialStock": 4,
+    "initialCost": 60000,
     "minStock": 0
   },
   {
@@ -13499,6 +16495,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 187000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 187000,
     "minStock": 0
   },
   {
@@ -13508,6 +16506,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 85000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 85000,
     "minStock": 0
   },
   {
@@ -13517,6 +16517,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 80000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 80000,
     "minStock": 0
   },
   {
@@ -13526,6 +16528,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 11,
     "avgCost": 67000,
     "totalValue": 737000,
+    "initialStock": 11,
+    "initialCost": 67000,
     "minStock": 0
   },
   {
@@ -13535,6 +16539,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 247500,
     "totalValue": 495000,
+    "initialStock": 2,
+    "initialCost": 247500,
     "minStock": 0
   },
   {
@@ -13544,6 +16550,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 120000,
     "totalValue": 360000,
+    "initialStock": 3,
+    "initialCost": 120000,
     "minStock": 0
   },
   {
@@ -13553,6 +16561,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 125000,
     "totalValue": 250000,
+    "initialStock": 2,
+    "initialCost": 125000,
     "minStock": 0
   },
   {
@@ -13562,6 +16572,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 920000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 920000,
     "minStock": 0
   },
   {
@@ -13571,6 +16583,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 850000,
     "totalValue": 1700000,
+    "initialStock": 2,
+    "initialCost": 850000,
     "minStock": 0
   },
   {
@@ -13580,6 +16594,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -1,
     "avgCost": 210000,
     "totalValue": -210000,
+    "initialStock": -1,
+    "initialCost": 210000,
     "minStock": 0
   },
   {
@@ -13589,6 +16605,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 3734200,
     "totalValue": 3734200,
+    "initialStock": 1,
+    "initialCost": 3734200,
     "minStock": 0
   },
   {
@@ -13598,6 +16616,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 329952,
     "totalValue": 1979712,
+    "initialStock": 6,
+    "initialCost": 329952,
     "minStock": 0
   },
   {
@@ -13607,6 +16627,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 5,
     "avgCost": 2121000,
     "totalValue": 10605000,
+    "initialStock": 5,
+    "initialCost": 2121000,
     "minStock": 0
   },
   {
@@ -13616,6 +16638,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 1080000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 1080000,
     "minStock": 0
   },
   {
@@ -13625,6 +16649,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 7954150,
     "totalValue": 7954150,
+    "initialStock": 1,
+    "initialCost": 7954150,
     "minStock": 0
   },
   {
@@ -13634,6 +16660,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -3,
     "avgCost": 210000,
     "totalValue": -630000,
+    "initialStock": -3,
+    "initialCost": 210000,
     "minStock": 0
   },
   {
@@ -13643,6 +16671,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 544000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 544000,
     "minStock": 0
   },
   {
@@ -13652,6 +16682,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 1073000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 1073000,
     "minStock": 0
   },
   {
@@ -13661,6 +16693,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -13670,6 +16704,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 1530660,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 1530660,
     "minStock": 0
   },
   {
@@ -13679,6 +16715,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 432500,
     "totalValue": 432500,
+    "initialStock": 1,
+    "initialCost": 432500,
     "minStock": 0
   },
   {
@@ -13688,6 +16726,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 457500,
     "totalValue": 1372500,
+    "initialStock": 3,
+    "initialCost": 457500,
     "minStock": 0
   },
   {
@@ -13697,6 +16737,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 160000,
     "totalValue": 1440000,
+    "initialStock": 9,
+    "initialCost": 160000,
     "minStock": 0
   },
   {
@@ -13706,6 +16748,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 157000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 157000,
     "minStock": 0
   },
   {
@@ -13715,6 +16759,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 256000,
     "totalValue": 256000,
+    "initialStock": 1,
+    "initialCost": 256000,
     "minStock": 0
   },
   {
@@ -13724,6 +16770,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 47,
     "avgCost": 3143,
     "totalValue": 147721,
+    "initialStock": 47,
+    "initialCost": 3143,
     "minStock": 0
   },
   {
@@ -13733,6 +16781,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 1200000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 1200000,
     "minStock": 0
   },
   {
@@ -13742,6 +16792,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 480000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 480000,
     "minStock": 0
   },
   {
@@ -13751,6 +16803,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 850000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 850000,
     "minStock": 0
   },
   {
@@ -13760,6 +16814,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 1366000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 1366000,
     "minStock": 0
   },
   {
@@ -13769,6 +16825,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 1505000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 1505000,
     "minStock": 0
   },
   {
@@ -13778,6 +16836,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 1038800,
     "totalValue": 1038800,
+    "initialStock": 1,
+    "initialCost": 1038800,
     "minStock": 0
   },
   {
@@ -13787,6 +16847,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 6638000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 6638000,
     "minStock": 0
   },
   {
@@ -13796,6 +16858,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 693000,
     "totalValue": 1386000,
+    "initialStock": 2,
+    "initialCost": 693000,
     "minStock": 0
   },
   {
@@ -13805,6 +16869,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 630000,
     "totalValue": 1260000,
+    "initialStock": 2,
+    "initialCost": 630000,
     "minStock": 0
   },
   {
@@ -13814,6 +16880,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 1483000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 1483000,
     "minStock": 0
   },
   {
@@ -13823,6 +16891,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 988000,
     "totalValue": 988000,
+    "initialStock": 1,
+    "initialCost": 988000,
     "minStock": 0
   },
   {
@@ -13832,6 +16902,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 800000,
     "totalValue": 2400000,
+    "initialStock": 3,
+    "initialCost": 800000,
     "minStock": 0
   },
   {
@@ -13841,6 +16913,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 575000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 575000,
     "minStock": 0
   },
   {
@@ -13850,6 +16924,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 44000,
     "totalValue": 132000,
+    "initialStock": 3,
+    "initialCost": 44000,
     "minStock": 0
   },
   {
@@ -13859,6 +16935,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 75,
     "avgCost": 67940,
     "totalValue": 5095500,
+    "initialStock": 75,
+    "initialCost": 67940,
     "minStock": 0
   },
   {
@@ -13868,6 +16946,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 87750,
     "totalValue": 877500,
+    "initialStock": 10,
+    "initialCost": 87750,
     "minStock": 0
   },
   {
@@ -13877,6 +16957,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 30,
     "avgCost": 123333,
     "totalValue": 3699990,
+    "initialStock": 30,
+    "initialCost": 123333,
     "minStock": 0
   },
   {
@@ -13886,6 +16968,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 12,
     "avgCost": 106962,
     "totalValue": 1283544,
+    "initialStock": 12,
+    "initialCost": 106962,
     "minStock": 0
   },
   {
@@ -13895,6 +16979,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 320000,
     "totalValue": 320000,
+    "initialStock": 1,
+    "initialCost": 320000,
     "minStock": 0
   },
   {
@@ -13904,6 +16990,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 350000,
     "totalValue": 700000,
+    "initialStock": 2,
+    "initialCost": 350000,
     "minStock": 0
   },
   {
@@ -13913,6 +17001,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 220000,
     "totalValue": 220000,
+    "initialStock": 1,
+    "initialCost": 220000,
     "minStock": 0
   },
   {
@@ -13922,6 +17012,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 330000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 330000,
     "minStock": 0
   },
   {
@@ -13931,6 +17023,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 3,
     "avgCost": 811400,
     "totalValue": 2434200,
+    "initialStock": 3,
+    "initialCost": 811400,
     "minStock": 0
   },
   {
@@ -13940,6 +17034,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 560000,
     "totalValue": 560000,
+    "initialStock": 1,
+    "initialCost": 560000,
     "minStock": 0
   },
   {
@@ -13949,6 +17045,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 11,
     "avgCost": 677859,
     "totalValue": 7456449,
+    "initialStock": 11,
+    "initialCost": 677859,
     "minStock": 0
   },
   {
@@ -13958,6 +17056,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 1368000,
     "totalValue": 1368000,
+    "initialStock": 1,
+    "initialCost": 1368000,
     "minStock": 0
   },
   {
@@ -13967,6 +17067,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 242000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 242000,
     "minStock": 0
   },
   {
@@ -13976,6 +17078,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 109397,
     "totalValue": 109397,
+    "initialStock": 1,
+    "initialCost": 109397,
     "minStock": 0
   },
   {
@@ -13985,6 +17089,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 390500,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 390500,
     "minStock": 0
   },
   {
@@ -13994,6 +17100,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 591800,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 591800,
     "minStock": 0
   },
   {
@@ -14003,6 +17111,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 1,
     "avgCost": 401258,
     "totalValue": 401258,
+    "initialStock": 1,
+    "initialCost": 401258,
     "minStock": 0
   },
   {
@@ -14012,6 +17122,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -14021,6 +17133,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 130000,
     "totalValue": 260000,
+    "initialStock": 2,
+    "initialCost": 130000,
     "minStock": 0
   },
   {
@@ -14030,6 +17144,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 135000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 135000,
     "minStock": 0
   },
   {
@@ -14039,6 +17155,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 2,
     "avgCost": 73000,
     "totalValue": 146000,
+    "initialStock": 2,
+    "initialCost": 73000,
     "minStock": 0
   },
   {
@@ -14048,6 +17166,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 170000,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 170000,
     "minStock": 0
   },
   {
@@ -14057,6 +17177,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 10,
     "avgCost": 80000,
     "totalValue": 800000,
+    "initialStock": 10,
+    "initialCost": 80000,
     "minStock": 0
   },
   {
@@ -14066,6 +17188,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 16,
     "avgCost": 123215,
     "totalValue": 1971440,
+    "initialStock": 16,
+    "initialCost": 123215,
     "minStock": 0
   },
   {
@@ -14075,6 +17199,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -5,
     "avgCost": 25000,
     "totalValue": -125000,
+    "initialStock": -5,
+    "initialCost": 25000,
     "minStock": 0
   },
   {
@@ -14084,6 +17210,8 @@ const PREPOPULATED_DATABASE = {
     "stock": -8,
     "avgCost": 60000,
     "totalValue": -480000,
+    "initialStock": -8,
+    "initialCost": 60000,
     "minStock": 0
   },
   {
@@ -14093,6 +17221,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 114,
     "avgCost": 55282,
     "totalValue": 6302148,
+    "initialStock": 114,
+    "initialCost": 55282,
     "minStock": 0
   },
   {
@@ -14102,6 +17232,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 17,
     "avgCost": 299615,
     "totalValue": 5093455,
+    "initialStock": 17,
+    "initialCost": 299615,
     "minStock": 0
   },
   {
@@ -14111,6 +17243,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 22,
     "avgCost": 339586,
     "totalValue": 7470892,
+    "initialStock": 22,
+    "initialCost": 339586,
     "minStock": 0
   },
   {
@@ -14120,6 +17254,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 14,
     "avgCost": 388898,
     "totalValue": 5444572,
+    "initialStock": 14,
+    "initialCost": 388898,
     "minStock": 0
   },
   {
@@ -14129,6 +17265,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 626728,
     "totalValue": 2506912,
+    "initialStock": 4,
+    "initialCost": 626728,
     "minStock": 0
   },
   {
@@ -14138,6 +17276,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 13,
     "avgCost": 251171,
     "totalValue": 3265223,
+    "initialStock": 13,
+    "initialCost": 251171,
     "minStock": 0
   },
   {
@@ -14147,6 +17287,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 4,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 4,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -14156,6 +17298,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 121,
     "avgCost": 9688,
     "totalValue": 1172248,
+    "initialStock": 121,
+    "initialCost": 9688,
     "minStock": 0
   },
   {
@@ -14165,6 +17309,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 79,
     "avgCost": 5550,
     "totalValue": 438450,
+    "initialStock": 79,
+    "initialCost": 5550,
     "minStock": 0
   },
   {
@@ -14174,6 +17320,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 65,
     "avgCost": 8743,
     "totalValue": 568295,
+    "initialStock": 65,
+    "initialCost": 8743,
     "minStock": 0
   },
   {
@@ -14183,6 +17331,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 7,
     "avgCost": 8400,
     "totalValue": 58800,
+    "initialStock": 7,
+    "initialCost": 8400,
     "minStock": 0
   },
   {
@@ -14192,6 +17342,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 84,
     "avgCost": 37921,
     "totalValue": 3185364,
+    "initialStock": 84,
+    "initialCost": 37921,
     "minStock": 0
   },
   {
@@ -14201,6 +17353,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 79,
     "avgCost": 95404,
     "totalValue": 7536916,
+    "initialStock": 79,
+    "initialCost": 95404,
     "minStock": 0
   },
   {
@@ -14210,6 +17364,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 41,
     "avgCost": 102356,
     "totalValue": 4196596,
+    "initialStock": 41,
+    "initialCost": 102356,
     "minStock": 0
   },
   {
@@ -14219,6 +17375,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 66,
     "avgCost": 31315,
     "totalValue": 2066790,
+    "initialStock": 66,
+    "initialCost": 31315,
     "minStock": 0
   },
   {
@@ -14228,6 +17386,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -14237,6 +17397,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 77,
     "avgCost": 55033,
     "totalValue": 4237541,
+    "initialStock": 77,
+    "initialCost": 55033,
     "minStock": 0
   },
   {
@@ -14246,6 +17408,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 90,
     "avgCost": 78351,
     "totalValue": 7051590,
+    "initialStock": 90,
+    "initialCost": 78351,
     "minStock": 0
   },
   {
@@ -14255,6 +17419,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 6,
     "avgCost": 143533,
     "totalValue": 861198,
+    "initialStock": 6,
+    "initialCost": 143533,
     "minStock": 0
   },
   {
@@ -14264,6 +17430,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 9,
     "avgCost": 187899,
     "totalValue": 1691091,
+    "initialStock": 9,
+    "initialCost": 187899,
     "minStock": 0
   },
   {
@@ -14273,6 +17441,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 8,
     "avgCost": 225377,
     "totalValue": 1803016,
+    "initialStock": 8,
+    "initialCost": 225377,
     "minStock": 0
   },
   {
@@ -14282,6 +17452,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 0,
     "avgCost": 0,
     "totalValue": 0,
+    "initialStock": 0,
+    "initialCost": 0,
     "minStock": 0
   },
   {
@@ -14291,6 +17463,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 46,
     "avgCost": 11700,
     "totalValue": 538200,
+    "initialStock": 46,
+    "initialCost": 11700,
     "minStock": 0
   },
   {
@@ -14300,6 +17474,8 @@ const PREPOPULATED_DATABASE = {
     "stock": 68,
     "avgCost": 42005,
     "totalValue": 2856340,
+    "initialStock": 68,
+    "initialCost": 42005,
     "minStock": 0
   }
 ],
@@ -88682,7 +91858,7 @@ const PREPOPULATED_DATABASE = {
     "address": "Y5 Hàng điều 11, Khang Linh - Tân Nhận hảng - 0901.236.287"
   },
   {
-    "id": "DT_CTTSX_351",
+    "id": "DT_CTTSX_934",
     "name": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "type": "supplier",
     "phone": "",
@@ -88690,7 +91866,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CTTSQ_977",
+    "id": "DT_CTTSQ_207",
     "name": "Cty TNHH TM SX Quốc Chung",
     "type": "supplier",
     "phone": "",
@@ -88698,7 +91874,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CH_719",
+    "id": "DT_CH_230",
     "name": "CTy HWATA",
     "type": "supplier",
     "phone": "",
@@ -88706,7 +91882,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CTTTC_775",
+    "id": "DT_CTTTC_706",
     "name": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "type": "supplier",
     "phone": "",
@@ -88714,7 +91890,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_ML_759",
+    "id": "DT_ML_635",
     "name": "Mua lẻ",
     "type": "supplier",
     "phone": "",
@@ -88722,7 +91898,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CHVC_378",
+    "id": "DT_CHVC_312",
     "name": "Cửa hàng văn chính",
     "type": "supplier",
     "phone": "",
@@ -88730,7 +91906,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CTTDV_595",
+    "id": "DT_CTTDV_812",
     "name": "Cty TNHH TM DV và Sản Xuất Hải Trung Kim",
     "type": "supplier",
     "phone": "",
@@ -88738,7 +91914,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CTTQT_607",
+    "id": "DT_CTTQT_983",
     "name": "CÔNG TY TNHHTM QUACH TUẤN MINH",
     "type": "supplier",
     "phone": "",
@@ -88746,7 +91922,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_MLCAP_653",
+    "id": "DT_MLCAP_499",
     "name": "Mua lẻ CTY AN PHA TRẦN",
     "type": "supplier",
     "phone": "",
@@ -88754,7 +91930,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_NHS_135",
+    "id": "DT_NHS_569",
     "name": "Ngân hàng sacombank",
     "type": "supplier",
     "phone": "",
@@ -88762,7 +91938,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CCSTX_281",
+    "id": "DT_CCSTX_292",
     "name": "Cty CP SX TM XNK C.A.M.E.L",
     "type": "supplier",
     "phone": "",
@@ -88770,7 +91946,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_BLTAT_436",
+    "id": "DT_BLTAT_433",
     "name": "Bán Lẻ T04/2026 anh trúc thầu",
     "type": "customer",
     "phone": "",
@@ -88778,7 +91954,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AH_894",
+    "id": "DT_AH_841",
     "name": "Anh Hòa (KH8037T04/2026)",
     "type": "customer",
     "phone": "",
@@ -88786,7 +91962,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CL_297",
+    "id": "DT_CL_543",
     "name": "Cô Loan",
     "type": "supplier",
     "phone": "",
@@ -88794,7 +91970,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CTTNS_548",
+    "id": "DT_CTTNS_839",
     "name": "Công ty TNHH Nguồn Sáng",
     "type": "supplier",
     "phone": "",
@@ -88802,7 +91978,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_NHT_473",
+    "id": "DT_NHT_687",
     "name": "NHẬP HÀNG TQ",
     "type": "supplier",
     "phone": "",
@@ -88810,7 +91986,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CN_168",
+    "id": "DT_CN_401",
     "name": "Chủ nhà (KH8005T03/2026)",
     "type": "customer",
     "phone": "",
@@ -88818,7 +91994,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CXTTV_664",
+    "id": "DT_CXTTV_609",
     "name": "Cty XNK Thái Thịnh - Van đồng Sanwa",
     "type": "supplier",
     "phone": "",
@@ -88826,7 +92002,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CTCPP_734",
+    "id": "DT_CTCPP_657",
     "name": "Công Ty Cổ Phần Phát Triển TM Và Dịch Vụ Âu Việt",
     "type": "supplier",
     "phone": "",
@@ -88834,7 +92010,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AH_539",
+    "id": "DT_AH_459",
     "name": "Anh Huynh (KH7989T03/2026)",
     "type": "customer",
     "phone": "",
@@ -88842,7 +92018,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CTTAV_114",
+    "id": "DT_CTTAV_726",
     "name": "Công ty TNHH ASTOSI VIỆT NAM",
     "type": "supplier",
     "phone": "",
@@ -88850,7 +92026,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CTTQT_685",
+    "id": "DT_CTTQT_395",
     "name": "CÔNG TYU TNHH QUỲNH THẮNG PHÁT",
     "type": "supplier",
     "phone": "",
@@ -88858,7 +92034,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CT090_807",
+    "id": "DT_CT090_889",
     "name": "chị tuyến 0919 941 099",
     "type": "customer",
     "phone": "",
@@ -88866,7 +92042,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AHT_348",
+    "id": "DT_AHT_450",
     "name": "ANH HÙNG THẦU",
     "type": "customer",
     "phone": "",
@@ -88874,7 +92050,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CL_331",
+    "id": "DT_CL_659",
     "name": "CÔ LUẬT",
     "type": "customer",
     "phone": "",
@@ -88882,7 +92058,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AGT_213",
+    "id": "DT_AGT_777",
     "name": "ANH GIANG THẦU",
     "type": "customer",
     "phone": "",
@@ -88890,7 +92066,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CTTHN_660",
+    "id": "DT_CTTHN_526",
     "name": "Cty Thái Thịnh Hưng (Vòi nóng lạnh các loại)",
     "type": "supplier",
     "phone": "",
@@ -88898,7 +92074,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CTTP_244",
+    "id": "DT_CTTP_993",
     "name": "Công Ty thọ phát",
     "type": "supplier",
     "phone": "",
@@ -88906,7 +92082,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CTTDN_567",
+    "id": "DT_CTTDN_158",
     "name": "Cty TNHH TM DV Năng Lượng Mặt Trời Việt",
     "type": "supplier",
     "phone": "",
@@ -88914,7 +92090,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_A_411",
+    "id": "DT_A_462",
     "name": "ANH ĐĂNG",
     "type": "customer",
     "phone": "",
@@ -88922,7 +92098,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CHTC0_760",
+    "id": "DT_CHTC0_902",
     "name": "Cửa Hàng Thành Công  - 0254.3856.731",
     "type": "supplier",
     "phone": "",
@@ -88930,7 +92106,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_MLCHH_756",
+    "id": "DT_MLCHH_486",
     "name": "Mua lẻ Chi hoa hồng",
     "type": "supplier",
     "phone": "",
@@ -88938,7 +92114,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_MLATT_176",
+    "id": "DT_MLATT_641",
     "name": "Mua lẻ anh trúc thầu",
     "type": "supplier",
     "phone": "",
@@ -88946,7 +92122,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CTTNT_382",
+    "id": "DT_CTTNT_911",
     "name": "Công Ty TNHH Ngô Trần Phát",
     "type": "supplier",
     "phone": "",
@@ -88954,7 +92130,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_BLTAH_149",
+    "id": "DT_BLTAH_260",
     "name": "Bán Lẻ T01/2026 anh hà",
     "type": "supplier",
     "phone": "",
@@ -88962,7 +92138,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_MLLTK_602",
+    "id": "DT_MLLTK_220",
     "name": "Mua lẻ - Làm tủ điều khiển",
     "type": "supplier",
     "phone": "",
@@ -88970,7 +92146,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_MLCLT_343",
+    "id": "DT_MLCLT_504",
     "name": "Mua lẻ chi lương t12",
     "type": "supplier",
     "phone": "",
@@ -88978,7 +92154,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_KHVL_174",
+    "id": "DT_KHVL_957",
     "name": "Khách hàng vãng lai",
     "type": "supplier",
     "phone": "",
@@ -88986,7 +92162,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_MLMKH_549",
+    "id": "DT_MLMKH_521",
     "name": "Mua lẻ mua kéo đàu hàn + đàu hàn 50",
     "type": "supplier",
     "phone": "",
@@ -88994,7 +92170,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CLT_880",
+    "id": "DT_CLT_393",
     "name": "chi lương T11",
     "type": "supplier",
     "phone": "",
@@ -89002,7 +92178,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_MLCMC_393",
+    "id": "DT_MLCMC_799",
     "name": "Mua lẻ chi mua cà rá inox",
     "type": "supplier",
     "phone": "",
@@ -89010,7 +92186,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_MLCTH_977",
+    "id": "DT_MLCTH_599",
     "name": "Mua lẻ cty trường hải",
     "type": "supplier",
     "phone": "",
@@ -89018,7 +92194,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_MLCD_323",
+    "id": "DT_MLCD_657",
     "name": "Mua lẻ chi duy",
     "type": "supplier",
     "phone": "",
@@ -89026,7 +92202,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_MLCTT_468",
+    "id": "DT_MLCTT_805",
     "name": "Mua lẻ chi trả tiền máy bơm anh tự",
     "type": "supplier",
     "phone": "",
@@ -89034,7 +92210,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AN_366",
+    "id": "DT_AN_580",
     "name": "Anh Nghĩa (KH7808T08/2025)",
     "type": "customer",
     "phone": "",
@@ -89042,7 +92218,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AHT_593",
+    "id": "DT_AHT_771",
     "name": "Anh Hợi thầu (KH7807T07/2025)",
     "type": "customer",
     "phone": "",
@@ -89050,7 +92226,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_BLT1C_326",
+    "id": "DT_BLT1C_259",
     "name": "Bán Lẻ Tháng 10/2025 Chị liên anh hào",
     "type": "customer",
     "phone": "",
@@ -89058,7 +92234,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_ATT_560",
+    "id": "DT_ATT_424",
     "name": "Anh Thành Thầu (KH7865T10/2025)",
     "type": "customer",
     "phone": "",
@@ -89066,7 +92242,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CN_879",
+    "id": "DT_CN_564",
     "name": "Chủ nhà (KH7860T10/2025)",
     "type": "customer",
     "phone": "",
@@ -89074,7 +92250,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_MLMT_136",
+    "id": "DT_MLMT_165",
     "name": "Mua lẻ - mua thỏ",
     "type": "supplier",
     "phone": "",
@@ -89082,7 +92258,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AH_356",
+    "id": "DT_AH_349",
     "name": "Anh Hiếu (KH7812T08/2025)",
     "type": "customer",
     "phone": "",
@@ -89090,7 +92266,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CN_240",
+    "id": "DT_CN_543",
     "name": "Chú Ngọc (KH7760T06/2025)",
     "type": "customer",
     "phone": "",
@@ -89098,7 +92274,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_BLTAN_446",
+    "id": "DT_BLTAN_739",
     "name": "Bán Lẻ T09/2025 - A Nam",
     "type": "supplier",
     "phone": "",
@@ -89106,7 +92282,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AT_625",
+    "id": "DT_AT_220",
     "name": "Anh Tú (KH7746T06/2025)",
     "type": "customer",
     "phone": "",
@@ -89114,7 +92290,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_MLTP_401",
+    "id": "DT_MLTP_489",
     "name": "Mua lẻ - Thắng Phát",
     "type": "supplier",
     "phone": "",
@@ -89122,7 +92298,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AH_882",
+    "id": "DT_AH_279",
     "name": "Anh Hòa (KH7797T07/2025)",
     "type": "customer",
     "phone": "",
@@ -89130,7 +92306,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CTTTV_440",
+    "id": "DT_CTTTV_142",
     "name": "Công Ty TNHH TM-DV Việt Cường -",
     "type": "supplier",
     "phone": "",
@@ -89138,7 +92314,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_MLCH_214",
+    "id": "DT_MLCH_454",
     "name": "Mua lẻ - ch hÙNG",
     "type": "supplier",
     "phone": "",
@@ -89146,7 +92322,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AH_989",
+    "id": "DT_AH_980",
     "name": "Anh Hải (KH7796T07/2025)",
     "type": "customer",
     "phone": "",
@@ -89154,7 +92330,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_TC_223",
+    "id": "DT_TC_673",
     "name": "Thành Công",
     "type": "customer",
     "phone": "",
@@ -89162,7 +92338,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_EC0_215",
+    "id": "DT_EC0_963",
     "name": "Em Châu  0985546490",
     "type": "customer",
     "phone": "",
@@ -89170,7 +92346,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_ATH_398",
+    "id": "DT_ATH_323",
     "name": "Anh Trọng HL",
     "type": "customer",
     "phone": "",
@@ -89178,7 +92354,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_MLMLX_284",
+    "id": "DT_MLMLX_844",
     "name": "Mua lẻ - mua LÒ XO UỐN ỐNG",
     "type": "supplier",
     "phone": "",
@@ -89186,7 +92362,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AL_667",
+    "id": "DT_AL_218",
     "name": "Anh Lực (KH7781T07/2025)",
     "type": "customer",
     "phone": "",
@@ -89194,7 +92370,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_KL_508",
+    "id": "DT_KL_492",
     "name": "Khách lẽ",
     "type": "supplier",
     "phone": "",
@@ -89202,7 +92378,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CT0_451",
+    "id": "DT_CT0_409",
     "name": "Chị Thủy 0359114229",
     "type": "customer",
     "phone": "",
@@ -89210,7 +92386,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CT_386",
+    "id": "DT_CT_845",
     "name": "Chú Tăng",
     "type": "customer",
     "phone": "",
@@ -89218,7 +92394,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_MLTP_629",
+    "id": "DT_MLTP_394",
     "name": "Mua lẻ - thắng phát",
     "type": "supplier",
     "phone": "",
@@ -89226,7 +92402,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_BLTK_319",
+    "id": "DT_BLTK_195",
     "name": "Bán Lẻ T06/2025 - k200",
     "type": "supplier",
     "phone": "",
@@ -89234,7 +92410,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AMT_889",
+    "id": "DT_AMT_950",
     "name": "Anh Mùi thầu (KH7750T06/2025)",
     "type": "customer",
     "phone": "",
@@ -89242,7 +92418,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_ET_872",
+    "id": "DT_ET_831",
     "name": "Em Trọng (KH7698T04/2025)",
     "type": "customer",
     "phone": "",
@@ -89250,7 +92426,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_ATT_314",
+    "id": "DT_ATT_259",
     "name": "Anh Tâm TN (KH7722T05/2025)",
     "type": "customer",
     "phone": "",
@@ -89258,7 +92434,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_ATTN0_671",
+    "id": "DT_ATTN0_232",
     "name": "Anh Thiện Thợ nước - 0909.978.917 anh sơn",
     "type": "customer",
     "phone": "",
@@ -89266,7 +92442,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_ACK_543",
+    "id": "DT_ACK_397",
     "name": "Anh Cường KT (KH7591T01/2025R)",
     "type": "customer",
     "phone": "",
@@ -89274,7 +92450,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AP_696",
+    "id": "DT_AP_608",
     "name": "Anh phương",
     "type": "customer",
     "phone": "",
@@ -89282,7 +92458,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_MLCSN_709",
+    "id": "DT_MLCSN_212",
     "name": "Mua lẻ - CAO SU NON",
     "type": "supplier",
     "phone": "",
@@ -89290,7 +92466,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_BLTAN_323",
+    "id": "DT_BLTAN_359",
     "name": "Bán Lẻ T05/2025 - A NAM",
     "type": "supplier",
     "phone": "",
@@ -89298,7 +92474,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_ATNTT_392",
+    "id": "DT_ATNTT_858",
     "name": "An Thợ nước - thợ TỰ",
     "type": "customer",
     "phone": "",
@@ -89306,7 +92482,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CMXT_120",
+    "id": "DT_CMXT_817",
     "name": "Chi mua xe tải",
     "type": "supplier",
     "phone": "",
@@ -89314,7 +92490,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AD_419",
+    "id": "DT_AD_916",
     "name": "ANH DƯƠNG (KH7699T04/2025)",
     "type": "customer",
     "phone": "",
@@ -89322,7 +92498,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_ADK_715",
+    "id": "DT_ADK_592",
     "name": "Anh Dũng KTS (KH7614T02/2025)",
     "type": "customer",
     "phone": "",
@@ -89330,7 +92506,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_TCT_398",
+    "id": "DT_TCT_463",
     "name": "Thảo cty - Trọng",
     "type": "customer",
     "phone": "",
@@ -89338,7 +92514,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_ALBD_567",
+    "id": "DT_ALBD_483",
     "name": "ANH LÂM BÌNH DƯƠNG",
     "type": "supplier",
     "phone": "",
@@ -89346,7 +92522,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_MVTS_469",
+    "id": "DT_MVTS_392",
     "name": "MUA VẬT TỰ SX",
     "type": "supplier",
     "phone": "",
@@ -89354,7 +92530,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AT_282",
+    "id": "DT_AT_641",
     "name": "Anh Thành (KH7624T02/2025)",
     "type": "customer",
     "phone": "",
@@ -89362,7 +92538,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CTTBC_425",
+    "id": "DT_CTTBC_204",
     "name": "Cty TNHH TBVS BENZLER Châu Âu",
     "type": "supplier",
     "phone": "",
@@ -89370,7 +92546,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AKT_713",
+    "id": "DT_AKT_540",
     "name": "Anh Khoa Thầu (KH7641T03/2025)",
     "type": "customer",
     "phone": "",
@@ -89378,7 +92554,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_ATTB_576",
+    "id": "DT_ATTB_382",
     "name": "Anh Thế Thầu Bắc (KH7612T02/2025)",
     "type": "customer",
     "phone": "",
@@ -89386,7 +92562,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_BLTAH_552",
+    "id": "DT_BLTAH_999",
     "name": "Bán lẻ T03/2025 - A HÀ",
     "type": "supplier",
     "phone": "",
@@ -89394,7 +92570,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_ATTB_258",
+    "id": "DT_ATTB_338",
     "name": "Anh Thế Thầu Bắc (KH7632T03/2025)",
     "type": "customer",
     "phone": "",
@@ -89402,7 +92578,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CAP_209",
+    "id": "DT_CAP_539",
     "name": "CTY Đại An Phát (KH7640T03/2025)",
     "type": "customer",
     "phone": "",
@@ -89410,7 +92586,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CL_160",
+    "id": "DT_CL_374",
     "name": "Chú Long (KH7636T03/2025)",
     "type": "customer",
     "phone": "",
@@ -89418,7 +92594,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CMCT_200",
+    "id": "DT_CMCT_864",
     "name": "Chú Minh - Cô Thảo (KH7574T12/2024R)",
     "type": "customer",
     "phone": "",
@@ -89426,7 +92602,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_KLAT_665",
+    "id": "DT_KLAT_254",
     "name": "Khách lẽ - A Thắng",
     "type": "supplier",
     "phone": "",
@@ -89434,7 +92610,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_KLATN_554",
+    "id": "DT_KLATN_845",
     "name": "Khách lẽ An Thợ nước",
     "type": "supplier",
     "phone": "",
@@ -89442,7 +92618,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_ANBK_856",
+    "id": "DT_ANBK_620",
     "name": "Anh Nhị - Băng Keo Điện",
     "type": "supplier",
     "phone": "",
@@ -89450,7 +92626,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_T00_767",
+    "id": "DT_T00_271",
     "name": "Tiệm điện Ánh - 02543.856.002 - 0937.076.975",
     "type": "supplier",
     "phone": "",
@@ -89458,7 +92634,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AT_666",
+    "id": "DT_AT_918",
     "name": "Anh Đại THầu (KH7602T01/2025)",
     "type": "customer",
     "phone": "",
@@ -89466,7 +92642,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AHT_690",
+    "id": "DT_AHT_903",
     "name": "Anh Hợp Thầu (KH7603T01/2025)",
     "type": "customer",
     "phone": "",
@@ -89474,7 +92650,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_MLBCN_831",
+    "id": "DT_MLBCN_188",
     "name": "Mua lẻ - Bồn Công nghiệp",
     "type": "supplier",
     "phone": "",
@@ -89482,7 +92658,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AM_642",
+    "id": "DT_AM_430",
     "name": "Anh Mùi (KH7563T12/2024)",
     "type": "customer",
     "phone": "",
@@ -89490,7 +92666,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AHT_500",
+    "id": "DT_AHT_750",
     "name": "Anh Hải thợ",
     "type": "customer",
     "phone": "",
@@ -89498,7 +92674,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AT033_923",
+    "id": "DT_AT033_293",
     "name": "Anh Toàn 093 389 3162",
     "type": "customer",
     "phone": "",
@@ -89506,7 +92682,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AT_999",
+    "id": "DT_AT_452",
     "name": "Anh Tài (KH7531T10/2024)",
     "type": "customer",
     "phone": "",
@@ -89514,7 +92690,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AHT_436",
+    "id": "DT_AHT_555",
     "name": "Anh Huỳnh thầu (KH7559T12/2024)",
     "type": "customer",
     "phone": "",
@@ -89522,7 +92698,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AD0_976",
+    "id": "DT_AD0_312",
     "name": "Anh Dũng 0948083601",
     "type": "customer",
     "phone": "",
@@ -89530,7 +92706,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_ACT_590",
+    "id": "DT_ACT_148",
     "name": "ANH CHƯƠNG T01/2025",
     "type": "customer",
     "phone": "",
@@ -89538,7 +92714,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_AM_115",
+    "id": "DT_AM_894",
     "name": "Anh Minh (KH7575T01/2025)",
     "type": "customer",
     "phone": "",
@@ -89546,7 +92722,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_ALT_414",
+    "id": "DT_ALT_536",
     "name": "Anh Lơ Thầu (KH7465T08/2024)",
     "type": "customer",
     "phone": "",
@@ -89554,7 +92730,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CH_694",
+    "id": "DT_CH_546",
     "name": "Chị Hạnh (KH7325T04/2024)",
     "type": "customer",
     "phone": "",
@@ -89562,7 +92738,7 @@ const PREPOPULATED_DATABASE = {
     "address": ""
   },
   {
-    "id": "DT_CL_174",
+    "id": "DT_CL_222",
     "name": "Cô Lộc (KH7584T01/2025R)",
     "type": "customer",
     "phone": "",
@@ -89576,7 +92752,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7194",
     "type": "payment",
     "date": "2026-05-19",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "112",
     "description": "Chi khác ck thanh toán lan thanh",
@@ -89702,7 +92878,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7192",
     "type": "payment",
     "date": "2026-05-18",
-    "partnerId": "DT_CTTSQ_977",
+    "partnerId": "DT_CTTSQ_207",
     "partnerName": "Cty TNHH TM SX Quốc Chung",
     "paymentMethod": "111",
     "description": "Chi trả quốc chung hết nợ",
@@ -89720,7 +92896,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7191",
     "type": "payment",
     "date": "2026-05-18",
-    "partnerId": "DT_CTTSQ_977",
+    "partnerId": "DT_CTTSQ_207",
     "partnerName": "Cty TNHH TM SX Quốc Chung",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 1705",
@@ -89738,7 +92914,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7190",
     "type": "payment",
     "date": "2026-05-18",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "111",
     "description": "Chi trả HWta BIDV",
@@ -89936,7 +93112,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7189",
     "type": "payment",
     "date": "2026-05-15",
-    "partnerId": "DT_CTTTC_775",
+    "partnerId": "DT_CTTTC_706",
     "partnerName": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 8441",
@@ -89972,7 +93148,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7188",
     "type": "payment",
     "date": "2026-05-13",
-    "partnerId": "DT_CTTTC_775",
+    "partnerId": "DT_CTTTC_706",
     "partnerName": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng Công ty TNHH Điện Trí Cương - 0902.504.886 theo hóa đơn 0016",
@@ -90026,7 +93202,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7187",
     "type": "payment",
     "date": "2026-05-12",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi mua máy lạnh a hò",
@@ -90044,7 +93220,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7186",
     "type": "payment",
     "date": "2026-05-12",
-    "partnerId": "DT_CHVC_378",
+    "partnerId": "DT_CHVC_312",
     "partnerName": "Cửa hàng văn chính",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 222",
@@ -90080,7 +93256,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7184",
     "type": "payment",
     "date": "2026-05-11",
-    "partnerId": "DT_CTTDV_595",
+    "partnerId": "DT_CTTDV_812",
     "partnerName": "Cty TNHH TM DV và Sản Xuất Hải Trung Kim",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 2603",
@@ -90206,7 +93382,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7185",
     "type": "payment",
     "date": "2026-05-09",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi đổ dầu xe tải",
@@ -90350,7 +93526,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7178",
     "type": "payment",
     "date": "2026-05-07",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "112",
     "description": "Chi Cl lan thanh ck nhanh sacombank",
@@ -90368,7 +93544,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7175",
     "type": "payment",
     "date": "2026-05-07",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi lương tháng 04/2026",
@@ -90386,7 +93562,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7174",
     "type": "payment",
     "date": "2026-05-07",
-    "partnerId": "DT_CTTTC_775",
+    "partnerId": "DT_CTTTC_706",
     "partnerName": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 1004062026",
@@ -90404,7 +93580,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7173",
     "type": "payment",
     "date": "2026-05-07",
-    "partnerId": "DT_CTTQT_607",
+    "partnerId": "DT_CTTQT_983",
     "partnerName": "CÔNG TY TNHHTM QUACH TUẤN MINH",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 1c26tdh",
@@ -90476,7 +93652,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7172",
     "type": "payment",
     "date": "2026-05-04",
-    "partnerId": "DT_MLCAP_653",
+    "partnerId": "DT_MLCAP_499",
     "partnerName": "Mua lẻ CTY AN PHA TRẦN",
     "paymentMethod": "111",
     "description": "Chi trả tiền cty an pha trần",
@@ -90548,7 +93724,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7182",
     "type": "payment",
     "date": "2026-04-30",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi đổ dâu xe tải",
@@ -90566,7 +93742,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7181",
     "type": "payment",
     "date": "2026-04-30",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "Chi nộp lãi T04/2026",
@@ -90602,7 +93778,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7183",
     "type": "payment",
     "date": "2026-04-29",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi lễ 30/4",
@@ -90674,7 +93850,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7180",
     "type": "payment",
     "date": "2026-04-28",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi nộp thuế gtgt t04",
@@ -90692,7 +93868,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7176",
     "type": "payment",
     "date": "2026-04-28",
-    "partnerId": "DT_CCSTX_281",
+    "partnerId": "DT_CCSTX_292",
     "partnerName": "Cty CP SX TM XNK C.A.M.E.L",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 593",
@@ -90710,7 +93886,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7171",
     "type": "payment",
     "date": "2026-04-28",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi bảo hiểm xã hội T04/2026",
@@ -90728,7 +93904,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7170",
     "type": "payment",
     "date": "2026-04-28",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "111",
     "description": "Chi trả tiền HWta",
@@ -90746,7 +93922,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7169",
     "type": "payment",
     "date": "2026-04-28",
-    "partnerId": "DT_CTTTC_775",
+    "partnerId": "DT_CTTTC_706",
     "partnerName": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 12",
@@ -90764,7 +93940,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7168",
     "type": "payment",
     "date": "2026-04-28",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "chi tả tiền vay sacombank",
@@ -90782,7 +93958,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7167",
     "type": "payment",
     "date": "2026-04-28",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "Chi trả lãi vay T04/2026",
@@ -90854,7 +94030,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7179",
     "type": "payment",
     "date": "2026-04-26",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Nộp BHXH t04/2026",
@@ -91052,7 +94228,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT13073",
     "type": "receipt",
     "date": "2026-04-24",
-    "partnerId": "DT_BLTAT_436",
+    "partnerId": "DT_BLTAT_433",
     "partnerName": "Bán Lẻ T04/2026 anh trúc thầu",
     "paymentMethod": "111",
     "description": "PT2931/q59 Bán Lẻ T04/2026 anh trúc thầu",
@@ -91196,7 +94372,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7166",
     "type": "payment",
     "date": "2026-04-22",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "cHI TRẢ TIỀN VAY SACOMBANK",
@@ -91232,7 +94408,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7163",
     "type": "payment",
     "date": "2026-04-21",
-    "partnerId": "DT_CTTTC_775",
+    "partnerId": "DT_CTTTC_706",
     "partnerName": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 632",
@@ -91322,7 +94498,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT13062",
     "type": "receipt",
     "date": "2026-04-18",
-    "partnerId": "DT_AH_894",
+    "partnerId": "DT_AH_841",
     "partnerName": "Anh Hòa (KH8037T04/2026)",
     "paymentMethod": "111",
     "description": "PT2876/q59 Anh Hòa (KH8037T04/2026)",
@@ -91430,7 +94606,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT13054",
     "type": "receipt",
     "date": "2026-04-17",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "thu vay sacombank trả lan thanh",
@@ -91466,7 +94642,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7160",
     "type": "payment",
     "date": "2026-04-17",
-    "partnerId": "DT_CL_297",
+    "partnerId": "DT_CL_543",
     "partnerName": "Cô Loan",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 1704",
@@ -91484,7 +94660,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7159",
     "type": "payment",
     "date": "2026-04-17",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "112",
     "description": "chi ck lan thanh vay sacombank",
@@ -91754,7 +94930,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7157",
     "type": "payment",
     "date": "2026-04-16",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "112",
     "description": "chi phí CK sacombank",
@@ -91772,7 +94948,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7155",
     "type": "payment",
     "date": "2026-04-16",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "112",
     "description": "Chi phí CK",
@@ -91790,7 +94966,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7162",
     "type": "payment",
     "date": "2026-04-15",
-    "partnerId": "DT_CTTNS_548",
+    "partnerId": "DT_CTTNS_839",
     "partnerName": "Công ty TNHH Nguồn Sáng",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 26178",
@@ -91844,7 +95020,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7156",
     "type": "payment",
     "date": "2026-04-13",
-    "partnerId": "DT_NHT_473",
+    "partnerId": "DT_NHT_687",
     "partnerName": "NHẬP HÀNG TQ",
     "paymentMethod": "112",
     "description": "Chi CK hàng đợt 2",
@@ -91970,7 +95146,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7152",
     "type": "payment",
     "date": "2026-04-11",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi đổ dầu xe tải",
@@ -91988,7 +95164,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7150",
     "type": "payment",
     "date": "2026-04-11",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi lương T3/2026",
@@ -92024,7 +95200,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7151",
     "type": "payment",
     "date": "2026-04-10",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "112",
     "description": "Chi trả lan thanh ck sacombank",
@@ -92186,7 +95362,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7154",
     "type": "payment",
     "date": "2026-04-07",
-    "partnerId": "DT_NHT_473",
+    "partnerId": "DT_NHT_687",
     "partnerName": "NHẬP HÀNG TQ",
     "paymentMethod": "111",
     "description": "Chi nhập hàng TQ đợt 1",
@@ -92420,7 +95596,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7147",
     "type": "payment",
     "date": "2026-04-03",
-    "partnerId": "DT_CTTTC_775",
+    "partnerId": "DT_CTTTC_706",
     "partnerName": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 0014",
@@ -92510,7 +95686,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT13006",
     "type": "receipt",
     "date": "2026-03-30",
-    "partnerId": "DT_CN_168",
+    "partnerId": "DT_CN_401",
     "partnerName": "Chủ nhà (KH8005T03/2026)",
     "paymentMethod": "112",
     "description": "PT2913/q59 45/28 thùy vân ck sacommbak",
@@ -92564,7 +95740,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7146",
     "type": "payment",
     "date": "2026-03-30",
-    "partnerId": "DT_CTTTC_775",
+    "partnerId": "DT_CTTTC_706",
     "partnerName": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 123",
@@ -92582,7 +95758,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7145",
     "type": "payment",
     "date": "2026-03-30",
-    "partnerId": "DT_CTTDV_595",
+    "partnerId": "DT_CTTDV_812",
     "partnerName": "Cty TNHH TM DV và Sản Xuất Hải Trung Kim",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 2602",
@@ -92726,7 +95902,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7165",
     "type": "payment",
     "date": "2026-03-26",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "112",
     "description": "chi ck hwata BIDV",
@@ -92744,7 +95920,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7148",
     "type": "payment",
     "date": "2026-03-26",
-    "partnerId": "DT_CXTTV_664",
+    "partnerId": "DT_CXTTV_609",
     "partnerName": "Cty XNK Thái Thịnh - Van đồng Sanwa",
     "paymentMethod": "111",
     "description": "Chi khác chi tt thái thinh",
@@ -92978,7 +96154,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7144",
     "type": "payment",
     "date": "2026-03-21",
-    "partnerId": "DT_CTCPP_734",
+    "partnerId": "DT_CTCPP_657",
     "partnerName": "Công Ty Cổ Phần Phát Triển TM Và Dịch Vụ Âu Việt",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 819",
@@ -93122,7 +96298,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12980",
     "type": "receipt",
     "date": "2026-03-18",
-    "partnerId": "DT_AH_539",
+    "partnerId": "DT_AH_459",
     "partnerName": "Anh Huynh (KH7989T03/2026)",
     "paymentMethod": "111",
     "description": "PT3941/q79 Anh Huynh (KH7989T03/2026)",
@@ -93140,7 +96316,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7143",
     "type": "payment",
     "date": "2026-03-18",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 18032026",
@@ -93158,7 +96334,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7142",
     "type": "payment",
     "date": "2026-03-18",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 18032026",
@@ -93176,7 +96352,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7141",
     "type": "payment",
     "date": "2026-03-18",
-    "partnerId": "DT_CTTTC_775",
+    "partnerId": "DT_CTTTC_706",
     "partnerName": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 18032026",
@@ -93248,7 +96424,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12978",
     "type": "receipt",
     "date": "2026-03-17",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "vay ngaan hàng sacombank 3 tháng",
@@ -93266,7 +96442,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7137",
     "type": "payment",
     "date": "2026-03-17",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "112",
     "description": "vay ngân hàng trả lan thanh",
@@ -93284,7 +96460,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7136",
     "type": "payment",
     "date": "2026-03-17",
-    "partnerId": "DT_CTTTC_775",
+    "partnerId": "DT_CTTTC_706",
     "partnerName": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 2223",
@@ -93302,7 +96478,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7135",
     "type": "payment",
     "date": "2026-03-17",
-    "partnerId": "DT_CTTAV_114",
+    "partnerId": "DT_CTTAV_726",
     "partnerName": "Công ty TNHH ASTOSI VIỆT NAM",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 17032026",
@@ -93320,7 +96496,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7134",
     "type": "payment",
     "date": "2026-03-17",
-    "partnerId": "DT_CTTQT_607",
+    "partnerId": "DT_CTTQT_983",
     "partnerName": "CÔNG TY TNHHTM QUACH TUẤN MINH",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 17032025",
@@ -93356,7 +96532,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7133",
     "type": "payment",
     "date": "2026-03-16",
-    "partnerId": "DT_CTTQT_685",
+    "partnerId": "DT_CTTQT_395",
     "partnerName": "CÔNG TYU TNHH QUỲNH THẮNG PHÁT",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 18202",
@@ -93374,7 +96550,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7132",
     "type": "payment",
     "date": "2026-03-11",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi nộp BHX tháng 02/2026",
@@ -93392,7 +96568,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7131",
     "type": "payment",
     "date": "2026-03-11",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "chi thanh toán cty lan thanh",
@@ -93482,7 +96658,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12973",
     "type": "receipt",
     "date": "2026-03-10",
-    "partnerId": "DT_CT090_807",
+    "partnerId": "DT_CT090_889",
     "partnerName": "chị tuyến 0919 941 099",
     "paymentMethod": "111",
     "description": "PT3937/q79 127/16C Phạm Hồng Thái",
@@ -93536,7 +96712,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7129",
     "type": "payment",
     "date": "2026-03-05",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi tiền chành đồ điện 3 lần",
@@ -93554,7 +96730,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7128",
     "type": "payment",
     "date": "2026-03-05",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi đổ dầu+ xăng + tiền DT T2",
@@ -93572,7 +96748,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12971",
     "type": "receipt",
     "date": "2026-03-04",
-    "partnerId": "DT_AHT_348",
+    "partnerId": "DT_AHT_450",
     "partnerName": "ANH HÙNG THẦU",
     "paymentMethod": "111",
     "description": "PT3935/q79 ANH HÙNG THẦU",
@@ -93608,7 +96784,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12969",
     "type": "receipt",
     "date": "2026-03-04",
-    "partnerId": "DT_CL_331",
+    "partnerId": "DT_CL_659",
     "partnerName": "CÔ LUẬT",
     "paymentMethod": "111",
     "description": "PT3933/q79 CÔ LUẬT",
@@ -93626,7 +96802,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7127",
     "type": "payment",
     "date": "2026-03-04",
-    "partnerId": "DT_CTTTC_775",
+    "partnerId": "DT_CTTTC_706",
     "partnerName": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 04032026",
@@ -93644,7 +96820,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7126",
     "type": "payment",
     "date": "2026-03-04",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi tiền voi gai nhà 921 /5 đường 30/4",
@@ -93698,7 +96874,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7122",
     "type": "payment",
     "date": "2026-03-03",
-    "partnerId": "DT_CTTTC_775",
+    "partnerId": "DT_CTTTC_706",
     "partnerName": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 004",
@@ -93770,7 +96946,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12964",
     "type": "receipt",
     "date": "2026-03-02",
-    "partnerId": "DT_AGT_213",
+    "partnerId": "DT_AGT_777",
     "partnerName": "ANH GIANG THẦU",
     "paymentMethod": "111",
     "description": "pt3929/Q79 ANH GIANG THẦU",
@@ -93788,7 +96964,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7121",
     "type": "payment",
     "date": "2026-03-02",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi khác CHI MUA VPP",
@@ -93806,7 +96982,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7120",
     "type": "payment",
     "date": "2026-03-02",
-    "partnerId": "DT_CCSTX_281",
+    "partnerId": "DT_CCSTX_292",
     "partnerName": "Cty CP SX TM XNK C.A.M.E.L",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 02032026",
@@ -93824,7 +97000,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7153",
     "type": "payment",
     "date": "2026-03-01",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 333",
@@ -93860,7 +97036,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7118",
     "type": "payment",
     "date": "2026-02-28",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "111",
     "description": "Chi khác",
@@ -93878,7 +97054,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7117",
     "type": "payment",
     "date": "2026-02-28",
-    "partnerId": "DT_CTTHN_660",
+    "partnerId": "DT_CTTHN_526",
     "partnerName": "Cty Thái Thịnh Hưng (Vòi nóng lạnh các loại)",
     "paymentMethod": "111",
     "description": "Chi khác",
@@ -93896,7 +97072,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7116",
     "type": "payment",
     "date": "2026-02-28",
-    "partnerId": "DT_CTTP_244",
+    "partnerId": "DT_CTTP_993",
     "partnerName": "Công Ty thọ phát",
     "paymentMethod": "111",
     "description": "Chi khác",
@@ -93914,7 +97090,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7115",
     "type": "payment",
     "date": "2026-02-28",
-    "partnerId": "DT_CTTDN_567",
+    "partnerId": "DT_CTTDN_158",
     "partnerName": "Cty TNHH TM DV Năng Lượng Mặt Trời Việt",
     "paymentMethod": "111",
     "description": "Chi khác",
@@ -93932,7 +97108,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7114",
     "type": "payment",
     "date": "2026-02-28",
-    "partnerId": "DT_CTCPP_734",
+    "partnerId": "DT_CTCPP_657",
     "partnerName": "Công Ty Cổ Phần Phát Triển TM Và Dịch Vụ Âu Việt",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 22",
@@ -93968,7 +97144,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12962",
     "type": "receipt",
     "date": "2026-02-25",
-    "partnerId": "DT_A_411",
+    "partnerId": "DT_A_462",
     "partnerName": "ANH ĐĂNG",
     "paymentMethod": "111",
     "description": "thu anh đăng nộp tm vào tk",
@@ -94004,7 +97180,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7111",
     "type": "payment",
     "date": "2026-02-25",
-    "partnerId": "DT_CHTC0_760",
+    "partnerId": "DT_CHTC0_902",
     "partnerName": "Cửa Hàng Thành Công  - 0254.3856.731",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 25022026",
@@ -94022,7 +97198,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7110",
     "type": "payment",
     "date": "2026-02-25",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi thưởng têt lĩ xì",
@@ -94040,7 +97216,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7109",
     "type": "payment",
     "date": "2026-02-25",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi trung đổ dầu xe tải",
@@ -96848,7 +100024,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7044",
     "type": "payment",
     "date": "2026-02-24",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi khác",
@@ -96866,7 +100042,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7043",
     "type": "payment",
     "date": "2026-02-24",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi khác",
@@ -96902,7 +100078,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7041",
     "type": "payment",
     "date": "2026-02-24",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi khác",
@@ -97046,7 +100222,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7038",
     "type": "payment",
     "date": "2026-02-23",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi huyền năm 2025 +tết 2026 + học phí minh kỳ cuối",
@@ -97118,7 +100294,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7108",
     "type": "payment",
     "date": "2026-02-15",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "chi trả tiền vay sacombank",
@@ -97766,7 +100942,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7177",
     "type": "payment",
     "date": "2026-02-13",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi mua điện thoại trọng minh",
@@ -97802,7 +100978,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7036",
     "type": "payment",
     "date": "2026-02-13",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "257/2lhp",
@@ -97838,7 +101014,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7034",
     "type": "payment",
     "date": "2026-02-13",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "298 nguyễn an ninh cuong",
@@ -97892,7 +101068,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7031",
     "type": "payment",
     "date": "2026-02-13",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi khác 149 thùy vân tất toán không thu được",
@@ -97910,7 +101086,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7030",
     "type": "payment",
     "date": "2026-02-13",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi thầu 20 trần quý cáp",
@@ -97928,7 +101104,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7029",
     "type": "payment",
     "date": "2026-02-13",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi nhà loan thắng",
@@ -97946,7 +101122,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7028",
     "type": "payment",
     "date": "2026-02-13",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi lương tháng 13 /2025",
@@ -97964,7 +101140,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7027",
     "type": "payment",
     "date": "2026-02-13",
-    "partnerId": "DT_MLCHH_756",
+    "partnerId": "DT_MLCHH_486",
     "partnerName": "Mua lẻ Chi hoa hồng",
     "paymentMethod": "111",
     "description": "Chi hoa hồng anh tự 2025",
@@ -98198,7 +101374,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7025",
     "type": "payment",
     "date": "2026-02-12",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi trả lan thanh",
@@ -98396,7 +101572,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7024",
     "type": "payment",
     "date": "2026-02-11",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi thầu thành thợ nước nhà chị thanh công ráp lòng thành",
@@ -98414,7 +101590,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7023",
     "type": "payment",
     "date": "2026-02-11",
-    "partnerId": "DT_CTTSQ_977",
+    "partnerId": "DT_CTTSQ_207",
     "partnerName": "Cty TNHH TM SX Quốc Chung",
     "paymentMethod": "111",
     "description": "Chi trả quóc chung",
@@ -98432,7 +101608,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7021",
     "type": "payment",
     "date": "2026-02-11",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "112",
     "description": "Chi tự CK KT an trung",
@@ -98450,7 +101626,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7020",
     "type": "payment",
     "date": "2026-02-11",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tự mua bia 2025",
@@ -98468,7 +101644,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7019",
     "type": "payment",
     "date": "2026-02-11",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi thầu anh giang 24/8 trần đồng",
@@ -98486,7 +101662,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7018",
     "type": "payment",
     "date": "2026-02-11",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi thầu anh thanh 434/1 429/6 trần phú",
@@ -98504,7 +101680,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7017",
     "type": "payment",
     "date": "2026-02-11",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "Chi tất toán LD",
@@ -98540,7 +101716,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7015",
     "type": "payment",
     "date": "2026-02-11",
-    "partnerId": "DT_CTTHN_660",
+    "partnerId": "DT_CTTHN_526",
     "partnerName": "Cty Thái Thịnh Hưng (Vòi nóng lạnh các loại)",
     "paymentMethod": "111",
     "description": "chi trả Vigor",
@@ -98720,7 +101896,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7014",
     "type": "payment",
     "date": "2026-02-09",
-    "partnerId": "DT_CTTSQ_977",
+    "partnerId": "DT_CTTSQ_207",
     "partnerName": "Cty TNHH TM SX Quốc Chung",
     "paymentMethod": "111",
     "description": "Chi trả cty quốc chung",
@@ -98738,7 +101914,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7013",
     "type": "payment",
     "date": "2026-02-09",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi nhà 649 trân phú hoa hồng",
@@ -98756,7 +101932,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7012",
     "type": "payment",
     "date": "2026-02-09",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi trả tiền chân 1.500L thợ an trung",
@@ -98774,7 +101950,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7011",
     "type": "payment",
     "date": "2026-02-09",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền bia anh tự",
@@ -98792,7 +101968,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7010",
     "type": "payment",
     "date": "2026-02-09",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền hoa hồng tâm thợ nước nhà băc sơn",
@@ -98810,7 +101986,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7009",
     "type": "payment",
     "date": "2026-02-09",
-    "partnerId": "DT_CTTDN_567",
+    "partnerId": "DT_CTTDN_158",
     "partnerName": "Cty TNHH TM DV Năng Lượng Mặt Trời Việt",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 33",
@@ -98828,7 +102004,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7008",
     "type": "payment",
     "date": "2026-02-09",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "111",
     "description": "chi trả hwta hđ 638",
@@ -98846,7 +102022,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7007",
     "type": "payment",
     "date": "2026-02-09",
-    "partnerId": "DT_CTTQT_607",
+    "partnerId": "DT_CTTQT_983",
     "partnerName": "CÔNG TY TNHHTM QUACH TUẤN MINH",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 09022026",
@@ -99008,7 +102184,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7006",
     "type": "payment",
     "date": "2026-02-07",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi hooa hồng an thợ nươc nhà trương văn bang",
@@ -99044,7 +102220,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7004",
     "type": "payment",
     "date": "2026-02-07",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi mua bia đi anh điền",
@@ -99062,7 +102238,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7003",
     "type": "payment",
     "date": "2026-02-07",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi trả tiên DT huyền DT cty",
@@ -99080,7 +102256,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7002",
     "type": "payment",
     "date": "2026-02-07",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi thầu anh sơn thợ nươc nhà 380/12 nguyễn an ninh",
@@ -99098,7 +102274,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7001",
     "type": "payment",
     "date": "2026-02-07",
-    "partnerId": "DT_MLATT_176",
+    "partnerId": "DT_MLATT_641",
     "partnerName": "Mua lẻ anh trúc thầu",
     "paymentMethod": "111",
     "description": "Chi tiền thầu 121/8 đồ chiểu",
@@ -99134,7 +102310,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7026",
     "type": "payment",
     "date": "2026-02-06",
-    "partnerId": "DT_CXTTV_664",
+    "partnerId": "DT_CXTTV_609",
     "partnerName": "Cty XNK Thái Thịnh - Van đồng Sanwa",
     "paymentMethod": "112",
     "description": "CHI CK THÁI THINH SACOMBANK",
@@ -99206,7 +102382,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC7000",
     "type": "payment",
     "date": "2026-02-05",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi Lương T1/2026",
@@ -99224,7 +102400,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6999",
     "type": "payment",
     "date": "2026-02-05",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền internet vietel T2/2026 đến T3/2026",
@@ -99242,7 +102418,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6998",
     "type": "payment",
     "date": "2026-02-05",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi hương đát núi",
@@ -99332,7 +102508,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6997",
     "type": "payment",
     "date": "2026-02-04",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "chi trả lãi vay sacombank",
@@ -99350,7 +102526,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6996",
     "type": "payment",
     "date": "2026-02-04",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "chi trả tiền vay sacombank",
@@ -99368,7 +102544,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6995",
     "type": "payment",
     "date": "2026-02-04",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "Chi trả tiền vay sacommmbank",
@@ -99386,7 +102562,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6994",
     "type": "payment",
     "date": "2026-02-04",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "112",
     "description": "Chi Ck HWta",
@@ -99404,7 +102580,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6993",
     "type": "payment",
     "date": "2026-02-04",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "112",
     "description": "Chi Ck trả cty lan thanh sacombank",
@@ -99566,7 +102742,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6992",
     "type": "payment",
     "date": "2026-02-02",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "112",
     "description": "Chi trả tiền  vay ngân hàng sacombank",
@@ -99584,7 +102760,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6991",
     "type": "payment",
     "date": "2026-02-02",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi hoa hồng anh thế (anh phương)",
@@ -99602,7 +102778,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6989",
     "type": "payment",
     "date": "2026-02-02",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi mua dây cáp 18m 2x 10",
@@ -99620,7 +102796,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6988",
     "type": "payment",
     "date": "2026-02-02",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi đổ dầu xe tải",
@@ -99638,7 +102814,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6987",
     "type": "payment",
     "date": "2026-02-02",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi nộp BHXH tháng 01",
@@ -99656,7 +102832,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6986",
     "type": "payment",
     "date": "2026-02-02",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi anh đăng đua hồ tràm",
@@ -99674,7 +102850,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6985",
     "type": "payment",
     "date": "2026-02-02",
-    "partnerId": "DT_CTTNT_382",
+    "partnerId": "DT_CTTNT_911",
     "partnerName": "Công Ty TNHH Ngô Trần Phát",
     "paymentMethod": "111",
     "description": "Chi trả tiên van miha",
@@ -99692,7 +102868,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6984",
     "type": "payment",
     "date": "2026-02-02",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi lương T1/2026 đơt 2",
@@ -99710,7 +102886,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6983",
     "type": "payment",
     "date": "2026-02-02",
-    "partnerId": "DT_CL_297",
+    "partnerId": "DT_CL_543",
     "partnerName": "Cô Loan",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 3366",
@@ -100124,7 +103300,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6981",
     "type": "payment",
     "date": "2026-01-27",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi thưởng tết dương lich 2026",
@@ -100142,7 +103318,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6980",
     "type": "payment",
     "date": "2026-01-27",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi truing đỏ dầu đi nhơn trạch",
@@ -100160,7 +103336,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6978",
     "type": "payment",
     "date": "2026-01-27",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi trả tiền ĐT + nuwoesc điện",
@@ -100178,7 +103354,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6965",
     "type": "payment",
     "date": "2026-01-27",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi anh đăng chi hồ tràm",
@@ -100196,7 +103372,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6943",
     "type": "payment",
     "date": "2026-01-27",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền chành xe tải",
@@ -100214,7 +103390,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6942",
     "type": "payment",
     "date": "2026-01-27",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "112",
     "description": "Chi trả lZaxi vay ngân hàng sacombank T01/2026",
@@ -100232,7 +103408,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6941",
     "type": "payment",
     "date": "2026-01-26",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "Chi trả tiền vay sacombank",
@@ -100250,7 +103426,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6940",
     "type": "payment",
     "date": "2026-01-26",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 2601",
@@ -100394,7 +103570,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6990",
     "type": "payment",
     "date": "2026-01-24",
-    "partnerId": "DT_CTTDV_595",
+    "partnerId": "DT_CTTDV_812",
     "partnerName": "Cty TNHH TM DV và Sản Xuất Hải Trung Kim",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 24012026",
@@ -100412,7 +103588,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6939",
     "type": "payment",
     "date": "2026-01-24",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "112",
     "description": "chi trả Hwata ck bidv",
@@ -100718,7 +103894,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6937",
     "type": "payment",
     "date": "2026-01-19",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "trả tiền mua sơn thành công",
@@ -100916,7 +104092,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6936",
     "type": "payment",
     "date": "2026-01-16",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "112",
     "description": "Chi ck cty lan thanh Sacombank",
@@ -100934,7 +104110,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6935",
     "type": "payment",
     "date": "2026-01-15",
-    "partnerId": "DT_BLTAH_149",
+    "partnerId": "DT_BLTAH_260",
     "partnerName": "Bán Lẻ T01/2026 anh hà",
     "paymentMethod": "111",
     "description": "Giao dịch phát sinh",
@@ -100952,7 +104128,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6979",
     "type": "payment",
     "date": "2026-01-14",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Đỏ xăng + linh tinh",
@@ -100970,7 +104146,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6934",
     "type": "payment",
     "date": "2026-01-14",
-    "partnerId": "DT_CTTTC_775",
+    "partnerId": "DT_CTTTC_706",
     "partnerName": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 479",
@@ -100988,7 +104164,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6933",
     "type": "payment",
     "date": "2026-01-14",
-    "partnerId": "DT_CHVC_378",
+    "partnerId": "DT_CHVC_312",
     "partnerName": "Cửa hàng văn chính",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 14012026",
@@ -101024,7 +104200,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6931",
     "type": "payment",
     "date": "2026-01-13",
-    "partnerId": "DT_CTTQT_607",
+    "partnerId": "DT_CTTQT_983",
     "partnerName": "CÔNG TY TNHHTM QUACH TUẤN MINH",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 4543",
@@ -101042,7 +104218,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6932",
     "type": "payment",
     "date": "2026-01-12",
-    "partnerId": "DT_CTTNT_382",
+    "partnerId": "DT_CTTNT_911",
     "partnerName": "Công Ty TNHH Ngô Trần Phát",
     "paymentMethod": "111",
     "description": "CHI TRẢ TIỀN VAN MI HA",
@@ -101222,7 +104398,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6977",
     "type": "payment",
     "date": "2026-01-10",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi anh phát thầu 17 ngô đức kế",
@@ -101474,7 +104650,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6929",
     "type": "payment",
     "date": "2026-01-08",
-    "partnerId": "DT_MLLTK_602",
+    "partnerId": "DT_MLLTK_220",
     "partnerName": "Mua lẻ - Làm tủ điều khiển",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 1111",
@@ -101492,7 +104668,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6927",
     "type": "payment",
     "date": "2026-01-07",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "chi trả lãi vay",
@@ -101510,7 +104686,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6926",
     "type": "payment",
     "date": "2026-01-07",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "chi trả tiền vay sacobabank",
@@ -101528,7 +104704,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6925",
     "type": "payment",
     "date": "2026-01-07",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "chi trả tiền vay sacombank",
@@ -101546,7 +104722,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6924",
     "type": "payment",
     "date": "2026-01-07",
-    "partnerId": "DT_MLCLT_343",
+    "partnerId": "DT_MLCLT_504",
     "partnerName": "Mua lẻ chi lương t12",
     "paymentMethod": "111",
     "description": "chi lương",
@@ -101564,7 +104740,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6923",
     "type": "payment",
     "date": "2026-01-07",
-    "partnerId": "DT_CXTTV_664",
+    "partnerId": "DT_CXTTV_609",
     "partnerName": "Cty XNK Thái Thịnh - Van đồng Sanwa",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 07012026",
@@ -101582,7 +104758,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6921",
     "type": "payment",
     "date": "2026-01-07",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi đỏ dầu xe tải + đi nhơn trạch",
@@ -101600,7 +104776,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6920",
     "type": "payment",
     "date": "2026-01-06",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi mua sắt V3 +v4 +v5",
@@ -101618,7 +104794,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6922",
     "type": "payment",
     "date": "2026-01-05",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi đổ dầu đi nhơn trach",
@@ -101816,7 +104992,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6976",
     "type": "payment",
     "date": "2026-01-03",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi mua sơn",
@@ -101834,7 +105010,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6975",
     "type": "payment",
     "date": "2026-01-03",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi thuê xe anh đạt",
@@ -101870,7 +105046,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6930",
     "type": "payment",
     "date": "2026-01-01",
-    "partnerId": "DT_CTTQT_607",
+    "partnerId": "DT_CTTQT_983",
     "partnerName": "CÔNG TY TNHHTM QUACH TUẤN MINH",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 02133",
@@ -102068,7 +105244,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6919",
     "type": "payment",
     "date": "2025-12-31",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "111",
     "description": "chi trả tiền bồn hwata",
@@ -102104,7 +105280,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6918",
     "type": "payment",
     "date": "2025-12-30",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi khác trả Lan Thanh",
@@ -102428,7 +105604,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6973",
     "type": "payment",
     "date": "2025-12-25",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi tiền chành tiền đổ xăng",
@@ -102464,7 +105640,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6928",
     "type": "payment",
     "date": "2025-12-23",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "chi trả tien lãi tháng 12",
@@ -102482,7 +105658,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6916",
     "type": "payment",
     "date": "2025-12-23",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "112",
     "description": "chi trả ck hwta bidv",
@@ -102536,7 +105712,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6972",
     "type": "payment",
     "date": "2025-12-22",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi trả tiền thuê xe",
@@ -102554,7 +105730,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6915",
     "type": "payment",
     "date": "2025-12-22",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "chi trả gốc sacombank",
@@ -102572,7 +105748,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6913",
     "type": "payment",
     "date": "2025-12-22",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi mua đinh inox",
@@ -102662,7 +105838,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6971",
     "type": "payment",
     "date": "2025-12-19",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi tiền thuê vc",
@@ -102680,7 +105856,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6911",
     "type": "payment",
     "date": "2025-12-18",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi nộp BHXH tháng 12",
@@ -102806,7 +105982,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6970",
     "type": "payment",
     "date": "2025-12-16",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi hoa hồng nhà e1",
@@ -102824,7 +106000,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6910",
     "type": "payment",
     "date": "2025-12-16",
-    "partnerId": "DT_MLMKH_549",
+    "partnerId": "DT_MLMKH_521",
     "partnerName": "Mua lẻ mua kéo đàu hàn + đàu hàn 50",
     "paymentMethod": "111",
     "description": "Chi khác",
@@ -102842,7 +106018,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6909",
     "type": "payment",
     "date": "2025-12-16",
-    "partnerId": "DT_CTTAV_114",
+    "partnerId": "DT_CTTAV_726",
     "partnerName": "Công ty TNHH ASTOSI VIỆT NAM",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 16122025",
@@ -102860,7 +106036,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6908",
     "type": "payment",
     "date": "2025-12-16",
-    "partnerId": "DT_CCSTX_281",
+    "partnerId": "DT_CCSTX_292",
     "partnerName": "Cty CP SX TM XNK C.A.M.E.L",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 489",
@@ -102878,7 +106054,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6907",
     "type": "payment",
     "date": "2025-12-16",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "trích thầu nhà 50 phó đức chính",
@@ -102896,7 +106072,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6906",
     "type": "payment",
     "date": "2025-12-16",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi mua xe ô tô đơt 2",
@@ -103112,7 +106288,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6969",
     "type": "payment",
     "date": "2025-12-13",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi trả tiền chành máy bơm",
@@ -103364,7 +106540,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6903",
     "type": "payment",
     "date": "2025-12-12",
-    "partnerId": "DT_NHT_473",
+    "partnerId": "DT_NHT_687",
     "partnerName": "NHẬP HÀNG TQ",
     "paymentMethod": "111",
     "description": "Phí hải quan + vc hàng container",
@@ -103382,7 +106558,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6902",
     "type": "payment",
     "date": "2025-12-12",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 222",
@@ -103400,7 +106576,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6901",
     "type": "payment",
     "date": "2025-12-12",
-    "partnerId": "DT_CTTNS_548",
+    "partnerId": "DT_CTTNS_839",
     "partnerName": "Công ty TNHH Nguồn Sáng",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 102280",
@@ -103544,7 +106720,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6968",
     "type": "payment",
     "date": "2025-12-09",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi đổ xăng đổ dầu",
@@ -103688,7 +106864,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6899",
     "type": "payment",
     "date": "2025-12-08",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 0812025",
@@ -103706,7 +106882,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6895",
     "type": "payment",
     "date": "2025-12-08",
-    "partnerId": "DT_CLT_880",
+    "partnerId": "DT_CLT_393",
     "partnerName": "chi lương T11",
     "paymentMethod": "111",
     "description": "chi lương T11",
@@ -103724,7 +106900,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6898",
     "type": "payment",
     "date": "2025-12-07",
-    "partnerId": "DT_CTTTC_775",
+    "partnerId": "DT_CTTTC_706",
     "partnerName": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 1010495",
@@ -103742,7 +106918,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12581",
     "type": "receipt",
     "date": "2025-12-06",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "112",
     "description": "Thu vay ngân hàng trả lan thanh",
@@ -103760,7 +106936,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12580",
     "type": "receipt",
     "date": "2025-12-06",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "Vay giải ngân thanh toán Hwta",
@@ -103868,7 +107044,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6897",
     "type": "payment",
     "date": "2025-12-06",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "111",
     "description": "CHI TRẢ HWATA",
@@ -103886,7 +107062,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6896",
     "type": "payment",
     "date": "2025-12-06",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "CHI TRẢ LAN THANH VAY SACOMBANK",
@@ -103922,7 +107098,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6967",
     "type": "payment",
     "date": "2025-12-05",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi mua tiền chành",
@@ -103940,7 +107116,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6894",
     "type": "payment",
     "date": "2025-12-05",
-    "partnerId": "DT_MLCMC_393",
+    "partnerId": "DT_MLCMC_799",
     "partnerName": "Mua lẻ chi mua cà rá inox",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 05122025",
@@ -104066,7 +107242,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6966",
     "type": "payment",
     "date": "2025-12-01",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi thuê xe VC",
@@ -104210,7 +107386,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6961",
     "type": "payment",
     "date": "2025-11-29",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi thuê xe đi đám cưới duy",
@@ -104300,7 +107476,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6964",
     "type": "payment",
     "date": "2025-11-27",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi bốc xếp container",
@@ -104318,7 +107494,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6963",
     "type": "payment",
     "date": "2025-11-27",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "trích thầu 17/17/4 lương thé vinh",
@@ -104336,7 +107512,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6962",
     "type": "payment",
     "date": "2025-11-27",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi thuê xe anh đạt",
@@ -104354,7 +107530,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6890",
     "type": "payment",
     "date": "2025-11-27",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi nộp bảo hiểm xã hội T11/2025",
@@ -104372,7 +107548,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6889",
     "type": "payment",
     "date": "2025-11-27",
-    "partnerId": "DT_MLCTH_977",
+    "partnerId": "DT_MLCTH_599",
     "partnerName": "Mua lẻ cty trường hải",
     "paymentMethod": "111",
     "description": "chi mua xe ô tô trường  hải",
@@ -104408,7 +107584,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6960",
     "type": "payment",
     "date": "2025-11-25",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi mua bảo ôn đợt 2+ bao ni lon",
@@ -104426,7 +107602,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6959",
     "type": "payment",
     "date": "2025-11-24",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi mua bảo ôn anh dăng mua",
@@ -104462,7 +107638,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6892",
     "type": "payment",
     "date": "2025-11-22",
-    "partnerId": "DT_MLCD_323",
+    "partnerId": "DT_MLCD_657",
     "partnerName": "Mua lẻ chi duy",
     "paymentMethod": "111",
     "description": "chi duy đámm cưới sài gòn",
@@ -104516,7 +107692,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12544",
     "type": "receipt",
     "date": "2025-11-20",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "thu vay ngân  hàng sacombank trả lan thanh trả hwata trả tq",
@@ -104534,7 +107710,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6887",
     "type": "payment",
     "date": "2025-11-20",
-    "partnerId": "DT_NHT_473",
+    "partnerId": "DT_NHT_687",
     "partnerName": "NHẬP HÀNG TQ",
     "paymentMethod": "112",
     "description": "chi chuyển khoản đợt 2 nhập hàng trung quốc vay sacombank",
@@ -104552,7 +107728,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6886",
     "type": "payment",
     "date": "2025-11-20",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "111",
     "description": "chi thanh toán HWata vay sacombank",
@@ -104570,7 +107746,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6885",
     "type": "payment",
     "date": "2025-11-20",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi than h toán lan thanh vay sacombank",
@@ -104678,7 +107854,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6958",
     "type": "payment",
     "date": "2025-11-15",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi bốc xếp+ mua vt máy tời gia mua",
@@ -104696,7 +107872,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6954",
     "type": "payment",
     "date": "2025-11-15",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi mua săt V3 l;àm hồ tràm",
@@ -104714,7 +107890,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6883",
     "type": "payment",
     "date": "2025-11-15",
-    "partnerId": "DT_CTTNS_548",
+    "partnerId": "DT_CTTNS_839",
     "partnerName": "Công ty TNHH Nguồn Sáng",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng Công ty TNHH Nguồn Sáng theo hóa đơn 99219",
@@ -105110,7 +108286,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6957",
     "type": "payment",
     "date": "2025-11-13",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi CT hồ tràm",
@@ -105128,7 +108304,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6956",
     "type": "payment",
     "date": "2025-11-13",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi mua sơn bạch tuyết",
@@ -105146,7 +108322,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6955",
     "type": "payment",
     "date": "2025-11-13",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi mua que hàn cọ",
@@ -105164,7 +108340,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6953",
     "type": "payment",
     "date": "2025-11-13",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi trả tiền Đt + nươc",
@@ -105200,7 +108376,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6952",
     "type": "payment",
     "date": "2025-11-12",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi mua đá cắt",
@@ -105218,7 +108394,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6951",
     "type": "payment",
     "date": "2025-11-12",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "mua sắt V3 làm hồ tràm",
@@ -105236,7 +108412,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6950",
     "type": "payment",
     "date": "2025-11-12",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi mua bao tay + đá cắt xà bồng",
@@ -105254,7 +108430,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6882",
     "type": "payment",
     "date": "2025-11-12",
-    "partnerId": "DT_A_411",
+    "partnerId": "DT_A_462",
     "partnerName": "ANH ĐĂNG",
     "paymentMethod": "111",
     "description": "Chi duy vay mua chung cư golsea +BH vay 10TR + ký quỹ 16T",
@@ -105326,7 +108502,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12510",
     "type": "receipt",
     "date": "2025-11-10",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "thu vay sacomban TM",
@@ -105380,7 +108556,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6881",
     "type": "payment",
     "date": "2025-11-10",
-    "partnerId": "DT_MLCTT_468",
+    "partnerId": "DT_MLCTT_805",
     "partnerName": "Mua lẻ chi trả tiền máy bơm anh tự",
     "paymentMethod": "111",
     "description": "Mua lẻ chi trả tiền máy bơm anh tự",
@@ -105434,7 +108610,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12545",
     "type": "receipt",
     "date": "2025-11-07",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "111",
     "description": "thu vay sacombank tm",
@@ -105578,7 +108754,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6409",
     "type": "payment",
     "date": "2025-11-07",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi đổ dâu xe tải",
@@ -105614,7 +108790,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6949",
     "type": "payment",
     "date": "2025-11-06",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi bốc hàng lan thanh",
@@ -105650,7 +108826,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6879",
     "type": "payment",
     "date": "2025-11-05",
-    "partnerId": "DT_CTTDV_595",
+    "partnerId": "DT_CTTDV_812",
     "partnerName": "Cty TNHH TM DV và Sản Xuất Hải Trung Kim",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 2508",
@@ -105794,7 +108970,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6878",
     "type": "payment",
     "date": "2025-11-03",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "trích thầu 360/9/9A bình giã anh hòa",
@@ -106028,7 +109204,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12491",
     "type": "receipt",
     "date": "2025-10-31",
-    "partnerId": "DT_AN_366",
+    "partnerId": "DT_AN_580",
     "partnerName": "Anh Nghĩa (KH7808T08/2025)",
     "paymentMethod": "111",
     "description": "PT3730/q75 Anh Nghĩa (KH7808T08/2025)",
@@ -106064,7 +109240,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12484",
     "type": "receipt",
     "date": "2025-10-31",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "112",
     "description": "thu vay sacombank 99tr TM  144.874.249 ck trung quốc",
@@ -106082,7 +109258,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6948",
     "type": "payment",
     "date": "2025-10-31",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi khắc dấu",
@@ -106100,7 +109276,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6875",
     "type": "payment",
     "date": "2025-10-31",
-    "partnerId": "DT_CTTNS_548",
+    "partnerId": "DT_CTTNS_839",
     "partnerName": "Công ty TNHH Nguồn Sáng",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 9212",
@@ -106118,7 +109294,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12502",
     "type": "receipt",
     "date": "2025-10-30",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "112",
     "description": "Thu  vay ngân hàng sacombank 99 tr tm",
@@ -106190,7 +109366,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6888",
     "type": "payment",
     "date": "2025-10-30",
-    "partnerId": "DT_NHT_473",
+    "partnerId": "DT_NHT_687",
     "partnerName": "NHẬP HÀNG TQ",
     "paymentMethod": "112",
     "description": "chi ck nhập hàng trung quốc đợt 1",
@@ -106208,7 +109384,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6873",
     "type": "payment",
     "date": "2025-10-30",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi mua đá căt đá mài",
@@ -106226,7 +109402,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6872",
     "type": "payment",
     "date": "2025-10-30",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "112",
     "description": "chi ck lan thanh sacombank vay",
@@ -106244,7 +109420,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12496",
     "type": "receipt",
     "date": "2025-10-29",
-    "partnerId": "DT_NHS_135",
+    "partnerId": "DT_NHS_569",
     "partnerName": "Ngân hàng sacombank",
     "paymentMethod": "112",
     "description": "Thu vay ngân hàng sombank 99 tr tm  147.385.877 ck lan thanh",
@@ -106262,7 +109438,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6871",
     "type": "payment",
     "date": "2025-10-29",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi mua inox 304 3ly 6m 1 cây 6 cây",
@@ -106478,7 +109654,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6947",
     "type": "payment",
     "date": "2025-10-28",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi mua sắt vuông",
@@ -106532,7 +109708,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6946",
     "type": "payment",
     "date": "2025-10-27",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi đổ ầu xe tải",
@@ -106550,7 +109726,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6945",
     "type": "payment",
     "date": "2025-10-25",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi trả tiền nước lavi",
@@ -106622,7 +109798,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6870",
     "type": "payment",
     "date": "2025-10-23",
-    "partnerId": "DT_CTTNS_548",
+    "partnerId": "DT_CTTNS_839",
     "partnerName": "Công ty TNHH Nguồn Sáng",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 8451",
@@ -106640,7 +109816,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6869",
     "type": "payment",
     "date": "2025-10-21",
-    "partnerId": "DT_CTTNS_548",
+    "partnerId": "DT_CTTNS_839",
     "partnerName": "Công ty TNHH Nguồn Sáng",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 2110",
@@ -106658,7 +109834,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12461",
     "type": "receipt",
     "date": "2025-10-17",
-    "partnerId": "DT_AHT_593",
+    "partnerId": "DT_AHT_771",
     "partnerName": "Anh Hợi thầu (KH7807T07/2025)",
     "paymentMethod": "111",
     "description": "PT3779/q76 Anh Hợi thầu (KH7807T07/2025)",
@@ -106676,7 +109852,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12459",
     "type": "receipt",
     "date": "2025-10-17",
-    "partnerId": "DT_BLT1C_326",
+    "partnerId": "DT_BLT1C_259",
     "partnerName": "Bán Lẻ Tháng 10/2025 Chị liên anh hào",
     "paymentMethod": "111",
     "description": "Bồn 2.000LN",
@@ -106694,7 +109870,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6868",
     "type": "payment",
     "date": "2025-10-17",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi trar lan thanh sacombank",
@@ -106712,7 +109888,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6867",
     "type": "payment",
     "date": "2025-10-17",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "112",
     "description": "Chi CK Hwata BIDV",
@@ -106730,7 +109906,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6866",
     "type": "payment",
     "date": "2025-10-17",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi mmua sắt v4 20 cây kẽm 220k v4 sắt 155 k",
@@ -106748,7 +109924,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12465",
     "type": "receipt",
     "date": "2025-10-16",
-    "partnerId": "DT_ATT_560",
+    "partnerId": "DT_ATT_424",
     "partnerName": "Anh Thành Thầu (KH7865T10/2025)",
     "paymentMethod": "111",
     "description": "PT3781/q76 Anh Thành Thầu (KH7865T10/2025)",
@@ -106766,7 +109942,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6865",
     "type": "payment",
     "date": "2025-10-16",
-    "partnerId": "DT_CTTNS_548",
+    "partnerId": "DT_CTTNS_839",
     "partnerName": "Công ty TNHH Nguồn Sáng",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 7649",
@@ -106964,7 +110140,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6862",
     "type": "payment",
     "date": "2025-10-12",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi mua bơm anh tự nhà chị hải B27 trần văn thời",
@@ -106982,7 +110158,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6860",
     "type": "payment",
     "date": "2025-10-12",
-    "partnerId": "DT_CXTTV_664",
+    "partnerId": "DT_CXTTV_609",
     "partnerName": "Cty XNK Thái Thịnh - Van đồng Sanwa",
     "paymentMethod": "111",
     "description": "Chi trả tiền van đồng 27sanwa",
@@ -107000,7 +110176,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6859",
     "type": "payment",
     "date": "2025-10-12",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "trích thầu anh nhà 17/17 lương thế vinh anh ưng",
@@ -107018,7 +110194,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6858",
     "type": "payment",
     "date": "2025-10-12",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi hoa hồng anh tự 1215I bà rịa",
@@ -107036,7 +110212,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6857",
     "type": "payment",
     "date": "2025-10-12",
-    "partnerId": "DT_CTTSQ_977",
+    "partnerId": "DT_CTTSQ_207",
     "partnerName": "Cty TNHH TM SX Quốc Chung",
     "paymentMethod": "111",
     "description": "Chi trả cty quốc chung",
@@ -107162,7 +110338,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6856",
     "type": "payment",
     "date": "2025-10-11",
-    "partnerId": "DT_CTTTC_775",
+    "partnerId": "DT_CTTTC_706",
     "partnerName": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 0910",
@@ -107198,7 +110374,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6944",
     "type": "payment",
     "date": "2025-10-10",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi đỏ xăng",
@@ -107216,7 +110392,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6864",
     "type": "payment",
     "date": "2025-10-10",
-    "partnerId": "DT_CTTQT_607",
+    "partnerId": "DT_CTTQT_983",
     "partnerName": "CÔNG TY TNHHTM QUACH TUẤN MINH",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 220",
@@ -107324,7 +110500,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6855",
     "type": "payment",
     "date": "2025-10-09",
-    "partnerId": "DT_CTTNT_382",
+    "partnerId": "DT_CTTNT_911",
     "partnerName": "Công Ty TNHH Ngô Trần Phát",
     "paymentMethod": "111",
     "description": "Chi Trả tiền ngô trần tấn phát BIDV",
@@ -107342,7 +110518,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6854",
     "type": "payment",
     "date": "2025-10-09",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "112",
     "description": "Chi Ck BIDV HWta",
@@ -107360,7 +110536,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6853",
     "type": "payment",
     "date": "2025-10-07",
-    "partnerId": "DT_CHTC0_760",
+    "partnerId": "DT_CHTC0_902",
     "partnerName": "Cửa Hàng Thành Công  - 0254.3856.731",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 7101",
@@ -107396,7 +110572,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12437",
     "type": "receipt",
     "date": "2025-10-06",
-    "partnerId": "DT_CN_879",
+    "partnerId": "DT_CN_564",
     "partnerName": "Chủ nhà (KH7860T10/2025)",
     "paymentMethod": "111",
     "description": "PT3714/q75 Chủ nhà (KH7860T10/2025) anh tự TN",
@@ -107468,7 +110644,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6852",
     "type": "payment",
     "date": "2025-10-06",
-    "partnerId": "DT_MLMT_136",
+    "partnerId": "DT_MLMT_165",
     "partnerName": "Mua lẻ - mua thỏ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 666",
@@ -107504,7 +110680,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6851",
     "type": "payment",
     "date": "2025-10-04",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi PPR nha xô viết 16/14 xô viết PPR",
@@ -107522,7 +110698,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6850",
     "type": "payment",
     "date": "2025-10-04",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "MUa sơn 65.000K / hộp",
@@ -107540,7 +110716,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6849",
     "type": "payment",
     "date": "2025-10-04",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Mua mui khoan",
@@ -107558,7 +110734,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6848",
     "type": "payment",
     "date": "2025-10-04",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi đổ dầu xe tải",
@@ -107576,7 +110752,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6847",
     "type": "payment",
     "date": "2025-10-04",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi HH nhà E1 khu bình minh",
@@ -107612,7 +110788,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12433",
     "type": "receipt",
     "date": "2025-10-02",
-    "partnerId": "DT_AH_356",
+    "partnerId": "DT_AH_349",
     "partnerName": "Anh Hiếu (KH7812T08/2025)",
     "paymentMethod": "111",
     "description": "PT3762/q76 Anh Hiếu (KH7812T08/2025)",
@@ -107666,7 +110842,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6846",
     "type": "payment",
     "date": "2025-10-02",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi lương T9/2025",
@@ -107684,7 +110860,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6844",
     "type": "payment",
     "date": "2025-10-02",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "112",
     "description": "chi ck lan thanh BIDV",
@@ -107702,7 +110878,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6843",
     "type": "payment",
     "date": "2025-10-02",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "111",
     "description": "Chi Thanh toán tiền bồn inox BIDV",
@@ -107720,7 +110896,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6842",
     "type": "payment",
     "date": "2025-10-02",
-    "partnerId": "DT_CTTNS_548",
+    "partnerId": "DT_CTTNS_839",
     "partnerName": "Công ty TNHH Nguồn Sáng",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 5949",
@@ -107738,7 +110914,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6841",
     "type": "payment",
     "date": "2025-10-02",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 0032",
@@ -107846,7 +111022,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12426",
     "type": "receipt",
     "date": "2025-09-30",
-    "partnerId": "DT_CN_240",
+    "partnerId": "DT_CN_543",
     "partnerName": "Chú Ngọc (KH7760T06/2025)",
     "paymentMethod": "111",
     "description": "pt3706/Q75 Chú Ngọc (KH7760T06/2025) ƯNG TIỀN MÁY BỒN",
@@ -107882,7 +111058,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6891",
     "type": "payment",
     "date": "2025-09-30",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi nhà hàng vioctory",
@@ -107900,7 +111076,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6840",
     "type": "payment",
     "date": "2025-09-30",
-    "partnerId": "DT_BLTAN_446",
+    "partnerId": "DT_BLTAN_739",
     "partnerName": "Bán Lẻ T09/2025 - A Nam",
     "paymentMethod": "111",
     "description": "Keo 200",
@@ -107954,7 +111130,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6839",
     "type": "payment",
     "date": "2025-09-29",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 29092025",
@@ -107990,7 +111166,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6836",
     "type": "payment",
     "date": "2025-09-29",
-    "partnerId": "DT_NHT_473",
+    "partnerId": "DT_NHT_687",
     "partnerName": "NHẬP HÀNG TQ",
     "paymentMethod": "111",
     "description": "Chi khác tt mua hàng",
@@ -108008,7 +111184,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6835",
     "type": "payment",
     "date": "2025-09-29",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền trọng minh",
@@ -108026,7 +111202,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6834",
     "type": "payment",
     "date": "2025-09-29",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "mua 30 mét dây cáp 4 x6 cadivi",
@@ -108044,7 +111220,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6833",
     "type": "payment",
     "date": "2025-09-29",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi nộp bhxh tháng 9 bidv",
@@ -108062,7 +111238,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6832",
     "type": "payment",
     "date": "2025-09-29",
-    "partnerId": "DT_CXTTV_664",
+    "partnerId": "DT_CXTTV_609",
     "partnerName": "Cty XNK Thái Thịnh - Van đồng Sanwa",
     "paymentMethod": "111",
     "description": "Chi trả tiền mua van sanwa bidv",
@@ -108080,7 +111256,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6831",
     "type": "payment",
     "date": "2025-09-29",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi anh sơn nhà 51/3 nguyên thị định",
@@ -108152,7 +111328,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12419",
     "type": "receipt",
     "date": "2025-09-27",
-    "partnerId": "DT_AT_625",
+    "partnerId": "DT_AT_220",
     "partnerName": "Anh Tú (KH7746T06/2025)",
     "paymentMethod": "111",
     "description": "PT3760/q76 Anh Tú (KH7746T06/2025)",
@@ -108188,7 +111364,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6829",
     "type": "payment",
     "date": "2025-09-26",
-    "partnerId": "DT_MLMT_136",
+    "partnerId": "DT_MLMT_165",
     "partnerName": "Mua lẻ - mua thỏ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 268",
@@ -108278,7 +111454,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6830",
     "type": "payment",
     "date": "2025-09-25",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi đổ dầu xe tải",
@@ -108296,7 +111472,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6828",
     "type": "payment",
     "date": "2025-09-25",
-    "partnerId": "DT_MLTP_401",
+    "partnerId": "DT_MLTP_489",
     "partnerName": "Mua lẻ - Thắng Phát",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 14384",
@@ -108314,7 +111490,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6827",
     "type": "payment",
     "date": "2025-09-24",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi mua sắt 30 cây V3",
@@ -108332,7 +111508,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6826",
     "type": "payment",
     "date": "2025-09-24",
-    "partnerId": "DT_CTTDV_595",
+    "partnerId": "DT_CTTDV_812",
     "partnerName": "Cty TNHH TM DV và Sản Xuất Hải Trung Kim",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 24092025",
@@ -108350,7 +111526,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6825",
     "type": "payment",
     "date": "2025-09-24",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "111",
     "description": "Chi trả tiền bồn inox",
@@ -108368,7 +111544,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6824",
     "type": "payment",
     "date": "2025-09-24",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi trả tiền lan thanh",
@@ -108404,7 +111580,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6823",
     "type": "payment",
     "date": "2025-09-23",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 2309",
@@ -108494,7 +111670,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12407",
     "type": "receipt",
     "date": "2025-09-20",
-    "partnerId": "DT_AH_882",
+    "partnerId": "DT_AH_279",
     "partnerName": "Anh Hòa (KH7797T07/2025)",
     "paymentMethod": "111",
     "description": "PT3650/q73 Anh Hòa (KH7797T07/2025)",
@@ -108530,7 +111706,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6822",
     "type": "payment",
     "date": "2025-09-20",
-    "partnerId": "DT_CL_297",
+    "partnerId": "DT_CL_543",
     "partnerName": "Cô Loan",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 19092025",
@@ -108638,7 +111814,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6821",
     "type": "payment",
     "date": "2025-09-19",
-    "partnerId": "DT_CTTNS_548",
+    "partnerId": "DT_CTTNS_839",
     "partnerName": "Công ty TNHH Nguồn Sáng",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 19092025",
@@ -108656,7 +111832,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6819",
     "type": "payment",
     "date": "2025-09-19",
-    "partnerId": "DT_CTTTV_440",
+    "partnerId": "DT_CTTTV_142",
     "partnerName": "Công Ty TNHH TM-DV Việt Cường -",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 809813",
@@ -108674,7 +111850,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6818",
     "type": "payment",
     "date": "2025-09-19",
-    "partnerId": "DT_CTTQT_607",
+    "partnerId": "DT_CTTQT_983",
     "partnerName": "CÔNG TY TNHHTM QUACH TUẤN MINH",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 1779",
@@ -108728,7 +111904,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12397",
     "type": "receipt",
     "date": "2025-09-18",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Thu khác",
@@ -108746,7 +111922,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6817",
     "type": "payment",
     "date": "2025-09-18",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi mua bao nilon + nươc rử chen",
@@ -108764,7 +111940,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6816",
     "type": "payment",
     "date": "2025-09-18",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi đổ mực máy in",
@@ -108800,7 +111976,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12393",
     "type": "receipt",
     "date": "2025-09-17",
-    "partnerId": "DT_CN_240",
+    "partnerId": "DT_CN_543",
     "partnerName": "Chú Ngọc (KH7760T06/2025)",
     "paymentMethod": "111",
     "description": "PT3646/q73 Chú Ngọc (KH7760T06/2025)",
@@ -108818,7 +111994,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6820",
     "type": "payment",
     "date": "2025-09-17",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi Mua ti vi 50inch sony a hò",
@@ -108872,7 +112048,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6815",
     "type": "payment",
     "date": "2025-09-16",
-    "partnerId": "DT_CTTNS_548",
+    "partnerId": "DT_CTTNS_839",
     "partnerName": "Công ty TNHH Nguồn Sáng",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 4274",
@@ -108890,7 +112066,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6814",
     "type": "payment",
     "date": "2025-09-16",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi thanh toán lan thanh",
@@ -108908,7 +112084,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6811",
     "type": "payment",
     "date": "2025-09-16",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi 291 binh gia dat nui binh bao on",
@@ -108926,7 +112102,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6810",
     "type": "payment",
     "date": "2025-09-16",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi Anh sang 40 co giang",
@@ -109358,7 +112534,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6808",
     "type": "payment",
     "date": "2025-09-13",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi mua sắt",
@@ -109376,7 +112552,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6807",
     "type": "payment",
     "date": "2025-09-13",
-    "partnerId": "DT_MLCH_214",
+    "partnerId": "DT_MLCH_454",
     "partnerName": "Mua lẻ - ch hÙNG",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 333",
@@ -109394,7 +112570,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6806",
     "type": "payment",
     "date": "2025-09-13",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi nộp học phí minh",
@@ -109412,7 +112588,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6805",
     "type": "payment",
     "date": "2025-09-13",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "112",
     "description": "phí ck",
@@ -109430,7 +112606,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6804",
     "type": "payment",
     "date": "2025-09-12",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "112",
     "description": "chi ck lan thanh sacombank",
@@ -109520,7 +112696,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6802",
     "type": "payment",
     "date": "2025-09-10",
-    "partnerId": "DT_CHTC0_760",
+    "partnerId": "DT_CHTC0_902",
     "partnerName": "Cửa Hàng Thành Công  - 0254.3856.731",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 123",
@@ -109538,7 +112714,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6800",
     "type": "payment",
     "date": "2025-09-10",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 1109",
@@ -109574,7 +112750,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6813",
     "type": "payment",
     "date": "2025-09-09",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "112",
     "description": "Chi CK BIDV 15.297.000",
@@ -109592,7 +112768,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6801",
     "type": "payment",
     "date": "2025-09-09",
-    "partnerId": "DT_CTTTV_440",
+    "partnerId": "DT_CTTTV_142",
     "partnerName": "Công Ty TNHH TM-DV Việt Cường -",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 0078",
@@ -109736,7 +112912,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6797",
     "type": "payment",
     "date": "2025-09-07",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi lương T8/2025",
@@ -109826,7 +113002,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6798",
     "type": "payment",
     "date": "2025-09-05",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "112",
     "description": "Chi trả lan thanh CK sacombank",
@@ -109844,7 +113020,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6794",
     "type": "payment",
     "date": "2025-09-05",
-    "partnerId": "DT_CTTTV_440",
+    "partnerId": "DT_CTTTV_142",
     "partnerName": "Công Ty TNHH TM-DV Việt Cường -",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 0078",
@@ -109862,7 +113038,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6792",
     "type": "payment",
     "date": "2025-09-05",
-    "partnerId": "DT_CTTNS_548",
+    "partnerId": "DT_CTTNS_839",
     "partnerName": "Công ty TNHH Nguồn Sáng",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 5269496",
@@ -109898,7 +113074,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6838",
     "type": "payment",
     "date": "2025-09-04",
-    "partnerId": "DT_CTTNT_382",
+    "partnerId": "DT_CTTNT_911",
     "partnerName": "Công Ty TNHH Ngô Trần Phát",
     "paymentMethod": "111",
     "description": "Chi khác van miha",
@@ -109916,7 +113092,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6812",
     "type": "payment",
     "date": "2025-09-04",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "112",
     "description": "Chi CK BIDV 04/09/2025 26.606.000 đơn (27/08/2025)",
@@ -110024,7 +113200,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12347",
     "type": "receipt",
     "date": "2025-09-01",
-    "partnerId": "DT_AH_989",
+    "partnerId": "DT_AH_980",
     "partnerName": "Anh Hải (KH7796T07/2025)",
     "paymentMethod": "111",
     "description": "PT3686/q74 Anh Hải (KH7796T07/2025)",
@@ -110042,7 +113218,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6874",
     "type": "payment",
     "date": "2025-09-01",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi khác",
@@ -110240,7 +113416,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12352",
     "type": "receipt",
     "date": "2025-08-29",
-    "partnerId": "DT_TC_223",
+    "partnerId": "DT_TC_673",
     "partnerName": "Thành Công",
     "paymentMethod": "111",
     "description": "Thu tiền bán hàng Thành Công",
@@ -110402,7 +113578,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6790",
     "type": "payment",
     "date": "2025-08-29",
-    "partnerId": "DT_CTTNS_548",
+    "partnerId": "DT_CTTNS_839",
     "partnerName": "Công ty TNHH Nguồn Sáng",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 2261",
@@ -110420,7 +113596,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6789",
     "type": "payment",
     "date": "2025-08-29",
-    "partnerId": "DT_CHTC0_760",
+    "partnerId": "DT_CHTC0_902",
     "partnerName": "Cửa Hàng Thành Công  - 0254.3856.731",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 8889",
@@ -110618,7 +113794,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6788",
     "type": "payment",
     "date": "2025-08-27",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi anh lăng 103 chu mạnh trinh + 36 võ trường toản",
@@ -110726,7 +113902,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6787",
     "type": "payment",
     "date": "2025-08-26",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi anh huy thầu 2 nhà 48 hồ tri tân 20 đống đa",
@@ -110744,7 +113920,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6786",
     "type": "payment",
     "date": "2025-08-26",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi mua bao nilon + nươc rử chen",
@@ -110762,7 +113938,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6785",
     "type": "payment",
     "date": "2025-08-26",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi đổ dầu xe tải",
@@ -110780,7 +113956,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6783",
     "type": "payment",
     "date": "2025-08-26",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi hoa hồng nhà 195/2 hoàng văn thụ anh dũng (thu)",
@@ -110798,7 +113974,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6781",
     "type": "payment",
     "date": "2025-08-26",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi phí bốc hàng",
@@ -110816,7 +113992,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6778",
     "type": "payment",
     "date": "2025-08-26",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi hoa hồng trọng nhà 1792 võ nguyên giáp",
@@ -110834,7 +114010,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6774",
     "type": "payment",
     "date": "2025-08-26",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi thanh toán tiền chành mua cùm",
@@ -110852,7 +114028,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6770",
     "type": "payment",
     "date": "2025-08-26",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi nộp BHXH t8 /2025",
@@ -110870,7 +114046,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12353",
     "type": "receipt",
     "date": "2025-08-25",
-    "partnerId": "DT_TC_223",
+    "partnerId": "DT_TC_673",
     "partnerName": "Thành Công",
     "paymentMethod": "111",
     "description": "Mượn co, lơi 220",
@@ -110906,7 +114082,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6769",
     "type": "payment",
     "date": "2025-08-25",
-    "partnerId": "DT_NHT_473",
+    "partnerId": "DT_NHT_687",
     "partnerName": "NHẬP HÀNG TQ",
     "paymentMethod": "111",
     "description": "Chi phí nhập hàng",
@@ -111032,7 +114208,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6767",
     "type": "payment",
     "date": "2025-08-20",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "111",
     "description": "chi tt tiền bồn hwta bibv",
@@ -111050,7 +114226,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6766",
     "type": "payment",
     "date": "2025-08-20",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi Thanh toán lan thanh",
@@ -111068,7 +114244,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6784",
     "type": "payment",
     "date": "2025-08-19",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi hoa hồng nhà 45/12 xô viết",
@@ -111428,7 +114604,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12293",
     "type": "receipt",
     "date": "2025-08-14",
-    "partnerId": "DT_EC0_215",
+    "partnerId": "DT_EC0_963",
     "partnerName": "Em Châu  0985546490",
     "paymentMethod": "111",
     "description": "PT3580/q72 224/3TRUONGCONGDINH",
@@ -111572,7 +114748,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6861",
     "type": "payment",
     "date": "2025-08-13",
-    "partnerId": "DT_CTTSQ_977",
+    "partnerId": "DT_CTTSQ_207",
     "partnerName": "Cty TNHH TM SX Quốc Chung",
     "paymentMethod": "111",
     "description": "Chi trả tiền chành",
@@ -111590,7 +114766,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6782",
     "type": "payment",
     "date": "2025-08-13",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi trả tiền chành máy bơm",
@@ -111608,7 +114784,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6765",
     "type": "payment",
     "date": "2025-08-13",
-    "partnerId": "DT_NHT_473",
+    "partnerId": "DT_NHT_687",
     "partnerName": "NHẬP HÀNG TQ",
     "paymentMethod": "111",
     "description": "phí bốc xếp",
@@ -111626,7 +114802,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6764",
     "type": "payment",
     "date": "2025-08-13",
-    "partnerId": "DT_NHT_473",
+    "partnerId": "DT_NHT_687",
     "partnerName": "NHẬP HÀNG TQ",
     "paymentMethod": "111",
     "description": "chi phí hãng tàu",
@@ -111644,7 +114820,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6763",
     "type": "payment",
     "date": "2025-08-13",
-    "partnerId": "DT_NHT_473",
+    "partnerId": "DT_NHT_687",
     "partnerName": "NHẬP HÀNG TQ",
     "paymentMethod": "111",
     "description": "Chi nộp thuế GTGT + phí lô hàng nhập khẩu",
@@ -111662,7 +114838,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6762",
     "type": "payment",
     "date": "2025-08-13",
-    "partnerId": "DT_CCSTX_281",
+    "partnerId": "DT_CCSTX_292",
     "partnerName": "Cty CP SX TM XNK C.A.M.E.L",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 13082025",
@@ -111680,7 +114856,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6761",
     "type": "payment",
     "date": "2025-08-12",
-    "partnerId": "DT_CTTNS_548",
+    "partnerId": "DT_CTTNS_839",
     "partnerName": "Công ty TNHH Nguồn Sáng",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 21880",
@@ -111698,7 +114874,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6760",
     "type": "payment",
     "date": "2025-08-12",
-    "partnerId": "DT_CTTNT_382",
+    "partnerId": "DT_CTTNT_911",
     "partnerName": "Công Ty TNHH Ngô Trần Phát",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 222",
@@ -111716,7 +114892,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6780",
     "type": "payment",
     "date": "2025-08-11",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi đổ dầu xe tải",
@@ -111734,7 +114910,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6756",
     "type": "payment",
     "date": "2025-08-11",
-    "partnerId": "DT_CHTC0_760",
+    "partnerId": "DT_CHTC0_902",
     "partnerName": "Cửa Hàng Thành Công  - 0254.3856.731",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 11082025",
@@ -111788,7 +114964,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12392",
     "type": "receipt",
     "date": "2025-08-08",
-    "partnerId": "DT_AH_356",
+    "partnerId": "DT_AH_349",
     "partnerName": "Anh Hiếu (KH7812T08/2025)",
     "paymentMethod": "111",
     "description": "PT3645/q73 Anh Hiếu (KH7812T08/2025)",
@@ -111824,7 +115000,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6779",
     "type": "payment",
     "date": "2025-08-08",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi hoa hồng giang cao nhà NHC",
@@ -111842,7 +115018,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6754",
     "type": "payment",
     "date": "2025-08-08",
-    "partnerId": "DT_CTTTV_440",
+    "partnerId": "DT_CTTTV_142",
     "partnerName": "Công Ty TNHH TM-DV Việt Cường -",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 8885",
@@ -111914,7 +115090,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6752",
     "type": "payment",
     "date": "2025-08-07",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi lương T7/2025",
@@ -112130,7 +115306,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6749",
     "type": "payment",
     "date": "2025-08-06",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "112",
     "description": "Chi CK lan thanh sacombank",
@@ -112184,7 +115360,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6776",
     "type": "payment",
     "date": "2025-08-05",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi trung đổ dầu xe tải",
@@ -112202,7 +115378,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6777",
     "type": "payment",
     "date": "2025-08-04",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi hoa hồng tùng nhà 176/ TCĐ",
@@ -112220,7 +115396,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6748",
     "type": "payment",
     "date": "2025-08-04",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "112",
     "description": "Phis CK",
@@ -112238,7 +115414,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6747",
     "type": "payment",
     "date": "2025-08-04",
-    "partnerId": "DT_NHT_473",
+    "partnerId": "DT_NHT_687",
     "partnerName": "NHẬP HÀNG TQ",
     "paymentMethod": "112",
     "description": "Chi Ck tiền mua hàng",
@@ -112256,7 +115432,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6745",
     "type": "payment",
     "date": "2025-08-04",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi hoa hồng nha 1798 duong 30/4",
@@ -112274,7 +115450,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6744",
     "type": "payment",
     "date": "2025-08-04",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi anh tùng 176/ 15/1 TCĐ HH",
@@ -112292,7 +115468,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6743",
     "type": "payment",
     "date": "2025-08-04",
-    "partnerId": "DT_CTTDV_595",
+    "partnerId": "DT_CTTDV_812",
     "partnerName": "Cty TNHH TM DV và Sản Xuất Hải Trung Kim",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 4488",
@@ -112382,7 +115558,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6775",
     "type": "payment",
     "date": "2025-08-02",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi mua que hàn sắt",
@@ -112418,7 +115594,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6746",
     "type": "payment",
     "date": "2025-08-01",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi đổ dầu xe tải",
@@ -112706,7 +115882,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6768",
     "type": "payment",
     "date": "2025-07-29",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "111",
     "description": "cHI TRẢ TIỀN BỒN HWTA BIDV",
@@ -112724,7 +115900,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6739",
     "type": "payment",
     "date": "2025-07-29",
-    "partnerId": "DT_CTTAV_114",
+    "partnerId": "DT_CTTAV_726",
     "partnerName": "Công ty TNHH ASTOSI VIỆT NAM",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 8889",
@@ -112868,7 +116044,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6738",
     "type": "payment",
     "date": "2025-07-28",
-    "partnerId": "DT_CHTC0_760",
+    "partnerId": "DT_CHTC0_902",
     "partnerName": "Cửa Hàng Thành Công  - 0254.3856.731",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 208072025",
@@ -112886,7 +116062,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6737",
     "type": "payment",
     "date": "2025-07-28",
-    "partnerId": "DT_CHVC_378",
+    "partnerId": "DT_CHVC_312",
     "partnerName": "Cửa hàng văn chính",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 28072025",
@@ -112922,7 +116098,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12238",
     "type": "receipt",
     "date": "2025-07-26",
-    "partnerId": "DT_ATH_398",
+    "partnerId": "DT_ATH_323",
     "partnerName": "Anh Trọng HL",
     "paymentMethod": "111",
     "description": "PT3568/q72 1792VONGUYENGIAP",
@@ -113102,7 +116278,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6736",
     "type": "payment",
     "date": "2025-07-25",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi trả lan thanh",
@@ -113120,7 +116296,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6734",
     "type": "payment",
     "date": "2025-07-25",
-    "partnerId": "DT_MLMLX_284",
+    "partnerId": "DT_MLMLX_844",
     "partnerName": "Mua lẻ - mua LÒ XO UỐN ỐNG",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 2507",
@@ -113138,7 +116314,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6733",
     "type": "payment",
     "date": "2025-07-23",
-    "partnerId": "DT_CL_297",
+    "partnerId": "DT_CL_543",
     "partnerName": "Cô Loan",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 237",
@@ -113156,7 +116332,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6773",
     "type": "payment",
     "date": "2025-07-22",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi đổ dâu xe tải",
@@ -113174,7 +116350,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6732",
     "type": "payment",
     "date": "2025-07-22",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi mua sắt 20 cây V4",
@@ -113408,7 +116584,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6731",
     "type": "payment",
     "date": "2025-07-21",
-    "partnerId": "DT_NHT_473",
+    "partnerId": "DT_NHT_687",
     "partnerName": "NHẬP HÀNG TQ",
     "paymentMethod": "111",
     "description": "chi tạm  ứng tiền hàng",
@@ -113426,7 +116602,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6730",
     "type": "payment",
     "date": "2025-07-21",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi anh đăng thu tháng 06",
@@ -113480,7 +116656,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12213",
     "type": "receipt",
     "date": "2025-07-19",
-    "partnerId": "DT_AL_667",
+    "partnerId": "DT_AL_218",
     "partnerName": "Anh Lực (KH7781T07/2025)",
     "paymentMethod": "111",
     "description": "PT3610/q73 Anh Lực (KH7781T07/2025)",
@@ -113660,7 +116836,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6729",
     "type": "payment",
     "date": "2025-07-19",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "anh đăng thu nhà 136 hạ long",
@@ -113678,7 +116854,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6728",
     "type": "payment",
     "date": "2025-07-19",
-    "partnerId": "DT_CTTTC_775",
+    "partnerId": "DT_CTTTC_706",
     "partnerName": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn hóa đơn 3",
@@ -113714,7 +116890,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6772",
     "type": "payment",
     "date": "2025-07-18",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi trả tiên chành đồ điện",
@@ -113732,7 +116908,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6726",
     "type": "payment",
     "date": "2025-07-18",
-    "partnerId": "DT_KL_508",
+    "partnerId": "DT_KL_492",
     "partnerName": "Khách lẽ",
     "paymentMethod": "111",
     "description": "chi trọng minh nộp tiền ký túc xá T8-T12",
@@ -113768,7 +116944,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6771",
     "type": "payment",
     "date": "2025-07-17",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi đổ dâu xe tải",
@@ -113822,7 +116998,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6722",
     "type": "payment",
     "date": "2025-07-17",
-    "partnerId": "DT_KL_508",
+    "partnerId": "DT_KL_492",
     "partnerName": "Khách lẽ",
     "paymentMethod": "111",
     "description": "chi thuê xe câu 53F phan chu trinh",
@@ -113840,7 +117016,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6684",
     "type": "payment",
     "date": "2025-07-17",
-    "partnerId": "DT_CTTNS_548",
+    "partnerId": "DT_CTTNS_839",
     "partnerName": "Công ty TNHH Nguồn Sáng",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 17610",
@@ -113858,7 +117034,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6683",
     "type": "payment",
     "date": "2025-07-17",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi trả lan thanh",
@@ -114074,7 +117250,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6721",
     "type": "payment",
     "date": "2025-07-14",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi đổ dầu xe tải",
@@ -114092,7 +117268,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6682",
     "type": "payment",
     "date": "2025-07-14",
-    "partnerId": "DT_CTTDV_595",
+    "partnerId": "DT_CTTDV_812",
     "partnerName": "Cty TNHH TM DV và Sản Xuất Hải Trung Kim",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 7777",
@@ -114110,7 +117286,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6681",
     "type": "payment",
     "date": "2025-07-14",
-    "partnerId": "DT_CHTC0_760",
+    "partnerId": "DT_CHTC0_902",
     "partnerName": "Cửa Hàng Thành Công  - 0254.3856.731",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 22",
@@ -114146,7 +117322,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6719",
     "type": "payment",
     "date": "2025-07-12",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi mua cổ dê tiền chành cùm treo",
@@ -114164,7 +117340,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6680",
     "type": "payment",
     "date": "2025-07-12",
-    "partnerId": "DT_CTTNS_548",
+    "partnerId": "DT_CTTNS_839",
     "partnerName": "Công ty TNHH Nguồn Sáng",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 1207",
@@ -114218,7 +117394,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6720",
     "type": "payment",
     "date": "2025-07-11",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi mua sắt",
@@ -114236,7 +117412,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12196",
     "type": "receipt",
     "date": "2025-07-10",
-    "partnerId": "DT_CT0_451",
+    "partnerId": "DT_CT0_409",
     "partnerName": "Chị Thủy 0359114229",
     "paymentMethod": "112",
     "description": "PT3499/q70 17/5/15NGODUCKE",
@@ -114272,7 +117448,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6679",
     "type": "payment",
     "date": "2025-07-10",
-    "partnerId": "DT_CXTTV_664",
+    "partnerId": "DT_CXTTV_609",
     "partnerName": "Cty XNK Thái Thịnh - Van đồng Sanwa",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 10072025",
@@ -114308,7 +117484,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12183",
     "type": "receipt",
     "date": "2025-07-09",
-    "partnerId": "DT_CT_386",
+    "partnerId": "DT_CT_845",
     "partnerName": "Chú Tăng",
     "paymentMethod": "111",
     "description": "PT3497/q70 66/1/2HALONG",
@@ -114326,7 +117502,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6718",
     "type": "payment",
     "date": "2025-07-09",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi tiền chfnh csn",
@@ -114452,7 +117628,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6759",
     "type": "payment",
     "date": "2025-07-08",
-    "partnerId": "DT_CTTNT_382",
+    "partnerId": "DT_CTTNT_911",
     "partnerName": "Công Ty TNHH Ngô Trần Phát",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 243808",
@@ -114470,7 +117646,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6677",
     "type": "payment",
     "date": "2025-07-08",
-    "partnerId": "DT_CTTNS_548",
+    "partnerId": "DT_CTTNS_839",
     "partnerName": "Công ty TNHH Nguồn Sáng",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 16548",
@@ -114488,7 +117664,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6676",
     "type": "payment",
     "date": "2025-07-08",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi lương T6/2025",
@@ -114506,7 +117682,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6675",
     "type": "payment",
     "date": "2025-07-08",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "chi trả lan thanh",
@@ -114542,7 +117718,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6717",
     "type": "payment",
     "date": "2025-07-07",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi mua baonilon",
@@ -114560,7 +117736,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6716",
     "type": "payment",
     "date": "2025-07-07",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi đổ dầu xe tải",
@@ -114578,7 +117754,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6715",
     "type": "payment",
     "date": "2025-07-07",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi mua đinh",
@@ -114596,7 +117772,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6674",
     "type": "payment",
     "date": "2025-07-07",
-    "partnerId": "DT_CXTTV_664",
+    "partnerId": "DT_CXTTV_609",
     "partnerName": "Cty XNK Thái Thịnh - Van đồng Sanwa",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 77",
@@ -114614,7 +117790,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6671",
     "type": "payment",
     "date": "2025-07-07",
-    "partnerId": "DT_CTTAV_114",
+    "partnerId": "DT_CTTAV_726",
     "partnerName": "Công ty TNHH ASTOSI VIỆT NAM",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 77",
@@ -114632,7 +117808,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6669",
     "type": "payment",
     "date": "2025-07-05",
-    "partnerId": "DT_MLTP_629",
+    "partnerId": "DT_MLTP_394",
     "partnerName": "Mua lẻ - thắng phát",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 12593",
@@ -114704,7 +117880,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6665",
     "type": "payment",
     "date": "2025-07-04",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "111",
     "description": "Chi trả HWta bồn inox",
@@ -114722,7 +117898,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6664",
     "type": "payment",
     "date": "2025-07-04",
-    "partnerId": "DT_CTTNS_548",
+    "partnerId": "DT_CTTNS_839",
     "partnerName": "Công ty TNHH Nguồn Sáng",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 486",
@@ -114758,7 +117934,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6714",
     "type": "payment",
     "date": "2025-07-02",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi đổ dầu xe tải",
@@ -114776,7 +117952,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6663",
     "type": "payment",
     "date": "2025-07-02",
-    "partnerId": "DT_BLTK_319",
+    "partnerId": "DT_BLTK_195",
     "partnerName": "Bán Lẻ T06/2025 - k200",
     "paymentMethod": "111",
     "description": "Giao dịch phát sinh",
@@ -114830,7 +118006,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12160",
     "type": "receipt",
     "date": "2025-07-01",
-    "partnerId": "DT_AMT_889",
+    "partnerId": "DT_AMT_950",
     "partnerName": "Anh Mùi thầu (KH7750T06/2025)",
     "paymentMethod": "111",
     "description": "PT3545/q71 Anh Mùi thầu (KH7750T06/2025)",
@@ -114902,7 +118078,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6713",
     "type": "payment",
     "date": "2025-07-01",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi mua sơn",
@@ -114920,7 +118096,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6662",
     "type": "payment",
     "date": "2025-07-01",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "CHI THANH TOÁN LAN THANH",
@@ -114956,7 +118132,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12155",
     "type": "receipt",
     "date": "2025-06-30",
-    "partnerId": "DT_ET_872",
+    "partnerId": "DT_ET_831",
     "partnerName": "Em Trọng (KH7698T04/2025)",
     "paymentMethod": "111",
     "description": "PT3541/q71 Em Trọng (KH7698T04/2025)",
@@ -115028,7 +118204,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12152",
     "type": "receipt",
     "date": "2025-06-28",
-    "partnerId": "DT_ATT_314",
+    "partnerId": "DT_ATT_259",
     "partnerName": "Anh Tâm TN (KH7722T05/2025)",
     "paymentMethod": "111",
     "description": "PT3538/q71 Anh Tâm TN (KH7722T05/2025)",
@@ -115046,7 +118222,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6660",
     "type": "payment",
     "date": "2025-06-28",
-    "partnerId": "DT_KL_508",
+    "partnerId": "DT_KL_492",
     "partnerName": "Khách lẽ",
     "paymentMethod": "111",
     "description": "Trích thầu 50 đoàn thị điểm",
@@ -115316,7 +118492,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6659",
     "type": "payment",
     "date": "2025-06-27",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi nộp BHXH t06",
@@ -115334,7 +118510,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6658",
     "type": "payment",
     "date": "2025-06-27",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi trả lan thanh",
@@ -115388,7 +118564,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6712",
     "type": "payment",
     "date": "2025-06-26",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi tiền chành đồ điện",
@@ -115406,7 +118582,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6657",
     "type": "payment",
     "date": "2025-06-26",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 26052025",
@@ -115586,7 +118762,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6655",
     "type": "payment",
     "date": "2025-06-25",
-    "partnerId": "DT_CTTDV_595",
+    "partnerId": "DT_CTTDV_812",
     "partnerName": "Cty TNHH TM DV và Sản Xuất Hải Trung Kim",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 222",
@@ -115604,7 +118780,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6654",
     "type": "payment",
     "date": "2025-06-25",
-    "partnerId": "DT_KL_508",
+    "partnerId": "DT_KL_492",
     "partnerName": "Khách lẽ",
     "paymentMethod": "111",
     "description": "Chi trả tiền thuê cẩu nhà 670 TCĐ",
@@ -115622,7 +118798,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6652",
     "type": "payment",
     "date": "2025-06-25",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi trả lan thanh",
@@ -115730,7 +118906,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6711",
     "type": "payment",
     "date": "2025-06-24",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "C hi đổ dầu xe tải",
@@ -115766,7 +118942,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12182",
     "type": "receipt",
     "date": "2025-06-23",
-    "partnerId": "DT_ATTN0_671",
+    "partnerId": "DT_ATTN0_232",
     "partnerName": "Anh Thiện Thợ nước - 0909.978.917 anh sơn",
     "paymentMethod": "111",
     "description": "ống bm",
@@ -115784,7 +118960,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12118",
     "type": "receipt",
     "date": "2025-06-23",
-    "partnerId": "DT_CN_240",
+    "partnerId": "DT_CN_543",
     "partnerName": "Chú Ngọc (KH7760T06/2025)",
     "paymentMethod": "111",
     "description": "PT3486/q70 Chú Ngọc (KH7760T06/2025)",
@@ -115964,7 +119140,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6725",
     "type": "payment",
     "date": "2025-06-23",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi hoa thu ứng hoa hồng",
@@ -115982,7 +119158,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6710",
     "type": "payment",
     "date": "2025-06-23",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi hoa hồng anh son nhà anh ái",
@@ -116000,7 +119176,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6651",
     "type": "payment",
     "date": "2025-06-23",
-    "partnerId": "DT_CTTTC_775",
+    "partnerId": "DT_CTTTC_706",
     "partnerName": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng Công ty TNHH Điện Trí Cương - 0902.504.886 theo hóa đơn 33",
@@ -116252,7 +119428,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6709",
     "type": "payment",
     "date": "2025-06-20",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi hoa hồng nhà 1051 thảo bán",
@@ -116270,7 +119446,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6708",
     "type": "payment",
     "date": "2025-06-20",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi mua phần mềm misa",
@@ -116288,7 +119464,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6653",
     "type": "payment",
     "date": "2025-06-20",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi trả lan thanh",
@@ -116414,7 +119590,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6648",
     "type": "payment",
     "date": "2025-06-19",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi trả lan thanh",
@@ -116432,7 +119608,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12072",
     "type": "receipt",
     "date": "2025-06-18",
-    "partnerId": "DT_ACK_543",
+    "partnerId": "DT_ACK_397",
     "partnerName": "Anh Cường KT (KH7591T01/2025R)",
     "paymentMethod": "111",
     "description": "pt3471/Q70 Anh Cường KT (KH7591T01/2025R)",
@@ -116612,7 +119788,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6707",
     "type": "payment",
     "date": "2025-06-18",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi hoa hồng an tn nhà 870/3 đường 30/4",
@@ -116630,7 +119806,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6704",
     "type": "payment",
     "date": "2025-06-18",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi hoa hồng trong 1754 đường 30/4",
@@ -116648,7 +119824,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6703",
     "type": "payment",
     "date": "2025-06-18",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "đô daafuu xxe tải",
@@ -116684,7 +119860,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6706",
     "type": "payment",
     "date": "2025-06-17",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi làm biển số xe tải",
@@ -116702,7 +119878,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6705",
     "type": "payment",
     "date": "2025-06-17",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "mua đinh ốc tắc kê văn chính",
@@ -116720,7 +119896,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6649",
     "type": "payment",
     "date": "2025-06-17",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "111",
     "description": "Chi trả tiển HwTa BIDV",
@@ -116738,7 +119914,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6647",
     "type": "payment",
     "date": "2025-06-17",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi trả lan thanh",
@@ -116810,7 +119986,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6646",
     "type": "payment",
     "date": "2025-06-16",
-    "partnerId": "DT_CTTSQ_977",
+    "partnerId": "DT_CTTSQ_207",
     "partnerName": "Cty TNHH TM SX Quốc Chung",
     "paymentMethod": "111",
     "description": "chi trả tiền ống nước",
@@ -116828,7 +120004,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12199",
     "type": "receipt",
     "date": "2025-06-14",
-    "partnerId": "DT_AT_625",
+    "partnerId": "DT_AT_220",
     "partnerName": "Anh Tú (KH7746T06/2025)",
     "paymentMethod": "111",
     "description": "PT3400/q68 Anh Tú (KH7746T06/2025)",
@@ -116990,7 +120166,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6723",
     "type": "payment",
     "date": "2025-06-12",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi thuê xe cẩu nhà 670 tcđ",
@@ -117008,7 +120184,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6645",
     "type": "payment",
     "date": "2025-06-12",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "112",
     "description": "chi ck lan thanh",
@@ -117062,7 +120238,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6702",
     "type": "payment",
     "date": "2025-06-11",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi trả tiền chành",
@@ -117080,7 +120256,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6650",
     "type": "payment",
     "date": "2025-06-11",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "CHI MUA XE TẢI ĐỢT 3",
@@ -117134,7 +120310,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6643",
     "type": "payment",
     "date": "2025-06-10",
-    "partnerId": "DT_CTTNT_382",
+    "partnerId": "DT_CTTNT_911",
     "partnerName": "Công Ty TNHH Ngô Trần Phát",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 243627",
@@ -117152,7 +120328,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6642",
     "type": "payment",
     "date": "2025-06-10",
-    "partnerId": "DT_CTCPP_734",
+    "partnerId": "DT_CTCPP_657",
     "partnerName": "Công Ty Cổ Phần Phát Triển TM Và Dịch Vụ Âu Việt",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 896",
@@ -117368,7 +120544,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12047",
     "type": "receipt",
     "date": "2025-06-07",
-    "partnerId": "DT_AP_696",
+    "partnerId": "DT_AP_608",
     "partnerName": "Anh phương",
     "paymentMethod": "111",
     "description": "pt3377/Q68 Anh phương",
@@ -117386,7 +120562,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6863",
     "type": "payment",
     "date": "2025-06-07",
-    "partnerId": "DT_MLCSN_709",
+    "partnerId": "DT_MLCSN_212",
     "partnerName": "Mua lẻ - CAO SU NON",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 0706",
@@ -117404,7 +120580,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6701",
     "type": "payment",
     "date": "2025-06-07",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi mua van san Wa",
@@ -117422,7 +120598,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12046",
     "type": "receipt",
     "date": "2025-06-06",
-    "partnerId": "DT_A_411",
+    "partnerId": "DT_A_462",
     "partnerName": "ANH ĐĂNG",
     "paymentMethod": "111",
     "description": "anh đăng nộp vào TK mua xe tải",
@@ -117458,7 +120634,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6641",
     "type": "payment",
     "date": "2025-06-06",
-    "partnerId": "DT_KL_508",
+    "partnerId": "DT_KL_492",
     "partnerName": "Khách lẽ",
     "paymentMethod": "111",
     "description": "Chi tiền mua xe tải đợt 2",
@@ -117476,7 +120652,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6700",
     "type": "payment",
     "date": "2025-06-05",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi đổ dầu xe tải + tiền chành",
@@ -117494,7 +120670,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6640",
     "type": "payment",
     "date": "2025-06-05",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi Thanh toán cty lan Thanh",
@@ -117512,7 +120688,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6639",
     "type": "payment",
     "date": "2025-06-05",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi lương T5/2025",
@@ -117602,7 +120778,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6636",
     "type": "payment",
     "date": "2025-06-04",
-    "partnerId": "DT_BLTAN_323",
+    "partnerId": "DT_BLTAN_359",
     "partnerName": "Bán Lẻ T05/2025 - A NAM",
     "paymentMethod": "111",
     "description": "k200",
@@ -117746,7 +120922,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6644",
     "type": "payment",
     "date": "2025-05-31",
-    "partnerId": "DT_CTTAV_114",
+    "partnerId": "DT_CTTAV_726",
     "partnerName": "Công ty TNHH ASTOSI VIỆT NAM",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 222",
@@ -117800,7 +120976,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6699",
     "type": "payment",
     "date": "2025-05-30",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi hoa hồng anh thắng TN 140/ luu chí hiếu",
@@ -117818,7 +120994,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6698",
     "type": "payment",
     "date": "2025-05-30",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi đổ dâu xxe tải",
@@ -117908,7 +121084,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6632",
     "type": "payment",
     "date": "2025-05-29",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi nộp BHXH tháng 5/2025",
@@ -117926,7 +121102,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6630",
     "type": "payment",
     "date": "2025-05-27",
-    "partnerId": "DT_CTTDV_595",
+    "partnerId": "DT_CTTDV_812",
     "partnerName": "Cty TNHH TM DV và Sản Xuất Hải Trung Kim",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 987",
@@ -117962,7 +121138,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6697",
     "type": "payment",
     "date": "2025-05-26",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi đổ dầu xe tải",
@@ -117980,7 +121156,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6628",
     "type": "payment",
     "date": "2025-05-26",
-    "partnerId": "DT_CHTC0_760",
+    "partnerId": "DT_CHTC0_902",
     "partnerName": "Cửa Hàng Thành Công  - 0254.3856.731",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 2652025",
@@ -118088,7 +121264,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12022",
     "type": "receipt",
     "date": "2025-05-24",
-    "partnerId": "DT_ET_872",
+    "partnerId": "DT_ET_831",
     "partnerName": "Em Trọng (KH7698T04/2025)",
     "paymentMethod": "111",
     "description": "PT3452 Em Trọng (KH7698T04/2025)",
@@ -118142,7 +121318,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6634",
     "type": "payment",
     "date": "2025-05-23",
-    "partnerId": "DT_A_411",
+    "partnerId": "DT_A_462",
     "partnerName": "ANH ĐĂNG",
     "paymentMethod": "111",
     "description": "Chi anh đăng thu nhà K9 hàng điều",
@@ -118160,7 +121336,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6631",
     "type": "payment",
     "date": "2025-05-23",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "chi trả lan thanh",
@@ -118178,7 +121354,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6627",
     "type": "payment",
     "date": "2025-05-22",
-    "partnerId": "DT_CTTNS_548",
+    "partnerId": "DT_CTTNS_839",
     "partnerName": "Công ty TNHH Nguồn Sáng",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 220",
@@ -118358,7 +121534,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12009",
     "type": "receipt",
     "date": "2025-05-19",
-    "partnerId": "DT_ATNTT_392",
+    "partnerId": "DT_ATNTT_858",
     "partnerName": "An Thợ nước - thợ TỰ",
     "paymentMethod": "111",
     "description": "PT3373/q65 30 yen bái",
@@ -118376,7 +121552,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6625",
     "type": "payment",
     "date": "2025-05-19",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi trả tiền thàu máy bơm bình bảo ôn",
@@ -118394,7 +121570,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6624",
     "type": "payment",
     "date": "2025-05-19",
-    "partnerId": "DT_CMXT_120",
+    "partnerId": "DT_CMXT_817",
     "partnerName": "Chi mua xe tải",
     "paymentMethod": "111",
     "description": "Chi mua xe tải",
@@ -118412,7 +121588,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6623",
     "type": "payment",
     "date": "2025-05-19",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 1905",
@@ -118466,7 +121642,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6622",
     "type": "payment",
     "date": "2025-05-17",
-    "partnerId": "DT_CTTNT_382",
+    "partnerId": "DT_CTTNT_911",
     "partnerName": "Công Ty TNHH Ngô Trần Phát",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 116",
@@ -118538,7 +121714,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6696",
     "type": "payment",
     "date": "2025-05-16",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi mmua y 114",
@@ -118556,7 +121732,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6695",
     "type": "payment",
     "date": "2025-05-16",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi tiền chành mi ha",
@@ -118574,7 +121750,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6694",
     "type": "payment",
     "date": "2025-05-16",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi đổ dầu xe tải",
@@ -118844,7 +122020,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6621",
     "type": "payment",
     "date": "2025-05-12",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 16",
@@ -118880,7 +122056,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6693",
     "type": "payment",
     "date": "2025-05-11",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi đổ dầu xe tải",
@@ -118898,7 +122074,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6692",
     "type": "payment",
     "date": "2025-05-11",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi tiền   chữ ký số 3 năm",
@@ -119096,7 +122272,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6620",
     "type": "payment",
     "date": "2025-05-08",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi thanh toán cty lan thanh",
@@ -119132,7 +122308,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11983",
     "type": "receipt",
     "date": "2025-05-07",
-    "partnerId": "DT_AD_419",
+    "partnerId": "DT_AD_916",
     "partnerName": "ANH DƯƠNG (KH7699T04/2025)",
     "paymentMethod": "111",
     "description": "PT357/q68 ANH DƯƠNG (KH7699T04/2025)",
@@ -119168,7 +122344,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6619",
     "type": "payment",
     "date": "2025-05-07",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi lương T4/2025",
@@ -119186,7 +122362,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6691",
     "type": "payment",
     "date": "2025-05-06",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi đổ xăng + vá xe máy",
@@ -119258,7 +122434,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6618",
     "type": "payment",
     "date": "2025-05-05",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 45",
@@ -119294,7 +122470,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6616",
     "type": "payment",
     "date": "2025-05-05",
-    "partnerId": "DT_CL_297",
+    "partnerId": "DT_CL_543",
     "partnerName": "Cô Loan",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 55",
@@ -119312,7 +122488,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6614",
     "type": "payment",
     "date": "2025-05-05",
-    "partnerId": "DT_KL_508",
+    "partnerId": "DT_KL_492",
     "partnerName": "Khách lẽ",
     "paymentMethod": "111",
     "description": "Chi khác nhà anh phong vi ba không tt",
@@ -119366,7 +122542,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6724",
     "type": "payment",
     "date": "2025-05-02",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi thu ứng hoa hồng",
@@ -119492,7 +122668,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6613",
     "type": "payment",
     "date": "2025-04-29",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi lễ 30/4",
@@ -119510,7 +122686,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6612",
     "type": "payment",
     "date": "2025-04-29",
-    "partnerId": "DT_CTTAV_114",
+    "partnerId": "DT_CTTAV_726",
     "partnerName": "Công ty TNHH ASTOSI VIỆT NAM",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 2904",
@@ -119528,7 +122704,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6611",
     "type": "payment",
     "date": "2025-04-29",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "mua sắt V5+ V4",
@@ -119546,7 +122722,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6610",
     "type": "payment",
     "date": "2025-04-29",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Phí TK tháng 4",
@@ -119564,7 +122740,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6609",
     "type": "payment",
     "date": "2025-04-29",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "112",
     "description": "Phí CK",
@@ -119582,7 +122758,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6608",
     "type": "payment",
     "date": "2025-04-29",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi nộp BHXH T4/2025",
@@ -119600,7 +122776,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12910",
     "type": "receipt",
     "date": "2025-04-28",
-    "partnerId": "DT_TC_223",
+    "partnerId": "DT_TC_673",
     "partnerName": "Thành Công",
     "paymentMethod": "111",
     "description": "Thu tiền bán hàng Thành Công",
@@ -119654,7 +122830,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6607",
     "type": "payment",
     "date": "2025-04-28",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "112",
     "description": "Chi ck cong ty lan thanh",
@@ -119690,7 +122866,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6606",
     "type": "payment",
     "date": "2025-04-26",
-    "partnerId": "DT_CTTNS_548",
+    "partnerId": "DT_CTTNS_839",
     "partnerName": "Công ty TNHH Nguồn Sáng",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 8064",
@@ -119834,7 +123010,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6605",
     "type": "payment",
     "date": "2025-04-22",
-    "partnerId": "DT_CTTNS_548",
+    "partnerId": "DT_CTTNS_839",
     "partnerName": "Công ty TNHH Nguồn Sáng",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 2204",
@@ -119852,7 +123028,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6604",
     "type": "payment",
     "date": "2025-04-22",
-    "partnerId": "DT_CTTQT_607",
+    "partnerId": "DT_CTTQT_983",
     "partnerName": "CÔNG TY TNHHTM QUACH TUẤN MINH",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 1138",
@@ -119888,7 +123064,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6690",
     "type": "payment",
     "date": "2025-04-21",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi mua tủ điện nhựa + dây cột",
@@ -119906,7 +123082,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6689",
     "type": "payment",
     "date": "2025-04-21",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi mua sơn",
@@ -119924,7 +123100,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6688",
     "type": "payment",
     "date": "2025-04-21",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi đổ dầu xe tải",
@@ -119942,7 +123118,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6687",
     "type": "payment",
     "date": "2025-04-21",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi trả tiền  chành",
@@ -120032,7 +123208,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6602",
     "type": "payment",
     "date": "2025-04-19",
-    "partnerId": "DT_KL_508",
+    "partnerId": "DT_KL_492",
     "partnerName": "Khách lẽ",
     "paymentMethod": "111",
     "description": "Chi thầu nhà G6 bình minh anh tự",
@@ -120230,7 +123406,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11950",
     "type": "receipt",
     "date": "2025-04-17",
-    "partnerId": "DT_ADK_715",
+    "partnerId": "DT_ADK_592",
     "partnerName": "Anh Dũng KTS (KH7614T02/2025)",
     "paymentMethod": "111",
     "description": "PT3319/q67 Anh Dũng KTS (KH7614T02/2025)",
@@ -120248,7 +123424,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6601",
     "type": "payment",
     "date": "2025-04-17",
-    "partnerId": "DT_CCSTX_281",
+    "partnerId": "DT_CCSTX_292",
     "partnerName": "Cty CP SX TM XNK C.A.M.E.L",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 1704",
@@ -120266,7 +123442,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6600",
     "type": "payment",
     "date": "2025-04-17",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi nộp thuế môn bài 2025",
@@ -120284,7 +123460,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12801",
     "type": "receipt",
     "date": "2025-04-16",
-    "partnerId": "DT_TCT_398",
+    "partnerId": "DT_TCT_463",
     "partnerName": "Thảo cty - Trọng",
     "paymentMethod": "111",
     "description": "Thu tiền bán hàng Thảo cty - Trọng",
@@ -120302,7 +123478,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6599",
     "type": "payment",
     "date": "2025-04-16",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "111",
     "description": "Chi trả hwata",
@@ -120320,7 +123496,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6598",
     "type": "payment",
     "date": "2025-04-16",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "112",
     "description": "Chi trả lan thanh ck",
@@ -120338,7 +123514,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6597",
     "type": "payment",
     "date": "2025-04-16",
-    "partnerId": "DT_CHTC0_760",
+    "partnerId": "DT_CHTC0_902",
     "partnerName": "Cửa Hàng Thành Công  - 0254.3856.731",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 16042025",
@@ -120464,7 +123640,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6596",
     "type": "payment",
     "date": "2025-04-15",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi anh đăng thu nhà anh chiến khang linh",
@@ -120482,7 +123658,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6595",
     "type": "payment",
     "date": "2025-04-15",
-    "partnerId": "DT_CTTNT_382",
+    "partnerId": "DT_CTTNT_911",
     "partnerName": "Công Ty TNHH Ngô Trần Phát",
     "paymentMethod": "111",
     "description": "Chi trả van miha",
@@ -120680,7 +123856,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6686",
     "type": "payment",
     "date": "2025-04-12",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi đổ dầu xe tải",
@@ -120752,7 +123928,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6685",
     "type": "payment",
     "date": "2025-04-11",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi anh sơn hoa hồng anh ái",
@@ -120770,7 +123946,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6594",
     "type": "payment",
     "date": "2025-04-11",
-    "partnerId": "DT_ALBD_567",
+    "partnerId": "DT_ALBD_483",
     "partnerName": "ANH LÂM BÌNH DƯƠNG",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 11042025",
@@ -120842,7 +124018,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6593",
     "type": "payment",
     "date": "2025-04-09",
-    "partnerId": "DT_MVTS_469",
+    "partnerId": "DT_MVTS_392",
     "partnerName": "MUA VẬT TỰ SX",
     "paymentMethod": "111",
     "description": "Chi khác",
@@ -120860,7 +124036,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6591",
     "type": "payment",
     "date": "2025-04-09",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi loan Dịch vụ thuê nhà 69/4",
@@ -120878,7 +124054,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6590",
     "type": "payment",
     "date": "2025-04-09",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "trích thầu anh giang lavida giang cao",
@@ -120896,7 +124072,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6589",
     "type": "payment",
     "date": "2025-04-09",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi thầu nhà 302 bình giã anh thiện",
@@ -120914,7 +124090,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6588",
     "type": "payment",
     "date": "2025-04-09",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi đổ dầu xe tải",
@@ -120932,7 +124108,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6587",
     "type": "payment",
     "date": "2025-04-09",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi mua bao nilon",
@@ -120950,7 +124126,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6586",
     "type": "payment",
     "date": "2025-04-09",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi mua chuột máy tính",
@@ -120968,7 +124144,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6585",
     "type": "payment",
     "date": "2025-04-09",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi tiền chành ruột gà",
@@ -120986,7 +124162,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6577",
     "type": "payment",
     "date": "2025-04-09",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi trả tiền sửa amsy tính lực",
@@ -121040,7 +124216,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6572",
     "type": "payment",
     "date": "2025-04-08",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi lương tháng 03/2025",
@@ -121058,7 +124234,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6571",
     "type": "payment",
     "date": "2025-04-08",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi trả lan thanh",
@@ -121076,7 +124252,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6569",
     "type": "payment",
     "date": "2025-04-08",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi trả tiền ống dương",
@@ -121112,7 +124288,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11921",
     "type": "receipt",
     "date": "2025-04-05",
-    "partnerId": "DT_AT_282",
+    "partnerId": "DT_AT_641",
     "partnerName": "Anh Thành (KH7624T02/2025)",
     "paymentMethod": "111",
     "description": "PT3249/q65 Anh Thành (KH7624T02/2025)",
@@ -121202,7 +124378,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6584",
     "type": "payment",
     "date": "2025-04-04",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi tiền thuê xe",
@@ -121220,7 +124396,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6583",
     "type": "payment",
     "date": "2025-04-04",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi tiền tài xế",
@@ -121238,7 +124414,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6582",
     "type": "payment",
     "date": "2025-04-04",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi tiền xe chở ống",
@@ -121256,7 +124432,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6568",
     "type": "payment",
     "date": "2025-04-04",
-    "partnerId": "DT_CHTC0_760",
+    "partnerId": "DT_CHTC0_902",
     "partnerName": "Cửa Hàng Thành Công  - 0254.3856.731",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 12",
@@ -121274,7 +124450,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6567",
     "type": "payment",
     "date": "2025-04-04",
-    "partnerId": "DT_CTTBC_425",
+    "partnerId": "DT_CTTBC_204",
     "partnerName": "Cty TNHH TBVS BENZLER Châu Âu",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 31261",
@@ -121292,7 +124468,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6566",
     "type": "payment",
     "date": "2025-04-04",
-    "partnerId": "DT_CTTTC_775",
+    "partnerId": "DT_CTTTC_706",
     "partnerName": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 44",
@@ -121310,7 +124486,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6565",
     "type": "payment",
     "date": "2025-04-04",
-    "partnerId": "DT_CTTTC_775",
+    "partnerId": "DT_CTTTC_706",
     "partnerName": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 11",
@@ -121346,7 +124522,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11917",
     "type": "receipt",
     "date": "2025-04-03",
-    "partnerId": "DT_AKT_713",
+    "partnerId": "DT_AKT_540",
     "partnerName": "Anh Khoa Thầu (KH7641T03/2025)",
     "paymentMethod": "111",
     "description": "PT3245/q65 Anh Khoa Thầu (KH7641T03/2025)",
@@ -121364,7 +124540,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11909",
     "type": "receipt",
     "date": "2025-04-03",
-    "partnerId": "DT_TC_223",
+    "partnerId": "DT_TC_673",
     "partnerName": "Thành Công",
     "paymentMethod": "111",
     "description": "Thu tiền bán hàng Thành Công",
@@ -121382,7 +124558,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6581",
     "type": "payment",
     "date": "2025-04-03",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi tiền rác Q1",
@@ -121418,7 +124594,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6580",
     "type": "payment",
     "date": "2025-04-02",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi trả toeefn chành máy bơm",
@@ -121436,7 +124612,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6564",
     "type": "payment",
     "date": "2025-04-02",
-    "partnerId": "DT_CTTQT_607",
+    "partnerId": "DT_CTTQT_983",
     "partnerName": "CÔNG TY TNHHTM QUACH TUẤN MINH",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn hb 01056",
@@ -121508,7 +124684,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6579",
     "type": "payment",
     "date": "2025-04-01",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi tiền chành đồ điện",
@@ -121526,7 +124702,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6559",
     "type": "payment",
     "date": "2025-04-01",
-    "partnerId": "DT_CTTTV_440",
+    "partnerId": "DT_CTTTV_142",
     "partnerName": "Công Ty TNHH TM-DV Việt Cường -",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 11",
@@ -121544,7 +124720,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6557",
     "type": "payment",
     "date": "2025-04-01",
-    "partnerId": "DT_CTTDV_595",
+    "partnerId": "DT_CTTDV_812",
     "partnerName": "Cty TNHH TM DV và Sản Xuất Hải Trung Kim",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 09",
@@ -121598,7 +124774,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6578",
     "type": "payment",
     "date": "2025-03-31",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi thầu nhà 109/17/22 võ thị sáu",
@@ -121616,7 +124792,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6562",
     "type": "payment",
     "date": "2025-03-31",
-    "partnerId": "DT_CTTAV_114",
+    "partnerId": "DT_CTTAV_726",
     "partnerName": "Công ty TNHH ASTOSI VIỆT NAM",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 31032025",
@@ -121634,7 +124810,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6560",
     "type": "payment",
     "date": "2025-03-31",
-    "partnerId": "DT_CHTC0_760",
+    "partnerId": "DT_CHTC0_902",
     "partnerName": "Cửa Hàng Thành Công  - 0254.3856.731",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 12",
@@ -121652,7 +124828,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6558",
     "type": "payment",
     "date": "2025-03-31",
-    "partnerId": "DT_CHTC0_760",
+    "partnerId": "DT_CHTC0_902",
     "partnerName": "Cửa Hàng Thành Công  - 0254.3856.731",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 10",
@@ -121742,7 +124918,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6576",
     "type": "payment",
     "date": "2025-03-29",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi tiền chành đò đen",
@@ -121760,7 +124936,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6574",
     "type": "payment",
     "date": "2025-03-29",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi thầu I7 thái văn lung",
@@ -121850,7 +125026,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6561",
     "type": "payment",
     "date": "2025-03-27",
-    "partnerId": "DT_CTTSQ_977",
+    "partnerId": "DT_CTTSQ_207",
     "partnerName": "Cty TNHH TM SX Quốc Chung",
     "paymentMethod": "111",
     "description": "Chi trả CTy Quốc chung",
@@ -121994,7 +125170,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6575",
     "type": "payment",
     "date": "2025-03-26",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi trung đỏ xăng",
@@ -122030,7 +125206,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6556",
     "type": "payment",
     "date": "2025-03-26",
-    "partnerId": "DT_KL_508",
+    "partnerId": "DT_KL_492",
     "partnerName": "Khách lẽ",
     "paymentMethod": "111",
     "description": "Chi thanh toán BHXH T3/2025",
@@ -122048,7 +125224,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6554",
     "type": "payment",
     "date": "2025-03-26",
-    "partnerId": "DT_CHTC0_760",
+    "partnerId": "DT_CHTC0_902",
     "partnerName": "Cửa Hàng Thành Công  - 0254.3856.731",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 09",
@@ -122084,7 +125260,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11891",
     "type": "receipt",
     "date": "2025-03-25",
-    "partnerId": "DT_ATTB_576",
+    "partnerId": "DT_ATTB_382",
     "partnerName": "Anh Thế Thầu Bắc (KH7612T02/2025)",
     "paymentMethod": "111",
     "description": "PT3290/q66 Anh Thế Thầu Bắc (KH7612T02/2025)",
@@ -122174,7 +125350,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6553",
     "type": "payment",
     "date": "2025-03-25",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 150021",
@@ -122246,7 +125422,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6555",
     "type": "payment",
     "date": "2025-03-24",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi thanh toán tiền cty lan thanh",
@@ -122264,7 +125440,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6552",
     "type": "payment",
     "date": "2025-03-24",
-    "partnerId": "DT_CHTC0_760",
+    "partnerId": "DT_CHTC0_902",
     "partnerName": "Cửa Hàng Thành Công  - 0254.3856.731",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 08",
@@ -122336,7 +125512,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6551",
     "type": "payment",
     "date": "2025-03-22",
-    "partnerId": "DT_BLTAH_552",
+    "partnerId": "DT_BLTAH_999",
     "partnerName": "Bán lẻ T03/2025 - A HÀ",
     "paymentMethod": "111",
     "description": "Hàng trả lại",
@@ -122354,7 +125530,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6550",
     "type": "payment",
     "date": "2025-03-22",
-    "partnerId": "DT_A_411",
+    "partnerId": "DT_A_462",
     "partnerName": "ANH ĐĂNG",
     "paymentMethod": "111",
     "description": "Chi khác anh đăng thu nhà 4 thống nhất",
@@ -122390,7 +125566,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6548",
     "type": "payment",
     "date": "2025-03-22",
-    "partnerId": "DT_NHT_473",
+    "partnerId": "DT_NHT_687",
     "partnerName": "NHẬP HÀNG TQ",
     "paymentMethod": "111",
     "description": "Chi tiền thuế GTGTNK + Vận chuyên bốc xếp lo hàng",
@@ -122408,7 +125584,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11893",
     "type": "receipt",
     "date": "2025-03-21",
-    "partnerId": "DT_ATTB_258",
+    "partnerId": "DT_ATTB_338",
     "partnerName": "Anh Thế Thầu Bắc (KH7632T03/2025)",
     "paymentMethod": "111",
     "description": "PT3290/q66 Anh Thế Thầu Bắc (KH7632T03/2025)",
@@ -122498,7 +125674,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11875",
     "type": "receipt",
     "date": "2025-03-21",
-    "partnerId": "DT_AT_282",
+    "partnerId": "DT_AT_641",
     "partnerName": "Anh Thành (KH7624T02/2025)",
     "paymentMethod": "111",
     "description": "PT3191/q64 Anh Thành (KH7624T02/2025)",
@@ -122606,7 +125782,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6547",
     "type": "payment",
     "date": "2025-03-21",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi anh đăng thu nha 45/20 thùy vân",
@@ -122624,7 +125800,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11878",
     "type": "receipt",
     "date": "2025-03-20",
-    "partnerId": "DT_AKT_713",
+    "partnerId": "DT_AKT_540",
     "partnerName": "Anh Khoa Thầu (KH7641T03/2025)",
     "paymentMethod": "111",
     "description": "PT3280/q66 Anh Khoa Thầu (KH7641T03/2025)",
@@ -122642,7 +125818,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6545",
     "type": "payment",
     "date": "2025-03-20",
-    "partnerId": "DT_CTTQT_607",
+    "partnerId": "DT_CTTQT_983",
     "partnerName": "CÔNG TY TNHHTM QUACH TUẤN MINH",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 01002",
@@ -122660,7 +125836,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6544",
     "type": "payment",
     "date": "2025-03-20",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 06",
@@ -122678,7 +125854,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6573",
     "type": "payment",
     "date": "2025-03-19",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi đổ dầu xe tải",
@@ -122696,7 +125872,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6543",
     "type": "payment",
     "date": "2025-03-19",
-    "partnerId": "DT_CXTTV_664",
+    "partnerId": "DT_CXTTV_609",
     "partnerName": "Cty XNK Thái Thịnh - Van đồng Sanwa",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 07",
@@ -122786,7 +125962,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6541",
     "type": "payment",
     "date": "2025-03-18",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi đổ dầu xe tải",
@@ -122804,7 +125980,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6540",
     "type": "payment",
     "date": "2025-03-18",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi mua văn phòng phẩm",
@@ -122822,7 +125998,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6539",
     "type": "payment",
     "date": "2025-03-18",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi tiền rác + muabich nilon",
@@ -122840,7 +126016,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6530",
     "type": "payment",
     "date": "2025-03-18",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi lương tháng 2/2025",
@@ -122858,7 +126034,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6528",
     "type": "payment",
     "date": "2025-03-18",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "112",
     "description": "Chi thanh toán cty lan thanh ck sacombank",
@@ -122876,7 +126052,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6527",
     "type": "payment",
     "date": "2025-03-18",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi thầu anh đại nhà 209 xô viết",
@@ -122894,7 +126070,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11861",
     "type": "receipt",
     "date": "2025-03-17",
-    "partnerId": "DT_KL_508",
+    "partnerId": "DT_KL_492",
     "partnerName": "Khách lẽ",
     "paymentMethod": "111",
     "description": "xuất đ/c kho",
@@ -122912,7 +126088,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6529",
     "type": "payment",
     "date": "2025-03-17",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi nộp thuế GTGT T2",
@@ -122930,7 +126106,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6526",
     "type": "payment",
     "date": "2025-03-17",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 07",
@@ -122948,7 +126124,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6525",
     "type": "payment",
     "date": "2025-03-17",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 06",
@@ -123020,7 +126196,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11860",
     "type": "receipt",
     "date": "2025-03-14",
-    "partnerId": "DT_KL_508",
+    "partnerId": "DT_KL_492",
     "partnerName": "Khách lẽ",
     "paymentMethod": "111",
     "description": "Thu khác",
@@ -123164,7 +126340,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11852",
     "type": "receipt",
     "date": "2025-03-14",
-    "partnerId": "DT_CAP_209",
+    "partnerId": "DT_CAP_539",
     "partnerName": "CTY Đại An Phát (KH7640T03/2025)",
     "paymentMethod": "111",
     "description": "PT3233/q65 CTY Đại An Phát (KH7640T03/2025)",
@@ -123200,7 +126376,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11850",
     "type": "receipt",
     "date": "2025-03-14",
-    "partnerId": "DT_CL_160",
+    "partnerId": "DT_CL_374",
     "partnerName": "Chú Long (KH7636T03/2025)",
     "paymentMethod": "111",
     "description": "PT3231/q65 Chú Long (KH7636T03/2025)",
@@ -123218,7 +126394,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6538",
     "type": "payment",
     "date": "2025-03-14",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi hoa hồng anh sơn nhà 42 lê lợi cô thảo",
@@ -123254,7 +126430,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6522",
     "type": "payment",
     "date": "2025-03-13",
-    "partnerId": "DT_CL_297",
+    "partnerId": "DT_CL_543",
     "partnerName": "Cô Loan",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 05",
@@ -123290,7 +126466,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6521",
     "type": "payment",
     "date": "2025-03-12",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi trả công ty Lan Thanh",
@@ -123434,7 +126610,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6519",
     "type": "payment",
     "date": "2025-03-10",
-    "partnerId": "DT_CTTTV_440",
+    "partnerId": "DT_CTTTV_142",
     "partnerName": "Công Ty TNHH TM-DV Việt Cường -",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 04",
@@ -123452,7 +126628,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6518",
     "type": "payment",
     "date": "2025-03-10",
-    "partnerId": "DT_CTTAV_114",
+    "partnerId": "DT_CTTAV_726",
     "partnerName": "Công ty TNHH ASTOSI VIỆT NAM",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 03",
@@ -123470,7 +126646,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6517",
     "type": "payment",
     "date": "2025-03-10",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "mua que hàn +rulo vít bắn tôn",
@@ -123488,7 +126664,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6516",
     "type": "payment",
     "date": "2025-03-09",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 02",
@@ -123506,7 +126682,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11842",
     "type": "receipt",
     "date": "2025-03-08",
-    "partnerId": "DT_ADK_715",
+    "partnerId": "DT_ADK_592",
     "partnerName": "Anh Dũng KTS (KH7614T02/2025)",
     "paymentMethod": "111",
     "description": "PT3275/Q66 Anh Dũng KTS (KH7614T02/2025)",
@@ -123542,7 +126718,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6537",
     "type": "payment",
     "date": "2025-03-08",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi đổ dầu xe tải",
@@ -123560,7 +126736,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6536",
     "type": "payment",
     "date": "2025-03-08",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi trả tiền internet 1 năm việt tel",
@@ -123632,7 +126808,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11836",
     "type": "receipt",
     "date": "2025-03-06",
-    "partnerId": "DT_CMCT_200",
+    "partnerId": "DT_CMCT_864",
     "partnerName": "Chú Minh - Cô Thảo (KH7574T12/2024R)",
     "paymentMethod": "111",
     "description": "PT3271/q66 Chú Minh - Cô Thảo (KH7574T12/2024R)",
@@ -123668,7 +126844,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6515",
     "type": "payment",
     "date": "2025-03-06",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "112",
     "description": "phí CK hàng TQ",
@@ -123686,7 +126862,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6514",
     "type": "payment",
     "date": "2025-03-06",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi thanh toán công ty lan thanh",
@@ -123704,7 +126880,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6513",
     "type": "payment",
     "date": "2025-03-06",
-    "partnerId": "DT_NHT_473",
+    "partnerId": "DT_NHT_687",
     "partnerName": "NHẬP HÀNG TQ",
     "paymentMethod": "111",
     "description": "Chi nhập máy NLMT trung quốc",
@@ -123722,7 +126898,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6546",
     "type": "payment",
     "date": "2025-03-05",
-    "partnerId": "DT_CTTTC_775",
+    "partnerId": "DT_CTTTC_706",
     "partnerName": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 08",
@@ -123794,7 +126970,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6542",
     "type": "payment",
     "date": "2025-02-28",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi nọp BHXH tháng 02/2025",
@@ -123812,7 +126988,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6535",
     "type": "payment",
     "date": "2025-02-28",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi đổ dầu xăng tháng 2",
@@ -123884,7 +127060,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6534",
     "type": "payment",
     "date": "2025-02-27",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi mua sắt",
@@ -123902,7 +127078,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6533",
     "type": "payment",
     "date": "2025-02-27",
-    "partnerId": "DT_KL_508",
+    "partnerId": "DT_KL_492",
     "partnerName": "Khách lẽ",
     "paymentMethod": "111",
     "description": "Chi mua máy in",
@@ -123956,7 +127132,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6510",
     "type": "payment",
     "date": "2025-02-25",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi anh đăng thu nhà anh đức thelight",
@@ -123974,7 +127150,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6509",
     "type": "payment",
     "date": "2025-02-25",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi anh đăng thu nhà anh thành lavida",
@@ -124082,7 +127258,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6508",
     "type": "payment",
     "date": "2025-02-22",
-    "partnerId": "DT_CTTTC_775",
+    "partnerId": "DT_CTTTC_706",
     "partnerName": "Công ty TNHH Điện Trí Cương - 0902.504.886",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 0006",
@@ -124100,7 +127276,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6512",
     "type": "payment",
     "date": "2025-02-21",
-    "partnerId": "DT_KLAT_665",
+    "partnerId": "DT_KLAT_254",
     "partnerName": "Khách lẽ - A Thắng",
     "paymentMethod": "111",
     "description": "Hàng trả lại",
@@ -124118,7 +127294,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11821",
     "type": "receipt",
     "date": "2025-02-20",
-    "partnerId": "DT_ADK_715",
+    "partnerId": "DT_ADK_592",
     "partnerName": "Anh Dũng KTS (KH7614T02/2025)",
     "paymentMethod": "111",
     "description": "PT318/q64 Anh Dũng KTS (KH7614T02/2025)",
@@ -124172,7 +127348,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6505",
     "type": "payment",
     "date": "2025-02-19",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi nộp thuế GTGT T1/2025",
@@ -124190,7 +127366,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6504",
     "type": "payment",
     "date": "2025-02-19",
-    "partnerId": "DT_NHT_473",
+    "partnerId": "DT_NHT_687",
     "partnerName": "NHẬP HÀNG TQ",
     "paymentMethod": "112",
     "description": "Chi ck nhập hàng trung quốc",
@@ -124208,7 +127384,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6503",
     "type": "payment",
     "date": "2025-02-19",
-    "partnerId": "DT_CXTTV_664",
+    "partnerId": "DT_CXTTV_609",
     "partnerName": "Cty XNK Thái Thịnh - Van đồng Sanwa",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 294276",
@@ -124298,7 +127474,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6511",
     "type": "payment",
     "date": "2025-02-17",
-    "partnerId": "DT_KLATN_554",
+    "partnerId": "DT_KLATN_845",
     "partnerName": "Khách lẽ An Thợ nước",
     "paymentMethod": "111",
     "description": "56 Võ Thị Sáu- Van 25",
@@ -124316,7 +127492,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6502",
     "type": "payment",
     "date": "2025-02-17",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "112",
     "description": "Chi Ck HWta sacom bank",
@@ -124334,7 +127510,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6499",
     "type": "payment",
     "date": "2025-02-17",
-    "partnerId": "DT_ANBK_856",
+    "partnerId": "DT_ANBK_620",
     "partnerName": "Anh Nhị - Băng Keo Điện",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 17022025",
@@ -124388,7 +127564,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6498",
     "type": "payment",
     "date": "2025-02-15",
-    "partnerId": "DT_T00_767",
+    "partnerId": "DT_T00_271",
     "partnerName": "Tiệm điện Ánh - 02543.856.002 - 0937.076.975",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 20",
@@ -124406,7 +127582,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6497",
     "type": "payment",
     "date": "2025-02-15",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 12",
@@ -124424,7 +127600,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6532",
     "type": "payment",
     "date": "2025-02-14",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi hoa hồng anh sơn nhà 105/76 lê lợi",
@@ -124442,7 +127618,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6493",
     "type": "payment",
     "date": "2025-02-14",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 775",
@@ -124460,7 +127636,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6491",
     "type": "payment",
     "date": "2025-02-14",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi mua sắt V5.V4",
@@ -124478,7 +127654,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6494",
     "type": "payment",
     "date": "2025-02-13",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi thanh toán lan thanh",
@@ -124568,7 +127744,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6531",
     "type": "payment",
     "date": "2025-02-10",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi đăng kiểm xe oto",
@@ -124676,7 +127852,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11789",
     "type": "receipt",
     "date": "2025-02-06",
-    "partnerId": "DT_AT_666",
+    "partnerId": "DT_AT_918",
     "partnerName": "Anh Đại THầu (KH7602T01/2025)",
     "paymentMethod": "111",
     "description": "PT3258/q66 Anh Đại THầu (KH7602T01/2025)",
@@ -124910,7 +128086,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6487",
     "type": "payment",
     "date": "2025-02-06",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi lương T1+ tết 2025",
@@ -124928,7 +128104,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6486",
     "type": "payment",
     "date": "2025-02-06",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "CHi hoa hồng cty A&D nhà 441/35/17",
@@ -124946,7 +128122,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6482",
     "type": "payment",
     "date": "2025-02-06",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi thầu nhà 573 bình giã",
@@ -124964,7 +128140,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6469",
     "type": "payment",
     "date": "2025-02-06",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi thầu nhà 888/25F 30/4 thu",
@@ -125090,7 +128266,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6489",
     "type": "payment",
     "date": "2025-01-31",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi anh đăng thu bán tủ điện tháng 01/2025",
@@ -125324,7 +128500,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11766",
     "type": "receipt",
     "date": "2025-01-25",
-    "partnerId": "DT_AHT_690",
+    "partnerId": "DT_AHT_903",
     "partnerName": "Anh Hợp Thầu (KH7603T01/2025)",
     "paymentMethod": "111",
     "description": "PT3218/q65 Anh Hợp Thầu (KH7603T01/2025)",
@@ -125738,7 +128914,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6520",
     "type": "payment",
     "date": "2025-01-25",
-    "partnerId": "DT_CHTC0_760",
+    "partnerId": "DT_CHTC0_902",
     "partnerName": "Cửa Hàng Thành Công  - 0254.3856.731",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 2501",
@@ -125756,7 +128932,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6485",
     "type": "payment",
     "date": "2025-01-25",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi anh hợp thầu 37/56 bình giã",
@@ -125774,7 +128950,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6484",
     "type": "payment",
     "date": "2025-01-25",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi anh cường 630 tràn phú",
@@ -125792,7 +128968,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6461",
     "type": "payment",
     "date": "2025-01-25",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi anh đăng thu nhà anh minh phươc hải",
@@ -125810,7 +128986,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6460",
     "type": "payment",
     "date": "2025-01-25",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi anh đăng thu nhà 46 la văn cầu",
@@ -125828,7 +129004,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6490",
     "type": "payment",
     "date": "2025-01-24",
-    "partnerId": "DT_MLBCN_831",
+    "partnerId": "DT_MLBCN_188",
     "partnerName": "Mua lẻ - Bồn Công nghiệp",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 2401",
@@ -125846,7 +129022,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6459",
     "type": "payment",
     "date": "2025-01-24",
-    "partnerId": "DT_CTTSQ_977",
+    "partnerId": "DT_CTTSQ_207",
     "partnerName": "Cty TNHH TM SX Quốc Chung",
     "paymentMethod": "112",
     "description": "Chi CK cty quốc chung",
@@ -126008,7 +129184,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6483",
     "type": "payment",
     "date": "2025-01-23",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "112",
     "description": "Chi hoa hồng anh thăng thợ nước 2024 CK",
@@ -126026,7 +129202,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6458",
     "type": "payment",
     "date": "2025-01-23",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "111",
     "description": "Chi thanh toán tiền bồn HWata",
@@ -126044,7 +129220,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6457",
     "type": "payment",
     "date": "2025-01-23",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi hoa hồng chi kim anh 2 dang thuy tram",
@@ -126134,7 +129310,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11730",
     "type": "receipt",
     "date": "2025-01-22",
-    "partnerId": "DT_AM_642",
+    "partnerId": "DT_AM_430",
     "partnerName": "Anh Mùi (KH7563T12/2024)",
     "paymentMethod": "111",
     "description": "PT3144/q63 Anh Mùi (KH7563T12/2024)",
@@ -126314,7 +129490,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6481",
     "type": "payment",
     "date": "2025-01-22",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Trích thàu nhà 18 nguyễn phi khanh 66 B long phước",
@@ -126332,7 +129508,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6480",
     "type": "payment",
     "date": "2025-01-22",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi chị kim anh hoa hồng",
@@ -126350,7 +129526,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6479",
     "type": "payment",
     "date": "2025-01-22",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi thành ráp máy long tân",
@@ -126368,7 +129544,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6478",
     "type": "payment",
     "date": "2025-01-22",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi đổ xang dầu xe",
@@ -126386,7 +129562,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6477",
     "type": "payment",
     "date": "2025-01-22",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi tiền bia anh thanh thầu",
@@ -126404,7 +129580,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6476",
     "type": "payment",
     "date": "2025-01-22",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi anh dư nhà 54/4 nguyễn tri phương",
@@ -126422,7 +129598,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6475",
     "type": "payment",
     "date": "2025-01-22",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "TRích thầu anh hòa thầu 2024 3 nhà bán máy bồn",
@@ -126440,7 +129616,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6474",
     "type": "payment",
     "date": "2025-01-22",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi ráp máy 780 bình giã",
@@ -126458,7 +129634,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6473",
     "type": "payment",
     "date": "2025-01-22",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi anh hà ráp máy 2024",
@@ -126476,7 +129652,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6456",
     "type": "payment",
     "date": "2025-01-22",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi nộp BHXH",
@@ -126494,7 +129670,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6455",
     "type": "payment",
     "date": "2025-01-22",
-    "partnerId": "DT_CTTSX_351",
+    "partnerId": "DT_CTTSX_934",
     "partnerName": "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
     "paymentMethod": "111",
     "description": "Chi thanh toán lan thanh",
@@ -126566,7 +129742,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6472",
     "type": "payment",
     "date": "2025-01-21",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi anh nguyệt thầu 2024 Hoa hồng",
@@ -126584,7 +129760,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6471",
     "type": "payment",
     "date": "2025-01-21",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi hương đát núi HH 2025",
@@ -126602,7 +129778,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6470",
     "type": "payment",
     "date": "2025-01-21",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi hoa hồng anh phương thầu 170 bình già nhà lê qung định",
@@ -126620,7 +129796,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT12862",
     "type": "receipt",
     "date": "2025-01-20",
-    "partnerId": "DT_AHT_500",
+    "partnerId": "DT_AHT_750",
     "partnerName": "Anh Hải thợ",
     "paymentMethod": "111",
     "description": "Thu tiền bán hàng Anh Hải thợ",
@@ -126782,7 +129958,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11708",
     "type": "receipt",
     "date": "2025-01-18",
-    "partnerId": "DT_AT033_923",
+    "partnerId": "DT_AT033_293",
     "partnerName": "Anh Toàn 093 389 3162",
     "paymentMethod": "111",
     "description": "Thu tạm ứng",
@@ -126800,7 +129976,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11707",
     "type": "receipt",
     "date": "2025-01-18",
-    "partnerId": "DT_AT_999",
+    "partnerId": "DT_AT_452",
     "partnerName": "Anh Tài (KH7531T10/2024)",
     "paymentMethod": "111",
     "description": "PT3140/q63 143/2 Nguyễn hữu cảnh Aanh tài",
@@ -126818,7 +129994,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11706",
     "type": "receipt",
     "date": "2025-01-18",
-    "partnerId": "DT_AHT_436",
+    "partnerId": "DT_AHT_555",
     "partnerName": "Anh Huỳnh thầu (KH7559T12/2024)",
     "paymentMethod": "111",
     "description": "PT3139/q63Anh Huỳnh thầu (KH7559T12/2024)",
@@ -126908,7 +130084,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6451",
     "type": "payment",
     "date": "2025-01-18",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Trích thầu anh nguyet 2024 2 nhà nhà anh bui 170 nhà 37E hồ tri tân",
@@ -126998,7 +130174,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6496",
     "type": "payment",
     "date": "2025-01-17",
-    "partnerId": "DT_CTTDV_595",
+    "partnerId": "DT_CTTDV_812",
     "partnerName": "Cty TNHH TM DV và Sản Xuất Hải Trung Kim",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng Cty TNHH TM DV và Sản Xuất Hải Trung Kim theo hóa đơn 2501",
@@ -127016,7 +130192,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6449",
     "type": "payment",
     "date": "2025-01-17",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "112",
     "description": "Chi trả tiền mua đinh chị niềm inox Ck sacombank",
@@ -127034,7 +130210,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6448",
     "type": "payment",
     "date": "2025-01-17",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi nộp thuế GTGT tháng 12/2024",
@@ -127070,7 +130246,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11698",
     "type": "receipt",
     "date": "2025-01-15",
-    "partnerId": "DT_AD0_976",
+    "partnerId": "DT_AD0_312",
     "partnerName": "Anh Dũng 0948083601",
     "paymentMethod": "111",
     "description": "PT3444/q69 Anh Dũng 0948083601",
@@ -127106,7 +130282,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11695",
     "type": "receipt",
     "date": "2025-01-15",
-    "partnerId": "DT_ACT_590",
+    "partnerId": "DT_ACT_148",
     "partnerName": "ANH CHƯƠNG T01/2025",
     "paymentMethod": "111",
     "description": "TẠM ỨNG",
@@ -127196,7 +130372,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11710",
     "type": "receipt",
     "date": "2025-01-14",
-    "partnerId": "DT_AM_115",
+    "partnerId": "DT_AM_894",
     "partnerName": "Anh Minh (KH7575T01/2025)",
     "paymentMethod": "111",
     "description": "PT3443/q69 thu tạm ứng HĐ",
@@ -127214,7 +130390,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6501",
     "type": "payment",
     "date": "2025-01-14",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn XB01/0558",
@@ -127250,7 +130426,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11696",
     "type": "receipt",
     "date": "2025-01-13",
-    "partnerId": "DT_AT_999",
+    "partnerId": "DT_AT_452",
     "partnerName": "Anh Tài (KH7531T10/2024)",
     "paymentMethod": "111",
     "description": "PT3136/q63 Anh Tài (KH7531T10/2024)",
@@ -127268,7 +130444,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11694",
     "type": "receipt",
     "date": "2025-01-12",
-    "partnerId": "DT_ALT_414",
+    "partnerId": "DT_ALT_536",
     "partnerName": "Anh Lơ Thầu (KH7465T08/2024)",
     "paymentMethod": "111",
     "description": "PT3134/q63 Anh Lơ Thầu (KH7465T08/2024)",
@@ -127466,7 +130642,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6440",
     "type": "payment",
     "date": "2025-01-07",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi trả anh hà lắp 2 máy đô lương",
@@ -127484,7 +130660,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6439",
     "type": "payment",
     "date": "2025-01-07",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 07012025",
@@ -127538,7 +130714,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6437",
     "type": "payment",
     "date": "2025-01-06",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi lương T12/2024",
@@ -127556,7 +130732,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6436",
     "type": "payment",
     "date": "2025-01-06",
-    "partnerId": "DT_CTTSQ_977",
+    "partnerId": "DT_CTTSQ_207",
     "partnerName": "Cty TNHH TM SX Quốc Chung",
     "paymentMethod": "112",
     "description": "chi ck cty quốc chung",
@@ -127574,7 +130750,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6435",
     "type": "payment",
     "date": "2025-01-06",
-    "partnerId": "DT_CHTC0_760",
+    "partnerId": "DT_CHTC0_902",
     "partnerName": "Cửa Hàng Thành Công  - 0254.3856.731",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 06120",
@@ -127592,7 +130768,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11678",
     "type": "receipt",
     "date": "2025-01-04",
-    "partnerId": "DT_CH_694",
+    "partnerId": "DT_CH_546",
     "partnerName": "Chị Hạnh (KH7325T04/2024)",
     "paymentMethod": "111",
     "description": "PT3442/q69 Chị Hạnh (KH7325T04/2024)",
@@ -127700,7 +130876,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11669",
     "type": "receipt",
     "date": "2025-01-04",
-    "partnerId": "DT_CL_174",
+    "partnerId": "DT_CL_222",
     "partnerName": "Cô Lộc (KH7584T01/2025R)",
     "paymentMethod": "111",
     "description": "PT345/q69 Cô Lộc (KH7584T01/2025R)",
@@ -127772,7 +130948,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11664",
     "type": "receipt",
     "date": "2025-01-04",
-    "partnerId": "DT_CL_174",
+    "partnerId": "DT_CL_222",
     "partnerName": "Cô Lộc (KH7584T01/2025R)",
     "paymentMethod": "111",
     "description": "PT3119/q63 Cô Lộc (KH7584T01/2025R)",
@@ -127790,7 +130966,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6500",
     "type": "payment",
     "date": "2025-01-04",
-    "partnerId": "DT_CH_719",
+    "partnerId": "DT_CH_230",
     "partnerName": "CTy HWATA",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 145817",
@@ -127808,7 +130984,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6468",
     "type": "payment",
     "date": "2025-01-04",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi tền ký tuc xá minh",
@@ -127826,7 +131002,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6431",
     "type": "payment",
     "date": "2025-01-04",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi thưởng tết 2025",
@@ -127844,7 +131020,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6430",
     "type": "payment",
     "date": "2025-01-04",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "trích hoa hồng nhà 121 trương công định Thu",
@@ -127862,7 +131038,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6429",
     "type": "payment",
     "date": "2025-01-04",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi đổ xăng xe máy",
@@ -127880,7 +131056,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6428",
     "type": "payment",
     "date": "2025-01-04",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi mua sơn bạch tuyết 10 hộp",
@@ -127898,7 +131074,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6427",
     "type": "payment",
     "date": "2025-01-04",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi đổ dầu xe tải",
@@ -127916,7 +131092,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6420",
     "type": "payment",
     "date": "2025-01-04",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "thu chi hoa hồng nhà 172/10 ba cu",
@@ -127934,7 +131110,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6410",
     "type": "payment",
     "date": "2025-01-04",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi anh tuấn thầu tiên lắp máy +hh nhà P12",
@@ -127952,7 +131128,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6406",
     "type": "payment",
     "date": "2025-01-04",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Chi mua 20 cây V3 +10 cây V5",
@@ -127970,7 +131146,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6399",
     "type": "payment",
     "date": "2025-01-04",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "chi tiền 2 máy bơm nhà D6 võ chí cong anh tự",
@@ -127988,7 +131164,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6398",
     "type": "payment",
     "date": "2025-01-04",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "112",
     "description": "Chi anh kê ck anh đăng",
@@ -128078,7 +131254,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6974",
     "type": "payment",
     "date": "2025-01-02",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "chi tiền chành máy bơm",
@@ -128240,7 +131416,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PT11813",
     "type": "receipt",
     "date": "2025-01-01",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Thu khác",
@@ -128276,7 +131452,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6877",
     "type": "payment",
     "date": "2025-01-01",
-    "partnerId": "DT_NHT_473",
+    "partnerId": "DT_NHT_687",
     "partnerName": "NHẬP HÀNG TQ",
     "paymentMethod": "111",
     "description": "chi thanh toán nhập hàng TQ",
@@ -128294,7 +131470,7 @@ const PREPOPULATED_DATABASE = {
     "id": "PC6495",
     "type": "payment",
     "date": "2025-01-01",
-    "partnerId": "DT_ML_759",
+    "partnerId": "DT_ML_635",
     "partnerName": "Mua lẻ",
     "paymentMethod": "111",
     "description": "Chi tiền mua hàng theo hóa đơn 222",
@@ -128312,7 +131488,7 @@ const PREPOPULATED_DATABASE = {
     "id": "Tổng thu: 17.800.492.354",
     "type": "receipt",
     "date": "Số dòng = 2152",
-    "partnerId": "DT_KHVL_174",
+    "partnerId": "DT_KHVL_957",
     "partnerName": "Khách hàng vãng lai",
     "paymentMethod": "111",
     "description": "Tổng chi: 17.702.665.122",

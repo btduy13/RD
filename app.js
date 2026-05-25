@@ -26,6 +26,14 @@ function initApp() {
   if (localData) {
     try {
       state = JSON.parse(localData);
+      // Tự động nâng cấp lên CSDL Excel nếu đang sử dụng CSDL Demo cũ
+      if (state.products && state.products.length <= 5 && state.vouchers && state.vouchers.length <= 5) {
+        if (typeof PREPOPULATED_DATABASE !== "undefined") {
+          console.log("Auto-upgrading to integrated Excel database...");
+          state = JSON.parse(JSON.stringify(PREPOPULATED_DATABASE));
+          saveState();
+        }
+      }
     } catch (e) {
       console.error("Lỗi đọc dữ liệu localStorage, nạp lại mặc định:", e);
       state = typeof PREPOPULATED_DATABASE !== "undefined" ? JSON.parse(JSON.stringify(PREPOPULATED_DATABASE)) : JSON.parse(JSON.stringify(DEFAULT_DATA));
@@ -114,10 +122,12 @@ function recalculateAccounting() {
   state.products.forEach(p => {
     // Tìm thông số khởi tạo của sản phẩm này trong dữ liệu mặc định ban đầu
     const orig = originalProducts.find(o => o.id === p.id);
+    const initStock = orig ? orig.stock : (p.initialStock !== undefined ? p.initialStock : (p.stock || 0));
+    const initCost = orig ? orig.avgCost : (p.initialCost !== undefined ? p.initialCost : (p.avgCost || 0));
     productBalanceMap[p.id] = {
-      stock: orig ? orig.stock : (p.initialStock || 0),
-      avgCost: orig ? orig.avgCost : (p.initialCost || 0),
-      totalValue: orig ? orig.totalValue : ((p.initialStock || 0) * (p.initialCost || 0))
+      stock: initStock,
+      avgCost: initCost,
+      totalValue: initStock * initCost
     };
   });
 
