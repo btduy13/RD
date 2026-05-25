@@ -26,8 +26,8 @@ function initApp() {
   if (localData) {
     try {
       state = JSON.parse(localData);
-      // Tự động nâng cấp lên CSDL Excel nếu đang sử dụng CSDL Demo cũ
-      if (state.products && state.products.length <= 5 && state.vouchers && state.vouchers.length <= 5) {
+      // Tự động nâng cấp lên CSDL Excel nếu đang sử dụng CSDL Demo hoặc CSDL trống
+      if (!state.products || state.products.length < 10) {
         if (typeof PREPOPULATED_DATABASE !== "undefined") {
           console.log("Auto-upgrading to integrated Excel database...");
           state = JSON.parse(JSON.stringify(PREPOPULATED_DATABASE));
