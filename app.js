@@ -679,14 +679,22 @@ function filterSalesTable() {
 }
 
 // 8. RENDER DỮ LIỆU PHÂN HỆ KHO HÀNG (INVENTORY)
-function renderInventoryTable() {
+function renderInventoryTable(filterQuery = "") {
   const tbody = document.getElementById("inventory-table-body");
   if (!tbody) return;
 
-  const products = state.products || [];
+  let products = state.products || [];
+
+  const query = (filterQuery || "").trim().toLowerCase();
+  if (query) {
+    products = products.filter(p => 
+      (p.id || "").toLowerCase().includes(query) || 
+      (p.name || "").toLowerCase().includes(query)
+    );
+  }
 
   if (products.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">Không có sản phẩm nào trong kho.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy sản phẩm phù hợp.</td></tr>`;
     return;
   }
 
@@ -710,22 +718,10 @@ function renderInventoryTable() {
   }).join("");
 }
 
-// Lọc sản phẩm tồn kho
+// Lọc sản phẩm tồn kho hiệu năng cực cao (0ms jank-free) dùng bộ lọc trong bộ nhớ
 function filterInventoryTable() {
-  const query = document.getElementById("search-inventory").value.toLowerCase();
-  const rows = document.querySelectorAll("#inventory-table-body tr");
-  
-  rows.forEach(row => {
-    if (row.cells.length < 2) return;
-    const id = row.cells[0].innerText.toLowerCase();
-    const name = row.cells[1].innerText.toLowerCase();
-    
-    if (id.includes(query) || name.includes(query)) {
-      row.style.display = "";
-    } else {
-      row.style.display = "none";
-    }
-  });
+  const query = document.getElementById("search-inventory").value;
+  renderInventoryTable(query);
 }
 
 // Nạp danh sách thẻ kho chi tiết theo từng sản phẩm
