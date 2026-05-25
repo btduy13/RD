@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RD Accounting - Phần Mềm Kế Toán Rạng Đông</title>
+  
+  <!-- Google Fonts để giao diện cực kỳ hiện đại -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- File CSS tùy biến -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- SYSTEM SIDEBAR (THANH ĐIỀU HƯỚNG TRÁI) -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo">RĐ</div>
+        <div class="brand-info">
+          <span class="brand-name">RẠNG ĐÔNG</span>
+          <span class="brand-subtitle">RD Accounting v1.0</span>
+        </div>
+      </div>
+      
+      <ul class="sidebar-menu">
+        <li class="menu-item active" data-tab="dashboard">
+          <a onclick="switchTab('dashboard')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z"></path>
+            </svg>
+            <span>Bàn làm việc</span>
+          </a>
+        </li>
+        <li class="menu-item" data-tab="purchase">
+          <a onclick="switchTab('purchase')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+            </svg>
+            <span>Mua hàng</span>
+          </a>
+        </li>
+        <li class="menu-item" data-tab="sales">
+          <a onclick="switchTab('sales')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>Bán hàng</span>
+          </a>
+        </li>
+        <li class="menu-item" data-tab="inventory">
+          <a onclick="switchTab('inventory')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+            </svg>
+            <span>Kho hàng</span>
+          </a>
+        </li>
+        <li class="menu-item" data-tab="escrow">
+          <a onclick="switchTab('escrow')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+            </svg>
+            <span>Ký quỹ, ký cược</span>
+          </a>
+        </li>
+        <li class="menu-item" data-tab="reports">
+          <a onclick="switchTab('reports')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <span>Báo cáo kế toán</span>
+          </a>
+        </li>
+        <li class="menu-item" data-tab="settings">
+          <a onclick="switchTab('settings')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+            <span>Thiết lập</span>
+          </a>
+        </li>
+      </ul>
+      
+      <div class="sidebar-footer">
+        <div class="sidebar-config">
+          <span class="brand-subtitle" style="margin-bottom: 2px;">Chế độ Kế toán</span>
+          <div class="standard-switch">
+            <button id="btn-standard-200" class="switch-btn active" onclick="setAccountingStandard('TT200')">TT 200</button>
+            <button id="btn-standard-133" class="switch-btn" onclick="setAccountingStandard('TT133')">TT 133</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+    
+    <!-- MAIN APPLICATION WRAPPER (KHU VỰC CHÍNH) -->
+    <main class="main-wrapper">
+      
+      <!-- HEADER BAR (THANH ĐẦU TRANG) -->
+      <header class="header">
+        <div class="header-title-section">
+          <h1 id="page-display-title" class="header-title">Bàn làm việc</h1>
+          <span id="page-display-subtitle" class="header-subtitle">Tổng quan tình hình tài chính công ty Rạng Đông</span>
+        </div>
+        
+        <div class="header-actions">
+          <div class="header-company-badge">
+            <div class="pulse-indicator"></div>
+            <span id="header-company-name">CÔNG TY CP RẠNG ĐÔNG</span>
+          </div>
+          
+          <!-- Nút đổi Theme -->
+          <button class="icon-btn" onclick="toggleTheme()" title="Đổi giao diện Tối/Sáng">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px;">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+            </svg>
+          </button>
+        </div>
+      </header>
+      
+      <!-- CONTENT BODY (NỘI DUNG THAY ĐỔI THEO TAB) -->
+      <div class="content-body">
+        
+        <!-- ==========================================================
+             1. TAB: DASHBOARD (BÀN LÀM VIỆC)
+             ========================================================== -->
+        <section id="view-dashboard" class="tab-view active-tab">
+          <!-- Hàng Chỉ số KPI -->
+          <div class="kpi-grid">
+            <div class="kpi-card" style="--card-accent: var(--color-success)">
+              <div class="kpi-info">
+                <span class="kpi-label">Tổng quỹ tiền mặt & NH</span>
+                <span id="kpi-cash-value" class="kpi-value font-numeric">0đ</span>
+                <span class="kpi-trend trend-up">TK 111 & 112</span>
+              </div>
+              <div class="kpi-icon-wrapper">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+              </div>
+            </div>
+            
+            <div class="kpi-card" style="--card-accent: var(--color-primary)">
+              <div class="kpi-info">
+                <span class="kpi-label">Tổng doanh thu kỳ này</span>
+                <span id="kpi-revenue-value" class="kpi-value font-numeric">0đ</span>
+                <span class="kpi-trend trend-up">TK 511 (Bán hàng)</span>
+              </div>
+              <div class="kpi-icon-wrapper">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+              </div>
+            </div>
+            
+            <div class="kpi-card" style="--card-accent: var(--color-info)">
+              <div class="kpi-info">
+                <span class="kpi-label">Giá trị tồn kho</span>
+                <span id="kpi-inventory-value" class="kpi-value font-numeric">0đ</span>
+                <span class="kpi-trend">TK 156 (Bình quân)</span>
+              </div>
+              <div class="kpi-icon-wrapper">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+              </div>
+            </div>
+            
+            <div class="kpi-card" style="--card-accent: var(--color-warning)">
+              <div class="kpi-info">
+                <span class="kpi-label">Dư nợ ký quỹ, ký cược</span>
+                <span id="kpi-escrow-value" class="kpi-value font-numeric">0đ</span>
+                <span class="kpi-trend">TK 244 & 344</span>
+              </div>
+              <div class="kpi-icon-wrapper">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Hàng Biểu đồ và Lịch sử Giao dịch nhanh -->
+          <div class="dashboard-details-row">
+            
+            <!-- Biểu đồ cột tự vẽ offline -->
+            <div class="chart-card">
+              <div class="card-header-bar">
+                <span class="card-title">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                  Phân tích Doanh thu & Giá vốn
+                </span>
+                <span class="header-subtitle">Tính toán tự động theo thời gian thực</span>
+              </div>
+              <div class="chart-container-inner" id="dashboard-chart-container">
+                <!-- SVG Chart sẽ được vẽ động bằng Javascript ở đây -->
+              </div>
+            </div>
+            
+            <!-- Danh sách hoạt động gần nhất -->
+            <div class="list-card">
+              <div class="card-header-bar">
+                <span class="card-title">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                  Giao dịch gần đây
+                </span>
+                <a onclick="switchTab('reports')" class="badge badge-info" style="cursor: pointer;">Nhật ký chung</a>
+              </div>
+              <div class="activity-list" id="dashboard-recent-activities">
+                <!-- Danh sách giao dịch được sinh tự động bằng JS -->
+              </div>
+            </div>
+            
+          </div>
+        </section>
+        
+        <!-- ==========================================================
+             2. TAB: MUA HÀNG (PURCHASING)
+             ========================================================== -->
+        <section id="view-purchase" class="tab-view">
+          <div class="actions-bar">
+            <div class="search-input-wrapper">
+              <svg class="search-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              <input type="text" id="search-purchase" class="search-input" placeholder="Tìm số chứng từ, nhà cung cấp..." oninput="filterPurchaseTable()">
+            </div>
+            
+            <button class="btn btn-primary" onclick="openModal('modal-add-purchase')">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+              Lập hóa đơn mua hàng
+            </button>
+          </div>
+          
+          <div class="table-card">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Số chứng từ</th>
+                    <th>Ngày lập</th>
+                    <th>Nhà cung cấp</th>
+                    <th>Diễn giải</th>
+                    <th>Phương thức</th>
+                    <th class="text-right">Tiền hàng</th>
+                    <th class="text-right">Thuế VAT</th>
+                    <th class="text-right">Tổng thanh toán</th>
+                    <th>Định khoản</th>
+                    <th style="text-align: center;">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="purchase-table-body">
+                  <!-- Dữ liệu bảng mua hàng -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+        
+        <!-- ==========================================================
+             3. TAB: BÁN HÀNG (SALES)
+             ========================================================== -->
+        <section id="view-sales" class="tab-view">
+          <div class="actions-bar">
+            <div class="search-input-wrapper">
+              <svg class="search-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              <input type="text" id="search-sales" class="search-input" placeholder="Tìm số chứng từ, khách hàng..." oninput="filterSalesTable()">
+            </div>
+            
+            <button class="btn btn-success" onclick="openModal('modal-add-sales')">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+              Lập hóa đơn bán hàng
+            </button>
+          </div>
+          
+          <div class="table-card">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Số chứng từ</th>
+                    <th>Ngày lập</th>
+                    <th>Khách hàng</th>
+                    <th>Diễn giải</th>
+                    <th>Phương thức</th>
+                    <th class="text-right">Doanh thu</th>
+                    <th class="text-right">Giá vốn</th>
+                    <th class="text-right">Thuế VAT</th>
+                    <th class="text-right">Tổng thanh toán</th>
+                    <th>Định khoản</th>
+                    <th style="text-align: center;">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="sales-table-body">
+                  <!-- Dữ liệu bảng bán hàng -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+        
+        <!-- ==========================================================
+             4. TAB: KHO HÀNG (INVENTORY)
+             ========================================================== -->
+        <section id="view-inventory" class="tab-view">
+          <div class="actions-bar">
+            <div class="search-input-wrapper">
+              <svg class="search-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              <input type="text" id="search-inventory" class="search-input" placeholder="Tìm kiếm sản phẩm..." oninput="filterInventoryTable()">
+            </div>
+            
+            <button class="btn btn-secondary" onclick="openModal('modal-add-product')">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+              Khai báo mặt hàng mới
+            </button>
+          </div>
+          
+          <div class="dashboard-details-row" style="grid-template-columns: 3fr 2fr;">
+            
+            <!-- Danh mục tồn kho hiện tại -->
+            <div class="table-card">
+              <div class="card-header-bar" style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-tertiary);">
+                <span class="card-title">Báo cáo tồn kho tổng hợp (TK 156)</span>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Mã hàng</th>
+                      <th>Tên sản phẩm</th>
+                      <th>ĐVT</th>
+                      <th class="text-right">Tồn kho</th>
+                      <th class="text-right">Đơn giá bình quân</th>
+                      <th class="text-right">Tổng giá trị tồn</th>
+                      <th>Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody id="inventory-table-body">
+                    <!-- Danh mục sản phẩm -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <!-- Sổ chi tiết thẻ kho -->
+            <div class="table-card" style="display: flex; flex-direction: column;">
+              <div class="card-header-bar" style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-tertiary); justify-content: space-between;">
+                <span class="card-title">Sổ thẻ kho (Lịch sử nhập xuất)</span>
+                <select id="select-product-ledger" class="form-control" style="padding: 4px 10px; font-size: 12px; width: 180px;" onchange="renderStockLedger()">
+                  <!-- Dropdown danh sách sản phẩm -->
+                </select>
+              </div>
+              <div class="table-responsive" style="flex-grow: 1; max-height: 320px; overflow-y: auto;">
+                <table class="data-table" style="font-size: 12px;">
+                  <thead>
+                    <tr>
+                      <th>Ngày</th>
+                      <th>Mã chứng từ</th>
+                      <th>Nhập</th>
+                      <th>Xuất</th>
+                      <th>Đơn giá</th>
+                    </tr>
+                  </thead>
+                  <tbody id="stock-ledger-body">
+                    <!-- Lịch sử xuất nhập sản phẩm -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+          </div>
+        </section>
+        
+        <!-- ==========================================================
+             5. TAB: KÝ QUỸ, KÝ CƯỢC (ESCROW)
+             ========================================================== -->
+        <section id="view-escrow" class="tab-view">
+          <div class="actions-bar">
+            <div class="search-input-wrapper">
+              <svg class="search-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              <input type="text" id="search-escrow" class="search-input" placeholder="Tìm theo tên đối tác..." oninput="filterEscrowTable()">
+            </div>
+            
+            <button class="btn btn-primary" onclick="openModal('modal-add-escrow')" style="background-color: var(--color-warning); border-color: var(--color-warning); box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3);">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+              Lập chứng từ Ký quỹ
+            </button>
+          </div>
+          
+          <div class="table-card">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Số chứng từ</th>
+                    <th>Ngày lập</th>
+                    <th>Đối tác liên quan</th>
+                    <th>Loại nghiệp vụ</th>
+                    <th>Diễn giải</th>
+                    <th>Tài khoản</th>
+                    <th class="text-right">Số tiền ký quỹ</th>
+                    <th>Trạng thái</th>
+                    <th style="text-align: center;">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="escrow-table-body">
+                  <!-- Dữ liệu bảng ký quỹ -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+        
+        <!-- ==========================================================
+             6. TAB: BÁO CÁO KẾ TOÁN (REPORTS)
+             ========================================================== -->
+        <section id="view-reports" class="tab-view">
+          <div class="report-selector-bar">
+            <div class="form-group" style="min-width: 220px;">
+              <label class="form-label">Chọn Loại Báo cáo</label>
+              <select id="select-report-type" class="form-control" onchange="handleReportTypeChange()">
+                <option value="journal">Sổ Nhật ký chung</option>
+                <option value="ledger">Sổ Cái chi tiết Tài khoản</option>
+                <option value="balance">Bảng Cân đối Phát sinh</option>
+              </select>
+            </div>
+            
+            <div class="form-group" id="report-account-selector-wrapper" style="min-width: 200px; display: none;">
+              <label class="form-label">Chọn Tài khoản</label>
+              <select id="select-report-account" class="form-control" onchange="generateReport()">
+                <!-- Tài khoản nạp động từ JS -->
+              </select>
+            </div>
+            
+            <button class="btn btn-secondary" onclick="printReport()" style="margin-left: auto;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+              In báo cáo (PDF)
+            </button>
+          </div>
+          
+          <!-- Vùng render báo cáo -->
+          <div class="table-card" style="padding: 30px; background-color: var(--bg-secondary);" id="printable-report-area">
+            <!-- Nội dung báo cáo do JS xây dựng -->
+          </div>
+        </section>
+        
+        <!-- ==========================================================
+             7. TAB: THIẾT LẬP (SETTINGS)
+             ========================================================== -->
+        <section id="view-settings" class="tab-view">
+          <div class="dashboard-details-row">
+            
+            <!-- Form thông tin doanh nghiệp -->
+            <div class="chart-card" style="min-height: auto;">
+              <span class="card-title">Thông tin Doanh nghiệp gốc</span>
+              <div class="form-grid">
+                <div class="form-group col-span-full">
+                  <label class="form-label">Tên công ty</label>
+                  <input type="text" id="setting-company-name" class="form-control" value="">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Mã số thuế</label>
+                  <input type="text" id="setting-tax-code" class="form-control" value="">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Địa chỉ trụ sở</label>
+                  <input type="text" id="setting-address" class="form-control" value="">
+                </div>
+              </div>
+              <button class="btn btn-primary" onclick="saveCompanySettings()" style="margin-top: 16px; align-self: flex-start;">Lưu thông tin</button>
+            </div>
+            
+            <!-- Quản lý Cơ sở dữ liệu -->
+            <div class="chart-card" style="min-height: auto;">
+              <span class="card-title">Quản lý và Sao lưu Cơ sở dữ liệu</span>
+              <p class="header-subtitle" style="margin-bottom: 12px;">Dữ liệu kế toán được lưu trữ cục bộ trong trình duyệt của bạn.</p>
+              
+              <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 8px;">
+                <div style="display: flex; gap: 10px;">
+                  <button class="btn btn-secondary" onclick="exportData()" style="flex: 1;">
+                    Xuất dữ liệu (JSON)
+                  </button>
+                  <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()" style="flex: 1;">
+                    Nhập dữ liệu (JSON)
+                  </button>
+                  <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importData(event)">
+                </div>
+                
+                <hr style="border: none; border-top: 1px solid var(--border-color); margin: 8px 0;">
+                
+                <div style="display: flex; gap: 10px;">
+                  <button class="btn btn-danger" onclick="resetDatabase()" style="flex: 1; background-color: var(--color-danger); border-color: var(--color-danger);">
+                    Khôi phục dữ liệu mẫu
+                  </button>
+                  <button class="btn btn-secondary" onclick="clearAllData()" style="flex: 1; color: var(--color-danger);">
+                    Xóa sạch dữ liệu trắng
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+          </div>
+        </section>
+        
+      </div>
+    </main>
+  </div>
+
+  <!-- ==========================================================
+       POPUP MODALS (CÁC HỘP THOẠI BIỂU MẪU NHẬP LIỆU)
+       ========================================================== -->
+
+  <!-- A. MODAL: THÊM MẶT HÀNG MỚI -->
+  <div id="modal-add-product" class="modal-overlay">
+    <div class="modal-content-container" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3 class="card-title">Khai báo Sản phẩm / Hàng hóa</h3>
+        <button class="icon-btn" onclick="closeModal('modal-add-product')" style="width: 32px; height: 32px;">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-product" class="form-grid" style="grid-template-columns: 1fr;" onsubmit="handleProductSubmit(event)">
+          <div class="form-group">
+            <label class="form-label">Mã mặt hàng (Ví dụ: SP006)</label>
+            <input type="text" id="prod-id" class="form-control" required placeholder="Hệ thống tự sinh nếu để trống">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tên sản phẩm</label>
+            <input type="text" id="prod-name" class="form-control" required placeholder="Ví dụ: Đèn tuýp thông minh">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Đơn vị tính (ĐVT)</label>
+            <input type="text" id="prod-unit" class="form-control" required placeholder="Cái, Bộ, Hộp..." value="Cái">
+          </div>
+          <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+            <div class="form-group">
+              <label class="form-label">Số lượng tồn ban đầu</label>
+              <input type="number" id="prod-stock" class="form-control" required value="0" min="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Giá vốn đầu kỳ (đ/ĐVT)</label>
+              <input type="number" id="prod-cost" class="form-control" required value="0" min="0">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Số lượng tồn tối thiểu (Cảnh báo)</label>
+            <input type="number" id="prod-min-stock" class="form-control" required value="5" min="0">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-add-product')">Hủy bỏ</button>
+        <button type="submit" form="form-product" class="btn btn-primary">Lưu mặt hàng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- B. MODAL: LẬP HÓA ĐƠN MUA HÀNG -->
+  <div id="modal-add-purchase" class="modal-overlay">
+    <div class="modal-content-container">
+      <div class="modal-header">
+        <h3 class="card-title">Chứng từ Mua hàng nhập kho</h3>
+        <button class="icon-btn" onclick="closeModal('modal-add-purchase')" style="width: 32px; height: 32px;">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-purchase" class="form-grid" onsubmit="handlePurchaseSubmit(event)">
+          <div class="form-group">
+            <label class="form-label">Nhà cung cấp</label>
+            <select id="pur-partner" class="form-control" required>
+              <!-- Danh sách NCC nạp động -->
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Ngày hạch toán</label>
+            <input type="date" id="pur-date" class="form-control" required>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Phương thức thanh toán</label>
+            <select id="pur-payment" class="form-control" required>
+              <option value="331">Chưa thanh toán (Công nợ TK 331)</option>
+              <option value="111">Tiền mặt (TK 111)</option>
+              <option value="112">Tiền gửi ngân hàng (TK 112)</option>
+            </select>
+          </div>
+          
+          <div class="form-group col-span-full">
+            <label class="form-label">Diễn giải</label>
+            <input type="text" id="pur-desc" class="form-control" required placeholder="Ví dụ: Mua linh kiện vỏ phích nhập kho..." value="Mua hàng hóa nhập kho">
+          </div>
+          
+          <!-- Hàng hóa mua -->
+          <div class="form-group col-span-full">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label class="form-label">Danh mục sản phẩm mua</label>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="addPurchaseFormRow()">+ Thêm dòng</button>
+            </div>
+            
+            <table class="dynamic-items-table">
+              <thead>
+                <tr>
+                  <th style="width: 45%;">Tên sản phẩm</th>
+                  <th style="width: 15%; text-align: right;">Số lượng</th>
+                  <th style="width: 20%; text-align: right;">Đơn giá mua (đ)</th>
+                  <th style="width: 20%; text-align: right;">Thành tiền</th>
+                  <th style="width: 10%;"></th>
+                </tr>
+              </thead>
+              <tbody id="purchase-form-items-body">
+                <!-- Các dòng sản phẩm mua -->
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- Thuế suất và tổng cộng -->
+          <div class="form-group col-span-full" style="background-color: var(--bg-tertiary); padding: 16px; border-radius: var(--radius-md); margin-top: 10px;">
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Thuế suất GTGT đầu vào</label>
+                <select id="pur-tax-rate" class="form-control" onchange="recalculatePurchaseTotals()">
+                  <option value="10">10%</option>
+                  <option value="5">5%</option>
+                  <option value="0">0%</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Tiền hàng chưa VAT</label>
+                <input type="text" id="pur-subtotal-display" class="form-control text-right font-numeric" disabled value="0đ">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Tiền thuế GTGT (Nợ 1331)</label>
+                <input type="text" id="pur-tax-display" class="form-control text-right font-numeric" disabled value="0đ">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Tổng tiền thanh toán</label>
+                <input type="text" id="pur-total-display" class="form-control text-right font-numeric" disabled style="color: var(--color-primary); font-weight: 800;" value="0đ">
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-add-purchase')">Hủy bỏ</button>
+        <button type="submit" form="form-purchase" class="btn btn-primary">Ghi sổ chứng từ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- C. MODAL: LẬP HÓA ĐƠN BÁN HÀNG -->
+  <div id="modal-add-sales" class="modal-overlay">
+    <div class="modal-content-container">
+      <div class="modal-header">
+        <h3 class="card-title">Hóa đơn Bán hàng xuất kho</h3>
+        <button class="icon-btn" onclick="closeModal('modal-add-sales')" style="width: 32px; height: 32px;">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-sales" class="form-grid" onsubmit="handleSalesSubmit(event)">
+          <div class="form-group">
+            <label class="form-label">Khách hàng mua</label>
+            <select id="sale-partner" class="form-control" required>
+              <!-- Danh sách KH nạp động -->
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Ngày hạch toán</label>
+            <input type="date" id="sale-date" class="form-control" required>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Hình thức thu tiền</label>
+            <select id="sale-payment" class="form-control" required>
+              <option value="131">Chưa thu tiền (Ghi nợ TK 131)</option>
+              <option value="111">Tiền mặt (TK 111)</option>
+              <option value="112">Tiền gửi ngân hàng (TK 112)</option>
+            </select>
+          </div>
+          
+          <div class="form-group col-span-full">
+            <label class="form-label">Diễn giải</label>
+            <input type="text" id="sale-desc" class="form-control" required placeholder="Ví dụ: Bán bóng đèn LED cho đại lý Ánh Dương..." value="Bán hàng xuất kho">
+          </div>
+          
+          <!-- Hàng hóa bán -->
+          <div class="form-group col-span-full">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label class="form-label">Mặt hàng bán</label>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="addSalesFormRow()">+ Thêm dòng</button>
+            </div>
+            
+            <table class="dynamic-items-table">
+              <thead>
+                <tr>
+                  <th style="width: 45%;">Tên sản phẩm</th>
+                  <th style="width: 15%; text-align: right;">Số lượng bán</th>
+                  <th style="width: 20%; text-align: right;">Đơn giá bán (đ)</th>
+                  <th style="width: 20%; text-align: right;">Thành tiền</th>
+                  <th style="width: 10%;"></th>
+                </tr>
+              </thead>
+              <tbody id="sales-form-items-body">
+                <!-- Các dòng sản phẩm bán -->
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- Thuế suất và tổng cộng -->
+          <div class="form-group col-span-full" style="background-color: var(--bg-tertiary); padding: 16px; border-radius: var(--radius-md); margin-top: 10px;">
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Thuế suất GTGT đầu ra</label>
+                <select id="sale-tax-rate" class="form-control" onchange="recalculateSalesTotals()">
+                  <option value="10">10%</option>
+                  <option value="5">5%</option>
+                  <option value="0">0%</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Doanh thu bán chưa thuế</label>
+                <input type="text" id="sale-subtotal-display" class="form-control text-right font-numeric" disabled value="0đ">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Thuế GTGT đầu ra (Có 3331)</label>
+                <input type="text" id="sale-tax-display" class="form-control text-right font-numeric" disabled value="0đ">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Tổng thanh toán (Phải thu)</label>
+                <input type="text" id="sale-total-display" class="form-control text-right font-numeric" disabled style="color: var(--color-success); font-weight: 800;" value="0đ">
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-add-sales')">Hủy bỏ</button>
+        <button type="submit" form="form-sales" class="btn btn-success">Ghi sổ chứng từ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- D. MODAL: LẬP CHỨNG TỪ KÝ QUỸ -->
+  <div id="modal-add-escrow" class="modal-overlay">
+    <div class="modal-content-container" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 class="card-title">Phiếu Nghiệp vụ Ký quỹ, Ký cược</h3>
+        <button class="icon-btn" onclick="closeModal('modal-add-escrow')" style="width: 32px; height: 32px;">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-escrow" class="form-grid" style="grid-template-columns: 1fr;" onsubmit="handleEscrowSubmit(event)">
+          
+          <div class="form-group">
+            <label class="form-label">Nghiệp vụ ký quỹ</label>
+            <select id="esc-type" class="form-control" required onchange="handleEscrowTypeChange()">
+              <option value="escrow_pay">Chi tiền ký quỹ mang đi (Tài sản - TK 244)</option>
+              <option value="escrow_receive">Nhận ký quỹ từ đối tác (Nợ phải trả - TK 344)</option>
+              <option value="escrow_refund_pay">Thu hồi ký quỹ mang đi (Giảm TK 244)</option>
+              <option value="escrow_refund_receive">Hoàn trả ký quỹ nhận về (Giảm TK 344)</option>
+            </select>
+          </div>
+          
+          <div class="form-group" id="esc-active-selection-wrapper" style="display: none;">
+            <label class="form-label">Chọn khoản Ký quỹ cần Tất toán/Hoàn trả</label>
+            <select id="esc-active-selection" class="form-control" onchange="autoFillEscrowRefundData()">
+              <!-- Danh sách khoản ký quỹ đang active nạp động -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Đối tác liên quan</label>
+            <select id="esc-partner" class="form-control" required>
+              <!-- Đối tác nạp động -->
+            </select>
+          </div>
+          
+          <div class="form-grid" style="grid-template-columns: 1.2fr 1fr;">
+            <div class="form-group">
+              <label class="form-label">Số tiền (đ)</label>
+              <input type="number" id="esc-amount" class="form-control font-numeric" required min="1000">
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Tài khoản thanh toán</label>
+              <select id="esc-payment-method" class="form-control" required>
+                <option value="112">Tiền gửi NH (112)</option>
+                <option value="111">Tiền mặt (111)</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+            <div class="form-group">
+              <label class="form-label">Ngày thực hiện</label>
+              <input type="date" id="esc-date" class="form-control" required>
+            </div>
+            
+            <div class="form-group" id="escrow-expected-date-group">
+              <label class="form-label">Ngày dự kiến hoàn trả</label>
+              <input type="date" id="esc-return-date" class="form-control">
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Diễn giải nghiệp vụ</label>
+            <input type="text" id="esc-desc" class="form-control" required value="Nghiệp vụ ký quỹ phát sinh">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-add-escrow')">Hủy bỏ</button>
+        <button type="submit" form="form-escrow" class="btn btn-primary" style="background-color: var(--color-warning); border-color: var(--color-warning);">Ghi sổ nghiệp vụ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- E. MODAL: XEM VÀ IN CHỨNG TỪ KẾ TOÁN CHUẨN (PRINT VOUCHER PREVIEW) -->
+  <div id="modal-view-voucher" class="modal-overlay">
+    <div class="modal-content-container" style="max-width: 800px; background-color: #f3f4f6;">
+      <div class="modal-header" style="background-color: var(--bg-secondary); border-bottom: 1px solid var(--border-color);">
+        <h3 class="card-title">Xem Chứng từ Kế toán</h3>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-view-voucher')">Đóng</button>
+          <button class="btn btn-primary btn-sm" onclick="window.print()">In chứng từ (Print)</button>
+        </div>
+      </div>
+      <div class="modal-body" style="padding: 20px 0; overflow-y: auto;">
+        <!-- Đây là khu vực biểu mẫu in ấn Times New Roman cực chuẩn -->
+        <div id="voucher-print-area">
+          <!-- Bút toán in do JS sinh động -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTAINER THÔNG BÁO TOAST -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- FILE JAVASCRIPT LOGIC CHÍNH -->
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "rd-accounting",
+  "version": "1.0.0",
+  "description": "Phần mềm kế toán độc lập Công ty Cổ phần Rạng Đông",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "keywords": [
+    "accounting",
+    "rangdong",
+    "desktop-app"
+  ],
+  "author": "Antigravity",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^31.0.0"
+  }
+}
