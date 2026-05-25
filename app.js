@@ -1483,51 +1483,6 @@ function resetSalesForm() {
   addSalesFormRow();
 }
 
-// Gợi ý giá bán = Giá vốn bình quân + 30% lợi nhuận biên
-function autoFillProductPrice(selectEl) {
-  const prodId = selectEl.value;
-  const prod = state.products.find(p => p.id === prodId);
-  const row = selectEl.closest("tr");
-  
-  if (prod && row) {
-    const suggestedPrice = Math.round(prod.avgCost * 1.35 / 1000) * 1000 || 50000;
-    row.querySelector(".item-price").value = suggestedPrice;
-    recalculateSalesTotals();
-  }
-}
-
-// Tính toán lại tổng tiền trong form Bán
-function recalculateSalesTotals() {
-  const rows = document.querySelectorAll("#sales-form-items-body tr");
-  let subtotal = 0;
-
-  rows.forEach(row => {
-    const qty = parseInt(row.querySelector(".item-qty").value) || 0;
-    const price = parseInt(row.querySelector(".item-price").value) || 0;
-    const amount = qty * price;
-    subtotal += amount;
-
-    row.querySelector(".item-total-display").innerText = formatVND(amount);
-  });
-
-  const taxRate = parseInt(document.getElementById("sale-tax-rate").value) || 0;
-  const taxAmount = Math.round(subtotal * (taxRate / 100));
-  const total = subtotal + taxAmount;
-
-  document.getElementById("sale-subtotal-display").value = formatVND(subtotal);
-  document.getElementById("sale-tax-display").value = formatVND(taxAmount);
-  document.getElementById("sale-total-display").value = formatVND(total);
-}
-
-// Reset form bán hàng
-function resetSalesForm() {
-  const tbody = document.getElementById("sales-form-items-body");
-  if (tbody) tbody.innerHTML = "";
-  document.getElementById("sale-desc").value = "Bán sản phẩm Rạng Đông xuất kho";
-  document.getElementById("sale-date").value = new Date().toISOString().split("T")[0];
-  addSalesFormRow();
-}
-
 // Xử lý nộp form Bán hàng (Có xác thực kiểm kho hàng tồn)
 function handleSalesSubmit(e) {
   e.preventDefault();
