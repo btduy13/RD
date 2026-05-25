@@ -833,6 +833,24 @@ body {
   border-color: #000000 !important;
 }
 
+/* Thiết kế báo cáo kế toán in ấn và hiển thị */
+#printable-report-area {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  padding: 40px !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-lg) !important;
+  font-family: "Times New Roman", Times, serif !important;
+  margin: 20px auto 0 !important;
+  max-width: 900px !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+#printable-report-area * {
+  color: #000000 !important;
+  border-color: #000000 !important;
+}
+
 .voucher-header-top {
   display: flex;
   justify-content: space-between;
@@ -1142,6 +1160,32 @@ body {
     margin: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
+    background-color: transparent !important;
+  }
+
+  /* Hỗ trợ in ấn cho báo cáo kế toán */
+  body.printing-report .app-container {
+    display: block !important;
+  }
+
+  body.printing-report .content-body {
+    display: block !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  body.printing-report .report-selector-bar {
+    display: none !important;
+  }
+
+  body.printing-report #printable-report-area {
+    display: block !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border: none !important;
     background-color: transparent !important;
   }
 }

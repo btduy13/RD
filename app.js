@@ -1112,7 +1112,11 @@ function getReportSignaturesHTML() {
 
 // Hàm in báo cáo
 function printReport() {
+  document.body.classList.add("printing-report");
   window.print();
+  setTimeout(() => {
+    document.body.classList.remove("printing-report");
+  }, 500);
 }
 
 // Tính bảng cân đối phát sinh tài khoản
