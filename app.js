@@ -2200,10 +2200,14 @@ function viewVoucher(id) {
           </div>
           
           <div>
-            <strong>Địa chỉ:</strong> ${(state.partners.find(x => x.id === v.partnerId) || {}).address || "37 Phó Đức Chính"}
+            <strong>Điện thoại:</strong> <span>${(state.partners.find(x => x.id === v.partnerId) || {}).phone || "-"}</span>
           </div>
           <div style="text-align: right;">
             <strong>Số:</strong> <span style="font-family: monospace; font-weight: bold; font-size: 14px;">${v.id}</span>
+          </div>
+
+          <div style="grid-column: span 2;">
+            <strong>Địa chỉ:</strong> <span>${(state.partners.find(x => x.id === v.partnerId) || {}).address || "-"}</span>
           </div>
           
           <div style="grid-column: span 2;">
