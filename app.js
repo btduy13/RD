@@ -76,6 +76,11 @@ function initApp() {
 
   // Khởi tạo các dòng Excel mặc định nếu bị thiếu
   initializeMissingExcelRows();
+  
+  // Dọn dẹp và chuẩn hóa dữ liệu Excel cũ tránh giá trị undefined
+  if (typeof migrateAndCleanExistingExcelRows === "function") {
+    migrateAndCleanExistingExcelRows();
+  }
 
   // Khởi tạo cache sản phẩm & datalist đối tác Excel
   initExcelIntegration();
@@ -3011,6 +3016,67 @@ function initializeMissingExcelRows() {
   }
 }
 
+function migrateAndCleanExistingExcelRows() {
+  let migrated = false;
+  
+  if (state.vouchers) {
+    state.vouchers.forEach(v => {
+      if (v.excelRow && Array.isArray(v.excelRow)) {
+        for (let i = 0; i < v.excelRow.length; i++) {
+          if (v.excelRow[i] === undefined || v.excelRow[i] === null) {
+            v.excelRow[i] = "";
+            migrated = true;
+          }
+        }
+      }
+    });
+  }
+  
+  if (state.products) {
+    state.products.forEach(p => {
+      if (p.excelRow && Array.isArray(p.excelRow)) {
+        for (let i = 0; i < p.excelRow.length; i++) {
+          if (p.excelRow[i] === undefined || p.excelRow[i] === null) {
+            p.excelRow[i] = "";
+            migrated = true;
+          }
+        }
+      }
+    });
+  }
+  
+  if (state.partners) {
+    state.partners.forEach(p => {
+      if (p.excelRow && Array.isArray(p.excelRow)) {
+        for (let i = 0; i < p.excelRow.length; i++) {
+          if (p.excelRow[i] === undefined || p.excelRow[i] === null) {
+            p.excelRow[i] = "";
+            migrated = true;
+          }
+        }
+      }
+    });
+  }
+  
+  if (state.partnerOpeningBalances) {
+    Object.keys(state.partnerOpeningBalances).forEach(key => {
+      const d = state.partnerOpeningBalances[key];
+      if (d && d.excelRow && Array.isArray(d.excelRow)) {
+        for (let i = 0; i < d.excelRow.length; i++) {
+          if (d.excelRow[i] === undefined || d.excelRow[i] === null) {
+            d.excelRow[i] = "";
+            migrated = true;
+          }
+        }
+      }
+    });
+  }
+  
+  if (migrated) {
+    saveState();
+  }
+}
+
 async function exportExcelWithTemplate(templatePath, outputName, list, mapper, fallbackHeaders, fallbackMapper) {
   if (typeof XLSX === "undefined") {
     showToast("Thư viện SheetJS chưa được nạp!", "danger");
@@ -4753,49 +4819,43 @@ function unescapeFirebaseKey(key) {
 }
 
 function escapeFirebaseObject(obj) {
-  if (obj === null || obj === undefined) {
-    return "";
-  }
-  if (Array.isArray(obj)) {
-    return obj.map(item => {
-      if (item === undefined || item === null) return "";
-      return escapeFirebaseObject(item);
-    });
-  }
-  if (typeof obj === 'object') {
-    const res = {};
-    for (const key in obj) {
-      if (Object.prototype.hasOwnProperty.call(obj, key)) {
-        const val = obj[key];
+  if (!obj) return obj;
+  
+  // Tạo bản sao cạn (shallow clone) của state để không làm thay đổi trực tiếp bộ nhớ cục bộ
+  const copy = { ...obj };
+  
+  // Chỉ thực hiện escape cho partnerOpeningBalances
+  if (copy.partnerOpeningBalances) {
+    const escapedBalances = {};
+    for (const key in copy.partnerOpeningBalances) {
+      if (Object.prototype.hasOwnProperty.call(copy.partnerOpeningBalances, key)) {
         const escapedKey = escapeFirebaseKey(key);
-        if (val === undefined || val === null) {
-          res[escapedKey] = "";
-        } else {
-          res[escapedKey] = escapeFirebaseObject(val);
-        }
+        escapedBalances[escapedKey] = copy.partnerOpeningBalances[key];
       }
     }
-    return res;
+    copy.partnerOpeningBalances = escapedBalances;
   }
-  return obj;
+  
+  return copy;
 }
 
 function unescapeFirebaseObject(obj) {
-  if (obj === null || obj === undefined) return obj;
-  if (Array.isArray(obj)) {
-    return obj.map(item => unescapeFirebaseObject(item));
-  }
-  if (typeof obj === 'object') {
-    const res = {};
-    for (const key in obj) {
-      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+  if (!obj) return obj;
+  
+  const copy = { ...obj };
+  
+  if (copy.partnerOpeningBalances) {
+    const unescapedBalances = {};
+    for (const key in copy.partnerOpeningBalances) {
+      if (Object.prototype.hasOwnProperty.call(copy.partnerOpeningBalances, key)) {
         const unescapedKey = unescapeFirebaseKey(key);
-        res[unescapedKey] = unescapeFirebaseObject(obj[key]);
+        unescapedBalances[unescapedKey] = copy.partnerOpeningBalances[key];
       }
     }
-    return res;
+    copy.partnerOpeningBalances = unescapedBalances;
   }
-  return obj;
+  
+  return copy;
 }
 
 let firebaseApp = null;
