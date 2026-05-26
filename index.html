@@ -1624,24 +1624,24 @@ Không có lỗi nào được ghi nhận.
           <!-- Thuế suất và tổng cộng -->
           <div class="form-group col-span-full" style="background-color: var(--bg-tertiary); padding: 16px; border-radius: var(--radius-md); margin-top: 10px;">
             <div class="form-grid">
-              <div class="form-group">
+              <div class="form-group" style="display: none;">
                 <label class="form-label">Thuế suất GTGT đầu ra</label>
                 <select id="sale-tax-rate" class="form-control" onchange="recalculateSalesTotals()">
-                  <option value="10">10%</option>
+                  <option value="0" selected>0%</option>
                   <option value="5">5%</option>
-                  <option value="0">0%</option>
+                  <option value="10">10%</option>
                 </select>
               </div>
-              <div class="form-group">
+              <div class="form-group" style="display: none;">
                 <label class="form-label">Doanh thu bán chưa thuế</label>
                 <input type="text" id="sale-subtotal-display" class="form-control text-right font-numeric" disabled value="0đ">
               </div>
-              <div class="form-group">
+              <div class="form-group" style="display: none;">
                 <label class="form-label">Thuế GTGT đầu ra (Có 3331)</label>
                 <input type="text" id="sale-tax-display" class="form-control text-right font-numeric" disabled value="0đ">
               </div>
-              <div class="form-group">
-                <label class="form-label">Tổng thanh toán (Phải thu)</label>
+              <div class="form-group col-span-full">
+                <label class="form-label">Tổng thanh toán (Đã bao gồm thuế)</label>
                 <input type="text" id="sale-total-display" class="form-control text-right font-numeric" disabled style="color: var(--color-success); font-weight: 800;" value="0đ">
               </div>
             </div>
