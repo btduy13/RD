@@ -986,6 +986,8 @@ function filterPurchaseTable() {
   });
 }
 
+let salesCurrentPage = 1;
+
 // 7. RENDER DỮ LIỆU PHÂN HỆ BÁN HÀNG (SALES)
 function renderSalesTable() {
   const tbody = document.getElementById("sales-table-body");
@@ -1013,24 +1015,80 @@ function renderSalesTable() {
     sales = sales.filter(v => v.date <= toDate);
   }
 
-  // Sắp xếp số chứng từ giảm dần (mới nhất lên trước)
-  sales.sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' }));
+  // Sắp xếp GIẢM DẦN theo ngày chứng từ (mới nhất lên trước), nếu cùng ngày thì sắp xếp theo số chứng từ giảm dần
+  sales.sort((a, b) => {
+    if (b.date !== a.date) {
+      return b.date.localeCompare(a.date);
+    }
+    return b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' });
+  });
 
   const totalCount = sales.length;
+  const totalPages = Math.ceil(totalCount / 30) || 1;
+  
+  if (salesCurrentPage > totalPages) salesCurrentPage = totalPages;
+  if (salesCurrentPage < 1) salesCurrentPage = 1;
 
-  // Lấy 30 đơn bán hàng mới nhất (1 trang duy nhất)
-  const displayedSales = sales.slice(0, 30);
+  const startIdx = (salesCurrentPage - 1) * 30;
+  const displayedSales = sales.slice(startIdx, startIdx + 30);
 
   // Cập nhật thông tin phân trang trên tiêu đề bảng
   const countEl = document.getElementById("sales-pagination-info");
   if (countEl) {
-    countEl.innerText = `Hiển thị tối đa 30 đơn bán hàng mới nhất (Tổng cộng khớp bộ lọc: ${totalCount})`;
+    countEl.innerText = `Hiển thị đơn hàng từ ${totalCount > 0 ? startIdx + 1 : 0} - ${Math.min(startIdx + 30, totalCount)} trong số ${totalCount} đơn hàng (Trang ${salesCurrentPage}/${totalPages})`;
   }
 
   // Reset check-all-sales checkbox
   const checkAll = document.getElementById("check-all-sales");
   if (checkAll) checkAll.checked = false;
   if (typeof updateBatchSalesUI === "function") updateBatchSalesUI();
+
+  // Render các nút chuyển trang động
+  const paginationControls = document.getElementById("sales-pagination-controls");
+  if (paginationControls) {
+    if (totalPages <= 1) {
+      paginationControls.style.display = "none";
+    } else {
+      paginationControls.style.display = "flex";
+      
+      let buttonsHTML = "";
+      buttonsHTML += `
+        <button class="btn btn-secondary btn-sm" onclick="changeSalesPage(1)" ${salesCurrentPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">« Đầu</button>
+        <button class="btn btn-secondary btn-sm" onclick="changeSalesPage(${salesCurrentPage - 1})" ${salesCurrentPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">‹ Trước</button>
+      `;
+
+      let startPage = Math.max(1, salesCurrentPage - 2);
+      let endPage = Math.min(totalPages, salesCurrentPage + 2);
+
+      if (startPage > 1) {
+        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
+      }
+
+      for (let p = startPage; p <= endPage; p++) {
+        buttonsHTML += `
+          <button class="btn ${p === salesCurrentPage ? 'btn-success' : 'btn-secondary'} btn-sm" onclick="changeSalesPage(${p})" style="padding: 4px 10px; font-size: 12px; font-weight: ${p === salesCurrentPage ? '800' : 'normal'};">${p}</button>
+        `;
+      }
+
+      if (endPage < totalPages) {
+        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
+      }
+
+      buttonsHTML += `
+        <button class="btn btn-secondary btn-sm" onclick="changeSalesPage(${salesCurrentPage + 1})" ${salesCurrentPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Sau ›</button>
+        <button class="btn btn-secondary btn-sm" onclick="changeSalesPage(${totalPages})" ${salesCurrentPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Cuối »</button>
+      `;
+
+      paginationControls.innerHTML = `
+        <span style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">
+          Hiển thị ${startIdx + 1} - ${Math.min(startIdx + 30, totalCount)} của ${totalCount} đơn bán hàng
+        </span>
+        <div style="display: flex; gap: 4px; align-items: center;">
+          ${buttonsHTML}
+        </div>
+      `;
+    }
+  }
 
   if (displayedSales.length === 0) {
     tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy hóa đơn bán hàng nào phù hợp.</td></tr>`;
@@ -1086,6 +1144,12 @@ function renderSalesTable() {
 
 // Lọc hóa đơn bán hàng
 function filterSalesTable() {
+  salesCurrentPage = 1;
+  renderSalesTable();
+}
+
+function changeSalesPage(p) {
+  salesCurrentPage = p;
   renderSalesTable();
 }
 
@@ -5713,4 +5777,5 @@ window.batchDeleteProducts = batchDeleteProducts;
 window.deleteProduct = deleteProduct;
 window.editSalesVoucher = editSalesVoucher;
 window.resetSalesForm = resetSalesForm;
+window.changeSalesPage = changeSalesPage;
 
