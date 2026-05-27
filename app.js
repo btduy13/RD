@@ -107,6 +107,11 @@ function initApp() {
   // Tự động tích hợp lịch sử bán hàng từ Ban_hang.xlsx nếu chưa tích hợp
   autoIntegrateSalesExcel();
 
+  // Hiển thị phiên bản cục bộ & nút cập nhật nếu là Desktop App
+  if (typeof initLocalVersionDisplay === "function") {
+    initLocalVersionDisplay();
+  }
+
   // Mở tab mặc định
   switchTab("dashboard");
 }
@@ -6457,4 +6462,121 @@ window.openQuickAddPartnerModal = openQuickAddPartnerModal;
 window.handleQuickAddPartnerSubmit = handleQuickAddPartnerSubmit;
 window.exportCurrentPartnerDebtExcel = exportCurrentPartnerDebtExcel;
 window.previewCurrentPartnerDebtNotice = previewCurrentPartnerDebtNotice;
+
+// --- PHÂN HỆ KIỂM TRA & TỰ ĐỘNG CẬP NHẬT PHẦN MỀM ---
+let appLocalVersion = "1.0.0";
+
+// Tự động kiểm tra phiên bản cục bộ khi khởi động (nếu chạy Electron)
+async function initLocalVersionDisplay() {
+  const displayEl = document.getElementById("display-local-version");
+  const cardEl = document.getElementById("card-auto-update");
+  
+  if (window.electronAPI && typeof window.electronAPI.getLocalVersion === "function") {
+    try {
+      appLocalVersion = await window.electronAPI.getLocalVersion();
+      if (displayEl) displayEl.innerText = `v${appLocalVersion}`;
+      if (cardEl) cardEl.style.display = "flex"; // Hiện card cập nhật trên Desktop App
+    } catch(e) {
+      console.error("Lỗi lấy phiên bản từ Electron:", e);
+    }
+  } else {
+    // Nếu chạy trên trình duyệt web thông thường, ẩn thẻ kiểm tra cập nhật
+    if (cardEl) cardEl.style.display = "none";
+  }
+}
+
+// Hàm kiểm tra cập nhật từ GitHub
+async function checkForUpdates(manual = false) {
+  const statusContainer = document.getElementById("update-status-container");
+  if (!statusContainer) return;
+  
+  statusContainer.style.display = "block";
+  statusContainer.style.background = "rgba(245, 158, 11, 0.1)";
+  statusContainer.style.color = "var(--color-warning)";
+  statusContainer.innerText = "Đang kiểm tra máy chủ cập nhật...";
+
+  if (!window.electronAPI) {
+    statusContainer.style.background = "rgba(239, 68, 68, 0.1)";
+    statusContainer.style.color = "var(--color-danger)";
+    statusContainer.innerText = "Chỉ hỗ trợ cập nhật tự động khi chạy Desktop App.";
+    return;
+  }
+
+  try {
+    // 1. Tải file package.json mới nhất từ nhánh main của GitHub
+    // Đặt tham số cache buster ?t= để tránh cache của CDN GitHub
+    const url = `https://raw.githubusercontent.com/btduy13/RD/main/package.json?t=${Date.now()}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Không thể kết nối máy chủ GitHub.");
+    
+    const remotePkg = await response.json();
+    const remoteVersion = remotePkg.version;
+    
+    if (!remoteVersion) throw new Error("File cấu hình cập nhật không hợp lệ.");
+
+    // Hàm so sánh phiên bản (semver đơn giản)
+    const isNewer = compareVersions(remoteVersion, appLocalVersion) > 0;
+    
+    if (isNewer) {
+      statusContainer.style.background = "rgba(16, 185, 129, 0.1)";
+      statusContainer.style.color = "var(--color-success)";
+      statusContainer.innerHTML = `Phát hiện phiên bản mới: <span style="font-weight:800; text-decoration:underline;">v${remoteVersion}</span>!<br><button class="btn btn-success btn-sm" onclick="triggerUpdateFlow()" style="margin-top: 8px; width: 100%; font-size:11px; padding: 4px 8px;">Cập nhật Tự động Ngay</button>`;
+      
+      if (!manual) {
+        showToast(`Phát hiện bản cập nhật mới v${remoteVersion}!`, "success");
+      }
+    } else {
+      statusContainer.style.background = "rgba(255, 255, 255, 0.05)";
+      statusContainer.style.color = "var(--text-secondary)";
+      statusContainer.innerText = `Ứng dụng đang ở phiên bản mới nhất (v${appLocalVersion})`;
+    }
+  } catch (err) {
+    statusContainer.style.background = "rgba(239, 68, 68, 0.1)";
+    statusContainer.style.color = "var(--color-danger)";
+    statusContainer.innerText = "Lỗi kiểm tra cập nhật: " + err.message;
+    console.error("Check update error:", err);
+  }
+}
+
+// So sánh 2 phiên bản dạng x.y.z
+function compareVersions(v1, v2) {
+  const parts1 = v1.split('.').map(Number);
+  const parts2 = v2.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    const a = parts1[i] || 0;
+    const b = parts2[i] || 0;
+    if (a > b) return 1;
+    if (a < b) return -1;
+  }
+  return 0;
+}
+
+// Kích hoạt tiến trình kéo code tự động từ Electron
+async function triggerUpdateFlow() {
+  const statusContainer = document.getElementById("update-status-container");
+  if (!statusContainer) return;
+  
+  if (confirm("Hệ thống sẽ chạy lệnh 'git pull' để tải các tệp tin mới nhất và tự động khởi động lại phần mềm. Bạn có chắc chắn muốn tiếp tục?")) {
+    statusContainer.style.background = "rgba(245, 158, 11, 0.1)";
+    statusContainer.style.color = "var(--color-warning)";
+    statusContainer.innerText = "Đang kéo mã nguồn mới từ GitHub & khởi động lại...";
+    showToast("Đang cài đặt cập nhật...", "warning");
+    
+    try {
+      const result = await window.electronAPI.triggerAutoUpdate();
+      console.log("Cập nhật thành công:", result);
+    } catch(err) {
+      statusContainer.style.background = "rgba(239, 68, 68, 0.1)";
+      statusContainer.style.color = "var(--color-danger)";
+      statusContainer.innerText = "Cập nhật thất bại: " + err;
+      showToast("Cập nhật thất bại: " + err, "danger");
+    }
+  }
+}
+
+// Đăng ký toàn cục các hàm phục vụ cập nhật
+window.initLocalVersionDisplay = initLocalVersionDisplay;
+window.checkForUpdates = checkForUpdates;
+window.triggerUpdateFlow = triggerUpdateFlow;
+
 

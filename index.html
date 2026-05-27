@@ -1043,6 +1043,30 @@
               </div>
             </div>
 
+            <!-- Kiểm tra Cập nhật phần mềm (Auto Update) -->
+            <div class="chart-card" id="card-auto-update" style="min-height: auto;">
+              <span class="card-title" style="color: var(--color-success); display: flex; align-items: center; gap: 8px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><polyline points="8 17 12 21 16 17"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path></svg>
+                Kiểm tra & Tự động Cập nhật
+              </span>
+              <p class="header-subtitle" style="margin-bottom: 12px;">Kiểm tra phiên bản mới phát hành trên GitHub của bạn và tự động chạy cập nhật.</p>
+              
+              <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 13px;">
+                  <span style="color: var(--text-secondary); font-weight: 500;">Phiên bản hiện tại:</span>
+                  <span id="display-local-version" style="font-weight: 700; color: var(--color-primary);">v1.0.0</span>
+                </div>
+                
+                <div id="update-status-container" style="display: none; font-size: 12px; padding: 6px 12px; border-radius: var(--radius-sm); font-weight: 600; text-align: center;">
+                  <!-- Trạng thái cập nhật -->
+                </div>
+                
+                <button type="button" class="btn btn-primary btn-sm" onclick="checkForUpdates(true)" style="font-size: 12px; padding: 8px 12px; font-weight: 700; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2); background-color: var(--color-success); border-color: var(--color-success);">
+                  Kiểm tra Cập nhật
+                </button>
+              </div>
+            </div>
+
             <!-- Cấu hình Đồng bộ Đám mây (Firebase Realtime Database) -->
             <div class="chart-card" style="min-height: auto;">
               <span class="card-title" style="color: var(--color-primary); display: flex; align-items: center; gap: 8px;">

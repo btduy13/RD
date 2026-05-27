@@ -1,6 +1,8 @@
 // CẤU HÌNH VÒNG ĐỜI VÀ CỬA SỔ DESKTOP APP ĐỘC LẬP (MAIN.JS)
-const { app, BrowserWindow, Menu } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain } = require('electron');
 const path = require('path');
+const { exec } = require('child_process');
+const fs = require('fs');
 
 let mainWindow;
 
@@ -16,7 +18,8 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: true,
+      sandbox: false, // Tắt sandbox để preload.js có quyền chạy giao tiếp IPC đầy đủ
+      preload: path.join(__dirname, 'preload.js'),
       webSecurity: false
     },
     // Giao diện bắt đầu mượt mà, ẩn cửa sổ cho đến khi sẵn sàng hiển thị để tránh chớp trắng
@@ -40,6 +43,46 @@ function createWindow() {
     mainWindow = null;
   });
 }
+
+// IPC HANDLERS GIAO TIẾP ĐỂ TỰ ĐỘNG CẬP NHẬT
+
+// 1. Trả về phiên bản hiện tại từ package.json
+ipcMain.handle('get-local-version', () => {
+  try {
+    const pkgPath = path.join(__dirname, 'package.json');
+    if (fs.existsSync(pkgPath)) {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      return pkg.version || '1.0.0';
+    }
+  } catch (err) {
+    console.error("Lỗi đọc phiên bản package.json:", err);
+  }
+  return app.getVersion() || '1.0.0';
+});
+
+// 2. Chạy lệnh tự động cập nhật qua Git Pull và khởi động lại
+ipcMain.handle('trigger-auto-update', async () => {
+  return new Promise((resolve, reject) => {
+    console.log("Đang kích hoạt tự động cập nhật qua Git pull...");
+    exec('git pull origin main', { cwd: __dirname }, (error, stdout, stderr) => {
+      if (error) {
+        console.error("Lỗi chạy git pull:", error);
+        reject(error.message || "Lỗi kết nối hoặc xung đột mã nguồn.");
+        return;
+      }
+      
+      console.log("Git pull thành công:", stdout);
+      
+      // Relaunch app sau khi kéo mã nguồn mới về thành công
+      setTimeout(() => {
+        app.relaunch();
+        app.exit(0);
+      }, 1000);
+      
+      resolve(stdout);
+    });
+  });
+});
 
 // Khởi chạy khi Electron sẵn sàng
 app.whenReady().then(() => {
