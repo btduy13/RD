@@ -32,7 +32,8 @@
       "output": "dist-installer"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "icon.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -49,6 +50,8 @@
       "data.js",
       "styles.css",
       "main.js",
+      "logo.jpg",
+      "icon.ico",
       "images (1).png",
       "xlsx.full.min.js",
       "prepopulated_database.js",

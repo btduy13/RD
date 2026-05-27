@@ -13,7 +13,7 @@ async function build() {
       noMsi: true,
       title: 'Kế toán Rạng Đông',
       description: 'Phần mềm kế toán độc lập Công ty Cổ phần Rạng Đông',
-      setupIcon: path.join(__dirname, 'images (1).png') // Dùng logo làm biểu tượng cài đặt (hoặc bỏ qua nếu lỗi)
+      setupIcon: path.join(__dirname, 'logo.jpg') // Dùng logo làm biểu tượng cài đặt (hoặc bỏ qua nếu lỗi)
     });
     console.log('===================================================');
     console.log('TẠO BỘ CÀI ĐẶT THÀNH CÔNG!');

@@ -2414,6 +2414,11 @@ function viewVoucher(id) {
   const v = state.vouchers.find(v => v.id === id);
   if (!v) return;
 
+  const modalTitle = document.querySelector("#modal-view-voucher .card-title");
+  if (modalTitle) {
+    modalTitle.innerText = "Xem Chứng từ Kế toán";
+  }
+
   const partnerName = getPartnerNameForVoucher(v);
   const std = state.accountingStandard;
   const printArea = document.getElementById("voucher-print-area");
@@ -2561,9 +2566,9 @@ function viewVoucher(id) {
         
         <!-- Header: Logo Rạng Đông bên trái & Thông tin công ty bên phải -->
         <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 15px;">
-          <!-- Logo Rạng Đông thực tế từ file images (1).png -->
+          <!-- Logo Rạng Đông thực tế từ file logo.jpg -->
           <div style="display: flex; align-items: center; justify-content: center; width: 140px; margin-right: 10px; height: 60px;">
-            <img src="images (1).png" style="max-height: 55px; max-width: 130px; object-fit: contain;" alt="Logo Rạng Đông" />
+            <img src="logo.jpg" style="max-height: 55px; max-width: 130px; object-fit: contain;" alt="Logo Rạng Đông" />
           </div>
 
           <!-- Thông tin công ty chính xác theo mẫu giấy -->
@@ -2681,19 +2686,11 @@ function viewVoucher(id) {
             <div style="border-top: 1px dotted #888; width: 80%; margin: 0 auto; padding-top: 4px; color: #555; font-size: 11px;">Nhân viên giao nhận</div>
           </div>
           
-          <div style="width: 30%; position: relative;">
+          <div style="width: 30%;">
             <strong>Người lập phiếu</strong><br>
             <span style="font-style: italic; font-size: 11px; color: #555;">(Ký, họ tên)</span>
-            
-            <!-- Giả lập chữ ký nghệ thuật và dấu mộc đỏ siêu đẹp như mẫu -->
-            <div style="height: 65px; position: relative; display: flex; align-items: center; justify-content: center; margin-top: 5px;">
-              <!-- Nét vẽ chữ ký tay nghệ thuật -->
-              <span style="font-family: 'Brush Script MT', 'Courier New', cursive, sans-serif; font-size: 26px; color: #2563eb; transform: rotate(-5deg); position: absolute; top: 12px; font-weight: bold; opacity: 0.85; filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.1));">Nhung</span>
-              <!-- Dấu mộc chữ tên tròn hoặc đỏ giả lập của Rạng Đông -->
-              <div style="border: 2px solid #ef4444; border-radius: 4px; padding: 2px 6px; color: #ef4444; font-weight: bold; font-family: monospace; font-size: 10px; text-transform: uppercase; transform: rotate(5deg) scale(0.9); position: absolute; top: 22px; left: 55px; background-color: rgba(254, 226, 226, 0.4); box-shadow: 0 0 2px rgba(239, 68, 68, 0.2); opacity: 0.85;">NGUYỄN THỊ HỒNG NHUNG</div>
-            </div>
-            
-            <div style="font-weight: bold; color: #000; font-size: 13px; margin-top: 8px;">Nguyễn Thị Hồng Nhung</div>
+            <div style="height: 65px;"></div>
+            <div style="border-top: 1px dotted #888; width: 80%; margin: 0 auto; padding-top: 4px; color: #555; font-size: 11px;">Nhân viên lập phiếu</div>
           </div>
         </div>
 
@@ -3893,13 +3890,6 @@ async function exportPartnerDebtExcel(partnerId) {
   }
 
   try {
-    const response = await fetch('excel/Thong_bao_cong_no.xlsx');
-    if (!response.ok) throw new Error("Fetch template failed: " + response.statusText);
-    const arrayBuffer = await response.arrayBuffer();
-    const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array', cellStyles: true });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    
     // 1. Get ledger data
     const opening = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
     let openingVal = 0;
@@ -3958,73 +3948,140 @@ async function exportPartnerDebtExcel(partnerId) {
     }
 
     // Determine min/max dates
+    const pad = (n) => n.toString().padStart(2, '0');
     let fromDateStr = "01/01/2026";
     let toDateStr = new Date().toLocaleDateString('vi-VN');
     if (ledgerEntries.length > 0) {
       const dates = ledgerEntries.map(e => new Date(e.date));
       const minDate = new Date(Math.min(...dates));
       const maxDate = new Date(Math.max(...dates));
-      
-      const pad = (n) => n.toString().padStart(2, '0');
       fromDateStr = `${pad(minDate.getDate())}/${pad(minDate.getMonth()+1)}/${minDate.getFullYear()}`;
       toDateStr = `${pad(maxDate.getDate())}/${pad(maxDate.getMonth()+1)}/${maxDate.getFullYear()}`;
     }
 
-    // 2. Format template values
-    // Cell B10: Đơn vị
-    sheet['B10'] = { v: `Đơn vị:    ${p.name} (${p.id})`, t: 's' };
-    
-    // Cell B11: Địa chỉ
-    sheet['B11'] = { v: `Địa chỉ:    ${p.address || ""}`, t: 's' };
-    
-    // Cell B12: Mã số thuế
-    sheet['B12'] = { v: `Mã số thuế: ${p.taxCode || ""}`, t: 's' };
+    // =========================================================
+    // 2. BUILD WORKBOOK FROM SCRATCH (clean 5-column layout)
+    // Columns: A=Ngày, B=Số CT, C=Diễn giải, D=Số tiền, E=Số dư
+    // =========================================================
+    const wb = XLSX.utils.book_new();
+    const ws = {};
+    const merges = [];
 
-    // Cell G10: Kỳ
-    sheet['G10'] = { v: `Từ ngày ${fromDateStr} đến ngày ${toDateStr}`, t: 's' };
+    // --- Style presets ---
+    const fontTitle = { name: "Times New Roman", sz: 14, bold: true };
+    const fontSubtitle = { name: "Times New Roman", sz: 11, italic: true };
+    const fontCompany = { name: "Times New Roman", sz: 12, bold: true };
+    const fontAddr = { name: "Times New Roman", sz: 10 };
+    const fontNormal = { name: "Times New Roman", sz: 11 };
+    const fontBold = { name: "Times New Roman", sz: 11, bold: true };
+    const fontItalic = { name: "Times New Roman", sz: 11, italic: true };
+    const fontHeader = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
+    const alignCenter = { horizontal: "center", vertical: "center" };
+    const alignLeft = { horizontal: "left", vertical: "center" };
+    const alignRight = { horizontal: "right", vertical: "center" };
+    const alignCenterWrap = { horizontal: "center", vertical: "center", wrapText: true };
+    const thinBorder = { style: "thin", color: { rgb: "999999" } };
+    const border4 = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+    const headerBg = { patternType: "solid", fgColor: { rgb: "2F5496" } };
+    const headerBorder = {
+      top: { style: "thin", color: { rgb: "1F3864" } },
+      bottom: { style: "thin", color: { rgb: "1F3864" } },
+      left: { style: "thin", color: { rgb: "1F3864" } },
+      right: { style: "thin", color: { rgb: "1F3864" } }
+    };
+    const altRowBg = { patternType: "solid", fgColor: { rgb: "F2F7FB" } };
 
-    // Cell K12: Số dư cuối kỳ
-    sheet['K12'] = { v: closingVal, t: 'n', z: '#,##0' };
+    // Helper to set cell
+    const setCell = (ref, v, t, style, z) => {
+      ws[ref] = { v, t, s: style };
+      if (z) ws[ref].z = z;
+    };
 
-    // Cell K13: Số dư đầu kỳ
-    sheet['K13'] = { v: openingVal, t: 'n', z: '#,##0' };
+    let row = 0; // 0-indexed
 
-    // Cell B7: Ngày in
-    sheet['B7'] = { v: `Ngày in: ${new Date().toLocaleDateString('vi-VN')}`, t: 's' };
+    // --- ROW 0: Company Name ---
+    setCell("A1", "CÔNG TY CỔ PHẦN SẢN XUẤT VÀ ĐẦU TƯ PHÁT TRIỂN RẠNG ĐÔNG", "s",
+      { font: fontCompany, alignment: alignCenter });
+    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } });
 
-    // Save existing style templates from row index 15 (sample data row 16)
-    // We will extract column styles for columns B (1), C (2), D (3), J (9), K (10)
-    const colStyles = {};
-    const colsToFormat = [1, 2, 3, 9, 10];
-    colsToFormat.forEach(c => {
-      const cellRef = XLSX.utils.encode_cell({ r: 15, c: c });
-      const cell = sheet[cellRef];
-      if (cell && cell.s) {
-        colStyles[c] = convertStyle(cell.s);
-      }
+    // --- ROW 1: Address ---
+    setCell("A2", "Số 69/4 Phan Chu Trinh, Phường Vũng Tàu, Thành phố Hồ Chí Minh, Việt Nam.", "s",
+      { font: fontAddr, alignment: alignCenter });
+    merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 4 } });
+
+    // --- ROW 2: blank ---
+    row = 2;
+
+    // --- ROW 3: Title ---
+    setCell("A4", "THÔNG BÁO CÔNG NỢ", "s",
+      { font: fontTitle, alignment: alignCenter });
+    merges.push({ s: { r: 3, c: 0 }, e: { r: 3, c: 4 } });
+
+    // --- ROW 4: Print date ---
+    setCell("A5", `Ngày in: ${new Date().toLocaleDateString('vi-VN')}`, "s",
+      { font: fontSubtitle, alignment: alignCenter });
+    merges.push({ s: { r: 4, c: 0 }, e: { r: 4, c: 4 } });
+
+    // --- ROW 5: blank ---
+
+    // --- ROW 6: Kính gửi + Kỳ ---
+    setCell("A7", "Kính gửi:", "s", { font: fontBold, alignment: alignLeft });
+    setCell("D7", `Kỳ: Từ ngày ${fromDateStr} đến ngày ${toDateStr}`, "s",
+      { font: fontNormal, alignment: alignRight });
+    merges.push({ s: { r: 6, c: 3 }, e: { r: 6, c: 4 } });
+
+    // --- ROW 7: Đơn vị ---
+    setCell("A8", `Đơn vị: ${p.name} (${p.id})`, "s",
+      { font: fontNormal, alignment: alignLeft });
+    merges.push({ s: { r: 7, c: 0 }, e: { r: 7, c: 2 } });
+
+    // --- ROW 8: Địa chỉ + Số dư cuối kỳ ---
+    setCell("A9", `Địa chỉ: ${p.address || ""}`, "s",
+      { font: fontNormal, alignment: alignLeft });
+    merges.push({ s: { r: 8, c: 0 }, e: { r: 8, c: 2 } });
+    setCell("D9", "Số dư cuối kỳ:", "s",
+      { font: fontBold, alignment: alignRight });
+    setCell("E9", closingVal, "n",
+      { font: { name: "Times New Roman", sz: 12, bold: true, color: { rgb: "C00000" } }, alignment: alignRight }, '#,##0');
+
+    // --- ROW 9: MST + Số dư đầu kỳ ---
+    setCell("A10", `Mã số thuế: ${p.taxCode || ""}`, "s",
+      { font: fontNormal, alignment: alignLeft });
+    merges.push({ s: { r: 9, c: 0 }, e: { r: 9, c: 2 } });
+    setCell("D10", "Số dư đầu kỳ:", "s",
+      { font: fontNormal, alignment: alignRight });
+    setCell("E10", openingVal, "n",
+      { font: fontBold, alignment: alignRight }, '#,##0');
+
+    // --- ROW 10: blank ---
+
+    // --- ROW 11: Table header (row index 11, Excel row 12) ---
+    const hdrRow = 11;
+    const hdrCols = [
+      { col: "A", label: "Ngày", align: alignCenterWrap },
+      { col: "B", label: "Số chứng từ", align: alignCenterWrap },
+      { col: "C", label: "Diễn giải", align: alignCenterWrap },
+      { col: "D", label: "Số tiền", align: alignCenterWrap },
+      { col: "E", label: "Số dư", align: alignCenterWrap }
+    ];
+    hdrCols.forEach(h => {
+      const ref = h.col + (hdrRow + 1);
+      setCell(ref, h.label, "s", {
+        font: fontHeader,
+        alignment: h.align,
+        fill: headerBg,
+        border: headerBorder
+      });
     });
 
-    // Clean sheet cells starting from index 15 (row 16) onwards to write fresh data
-    for (const key in sheet) {
-      if (key[0] === '!') continue;
-      const cellCoord = XLSX.utils.decode_cell(key);
-      if (cellCoord.r < 15) {
-        // Convert styles of header rows to keep them
-        const cell = sheet[key];
-        if (cell && cell.s) {
-          cell.s = convertStyle(cell.s);
-        }
-      } else {
-        delete sheet[key];
-      }
-    }
-
-    // Write new data rows
+    // --- DATA ROWS ---
     let currentBalance = openingVal;
+    const dataStartRow = hdrRow + 1; // row index 12
+
     ledgerEntries.forEach((le, idx) => {
-      const r = 15 + idx; // Data starts at JS row 15
+      const r = dataStartRow + idx;
+      const excelRow = r + 1;
       
-      // Calculate running balance
       let amount = 0;
       if (p.type === "customer") {
         amount = le.debit - le.credit;
@@ -4033,57 +4090,94 @@ async function exportPartnerDebtExcel(partnerId) {
       }
       currentBalance += amount;
       
-      const rowData = {
-        1: le.date, // B: Ngày
-        2: le.id,   // C: Số chứng từ
-        3: le.desc, // D: Diễn giải
-        9: amount,  // J: Số tiền
-        10: currentBalance // K: Số dư
+      const dVal = new Date(le.date);
+      const dateFormatted = `${pad(dVal.getDate())}/${pad(dVal.getMonth()+1)}/${dVal.getFullYear()}`;
+
+      const isAlt = idx % 2 === 1;
+      const rowFill = isAlt ? altRowBg : undefined;
+
+      const makeStyle = (align) => {
+        const s = { font: fontNormal, alignment: align, border: border4 };
+        if (rowFill) s.fill = rowFill;
+        return s;
       };
-      
-      for (const colIdx in rowData) {
-        const val = rowData[colIdx];
-        const cellRef = XLSX.utils.encode_cell({ r: r, c: parseInt(colIdx) });
-        const cell = { v: val };
-        if (typeof val === 'number') {
-          cell.t = 'n';
-          cell.z = '#,##0;(#,##0);"-"';
-        } else {
-          cell.t = 's';
-        }
-        if (colStyles[colIdx]) {
-          cell.s = colStyles[colIdx];
-        }
-        sheet[cellRef] = cell;
-      }
+      const makeStyleBold = (align) => {
+        const s = { font: fontBold, alignment: align, border: border4 };
+        if (rowFill) s.fill = rowFill;
+        return s;
+      };
+
+      setCell("A" + excelRow, dateFormatted, "s", makeStyle(alignCenter));
+      setCell("B" + excelRow, le.id, "s", makeStyle(alignCenter));
+      setCell("C" + excelRow, le.desc, "s", makeStyle(alignLeft));
+      setCell("D" + excelRow, amount, "n", makeStyle(alignRight), '#,##0;(#,##0);"-"');
+      setCell("E" + excelRow, currentBalance, "n", makeStyleBold(alignRight), '#,##0;(#,##0);"-"');
     });
 
-    // Write signature section at the bottom (after list rows)
-    const startSigRow = 15 + ledgerEntries.length + 2;
-    
-    // Add "Người lập phiếu" and "(Ký, họ tên)"
-    const rSig = startSigRow;
-    const cellSigRef = XLSX.utils.encode_cell({ r: rSig, c: 7 }); // H
-    sheet[cellSigRef] = {
-      v: "Người lập phiếu",
-      t: 's',
-      s: { font: { bold: true }, alignment: { horizontal: 'center' } }
-    };
-    
-    const cellSignRef = XLSX.utils.encode_cell({ r: rSig + 2, c: 7 });
-    sheet[cellSignRef] = {
-      v: "(Ký, họ tên)",
-      t: 's',
-      s: { font: { italic: true }, alignment: { horizontal: 'center' } }
+    // --- TOTALS ROW ---
+    const totalsRowIdx = dataStartRow + ledgerEntries.length;
+    const totalsExcelRow = totalsRowIdx + 1;
+    const totalBg = { patternType: "solid", fgColor: { rgb: "D6E4F0" } };
+    const totalBorder = {
+      top: { style: "medium", color: { rgb: "2F5496" } },
+      bottom: { style: "medium", color: { rgb: "2F5496" } },
+      left: thinBorder,
+      right: thinBorder
     };
 
-    // Update sheet range !ref
-    const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1:M30');
-    range.e.r = rSig + 4;
-    sheet['!ref'] = XLSX.utils.encode_range(range);
+    setCell("A" + totalsExcelRow, "", "s", { font: fontBold, fill: totalBg, border: totalBorder });
+    setCell("B" + totalsExcelRow, "", "s", { font: fontBold, fill: totalBg, border: totalBorder });
+    setCell("C" + totalsExcelRow, "TỔNG CỘNG", "s",
+      { font: fontBold, alignment: alignRight, fill: totalBg, border: totalBorder });
+    
+    const totalAmount = ledgerEntries.reduce((sum, le) => {
+      if (p.type === "customer") return sum + le.debit - le.credit;
+      return sum + le.credit - le.debit;
+    }, 0);
+    setCell("D" + totalsExcelRow, totalAmount, "n",
+      { font: fontBold, alignment: alignRight, fill: totalBg, border: totalBorder }, '#,##0;(#,##0);"-"');
+    setCell("E" + totalsExcelRow, closingVal, "n",
+      { font: { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "C00000" } }, alignment: alignRight, fill: totalBg, border: totalBorder }, '#,##0;(#,##0);"-"');
 
-    // Save workbook
-    XLSX.writeFile(workbook, `Thong_bao_cong_no_${p.id}.xlsx`);
+    // --- SIGNATURE SECTION ---
+    const sigRow = totalsRowIdx + 3;
+    const sigExcelRow = sigRow + 1;
+    setCell("D" + sigExcelRow, "Người lập phiếu", "s",
+      { font: fontBold, alignment: alignCenter });
+    merges.push({ s: { r: sigRow, c: 3 }, e: { r: sigRow, c: 4 } });
+
+    const sigSubRow = sigRow + 1;
+    setCell("D" + (sigSubRow + 1), "(Ký, họ tên)", "s",
+      { font: fontItalic, alignment: alignCenter });
+    merges.push({ s: { r: sigSubRow, c: 3 }, e: { r: sigSubRow, c: 4 } });
+
+    // --- COLUMN WIDTHS ---
+    ws['!cols'] = [
+      { wch: 14 },  // A: Ngày
+      { wch: 16 },  // B: Số chứng từ
+      { wch: 50 },  // C: Diễn giải
+      { wch: 20 },  // D: Số tiền
+      { wch: 22 }   // E: Số dư
+    ];
+
+    // --- ROW HEIGHTS ---
+    ws['!rows'] = [];
+    // Title row
+    ws['!rows'][3] = { hpt: 26 };
+    // Header row
+    ws['!rows'][hdrRow] = { hpt: 22 };
+
+    // --- MERGES ---
+    ws['!merges'] = merges;
+
+    // --- SHEET RANGE ---
+    const lastRow = sigSubRow + 4;
+    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: lastRow, c: 4 } });
+
+    XLSX.utils.book_append_sheet(wb, ws, "Thông báo công nợ");
+
+    // --- SAVE ---
+    XLSX.writeFile(wb, `Thong_bao_cong_no_${p.id}.xlsx`);
     showToast(`Đã xuất thông báo công nợ thành công cho đối tác ${p.name}!`, "success");
   } catch (err) {
     console.error(err);
@@ -4097,6 +4191,234 @@ function exportCurrentPartnerDebtExcel() {
     return;
   }
   exportPartnerDebtExcel(activePartnerIdForLedger);
+}
+
+function previewPartnerDebtNotice(partnerId) {
+  const p = state.partners.find(item => item.id === partnerId);
+  if (!p) {
+    showToast("Không tìm thấy đối tác này!", "danger");
+    return;
+  }
+
+  // Get ledger data
+  const opening = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
+  let openingVal = 0;
+  if (p.type === "customer") {
+    openingVal = opening.debit - opening.credit;
+  } else {
+    openingVal = opening.credit - opening.debit;
+  }
+  
+  let debitSum = 0;
+  let creditSum = 0;
+  const ledgerEntries = [];
+  state.vouchers.forEach(v => {
+    if (v.partnerId !== p.id) return;
+    if (!v.entries) return;
+
+    v.entries.forEach(e => {
+      const is131 = e.debit.startsWith("131") || e.credit.startsWith("131");
+      const is331 = e.debit.startsWith("331") || e.credit.startsWith("331");
+      if (!is131 && !is331) return;
+
+      let debitAmount = 0;
+      let creditAmount = 0;
+      let offsetAccount = "";
+
+      if (e.debit.startsWith("131") || e.debit.startsWith("331")) {
+        debitAmount = e.amount;
+        offsetAccount = e.credit;
+      } else {
+        creditAmount = e.amount;
+        offsetAccount = e.debit;
+      }
+
+      ledgerEntries.push({
+        date: v.date,
+        id: v.id,
+        desc: e.desc || v.description,
+        offsetAccount,
+        debit: debitAmount,
+        credit: creditAmount
+      });
+
+      debitSum += debitAmount;
+      creditSum += creditAmount;
+    });
+  });
+
+  ledgerEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+  
+  // Calculate closing balance
+  let closingVal = 0;
+  if (p.type === "customer") {
+    closingVal = openingVal + debitSum - creditSum;
+  } else {
+    closingVal = openingVal + creditSum - debitSum;
+  }
+
+  // Determine min/max dates
+  let fromDateStr = "01/01/2026";
+  let toDateStr = new Date().toLocaleDateString('vi-VN');
+  if (ledgerEntries.length > 0) {
+    const dates = ledgerEntries.map(e => new Date(e.date));
+    const minDate = new Date(Math.min(...dates));
+    const maxDate = new Date(Math.max(...dates));
+    
+    const pad = (n) => n.toString().padStart(2, '0');
+    fromDateStr = `${pad(minDate.getDate())}/${pad(minDate.getMonth()+1)}/${minDate.getFullYear()}`;
+    toDateStr = `${pad(maxDate.getDate())}/${pad(maxDate.getMonth()+1)}/${maxDate.getFullYear()}`;
+  }
+
+  const formatDebtAmount = (val) => {
+    if (val === undefined || val === null || isNaN(val)) return "0";
+    const formatted = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(val);
+    const clean = formatted.replace(/[₫đ\sVND]/g, '').trim();
+    if (val < 0) {
+      return `(${clean.replace('-', '')})`;
+    }
+    return clean;
+  };
+
+  let tableRowsHtml = "";
+  let currentBalance = openingVal;
+  ledgerEntries.forEach((le) => {
+    let amount = 0;
+    if (p.type === "customer") {
+      amount = le.debit - le.credit;
+    } else {
+      amount = le.credit - le.debit;
+    }
+    currentBalance += amount;
+
+    const dVal = new Date(le.date);
+    const pad = (n) => n.toString().padStart(2, '0');
+    const dateFormatted = `${pad(dVal.getDate())}/${pad(dVal.getMonth()+1)}/${dVal.getFullYear()}`;
+
+    tableRowsHtml += `
+      <tr>
+        <td style="text-align: center; border: 1px solid #000; padding: 6px;">${dateFormatted}</td>
+        <td style="text-align: center; font-family: monospace; font-weight: 500; border: 1px solid #000; padding: 6px;">${le.id}</td>
+        <td style="border: 1px solid #000; padding: 6px;">${le.desc}</td>
+        <td style="text-align: right; font-family: 'Times New Roman', serif; border: 1px solid #000; padding: 6px;" class="font-numeric">${formatDebtAmount(amount)}</td>
+        <td style="text-align: right; font-family: 'Times New Roman', serif; font-weight: bold; border: 1px solid #000; padding: 6px;" class="font-numeric">${formatDebtAmount(currentBalance)}</td>
+      </tr>
+    `;
+  });
+
+  if (ledgerEntries.length === 0) {
+    tableRowsHtml = `
+      <tr>
+        <td colspan="5" style="text-align: center; padding: 20px; color: #666; font-style: italic; border: 1px solid #000;">
+          Không có phát sinh nghiệp vụ công nợ trong kỳ.
+        </td>
+      </tr>
+    `;
+  }
+
+  const printArea = document.getElementById("voucher-print-area");
+  if (!printArea) return;
+
+  const content = `
+    <div class="printable-voucher" style="max-width: 800px; padding: 40px; font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #000; line-height: 1.4; background-color: #fff; margin: 0 auto; box-sizing: border-box;">
+      <style>
+        .debt-notice-table th {
+          border: 1px solid #000 !important;
+          padding: 6px;
+          text-align: center;
+          font-weight: bold;
+        }
+        .debt-notice-table td {
+          border: 1px solid #000 !important;
+          padding: 6px;
+          vertical-align: middle;
+        }
+        @media print {
+          .printable-voucher {
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            font-size: 12pt !important;
+          }
+        }
+      </style>
+
+      <!-- Header -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px;">
+        <div style="display: flex; align-items: center; width: 100px; margin-right: 15px;">
+          <img src="logo.jpg" style="max-height: 50px; max-width: 90px; object-fit: contain;" alt="Logo" onerror="this.style.display='none'" />
+        </div>
+        <div style="flex-grow: 1; text-align: left;">
+          <div style="font-weight: bold; font-size: 13px; text-transform: uppercase;">CÔNG TY CỔ PHẦN SẢN XUẤT VÀ ĐẦU TƯ PHÁT TRIỂN RẠNG ĐÔNG</div>
+          <div style="font-size: 11px; margin-top: 2px;">Số 69/4 Phan Chu Trinh, Phường Vũng Tàu, Thành phố Hồ Chí Minh, Việt Nam.</div>
+        </div>
+      </div>
+
+      <!-- Title -->
+      <div style="text-align: center; margin-bottom: 25px;">
+        <div style="font-size: 20px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase;">THÔNG BÁO CÔNG NỢ</div>
+        <div style="font-size: 11px; font-style: italic; margin-top: 3px;">Ngày in: ${new Date().toLocaleDateString('vi-VN')}</div>
+      </div>
+
+      <!-- Info -->
+      <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 8px 15px; margin-bottom: 20px; font-size: 13px;">
+        <div><strong>Kính gửi:</strong></div>
+        <div><strong>Kỳ:</strong> Từ ngày ${fromDateStr} đến ngày ${toDateStr}</div>
+        
+        <div><strong>Đơn vị:</strong> ${p.name} (${p.id})</div>
+        <div><strong>Số dư đầu kỳ:</strong> <span style="font-weight: bold;">${formatDebtAmount(openingVal)} đ</span></div>
+        
+        <div><strong>Địa chỉ:</strong> ${p.address || ""}</div>
+        <div><strong>Số dư cuối kỳ:</strong> <span style="font-weight: bold; color: var(--color-primary);">${formatDebtAmount(closingVal)} đ</span></div>
+        
+        <div><strong>Mã số thuế:</strong> ${p.taxCode || ""}</div>
+        <div></div>
+      </div>
+
+      <!-- Table -->
+      <table class="debt-notice-table" style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px;">
+        <thead>
+          <tr style="background-color: #f3f4f6;">
+            <th style="width: 13%; text-align: center;">Ngày</th>
+            <th style="width: 15%; text-align: center;">Số chứng từ</th>
+            <th style="width: 42%; text-align: left;">Diễn giải</th>
+            <th style="width: 15%; text-align: right;">Số tiền</th>
+            <th style="width: 15%; text-align: right;">Số dư</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRowsHtml}
+        </tbody>
+      </table>
+
+      <!-- Footer -->
+      <div style="display: flex; justify-content: flex-end; margin-top: 30px;">
+        <div style="width: 250px; text-align: center; font-size: 13px;">
+          <strong>Người lập phiếu</strong><br>
+          <span style="font-style: italic; font-size: 11px;">(Ký, họ tên)</span>
+          <div style="height: 80px;"></div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  printArea.innerHTML = content;
+  // Change title of modal temporarily
+  const modalTitle = document.querySelector("#modal-view-voucher .card-title");
+  if (modalTitle) {
+    modalTitle.innerText = "Xem trước Thông báo Công nợ";
+  }
+  openModal("modal-view-voucher");
+}
+
+function previewCurrentPartnerDebtNotice() {
+  if (!activePartnerIdForLedger) {
+    showToast("Không tìm thấy đối tác hiện tại!", "danger");
+    return;
+  }
+  previewPartnerDebtNotice(activePartnerIdForLedger);
 }
 
 function switchPartnerLedgerTab(tabName) {
@@ -6103,4 +6425,5 @@ window.clearSalesDateFilter = clearSalesDateFilter;
 window.openQuickAddPartnerModal = openQuickAddPartnerModal;
 window.handleQuickAddPartnerSubmit = handleQuickAddPartnerSubmit;
 window.exportCurrentPartnerDebtExcel = exportCurrentPartnerDebtExcel;
+window.previewCurrentPartnerDebtNotice = previewCurrentPartnerDebtNotice;
 
