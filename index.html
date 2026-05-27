@@ -376,6 +376,11 @@
               <input type="text" id="search-sales" class="search-input" placeholder="Tìm số chứng từ, khách hàng..." oninput="filterSalesTable()">
             </div>
             
+            <button class="btn btn-secondary" onclick="triggerFileInput('excel-file-sales-view')" style="color: var(--color-success); border-color: var(--color-success);">Nhập Excel</button>
+            <input type="file" id="excel-file-sales-view" accept=".xlsx, .xls" style="display: none;" onchange="handleExcelImport(event, 'sales')">
+            
+            <button class="btn btn-secondary" onclick="exportSalesToExcel()">Xuất Excel</button>
+            
             <button class="btn btn-success" onclick="openModal('modal-add-sales')">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
               Lập hóa đơn bán hàng

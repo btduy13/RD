@@ -104,8 +104,132 @@ function initApp() {
     initCloudSync();
   }
 
+  // Tự động tích hợp lịch sử bán hàng từ Ban_hang.xlsx nếu chưa tích hợp
+  autoIntegrateSalesExcel();
+
   // Mở tab mặc định
   switchTab("dashboard");
+}
+
+async function autoIntegrateSalesExcel() {
+  if (state.salesExcelIntegrated) {
+    console.log("Sales Excel database is already integrated.");
+    return;
+  }
+  
+  if (typeof XLSX === "undefined") {
+    console.warn("SheetJS not loaded yet, deferring Sales Excel integration...");
+    setTimeout(autoIntegrateSalesExcel, 1000);
+    return;
+  }
+  
+  console.log("Starting automatic integration of excel/Ban_hang.xlsx...");
+  try {
+    const response = await fetch('excel/Ban_hang.xlsx');
+    if (!response.ok) {
+      console.warn("No excel/Ban_hang.xlsx file found or failed to fetch. Skipping auto-integration.");
+      return;
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    const data = new Uint8Array(arrayBuffer);
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+
+    if (rows.length < 2) {
+      console.warn("excel/Ban_hang.xlsx is empty.");
+      return;
+    }
+
+    let count = 0;
+    const partnerMap = new Map();
+    state.partners.forEach(p => partnerMap.set(p.name, p.id));
+
+    const voucherMap = new Map();
+    state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
+
+    for (let i = 2; i < rows.length; i++) {
+      const row = rows[i];
+      const id = (row[2] || "").toString().trim();
+      if (!id || id === "Số chứng từ") continue;
+
+      const dateStr = excelDateToISOString(row[0]);
+      const partnerName = (row[6] || "Khách hàng vãng lai").toString().trim();
+      const description = (row[7] || "Bán hàng").toString().trim();
+      
+      const H = Number(row[8]) || 0;
+      const C = Number(row[9]) || 0;
+      const T = Number(row[10]) || 0;
+      const totalAmount = Number(row[11]) || 0;
+
+      let paymentMethod = "131";
+      const docTypeStr = (row[14] || "").toString().trim().toUpperCase();
+      if (docTypeStr.includes("TIỀN MẶT")) {
+        paymentMethod = "111";
+      }
+
+      let partnerId = partnerMap.get(partnerName);
+      if (!partnerId) {
+        partnerId = `DT_${Math.floor(1000 + Math.random() * 9000)}`;
+        state.partners.push({
+          id: partnerId,
+          name: partnerName,
+          type: "customer",
+          phone: "",
+          email: "",
+          address: ""
+        });
+        partnerMap.set(partnerName, partnerId);
+      }
+
+      const originalRow = [];
+      for (let col = 0; col < 15; col++) {
+        originalRow[col] = row[col] !== undefined ? row[col] : "";
+      }
+
+      const vObj = {
+        id,
+        type: "sales",
+        date: dateStr,
+        partnerId,
+        partnerName,
+        paymentMethod,
+        description,
+        taxRate: 0,
+        taxAmount: T,
+        totalAmount: totalAmount,
+        amount: totalAmount,
+        items: [
+          {
+            productId: "SP_GENERIC",
+            qty: 1,
+            price: H,
+            discount: H > 0 ? Math.round((C / H) * 100 * 100) / 100 : 0,
+            amount: H - C
+          }
+        ],
+        excelRow: originalRow
+      };
+
+      const existingIdx = voucherMap.get(id);
+      if (existingIdx !== undefined) {
+        state.vouchers[existingIdx] = vObj;
+      } else {
+        state.vouchers.push(vObj);
+        voucherMap.set(id, state.vouchers.length - 1);
+      }
+      count++;
+    }
+
+    state.salesExcelIntegrated = true;
+    saveState();
+    recalculateAccounting();
+    console.log(`Successfully auto-integrated ${count} sales vouchers from Ban_hang.xlsx!`);
+    if (typeof filterSales === "function") filterSales();
+    if (typeof renderDashboard === "function") renderDashboard();
+  } catch (err) {
+    console.error("Error auto-integrating sales Excel:", err);
+  }
 }
 
 // Lưu trạng thái vào localStorage & Đồng bộ lên Đám mây
@@ -4014,6 +4138,81 @@ function exportCashToExcel() {
   );
 }
 
+function exportSalesToExcel() {
+  const fallbackHeaders = [
+    ["DANH SÁCH BÁN HÀNG"],
+    ["Ngày hạch toán", "Ngày chứng từ", "Số chứng từ", "Số hóa đơn", "Mẫu số HĐ", "Ký hiệu HĐ", "Khách hàng", "Diễn giải", "Tổng tiền hàng", "Tiền chiết khấu", "Tiền thuế GTGT", "Tổng tiền thanh toán", "Đã lập hóa đơn", "Đã xuất hàng", "Loại chứng từ"]
+  ];
+  const filteredSales = state.vouchers.filter(v => v.type === "sales");
+  const salesMapper = (v, r) => {
+    if (!v.excelRow) {
+      v.excelRow = createDefaultSalesExcelRow(v);
+    }
+    for (let i = 0; i < 15; i++) {
+      r[i] = v.excelRow[i] !== undefined ? v.excelRow[i] : "";
+    }
+    
+    r[0] = v.date;
+    r[1] = v.date;
+    r[2] = v.id;
+    r[6] = v.partnerName;
+    r[7] = v.description;
+    
+    let grossTotal = 0;
+    let totalDiscount = 0;
+    v.items.forEach(item => {
+      const itemGross = (item.qty || 0) * (item.price || 0);
+      const discountVal = itemGross * ((item.discount || 0) / 100);
+      grossTotal += itemGross;
+      totalDiscount += discountVal;
+    });
+    
+    r[8] = grossTotal;
+    r[9] = totalDiscount;
+    r[10] = v.taxAmount || 0;
+    r[11] = v.totalAmount;
+    r[14] = v.paymentMethod === "111" ? "Bán hàng hóa, dịch vụ trong nước - Tiền mặt" : "Bán hàng hóa, dịch vụ trong nước chưa thu tiền";
+  };
+  exportExcelWithTemplate(
+    'excel/Ban_hang.xlsx',
+    `Ban_hang_${new Date().toISOString().split("T")[0]}.xlsx`,
+    filteredSales,
+    salesMapper,
+    fallbackHeaders,
+    salesMapper
+  );
+}
+
+function createDefaultSalesExcelRow(v) {
+  const r = [];
+  r[0] = v.date;
+  r[1] = v.date;
+  r[2] = v.id;
+  r[3] = "";
+  r[4] = "";
+  r[5] = "";
+  r[6] = v.partnerName;
+  r[7] = v.description;
+  
+  let grossTotal = 0;
+  let totalDiscount = 0;
+  v.items.forEach(item => {
+    const itemGross = (item.qty || 0) * (item.price || 0);
+    const discountVal = itemGross * ((item.discount || 0) / 100);
+    grossTotal += itemGross;
+    totalDiscount += discountVal;
+  });
+  
+  r[8] = grossTotal;
+  r[9] = totalDiscount;
+  r[10] = v.taxAmount || 0;
+  r[11] = v.totalAmount;
+  r[12] = "Đã lập";
+  r[13] = "Đã xuất";
+  r[14] = v.paymentMethod === "111" ? "Bán hàng hóa, dịch vụ trong nước - Tiền mặt" : "Bán hàng hóa, dịch vụ trong nước chưa thu tiền";
+  return r;
+}
+
 // ==========================================================
 // CÁC HÀM TÍCH HỢP EXCEL HUB & AUTOCOMPLETE (EXCEL HUB UTILITIES)
 // ==========================================================
@@ -4378,6 +4577,89 @@ function parseExcelFile(file, type) {
         saveState();
         recalculateAccounting();
         showToast(`Đã nạp thành công ${count} chứng từ vào sổ cái!`, "success");
+      } else if (type === 'sales') {
+        let count = 0;
+        const partnerMap = new Map();
+        state.partners.forEach(p => partnerMap.set(p.name, p.id));
+        const voucherMap = new Map();
+        state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
+
+        for (let i = 2; i < rows.length; i++) {
+          const row = rows[i];
+          const id = (row[2] || "").toString().trim();
+          if (!id || id === "Số chứng từ") continue;
+
+          const dateStr = excelDateToISOString(row[0]);
+          const partnerName = (row[6] || "Khách hàng vãng lai").toString().trim();
+          const description = (row[7] || "Bán hàng").toString().trim();
+          
+          const H = Number(row[8]) || 0;
+          const C = Number(row[9]) || 0;
+          const T = Number(row[10]) || 0;
+          const totalAmount = Number(row[11]) || 0;
+
+          let paymentMethod = "131";
+          const docTypeStr = (row[14] || "").toString().trim().toUpperCase();
+          if (docTypeStr.includes("TIỀN MẶT")) {
+            paymentMethod = "111";
+          }
+
+          let partnerId = partnerMap.get(partnerName);
+          if (!partnerId) {
+            partnerId = `DT_${Math.floor(1000 + Math.random() * 9000)}`;
+            state.partners.push({
+              id: partnerId,
+              name: partnerName,
+              type: "customer",
+              phone: "",
+              email: "",
+              address: ""
+            });
+            partnerMap.set(partnerName, partnerId);
+          }
+
+          const originalRow = [];
+          for (let col = 0; col < 15; col++) {
+            originalRow[col] = row[col] !== undefined ? row[col] : "";
+          }
+
+          const vObj = {
+            id,
+            type: "sales",
+            date: dateStr,
+            partnerId,
+            partnerName,
+            paymentMethod,
+            description,
+            taxRate: 0,
+            taxAmount: T,
+            totalAmount: totalAmount,
+            amount: totalAmount,
+            items: [
+              {
+                productId: "SP_GENERIC",
+                qty: 1,
+                price: H,
+                discount: H > 0 ? Math.round((C / H) * 100 * 100) / 100 : 0,
+                amount: H - C
+              }
+            ],
+            excelRow: originalRow
+          };
+
+          const existingIdx = voucherMap.get(id);
+          if (existingIdx !== undefined) {
+            state.vouchers[existingIdx] = vObj;
+          } else {
+            state.vouchers.push(vObj);
+            voucherMap.set(id, state.vouchers.length - 1);
+          }
+          count++;
+        }
+        saveState();
+        recalculateAccounting();
+        showToast(`Đã nạp thành công ${count} hóa đơn bán hàng vào lịch sử!`, "success");
+        if (typeof filterSales === "function") filterSales();
       }
     } catch (err) {
       console.error(err);
