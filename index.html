@@ -381,6 +381,10 @@
               <input type="date" id="search-sales-from" class="form-control" style="width: 135px; padding: 4px 8px; font-size: 12px; margin: 0;" onchange="filterSalesTable()">
               <span class="form-label" style="margin: 0; white-space: nowrap;">Đến ngày:</span>
               <input type="date" id="search-sales-to" class="form-control" style="width: 135px; padding: 4px 8px; font-size: 12px; margin: 0;" onchange="filterSalesTable()">
+              <button class="btn btn-secondary" onclick="clearSalesDateFilter()" style="padding: 4px 8px; font-size: 12px; height: 28px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px; border-color: var(--border-color); color: var(--text-secondary); cursor: pointer; margin: 0;" title="Xóa bộ lọc ngày">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 14px; height: 14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+                Xóa lọc
+              </button>
             </div>
             
             <button id="btn-batch-delete-sales" class="btn btn-secondary" onclick="batchDeleteSales()" style="display: none; color: var(--color-danger); border-color: var(--color-danger);">

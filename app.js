@@ -1148,6 +1148,14 @@ function filterSalesTable() {
   renderSalesTable();
 }
 
+function clearSalesDateFilter() {
+  const fromEl = document.getElementById("search-sales-from");
+  const toEl = document.getElementById("search-sales-to");
+  if (fromEl) fromEl.value = "";
+  if (toEl) toEl.value = "";
+  filterSalesTable();
+}
+
 function changeSalesPage(p) {
   salesCurrentPage = p;
   renderSalesTable();
@@ -5802,4 +5810,5 @@ window.deleteProduct = deleteProduct;
 window.editSalesVoucher = editSalesVoucher;
 window.resetSalesForm = resetSalesForm;
 window.changeSalesPage = changeSalesPage;
+window.clearSalesDateFilter = clearSalesDateFilter;
 
