@@ -1622,7 +1622,13 @@ Không có lỗi nào được ghi nhận.
       <div class="modal-body">
         <form id="form-sales" class="form-grid" onsubmit="handleSalesSubmit(event)">
           <div class="form-group">
-            <label class="form-label">Khách hàng mua</label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label class="form-label" style="margin: 0;">Khách hàng mua</label>
+              <button type="button" class="btn-text-link" onclick="openQuickAddPartnerModal()" style="font-size: 11.5px; color: var(--color-primary); background: none; border: none; padding: 0; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 3px;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 12px; height: 12px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
+                Thêm nhanh KH
+              </button>
+            </div>
             <input type="text" id="sale-partner" class="form-control" placeholder="Gõ để tìm khách hàng..." required list="datalist-partners">
           </div>
           
@@ -1699,6 +1705,39 @@ Không có lỗi nào được ghi nhận.
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal('modal-add-sales')">Hủy bỏ</button>
         <button type="submit" form="form-sales" class="btn btn-success">Ghi sổ chứng từ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- A-2. MODAL: THÊM NHANH KHÁCH HÀNG TỪ PHÂN HỆ BÁN HÀNG -->
+  <div id="modal-quick-add-partner" class="modal-overlay" style="z-index: 2000; display: none;">
+    <div class="modal-content-container" style="max-width: 450px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); border-radius: var(--radius-lg);">
+      <div class="modal-header">
+        <h3 class="card-title" style="font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--color-primary);">
+          <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
+          Thêm nhanh Khách hàng mới
+        </h3>
+        <button class="icon-btn" onclick="closeModal('modal-quick-add-partner')" style="width: 32px; height: 32px;">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-quick-add-partner" class="form-grid" style="grid-template-columns: 1fr; gap: 12px;" onsubmit="handleQuickAddPartnerSubmit(event)">
+          <div class="form-group">
+            <label class="form-label" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Tên khách hàng <span style="color:var(--color-danger)">*</span></label>
+            <input type="text" id="quick-partner-name" class="form-control" required placeholder="Ví dụ: Đại lý Thiết bị Điện Đông Á" style="font-size: 13px; height: 36px; padding: 0 12px;">
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Số điện thoại</label>
+            <input type="text" id="quick-partner-phone" class="form-control" placeholder="Ví dụ: 0912345678" style="font-size: 13px; height: 36px; padding: 0 12px;">
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Địa chỉ</label>
+            <input type="text" id="quick-partner-address" class="form-control" placeholder="Số nhà, đường phố, tỉnh/thành..." style="font-size: 13px; height: 36px; padding: 0 12px;">
+          </div>
+          <div class="form-actions" style="margin-top: 8px; display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('modal-quick-add-partner')" style="height: 36px; font-size: 13px; padding: 0 16px;">Hủy bỏ</button>
+            <button type="submit" class="btn btn-success" style="height: 36px; font-size: 13px; padding: 0 16px; font-weight: 600;">Lưu lại</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

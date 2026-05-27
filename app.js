@@ -2134,6 +2134,70 @@ function editSalesVoucher(id) {
   openModal("modal-add-sales");
 }
 
+function openQuickAddPartnerModal() {
+  const nameEl = document.getElementById("quick-partner-name");
+  const phoneEl = document.getElementById("quick-partner-phone");
+  const addressEl = document.getElementById("quick-partner-address");
+  if (nameEl) nameEl.value = "";
+  if (phoneEl) phoneEl.value = "";
+  if (addressEl) addressEl.value = "";
+  
+  openModal("modal-quick-add-partner");
+}
+
+function handleQuickAddPartnerSubmit(e) {
+  e.preventDefault();
+  
+  const name = document.getElementById("quick-partner-name").value.trim();
+  const phone = document.getElementById("quick-partner-phone").value.trim();
+  const address = document.getElementById("quick-partner-address").value.trim();
+  
+  if (!name) {
+    showToast("Vui lòng nhập tên khách hàng!", "danger");
+    return;
+  }
+  
+  let partner = state.partners.find(p => p.name.toLowerCase() === name.toLowerCase());
+  
+  if (!partner) {
+    const nextNum = (state.partners.filter(p => p.type === "customer").length + 1).toString().padStart(3, '0');
+    const id = `KH${nextNum}`;
+    
+    partner = {
+      id,
+      name,
+      type: "customer",
+      phone,
+      email: "",
+      address,
+      taxCode: "",
+      inactive: false
+    };
+    
+    state.partners.push(partner);
+    saveState();
+    
+    // Nạp lại datalist đối tác
+    const datalist = document.getElementById("datalist-partners");
+    if (datalist && state.partners) {
+      datalist.innerHTML = state.partners.map(p => 
+        `<option value="${p.id}">${p.name} [${p.type === 'supplier' ? 'NCC' : 'KH'}]</option>`
+      ).join("");
+    }
+    
+    showToast(`Đã thêm thành công khách hàng "${name}" với mã ${id}!`, "success");
+  } else {
+    showToast(`Khách hàng "${name}" đã tồn tại trên hệ thống!`, "info");
+  }
+  
+  const inputEl = document.getElementById("sale-partner");
+  if (inputEl) {
+    inputEl.value = partner.id;
+  }
+  
+  closeModal("modal-quick-add-partner");
+}
+
 // Xử lý nộp form Thêm mặt hàng mới
 function handleProductSubmit(e) {
   e.preventDefault();
@@ -5811,4 +5875,6 @@ window.editSalesVoucher = editSalesVoucher;
 window.resetSalesForm = resetSalesForm;
 window.changeSalesPage = changeSalesPage;
 window.clearSalesDateFilter = clearSalesDateFilter;
+window.openQuickAddPartnerModal = openQuickAddPartnerModal;
+window.handleQuickAddPartnerSubmit = handleQuickAddPartnerSubmit;
 
