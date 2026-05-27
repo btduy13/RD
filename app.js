@@ -18,6 +18,9 @@ let state = {
 // 2. KHỞI CHẠY KHI TRANG ĐƯỢC TẢI
 document.addEventListener("DOMContentLoaded", () => {
   initApp();
+  if (typeof initMouseInteractions === "function") {
+    initMouseInteractions();
+  }
 });
 
 // Khởi tạo ứng dụng: Load dữ liệu từ localStorage hoặc dùng mặc định
@@ -939,7 +942,7 @@ function renderPurchaseTable() {
   tbody.innerHTML = purchases.map(v => {
     const rawVal = v.totalAmount - (v.taxAmount || 0);
     return `
-      <tr>
+      <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
         <td class="font-numeric" style="color: var(--color-primary); font-weight:700;">${v.id}</td>
         <td>${v.date}</td>
         <td><span style="font-weight:600;">${getPartnerNameForVoucher(v)}</span></td>
@@ -1107,7 +1110,7 @@ function renderSalesTable() {
     const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
     
     return `
-      <tr>
+      <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
         <td style="text-align: center;">
           <input type="checkbox" class="sale-checkbox" value="${escapeHtmlAttr(v.id)}" onchange="updateBatchSalesUI()">
         </td>
@@ -1196,7 +1199,7 @@ function renderInventoryTable(filterQuery = "") {
     const isLow = (p.stock || 0) <= (p.minStock || 0);
     const escapedId = escapeHtmlAttr(p.id);
     return `
-      <tr>
+      <tr class="clickable-row" data-type="product" data-id="${escapedId}">
         <td style="text-align: center;">
           <input type="checkbox" class="product-checkbox" value="${escapedId}" onchange="updateBatchProductsUI()">
         </td>
@@ -1277,7 +1280,7 @@ function renderStockLedger() {
 
     if (v.type === "purchase") {
       html += `
-        <tr>
+        <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
           <td>${v.date}</td>
           <td class="font-numeric" style="color:var(--color-primary); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${v.id}</td>
           <td class="text-right font-numeric" style="color: var(--color-primary); font-weight:700;">+${item.qty}</td>
@@ -1287,7 +1290,7 @@ function renderStockLedger() {
       `;
     } else if (v.type === "sales") {
       html += `
-        <tr>
+        <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
           <td>${v.date}</td>
           <td class="font-numeric" style="color:var(--color-success); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${v.id}</td>
           <td class="text-right font-numeric">-</td>
@@ -1324,7 +1327,7 @@ function renderEscrowTable() {
     const lbl = typeLabels[v.type] || { name: "Ký quỹ", class: "badge-info", acct: "" };
     const isRefund = v.type.includes("refund");
     return `
-      <tr>
+      <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
         <td class="font-numeric" style="font-weight:700;">${v.id}</td>
         <td>${v.date}</td>
         <td><span style="font-weight:600;">${getPartnerNameForVoucher(v)}</span></td>
@@ -3057,6 +3060,9 @@ function renderPartnersTable() {
     pageItems.forEach(p => {
       const tr = document.createElement("tr");
       const escapedId = escapeHtmlAttr(p.id);
+      tr.className = "clickable-row";
+      tr.setAttribute("data-type", "partner");
+      tr.setAttribute("data-id", escapedId);
       tr.innerHTML = `
         <td style="font-weight:bold; color:var(--color-primary);">${p.id}</td>
         <td style="font-weight:600;"><a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${p.name}</a></td>
@@ -3718,6 +3724,9 @@ function renderDebtsTable() {
     pageItems.forEach(d => {
       const tr = document.createElement("tr");
       const escapedId = escapeHtmlAttr(d.id);
+      tr.className = "clickable-row";
+      tr.setAttribute("data-type", "partner");
+      tr.setAttribute("data-id", escapedId);
       tr.innerHTML = `
         <td style="font-weight:bold;">${d.id}</td>
         <td style="font-weight:600;"><a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${d.name}</a></td>
@@ -4485,6 +4494,10 @@ function renderPartnerLedgerOrders() {
     
     const tr = document.createElement("tr");
     const escapedOrderId = escapeHtmlAttr(o.id);
+    tr.className = "clickable-row";
+    tr.setAttribute("data-type", "voucher");
+    tr.setAttribute("data-subtype", o.type);
+    tr.setAttribute("data-id", escapedOrderId);
     tr.innerHTML = `
       <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedOrderId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${o.id}</a></td>
       <td>${o.date}</td>
@@ -4736,6 +4749,10 @@ function renderCashTable() {
       const tr = document.createElement("tr");
       const escapedPartnerId = escapeHtmlAttr(v.partnerId);
       const escapedVoucherId = escapeHtmlAttr(v.id);
+      tr.className = "clickable-row";
+      tr.setAttribute("data-type", "voucher");
+      tr.setAttribute("data-subtype", v.type);
+      tr.setAttribute("data-id", escapedVoucherId);
       tr.innerHTML = `
         <td>${v.date}</td>
         <td>${v.date}</td>
@@ -6578,5 +6595,160 @@ async function triggerUpdateFlow() {
 window.initLocalVersionDisplay = initLocalVersionDisplay;
 window.checkForUpdates = checkForUpdates;
 window.triggerUpdateFlow = triggerUpdateFlow;
+
+// ==========================================================================
+// BỘ ĐIỀU KHIỂN CHUỘT VÀ CONTEXT MENU TÙY BIẾN TOÀN CỤC
+// ==========================================================================
+function initMouseInteractions() {
+  const contextMenu = document.getElementById("custom-context-menu");
+  if (!contextMenu) {
+    console.warn("custom-context-menu element not found!");
+  }
+  
+  // 1. Nhấp đơn -> Highlight dòng được chọn
+  document.addEventListener("click", function(e) {
+    const row = e.target.closest("tr");
+    if (row && row.hasAttribute("data-type")) {
+      document.querySelectorAll("tr.active-row").forEach(r => r.classList.remove("active-row"));
+      row.classList.add("active-row");
+    }
+    // Ẩn context menu khi nhấp bất kỳ đâu ngoài context menu
+    if (contextMenu && !e.target.closest("#custom-context-menu")) {
+      contextMenu.style.display = "none";
+    }
+  });
+
+  // 2. Nhấp đúp -> Kích hoạt hành động chính
+  document.addEventListener("dblclick", function(e) {
+    const row = e.target.closest("tr");
+    if (!row) return;
+    
+    const type = row.getAttribute("data-type");
+    const id = row.getAttribute("data-id");
+    if (!type || !id) return;
+
+    if (type === "voucher") {
+      if (typeof viewVoucher === "function") {
+        viewVoucher(id);
+      }
+    } else if (type === "product") {
+      if (typeof promptEditProductPrice === "function") {
+        promptEditProductPrice(id);
+      }
+    } else if (type === "partner") {
+      if (typeof viewPartnerLedger === "function") {
+        viewPartnerLedger(id);
+      }
+    }
+  });
+
+  // 3. Nhấp chuột phải -> Context Menu tùy biến
+  document.addEventListener("contextmenu", function(e) {
+    const row = e.target.closest("tr");
+    if (!row || !row.hasAttribute("data-type")) {
+      if (contextMenu) contextMenu.style.display = "none";
+      return;
+    }
+    
+    // Ngăn chặn menu chuột phải mặc định của trình duyệt
+    e.preventDefault();
+
+    const type = row.getAttribute("data-type");
+    const subtype = row.getAttribute("data-subtype") || "";
+    const id = row.getAttribute("data-id");
+
+    if (!contextMenu) return;
+
+    // Thiết lập nội dung menu động dựa trên đối tượng
+    let menuHTML = "";
+    const escapedId = escapeHtmlAttr(id);
+
+    if (type === "voucher") {
+      menuHTML = `
+        <button class="context-menu-item" onclick="viewVoucher('${escapedId}')">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+          Xem và In chứng từ (${escapedId})
+        </button>
+      `;
+
+      if (subtype === "sales") {
+        menuHTML += `
+          <button class="context-menu-item" onclick="editSalesVoucher('${escapedId}')">
+            <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            Chỉnh sửa hóa đơn
+          </button>
+        `;
+      }
+
+      menuHTML += `
+        <div class="context-menu-divider"></div>
+        <button class="context-menu-item item-danger" onclick="deleteVoucher('${escapedId}')">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+          Xóa chứng từ này
+        </button>
+      `;
+    } else if (type === "product") {
+      menuHTML = `
+        <button class="context-menu-item" onclick="promptQuickImport('${escapedId}')">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+          Nhập kho nhanh (${escapedId})
+        </button>
+        <button class="context-menu-item" onclick="promptEditProductPrice('${escapedId}')">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+          Chỉnh sửa mặt hàng
+        </button>
+        <div class="context-menu-divider"></div>
+        <button class="context-menu-item item-danger" onclick="deleteProduct('${escapedId}')">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+          Xóa mặt hàng này
+        </button>
+      `;
+    } else if (type === "partner") {
+      menuHTML = `
+        <button class="context-menu-item" onclick="viewPartnerLedger('${escapedId}')">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          Xem sổ chi tiết (${escapedId})
+        </button>
+        <button class="context-menu-item" onclick="openEditPartnerModal('${escapedId}')">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+          Chỉnh sửa đối tác
+         </button>
+        <button class="context-menu-item" onclick="promptEditPartnerOpeningDebt('${escapedId}')">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          Chỉnh sửa công nợ đầu kỳ
+        </button>
+        <div class="context-menu-divider"></div>
+        <button class="context-menu-item item-danger" onclick="deletePartner('${escapedId}')">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+          Xóa đối tác này
+        </button>
+      `;
+    }
+
+    contextMenu.innerHTML = menuHTML;
+
+    // Xác định vị trí hiển thị Menu để không bị tràn màn hình
+    contextMenu.style.display = "block";
+    
+    const menuWidth = contextMenu.offsetWidth || 190;
+    const menuHeight = contextMenu.offsetHeight || 150;
+    
+    let x = e.pageX;
+    let y = e.pageY;
+    
+    if (x + menuWidth > window.innerWidth + window.scrollX) {
+      x = window.innerWidth + window.scrollX - menuWidth - 10;
+    }
+    
+    if (y + menuHeight > window.innerHeight + window.scrollY) {
+      y = window.innerHeight + window.scrollY - menuHeight - 10;
+    }
+
+    contextMenu.style.left = `${x}px`;
+    contextMenu.style.top = `${y}px`;
+  });
+}
+
+window.initMouseInteractions = initMouseInteractions;
 
 
