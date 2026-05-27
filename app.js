@@ -3880,6 +3880,225 @@ function viewPartnerLedger(partnerId) {
   openModal("modal-view-partner-ledger");
 }
 
+async function exportPartnerDebtExcel(partnerId) {
+  if (typeof XLSX === "undefined") {
+    showToast("Thư viện SheetJS chưa được nạp!", "danger");
+    return;
+  }
+  
+  const p = state.partners.find(item => item.id === partnerId);
+  if (!p) {
+    showToast("Không tìm thấy đối tác này!", "danger");
+    return;
+  }
+
+  try {
+    const response = await fetch('excel/Thong_bao_cong_no.xlsx');
+    if (!response.ok) throw new Error("Fetch template failed: " + response.statusText);
+    const arrayBuffer = await response.arrayBuffer();
+    const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array', cellStyles: true });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    
+    // 1. Get ledger data
+    const opening = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
+    let openingVal = 0;
+    if (p.type === "customer") {
+      openingVal = opening.debit - opening.credit;
+    } else {
+      openingVal = opening.credit - opening.debit;
+    }
+    
+    let debitSum = 0;
+    let creditSum = 0;
+    const ledgerEntries = [];
+    state.vouchers.forEach(v => {
+      if (v.partnerId !== p.id) return;
+      if (!v.entries) return;
+
+      v.entries.forEach(e => {
+        const is131 = e.debit.startsWith("131") || e.credit.startsWith("131");
+        const is331 = e.debit.startsWith("331") || e.credit.startsWith("331");
+        if (!is131 && !is331) return;
+
+        let debitAmount = 0;
+        let creditAmount = 0;
+        let offsetAccount = "";
+
+        if (e.debit.startsWith("131") || e.debit.startsWith("331")) {
+          debitAmount = e.amount;
+          offsetAccount = e.credit;
+        } else {
+          creditAmount = e.amount;
+          offsetAccount = e.debit;
+        }
+
+        ledgerEntries.push({
+          date: v.date,
+          id: v.id,
+          desc: e.desc || v.description,
+          offsetAccount,
+          debit: debitAmount,
+          credit: creditAmount
+        });
+
+        debitSum += debitAmount;
+        creditSum += creditAmount;
+      });
+    });
+
+    ledgerEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    // Calculate closing balance
+    let closingVal = 0;
+    if (p.type === "customer") {
+      closingVal = openingVal + debitSum - creditSum;
+    } else {
+      closingVal = openingVal + creditSum - debitSum;
+    }
+
+    // Determine min/max dates
+    let fromDateStr = "01/01/2026";
+    let toDateStr = new Date().toLocaleDateString('vi-VN');
+    if (ledgerEntries.length > 0) {
+      const dates = ledgerEntries.map(e => new Date(e.date));
+      const minDate = new Date(Math.min(...dates));
+      const maxDate = new Date(Math.max(...dates));
+      
+      const pad = (n) => n.toString().padStart(2, '0');
+      fromDateStr = `${pad(minDate.getDate())}/${pad(minDate.getMonth()+1)}/${minDate.getFullYear()}`;
+      toDateStr = `${pad(maxDate.getDate())}/${pad(maxDate.getMonth()+1)}/${maxDate.getFullYear()}`;
+    }
+
+    // 2. Format template values
+    // Cell B10: Đơn vị
+    sheet['B10'] = { v: `Đơn vị:    ${p.name} (${p.id})`, t: 's' };
+    
+    // Cell B11: Địa chỉ
+    sheet['B11'] = { v: `Địa chỉ:    ${p.address || ""}`, t: 's' };
+    
+    // Cell B12: Mã số thuế
+    sheet['B12'] = { v: `Mã số thuế: ${p.taxCode || ""}`, t: 's' };
+
+    // Cell G10: Kỳ
+    sheet['G10'] = { v: `Từ ngày ${fromDateStr} đến ngày ${toDateStr}`, t: 's' };
+
+    // Cell K12: Số dư cuối kỳ
+    sheet['K12'] = { v: closingVal, t: 'n', z: '#,##0' };
+
+    // Cell K13: Số dư đầu kỳ
+    sheet['K13'] = { v: openingVal, t: 'n', z: '#,##0' };
+
+    // Cell B7: Ngày in
+    sheet['B7'] = { v: `Ngày in: ${new Date().toLocaleDateString('vi-VN')}`, t: 's' };
+
+    // Save existing style templates from row index 15 (sample data row 16)
+    // We will extract column styles for columns B (1), C (2), D (3), J (9), K (10)
+    const colStyles = {};
+    const colsToFormat = [1, 2, 3, 9, 10];
+    colsToFormat.forEach(c => {
+      const cellRef = XLSX.utils.encode_cell({ r: 15, c: c });
+      const cell = sheet[cellRef];
+      if (cell && cell.s) {
+        colStyles[c] = convertStyle(cell.s);
+      }
+    });
+
+    // Clean sheet cells starting from index 15 (row 16) onwards to write fresh data
+    for (const key in sheet) {
+      if (key[0] === '!') continue;
+      const cellCoord = XLSX.utils.decode_cell(key);
+      if (cellCoord.r < 15) {
+        // Convert styles of header rows to keep them
+        const cell = sheet[key];
+        if (cell && cell.s) {
+          cell.s = convertStyle(cell.s);
+        }
+      } else {
+        delete sheet[key];
+      }
+    }
+
+    // Write new data rows
+    let currentBalance = openingVal;
+    ledgerEntries.forEach((le, idx) => {
+      const r = 15 + idx; // Data starts at JS row 15
+      
+      // Calculate running balance
+      let amount = 0;
+      if (p.type === "customer") {
+        amount = le.debit - le.credit;
+      } else {
+        amount = le.credit - le.debit;
+      }
+      currentBalance += amount;
+      
+      const rowData = {
+        1: le.date, // B: Ngày
+        2: le.id,   // C: Số chứng từ
+        3: le.desc, // D: Diễn giải
+        9: amount,  // J: Số tiền
+        10: currentBalance // K: Số dư
+      };
+      
+      for (const colIdx in rowData) {
+        const val = rowData[colIdx];
+        const cellRef = XLSX.utils.encode_cell({ r: r, c: parseInt(colIdx) });
+        const cell = { v: val };
+        if (typeof val === 'number') {
+          cell.t = 'n';
+          cell.z = '#,##0;(#,##0);"-"';
+        } else {
+          cell.t = 's';
+        }
+        if (colStyles[colIdx]) {
+          cell.s = colStyles[colIdx];
+        }
+        sheet[cellRef] = cell;
+      }
+    });
+
+    // Write signature section at the bottom (after list rows)
+    const startSigRow = 15 + ledgerEntries.length + 2;
+    
+    // Add "Người lập phiếu" and "(Ký, họ tên)"
+    const rSig = startSigRow;
+    const cellSigRef = XLSX.utils.encode_cell({ r: rSig, c: 7 }); // H
+    sheet[cellSigRef] = {
+      v: "Người lập phiếu",
+      t: 's',
+      s: { font: { bold: true }, alignment: { horizontal: 'center' } }
+    };
+    
+    const cellSignRef = XLSX.utils.encode_cell({ r: rSig + 2, c: 7 });
+    sheet[cellSignRef] = {
+      v: "(Ký, họ tên)",
+      t: 's',
+      s: { font: { italic: true }, alignment: { horizontal: 'center' } }
+    };
+
+    // Update sheet range !ref
+    const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1:M30');
+    range.e.r = rSig + 4;
+    sheet['!ref'] = XLSX.utils.encode_range(range);
+
+    // Save workbook
+    XLSX.writeFile(workbook, `Thong_bao_cong_no_${p.id}.xlsx`);
+    showToast(`Đã xuất thông báo công nợ thành công cho đối tác ${p.name}!`, "success");
+  } catch (err) {
+    console.error(err);
+    showToast(`Lỗi xuất thông báo công nợ: ${err.message}`, "danger");
+  }
+}
+
+function exportCurrentPartnerDebtExcel() {
+  if (!activePartnerIdForLedger) {
+    showToast("Không tìm thấy đối tác hiện tại!", "danger");
+    return;
+  }
+  exportPartnerDebtExcel(activePartnerIdForLedger);
+}
+
 function switchPartnerLedgerTab(tabName) {
   currentPartnerLedgerTab = tabName;
   const btnEntries = document.getElementById("partner-ledger-tab-btn-entries");
@@ -5883,4 +6102,5 @@ window.changeSalesPage = changeSalesPage;
 window.clearSalesDateFilter = clearSalesDateFilter;
 window.openQuickAddPartnerModal = openQuickAddPartnerModal;
 window.handleQuickAddPartnerSubmit = handleQuickAddPartnerSubmit;
+window.exportCurrentPartnerDebtExcel = exportCurrentPartnerDebtExcel;
 

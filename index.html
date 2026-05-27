@@ -1324,7 +1324,13 @@ Không có lỗi nào được ghi nhận.
           <h3 class="card-title">Sổ Chi Tiết Công Nợ Đối Tác</h3>
           <span style="font-size:12px; color:var(--text-secondary);" id="partner-ledger-subtitle"></span>
         </div>
-        <button class="icon-btn" onclick="closeModal('modal-view-partner-ledger')" style="width: 32px; height: 32px;">×</button>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button class="btn btn-secondary" onclick="exportCurrentPartnerDebtExcel()" style="height: 32px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; border-color: var(--color-success); color: var(--color-success); background-color: var(--bg-secondary); padding: 0 12px; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='var(--bg-tertiary)'" onmouseout="this.style.backgroundColor='var(--bg-secondary)'">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 14px; height: 14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            Thông báo công nợ (Excel)
+          </button>
+          <button class="icon-btn" onclick="closeModal('modal-view-partner-ledger')" style="width: 32px; height: 32px;">×</button>
+        </div>
       </div>
       <div class="modal-body" style="overflow-y: auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 12px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-tertiary);">
