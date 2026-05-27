@@ -991,21 +991,64 @@ function renderSalesTable() {
   const tbody = document.getElementById("sales-table-body");
   if (!tbody) return;
 
-  const sales = state.vouchers.filter(v => v.type === "sales");
-  // Sắp xếp số chứng từ giảm dần (to nhất lên trước)
+  let sales = state.vouchers.filter(v => v.type === "sales");
+
+  // Advanced search filters
+  const query = document.getElementById("search-sales") ? document.getElementById("search-sales").value.toLowerCase() : "";
+  const fromDate = document.getElementById("search-sales-from") ? document.getElementById("search-sales-from").value : "";
+  const toDate = document.getElementById("search-sales-to") ? document.getElementById("search-sales-to").value : "";
+
+  if (query) {
+    sales = sales.filter(v => 
+      (v.id || "").toLowerCase().includes(query) ||
+      (v.partnerName || "").toLowerCase().includes(query) ||
+      (v.description || "").toLowerCase().includes(query)
+    );
+  }
+
+  if (fromDate) {
+    sales = sales.filter(v => v.date >= fromDate);
+  }
+  if (toDate) {
+    sales = sales.filter(v => v.date <= toDate);
+  }
+
+  // Sắp xếp số chứng từ giảm dần (mới nhất lên trước)
   sales.sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' }));
 
-  if (sales.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: var(--text-muted); padding: 30px;">Chưa lập hóa đơn bán hàng nào. Vui lòng nhấn nút "Lập hóa đơn bán hàng".</td></tr>`;
+  const totalCount = sales.length;
+
+  // Lấy 30 đơn bán hàng mới nhất (1 trang duy nhất)
+  const displayedSales = sales.slice(0, 30);
+
+  // Cập nhật thông tin phân trang trên tiêu đề bảng
+  const countEl = document.getElementById("sales-pagination-info");
+  if (countEl) {
+    countEl.innerText = `Hiển thị tối đa 30 đơn bán hàng mới nhất (Tổng cộng khớp bộ lọc: ${totalCount})`;
+  }
+
+  // Reset check-all-sales checkbox
+  const checkAll = document.getElementById("check-all-sales");
+  if (checkAll) checkAll.checked = false;
+  if (typeof updateBatchSalesUI === "function") updateBatchSalesUI();
+
+  if (displayedSales.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy hóa đơn bán hàng nào phù hợp.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = sales.map(v => {
+  tbody.innerHTML = displayedSales.map(v => {
     const rawVal = v.totalAmount - (v.taxAmount || 0);
+    // Định dạng ngày lập hiển thị dạng Ngày/Tháng/Năm (DD/MM/YYYY)
+    const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
+    
     return `
       <tr>
+        <td style="text-align: center;">
+          <input type="checkbox" class="sale-checkbox" value="${escapeHtmlAttr(v.id)}" onchange="updateBatchSalesUI()">
+        </td>
         <td class="font-numeric" style="color: var(--color-success); font-weight:700;">${v.id}</td>
-        <td>${v.date}</td>
+        <td>${formattedDate}</td>
         <td><span style="font-weight:600;">${getPartnerNameForVoucher(v)}</span></td>
         <td>${v.description}</td>
         <td><span class="badge ${v.paymentMethod === '131' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '131' ? 'Công nợ (131)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
@@ -1025,10 +1068,13 @@ function renderSalesTable() {
         </td>
         <td style="text-align: center;">
           <div style="display:flex; justify-content:center; gap:6px;">
-            <button class="print-btn" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')" title="Xem và In mẫu chứng từ">
+            <button class="print-btn" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')" title="Xem và In mẫu chứng từ" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-success); cursor: pointer; transition: all 0.2s;">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
             </button>
-            <button class="trash-btn" onclick="deleteVoucher('${escapeHtmlAttr(v.id)}')" title="Xóa chứng từ">
+            <button class="edit-btn" onclick="editSalesVoucher('${escapeHtmlAttr(v.id)}')" title="Chỉnh sửa hóa đơn" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-primary); cursor: pointer; transition: all 0.2s;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            </button>
+            <button class="trash-btn" onclick="deleteVoucher('${escapeHtmlAttr(v.id)}')" title="Xóa chứng từ" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-danger); cursor: pointer; transition: all 0.2s;">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
             </button>
           </div>
@@ -1040,21 +1086,7 @@ function renderSalesTable() {
 
 // Lọc hóa đơn bán hàng
 function filterSalesTable() {
-  const query = document.getElementById("search-sales").value.toLowerCase();
-  const rows = document.querySelectorAll("#sales-table-body tr");
-  
-  rows.forEach(row => {
-    if (row.cells.length < 3) return;
-    const ref = row.cells[0].innerText.toLowerCase();
-    const partner = row.cells[2].innerText.toLowerCase();
-    const desc = row.cells[3].innerText.toLowerCase();
-    
-    if (ref.includes(query) || partner.includes(query) || desc.includes(query)) {
-      row.style.display = "";
-    } else {
-      row.style.display = "none";
-    }
-  });
+  renderSalesTable();
 }
 
 // 8. RENDER DỮ LIỆU PHÂN HỆ KHO HÀNG (INVENTORY)
@@ -1072,8 +1104,13 @@ function renderInventoryTable(filterQuery = "") {
     );
   }
 
+  // Reset check-all-products checkbox
+  const checkAll = document.getElementById("check-all-products");
+  if (checkAll) checkAll.checked = false;
+  if (typeof updateBatchProductsUI === "function") updateBatchProductsUI();
+
   if (products.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy sản phẩm phù hợp.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy sản phẩm phù hợp.</td></tr>`;
     return;
   }
 
@@ -1082,6 +1119,9 @@ function renderInventoryTable(filterQuery = "") {
     const escapedId = escapeHtmlAttr(p.id);
     return `
       <tr>
+        <td style="text-align: center;">
+          <input type="checkbox" class="product-checkbox" value="${escapedId}" onchange="updateBatchProductsUI()">
+        </td>
         <td class="font-numeric" style="font-weight:700;">${p.id}</td>
         <td><span style="font-weight:600; color:var(--text-primary);">${p.name}</span></td>
         <td>${p.unit || "Cái"}</td>
@@ -1097,6 +1137,7 @@ function renderInventoryTable(filterQuery = "") {
           <div style="display: flex; gap: 6px; justify-content: center;">
             <button class="btn btn-secondary btn-sm" onclick="promptQuickImport('${escapedId}')" style="padding: 2px 6px; font-size: 11px; color: var(--color-success); border-color: var(--color-success);">+ Nhập kho</button>
             <button class="btn btn-secondary btn-sm" onclick="promptEditProductPrice('${escapedId}')" style="padding: 2px 6px; font-size: 11px; color: var(--color-primary); border-color: var(--color-primary);">Sửa giá/thông tin</button>
+            <button class="btn btn-secondary btn-sm" onclick="deleteProduct('${escapedId}')" style="padding: 2px 6px; font-size: 11px; color: var(--color-danger); border-color: var(--color-danger);">Xóa</button>
           </div>
         </td>
       </tr>
@@ -1793,26 +1834,26 @@ function handlePurchaseSubmit(e) {
 }
 
 // Bổ sung các hàng sản phẩm động vào form Bán hàng
-function addSalesFormRow() {
+function addSalesFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
   const tbody = document.getElementById("sales-form-items-body");
   if (!tbody) return;
 
-  const rowId = `sale-row-${Date.now()}`;
+  const rowId = `sale-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
   const tr = document.createElement("tr");
   tr.id = rowId;
   tr.innerHTML = `
     <td>
-      <input type="text" class="form-control item-productId" placeholder="Gõ mã hoặc tên sản phẩm..." required list="datalist-sales-products" oninput="autoFillProductPrice(this)" onblur="autoFillProductPrice(this)">
+      <input type="text" class="form-control item-productId" placeholder="Gõ mã hoặc tên sản phẩm..." required list="datalist-sales-products" oninput="autoFillProductPrice(this)" onblur="autoFillProductPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
     </td>
     <td>
-      <input type="number" class="form-control item-qty text-right" required value="1" min="1" oninput="recalculateSalesTotals()">
+      <input type="number" class="form-control item-qty text-right" required value="${qtyVal}" min="1" oninput="recalculateSalesTotals()">
     </td>
     <td>
-      <input type="number" class="form-control item-price text-right" required value="0" min="0" oninput="recalculateSalesTotals()">
+      <input type="number" class="form-control item-price text-right" required value="${priceVal}" min="0" oninput="recalculateSalesTotals()">
     </td>
     <td>
-      <input type="number" class="form-control item-discount text-right" required value="0" min="0" max="100" oninput="recalculateSalesTotals()" placeholder="0">
+      <input type="number" class="form-control item-discount text-right" required value="${discountVal}" min="0" max="100" oninput="recalculateSalesTotals()" placeholder="0">
     </td>
     <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
     <td style="text-align: center;">
@@ -1821,6 +1862,7 @@ function addSalesFormRow() {
   `;
 
   tbody.appendChild(tr);
+  recalculateSalesTotals();
 }
 
 // Gợi ý giá bán = Giá vốn bình quan + 35% lợi nhuận biên
@@ -1860,8 +1902,14 @@ function recalculateSalesTotals() {
   document.getElementById("sale-total-display").value = formatVND(total);
 }
 
+let editingSalesId = null;
+
 // Reset form bán hàng
 function resetSalesForm() {
+  editingSalesId = null;
+  const modalTitle = document.querySelector("#modal-add-sales .card-title");
+  if (modalTitle) modalTitle.innerText = "Lập hóa đơn bán hàng xuất kho";
+
   const tbody = document.getElementById("sales-form-items-body");
   if (tbody) tbody.innerHTML = "";
   document.getElementById("sale-desc").value = "Bán sản phẩm Rạng Đông xuất kho";
@@ -1904,9 +1952,17 @@ function handleSalesSubmit(e) {
     const discount = parseFloat(row.querySelector(".item-discount").value) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
     
-    // Kiểm tra hàng tồn kho khả dụng
-    if (resolvedProduct.stock < qty) {
-      showToast(`Hàng tồn kho sản phẩm "${resolvedProduct.name}" không đủ (Còn tồn ${resolvedProduct.stock}, cần bán ${qty})!`, "danger");
+    // Kiểm tra hàng tồn kho khả dụng (Cộng lại lượng đã bán cũ của chứng từ này nếu đang edit)
+    let oldQty = 0;
+    if (editingSalesId) {
+      const oldVoucher = state.vouchers.find(v => v.id === editingSalesId);
+      if (oldVoucher) {
+        const oldItem = oldVoucher.items.find(item => item.productId === productId);
+        if (oldItem) oldQty = oldItem.qty || 0;
+      }
+    }
+    if ((resolvedProduct.stock + oldQty) < qty) {
+      showToast(`Hàng tồn kho sản phẩm "${resolvedProduct.name}" không đủ (Còn tồn ${resolvedProduct.stock + oldQty}, cần bán ${qty})!`, "danger");
       isStockInsufficient = true;
     }
 
@@ -1922,7 +1978,7 @@ function handleSalesSubmit(e) {
   if (isStockInsufficient) return;
 
   const newVoucher = {
-    id: `BH-${new Date().getFullYear().toString().substring(2)}-${(state.vouchers.filter(v => v.type === 'sales').length + 1).toString().padStart(4, '0')}`,
+    id: editingSalesId || `BH-${new Date().getFullYear().toString().substring(2)}-${(state.vouchers.filter(v => v.type === 'sales').length + 1).toString().padStart(4, '0')}`,
     type: "sales",
     date: document.getElementById("sale-date").value,
     partnerId,
@@ -1933,14 +1989,53 @@ function handleSalesSubmit(e) {
     taxRate: parseInt(document.getElementById("sale-tax-rate").value)
   };
 
-  state.vouchers.push(newVoucher);
+  if (editingSalesId) {
+    const idx = state.vouchers.findIndex(v => v.id === editingSalesId);
+    if (idx !== -1) {
+      if (state.vouchers[idx].excelRow) {
+        newVoucher.excelRow = state.vouchers[idx].excelRow;
+      }
+      state.vouchers[idx] = newVoucher;
+    }
+    editingSalesId = null;
+  } else {
+    state.vouchers.push(newVoucher);
+  }
+
   saveState();
-  
-  // Chạy lại hạch toán đồng bộ
   recalculateAccounting();
   
   closeModal("modal-add-sales");
   showToast("Lập hóa đơn bán hàng thành công!", "success");
+}
+
+function editSalesVoucher(id) {
+  const v = state.vouchers.find(v => v.id === id);
+  if (!v) return;
+
+  editingSalesId = id;
+
+  const modalTitle = document.querySelector("#modal-add-sales .card-title");
+  if (modalTitle) modalTitle.innerText = `Chỉnh sửa hóa đơn bán hàng: ${id}`;
+
+  document.getElementById("sale-date").value = v.date;
+  document.getElementById("sale-partner").value = getPartnerNameForVoucher(v);
+  document.getElementById("sale-desc").value = v.description;
+  document.getElementById("sale-payment").value = v.paymentMethod;
+  if (document.getElementById("sale-tax-rate")) {
+    document.getElementById("sale-tax-rate").value = v.taxRate || 0;
+  }
+
+  const tbody = document.getElementById("sales-form-items-body");
+  if (tbody) tbody.innerHTML = "";
+
+  v.items.forEach(item => {
+    const prod = state.products.find(p => p.id === item.productId);
+    const prodVal = prod ? `${prod.name} (${prod.id})` : item.productId;
+    addSalesFormRow(prodVal, item.qty, item.price, item.discount);
+  });
+
+  openModal("modal-add-sales");
 }
 
 // Xử lý nộp form Thêm mặt hàng mới
@@ -4143,7 +4238,30 @@ function exportSalesToExcel() {
     ["DANH SÁCH BÁN HÀNG"],
     ["Ngày hạch toán", "Ngày chứng từ", "Số chứng từ", "Số hóa đơn", "Mẫu số HĐ", "Ký hiệu HĐ", "Khách hàng", "Diễn giải", "Tổng tiền hàng", "Tiền chiết khấu", "Tiền thuế GTGT", "Tổng tiền thanh toán", "Đã lập hóa đơn", "Đã xuất hàng", "Loại chứng từ"]
   ];
-  const filteredSales = state.vouchers.filter(v => v.type === "sales");
+  let filteredSales = state.vouchers.filter(v => v.type === "sales");
+  
+  // Filter by advanced search date range & query
+  const query = document.getElementById("search-sales") ? document.getElementById("search-sales").value.toLowerCase() : "";
+  const fromDate = document.getElementById("search-sales-from") ? document.getElementById("search-sales-from").value : "";
+  const toDate = document.getElementById("search-sales-to") ? document.getElementById("search-sales-to").value : "";
+
+  if (query) {
+    filteredSales = filteredSales.filter(v => 
+      (v.id || "").toLowerCase().includes(query) ||
+      (v.partnerName || "").toLowerCase().includes(query) ||
+      (v.description || "").toLowerCase().includes(query)
+    );
+  }
+  if (fromDate) {
+    filteredSales = filteredSales.filter(v => v.date >= fromDate);
+  }
+  if (toDate) {
+    filteredSales = filteredSales.filter(v => v.date <= toDate);
+  }
+
+  // Sắp xếp số chứng từ giảm dần
+  filteredSales.sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' }));
+
   const salesMapper = (v, r) => {
     if (!v.excelRow) {
       v.excelRow = createDefaultSalesExcelRow(v);
@@ -4173,9 +4291,15 @@ function exportSalesToExcel() {
     r[11] = v.totalAmount;
     r[14] = v.paymentMethod === "111" ? "Bán hàng hóa, dịch vụ trong nước - Tiền mặt" : "Bán hàng hóa, dịch vụ trong nước chưa thu tiền";
   };
+
+  let dateRangeSuffix = "";
+  if (fromDate || toDate) {
+    dateRangeSuffix = `_tu_${fromDate || "truoc"}_den_${toDate || "sau"}`;
+  }
+
   exportExcelWithTemplate(
     'excel/Ban_hang.xlsx',
-    `Ban_hang_${new Date().toISOString().split("T")[0]}.xlsx`,
+    `Ban_hang_${new Date().toISOString().split("T")[0]}${dateRangeSuffix}.xlsx`,
     filteredSales,
     salesMapper,
     fallbackHeaders,
@@ -5446,3 +5570,147 @@ window.forcePullFromCloud = forcePullFromCloud;
 window.updateCloudSyncBadge = updateCloudSyncBadge;
 window.triggerAutoExtractPhones = triggerAutoExtractPhones;
 window.autoExtractPhonesAndCleanAddresses = autoExtractPhonesAndCleanAddresses;
+
+// ==========================================================
+// CÁC HÀM XỬ LÝ BATCH SELECTION & BATCH DELETE (VOUCHERS & PRODUCTS)
+// ==========================================================
+
+function toggleSelectAllSales(masterCheckbox) {
+  const checkboxes = document.querySelectorAll(".sale-checkbox");
+  checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+  updateBatchSalesUI();
+}
+
+function updateBatchSalesUI() {
+  const checkboxes = document.querySelectorAll(".sale-checkbox");
+  const checked = Array.from(checkboxes).filter(cb => cb.checked);
+  const btn = document.getElementById("btn-batch-delete-sales");
+  const count = document.getElementById("selected-sales-count");
+  
+  if (btn && count) {
+    if (checked.length > 0) {
+      btn.style.display = "inline-flex";
+      count.innerText = checked.length;
+    } else {
+      btn.style.display = "none";
+      count.innerText = "0";
+    }
+  }
+  
+  const master = document.getElementById("check-all-sales");
+  if (master) {
+    master.checked = checked.length === checkboxes.length && checkboxes.length > 0;
+  }
+}
+
+function batchDeleteSales() {
+  const checked = Array.from(document.querySelectorAll(".sale-checkbox")).filter(cb => cb.checked);
+  if (checked.length === 0) return;
+  
+  if (confirm(`Bạn có chắc chắn muốn xóa và hủy ghi sổ ${checked.length} chứng từ đã chọn?`)) {
+    const idsToDelete = checked.map(cb => cb.value);
+    state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+    
+    // Remove references
+    state.vouchers.forEach(v => {
+      if (v.escrowRefId && idsToDelete.includes(v.escrowRefId)) {
+        v.escrowRefId = null;
+      }
+    });
+    
+    saveState();
+    recalculateAccounting();
+    
+    const master = document.getElementById("check-all-sales");
+    if (master) master.checked = false;
+    
+    updateBatchSalesUI();
+    
+    if (typeof filterSales === "function") filterSales();
+    if (typeof filterPurchases === "function") filterPurchases();
+    if (typeof filterCash === "function") {
+      filterCash();
+      if (typeof recalculateCashKpis === "function") recalculateCashKpis();
+    }
+    if (typeof renderDashboard === "function") renderDashboard();
+    if (typeof filterDebts === "function") filterDebts();
+    if (typeof filterPartners === "function") filterPartners();
+    if (typeof renderInventoryTable === "function") renderInventoryTable();
+    
+    showToast(`Đã xóa thành công ${checked.length} chứng từ bán hàng!`, "success");
+  }
+}
+
+function toggleSelectAllProducts(masterCheckbox) {
+  const checkboxes = document.querySelectorAll(".product-checkbox");
+  checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+  updateBatchProductsUI();
+}
+
+function updateBatchProductsUI() {
+  const checkboxes = document.querySelectorAll(".product-checkbox");
+  const checked = Array.from(checkboxes).filter(cb => cb.checked);
+  const btn = document.getElementById("btn-batch-delete-products");
+  const count = document.getElementById("selected-products-count");
+  
+  if (btn && count) {
+    if (checked.length > 0) {
+      btn.style.display = "inline-flex";
+      count.innerText = checked.length;
+    } else {
+      btn.style.display = "none";
+      count.innerText = "0";
+    }
+  }
+  
+  const master = document.getElementById("check-all-products");
+  if (master) {
+    master.checked = checked.length === checkboxes.length && checkboxes.length > 0;
+  }
+}
+
+function batchDeleteProducts() {
+  const checked = Array.from(document.querySelectorAll(".product-checkbox")).filter(cb => cb.checked);
+  if (checked.length === 0) return;
+  
+  if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} sản phẩm đã chọn? Các chứng từ liên quan có thể bị ảnh hưởng.`)) {
+    const idsToDelete = checked.map(cb => cb.value);
+    state.products = state.products.filter(p => !idsToDelete.includes(p.id));
+    
+    saveState();
+    recalculateAccounting();
+    
+    const master = document.getElementById("check-all-products");
+    if (master) master.checked = false;
+    
+    updateBatchProductsUI();
+    
+    renderInventoryTable();
+    populateProductLedgerDropdown();
+    
+    showToast(`Đã xóa thành công ${checked.length} sản phẩm!`, "success");
+  }
+}
+
+function deleteProduct(prodId) {
+  if (confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${prodId}"? Dữ liệu tồn kho liên quan có thể bị ảnh hưởng.`)) {
+    state.products = state.products.filter(p => p.id !== prodId);
+    saveState();
+    recalculateAccounting();
+    renderInventoryTable();
+    populateProductLedgerDropdown();
+    showToast(`Đã xóa sản phẩm ${prodId}!`, "success");
+  }
+}
+
+// Đăng ký toàn cục các hàm
+window.toggleSelectAllSales = toggleSelectAllSales;
+window.updateBatchSalesUI = updateBatchSalesUI;
+window.batchDeleteSales = batchDeleteSales;
+window.toggleSelectAllProducts = toggleSelectAllProducts;
+window.updateBatchProductsUI = updateBatchProductsUI;
+window.batchDeleteProducts = batchDeleteProducts;
+window.deleteProduct = deleteProduct;
+window.editSalesVoucher = editSalesVoucher;
+window.resetSalesForm = resetSalesForm;
+

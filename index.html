@@ -376,22 +376,37 @@
               <input type="text" id="search-sales" class="search-input" placeholder="Tìm số chứng từ, khách hàng..." oninput="filterSalesTable()">
             </div>
             
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+              <span class="form-label" style="margin: 0; white-space: nowrap;">Từ ngày:</span>
+              <input type="date" id="search-sales-from" class="form-control" style="width: 135px; padding: 4px 8px; font-size: 12px; margin: 0;" onchange="filterSalesTable()">
+              <span class="form-label" style="margin: 0; white-space: nowrap;">Đến ngày:</span>
+              <input type="date" id="search-sales-to" class="form-control" style="width: 135px; padding: 4px 8px; font-size: 12px; margin: 0;" onchange="filterSalesTable()">
+            </div>
+            
+            <button id="btn-batch-delete-sales" class="btn btn-secondary" onclick="batchDeleteSales()" style="display: none; color: var(--color-danger); border-color: var(--color-danger);">
+              Xóa đã chọn (<span id="selected-sales-count">0</span>)
+            </button>
+
             <button class="btn btn-secondary" onclick="triggerFileInput('excel-file-sales-view')" style="color: var(--color-success); border-color: var(--color-success);">Nhập Excel</button>
             <input type="file" id="excel-file-sales-view" accept=".xlsx, .xls" style="display: none;" onchange="handleExcelImport(event, 'sales')">
             
             <button class="btn btn-secondary" onclick="exportSalesToExcel()">Xuất Excel</button>
             
-            <button class="btn btn-success" onclick="openModal('modal-add-sales')">
+            <button class="btn btn-success" onclick="resetSalesForm(); openModal('modal-add-sales')">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
               Lập hóa đơn bán hàng
             </button>
           </div>
           
           <div class="table-card">
+            <div class="card-header-bar" style="padding: 10px 20px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-tertiary); justify-content: space-between; display: flex; align-items: center;">
+              <span class="card-title" id="sales-pagination-info" style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Hiển thị tối đa 30 đơn bán hàng mới nhất</span>
+            </div>
             <div class="table-responsive">
               <table class="data-table">
                 <thead>
                   <tr>
+                    <th style="width: 30px; text-align: center;"><input type="checkbox" id="check-all-sales" onchange="toggleSelectAllSales(this)"></th>
                     <th>Số chứng từ</th>
                     <th>Ngày lập</th>
                     <th>Khách hàng</th>
@@ -423,6 +438,10 @@
               <input type="text" id="search-inventory" class="search-input" placeholder="Tìm kiếm sản phẩm..." oninput="filterInventoryTable()">
             </div>
             
+            <button id="btn-batch-delete-products" class="btn btn-secondary" onclick="batchDeleteProducts()" style="display: none; color: var(--color-danger); border-color: var(--color-danger);">
+              Xóa đã chọn (<span id="selected-products-count">0</span>)
+            </button>
+
             <button class="btn btn-secondary" onclick="openModal('modal-add-product')">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
               Khai báo mặt hàng mới
@@ -443,6 +462,7 @@
                 <table class="data-table">
                   <thead>
                     <tr>
+                      <th style="width: 30px; text-align: center;"><input type="checkbox" id="check-all-products" onchange="toggleSelectAllProducts(this)"></th>
                       <th>Mã hàng</th>
                       <th>Tên sản phẩm</th>
                       <th>ĐVT</th>
