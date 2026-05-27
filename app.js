@@ -112,7 +112,8 @@ function initApp() {
 }
 
 async function autoIntegrateSalesExcel() {
-  if (state.salesExcelIntegrated) {
+  const hasSales = state.vouchers && state.vouchers.some(v => v.type === "sales");
+  if (state.salesExcelIntegrated && hasSales) {
     console.log("Sales Excel database is already integrated.");
     return;
   }
@@ -6088,6 +6089,8 @@ function startFirebaseApp() {
 
     const forcePullBtn = document.getElementById("btn-force-pull");
     if (forcePullBtn) forcePullBtn.style.display = "inline-block";
+    const forcePushBtn = document.getElementById("btn-force-push");
+    if (forcePushBtn) forcePushBtn.style.display = "inline-block";
   } catch(err) {
     if (typeof addErrorLog === "function") {
       addErrorLog("startFirebaseApp", err.message, err);
@@ -6114,6 +6117,10 @@ function pullFromCloudOnStartup() {
         filterDebts();
         filterPartners();
         filterCash();
+      } else {
+        // Cơ sở dữ liệu đám mây trống (Lần kết nối đầu tiên) -> Tự động đẩy dữ liệu cục bộ (đã nạp từ Excel) lên đám mây
+        console.log("Cơ sở dữ liệu đám mây trống. Tự động đồng bộ ngược dữ liệu cục bộ lên đám mây...");
+        pushToCloud();
       }
     })
     .catch((err) => {
@@ -6121,6 +6128,30 @@ function pullFromCloudOnStartup() {
         addErrorLog("pullFromCloudOnStartup", err.message, err);
       }
     });
+}
+
+function forcePushToCloud() {
+  if (!cloudSyncActive || !firebaseDb) {
+    showToast("Ứng dụng chưa kết nối đám mây!", "danger");
+    return;
+  }
+  
+  if (confirm("Bạn có chắc chắn muốn ĐẨY toàn bộ dữ liệu cục bộ hiện tại (bao gồm lịch sử bán hàng) và GHI ĐÈ dữ liệu trên đám mây?")) {
+    updateCloudSyncBadge(false, "Mây: Đang đẩy...", "#f59e0b");
+    const escapedState = escapeFirebaseObject(state);
+    firebaseDb.ref("rd_accounting_db").set(escapedState)
+      .then(() => {
+        showToast("Đã đồng bộ hóa ngược lên đám mây thành công!", "success");
+        updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
+      })
+      .catch((err) => {
+        if (typeof addErrorLog === "function") {
+          addErrorLog("forcePushToCloud", err.message, err);
+        }
+        showToast("Lỗi đồng bộ đám mây: " + err.message, "danger");
+        updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
+      });
+  }
 }
 
 function forcePullFromCloud() {
