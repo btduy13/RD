@@ -1981,6 +1981,30 @@ function resetSalesForm() {
   addSalesFormRow();
 }
 
+function generateNextSalesVoucherId(paymentMethod) {
+  const isCredit = (paymentMethod === "131");
+  const prefix = isCredit ? "BH" : "PT";
+  
+  // Tìm tất cả các chứng từ có ID khớp với tiền tố + số
+  const regex = new RegExp(`^${prefix}(\\d+)$`);
+  let maxNum = 0;
+  
+  state.vouchers.forEach(v => {
+    const match = v.id.match(regex);
+    if (match) {
+      const num = parseInt(match[1]);
+      if (num > maxNum) maxNum = num;
+    }
+  });
+  
+  // Giá trị mặc định an toàn nếu chưa có chứng từ nào
+  if (maxNum === 0) {
+    maxNum = isCredit ? 44340 : 13122;
+  }
+  
+  return `${prefix}${maxNum + 1}`;
+}
+
 // Xử lý nộp form Bán hàng (Có xác thực kiểm kho hàng tồn)
 function handleSalesSubmit(e) {
   e.preventDefault();
@@ -2042,7 +2066,7 @@ function handleSalesSubmit(e) {
   if (isStockInsufficient) return;
 
   const newVoucher = {
-    id: editingSalesId || `BH-${new Date().getFullYear().toString().substring(2)}-${(state.vouchers.filter(v => v.type === 'sales').length + 1).toString().padStart(4, '0')}`,
+    id: editingSalesId || generateNextSalesVoucherId(document.getElementById("sale-payment").value),
     type: "sales",
     date: document.getElementById("sale-date").value,
     partnerId,
