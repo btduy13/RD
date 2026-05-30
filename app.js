@@ -110,9 +110,15 @@ function initApp() {
   // Tự động tích hợp lịch sử bán hàng từ Ban_hang.xlsx nếu chưa tích hợp
   autoIntegrateSalesExcel();
 
-  // Hiển thị phiên bản cục bộ & nút cập nhật nếu là Desktop App
+  // Hiển thị phiên bản cục bộ & tự động kiểm tra cập nhật nếu là Desktop App
   if (typeof initLocalVersionDisplay === "function") {
     initLocalVersionDisplay();
+    // Tự động kiểm tra cập nhật ngầm khi khởi động ứng dụng
+    setTimeout(() => {
+      if (typeof checkForUpdates === "function") {
+        checkForUpdates(false);
+      }
+    }, 1500); // Trì hoãn 1.5 giây để tránh chặn tài nguyên lúc khởi động
   }
 
   // Mở tab mặc định
@@ -241,13 +247,43 @@ async function autoIntegrateSalesExcel() {
   }
 }
 
-// Lưu trạng thái vào localStorage & Đồng bộ lên Đám mây
+// Biến phục vụ tối ưu lưu trữ (Debounce saveState để tránh đơ UI khi dữ liệu lớn)
+let saveStateTimeout = null;
+let saveStateIsDirty = false;
+
 function saveState() {
-  localStorage.setItem("rd_accounting_db", JSON.stringify(state));
-  if (typeof pushToCloud === "function") {
-    pushToCloud();
+  saveStateIsDirty = true;
+  if (saveStateTimeout) {
+    clearTimeout(saveStateTimeout);
+  }
+  // Trì hoãn lưu trữ 200ms để gộp các yêu cầu lưu và chạy bất đồng bộ
+  saveStateTimeout = setTimeout(() => {
+    executeSaveState();
+  }, 200);
+}
+
+function executeSaveState() {
+  if (!saveStateIsDirty) return;
+  try {
+    localStorage.setItem("rd_accounting_db", JSON.stringify(state));
+    if (typeof pushToCloud === "function") {
+      pushToCloud();
+    }
+    saveStateIsDirty = false;
+  } catch (err) {
+    console.error("Lỗi khi lưu trạng thái dữ liệu:", err);
+  } finally {
+    if (saveStateTimeout) {
+      clearTimeout(saveStateTimeout);
+      saveStateTimeout = null;
+    }
   }
 }
+
+// Đảm bảo dữ liệu được lưu ngay lập tức trước khi tắt hoặc tải lại ứng dụng
+window.addEventListener("beforeunload", () => {
+  executeSaveState();
+});
 
 // Cập nhật các thông tin công ty lên giao diện
 function updateCompanyUI() {
@@ -299,10 +335,18 @@ function recalculateAccounting() {
   const productBalanceMap = {};
   const originalProducts = DEFAULT_DATA.products;
   
+  // Tối ưu hóa: Tạo map tra cứu O(1) thay vì dùng .find() trong vòng lặp O(N)
+  const originalProductsMap = {};
+  if (Array.isArray(originalProducts)) {
+    originalProducts.forEach(o => {
+      originalProductsMap[o.id] = o;
+    });
+  }
+  
   // Đọc số lượng đầu kỳ của sản phẩm (nếu sản phẩm mới khai báo thì xem như tồn 0, đơn giá 0)
   state.products.forEach(p => {
-    // Tìm thông số khởi tạo của sản phẩm này trong dữ liệu mặc định ban đầu
-    const orig = originalProducts.find(o => o.id === p.id);
+    // Tìm thông số khởi tạo của sản phẩm này từ map tra cứu O(1)
+    const orig = originalProductsMap[p.id];
     const initStock = orig ? orig.stock : (p.initialStock !== undefined ? p.initialStock : (p.stock || 0));
     const initCost = orig ? orig.avgCost : (p.initialCost !== undefined ? p.initialCost : (p.avgCost || 0));
     productBalanceMap[p.id] = {
@@ -312,8 +356,14 @@ function recalculateAccounting() {
     };
   });
 
-  // BƯỚC B: Sắp xếp các chứng từ kế toán theo ngày hạch toán (Chronological Order)
-  state.vouchers.sort((a, b) => new Date(a.date) - new Date(b.date));
+  // BƯỚC B: Sắp xếp các chứng từ kế toán theo ngày hạch toán (Tối ưu hóa: So sánh chuỗi trực tiếp thay vì new Date())
+  state.vouchers.sort((a, b) => {
+    const da = a.date || "";
+    const db = b.date || "";
+    if (da < db) return -1;
+    if (da > db) return 1;
+    return 0;
+  });
 
   // BƯỚC C: Duyệt qua từng chứng từ để tính giá vốn và tự động cập nhật Định khoản kép
   state.vouchers.forEach(v => {
@@ -978,16 +1028,20 @@ function renderPurchaseTable() {
 
 // Lọc hóa đơn mua hàng
 function filterPurchaseTable() {
-  const query = document.getElementById("search-purchase").value.toLowerCase();
+  const query = document.getElementById("search-purchase") ? document.getElementById("search-purchase").value : "";
   const rows = document.querySelectorAll("#purchase-table-body tr");
   
   rows.forEach(row => {
-    if (row.cells.length < 3) return;
-    const ref = row.cells[0].innerText.toLowerCase();
-    const partner = row.cells[2].innerText.toLowerCase();
-    const desc = row.cells[3].innerText.toLowerCase();
+    if (row.cells.length < 8) return;
+    const ref = row.cells[0].innerText;
+    const partner = row.cells[2].innerText;
+    const desc = row.cells[3].innerText;
+    const amountText = row.cells[7].innerText;
     
-    if (ref.includes(query) || partner.includes(query) || desc.includes(query)) {
+    const amount = parseFormattedNumber(amountText);
+    const combined = `${ref} ${partner} ${desc}`;
+    
+    if (matchAdvancedQuery(combined, query, amount)) {
       row.style.display = "";
     } else {
       row.style.display = "none";
@@ -1005,16 +1059,16 @@ function renderSalesTable() {
   let sales = state.vouchers.filter(v => v.type === "sales");
 
   // Advanced search filters
-  const query = document.getElementById("search-sales") ? document.getElementById("search-sales").value.toLowerCase() : "";
+  const query = document.getElementById("search-sales") ? document.getElementById("search-sales").value : "";
   const fromDate = document.getElementById("search-sales-from") ? document.getElementById("search-sales-from").value : "";
   const toDate = document.getElementById("search-sales-to") ? document.getElementById("search-sales-to").value : "";
 
   if (query) {
-    sales = sales.filter(v => 
-      (v.id || "").toLowerCase().includes(query) ||
-      (v.partnerName || "").toLowerCase().includes(query) ||
-      (v.description || "").toLowerCase().includes(query)
-    );
+    sales = sales.filter(v => {
+      const partnerName = getPartnerNameForVoucher(v);
+      const combined = `${v.id || ""} ${partnerName} ${v.description || ""}`;
+      return matchAdvancedQuery(combined, query, v.totalAmount);
+    });
   }
 
   if (fromDate) {
@@ -1177,12 +1231,12 @@ function renderInventoryTable(filterQuery = "") {
 
   let products = state.products || [];
 
-  const query = (filterQuery || "").trim().toLowerCase();
+  const query = filterQuery || "";
   if (query) {
-    products = products.filter(p => 
-      (p.id || "").toLowerCase().includes(query) || 
-      (p.name || "").toLowerCase().includes(query)
-    );
+    products = products.filter(p => {
+      const combined = `${p.id || ""} ${p.name || ""}`;
+      return matchAdvancedQuery(combined, query, p.stock || 0);
+    });
   }
 
   // Reset check-all-products checkbox
@@ -1355,16 +1409,20 @@ function renderEscrowTable() {
 
 // Lọc ký quỹ
 function filterEscrowTable() {
-  const query = document.getElementById("search-escrow").value.toLowerCase();
+  const query = document.getElementById("search-escrow") ? document.getElementById("search-escrow").value : "";
   const rows = document.querySelectorAll("#escrow-table-body tr");
   
   rows.forEach(row => {
-    if (row.cells.length < 3) return;
-    const ref = row.cells[0].innerText.toLowerCase();
-    const partner = row.cells[2].innerText.toLowerCase();
-    const desc = row.cells[4].innerText.toLowerCase();
+    if (row.cells.length < 7) return;
+    const ref = row.cells[0].innerText;
+    const partner = row.cells[2].innerText;
+    const desc = row.cells[4].innerText;
+    const amountText = row.cells[6].innerText;
     
-    if (ref.includes(query) || partner.includes(query) || desc.includes(query)) {
+    const amount = parseFormattedNumber(amountText);
+    const combined = `${ref} ${partner} ${desc}`;
+    
+    if (matchAdvancedQuery(combined, query, amount)) {
       row.style.display = "";
     } else {
       row.style.display = "none";
@@ -2844,6 +2902,96 @@ function getPartnerNameForVoucher(v) {
   }
   return (v && v.partnerName) ? v.partnerName : "Khách hàng vãng lai";
 }
+// Phân tích chuỗi số định dạng tiền tệ Việt Nam thành Number
+function parseFormattedNumber(str) {
+  if (!str) return 0;
+  // Loại bỏ tất cả dấu chấm (.) dùng để phân tách hàng nghìn
+  // Thay thế dấu phẩy (,) thành dấu chấm (.) để chuyển sang dấu thập phân chuẩn JS
+  let cleaned = str.replace(/\./g, '').replace(/,/g, '.');
+  // Giữ lại các ký tự số, dấu trừ và dấu chấm thập phân
+  cleaned = cleaned.replace(/[^0-9.-]/g, '');
+  const val = parseFloat(cleaned);
+  return isNaN(val) ? 0 : val;
+}
+
+// Loại bỏ dấu tiếng Việt và chuẩn hóa ký tự để tìm kiếm không dấu
+function removeAccents(str) {
+  if (!str) return "";
+  return str.normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/đ/g, "d")
+            .replace(/Đ/g, "D");
+}
+
+// Bộ lọc nâng cao (Advanced Filter) cho ô tìm kiếm
+// Hỗ trợ: Không dấu, tìm kiếm AND đa từ khóa, tìm kiếm phủ định, tìm kiếm OR và lọc khoảng số
+function matchAdvancedQuery(targetText, queryText, numericValue = null) {
+  if (!queryText) return true;
+  if (!targetText) targetText = "";
+
+  const cleanTarget = removeAccents(targetText.toLowerCase());
+  const cleanQuery = removeAccents(queryText.toLowerCase().trim());
+
+  // 1. Lọc khoảng số (Ví dụ: >100k, <5M, 100k-500k)
+  if (numericValue !== null && typeof numericValue === "number") {
+    // Kiểu so sánh: >100k, <5M, =500
+    const numberMatch = cleanQuery.match(/^([><=]=?)\s*([0-9.]+)([kmM]?)$/);
+    if (numberMatch) {
+      const op = numberMatch[1];
+      let val = parseFloat(numberMatch[2]);
+      const unit = numberMatch[3].toLowerCase();
+      if (unit === 'k') val *= 1000;
+      else if (unit === 'm') val *= 1000000;
+
+      if (op === '>') return numericValue > val;
+      if (op === '>=') return numericValue >= val;
+      if (op === '<') return numericValue < val;
+      if (op === '<=') return numericValue <= val;
+      if (op === '=' || op === '==') return numericValue === val;
+    }
+    
+    // Kiểu khoảng: 100k-500k
+    const rangeMatch = cleanQuery.match(/^([0-9.]+)([kmM]?)-([0-9.]+)([kmM]?)$/);
+    if (rangeMatch) {
+      let minVal = parseFloat(rangeMatch[1]);
+      const minUnit = rangeMatch[2].toLowerCase();
+      if (minUnit === 'k') minVal *= 1000;
+      else if (minUnit === 'm') minVal *= 1000000;
+
+      let maxVal = parseFloat(rangeMatch[3]);
+      const maxUnit = rangeMatch[4].toLowerCase();
+      if (maxUnit === 'k') maxVal *= 1000;
+      else if (maxUnit === 'm') maxVal *= 1000000;
+
+      return numericValue >= minVal && numericValue <= maxVal;
+    }
+  }
+
+  // 2. Tìm kiếm OR (Sử dụng dấu phẩy hoặc dấu gạch đứng '|')
+  if (cleanQuery.includes("|") || cleanQuery.includes(",")) {
+    const parts = cleanQuery.split(/[|,]/).map(p => p.trim()).filter(Boolean);
+    if (parts.length > 0) {
+      return parts.some(part => cleanTarget.includes(part));
+    }
+  }
+
+  // 3. Tìm kiếm phủ định (Không chứa từ khóa bằng dấu '-') & Tìm kiếm AND đa từ khóa
+  const tokens = cleanQuery.split(/\s+/).filter(Boolean);
+  let match = true;
+  for (const token of tokens) {
+    if (token.startsWith("-") && token.length > 1) {
+      const excludeToken = token.substring(1);
+      if (cleanTarget.includes(excludeToken)) {
+        return false;
+      }
+    } else {
+      if (!cleanTarget.includes(token)) {
+        match = false;
+      }
+    }
+  }
+  return match;
+}
 
 // Định dạng tiền tệ Việt Nam Đồng VNĐ
 function formatVND(value) {
@@ -3107,11 +3255,12 @@ function changePartnersPage(dir) {
 }
 
 function filterPartners() {
-  const query = document.getElementById("partner-search-input") ? document.getElementById("partner-search-input").value.toLowerCase().trim() : "";
+  const query = document.getElementById("partner-search-input") ? document.getElementById("partner-search-input").value : "";
   const filterType = document.getElementById("partner-type-filter") ? document.getElementById("partner-type-filter").value : "all";
 
   filteredPartnersList = state.partners.filter(p => {
-    const matchesQuery = p.id.toLowerCase().includes(query) || p.name.toLowerCase().includes(query) || (p.phone && p.phone.includes(query));
+    const combined = `${p.id || ""} ${p.name || ""} ${p.phone || ""} ${p.address || ""}`;
+    const matchesQuery = matchAdvancedQuery(combined, query);
     const matchesType = filterType === "all" || p.type === filterType;
     return matchesQuery && matchesType;
   });
@@ -3713,8 +3862,9 @@ function renderDebtsTable() {
   const tbody = document.getElementById("debts-table-body");
   if (!tbody) return;
 
-  const startIdx = (debtsPage - 1) * itemsPerPage;
-  const endIdx = startIdx + itemsPerPage;
+  const debtsItemsPerPage = 30;
+  const startIdx = (debtsPage - 1) * debtsItemsPerPage;
+  const endIdx = startIdx + debtsItemsPerPage;
   const pageItems = filteredDebtsList.slice(startIdx, endIdx);
 
   tbody.innerHTML = "";
@@ -3767,14 +3917,16 @@ function changeDebtsPage(dir) {
 }
 
 function filterDebts() {
-  const query = document.getElementById("debt-search-input") ? document.getElementById("debt-search-input").value.toLowerCase().trim() : "";
+  const query = document.getElementById("debt-search-input") ? document.getElementById("debt-search-input").value : "";
   const filterType = document.getElementById("debt-type-filter") ? document.getElementById("debt-type-filter").value : "all";
   const activeOnly = document.getElementById("debt-active-only-filter") ? document.getElementById("debt-active-only-filter").checked : false;
 
   const allDebts = calculatePartnerDebts();
 
   filteredDebtsList = allDebts.filter(d => {
-    const matchesQuery = d.id.toLowerCase().includes(query) || d.name.toLowerCase().includes(query);
+    const combined = `${d.id || ""} ${d.name || ""}`;
+    const debtVal = Math.max(d.closingDebit || 0, d.closingCredit || 0);
+    const matchesQuery = matchAdvancedQuery(combined, query, debtVal);
     
     let matchesType = true;
     if (filterType === "131") {
@@ -3823,35 +3975,37 @@ function viewPartnerLedger(partnerId) {
     if (v.partnerId !== p.id) return;
     if (!v.entries) return;
 
+    let debitAmount = 0;
+    let creditAmount = 0;
+    let offsetAccountSet = new Set();
+
     v.entries.forEach(e => {
       const is131 = e.debit.startsWith("131") || e.credit.startsWith("131");
       const is331 = e.debit.startsWith("331") || e.credit.startsWith("331");
       if (!is131 && !is331) return;
 
-      let debitAmount = 0;
-      let creditAmount = 0;
-      let offsetAccount = "";
-
       if (e.debit.startsWith("131") || e.debit.startsWith("331")) {
-        debitAmount = e.amount;
-        offsetAccount = e.credit;
+        debitAmount += e.amount;
+        offsetAccountSet.add(e.credit);
       } else {
-        creditAmount = e.amount;
-        offsetAccount = e.debit;
+        creditAmount += e.amount;
+        offsetAccountSet.add(e.debit);
       }
+    });
 
+    if (debitAmount > 0 || creditAmount > 0) {
       ledgerEntries.push({
         date: v.date,
         id: v.id,
-        desc: e.desc || v.description,
-        offsetAccount,
+        desc: v.description,
+        offsetAccount: Array.from(offsetAccountSet).join(", "),
         debit: debitAmount,
         credit: creditAmount
       });
 
       debitSum += debitAmount;
       creditSum += creditAmount;
-    });
+    }
   });
 
   ledgerEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -3921,35 +4075,37 @@ async function exportPartnerDebtExcel(partnerId) {
       if (v.partnerId !== p.id) return;
       if (!v.entries) return;
 
+      let debitAmount = 0;
+      let creditAmount = 0;
+      let offsetAccountSet = new Set();
+
       v.entries.forEach(e => {
         const is131 = e.debit.startsWith("131") || e.credit.startsWith("131");
         const is331 = e.debit.startsWith("331") || e.credit.startsWith("331");
         if (!is131 && !is331) return;
 
-        let debitAmount = 0;
-        let creditAmount = 0;
-        let offsetAccount = "";
-
         if (e.debit.startsWith("131") || e.debit.startsWith("331")) {
-          debitAmount = e.amount;
-          offsetAccount = e.credit;
+          debitAmount += e.amount;
+          offsetAccountSet.add(e.credit);
         } else {
-          creditAmount = e.amount;
-          offsetAccount = e.debit;
+          creditAmount += e.amount;
+          offsetAccountSet.add(e.debit);
         }
+      });
 
+      if (debitAmount > 0 || creditAmount > 0) {
         ledgerEntries.push({
           date: v.date,
           id: v.id,
-          desc: e.desc || v.description,
-          offsetAccount,
+          desc: v.description,
+          offsetAccount: Array.from(offsetAccountSet).join(", "),
           debit: debitAmount,
           credit: creditAmount
         });
 
         debitSum += debitAmount;
         creditSum += creditAmount;
-      });
+      }
     });
 
     ledgerEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -4231,35 +4387,37 @@ function previewPartnerDebtNotice(partnerId) {
     if (v.partnerId !== p.id) return;
     if (!v.entries) return;
 
+    let debitAmount = 0;
+    let creditAmount = 0;
+    let offsetAccountSet = new Set();
+
     v.entries.forEach(e => {
       const is131 = e.debit.startsWith("131") || e.credit.startsWith("131");
       const is331 = e.debit.startsWith("331") || e.credit.startsWith("331");
       if (!is131 && !is331) return;
 
-      let debitAmount = 0;
-      let creditAmount = 0;
-      let offsetAccount = "";
-
       if (e.debit.startsWith("131") || e.debit.startsWith("331")) {
-        debitAmount = e.amount;
-        offsetAccount = e.credit;
+        debitAmount += e.amount;
+        offsetAccountSet.add(e.credit);
       } else {
-        creditAmount = e.amount;
-        offsetAccount = e.debit;
+        creditAmount += e.amount;
+        offsetAccountSet.add(e.debit);
       }
+    });
 
+    if (debitAmount > 0 || creditAmount > 0) {
       ledgerEntries.push({
         date: v.date,
         id: v.id,
-        desc: e.desc || v.description,
-        offsetAccount,
+        desc: v.description,
+        offsetAccount: Array.from(offsetAccountSet).join(", "),
         debit: debitAmount,
         credit: creditAmount
       });
 
       debitSum += debitAmount;
       creditSum += creditAmount;
-    });
+    }
   });
 
   ledgerEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -4801,7 +4959,7 @@ function changeCashPage(dir) {
 }
 
 function filterCash() {
-  const query = document.getElementById("cash-search-input") ? document.getElementById("cash-search-input").value.toLowerCase().trim() : "";
+  const query = document.getElementById("cash-search-input") ? document.getElementById("cash-search-input").value : "";
   const filterType = document.getElementById("cash-type-filter") ? document.getElementById("cash-type-filter").value : "all";
   const filterMethod = document.getElementById("cash-method-filter") ? document.getElementById("cash-method-filter").value : "all";
 
@@ -4809,7 +4967,9 @@ function filterCash() {
     const isCash = v.type === "receipt" || v.type === "payment" || v.type.startsWith("escrow_");
     if (!isCash) return false;
 
-    const matchesQuery = v.id.toLowerCase().includes(query) || v.partnerName.toLowerCase().includes(query) || v.description.toLowerCase().includes(query);
+    const partnerName = getPartnerNameForVoucher(v);
+    const combined = `${v.id || ""} ${partnerName} ${v.description || ""}`;
+    const matchesQuery = matchAdvancedQuery(combined, query, v.amount);
     
     let matchesType = true;
     if (filterType === "receipt") {
@@ -6482,6 +6642,50 @@ window.previewCurrentPartnerDebtNotice = previewCurrentPartnerDebtNotice;
 
 // --- PHÂN HỆ KIỂM TRA & TỰ ĐỘNG CẬP NHẬT PHẦN MỀM ---
 let appLocalVersion = "1.0.0";
+let remoteVersionGlobal = "";
+
+// Hàm tạo và hiển thị màn hình phủ tự động cập nhật
+function showAutoUpdateOverlay(version) {
+  let overlay = document.getElementById("auto-update-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "auto-update-overlay";
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(11, 15, 25, 0.96);
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-family: system-ui, -apple-system, sans-serif;
+    `;
+    
+    // Thêm animation quay spinner
+    const style = document.createElement("style");
+    style.id = "auto-update-spinner-style";
+    style.innerHTML = `
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+    document.body.appendChild(overlay);
+  }
+  
+  overlay.innerHTML = `
+    <div style="border: 4px solid rgba(255,255,255,0.1); border-left-color: #10b981; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 24px;"></div>
+    <h2 style="font-size: 22px; font-weight: bold; margin-bottom: 12px; color: #10b981; text-align: center;">Đang cập nhật lên phiên bản v${version}...</h2>
+    <p style="font-size: 14px; color: #94a3b8; max-width: 400px; text-align: center; line-height: 1.6; margin: 0 20px;">Hệ thống đang tự động tải xuống các tệp tin mới nhất từ GitHub. Phần mềm sẽ tự động khởi động lại ngay khi hoàn tất.</p>
+  `;
+  overlay.style.display = "flex";
+}
 
 // Tự động kiểm tra phiên bản cục bộ khi khởi động (nếu chạy Electron)
 async function initLocalVersionDisplay() {
@@ -6511,7 +6715,7 @@ async function checkForUpdates(manual = false) {
   statusContainer.style.background = "rgba(245, 158, 11, 0.1)";
   statusContainer.style.color = "var(--color-warning)";
   statusContainer.innerText = "Đang kiểm tra máy chủ cập nhật...";
-
+ 
   if (!window.electronAPI) {
     statusContainer.style.background = "rgba(239, 68, 68, 0.1)";
     statusContainer.style.color = "var(--color-danger)";
@@ -6530,6 +6734,7 @@ async function checkForUpdates(manual = false) {
     const remoteVersion = remotePkg.version;
     
     if (!remoteVersion) throw new Error("File cấu hình cập nhật không hợp lệ.");
+    remoteVersionGlobal = remoteVersion;
 
     // Hàm so sánh phiên bản (semver đơn giản)
     const isNewer = compareVersions(remoteVersion, appLocalVersion) > 0;
@@ -6539,7 +6744,13 @@ async function checkForUpdates(manual = false) {
       statusContainer.style.color = "var(--color-success)";
       statusContainer.innerHTML = `Phát hiện phiên bản mới: <span style="font-weight:800; text-decoration:underline;">v${remoteVersion}</span>!<br><button class="btn btn-success btn-sm" onclick="triggerUpdateFlow()" style="margin-top: 8px; width: 100%; font-size:11px; padding: 4px 8px;">Cập nhật Tự động Ngay</button>`;
       
+      // Nếu là tự động kiểm tra khi mở app và phát hiện bản mới, tự động chạy luồng cập nhật
       if (!manual) {
+        showToast(`Tự động cập nhật lên bản mới v${remoteVersion}...`, "success");
+        setTimeout(() => {
+          triggerUpdateFlow(true);
+        }, 1000);
+      } else {
         showToast(`Phát hiện bản cập nhật mới v${remoteVersion}!`, "success");
       }
     } else {
@@ -6568,25 +6779,41 @@ function compareVersions(v1, v2) {
   return 0;
 }
 
-// Kích hoạt tiến trình kéo code tự động từ Electron
-async function triggerUpdateFlow() {
+// Kích hoạt tiến trình kéo code tự động từ Electron (nếu auto = true thì không cần hỏi confirm)
+async function triggerUpdateFlow(auto = false) {
   const statusContainer = document.getElementById("update-status-container");
-  if (!statusContainer) return;
   
-  if (confirm("Hệ thống sẽ chạy lệnh 'git pull' để tải các tệp tin mới nhất và tự động khởi động lại phần mềm. Bạn có chắc chắn muốn tiếp tục?")) {
-    statusContainer.style.background = "rgba(245, 158, 11, 0.1)";
-    statusContainer.style.color = "var(--color-warning)";
-    statusContainer.innerText = "Đang kéo mã nguồn mới từ GitHub & khởi động lại...";
-    showToast("Đang cài đặt cập nhật...", "warning");
+  if (auto || confirm("Hệ thống sẽ chạy lệnh 'git pull' để tải các tệp tin mới nhất và tự động khởi động lại phần mềm. Bạn có chắc chắn muốn tiếp tục?")) {
+    if (statusContainer) {
+      statusContainer.style.background = "rgba(245, 158, 11, 0.1)";
+      statusContainer.style.color = "var(--color-warning)";
+      statusContainer.innerText = "Đang kéo mã nguồn mới từ GitHub & khởi động lại...";
+    }
+    
+    showToast("Đang tự động cài đặt cập nhật...", "warning");
+    showAutoUpdateOverlay(remoteVersionGlobal || "mới");
     
     try {
       const result = await window.electronAPI.triggerAutoUpdate();
       console.log("Cập nhật thành công:", result);
     } catch(err) {
-      statusContainer.style.background = "rgba(239, 68, 68, 0.1)";
-      statusContainer.style.color = "var(--color-danger)";
-      statusContainer.innerText = "Cập nhật thất bại: " + err;
+      if (statusContainer) {
+        statusContainer.style.background = "rgba(239, 68, 68, 0.1)";
+        statusContainer.style.color = "var(--color-danger)";
+        statusContainer.innerText = "Cập nhật thất bại: " + err;
+      }
       showToast("Cập nhật thất bại: " + err, "danger");
+      
+      // Hiển thị lỗi lên màn hình phủ và cung cấp nút Đóng để người dùng tiếp tục sử dụng
+      const overlay = document.getElementById("auto-update-overlay");
+      if (overlay) {
+        overlay.innerHTML = `
+          <div style="border: 3px solid #ef4444; color: #ef4444; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; margin-bottom: 24px;">!</div>
+          <h2 style="font-size: 22px; font-weight: bold; margin-bottom: 12px; color: #ef4444; text-align: center;">Cập nhật thất bại</h2>
+          <p style="font-size: 14px; color: #94a3b8; max-width: 450px; text-align: center; line-height: 1.6; margin: 0 20px 24px 20px;">Lỗi: ${err}. Vui lòng kiểm tra kết nối mạng của bạn hoặc liên hệ nhà quản trị.</p>
+          <button class="btn btn-secondary" onclick="document.getElementById('auto-update-overlay').style.display='none'" style="padding: 8px 24px; font-size:14px; background:#334155; border:none; color:#fff; border-radius:4px; cursor:pointer; font-weight: 600;">Bỏ qua & Tiếp tục</button>
+        `;
+      }
     }
   }
 }
@@ -6746,6 +6973,38 @@ function initMouseInteractions() {
 
     contextMenu.style.left = `${x}px`;
     contextMenu.style.top = `${y}px`;
+  });
+
+  // 4. Nhấn nút ESC để đóng cửa sổ/modal đang mở (Ưu tiên đóng modal trên cùng)
+  document.addEventListener("keydown", function(e) {
+    if (e.key === "Escape") {
+      const visibleOverlays = Array.from(document.querySelectorAll(".modal-overlay")).filter(
+        el => el.style.display === "flex" || window.getComputedStyle(el).display === "flex"
+      );
+      
+      if (visibleOverlays.length > 0) {
+        // Sắp xếp theo z-index giảm dần để ưu tiên đóng modal phụ mở sau (như quick-add-partner)
+        visibleOverlays.sort((a, b) => {
+          const zA = parseInt(window.getComputedStyle(a).zIndex) || 1000;
+          const zB = parseInt(window.getComputedStyle(b).zIndex) || 1000;
+          return zB - zA;
+        });
+        
+        if (typeof closeModal === "function") {
+          closeModal(visibleOverlays[0].id);
+        }
+        e.preventDefault();
+      }
+    }
+  });
+
+  // 5. Nhấp chuột vào phần nền đen (backdrop) của modal để tự động đóng cửa sổ
+  document.addEventListener("click", function(e) {
+    if (e.target.classList.contains("modal-overlay")) {
+      if (typeof closeModal === "function") {
+        closeModal(e.target.id);
+      }
+    }
   });
 }
 
