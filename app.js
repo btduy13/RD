@@ -2662,6 +2662,41 @@ function deleteVoucher(id) {
   }
 }
 
+// Tìm hóa đơn bán hàng liên quan cho chứng từ phiếu thu/chi
+function findRelatedSalesVoucher(voucherId, description, partnerId, amount) {
+  const v = state.vouchers.find(x => x.id === voucherId);
+  if (!v) return null;
+  
+  // 1. Tìm theo số chứng từ bán hàng trong diễn giải (ví dụ: BH39244, BH-25-0001, v.v.)
+  const descStr = (description || v.description || "").toString();
+  const bhMatch = descStr.match(/BH-?\d+/i);
+  if (bhMatch) {
+    const matchedId = bhMatch[0].toUpperCase().replace("-", ""); // Chuẩn hóa mã
+    const relatedSales = state.vouchers.find(x => x.type === "sales" && x.id.toUpperCase().replace("-", "") === matchedId);
+    if (relatedSales) return relatedSales;
+  }
+  
+  // 2. Thử tìm bằng các số dài >= 3 trong diễn giải khớp với mã hóa đơn bán hàng
+  const numMatches = descStr.match(/\d+/g);
+  if (numMatches) {
+    for (const num of numMatches) {
+      if (num.length >= 3) {
+        const relatedSales = state.vouchers.find(x => x.type === "sales" && x.id.includes(num));
+        if (relatedSales) return relatedSales;
+      }
+    }
+  }
+  
+  // 3. Tìm hóa đơn bán hàng gần nhất của đối tác này có cùng số tiền
+  const amt = amount || v.amount || 0;
+  if (amt > 0) {
+    const relatedSales = state.vouchers.find(x => x.type === "sales" && x.partnerId === partnerId && Math.abs(x.totalAmount - amt) < 100);
+    if (relatedSales) return relatedSales;
+  }
+  
+  return null;
+}
+
 // 12. XEM VÀ IN BIỂU MẪU CHỨNG TỪ THEO CHUẨN BỘ TÀI CHÍNH
 function viewVoucher(id) {
   const v = state.vouchers.find(v => v.id === id);
@@ -2676,6 +2711,17 @@ function viewVoucher(id) {
   const std = state.accountingStandard;
   const printArea = document.getElementById("voucher-print-area");
   if (!printArea) return;
+
+  const relatedSales = findRelatedSalesVoucher(v.id, v.description, v.partnerId, v.amount);
+  let relatedSalesVoucherHtml = "";
+  if (relatedSales) {
+    relatedSalesVoucherHtml = `
+      <div class="voucher-info-row" style="margin-top: 6px; padding: 6px 10px; background: rgba(14, 165, 233, 0.05); border: 1px dashed var(--color-primary); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <span class="info-label" style="color: var(--color-primary); font-weight: 600; font-family: 'Times New Roman', serif; font-size: 13px;">- Hóa đơn bán hàng liên quan:</span>
+        <span style="font-weight: bold; color: var(--color-primary); text-decoration: underline; cursor: pointer; font-family: 'Times New Roman', serif; font-size: 13px;" onclick="closeModal('modal-view-voucher'); setTimeout(() => { viewVoucher('${escapeHtmlAttr(relatedSales.id)}'); }, 200);">${relatedSales.id} (${formatVND(relatedSales.totalAmount)})</span>
+      </div>
+    `;
+  }
 
   let content = "";
   const companyName = state.companyName || "CÔNG TY CP RẠNG ĐÔNG";
@@ -2996,6 +3042,7 @@ function viewVoucher(id) {
             <span class="info-label">- Số tiền giao dịch:</span>
             <span class="info-dotted" style="font-weight:bold;">${formatVND(v.amount)}</span>
           </div>
+          ${relatedSalesVoucherHtml}
           <div class="voucher-info-row">
             <span class="info-label">- Bằng chữ:</span>
             <span class="info-dotted" style="font-style:italic;">${numberToVietnameseWords(v.amount)}</span>
@@ -4201,10 +4248,23 @@ function viewPartnerLedger(partnerId) {
   } else {
     ledgerEntries.forEach(le => {
       const tr = document.createElement("tr");
-      const escapedLeId = escapeHtmlAttr(le.id);
+      
+      // Tìm chứng từ bán hàng liên quan nếu đây là một phiếu thu công nợ
+      let viewId = le.id;
+      let displayId = le.id;
+      
+      if (le.id.startsWith("PT") || le.id.startsWith("PC") || le.credit > 0) {
+        const relatedSales = findRelatedSalesVoucher(le.id, le.desc, p.id, le.credit || le.debit);
+        if (relatedSales) {
+          viewId = relatedSales.id;
+          displayId = `${le.id} (${relatedSales.id})`;
+        }
+      }
+      
+      const escapedViewId = escapeHtmlAttr(viewId);
       tr.innerHTML = `
         <td>${le.date}</td>
-        <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedLeId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${le.id}</a></td>
+        <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${displayId}</a></td>
         <td>${le.desc}</td>
         <td style="text-align:center; font-weight:700;">${le.offsetAccount}</td>
         <td style="text-align:right; font-weight:500;">${le.debit > 0 ? formatVND(le.debit).replace("đ","") : "-"}</td>
