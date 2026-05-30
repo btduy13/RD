@@ -110,6 +110,9 @@ function initApp() {
   // Tự động tích hợp lịch sử bán hàng từ Ban_hang.xlsx nếu chưa tích hợp
   autoIntegrateSalesExcel();
 
+  // Tự động tích hợp lịch sử bán hàng chi tiết từ SO_CHI_TIET_BAN_HANG.xlsx nếu chưa tích hợp
+  autoIntegrateSoChiTietBanHangExcel();
+
   // Hiển thị phiên bản cục bộ & tự động kiểm tra cập nhật nếu là Desktop App
   if (typeof initLocalVersionDisplay === "function") {
     initLocalVersionDisplay();
@@ -244,6 +247,189 @@ async function autoIntegrateSalesExcel() {
     if (typeof renderDashboard === "function") renderDashboard();
   } catch (err) {
     console.error("Error auto-integrating sales Excel:", err);
+  }
+}
+
+async function autoIntegrateSoChiTietBanHangExcel() {
+  if (state.soChiTietBanHangIntegrated) {
+    console.log("Detailed Sales Excel (SO_CHI_TIET_BAN_HANG) is already integrated.");
+    return;
+  }
+  
+  if (typeof XLSX === "undefined") {
+    console.warn("SheetJS not loaded yet, deferring Detailed Sales Excel integration...");
+    setTimeout(autoIntegrateSoChiTietBanHangExcel, 1000);
+    return;
+  }
+  
+  console.log("Starting automatic integration of excel/SO_CHI_TIET_BAN_HANG.xlsx...");
+  try {
+    const response = await fetch('excel/SO_CHI_TIET_BAN_HANG.xlsx');
+    if (!response.ok) {
+      console.warn("No excel/SO_CHI_TIET_BAN_HANG.xlsx file found or failed to fetch. Skipping auto-integration.");
+      return;
+    }
+    
+    if (typeof showToast === "function") {
+      showToast("Đang nạp Sổ chi tiết bán hàng (48.226 dòng)... Vui lòng đợi trong giây lát.", "info");
+    }
+    
+    // Trì hoãn 100ms để Toast hiển thị trước khi CPU bận
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const arrayBuffer = await response.arrayBuffer();
+    const data = new Uint8Array(arrayBuffer);
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+
+    if (rows.length < 3) {
+      console.warn("excel/SO_CHI_TIET_BAN_HANG.xlsx is empty.");
+      return;
+    }
+
+    // Gom nhóm các dòng theo Số chứng từ (row[2])
+    const groupMap = new Map();
+    for (let i = 3; i < rows.length; i++) {
+      const row = rows[i];
+      const voucherId = (row[2] || "").toString().trim();
+      if (!voucherId) continue;
+      
+      if (!groupMap.has(voucherId)) {
+        groupMap.set(voucherId, []);
+      }
+      groupMap.get(voucherId).push(row);
+    }
+
+    let count = 0;
+    const partnerMap = new Map();
+    state.partners.forEach(p => partnerMap.set(p.id, p));
+
+    const productMap = new Map();
+    state.products.forEach(p => productMap.set(p.id, p));
+
+    const voucherMap = new Map();
+    state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
+
+    // Duyệt qua từng chứng từ bán hàng
+    for (const [voucherId, voucherRows] of groupMap.entries()) {
+      const firstRow = voucherRows[0];
+      const dateStr = excelDateToISOString(firstRow[1] || firstRow[0]);
+      
+      const partnerIdRaw = (firstRow[7] || "").toString().trim();
+      const partnerId = partnerIdRaw ? partnerIdRaw : `DT_${Math.floor(1000 + Math.random() * 9000)}`;
+      const partnerName = (firstRow[8] || "Khách hàng vãng lai").toString().trim();
+      const description = (firstRow[5] || "Bán hàng").toString().trim();
+
+      // Đăng ký đối tác nếu chưa tồn tại
+      if (!partnerMap.has(partnerId)) {
+        const pObj = {
+          id: partnerId,
+          name: partnerName,
+          type: "customer",
+          phone: "",
+          email: "",
+          address: ""
+        };
+        state.partners.push(pObj);
+        partnerMap.set(partnerId, pObj);
+      }
+
+      // Xác định phương thức thanh toán
+      let paymentMethod = "131"; // Default: Công nợ
+      const descUpper = description.toUpperCase();
+      const nameUpper = partnerName.toUpperCase();
+      if (descUpper.includes("TIỀN MẶT") || descUpper.includes("TM") || nameUpper.includes("BÁN LẺ") || nameUpper.includes("KHÁCH LẺ") || nameUpper.includes("VÃNG LAI")) {
+        paymentMethod = "111"; // Tiền mặt
+      }
+
+      // Tạo mảng items
+      const itemsArray = [];
+      let totalVoucherAmount = 0;
+
+      for (const row of voucherRows) {
+        const productId = (row[9] || "SP_GENERIC").toString().trim();
+        const productName = (row[10] || "Sản phẩm generic").toString().trim();
+        const unit = (row[11] || "Cái").toString().trim();
+        const qty = Number(row[12]) || 0;
+        const price = Number(row[13]) || 0;
+        const discount = Number(row[15]) || 0;
+        
+        // Doanh số bán (row[14]) là gross, doanh thu thuần là gross - discount
+        const grossAmount = qty * price;
+        const amount = grossAmount - discount;
+        
+        itemsArray.push({
+          productId: productId,
+          qty: qty,
+          price: price,
+          discount: discount,
+          amount: amount
+        });
+
+        totalVoucherAmount += amount;
+
+        // Đăng ký sản phẩm nếu chưa tồn tại
+        if (!productMap.has(productId)) {
+          const prodObj = {
+            id: productId,
+            name: productName,
+            unit: unit,
+            stock: 0,
+            avgCost: 0,
+            totalValue: 0
+          };
+          state.products.push(prodObj);
+          productMap.set(productId, prodObj);
+        }
+      }
+
+      const vObj = {
+        id: voucherId,
+        type: "sales",
+        date: dateStr,
+        partnerId: partnerId,
+        partnerName: partnerName,
+        paymentMethod: paymentMethod,
+        description: description,
+        taxRate: 0,
+        taxAmount: 0,
+        totalAmount: totalVoucherAmount,
+        amount: totalVoucherAmount,
+        items: itemsArray
+      };
+
+      const existingIdx = voucherMap.get(voucherId);
+      if (existingIdx !== undefined) {
+        // Cập nhật và nâng cấp chứng từ hiện có
+        state.vouchers[existingIdx] = vObj;
+      } else {
+        // Thêm mới chứng từ bán hàng
+        state.vouchers.push(vObj);
+        voucherMap.set(voucherId, state.vouchers.length - 1);
+      }
+      count++;
+    }
+
+    state.soChiTietBanHangIntegrated = true;
+    state.salesExcelIntegrated = true; // Mark sales also integrated to bypass the Ban_hang.xlsx old loader
+    saveState();
+    recalculateAccounting();
+    
+    console.log(`Successfully integrated ${count} detailed sales vouchers from SO_CHI_TIET_BAN_HANG.xlsx!`);
+    
+    if (typeof showToast === "function") {
+      showToast(`Tích hợp thành công Sổ chi tiết bán hàng! Đã nạp ${count} chứng từ.`, "success");
+    }
+    
+    if (typeof updateExcelHubUI === "function") updateExcelHubUI();
+    if (typeof filterSales === "function") filterSales();
+    if (typeof renderDashboard === "function") renderDashboard();
+  } catch (err) {
+    console.error("Error auto-integrating detailed sales Excel:", err);
+    if (typeof showToast === "function") {
+      showToast("Lỗi tích hợp Sổ chi tiết bán hàng Excel: " + err.message, "danger");
+    }
   }
 }
 
