@@ -113,6 +113,9 @@ function initApp() {
   // Tự động tích hợp lịch sử bán hàng chi tiết từ SO_CHI_TIET_BAN_HANG.xlsx nếu chưa tích hợp
   autoIntegrateSoChiTietBanHangExcel();
 
+  // Tự động tích hợp lịch sử mua hàng chi tiết từ SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx nếu chưa tích hợp
+  autoIntegrateSoChiTietMuaHangExcel();
+
   // Hiển thị phiên bản cục bộ & tự động kiểm tra cập nhật nếu là Desktop App
   if (typeof initLocalVersionDisplay === "function") {
     initLocalVersionDisplay();
@@ -429,6 +432,177 @@ async function autoIntegrateSoChiTietBanHangExcel() {
     console.error("Error auto-integrating detailed sales Excel:", err);
     if (typeof showToast === "function") {
       showToast("Lỗi tích hợp Sổ chi tiết bán hàng Excel: " + err.message, "danger");
+    }
+  }
+}
+
+async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
+  if (state.soChiTietMuaHangIntegrated && !force) {
+    console.log("Detailed Purchase Excel (SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH) is already integrated.");
+    return;
+  }
+  
+  if (typeof XLSX === "undefined") {
+    console.warn("SheetJS not loaded yet, deferring Detailed Purchase Excel integration...");
+    setTimeout(() => autoIntegrateSoChiTietMuaHangExcel(force), 1000);
+    return;
+  }
+  
+  console.log("Starting automatic integration of excel/SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx...");
+  try {
+    const response = await fetch('excel/SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx');
+    if (!response.ok) {
+      console.warn("No excel/SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx file found or failed to fetch. Skipping auto-integration.");
+      return;
+    }
+    
+    if (typeof showToast === "function") {
+      showToast("Đang nạp Sổ chi tiết mua hàng (2.352 dòng)... Vui lòng đợi trong giây lát.", "info");
+    }
+    
+    // Trì hoãn 100ms để Toast hiển thị trước khi CPU bận
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const arrayBuffer = await response.arrayBuffer();
+    const data = new Uint8Array(arrayBuffer);
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+
+    if (rows.length < 3) {
+      console.warn("excel/SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx is empty.");
+      return;
+    }
+
+    // Gom nhóm các dòng theo Số chứng từ (row[2])
+    const groupMap = new Map();
+    for (let i = 3; i < rows.length; i++) {
+      const row = rows[i];
+      const voucherId = (row[2] || "").toString().trim();
+      if (!voucherId) continue;
+      
+      if (!groupMap.has(voucherId)) {
+        groupMap.set(voucherId, []);
+      }
+      groupMap.get(voucherId).push(row);
+    }
+
+    let count = 0;
+    const partnerMap = new Map();
+    state.partners.forEach(p => partnerMap.set(p.id, p));
+
+    const productMap = new Map();
+    state.products.forEach(p => productMap.set(p.id, p));
+
+    const voucherMap = new Map();
+    state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
+
+    // Đăng ký đối tác mặc định cho nhập hàng
+    const partnerId = "NCC_EXCEL";
+    const partnerName = "Nhà cung cấp Sổ chi tiết";
+    if (!partnerMap.has(partnerId)) {
+      const pObj = {
+        id: partnerId,
+        name: partnerName,
+        type: "supplier",
+        phone: "",
+        email: "",
+        address: ""
+      };
+      state.partners.push(pObj);
+      partnerMap.set(partnerId, pObj);
+    }
+
+    // Duyệt qua từng chứng từ mua hàng
+    for (const [voucherId, voucherRows] of groupMap.entries()) {
+      const firstRow = voucherRows[0];
+      const dateStr = excelDateToISOString(firstRow[1] || firstRow[0]);
+      const invoiceNo = firstRow[4] || "";
+      const description = `Nhập kho mua hàng theo số hóa đơn ${invoiceNo || voucherId}`;
+
+      // Tạo mảng items
+      const itemsArray = [];
+      let totalVoucherAmount = 0;
+
+      for (const row of voucherRows) {
+        const productId = (row[5] || "SP_GENERIC").toString().trim();
+        const productName = (row[6] || "Sản phẩm generic").toString().trim();
+        const unit = (row[7] || "Cái").toString().trim();
+        const qty = Number(row[13]) || 0;
+        const price = Number(row[14]) || 0;
+        
+        // Sử dụng giá trị mua ở row[17], nếu không có thì tính bằng qty * price
+        const amount = Number(row[17]) || (qty * price);
+        
+        itemsArray.push({
+          productId: productId,
+          qty: qty,
+          price: price,
+          amount: amount
+        });
+
+        totalVoucherAmount += amount;
+
+        // Đăng ký sản phẩm nếu chưa tồn tại
+        if (!productMap.has(productId)) {
+          const prodObj = {
+            id: productId,
+            name: productName,
+            unit: unit,
+            stock: 0,
+            avgCost: 0,
+            totalValue: 0
+          };
+          state.products.push(prodObj);
+          productMap.set(productId, prodObj);
+        }
+      }
+
+      const vObj = {
+        id: voucherId,
+        type: "purchase",
+        date: dateStr,
+        partnerId: partnerId,
+        partnerName: partnerName,
+        paymentMethod: "331", // Mặc định là công nợ
+        description: description,
+        taxRate: 0,
+        taxAmount: 0,
+        totalAmount: totalVoucherAmount,
+        amount: totalVoucherAmount,
+        items: itemsArray
+      };
+
+      const existingIdx = voucherMap.get(voucherId);
+      if (existingIdx !== undefined) {
+        // Cập nhật và nâng cấp chứng từ hiện có
+        state.vouchers[existingIdx] = vObj;
+      } else {
+        // Thêm mới chứng từ mua hàng
+        state.vouchers.push(vObj);
+        voucherMap.set(voucherId, state.vouchers.length - 1);
+      }
+      count++;
+    }
+
+    state.soChiTietMuaHangIntegrated = true;
+    saveState();
+    recalculateAccounting();
+    
+    console.log(`Successfully integrated ${count} detailed purchase vouchers from SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx!`);
+    
+    if (typeof showToast === "function") {
+      showToast(`Tích hợp thành công Sổ chi tiết mua hàng! Đã nạp ${count} chứng từ.`, "success");
+    }
+    
+    if (typeof updateExcelHubUI === "function") updateExcelHubUI();
+    if (typeof filterPurchaseTable === "function") filterPurchaseTable();
+    if (typeof renderPurchaseTable === "function") renderPurchaseTable();
+    if (typeof renderDashboard === "function") renderDashboard();
+  } catch (err) {
+    console.error("Error auto-integrating detailed purchase Excel:", err);
+    if (typeof showToast === "function") {
+      showToast("Lỗi tích hợp Sổ chi tiết mua hàng Excel: " + err.message, "danger");
     }
   }
 }
@@ -769,7 +943,7 @@ function switchTab(tabId) {
 
   // Thay đổi tiêu đề Header
   const titles = {
-    dashboard: { title: "Bàn làm việc", sub: "Tổng quan tình hình tài chính công ty Rạng Đông" },
+    dashboard: { title: "Tổng quan", sub: "Tổng quan tình hình tài chính công ty Rạng Đông" },
     purchase: { title: "Quản lý mua hàng", sub: "Hóa đơn mua hàng hóa, nguyên vật liệu nhập kho" },
     sales: { title: "Quản lý bán hàng", sub: "Hóa đơn bán sản phẩm bóng đèn, phích nước và công nợ khách hàng" },
     inventory: { title: "Quản lý kho hàng", sub: "Theo dõi thẻ kho và giá trị tồn kho theo phương pháp bình quân liên hoàn" },
@@ -823,17 +997,73 @@ function switchTab(tabId) {
 }
 
 // 5. RENDER DỮ LIỆU PHÂN HỆ DASHBOARD (KPIs & OFFLINE CHART)
+function getInventoryValueAt(toDate) {
+  if (!toDate) {
+    let totalInventoryVal = 0;
+    state.products.forEach(p => {
+      totalInventoryVal += p.totalValue || 0;
+    });
+    return totalInventoryVal;
+  }
+  
+  let totalVal = 0;
+  state.products.forEach(p => {
+    let stock = p.initialStock || 0;
+    let value = (p.initialStock || 0) * (p.initialCost || 0);
+    
+    const chronologicalVouchers = [...state.vouchers];
+    chronologicalVouchers.sort((a, b) => a.date.localeCompare(b.date));
+    
+    chronologicalVouchers.forEach(v => {
+      if (v.date > toDate) return;
+      if (v.type === "purchase") {
+        const item = v.items.find(i => i.productId === p.id);
+        if (item) {
+          stock += item.qty;
+          value += item.amount;
+        }
+      } else if (v.type === "sales") {
+        const item = v.items.find(i => i.productId === p.id);
+        if (item) {
+          stock -= item.qty;
+          value -= (item.cogsAmount || 0);
+        }
+      }
+    });
+    totalVal += value;
+  });
+  return totalVal;
+}
+
 function renderDashboard() {
-  // Tính toán các chỉ số KPI
-  // A. Tổng quỹ tiền: Dư nợ TK 111 + TK 112
-  const bal111 = getAccountBalance("111");
-  const bal112 = getAccountBalance("112");
+  const fromDate = document.getElementById("search-dashboard-from") ? document.getElementById("search-dashboard-from").value : "";
+  const toDate = document.getElementById("search-dashboard-to") ? document.getElementById("search-dashboard-to").value : "";
+
+  // Cập nhật nhãn kỳ báo cáo hiển thị
+  const rangeDisplay = document.getElementById("dashboard-date-range-display");
+  if (rangeDisplay) {
+    if (fromDate && toDate) {
+      rangeDisplay.innerText = `Kỳ báo cáo: ${fromDate.split("-").reverse().join("/")} - ${toDate.split("-").reverse().join("/")}`;
+    } else if (fromDate) {
+      rangeDisplay.innerText = `Kỳ báo cáo: Từ ngày ${fromDate.split("-").reverse().join("/")}`;
+    } else if (toDate) {
+      rangeDisplay.innerText = `Kỳ báo cáo: Đến ngày ${toDate.split("-").reverse().join("/")}`;
+    } else {
+      rangeDisplay.innerText = "Toàn bộ thời gian";
+    }
+  }
+
+  // A. Tổng quỹ tiền: Dư nợ TK 111 + TK 112 (tính lũy kế đến toDate)
+  const bal111 = getAccountBalance("111", toDate);
+  const bal112 = getAccountBalance("112", toDate);
   document.getElementById("kpi-cash-value").innerText = formatVND(bal111 + bal112);
 
-  // B. Tổng doanh thu kỳ này: Tổng Có phát sinh TK 511
+  // B. Tổng doanh thu kỳ này: Tổng Có phát sinh TK 511 (trong khoảng từ/đến ngày)
   let totalRevenue = 0;
   state.vouchers.forEach(v => {
     if (v.type === "sales") {
+      if (fromDate && v.date < fromDate) return;
+      if (toDate && v.date > toDate) return;
       v.items.forEach(item => {
         totalRevenue += item.amount;
       });
@@ -841,18 +1071,15 @@ function renderDashboard() {
   });
   document.getElementById("kpi-revenue-value").innerText = formatVND(totalRevenue);
 
-  // C. Giá trị tồn kho: Tổng giá trị hàng hóa
-  let totalInventoryVal = 0;
-  state.products.forEach(p => {
-    totalInventoryVal += p.totalValue;
-  });
+  // C. Giá trị tồn kho: Tổng giá trị hàng hóa (lũy kế đến toDate)
+  const totalInventoryVal = getInventoryValueAt(toDate);
   document.getElementById("kpi-inventory-value").innerText = formatVND(totalInventoryVal);
 
-  // D. Ký quỹ ký cược: Dư nợ TK 244 (Ký quỹ đi) - Dư Có TK 344 (Ký quỹ nhận)
+  // D. Ký quỹ ký cược: Dư nợ TK 244 (Ký quỹ đi) - Dư Có TK 344 (Ký quỹ nhận) (lũy kế đến toDate)
   const acct244 = state.accountingStandard === "TT200" ? "244" : "1386";
   const acct344 = state.accountingStandard === "TT200" ? "344" : "3386";
-  const bal244 = getAccountBalance(acct244);
-  const bal344 = getAccountBalance(acct344);
+  const bal244 = getAccountBalance(acct244, toDate);
+  const bal344 = getAccountBalance(acct344, toDate);
   document.getElementById("kpi-escrow-value").innerText = formatVND(bal244 + bal344);
 
   // RENDER BIỂU ĐỒ OFFLINE BẰNG SVG TRỰC QUAN
@@ -865,7 +1092,22 @@ function renderDashboard() {
   renderDashboardDebts();
 }
 
+function filterDashboard() {
+  renderDashboard();
+}
+
+function clearDashboardDateFilter() {
+  const fromEl = document.getElementById("search-dashboard-from");
+  const toEl = document.getElementById("search-dashboard-to");
+  if (fromEl) fromEl.value = "";
+  if (toEl) toEl.value = "";
+  renderDashboard();
+}
+
 function renderDashboardDebts() {
+  const fromDate = document.getElementById("search-dashboard-from") ? document.getElementById("search-dashboard-from").value : "";
+  const toDate = document.getElementById("search-dashboard-to") ? document.getElementById("search-dashboard-to").value : "";
+
   // 1. Render các đơn hàng chưa tất toán (đang nợ)
   const unsettledTbody = document.getElementById("dashboard-unsettled-orders");
   if (unsettledTbody) {
@@ -874,7 +1116,10 @@ function renderDashboardDebts() {
     const unsettled = [];
     
     // A. Thêm các hóa đơn bán hàng chưa tất toán
-    const salesVouchers = state.vouchers.filter(v => v.type === "sales");
+    let salesVouchers = state.vouchers.filter(v => v.type === "sales");
+    if (fromDate) salesVouchers = salesVouchers.filter(v => v.date >= fromDate);
+    if (toDate) salesVouchers = salesVouchers.filter(v => v.date <= toDate);
+
     salesVouchers.forEach(v => {
       const totalAmt = v.totalAmount || v.amount || 0;
       if (v.remainingDebt === undefined) {
@@ -895,6 +1140,8 @@ function renderDashboardDebts() {
 
     // B. Thêm các công nợ đầu kỳ của đối tác
     state.partners.forEach(p => {
+      if (fromDate && "2026-01-01" < fromDate) return;
+      if (toDate && "2026-01-01" > toDate) return;
       const opening = state.partnerOpeningBalances[p.id];
       if (opening) {
         const val = p.type === "customer" ? (opening.debit || 0) : (opening.credit || 0);
@@ -947,10 +1194,13 @@ function renderDashboardDebts() {
     agedTbody.innerHTML = "";
     
     const agedDebts = [];
-    const today = new Date("2026-05-25"); // Lấy thời gian hiện tại theo metadata của hệ thống
+    const today = new Date("2026-05-25");
     
     // A. Thêm hóa đơn bán hàng chưa tất toán
-    const salesVouchers = state.vouchers.filter(v => v.type === "sales");
+    let salesVouchers = state.vouchers.filter(v => v.type === "sales");
+    if (fromDate) salesVouchers = salesVouchers.filter(v => v.date >= fromDate);
+    if (toDate) salesVouchers = salesVouchers.filter(v => v.date <= toDate);
+
     salesVouchers.forEach(v => {
       const totalAmt = v.totalAmount || v.amount || 0;
       if (v.remainingDebt === undefined) {
@@ -974,6 +1224,8 @@ function renderDashboardDebts() {
 
     // B. Thêm các công nợ đầu kỳ đối tác (đặc biệt là khách hàng nợ lâu ngày)
     state.partners.forEach(p => {
+      if (fromDate && "2026-01-01" < fromDate) return;
+      if (toDate && "2026-01-01" > toDate) return;
       if (p.type === "customer") {
         const opening = state.partnerOpeningBalances[p.id];
         const val = opening ? (opening.debit || 0) : 0;
@@ -1026,7 +1278,7 @@ function renderDashboardDebts() {
   const kpiPayable = document.getElementById("kpi-debt-payable");
   
   if (kpiReceivable || kpiPayable) {
-    const calculatedDebts = calculatePartnerDebts();
+    const calculatedDebts = calculatePartnerDebts(toDate);
     let totalRec = 0;
     let totalPay = 0;
     calculatedDebts.forEach(d => {
@@ -1038,34 +1290,38 @@ function renderDashboardDebts() {
   }
 }
 
-// Hàm vẽ biểu đồ cột SVG cực kỳ đẹp mắt và 100% offline
 function renderDashboardSVGChart() {
   const container = document.getElementById("dashboard-chart-container");
   if (!container) return;
 
-  // Lấy dữ liệu bán hàng 4 tháng hoặc 5 giao dịch gần đây để vẽ
-  const salesVouchers = state.vouchers.filter(v => v.type === "sales").slice(-5);
+  const fromDate = document.getElementById("search-dashboard-from") ? document.getElementById("search-dashboard-from").value : "";
+  const toDate = document.getElementById("search-dashboard-to") ? document.getElementById("search-dashboard-to").value : "";
+
+  // Lấy dữ liệu bán hàng trong khoảng thời gian hoặc mặc định
+  let salesVouchers = state.vouchers.filter(v => v.type === "sales");
+  if (fromDate) salesVouchers = salesVouchers.filter(v => v.date >= fromDate);
+  if (toDate) salesVouchers = salesVouchers.filter(v => v.date <= toDate);
+  salesVouchers = salesVouchers.slice(-5);
 
   if (salesVouchers.length === 0) {
-    container.innerHTML = `<div style="color: var(--text-muted); font-size: 13px;">Chưa có giao dịch bán hàng nào để vẽ biểu đồ phân tích.</div>`;
+    container.innerHTML = `<div style="color: var(--text-muted); font-size: 13px; padding: 20px; text-align: center;">Chưa có giao dịch bán hàng nào trong khoảng thời gian này.</div>`;
     return;
   }
 
   // Xác định cực đại tiền để định thang tỉ lệ
-  let maxMoney = 1000000; // Giá trị tối thiểu để tránh lỗi chia cho 0
+  let maxMoney = 1000000;
   salesVouchers.forEach(v => {
-    const totalAmount = v.totalAmount - (v.taxAmount || 0); // Doanh thu chưa thuế
+    const totalAmount = v.totalAmount - (v.taxAmount || 0);
     const cogs = v.cogsAmount || 0;
     if (totalAmount > maxMoney) maxMoney = totalAmount;
     if (cogs > maxMoney) maxMoney = cogs;
   });
-  maxMoney = maxMoney * 1.15; // Tạo khoảng đệm trên đỉnh biểu đồ
+  maxMoney = maxMoney * 1.15;
 
   let barsHTML = "";
   const chartHeight = 200;
-  const chartWidth = 400;
-  const barWidth = 24;
-  const groupSpacing = 50;
+  const barWidth = 20;
+  const groupSpacing = 48;
 
   salesVouchers.forEach((v, index) => {
     const revVal = v.totalAmount - (v.taxAmount || 0);
@@ -1094,21 +1350,17 @@ function renderDashboardSVGChart() {
       </g>
     `;
 
-    // Nhãn trục X (Mã chứng từ)
+    // Nhãn trục X (Mã chứng từ ngắn gọn)
+    const label = v.id.includes("-") ? v.id.split("-").pop() : (v.id.length > 8 ? v.id.substring(8) : v.id);
     barsHTML += `
-      <text x="${xPos + barWidth + 3}" y="240" font-size="10" fill="var(--text-secondary)" text-anchor="middle" font-weight="600">${v.id.substring(8)}</text>
+      <text x="${xPos + barWidth + 3}" y="240" font-size="10" fill="var(--text-secondary)" text-anchor="middle" font-weight="600">${label}</text>
     `;
   });
 
   container.innerHTML = `
-    <svg class="svg-chart" viewBox="0 0 450 260" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;">
-      <!-- Trực tọa độ ngang ngăn cách -->
-      <line x1="20" y1="220" x2="430" y2="220" stroke="var(--border-color)" stroke-width="2"/>
-      
-      <!-- Nạp dữ liệu các cột đã dựng -->
+    <svg class="svg-chart" viewBox="0 0 500 260" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;">
+      <line x1="20" y1="220" x2="480" y2="220" stroke="var(--border-color)" stroke-width="2"/>
       ${barsHTML}
-      
-      <!-- Chú thích ký hiệu biểu đồ -->
       <g transform="translate(20, 10)">
         <rect x="0" y="0" width="12" height="12" fill="#0ea5e9" rx="2"/>
         <text x="18" y="10" font-size="11" fill="var(--text-secondary)" font-weight="600">Doanh thu bán</text>
@@ -1120,16 +1372,21 @@ function renderDashboardSVGChart() {
   `;
 }
 
-// Kết xuất danh sách hoạt động gần đây
 function renderRecentActivities() {
   const container = document.getElementById("dashboard-recent-activities");
   if (!container) return;
 
+  const fromDate = document.getElementById("search-dashboard-from") ? document.getElementById("search-dashboard-from").value : "";
+  const toDate = document.getElementById("search-dashboard-to") ? document.getElementById("search-dashboard-to").value : "";
+
   // Lấy tối đa 6 giao dịch gần nhất
-  const recents = [...state.vouchers].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 6);
+  let recents = [...state.vouchers];
+  if (fromDate) recents = recents.filter(v => v.date >= fromDate);
+  if (toDate) recents = recents.filter(v => v.date <= toDate);
+  recents = recents.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 6);
 
   if (recents.length === 0) {
-    container.innerHTML = `<div style="color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px;">Không có giao dịch gần đây.</div>`;
+    container.innerHTML = `<div style="color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px;">Không có giao dịch gần đây trong khoảng thời gian này.</div>`;
     return;
   }
 
@@ -1166,27 +1423,124 @@ function renderPurchaseTable() {
   const tbody = document.getElementById("purchase-table-body");
   if (!tbody) return;
 
-  const purchases = state.vouchers.filter(v => v.type === "purchase");
-  // Sắp xếp số chứng từ giảm dần (to nhất lên trước)
-  purchases.sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' }));
+  let purchases = state.vouchers.filter(v => v.type === "purchase");
 
-  if (purchases.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-muted); padding: 30px;">Chưa lập hóa đơn mua hàng nào. Vui lòng nhấn nút "Lập hóa đơn mua hàng".</td></tr>`;
+  // Advanced search filters
+  const query = document.getElementById("search-purchase") ? document.getElementById("search-purchase").value : "";
+  const fromDate = document.getElementById("search-purchase-from") ? document.getElementById("search-purchase-from").value : "";
+  const toDate = document.getElementById("search-purchase-to") ? document.getElementById("search-purchase-to").value : "";
+
+  if (query) {
+    purchases = purchases.filter(v => {
+      const partnerName = getPartnerNameForVoucher(v);
+      const combined = `${v.id || ""} ${partnerName} ${v.description || ""}`;
+      return matchAdvancedQuery(combined, query, v.totalAmount);
+    });
+  }
+
+  if (fromDate) {
+    purchases = purchases.filter(v => v.date >= fromDate);
+  }
+  if (toDate) {
+    purchases = purchases.filter(v => v.date <= toDate);
+  }
+
+  // Sắp xếp số chứng từ giảm dần (to nhất lên trước)
+  purchases.sort((a, b) => {
+    if (b.date !== a.date) {
+      return b.date.localeCompare(a.date);
+    }
+    return b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' });
+  });
+
+  const totalCount = purchases.length;
+  const totalPages = Math.ceil(totalCount / 30) || 1;
+  
+  if (purchaseCurrentPage > totalPages) purchaseCurrentPage = totalPages;
+  if (purchaseCurrentPage < 1) purchaseCurrentPage = 1;
+
+  const startIdx = (purchaseCurrentPage - 1) * 30;
+  const displayedPurchases = purchases.slice(startIdx, startIdx + 30);
+
+  // Cập nhật thông tin phân trang trên tiêu đề bảng
+  const countEl = document.getElementById("purchase-pagination-info");
+  if (countEl) {
+    countEl.innerText = `Hiển thị đơn hàng từ ${totalCount > 0 ? startIdx + 1 : 0} - ${Math.min(startIdx + 30, totalCount)} trong số ${totalCount} đơn hàng (Trang ${purchaseCurrentPage}/${totalPages})`;
+  }
+
+  // Reset check-all-purchase checkbox
+  const checkAll = document.getElementById("check-all-purchase");
+  if (checkAll) checkAll.checked = false;
+  if (typeof updateBatchPurchasesUI === "function") updateBatchPurchasesUI();
+
+  // Render các nút chuyển trang động
+  const paginationControls = document.getElementById("purchase-pagination-controls");
+  if (paginationControls) {
+    if (totalPages <= 1) {
+      paginationControls.style.display = "none";
+    } else {
+      paginationControls.style.display = "flex";
+      
+      let buttonsHTML = "";
+      buttonsHTML += `
+        <button class="btn btn-secondary btn-sm" onclick="changePurchasePage(1)" ${purchaseCurrentPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">« Đầu</button>
+        <button class="btn btn-secondary btn-sm" onclick="changePurchasePage(${purchaseCurrentPage - 1})" ${purchaseCurrentPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">‹ Trước</button>
+      `;
+
+      let startPage = Math.max(1, purchaseCurrentPage - 2);
+      let endPage = Math.min(totalPages, purchaseCurrentPage + 2);
+
+      if (startPage > 1) {
+        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
+      }
+
+      for (let p = startPage; p <= endPage; p++) {
+        buttonsHTML += `
+          <button class="btn ${p === purchaseCurrentPage ? 'btn-success' : 'btn-secondary'} btn-sm" onclick="changePurchasePage(${p})" style="padding: 4px 10px; font-size: 12px; font-weight: ${p === purchaseCurrentPage ? '800' : 'normal'};">${p}</button>
+        `;
+      }
+
+      if (endPage < totalPages) {
+        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
+      }
+
+      buttonsHTML += `
+        <button class="btn btn-secondary btn-sm" onclick="changePurchasePage(${purchaseCurrentPage + 1})" ${purchaseCurrentPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Sau ›</button>
+        <button class="btn btn-secondary btn-sm" onclick="changePurchasePage(${totalPages})" ${purchaseCurrentPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Cuối »</button>
+      `;
+
+      paginationControls.innerHTML = `
+        <span style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">
+          Hiển thị ${startIdx + 1} - ${Math.min(startIdx + 30, totalCount)} của ${totalCount} đơn mua hàng
+        </span>
+        <div style="display: flex; gap: 4px; align-items: center;">
+          ${buttonsHTML}
+        </div>
+      `;
+    }
+  }
+
+  if (displayedPurchases.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy hóa đơn mua hàng nào phù hợp.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = purchases.map(v => {
+  tbody.innerHTML = displayedPurchases.map(v => {
     const rawVal = v.totalAmount - (v.taxAmount || 0);
+    const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
     return `
       <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
+        <td style="text-align: center;">
+          <input type="checkbox" class="purchase-checkbox" value="${escapeHtmlAttr(v.id)}" onchange="updateBatchPurchasesUI()">
+        </td>
         <td class="font-numeric" style="color: var(--color-primary); font-weight:700;">${v.id}</td>
-        <td>${v.date}</td>
+        <td>${formattedDate}</td>
         <td><span style="font-weight:600;">${getPartnerNameForVoucher(v)}</span></td>
         <td>${v.description}</td>
         <td><span class="badge ${v.paymentMethod === '331' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '331' ? 'Công nợ (331)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
         <td class="text-right font-numeric">${formatVND(rawVal)}</td>
         <td class="text-right font-numeric">${formatVND(v.taxAmount)}</td>
-        <td class="text-right font-numeric" style="font-weight:700;">${formatVND(v.totalAmount)}</td>
+        <td class="text-right font-numeric" style="font-weight:700; color:var(--color-primary);">${formatVND(v.totalAmount)}</td>
         <td>
           <div class="accounting-detail-box">
             ${v.entries.map(e => `
@@ -1199,10 +1553,10 @@ function renderPurchaseTable() {
         </td>
         <td style="text-align: center;">
           <div style="display:flex; justify-content:center; gap:6px;">
-            <button class="print-btn" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')" title="Xem và In mẫu chứng từ">
+            <button class="print-btn" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')" title="Xem và In mẫu chứng từ" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-success); cursor: pointer; transition: all 0.2s;">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
             </button>
-            <button class="trash-btn" onclick="deleteVoucher('${escapeHtmlAttr(v.id)}')" title="Xóa chứng từ">
+            <button class="trash-btn" onclick="deleteVoucher('${escapeHtmlAttr(v.id)}')" title="Xóa chứng từ" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-danger); cursor: pointer; transition: all 0.2s;">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
             </button>
           </div>
@@ -1214,28 +1568,27 @@ function renderPurchaseTable() {
 
 // Lọc hóa đơn mua hàng
 function filterPurchaseTable() {
-  const query = document.getElementById("search-purchase") ? document.getElementById("search-purchase").value : "";
-  const rows = document.querySelectorAll("#purchase-table-body tr");
-  
-  rows.forEach(row => {
-    if (row.cells.length < 8) return;
-    const ref = row.cells[0].innerText;
-    const partner = row.cells[2].innerText;
-    const desc = row.cells[3].innerText;
-    const amountText = row.cells[7].innerText;
-    
-    const amount = parseFormattedNumber(amountText);
-    const combined = `${ref} ${partner} ${desc}`;
-    
-    if (matchAdvancedQuery(combined, query, amount)) {
-      row.style.display = "";
-    } else {
-      row.style.display = "none";
-    }
-  });
+  purchaseCurrentPage = 1;
+  renderPurchaseTable();
+}
+
+function clearPurchaseDateFilter() {
+  const fromEl = document.getElementById("search-purchase-from");
+  const toEl = document.getElementById("search-purchase-to");
+  if (fromEl) fromEl.value = "";
+  if (toEl) toEl.value = "";
+  filterPurchaseTable();
+}
+
+function changePurchasePage(p) {
+  purchaseCurrentPage = p;
+  renderPurchaseTable();
 }
 
 let salesCurrentPage = 1;
+let purchaseCurrentPage = 1;
+let inventoryCurrentPage = 1;
+let escrowCurrentPage = 1;
 
 // 7. RENDER DỮ LIỆU PHÂN HỆ BÁN HÀNG (SALES)
 function renderSalesTable() {
@@ -1417,7 +1770,7 @@ function renderInventoryTable(filterQuery = "") {
 
   let products = state.products || [];
 
-  const query = filterQuery || "";
+  const query = filterQuery || (document.getElementById("search-inventory") ? document.getElementById("search-inventory").value : "");
   if (query) {
     products = products.filter(p => {
       const combined = `${p.id || ""} ${p.name || ""}`;
@@ -1425,17 +1778,79 @@ function renderInventoryTable(filterQuery = "") {
     });
   }
 
+  const totalCount = products.length;
+  const totalPages = Math.ceil(totalCount / 30) || 1;
+
+  if (inventoryCurrentPage > totalPages) inventoryCurrentPage = totalPages;
+  if (inventoryCurrentPage < 1) inventoryCurrentPage = 1;
+
+  const startIdx = (inventoryCurrentPage - 1) * 30;
+  const displayedProducts = products.slice(startIdx, startIdx + 30);
+
+  // Update pagination info header
+  const countEl = document.getElementById("inventory-pagination-info");
+  if (countEl) {
+    countEl.innerText = `Hiển thị sản phẩm từ ${totalCount > 0 ? startIdx + 1 : 0} - ${Math.min(startIdx + 30, totalCount)} trong số ${totalCount} sản phẩm (Trang ${inventoryCurrentPage}/${totalPages})`;
+  }
+
   // Reset check-all-products checkbox
   const checkAll = document.getElementById("check-all-products");
   if (checkAll) checkAll.checked = false;
   if (typeof updateBatchProductsUI === "function") updateBatchProductsUI();
 
-  if (products.length === 0) {
+  // Render pagination controls
+  const paginationControls = document.getElementById("inventory-pagination-controls");
+  if (paginationControls) {
+    if (totalPages <= 1) {
+      paginationControls.style.display = "none";
+    } else {
+      paginationControls.style.display = "flex";
+      
+      let buttonsHTML = "";
+      buttonsHTML += `
+        <button class="btn btn-secondary btn-sm" onclick="changeInventoryPage(1)" ${inventoryCurrentPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">« Đầu</button>
+        <button class="btn btn-secondary btn-sm" onclick="changeInventoryPage(${inventoryCurrentPage - 1})" ${inventoryCurrentPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">‹ Trước</button>
+      `;
+
+      let startPage = Math.max(1, inventoryCurrentPage - 2);
+      let endPage = Math.min(totalPages, inventoryCurrentPage + 2);
+
+      if (startPage > 1) {
+        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
+      }
+
+      for (let p = startPage; p <= endPage; p++) {
+        buttonsHTML += `
+          <button class="btn ${p === inventoryCurrentPage ? 'btn-success' : 'btn-secondary'} btn-sm" onclick="changeInventoryPage(${p})" style="padding: 4px 10px; font-size: 12px; font-weight: ${p === inventoryCurrentPage ? '800' : 'normal'};">${p}</button>
+        `;
+      }
+
+      if (endPage < totalPages) {
+        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
+      }
+
+      buttonsHTML += `
+        <button class="btn btn-secondary btn-sm" onclick="changeInventoryPage(${inventoryCurrentPage + 1})" ${inventoryCurrentPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Sau ›</button>
+        <button class="btn btn-secondary btn-sm" onclick="changeInventoryPage(${totalPages})" ${inventoryCurrentPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Cuối »</button>
+      `;
+
+      paginationControls.innerHTML = `
+        <span style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">
+          Hiển thị ${startIdx + 1} - ${Math.min(startIdx + 30, totalCount)} của ${totalCount} sản phẩm
+        </span>
+        <div style="display: flex; gap: 4px; align-items: center;">
+          ${buttonsHTML}
+        </div>
+      `;
+    }
+  }
+
+  if (displayedProducts.length === 0) {
     tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy sản phẩm phù hợp.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = products.map(p => {
+  tbody.innerHTML = displayedProducts.map(p => {
     const isLow = (p.stock || 0) <= (p.minStock || 0);
     const escapedId = escapeHtmlAttr(p.id);
     return `
@@ -1456,6 +1871,9 @@ function renderInventoryTable(filterQuery = "") {
         </td>
         <td style="text-align: center;">
           <div style="display: flex; gap: 6px; justify-content: center;">
+            <button class="btn btn-secondary" onclick="viewStockLedgerForProduct('${escapedId}')" title="Xem Sổ thẻ kho" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-warning); cursor: pointer; transition: all 0.2s; padding: 0;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 15px; height: 15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+            </button>
             <button class="btn btn-secondary" onclick="promptQuickImport('${escapedId}')" title="Nhập kho nhanh" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-success); cursor: pointer; transition: all 0.2s; padding: 0;">
               <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 15px; height: 15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
             </button>
@@ -1474,33 +1892,126 @@ function renderInventoryTable(filterQuery = "") {
 
 // Lọc sản phẩm tồn kho hiệu năng cực cao (0ms jank-free) dùng bộ lọc trong bộ nhớ
 function filterInventoryTable() {
-  const query = document.getElementById("search-inventory").value;
+  inventoryCurrentPage = 1;
+  const query = document.getElementById("search-inventory") ? document.getElementById("search-inventory").value : "";
   renderInventoryTable(query);
 }
 
-// Nạp danh sách thẻ kho chi tiết theo từng sản phẩm
-function populateProductLedgerDropdown() {
-  const select = document.getElementById("select-product-ledger");
-  if (!select) return;
-
-  select.innerHTML = state.products.map(p => `<option value="${p.id}">${p.name} (${p.id})</option>`).join("");
+function changeInventoryPage(p) {
+  inventoryCurrentPage = p;
+  const query = document.getElementById("search-inventory") ? document.getElementById("search-inventory").value : "";
+  renderInventoryTable(query);
 }
 
-// Render lịch sử nhập xuất của 1 mặt hàng (Thẻ kho chi tiết)
+// === HỆ THỐNG QUẢN LÝ THẺ KHO CHI TIẾT SPLIT VIEW ===
+let selectedLedgerProductId = null;
+
+// Nạp danh sách thẻ kho chi tiết theo từng sản phẩm (Backward-compatibility)
+function populateProductLedgerDropdown() {
+  renderLedgerProductList();
+}
+
+// Render danh sách mặt hàng bên cột trái
+function renderLedgerProductList() {
+  const container = document.getElementById("ledger-product-list");
+  if (!container) return;
+
+  const queryInput = document.getElementById("search-ledger-products");
+  const query = queryInput ? queryInput.value.toLowerCase().trim() : "";
+
+  let products = state.products || [];
+  if (query) {
+    products = products.filter(p => 
+      (p.id || "").toLowerCase().includes(query) || 
+      (p.name || "").toLowerCase().includes(query)
+    );
+  }
+
+  if (products.length === 0) {
+    container.innerHTML = `<div style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 13px;">Không tìm thấy sản phẩm</div>`;
+    return;
+  }
+
+  // Đảm bảo selectedLedgerProductId luôn hợp lệ
+  if (!selectedLedgerProductId || !state.products.some(p => p.id === selectedLedgerProductId)) {
+    selectedLedgerProductId = products[0].id;
+  }
+
+  const html = products.map(p => {
+    const isActive = p.id === selectedLedgerProductId;
+    return `
+      <div class="ledger-product-item ${isActive ? 'active' : ''}" onclick="selectLedgerProduct('${escapeHtmlAttr(p.id)}')">
+        <div style="font-weight: 700; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
+          <span>${escapeHtmlAttr(p.id)}</span>
+          <span style="font-size: 11px; color: var(--text-secondary); background: rgba(255, 255, 255, 0.05); padding: 2px 6px; border-radius: 4px;">${escapeHtmlAttr(p.unit || 'Cái')}</span>
+        </div>
+        <div style="font-size: 12px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtmlAttr(p.name)}">
+          ${escapeHtmlAttr(p.name)}
+        </div>
+        <div style="font-size: 11px; margin-top: 6px; display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Tồn kho:</span>
+          <span style="font-weight: 600; color: ${p.stock > 0 ? 'var(--color-success)' : 'var(--text-muted)'};">${p.stock || 0}</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  container.innerHTML = html;
+}
+
+// Click chọn sản phẩm trên danh sách
+function selectLedgerProduct(productId) {
+  selectedLedgerProductId = productId;
+  renderLedgerProductList();
+  renderStockLedger();
+}
+
+// Gõ tìm kiếm sản phẩm bên cột trái
+function filterLedgerProducts() {
+  renderLedgerProductList();
+}
+
+// Render lịch sử nhập xuất của 1 mặt hàng (Thẻ kho chi tiết - Cột phải)
 function renderStockLedger() {
   const tbody = document.getElementById("stock-ledger-body");
-  const select = document.getElementById("select-product-ledger");
-  if (!tbody || !select || !select.value) return;
+  if (!tbody) return;
 
-  const prodId = select.value;
+  if (!selectedLedgerProductId && state.products && state.products.length > 0) {
+    selectedLedgerProductId = state.products[0].id;
+  }
+
+  const prodId = selectedLedgerProductId;
+  if (!prodId) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color:var(--text-muted); padding: 20px;">Vui lòng khai báo sản phẩm trước để xem thẻ kho</td></tr>`;
+    return;
+  }
+
   const prod = state.products.find(p => p.id === prodId);
+  if (!prod) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color:var(--text-muted); padding: 20px;">Không tìm thấy sản phẩm được chọn</td></tr>`;
+    return;
+  }
+
+  // Cập nhật tiêu đề & thông tin
+  const titleEl = document.getElementById("ledger-detail-title");
+  if (titleEl) {
+    titleEl.innerHTML = `Sổ thẻ kho chi tiết: <span style="color:var(--color-primary);">${escapeHtmlAttr(prod.name)}</span>`;
+  }
+  const subtitleEl = document.getElementById("ledger-detail-subtitle");
+  if (subtitleEl) {
+    subtitleEl.innerHTML = `Mã: <span style="font-weight: 700; color:var(--text-primary);">${escapeHtmlAttr(prod.id)}</span> | ĐVT: <span style="font-weight: 700; color:var(--text-primary);">${escapeHtmlAttr(prod.unit || 'Cái')}</span>`;
+  }
+
   const origProd = DEFAULT_DATA.products.find(o => o.id === prodId);
+  const initStock = origProd ? origProd.stock : (prod.initialStock || 0);
+  const initCost = origProd ? origProd.avgCost : (prod.initialCost || 0);
+
+  const fromDate = document.getElementById("search-ledger-from") ? document.getElementById("search-ledger-from").value : "";
+  const toDate = document.getElementById("search-ledger-to") ? document.getElementById("search-ledger-to").value : "";
 
   let html = "";
   
   // 1. Số dư dòng đầu tiên: Tồn đầu kỳ
-  const initStock = origProd ? origProd.stock : (prod.initialStock || 0);
-  const initCost = origProd ? origProd.avgCost : (prod.initialCost || 0);
   html += `
     <tr style="background-color: rgba(255, 255, 255, 0.02); font-style: italic;">
       <td>01/01/2026</td>
@@ -1511,31 +2022,45 @@ function renderStockLedger() {
     </tr>
   `;
 
-  // 2. Chạy qua các chứng từ có chứa mặt hàng này
-  state.vouchers.forEach(v => {
-    if (v.type !== "purchase" && v.type !== "sales") return;
-    
+  // 2. Lọc chứng từ phát sinh chứa sản phẩm này
+  let filteredVouchers = state.vouchers.filter(v => {
+    if (v.type !== "purchase" && v.type !== "sales") return false;
+    const item = v.items.find(i => i.productId === prodId);
+    if (!item) return false;
+    if (fromDate && v.date < fromDate) return false;
+    if (toDate && v.date > toDate) return false;
+    return true;
+  });
+
+  // Sắp xếp chứng từ tăng dần theo ngày
+  filteredVouchers.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+
+  let runningStock = initStock;
+
+  filteredVouchers.forEach(v => {
     const item = v.items.find(i => i.productId === prodId);
     if (!item) return;
 
     if (v.type === "purchase") {
+      runningStock += item.qty;
       html += `
         <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
           <td>${v.date}</td>
           <td class="font-numeric" style="color:var(--color-primary); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${v.id}</td>
           <td class="text-right font-numeric" style="color: var(--color-primary); font-weight:700;">+${item.qty}</td>
           <td class="text-right font-numeric">-</td>
-          <td class="text-right font-numeric">${formatVND(item.price)}</td>
+          <td class="text-right font-numeric">${formatVND(item.price)} (Tồn: ${runningStock})</td>
         </tr>
       `;
     } else if (v.type === "sales") {
+      runningStock -= item.qty;
       html += `
         <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
           <td>${v.date}</td>
           <td class="font-numeric" style="color:var(--color-success); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${v.id}</td>
           <td class="text-right font-numeric">-</td>
           <td class="text-right font-numeric" style="color: var(--color-warning); font-weight:700;">-${item.qty}</td>
-          <td class="text-right font-numeric" style="color: var(--text-secondary);">${formatVND(item.cogsUnit || 0)} (giá vốn)</td>
+          <td class="text-right font-numeric" style="color: var(--text-secondary);">${formatVND(item.cogsUnit || 0)} (Tồn: ${runningStock})</td>
         </tr>
       `;
     }
@@ -1544,15 +2069,263 @@ function renderStockLedger() {
   tbody.innerHTML = html;
 }
 
+// Xuất file Excel thẻ kho chi tiết cao cấp
+function exportStockLedgerToExcel() {
+  if (typeof XLSX === "undefined") {
+    showToast("Thư viện SheetJS chưa được nạp!", "danger");
+    return;
+  }
+  try {
+    const prodId = selectedLedgerProductId;
+    if (!prodId) {
+      showToast("Chưa chọn sản phẩm để xuất thẻ kho!", "warning");
+      return;
+    }
+    const prod = state.products.find(p => p.id === prodId);
+    if (!prod) return;
+
+    const fromDate = document.getElementById("search-ledger-from") ? document.getElementById("search-ledger-from").value : "";
+    const toDate = document.getElementById("search-ledger-to") ? document.getElementById("search-ledger-to").value : "";
+
+    const wb = XLSX.utils.book_new();
+    const ws = {};
+    const merges = [];
+
+    const thin    = { style: "thin", color: { rgb: "AAAAAA" } };
+    const border4 = { top: thin, bottom: thin, left: thin, right: thin };
+    const hdrBg   = { patternType: "solid", fgColor: { rgb: "1F497D" } };
+    const altBg   = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
+    const totBg   = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
+    const fntT    = { name: "Times New Roman", sz: 13, bold: true };
+    const fntSub  = { name: "Times New Roman", sz: 11, italic: true };
+    const fntH    = { name: "Times New Roman", sz: 10, bold: true, color: { rgb: "FFFFFF" } };
+    const fntB    = { name: "Times New Roman", sz: 10, bold: true };
+    const fntN    = { name: "Times New Roman", sz: 10 };
+    const cC      = { horizontal: "center", vertical: "center" };
+    const cL      = { horizontal: "left",   vertical: "center", wrapText: true };
+    const cR      = { horizontal: "right",  vertical: "center" };
+    const numFmt  = "#,##0 ;[Red](#,##0)";
+
+    const sc = (r, c, v, t, s, z) => {
+      const key = XLSX.utils.encode_cell({ r, c });
+      const cell = { v, t: t || (typeof v === 'number' ? 'n' : 's') };
+      if (s) cell.s = s;
+      if (z) cell.z = z;
+      ws[key] = cell;
+    };
+
+    const headers = ["Ngày", "Số chứng từ", "Diễn giải", "Nhập (SL)", "Xuất (SL)", "Đơn giá", "Tồn kho"];
+    const ncols = headers.length;
+
+    // ROW 0: Tiêu đề lớn
+    sc(0, 0, (state.companyName || "CÔNG TY CP RẠNG ĐÔNG") + " — SỔ THẺ KHO CHI TIẾT", 's', { font: fntT, alignment: cC });
+    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: ncols - 1 } });
+
+    // ROW 1: Tên sản phẩm
+    sc(1, 0, `Sản phẩm: ${prod.name} (${prod.id}) — ĐVT: ${prod.unit || 'Cái'}`, 's', { font: fntB, alignment: cL });
+    merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: ncols - 1 } });
+
+    // ROW 2: Khoảng thời gian
+    let dateStr = "Thời gian: Toàn bộ";
+    if (fromDate || toDate) {
+      dateStr = `Thời gian: ${fromDate ? 'Từ ' + fromDate : ''} ${toDate ? 'Đến ' + toDate : ''}`;
+    }
+    sc(2, 0, dateStr, 's', { font: fntSub, alignment: cL });
+    merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: ncols - 1 } });
+
+    // ROW 3: Khoảng trống
+
+    // ROW 4: Headers
+    headers.forEach((h, c) => sc(4, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: border4 }));
+
+    const origProd = DEFAULT_DATA.products.find(o => o.id === prodId);
+    const initStock = origProd ? origProd.stock : (prod.initialStock || 0);
+    const initCost = origProd ? origProd.avgCost : (prod.initialCost || 0);
+
+    // ROW 5: Tồn đầu kỳ
+    let rowIdx = 5;
+    const bs = (al, bg) => ({ font: fntN, fill: bg, alignment: al, border: border4 });
+    const ts = (al) => ({ font: fntB, fill: totBg, alignment: al, border: border4 });
+
+    sc(rowIdx, 0, "01/01/2026", 's', bs(cC, null));
+    sc(rowIdx, 1, "TỒN ĐẦU KỲ", 's', bs(cL, null));
+    sc(rowIdx, 2, "Số dư đầu kỳ", 's', bs(cL, null));
+    sc(rowIdx, 3, "-", 's', bs(cR, null));
+    sc(rowIdx, 4, "-", 's', bs(cR, null));
+    sc(rowIdx, 5, initCost, 'n', bs(cR, null), numFmt);
+    sc(rowIdx, 6, initStock, 'n', bs(cR, null), "#,##0.##");
+    rowIdx++;
+
+    // DATA ROWS
+    let filteredVouchers = state.vouchers.filter(v => {
+      if (v.type !== "purchase" && v.type !== "sales") return false;
+      const item = v.items.find(i => i.productId === prodId);
+      if (!item) return false;
+      if (fromDate && v.date < fromDate) return false;
+      if (toDate && v.date > toDate) return false;
+      return true;
+    });
+
+    filteredVouchers.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+
+    let runningStock = initStock;
+    let totalImport = 0, totalExport = 0;
+
+    filteredVouchers.forEach((v, idx) => {
+      const item = v.items.find(i => i.productId === prodId);
+      if (!item) return;
+
+      const bg = idx % 2 === 0 ? null : altBg;
+      
+      sc(rowIdx, 0, v.date, 's', bs(cC, bg));
+      sc(rowIdx, 1, v.id, 's', bs(cC, bg));
+      sc(rowIdx, 2, v.description || (v.type === 'purchase' ? 'Nhập kho mua hàng' : 'Xuất kho bán hàng'), 's', bs(cL, bg));
+
+      if (v.type === "purchase") {
+        runningStock += item.qty;
+        totalImport += item.qty;
+        sc(rowIdx, 3, item.qty, 'n', bs(cR, bg), "#,##0.##");
+        sc(rowIdx, 4, "-", 's', bs(cR, bg));
+        sc(rowIdx, 5, item.price, 'n', bs(cR, bg), numFmt);
+      } else {
+        runningStock -= item.qty;
+        totalExport += item.qty;
+        sc(rowIdx, 3, "-", 's', bs(cR, bg));
+        sc(rowIdx, 4, item.qty, 'n', bs(cR, bg), "#,##0.##");
+        sc(rowIdx, 5, item.cogsUnit || 0, 'n', bs(cR, bg), numFmt);
+      }
+
+      sc(rowIdx, 6, runningStock, 'n', bs(cR, bg), "#,##0.##");
+      rowIdx++;
+    });
+
+    // DÒNG TỔNG CỘNG
+    sc(rowIdx, 0, "TỔNG CỘNG PHÁT SINH", 's', ts(cL));
+    merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 2 } });
+    sc(rowIdx, 3, totalImport, 'n', ts(cR), "#,##0.##");
+    sc(rowIdx, 4, totalExport, 'n', ts(cR), "#,##0.##");
+    sc(rowIdx, 5, "", 's', ts(cC));
+    sc(rowIdx, 6, runningStock, 'n', ts(cR), "#,##0.##");
+
+    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: ncols - 1 } });
+    ws['!merges'] = merges;
+    ws['!cols'] = [{ wch: 14 },{ wch: 16 },{ wch: 32 },{ wch: 12 },{ wch: 12 },{ wch: 16 },{ wch: 14 }];
+    ws['!rows'] = [{ hpt: 24 }, { hpt: 20 }, { hpt: 20 }, { hpt: 12 }, { hpt: 22 }];
+
+    XLSX.utils.book_append_sheet(wb, ws, "The kho chi tiet");
+    const outName = `The_kho_chi_tiet_${prodId}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, outName);
+    showToast(`Đã xuất Excel thẻ kho: ${outName}`, "success");
+  } catch (err) {
+    console.error(err);
+    showToast(`Lỗi xuất Excel thẻ kho: ${err.message}`, "danger");
+  }
+}
+
 // 9. RENDER DỮ LIỆU PHÂN HỆ KÝ QUỸ (ESCROW)
 function renderEscrowTable() {
   const tbody = document.getElementById("escrow-table-body");
   if (!tbody) return;
 
-  const escrows = state.vouchers.filter(v => v.type.startsWith("escrow_"));
+  let escrows = state.vouchers.filter(v => v.type.startsWith("escrow_"));
 
-  if (escrows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 30px;">Chưa phát sinh chứng từ ký quỹ nào.</td></tr>`;
+  // Advanced search filters
+  const query = document.getElementById("search-escrow") ? document.getElementById("search-escrow").value : "";
+  const fromDate = document.getElementById("search-escrow-from") ? document.getElementById("search-escrow-from").value : "";
+  const toDate = document.getElementById("search-escrow-to") ? document.getElementById("search-escrow-to").value : "";
+
+  if (query) {
+    escrows = escrows.filter(v => {
+      const partnerName = getPartnerNameForVoucher(v);
+      const combined = `${v.id || ""} ${partnerName} ${v.description || ""}`;
+      return matchAdvancedQuery(combined, query, v.amount);
+    });
+  }
+
+  if (fromDate) {
+    escrows = escrows.filter(v => v.date >= fromDate);
+  }
+  if (toDate) {
+    escrows = escrows.filter(v => v.date <= toDate);
+  }
+
+  // Sắp xếp số chứng từ giảm dần (to nhất lên trước)
+  escrows.sort((a, b) => {
+    if (b.date !== a.date) {
+      return b.date.localeCompare(a.date);
+    }
+    return b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' });
+  });
+
+  const totalCount = escrows.length;
+  const totalPages = Math.ceil(totalCount / 30) || 1;
+
+  if (escrowCurrentPage > totalPages) escrowCurrentPage = totalPages;
+  if (escrowCurrentPage < 1) escrowCurrentPage = 1;
+
+  const startIdx = (escrowCurrentPage - 1) * 30;
+  const displayedEscrows = escrows.slice(startIdx, startIdx + 30);
+
+  // Update pagination info header
+  const countEl = document.getElementById("escrow-pagination-info");
+  if (countEl) {
+    countEl.innerText = `Hiển thị chứng từ từ ${totalCount > 0 ? startIdx + 1 : 0} - ${Math.min(startIdx + 30, totalCount)} trong số ${totalCount} chứng từ (Trang ${escrowCurrentPage}/${totalPages})`;
+  }
+
+  // Reset check-all-escrow checkbox
+  const checkAll = document.getElementById("check-all-escrow");
+  if (checkAll) checkAll.checked = false;
+  if (typeof updateBatchEscrowsUI === "function") updateBatchEscrowsUI();
+
+  // Render pagination controls
+  const paginationControls = document.getElementById("escrow-pagination-controls");
+  if (paginationControls) {
+    if (totalPages <= 1) {
+      paginationControls.style.display = "none";
+    } else {
+      paginationControls.style.display = "flex";
+      
+      let buttonsHTML = "";
+      buttonsHTML += `
+        <button class="btn btn-secondary btn-sm" onclick="changeEscrowPage(1)" ${escrowCurrentPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">« Đầu</button>
+        <button class="btn btn-secondary btn-sm" onclick="changeEscrowPage(${escrowCurrentPage - 1})" ${escrowCurrentPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">‹ Trước</button>
+      `;
+
+      let startPage = Math.max(1, escrowCurrentPage - 2);
+      let endPage = Math.min(totalPages, escrowCurrentPage + 2);
+
+      if (startPage > 1) {
+        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
+      }
+
+      for (let p = startPage; p <= endPage; p++) {
+        buttonsHTML += `
+          <button class="btn ${p === escrowCurrentPage ? 'btn-success' : 'btn-secondary'} btn-sm" onclick="changeEscrowPage(${p})" style="padding: 4px 10px; font-size: 12px; font-weight: ${p === escrowCurrentPage ? '800' : 'normal'};">${p}</button>
+        `;
+      }
+
+      if (endPage < totalPages) {
+        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
+      }
+
+      buttonsHTML += `
+        <button class="btn btn-secondary btn-sm" onclick="changeEscrowPage(${escrowCurrentPage + 1})" ${escrowCurrentPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Sau ›</button>
+        <button class="btn btn-secondary btn-sm" onclick="changeEscrowPage(${totalPages})" ${escrowCurrentPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Cuối »</button>
+      `;
+
+      paginationControls.innerHTML = `
+        <span style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">
+          Hiển thị ${startIdx + 1} - ${Math.min(startIdx + 30, totalCount)} của ${totalCount} chứng từ
+        </span>
+        <div style="display: flex; gap: 4px; align-items: center;">
+          ${buttonsHTML}
+        </div>
+      `;
+    }
+  }
+
+  if (displayedEscrows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy chứng từ ký quỹ nào phù hợp.</td></tr>`;
     return;
   }
 
@@ -1563,11 +2336,14 @@ function renderEscrowTable() {
     escrow_refund_receive: { name: "Tất toán nhận ký quỹ", class: "badge-warning", acct: state.accountingStandard === "TT200" ? "344" : "3386" }
   };
 
-  tbody.innerHTML = escrows.map(v => {
+  tbody.innerHTML = displayedEscrows.map(v => {
     const lbl = typeLabels[v.type] || { name: "Ký quỹ", class: "badge-info", acct: "" };
     const isRefund = v.type.includes("refund");
     return `
       <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
+        <td style="text-align: center;">
+          <input type="checkbox" class="escrow-checkbox" value="${escapeHtmlAttr(v.id)}" onchange="updateBatchEscrowsUI()">
+        </td>
         <td class="font-numeric" style="font-weight:700;">${v.id}</td>
         <td>${v.date}</td>
         <td><span style="font-weight:600;">${getPartnerNameForVoucher(v)}</span></td>
@@ -1582,8 +2358,8 @@ function renderEscrowTable() {
         </td>
         <td style="text-align: center;">
           <div style="display:flex; justify-content:center; gap:6px;">
-            <button class="btn btn-secondary btn-sm" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">Xem/In</button>
-            <button class="trash-btn" onclick="deleteVoucher('${escapeHtmlAttr(v.id)}')" title="Xóa chứng từ">
+            <button class="btn btn-secondary btn-sm" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')" style="height: 28px; display: inline-flex; align-items: center; justify-content: center; padding: 0 8px;">Xem/In</button>
+            <button class="trash-btn" onclick="deleteVoucher('${escapeHtmlAttr(v.id)}')" title="Xóa chứng từ" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-danger); cursor: pointer; transition: all 0.2s;">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
             </button>
           </div>
@@ -1595,25 +2371,21 @@ function renderEscrowTable() {
 
 // Lọc ký quỹ
 function filterEscrowTable() {
-  const query = document.getElementById("search-escrow") ? document.getElementById("search-escrow").value : "";
-  const rows = document.querySelectorAll("#escrow-table-body tr");
-  
-  rows.forEach(row => {
-    if (row.cells.length < 7) return;
-    const ref = row.cells[0].innerText;
-    const partner = row.cells[2].innerText;
-    const desc = row.cells[4].innerText;
-    const amountText = row.cells[6].innerText;
-    
-    const amount = parseFormattedNumber(amountText);
-    const combined = `${ref} ${partner} ${desc}`;
-    
-    if (matchAdvancedQuery(combined, query, amount)) {
-      row.style.display = "";
-    } else {
-      row.style.display = "none";
-    }
-  });
+  escrowCurrentPage = 1;
+  renderEscrowTable();
+}
+
+function clearEscrowDateFilter() {
+  const fromEl = document.getElementById("search-escrow-from");
+  const toEl = document.getElementById("search-escrow-to");
+  if (fromEl) fromEl.value = "";
+  if (toEl) toEl.value = "";
+  filterEscrowTable();
+}
+
+function changeEscrowPage(p) {
+  escrowCurrentPage = p;
+  renderEscrowTable();
 }
 
 // 10. PHÂN HỆ LẬP BÁO CÁO KẾ TOÁN (REPORTS ENGINE)
@@ -2734,10 +3506,15 @@ function viewVoucher(id) {
     content = `
       <div class="printable-voucher">
         <div class="voucher-header-top">
-          <div class="voucher-co-info">
-            <span class="voucher-co-name">${companyName}</span><br>
-            <span class="voucher-co-addr">Địa chỉ: ${companyAddr}</span><br>
-            <span class="voucher-co-addr">MST: ${companyTax}</span>
+          <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="display: flex; align-items: center; justify-content: center; width: 120px; height: 50px; flex-shrink: 0;">
+              <img src="logo.jpg" style="max-height: 48px; max-width: 120px; object-fit: contain;" alt="Logo Rạng Đông" />
+            </div>
+            <div class="voucher-co-info" style="width: auto;">
+              <span class="voucher-co-name">${companyName}</span><br>
+              <span class="voucher-co-addr">Địa chỉ: ${companyAddr}</span><br>
+              <span class="voucher-co-addr">MST: ${companyTax}</span>
+            </div>
           </div>
           <div class="voucher-template-code">
             <span class="template-bold">Mẫu số 01 - VT</span><br>
@@ -3007,10 +3784,15 @@ function viewVoucher(id) {
     content = `
       <div class="printable-voucher">
         <div class="voucher-header-top">
-          <div class="voucher-co-info">
-            <span class="voucher-co-name">${companyName}</span><br>
-            <span class="voucher-co-addr">Địa chỉ: ${companyAddr}</span><br>
-            <span class="voucher-co-addr">MST: ${companyTax}</span>
+          <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="display: flex; align-items: center; justify-content: center; width: 120px; height: 50px; flex-shrink: 0;">
+              <img src="logo.jpg" style="max-height: 48px; max-width: 120px; object-fit: contain;" alt="Logo Rạng Đông" />
+            </div>
+            <div class="voucher-co-info" style="width: auto;">
+              <span class="voucher-co-name">${companyName}</span><br>
+              <span class="voucher-co-addr">Địa chỉ: ${companyAddr}</span><br>
+              <span class="voucher-co-addr">MST: ${companyTax}</span>
+            </div>
           </div>
           <div class="voucher-template-code">
             <span class="template-bold">${templateCode}</span><br>
@@ -3090,13 +3872,14 @@ function viewVoucher(id) {
 // 13. CÁC HÀM TIỆN ÍCH DỮ LIỆU & QUỸ (UTILITIES)
 
 // Tìm số dư của tài khoản (111, 112, 156, etc.) phục vụ Dashboard và báo cáo
-function getAccountBalance(acctCode) {
+function getAccountBalance(acctCode, toDate = "") {
   const initBalObj = (state.initialBalances && state.initialBalances[acctCode]) || { type: "debit", balance: 0 };
   let bal = initBalObj.balance;
   const isDebit = initBalObj.type === "debit";
 
   if (state.vouchers) {
     state.vouchers.forEach(v => {
+      if (toDate && v.date > toDate) return;
       if (v.entries && Array.isArray(v.entries)) {
         v.entries.forEach(e => {
           if (e.debit === acctCode) {
@@ -3430,13 +4213,19 @@ function renderPartnersTable() {
   const tbody = document.getElementById("partners-table-body");
   if (!tbody) return;
 
+  const total = filteredPartnersList.length;
+  const totalPages = Math.ceil(total / itemsPerPage) || 1;
+
+  if (partnersPage > totalPages) partnersPage = totalPages;
+  if (partnersPage < 1) partnersPage = 1;
+
   const startIdx = (partnersPage - 1) * itemsPerPage;
   const endIdx = startIdx + itemsPerPage;
   const pageItems = filteredPartnersList.slice(startIdx, endIdx);
 
   tbody.innerHTML = "";
   if (pageItems.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy đối tác nào</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy đối tác nào</td></tr>`;
   } else {
     pageItems.forEach(p => {
       const tr = document.createElement("tr");
@@ -3445,6 +4234,9 @@ function renderPartnersTable() {
       tr.setAttribute("data-type", "partner");
       tr.setAttribute("data-id", escapedId);
       tr.innerHTML = `
+        <td style="text-align: center;">
+          <input type="checkbox" class="partner-checkbox" value="${escapedId}" onchange="updateBatchPartnersUI()">
+        </td>
         <td style="font-weight:bold; color:var(--color-primary);">${p.id}</td>
         <td style="font-weight:600;"><a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${p.name}</a></td>
         <td>
@@ -3468,22 +4260,68 @@ function renderPartnersTable() {
     });
   }
 
-  const total = filteredPartnersList.length;
   const paginationInfo = document.getElementById("partners-pagination-info");
   if (paginationInfo) {
     paginationInfo.innerText = total > 0
-      ? `Hiển thị ${startIdx + 1} - ${Math.min(endIdx, total)} trong số ${total} đối tác`
+      ? `Hiển thị ${startIdx + 1} - ${Math.min(endIdx, total)} trong số ${total} đối tác (Trang ${partnersPage}/${totalPages})`
       : `Hiển thị 0 - 0 trong số 0 đối tác`;
   }
 
-  const btnPrev = document.getElementById("btn-partners-prev");
-  const btnNext = document.getElementById("btn-partners-next");
-  if (btnPrev) btnPrev.disabled = partnersPage === 1;
-  if (btnNext) btnNext.disabled = endIdx >= total;
+  // Reset check-all-partners checkbox
+  const checkAll = document.getElementById("check-all-partners");
+  if (checkAll) checkAll.checked = false;
+  if (typeof updateBatchPartnersUI === "function") updateBatchPartnersUI();
+
+  // Render pagination controls
+  const paginationControls = document.getElementById("partners-pagination-controls");
+  if (paginationControls) {
+    if (totalPages <= 1) {
+      paginationControls.style.display = "none";
+    } else {
+      paginationControls.style.display = "flex";
+      
+      let buttonsHTML = "";
+      buttonsHTML += `
+        <button class="btn btn-secondary btn-sm" onclick="changePartnersPage(1)" ${partnersPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">« Đầu</button>
+        <button class="btn btn-secondary btn-sm" onclick="changePartnersPage(${partnersPage - 1})" ${partnersPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">‹ Trước</button>
+      `;
+
+      let startPage = Math.max(1, partnersPage - 2);
+      let endPage = Math.min(totalPages, partnersPage + 2);
+
+      if (startPage > 1) {
+        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
+      }
+
+      for (let p = startPage; p <= endPage; p++) {
+        buttonsHTML += `
+          <button class="btn ${p === partnersPage ? 'btn-success' : 'btn-secondary'} btn-sm" onclick="changePartnersPage(${p})" style="padding: 4px 10px; font-size: 12px; font-weight: ${p === partnersPage ? '800' : 'normal'};">${p}</button>
+        `;
+      }
+
+      if (endPage < totalPages) {
+        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
+      }
+
+      buttonsHTML += `
+        <button class="btn btn-secondary btn-sm" onclick="changePartnersPage(${partnersPage + 1})" ${partnersPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Sau ›</button>
+        <button class="btn btn-secondary btn-sm" onclick="changePartnersPage(${totalPages})" ${partnersPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Cuối »</button>
+      `;
+
+      paginationControls.innerHTML = `
+        <span style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">
+          Hiển thị ${startIdx + 1} - ${Math.min(endIdx, total)} của ${total} đối tác
+        </span>
+        <div style="display: flex; gap: 4px; align-items: center;">
+          ${buttonsHTML}
+        </div>
+      `;
+    }
+  }
 }
 
-function changePartnersPage(dir) {
-  partnersPage += dir;
+function changePartnersPage(p) {
+  partnersPage = p;
   renderPartnersTable();
 }
 
@@ -3696,6 +4534,115 @@ function convertStyle(s) {
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+async function exportExcelWithTemplate(templatePath, outputName, list, mapper, fallbackHeaders, fallbackMapper, headerRowCount = 2) {
+  if (typeof XLSX === "undefined") {
+    showToast("Thư viện SheetJS chưa được nạp!", "danger");
+    return;
+  }
+  try {
+    let workbook;
+    let sheetName;
+    let newSheet;
+    try {
+      const response = await fetch(templatePath);
+      if (!response.ok) throw new Error("Fetch template failed: " + response.statusText);
+      const arrayBuffer = await response.arrayBuffer();
+      workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array', cellStyles: true });
+      sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      
+      const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1:A2');
+      const maxCol = range.e.c;
+      
+      const colStyles = {};
+      const sampleRow = headerRowCount;
+      for (let c = range.s.c; c <= maxCol; c++) {
+        const cellRef = XLSX.utils.encode_cell({ r: sampleRow, c: c });
+        const cell = sheet[cellRef];
+        if (cell && cell.s) colStyles[c] = convertStyle(cell.s);
+        if (cell && cell.z) colStyles[c + '_z'] = cell.z;
+      }
+      
+      for (const key in sheet) {
+        if (key[0] === '!') continue;
+        const cellCoord = XLSX.utils.decode_cell(key);
+        if (cellCoord.r < headerRowCount) {
+          if (sheet[key] && sheet[key].s) sheet[key].s = convertStyle(sheet[key].s);
+        } else {
+          delete sheet[key];
+        }
+      }
+      
+      list.forEach((item, idx) => {
+        const r = idx + headerRowCount;
+        const newRow = new Array(maxCol + 1).fill("");
+        mapper(item, newRow, idx);
+        
+        for (let c = 0; c <= maxCol; c++) {
+          const val = newRow[c];
+          if (val !== undefined && val !== null && val !== "") {
+            const cellRef = XLSX.utils.encode_cell({ r: r, c: c });
+            const cell = { v: val };
+            if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val) && colStyles[c + '_z'] && colStyles[c + '_z'].toLowerCase().includes('d')) {
+              const d = new Date(val);
+              if (!isNaN(d.getTime())) {
+                cell.v = dateToExcelSerial(d);
+                cell.t = 'n';
+              } else {
+                cell.t = 's';
+              }
+            } else if (typeof val === 'number') {
+              cell.t = 'n';
+            } else if (typeof val === 'boolean') {
+              cell.t = 'b';
+            } else {
+              cell.t = 's';
+            }
+            if (colStyles[c]) cell.s = colStyles[c];
+            if (colStyles[c + '_z']) cell.z = colStyles[c + '_z'];
+            sheet[cellRef] = cell;
+          }
+        }
+      });
+      
+      range.e.r = Math.max(headerRowCount - 1, list.length + headerRowCount - 1);
+      sheet['!ref'] = XLSX.utils.encode_range(range);
+      newSheet = sheet;
+    } catch (fetchErr) {
+      console.warn("Fallback excel generation", fetchErr);
+      workbook = XLSX.utils.book_new();
+      sheetName = "Sheet1";
+      const rows = JSON.parse(JSON.stringify(fallbackHeaders));
+      list.forEach((item, idx) => {
+        const newRow = new Array(fallbackHeaders[0].length).fill("");
+        fallbackMapper(item, newRow, idx);
+        rows.push(newRow);
+      });
+      newSheet = XLSX.utils.aoa_to_sheet(rows);
+    }
+    
+    workbook.Sheets[sheetName] = newSheet;
+    if (workbook.SheetNames.indexOf(sheetName) === -1) {
+      XLSX.utils.book_append_sheet(workbook, newSheet, sheetName);
+    }
+    XLSX.writeFile(workbook, outputName);
+    showToast(`Đã xuất Excel thành công: ${outputName}`, "success");
+  } catch (err) {
+    showToast(`Lỗi xuất Excel: ${err.message}`, "danger");
+  }
+}
+
+function dateToExcelSerial(date) {
+  const epoch = new Date(Date.UTC(1899, 11, 30));
+  return Math.round((date.getTime() - epoch.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function dateStrToSerial(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return "";
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? dateStr : dateToExcelSerial(d);
+}
+
 function createDefaultProductExcelRow(p) {
   const r = new Array(57).fill("");
   r[0] = p.id;
@@ -3853,174 +4800,178 @@ function migrateAndCleanExistingExcelRows() {
   }
 }
 
-async function exportExcelWithTemplate(templatePath, outputName, list, mapper, fallbackHeaders, fallbackMapper) {
+
+function exportProductsToExcel() {
   if (typeof XLSX === "undefined") {
     showToast("Thư viện SheetJS chưa được nạp!", "danger");
     return;
   }
   try {
-    let workbook;
-    let sheetName;
-    let newSheet;
-    try {
-      const response = await fetch(templatePath);
-      if (!response.ok) throw new Error("Fetch template failed: " + response.statusText);
-      const arrayBuffer = await response.arrayBuffer();
-      // Nạp với cellStyles: true để lấy định dạng của template
-      workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array', cellStyles: true });
-      sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      
-      const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1:A2');
-      const maxCol = range.e.c;
-      
-      // Lấy style và format mẫu từ dòng dữ liệu đầu tiên (dòng index 2)
-      const colStyles = {};
-      for (let c = range.s.c; c <= maxCol; c++) {
-        const cellRef = XLSX.utils.encode_cell({ r: 2, c: c });
-        const cell = sheet[cellRef];
-        if (cell && cell.s) {
-          colStyles[c] = convertStyle(cell.s);
-        }
-        if (cell && cell.z) {
-          colStyles[c + '_z'] = cell.z;
-        }
-      }
-      
-      // Chuẩn hóa styles của tiêu đề/đầu mục dòng 0, 1 và xóa sạch các dòng dữ liệu cũ từ dòng index 2 trở đi
-      for (const key in sheet) {
-        if (key[0] === '!') continue;
-        const cellCoord = XLSX.utils.decode_cell(key);
-        if (cellCoord.r < 2) {
-          const cell = sheet[key];
-          if (cell && cell.s) {
-            cell.s = convertStyle(cell.s);
-          }
-        } else {
-          delete sheet[key];
-        }
-      }
-      
-      // Ghi danh sách mới kèm format giống mẫu
-      list.forEach((item, idx) => {
-        const r = idx + 2;
-        const newRow = new Array(maxCol + 1).fill("");
-        mapper(item, newRow, idx);
-        
-        for (let c = 0; c <= maxCol; c++) {
-          const val = newRow[c];
-          if (val !== undefined && val !== null && val !== "") {
-            const cellRef = XLSX.utils.encode_cell({ r: r, c: c });
-            const cell = { v: val };
-            if (typeof val === 'number') {
-              cell.t = 'n';
-            } else if (typeof val === 'boolean') {
-              cell.t = 'b';
-            } else {
-              cell.t = 's';
-            }
-            
-            if (colStyles[c]) {
-              cell.s = colStyles[c];
-            }
-            if (colStyles[c + '_z']) {
-              cell.z = colStyles[c + '_z'];
-            }
-            sheet[cellRef] = cell;
-          }
-        }
-      });
-      
-      range.e.r = Math.max(1, list.length + 1);
-      sheet['!ref'] = XLSX.utils.encode_range(range);
-      newSheet = sheet;
-    } catch (fetchErr) {
-      console.warn("Không thể nạp tệp Excel mẫu, sử dụng cơ chế tạo bảng thô:", fetchErr);
-      workbook = XLSX.utils.book_new();
-      sheetName = "Sheet1";
-      const rows = JSON.parse(JSON.stringify(fallbackHeaders));
-      list.forEach((item, idx) => {
-        const newRow = new Array(fallbackHeaders[1].length).fill("");
-        fallbackMapper(item, newRow, idx);
-        rows.push(newRow);
-      });
-      newSheet = XLSX.utils.aoa_to_sheet(rows);
-    }
-    
-    workbook.Sheets[sheetName] = newSheet;
-    if (workbook.SheetNames.indexOf(sheetName) === -1) {
-      XLSX.utils.book_append_sheet(workbook, newSheet, sheetName);
-    }
-    XLSX.writeFile(workbook, outputName);
-    showToast(`Đã xuất Excel thành công: ${outputName}`, "success");
+    const wb = XLSX.utils.book_new();
+    const ws = {};
+    const merges = [];
+
+    const thin    = { style: "thin", color: { rgb: "AAAAAA" } };
+    const border4 = { top: thin, bottom: thin, left: thin, right: thin };
+    const hdrBg   = { patternType: "solid", fgColor: { rgb: "1F497D" } };
+    const altBg   = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
+    const totBg   = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
+    const fntT    = { name: "Times New Roman", sz: 13, bold: true };
+    const fntH    = { name: "Times New Roman", sz: 10, bold: true, color: { rgb: "FFFFFF" } };
+    const fntB    = { name: "Times New Roman", sz: 10, bold: true };
+    const fntN    = { name: "Times New Roman", sz: 10 };
+    const cC      = { horizontal: "center", vertical: "center" };
+    const cL      = { horizontal: "left",   vertical: "center", wrapText: true };
+    const cR      = { horizontal: "right",  vertical: "center" };
+    const numFmt  = "#,##0 ;[Red](#,##0)";
+
+    const sc = (r, c, v, t, s, z) => {
+      const key = XLSX.utils.encode_cell({ r, c });
+      const cell = { v, t: t || (typeof v === 'number' ? 'n' : 's') };
+      if (s) cell.s = s;
+      if (z) cell.z = z;
+      ws[key] = cell;
+    };
+
+    // Columns: Mã(0) Tên(1) Tính chất(2) Nhóm(3) ĐVT(4) Tồn tối thiểu(5) Kho(6) TK kho(7) TK CP(8) TK DT(9) Ngừng TD(10) Tồn hiện tại(11) Giá trị tồn(12)
+    const headers = ["Mã", "Tên", "Tính chất", "Nhóm VTHH", "ĐVT", "Tồn tối thiểu", "Kho ngầm định", "Tài khoản kho", "TK chi phí", "TK doanh thu", "Ngừng theo dõi", "Tồn hiện tại", "Giá trị tồn"];
+    const ncols = headers.length;
+
+    // ROW 0: Tiêu đề
+    sc(0, 0, (state.companyName || "CÔNG TY CP RẠNG ĐÔNG") + " — DANH SÁCH VẬT TƯ, HÀNG HÓA", 's', { font: fntT, alignment: cC });
+    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: ncols - 1 } });
+
+    // ROW 1: Headers
+    headers.forEach((h, c) => sc(1, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: border4 }));
+
+    // DATA ROWS
+    let rowIdx = 2;
+    let totalStock = 0, totalValue = 0;
+    (state.products || []).forEach((p, idx) => {
+      const bg = idx % 2 === 0 ? null : altBg;
+      const bs = (al) => ({ font: fntN, fill: bg, alignment: al, border: border4 });
+      const er = p.excelRow || [];
+      sc(rowIdx, 0,  p.id || "",                        's', bs(cC));
+      sc(rowIdx, 1,  p.name || "",                       's', bs(cL));
+      sc(rowIdx, 2,  er[2] || "Vật tư hàng hóa",         's', bs(cC));
+      sc(rowIdx, 3,  p.group || er[3] || "",             's', bs(cL));
+      sc(rowIdx, 4,  p.unit || "Cái",                    's', bs(cC));
+      sc(rowIdx, 5,  p.minStock || 0,                    'n', bs(cR), numFmt);
+      sc(rowIdx, 6,  er[11] || "",                       's', bs(cC));
+      sc(rowIdx, 7,  er[12] || "1561",                   's', bs(cC));
+      sc(rowIdx, 8,  er[13] || "632",                    's', bs(cC));
+      sc(rowIdx, 9,  er[14] || "51111",                  's', bs(cC));
+      sc(rowIdx, 10, p.inactive ? "Có" : "",             's', bs(cC));
+      sc(rowIdx, 11, p.stock || 0,                       'n', bs(cR), "#,##0.##");
+      sc(rowIdx, 12, p.totalValue || 0,                  'n', bs(cR), numFmt);
+      totalStock += p.stock || 0;
+      totalValue += p.totalValue || 0;
+      rowIdx++;
+    });
+
+    // DÒNG TỔNG
+    const ts = (al) => ({ font: fntB, fill: totBg, alignment: al, border: border4 });
+    sc(rowIdx, 0, "TỔNG CỘNG", 's', ts(cL));
+    merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 10 } });
+    sc(rowIdx, 11, totalStock, 'n', ts(cR), "#,##0.##");
+    sc(rowIdx, 12, totalValue, 'n', ts(cR), numFmt);
+
+    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: ncols - 1 } });
+    ws['!merges'] = merges;
+    ws['!cols'] = [{ wch: 16 },{ wch: 28 },{ wch: 16 },{ wch: 20 },{ wch: 8 },{ wch: 13 },{ wch: 12 },{ wch: 12 },{ wch: 10 },{ wch: 10 },{ wch: 12 },{ wch: 13 },{ wch: 16 }];
+    ws['!rows'] = [{ hpt: 22 }, { hpt: 22 }];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Hang hoa");
+    const outName = `Vat_tu_hang_hoa_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, outName);
+    showToast(`Đã xuất Excel: ${outName}`, "success");
   } catch (err) {
     console.error(err);
-    showToast(`Lỗi xuất Excel: ${err.message}`, "danger");
+    showToast(`Lỗi xuất Excel hàng hóa: ${err.message}`, "danger");
   }
 }
 
-function exportProductsToExcel() {
-  const fallbackHeaders = [
-    ["DANH SÁCH VẬT TƯ, HÀNG HÓA, DỊCH VỤ"],
-    ["Mã", "Tên", "Tính chất", "Nhóm VTHH", "Mô tả", "Diễn giải khi mua", "Diễn giải khi bán", "ĐVT chính", "Thời hạn BH", "Số lượng tồn tối thiểu", "Nguồn gốc", "Kho ngầm định", "Tài khoản kho", "TK chi phí", "TK doanh thu"]
-  ];
-  const prodMapper = (p, r) => {
-    if (!p.excelRow) {
-      p.excelRow = createDefaultProductExcelRow(p);
-    }
-    for (let i = 0; i < 57; i++) {
-      r[i] = p.excelRow[i] !== undefined ? p.excelRow[i] : "";
-    }
-    r[0] = p.id;
-    r[1] = p.name;
-    r[7] = p.unit || "Cái";
-    r[9] = p.minStock || 0;
-    r[30] = p.inactive ? "TRUE" : "FALSE";
-    r[31] = p.stock || 0;
-    r[33] = p.totalValue || 0;
-  };
-  exportExcelWithTemplate(
-    'excel/Vat_tu__hang_hoa__dich_vu.xlsx',
-    `Vat_tu__hang_hoa__dich_vu_${new Date().toISOString().split("T")[0]}.xlsx`,
-    state.products,
-    prodMapper,
-    fallbackHeaders,
-    prodMapper
-  );
-}
-
 function exportPartnersToExcel() {
-  const fallbackHeaders = [
-    ["DANH SÁCH KHÁCH HÀNG"],
-    ["Mã khách hàng", "Tên khách hàng", "Địa chỉ", "Nhóm KH, NCC", "Mã số thuế", "Điện thoại", "Ngừng theo dõi"]
-  ];
-  const partnerMapper = (p, r) => {
-    if (!p.excelRow) {
-      p.excelRow = createDefaultPartnerExcelRow(p);
-    }
-    for (let i = 0; i < 7; i++) {
-      r[i] = p.excelRow[i] !== undefined ? p.excelRow[i] : "";
-    }
-    r[0] = p.id;
-    r[1] = p.name;
-    r[2] = p.address || "";
-    r[3] = p.group || (p.type === "supplier" ? "NCC" : "KH");
-    r[4] = p.taxCode || "";
-    r[5] = p.phone || "";
-    r[6] = p.inactive ? "TRUE" : "FALSE";
-  };
-  exportExcelWithTemplate(
-    'excel/Khach_hang - RANGDONG.xlsx',
-    `Khach_hang - RANGDONG_${new Date().toISOString().split("T")[0]}.xlsx`,
-    state.partners,
-    partnerMapper,
-    fallbackHeaders,
-    partnerMapper
-  );
+  if (typeof XLSX === "undefined") {
+    showToast("Thư viện SheetJS chưa được nạp!", "danger");
+    return;
+  }
+  try {
+    const wb = XLSX.utils.book_new();
+    const ws = {};
+    const merges = [];
+
+    const thin    = { style: "thin", color: { rgb: "AAAAAA" } };
+    const border4 = { top: thin, bottom: thin, left: thin, right: thin };
+    const hdrBg   = { patternType: "solid", fgColor: { rgb: "1F497D" } };
+    const altBg   = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
+    const totBg   = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
+    const fntT    = { name: "Times New Roman", sz: 13, bold: true };
+    const fntH    = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
+    const fntB    = { name: "Times New Roman", sz: 11, bold: true };
+    const fntN    = { name: "Times New Roman", sz: 11 };
+    const cC      = { horizontal: "center", vertical: "center" };
+    const cL      = { horizontal: "left",   vertical: "center", wrapText: true };
+    const cR      = { horizontal: "right",  vertical: "center" };
+
+    const sc = (r, c, v, t, s, z) => {
+      const key = XLSX.utils.encode_cell({ r, c });
+      const cell = { v, t: t || (typeof v === 'number' ? 'n' : 's') };
+      if (s) cell.s = s;
+      if (z) cell.z = z;
+      ws[key] = cell;
+    };
+
+    // Columns
+    const headers = ["Mã khách hàng", "Tên khách hàng", "Địa chỉ", "Nhóm KH, NCC", "Mã số thuế", "Điện thoại", "Ngưng theo dõi"];
+    const ncols = headers.length;
+
+    // ROW 0: Tiêu đề
+    sc(0, 0, (state.companyName || "CÔNG TY CP RẠNG ĐÔNG") + " — DANH SÁCH KHÁCH HÀNG / NHÀ CUNG CẤP", 's', { font: fntT, alignment: cC });
+    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: ncols - 1 } });
+
+    // ROW 1: Headers
+    headers.forEach((h, c) => sc(1, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: border4 }));
+
+    // DATA ROWS
+    let rowIdx = 2;
+    let totalKH = 0, totalNCC = 0;
+    (state.partners || []).forEach((p, idx) => {
+      const bg = idx % 2 === 0 ? null : altBg;
+      const bs = (al) => ({ font: fntN, fill: bg, alignment: al, border: border4 });
+      sc(rowIdx, 0, p.id || "",                                           's', bs(cC));
+      sc(rowIdx, 1, p.name || "",                                          's', bs(cL));
+      sc(rowIdx, 2, p.address || "",                                       's', bs(cL));
+      sc(rowIdx, 3, p.group || (p.type === "supplier" ? "NCC" : "KH"),    's', bs(cC));
+      sc(rowIdx, 4, p.taxCode || "",                                       's', bs(cC));
+      sc(rowIdx, 5, p.phone || "",                                         's', bs(cC));
+      sc(rowIdx, 6, p.inactive ? "Có" : "",                               's', bs(cC));
+      if (p.type === "supplier") totalNCC++; else totalKH++;
+      rowIdx++;
+    });
+
+    // DÒNG TỔNG
+    const ts = (al) => ({ font: fntB, fill: totBg, alignment: al, border: border4 });
+    sc(rowIdx, 0, `TỔNG: ${totalKH} KH + ${totalNCC} NCC = ${totalKH + totalNCC} đối tượng`, 's', ts(cL));
+    merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: ncols - 1 } });
+
+    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: ncols - 1 } });
+    ws['!merges'] = merges;
+    ws['!cols'] = [{ wch: 18 },{ wch: 32 },{ wch: 40 },{ wch: 14 },{ wch: 15 },{ wch: 14 },{ wch: 14 }];
+    ws['!rows'] = [{ hpt: 22 }, { hpt: 22 }];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Doi tuong");
+    const outName = `Khach_hang_NCC_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, outName);
+    showToast(`Đã xuất Excel: ${outName}`, "success");
+  } catch (err) {
+    console.error(err);
+    showToast(`Lỗi xuất Excel khách hàng: ${err.message}`, "danger");
+  }
 }
 
 // --- Phân hệ Công nợ ---
-function calculatePartnerDebts() {
+function calculatePartnerDebts(toDate = "") {
   const debts = {};
   
   state.partners.forEach(p => {
@@ -4042,6 +4993,7 @@ function calculatePartnerDebts() {
   });
 
   state.vouchers.forEach(v => {
+    if (toDate && v.date > toDate) return;
     if (!v.entries) return;
     
     v.entries.forEach(e => {
@@ -4096,13 +5048,19 @@ function renderDebtsTable() {
   if (!tbody) return;
 
   const debtsItemsPerPage = 30;
+  const total = filteredDebtsList.length;
+  const totalPages = Math.ceil(total / debtsItemsPerPage) || 1;
+
+  if (debtsPage > totalPages) debtsPage = totalPages;
+  if (debtsPage < 1) debtsPage = 1;
+
   const startIdx = (debtsPage - 1) * debtsItemsPerPage;
   const endIdx = startIdx + debtsItemsPerPage;
   const pageItems = filteredDebtsList.slice(startIdx, endIdx);
 
   tbody.innerHTML = "";
   if (pageItems.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy công nợ đối tác nào</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy công nợ đối tác nào</td></tr>`;
   } else {
     pageItems.forEach(d => {
       const tr = document.createElement("tr");
@@ -4111,7 +5069,10 @@ function renderDebtsTable() {
       tr.setAttribute("data-type", "partner");
       tr.setAttribute("data-id", escapedId);
       tr.innerHTML = `
-        <td style="font-weight:bold;">${d.id}</td>
+        <td style="text-align: center;">
+          <input type="checkbox" class="debt-checkbox" value="${escapedId}" onchange="updateBatchDebtsUI()">
+        </td>
+        <td style="font-weight:bold; color:var(--color-primary);">${d.id}</td>
         <td style="font-weight:600;"><a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${d.name}</a></td>
         <td style="text-align:right; font-weight:500;" class="font-numeric">${d.openingDebit > 0 ? formatVND(d.openingDebit).replace("đ","") : "-"}</td>
         <td style="text-align:right; font-weight:500;" class="font-numeric">${d.openingCredit > 0 ? formatVND(d.openingCredit).replace("đ","") : "-"}</td>
@@ -4130,22 +5091,68 @@ function renderDebtsTable() {
     });
   }
 
-  const total = filteredDebtsList.length;
   const paginationInfo = document.getElementById("debts-pagination-info");
   if (paginationInfo) {
     paginationInfo.innerText = total > 0
-      ? `Hiển thị ${startIdx + 1} - ${Math.min(endIdx, total)} trong số ${total} đối tác`
+      ? `Hiển thị ${startIdx + 1} - ${Math.min(endIdx, total)} trong số ${total} đối tác (Trang ${debtsPage}/${totalPages})`
       : `Hiển thị 0 - 0 trong số 0 đối tác`;
   }
 
-  const btnPrev = document.getElementById("btn-debts-prev");
-  const btnNext = document.getElementById("btn-debts-next");
-  if (btnPrev) btnPrev.disabled = debtsPage === 1;
-  if (btnNext) btnNext.disabled = endIdx >= total;
+  // Reset check-all-debts checkbox
+  const checkAll = document.getElementById("check-all-debts");
+  if (checkAll) checkAll.checked = false;
+  if (typeof updateBatchDebtsUI === "function") updateBatchDebtsUI();
+
+  // Render pagination controls
+  const paginationControls = document.getElementById("debts-pagination-controls");
+  if (paginationControls) {
+    if (totalPages <= 1) {
+      paginationControls.style.display = "none";
+    } else {
+      paginationControls.style.display = "flex";
+      
+      let buttonsHTML = "";
+      buttonsHTML += `
+        <button class="btn btn-secondary btn-sm" onclick="changeDebtsPage(1)" ${debtsPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">« Đầu</button>
+        <button class="btn btn-secondary btn-sm" onclick="changeDebtsPage(${debtsPage - 1})" ${debtsPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">‹ Trước</button>
+      `;
+
+      let startPage = Math.max(1, debtsPage - 2);
+      let endPage = Math.min(totalPages, debtsPage + 2);
+
+      if (startPage > 1) {
+        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
+      }
+
+      for (let p = startPage; p <= endPage; p++) {
+        buttonsHTML += `
+          <button class="btn ${p === debtsPage ? 'btn-success' : 'btn-secondary'} btn-sm" onclick="changeDebtsPage(${p})" style="padding: 4px 10px; font-size: 12px; font-weight: ${p === debtsPage ? '800' : 'normal'};">${p}</button>
+        `;
+      }
+
+      if (endPage < totalPages) {
+        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
+      }
+
+      buttonsHTML += `
+        <button class="btn btn-secondary btn-sm" onclick="changeDebtsPage(${debtsPage + 1})" ${debtsPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Sau ›</button>
+        <button class="btn btn-secondary btn-sm" onclick="changeDebtsPage(${totalPages})" ${debtsPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Cuối »</button>
+      `;
+
+      paginationControls.innerHTML = `
+        <span style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">
+          Hiển thị ${startIdx + 1} - ${Math.min(endIdx, total)} của ${total} đối tác
+        </span>
+        <div style="display: flex; gap: 4px; align-items: center;">
+          ${buttonsHTML}
+        </div>
+      `;
+    }
+  }
 }
 
-function changeDebtsPage(dir) {
-  debtsPage += dir;
+function changeDebtsPage(p) {
+  debtsPage = p;
   renderDebtsTable();
 }
 
@@ -5070,37 +6077,126 @@ function handleEditDebtSubmit(e) {
 }
 
 function exportDebtsToExcel() {
-  const fallbackHeaders = [
-    ["DANH SÁCH CÔNG NỢ KHÁCH HÀNG"],
-    ["Mã khách hàng", "Tên khách hàng", "Số còn phải thu theo HĐ", "Số thu trước/Giảm trừ khác", "Số còn phải thu", "Địa chỉ", "Mã số thuế", "Điện thoại", "ĐT di động", "Fax", "Email", "Người liên hệ", "ĐTDĐ người liên hệ", "Email người liên hệ", "Tỉnh/Thành phố", "Quận/Huyện", "Xã/Phường", "Nhóm khách hàng"]
-  ];
-  const calculatedDebts = calculatePartnerDebts();
-  const debtMapper = (d, r) => {
-    const openingBal = state.partnerOpeningBalances[d.id] || {};
-    if (!openingBal.excelRow) {
-      openingBal.excelRow = createDefaultDebtExcelRow(d.id, d);
-    }
-    for (let i = 0; i < 18; i++) {
-      r[i] = openingBal.excelRow[i] !== undefined ? openingBal.excelRow[i] : "";
-    }
-    r[0] = d.id;
-    r[1] = d.name;
-    r[2] = d.type === "customer" ? d.closingDebit : 0;
-    r[3] = d.type === "customer" ? d.closingCredit : 0;
-    r[4] = d.type === "customer" ? (d.closingDebit - d.closingCredit) : (d.closingCredit - d.closingDebit);
-    r[5] = d.address || "";
-    r[6] = d.taxCode || "";
-    r[7] = d.phone || "";
-    r[17] = d.type === "customer" ? "KH" : "NCC";
-  };
-  exportExcelWithTemplate(
-    'excel/Cong_no_khach_hang.xlsx',
-    `Cong_no_khach_hang_${new Date().toISOString().split("T")[0]}.xlsx`,
-    calculatedDebts,
-    debtMapper,
-    fallbackHeaders,
-    debtMapper
-  );
+  if (typeof XLSX === "undefined") {
+    showToast("Thư viện SheetJS chưa được nạp!", "danger");
+    return;
+  }
+  try {
+    const wb = XLSX.utils.book_new();
+    const ws = {};
+    const merges = [];
+
+    const thin    = { style: "thin", color: { rgb: "AAAAAA" } };
+    const border4 = { top: thin, bottom: thin, left: thin, right: thin };
+    const hdrBg   = { patternType: "solid", fgColor: { rgb: "1F497D" } };
+    const altBg   = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
+    const totBg   = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
+    const khBg    = { patternType: "solid", fgColor: { rgb: "EBF3FF" } };
+    const nccBg   = { patternType: "solid", fgColor: { rgb: "FFF3EB" } };
+    const fntT    = { name: "Times New Roman", sz: 13, bold: true };
+    const fntH    = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
+    const fntB    = { name: "Times New Roman", sz: 11, bold: true };
+    const fntN    = { name: "Times New Roman", sz: 11 };
+    const cC      = { horizontal: "center", vertical: "center" };
+    const cL      = { horizontal: "left",   vertical: "center", wrapText: true };
+    const cR      = { horizontal: "right",  vertical: "center" };
+    const numFmt  = "#,##0 ;[Red](#,##0)";
+
+    const sc = (r, c, v, t, s, z) => {
+      const key = XLSX.utils.encode_cell({ r, c });
+      const cell = { v, t: t || (typeof v === 'number' ? 'n' : 's') };
+      if (s) cell.s = s;
+      if (z) cell.z = z;
+      ws[key] = cell;
+    };
+
+    // Columns: Mã(0) Tên(1) Loại(2) Đầu kỳ Dư(3) Trong kỳ Debit(4) Trong kỳ Credit(5) Cuối kỳ Dư(6) Địa chỉ(7) MST(8) ĐT(9)
+    const headers = ["Mã", "Tên khách hàng / NCC", "Loại", "Dư đầu kỳ", "PS Nợ trong kỳ", "PS Có trong kỳ", "Dư cuối kỳ", "Địa chỉ", "Mã số thuế", "Điện thoại"];
+    const ncols = headers.length;
+
+    // ROW 0: Tiêu đề
+    sc(0, 0, (state.companyName || "CÔNG TY CP RẠNG ĐÔNG") + " — SỔ DƯ CÔNG NỢ", 's', { font: fntT, alignment: cC });
+    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: ncols - 1 } });
+
+    // ROW 1: Headers
+    headers.forEach((h, c) => sc(1, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: border4 }));
+
+    // DATA ROWS
+    const calculatedDebts = calculatePartnerDebts();
+    let rowIdx = 2;
+    let totalOpeningKH = 0, totalOpeningNCC = 0;
+    let totalDebitKH = 0,   totalCreditKH = 0;
+    let totalDebitNCC = 0,  totalCreditNCC = 0;
+    let totalClosingKH = 0, totalClosingNCC = 0;
+
+    calculatedDebts.forEach((d, idx) => {
+      const isKH = d.type === "customer";
+      const openingBal = state.partnerOpeningBalances[d.id] || { debit: 0, credit: 0 };
+      const openingNet = isKH ? (openingBal.debit - openingBal.credit) : (openingBal.credit - openingBal.debit);
+      const closingNet = isKH ? (d.closingDebit - d.closingCredit) : (d.closingCredit - d.closingDebit);
+      const psTrans    = isKH ? d.debitTrans  : d.creditTrans;   // PS bên tăng
+      const psCred     = isKH ? d.creditTrans : d.debitTrans;   // PS bên giảm
+
+      const bg = idx % 2 === 0 ? (isKH ? null : { patternType: "solid", fgColor: { rgb: "FFFAF5" } }) : (isKH ? altBg : { patternType: "solid", fgColor: { rgb: "FFF0E0" } });
+      const bs = (al) => ({ font: fntN, fill: bg, alignment: al, border: border4 });
+      const ns = (al) => ({ font: fntN, fill: bg, alignment: al || cR, border: border4 });
+
+      sc(rowIdx, 0, d.id || "",       's', bs(cC));
+      sc(rowIdx, 1, d.name || "",     's', bs(cL));
+      sc(rowIdx, 2, isKH ? "KH" : "NCC", 's', bs(cC));
+      sc(rowIdx, 3, openingNet, 'n', ns(cR), numFmt);
+      sc(rowIdx, 4, psTrans,    'n', ns(cR), numFmt);
+      sc(rowIdx, 5, psCred,     'n', ns(cR), numFmt);
+      sc(rowIdx, 6, closingNet, 'n', ns(cR), numFmt);
+      sc(rowIdx, 7, d.address || "",  's', bs(cL));
+      sc(rowIdx, 8, d.taxCode || "",  's', bs(cC));
+      sc(rowIdx, 9, d.phone || "",    's', bs(cC));
+
+      if (isKH) {
+        totalOpeningKH += openingNet;
+        totalDebitKH   += psTrans;
+        totalCreditKH  += psCred;
+        totalClosingKH += closingNet;
+      } else {
+        totalOpeningNCC += openingNet;
+        totalDebitNCC   += psTrans;
+        totalCreditNCC  += psCred;
+        totalClosingNCC += closingNet;
+      }
+      rowIdx++;
+    });
+
+    // DÒNG TỔNG KHÁCH HÀNG
+    const ts = (al) => ({ font: fntB, fill: totBg, alignment: al, border: border4 });
+    sc(rowIdx, 0, "TỔNG KHÁCH HÀNG", 's', ts(cL)); merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 2 } });
+    sc(rowIdx, 3, totalOpeningKH, 'n', ts(cR), numFmt);
+    sc(rowIdx, 4, totalDebitKH,   'n', ts(cR), numFmt);
+    sc(rowIdx, 5, totalCreditKH,  'n', ts(cR), numFmt);
+    sc(rowIdx, 6, totalClosingKH, 'n', ts(cR), numFmt);
+    sc(rowIdx, 7, "", 's', ts(cL)); sc(rowIdx, 8, "", 's', ts(cC)); sc(rowIdx, 9, "", 's', ts(cC));
+    rowIdx++;
+
+    // DÒNG TỔNG NCC
+    sc(rowIdx, 0, "TỔNG NHÀ CUNG CẤP", 's', ts(cL)); merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 2 } });
+    sc(rowIdx, 3, totalOpeningNCC, 'n', ts(cR), numFmt);
+    sc(rowIdx, 4, totalDebitNCC,   'n', ts(cR), numFmt);
+    sc(rowIdx, 5, totalCreditNCC,  'n', ts(cR), numFmt);
+    sc(rowIdx, 6, totalClosingNCC, 'n', ts(cR), numFmt);
+    sc(rowIdx, 7, "", 's', ts(cL)); sc(rowIdx, 8, "", 's', ts(cC)); sc(rowIdx, 9, "", 's', ts(cC));
+
+    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: ncols - 1 } });
+    ws['!merges'] = merges;
+    ws['!cols'] = [{ wch: 18 },{ wch: 32 },{ wch: 8 },{ wch: 16 },{ wch: 16 },{ wch: 16 },{ wch: 16 },{ wch: 38 },{ wch: 14 },{ wch: 14 }];
+    ws['!rows'] = [{ hpt: 22 }, { hpt: 22 }];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Cong no");
+    const outName = `Cong_no_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, outName);
+    showToast(`Đã xuất Excel: ${outName}`, "success");
+  } catch (err) {
+    console.error(err);
+    showToast(`Lỗi xuất Excel công nợ: ${err.message}`, "danger");
+  }
 }
 
 // --- Phân hệ Thu/Chi ---
@@ -5137,13 +6233,19 @@ function renderCashTable() {
   const tbody = document.getElementById("cash-table-body");
   if (!tbody) return;
 
+  const totalCount = filteredCashList.length;
+  const totalPages = Math.ceil(totalCount / itemsPerPage) || 1;
+
+  if (cashPage > totalPages) cashPage = totalPages;
+  if (cashPage < 1) cashPage = 1;
+
   const startIdx = (cashPage - 1) * itemsPerPage;
   const endIdx = startIdx + itemsPerPage;
   const pageItems = filteredCashList.slice(startIdx, endIdx);
 
   tbody.innerHTML = "";
   if (pageItems.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy chứng từ nào</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy chứng từ nào</td></tr>`;
   } else {
     pageItems.forEach(v => {
       const typeLabel = (v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay") ? "Phiếu Thu" : "Phiếu Chi";
@@ -5153,14 +6255,18 @@ function renderCashTable() {
       const tr = document.createElement("tr");
       const escapedPartnerId = escapeHtmlAttr(v.partnerId);
       const escapedVoucherId = escapeHtmlAttr(v.id);
+      const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
       tr.className = "clickable-row";
       tr.setAttribute("data-type", "voucher");
       tr.setAttribute("data-subtype", v.type);
       tr.setAttribute("data-id", escapedVoucherId);
       tr.innerHTML = `
-        <td>${v.date}</td>
-        <td>${v.date}</td>
-        <td style="font-weight:bold;">${v.id}</td>
+        <td style="text-align: center;">
+          <input type="checkbox" class="cash-checkbox" value="${escapedVoucherId}" onchange="updateBatchCashUI()">
+        </td>
+        <td>${formattedDate}</td>
+        <td>${formattedDate}</td>
+        <td style="font-weight:bold; color:var(--color-primary);">${v.id}</td>
         <td><a href="#" onclick="viewPartnerLedger('${escapedPartnerId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${getPartnerNameForVoucher(v)}</a></td>
         <td>${v.description}</td>
         <td style="text-align:right; font-weight:700;" class="font-numeric">${formatVND(v.amount).replace("đ","")}</td>
@@ -5172,10 +6278,10 @@ function renderCashTable() {
         <td>${methodLabel}</td>
         <td style="text-align:center;">
           <div style="display:flex; justify-content:center; gap:6px;">
-            <button class="print-btn" onclick="viewVoucher('${escapedVoucherId}')" title="Xem và In mẫu chứng từ">
+            <button class="print-btn" onclick="viewVoucher('${escapedVoucherId}')" title="Xem và In mẫu chứng từ" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-success); cursor: pointer; transition: all 0.2s;">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
             </button>
-            <button class="trash-btn" onclick="deleteVoucher('${escapedVoucherId}')" title="Xóa và Hủy ghi sổ chứng từ">
+            <button class="trash-btn" onclick="deleteVoucher('${escapedVoucherId}')" title="Xóa và Hủy ghi sổ chứng từ" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-danger); cursor: pointer; transition: all 0.2s;">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
             </button>
           </div>
@@ -5185,22 +6291,68 @@ function renderCashTable() {
     });
   }
 
-  const total = filteredCashList.length;
   const paginationInfo = document.getElementById("cash-pagination-info");
   if (paginationInfo) {
-    paginationInfo.innerText = total > 0
-      ? `Hiển thị ${startIdx + 1} - ${Math.min(endIdx, total)} trong số ${total} chứng từ`
+    paginationInfo.innerText = totalCount > 0
+      ? `Hiển thị ${startIdx + 1} - ${Math.min(endIdx, totalCount)} trong số ${totalCount} chứng từ (Trang ${cashPage}/${totalPages})`
       : `Hiển thị 0 - 0 trong số 0 chứng từ`;
   }
 
-  const btnPrev = document.getElementById("btn-cash-prev");
-  const btnNext = document.getElementById("btn-cash-next");
-  if (btnPrev) btnPrev.disabled = cashPage === 1;
-  if (btnNext) btnNext.disabled = endIdx >= total;
+  // Reset check-all-cash checkbox
+  const checkAll = document.getElementById("check-all-cash");
+  if (checkAll) checkAll.checked = false;
+  if (typeof updateBatchCashUI === "function") updateBatchCashUI();
+
+  // Render pagination controls
+  const paginationControls = document.getElementById("cash-pagination-controls");
+  if (paginationControls) {
+    if (totalPages <= 1) {
+      paginationControls.style.display = "none";
+    } else {
+      paginationControls.style.display = "flex";
+      
+      let buttonsHTML = "";
+      buttonsHTML += `
+        <button class="btn btn-secondary btn-sm" onclick="changeCashPage(1)" ${cashPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">« Đầu</button>
+        <button class="btn btn-secondary btn-sm" onclick="changeCashPage(${cashPage - 1})" ${cashPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">‹ Trước</button>
+      `;
+
+      let startPage = Math.max(1, cashPage - 2);
+      let endPage = Math.min(totalPages, cashPage + 2);
+
+      if (startPage > 1) {
+        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
+      }
+
+      for (let p = startPage; p <= endPage; p++) {
+        buttonsHTML += `
+          <button class="btn ${p === cashPage ? 'btn-success' : 'btn-secondary'} btn-sm" onclick="changeCashPage(${p})" style="padding: 4px 10px; font-size: 12px; font-weight: ${p === cashPage ? '800' : 'normal'};">${p}</button>
+        `;
+      }
+
+      if (endPage < totalPages) {
+        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
+      }
+
+      buttonsHTML += `
+        <button class="btn btn-secondary btn-sm" onclick="changeCashPage(${cashPage + 1})" ${cashPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Sau ›</button>
+        <button class="btn btn-secondary btn-sm" onclick="changeCashPage(${totalPages})" ${cashPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Cuối »</button>
+      `;
+
+      paginationControls.innerHTML = `
+        <span style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">
+          Hiển thị ${startIdx + 1} - ${Math.min(endIdx, totalCount)} của ${totalCount} chứng từ
+        </span>
+        <div style="display: flex; gap: 4px; align-items: center;">
+          ${buttonsHTML}
+        </div>
+      `;
+    }
+  }
 }
 
-function changeCashPage(dir) {
-  cashPage += dir;
+function changeCashPage(p) {
+  cashPage = p;
   renderCashTable();
 }
 
@@ -5208,6 +6360,8 @@ function filterCash() {
   const query = document.getElementById("cash-search-input") ? document.getElementById("cash-search-input").value : "";
   const filterType = document.getElementById("cash-type-filter") ? document.getElementById("cash-type-filter").value : "all";
   const filterMethod = document.getElementById("cash-method-filter") ? document.getElementById("cash-method-filter").value : "all";
+  const fromDate = document.getElementById("search-cash-from") ? document.getElementById("search-cash-from").value : "";
+  const toDate = document.getElementById("search-cash-to") ? document.getElementById("search-cash-to").value : "";
 
   filteredCashList = state.vouchers.filter(v => {
     const isCash = v.type === "receipt" || v.type === "payment" || v.type.startsWith("escrow_");
@@ -5229,7 +6383,11 @@ function filterCash() {
       matchesMethod = v.paymentMethod === filterMethod;
     }
 
-    return matchesQuery && matchesType && matchesMethod;
+    let matchesDate = true;
+    if (fromDate && v.date < fromDate) matchesDate = false;
+    if (toDate && v.date > toDate) matchesDate = false;
+
+    return matchesQuery && matchesType && matchesMethod && matchesDate;
   });
 
   filteredCashList.sort((a, b) => {
@@ -5240,6 +6398,14 @@ function filterCash() {
 
   cashPage = 1;
   renderCashTable();
+}
+
+function clearCashDateFilter() {
+  const fromEl = document.getElementById("search-cash-from");
+  const toEl = document.getElementById("search-cash-to");
+  if (fromEl) fromEl.value = "";
+  if (toEl) toEl.value = "";
+  filterCash();
 }
 
 function openAddReceiptModal() {
@@ -5341,7 +6507,46 @@ function exportCashToExcel() {
     ["DANH SÁCH THU, CHI TIỀN"],
     ["Ngày hạch toán", "Ngày chứng từ", "Số chứng từ", "Diễn giải", "Số tiền", "Đối tượng", "Lý do thu/chi", "Ngày ghi sổ quỹ", "Loại chứng từ", "Số chứng từ CUKCUK"]
   ];
-  const filteredCash = state.vouchers.filter(v => v.type === "receipt" || v.type === "payment" || v.type.startsWith("escrow_"));
+
+  const query = document.getElementById("cash-search-input") ? document.getElementById("cash-search-input").value.toLowerCase() : "";
+  const filterType = document.getElementById("cash-type-filter") ? document.getElementById("cash-type-filter").value : "all";
+  const filterMethod = document.getElementById("cash-method-filter") ? document.getElementById("cash-method-filter").value : "all";
+  const fromDate = document.getElementById("search-cash-from") ? document.getElementById("search-cash-from").value : "";
+  const toDate = document.getElementById("search-cash-to") ? document.getElementById("search-cash-to").value : "";
+
+  let filteredCash = state.vouchers.filter(v => {
+    const isCash = v.type === "receipt" || v.type === "payment" || v.type.startsWith("escrow_");
+    if (!isCash) return false;
+
+    const partnerName = getPartnerNameForVoucher(v);
+    const combined = `${v.id || ""} ${partnerName} ${v.description || ""}`;
+    const matchesQuery = matchAdvancedQuery(combined, query, v.amount);
+    
+    let matchesType = true;
+    if (filterType === "receipt") {
+      matchesType = v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay";
+    } else if (filterType === "payment") {
+      matchesType = v.type === "payment" || v.type === "escrow_pay" || v.type === "escrow_refund_receive";
+    }
+
+    let matchesMethod = true;
+    if (filterMethod !== "all") {
+      matchesMethod = v.paymentMethod === filterMethod;
+    }
+
+    let matchesDate = true;
+    if (fromDate && v.date < fromDate) matchesDate = false;
+    if (toDate && v.date > toDate) matchesDate = false;
+
+    return matchesQuery && matchesType && matchesMethod && matchesDate;
+  });
+
+  filteredCash.sort((a, b) => {
+    const dateDiff = new Date(b.date) - new Date(a.date);
+    if (dateDiff !== 0) return dateDiff;
+    return b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' });
+  });
+
   const cashMapper = (v, r) => {
     if (!v.excelRow) {
       v.excelRow = createDefaultVoucherExcelRow(v);
@@ -5350,82 +6555,16 @@ function exportCashToExcel() {
       r[i] = v.excelRow[i] !== undefined ? v.excelRow[i] : "";
     }
     const typeLabel = (v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay") ? "Phiếu thu" : "Phiếu chi";
-    r[0] = v.date;
-    r[1] = v.date;
-    r[2] = v.id;
-    r[3] = v.description;
-    r[4] = v.amount;
-    r[5] = v.partnerName;
-    r[6] = v.description;
-    r[8] = typeLabel;
-  };
-  exportExcelWithTemplate(
-    'excel/Thu__chi_tien.xlsx',
-    `Thu__chi_tien_${new Date().toISOString().split("T")[0]}.xlsx`,
-    filteredCash,
-    cashMapper,
-    fallbackHeaders,
-    cashMapper
-  );
-}
-
-function exportSalesToExcel() {
-  const fallbackHeaders = [
-    ["DANH SÁCH BÁN HÀNG"],
-    ["Ngày hạch toán", "Ngày chứng từ", "Số chứng từ", "Số hóa đơn", "Mẫu số HĐ", "Ký hiệu HĐ", "Khách hàng", "Diễn giải", "Tổng tiền hàng", "Tiền chiết khấu", "Tiền thuế GTGT", "Tổng tiền thanh toán", "Đã lập hóa đơn", "Đã xuất hàng", "Loại chứng từ"]
-  ];
-  let filteredSales = state.vouchers.filter(v => v.type === "sales");
-  
-  // Filter by advanced search date range & query
-  const query = document.getElementById("search-sales") ? document.getElementById("search-sales").value.toLowerCase() : "";
-  const fromDate = document.getElementById("search-sales-from") ? document.getElementById("search-sales-from").value : "";
-  const toDate = document.getElementById("search-sales-to") ? document.getElementById("search-sales-to").value : "";
-
-  if (query) {
-    filteredSales = filteredSales.filter(v => 
-      (v.id || "").toLowerCase().includes(query) ||
-      (v.partnerName || "").toLowerCase().includes(query) ||
-      (v.description || "").toLowerCase().includes(query)
-    );
-  }
-  if (fromDate) {
-    filteredSales = filteredSales.filter(v => v.date >= fromDate);
-  }
-  if (toDate) {
-    filteredSales = filteredSales.filter(v => v.date <= toDate);
-  }
-
-  // Sắp xếp số chứng từ giảm dần
-  filteredSales.sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' }));
-
-  const salesMapper = (v, r) => {
-    if (!v.excelRow) {
-      v.excelRow = createDefaultSalesExcelRow(v);
-    }
-    for (let i = 0; i < 15; i++) {
-      r[i] = v.excelRow[i] !== undefined ? v.excelRow[i] : "";
-    }
-    
-    r[0] = v.date;
-    r[1] = v.date;
-    r[2] = v.id;
-    r[6] = v.partnerName;
-    r[7] = v.description;
-    
-    let grossTotal = 0;
-    let totalDiscount = 0;
-    v.items.forEach(item => {
-      const itemGross = (item.qty || 0) * (item.price || 0);
-      const discountVal = itemGross * ((item.discount || 0) / 100);
-      grossTotal += itemGross;
-      totalDiscount += discountVal;
-    });
-    
-    r[8] = grossTotal;
-    r[9] = totalDiscount;
-    r[10] = v.taxAmount || 0;
-    r[11] = v.totalAmount;
-    r[14] = v.paymentMethod === "111" ? "Bán hàng hóa, dịch vụ trong nước - Tiền mặt" : "Bán hàng hóa, dịch vụ trong nước chưa thu tiền";
+    r[0] = v.date;   // Ngày hạch toán (sẽ được convert sang serial bởi exportExcelWithTemplate)
+    r[1] = v.date;   // Ngày chứng từ
+    r[2] = v.id;     // Số chứng từ
+    r[3] = v.description;  // Diễn giải
+    r[4] = v.amount || v.totalAmount || 0;  // Số tiền
+    r[5] = v.partnerName || getPartnerNameForVoucher(v);  // Đối tượng
+    r[6] = v.description;  // Lý do thu/chi
+    r[7] = v.date;   // Ngày ghi sổ quỹ
+    r[8] = typeLabel;  // Loại chứng từ
+    r[9] = v.id;     // Số chứng từ gốc
   };
 
   let dateRangeSuffix = "";
@@ -5434,13 +6573,146 @@ function exportSalesToExcel() {
   }
 
   exportExcelWithTemplate(
-    'excel/Ban_hang.xlsx',
-    `Ban_hang_${new Date().toISOString().split("T")[0]}${dateRangeSuffix}.xlsx`,
-    filteredSales,
-    salesMapper,
+    'excel/Thu__chi_tien.xlsx',
+    `Thu__chi_tien_${new Date().toISOString().split("T")[0]}${dateRangeSuffix}.xlsx`,
+    filteredCash,
+    cashMapper,
     fallbackHeaders,
-    salesMapper
+    cashMapper
   );
+}
+
+function exportSalesToExcel() {
+  if (typeof XLSX === "undefined") {
+    showToast("Thư viện SheetJS chưa được nạp!", "danger");
+    return;
+  }
+  let filteredSales = state.vouchers.filter(v => v.type === "sales");
+
+  const query    = document.getElementById("search-sales")      ? document.getElementById("search-sales").value.toLowerCase() : "";
+  const fromDate = document.getElementById("search-sales-from") ? document.getElementById("search-sales-from").value : "";
+  const toDate   = document.getElementById("search-sales-to")   ? document.getElementById("search-sales-to").value : "";
+
+  if (query) filteredSales = filteredSales.filter(v =>
+    (v.id || "").toLowerCase().includes(query) ||
+    (v.partnerName || "").toLowerCase().includes(query) ||
+    (v.description || "").toLowerCase().includes(query)
+  );
+  if (fromDate) filteredSales = filteredSales.filter(v => v.date >= fromDate);
+  if (toDate)   filteredSales = filteredSales.filter(v => v.date <= toDate);
+  filteredSales.sort((a, b) => new Date(a.date) - new Date(b.date) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+
+  try {
+    const wb = XLSX.utils.book_new();
+    const ws = {};
+    const merges = [];
+
+    const thin    = { style: "thin", color: { rgb: "AAAAAA" } };
+    const border4 = { top: thin, bottom: thin, left: thin, right: thin };
+    const hdrBg   = { patternType: "solid", fgColor: { rgb: "1F497D" } };
+    const altBg   = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
+    const totBg   = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
+    const fntT    = { name: "Times New Roman", sz: 13, bold: true };
+    const fntSub  = { name: "Times New Roman", sz: 11, italic: true };
+    const fntH    = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
+    const fntB    = { name: "Times New Roman", sz: 11, bold: true };
+    const fntN    = { name: "Times New Roman", sz: 11 };
+    const cC      = { horizontal: "center", vertical: "center" };
+    const cL      = { horizontal: "left",   vertical: "center", wrapText: true };
+    const cR      = { horizontal: "right",  vertical: "center" };
+    const numFmt  = "#,##0 ;[Red](#,##0)";
+    const dateFmt = "dd/mm/yyyy";
+
+    const sc = (r, c, v, t, s, z) => {
+      const key = XLSX.utils.encode_cell({ r, c });
+      const cell = { v, t: t || (typeof v === 'number' ? 'n' : 's') };
+      if (s) cell.s = s;
+      if (z) cell.z = z;
+      ws[key] = cell;
+    };
+
+    // ROW 0: Tiêu đề
+    const today = new Date().toLocaleDateString('vi-VN');
+    sc(0, 0, (state.companyName || "CÔNG TY CP RẠNG ĐÔNG") + " — DANH SÁCH BÁN HÀNG", 's', { font: fntT, alignment: cC });
+    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 14 } });
+
+    // ROW 1: Phạm vi
+    sc(1, 0, `Từ ngày: ${fromDate || 'đầu kỳ'}   Đến ngày: ${toDate || today}`, 's', { font: fntSub, alignment: cC });
+    merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 14 } });
+
+    // ROW 2: Headers
+    //  0=Ngày HT  1=Ngày CT  2=Số CT  3=Số HĐ  4=Mẫu số  5=Ký hiệu  6=Khách hàng  7=Diễn giải  8=Tổng tiền hàng  9=Chiết khấu  10=Thuế  11=Thanh toán  12=Đã lập  13=Đã xuất  14=Loại CT
+    const headers = ["Ngày hạch toán","Ngày chứng từ","Số chứng từ","Số hóa đơn","Mẫu số HĐ","Ký hiệu HĐ","Khách hàng","Diễn giải","Tổng tiền hàng","Tiền chiết khấu","Tiền thuế GTGT","Tổng tiền thanh toán","Đã lập hóa đơn","Đã xuất hàng","Loại chứng từ"];
+    headers.forEach((h, c) => sc(2, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: border4 }));
+
+    // DATA ROWS
+    let rowIdx = 3;
+    let totalGross = 0, totalDiscount = 0, totalTax = 0, totalAmt = 0;
+
+    filteredSales.forEach((v, idx) => {
+      const bg = idx % 2 === 0 ? null : altBg;
+      const bs = (al) => ({ font: fntN, fill: bg, alignment: al, border: border4 });
+      const ns = (al) => ({ font: fntN, fill: bg, alignment: al || cR, border: border4 });
+
+      let grossTotal = 0, discountTotal = 0;
+      if (v.items && v.items.length > 0) {
+        v.items.forEach(item => {
+          const itemGross = (item.qty || 0) * (item.price || 0);
+          const discVal   = itemGross * ((item.discount || 0) / 100);
+          grossTotal   += itemGross;
+          discountTotal += discVal;
+        });
+      } else {
+        grossTotal = (v.totalAmount || 0) - (v.taxAmount || 0);
+      }
+
+      const er = v.excelRow || [];
+      sc(rowIdx,  0, dateStrToSerial(v.date),   'n', bs(cC), dateFmt);
+      sc(rowIdx,  1, dateStrToSerial(v.date),   'n', bs(cC), dateFmt);
+      sc(rowIdx,  2, v.id,                      's', bs(cC));
+      sc(rowIdx,  3, er[3] || v.invoiceNo || "", 's', bs(cC));
+      sc(rowIdx,  4, er[4] || "",               's', bs(cC));
+      sc(rowIdx,  5, er[5] || "",               's', bs(cC));
+      sc(rowIdx,  6, v.partnerName || "",        's', bs(cL));
+      sc(rowIdx,  7, v.description || "",        's', bs(cL));
+      sc(rowIdx,  8, grossTotal,                 'n', ns(cR), numFmt);
+      sc(rowIdx,  9, discountTotal,              'n', ns(cR), numFmt);
+      sc(rowIdx, 10, v.taxAmount || 0,           'n', ns(cR), numFmt);
+      sc(rowIdx, 11, v.totalAmount || 0,         'n', ns(cR), numFmt);
+      sc(rowIdx, 12, er[12] || "Đã lập",         's', bs(cC));
+      sc(rowIdx, 13, er[13] || "Đã xuất",         's', bs(cC));
+      sc(rowIdx, 14, v.paymentMethod === "111" ? "Bán hàng - Tiền mặt" : "Bán hàng - Chưa thu", 's', bs(cL));
+
+      totalGross    += grossTotal;
+      totalDiscount += discountTotal;
+      totalTax      += v.taxAmount || 0;
+      totalAmt      += v.totalAmount || 0;
+      rowIdx++;
+    });
+
+    // DÒNG TỔNG
+    const ts = (al) => ({ font: fntB, fill: totBg, alignment: al, border: border4 });
+    sc(rowIdx, 0, "TỔNG CỘNG", 's', ts(cL)); merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 7 } });
+    sc(rowIdx,  8, totalGross,    'n', ts(cR), numFmt);
+    sc(rowIdx,  9, totalDiscount, 'n', ts(cR), numFmt);
+    sc(rowIdx, 10, totalTax,      'n', ts(cR), numFmt);
+    sc(rowIdx, 11, totalAmt,      'n', ts(cR), numFmt);
+    sc(rowIdx, 12, "", 's', ts(cC)); sc(rowIdx, 13, "", 's', ts(cC)); sc(rowIdx, 14, "", 's', ts(cC));
+
+    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: 14 } });
+    ws['!merges'] = merges;
+    ws['!cols'] = [{ wch: 13 },{ wch: 13 },{ wch: 14 },{ wch: 13 },{ wch: 11 },{ wch: 11 },{ wch: 28 },{ wch: 28 },{ wch: 16 },{ wch: 14 },{ wch: 12 },{ wch: 16 },{ wch: 12 },{ wch: 11 },{ wch: 28 }];
+    ws['!rows'] = [{ hpt: 22 }, { hpt: 16 }, { hpt: 22 }];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Ban hang");
+    let dateRangeSuffix = fromDate || toDate ? `_${fromDate || ""}_${toDate || ""}` : "";
+    const outName = `Ban_hang_${new Date().toISOString().split('T')[0]}${dateRangeSuffix}.xlsx`;
+    XLSX.writeFile(wb, outName);
+    showToast(`Đã xuất Excel: ${outName}`, "success");
+  } catch (err) {
+    console.error(err);
+    showToast(`Lỗi xuất Excel bán hàng: ${err.message}`, "danger");
+  }
 }
 
 function createDefaultSalesExcelRow(v) {
@@ -5651,22 +6923,40 @@ function parseExcelFile(file, type) {
 
       if (type === 'products') {
         let count = 0;
+        // Phát hiện định dạng: file mới xuất (13 cột) hoặc template gốc (57 cột)
+        // Kiểm tra header row (row[1]) để xác định số cột thực
+        const headerRow = rows[1] || [];
+        const maxColCount = headerRow.filter(h => (h || "").toString().trim() !== "").length;
+        const isNewFormat = maxColCount <= 15; // file mới có 13 cột, cũ có 57 cột
+
         for (let i = 2; i < rows.length; i++) {
           const row = rows[i];
           const id = (row[0] || "").toString().trim();
           const name = (row[1] || "").toString().trim();
-          if (!id || !name || id === "Mã") continue;
-          
-          const unit = (row[7] || "Cái").toString().trim();
-          const minStock = Number(row[9]) || 0;
-          const stock = Number(row[31]) || 0;
-          const totalVal = Number(row[33]) || 0;
-          const avgCost = stock > 0 ? Math.round(totalVal / stock) : (Number(row[19]) || 0);
+          if (!id || !name || id === "Mã" || id === "TỔNG CỘNG") continue;
+
+          let unit, minStock, stock, totalVal, avgCost;
+          if (isNewFormat) {
+            // File mới: Mã(0) Tên(1) Tính chất(2) Nhóm(3) ĐVT(4) Tồn tối thiểu(5) Kho(6) TK kho(7) TK CP(8) TK DT(9) Ngừng TD(10) Tồn hiện tại(11) Giá trị tồn(12)
+            unit      = (row[4] || "Cái").toString().trim();
+            minStock  = Number(row[5]) || 0;
+            stock     = Number(row[11]) || 0;
+            totalVal  = Number(row[12]) || 0;
+            avgCost   = stock > 0 ? Math.round(totalVal / stock) : 0;
+          } else {
+            // File cũ (57 cột): ĐVT ở col 7, Tồn tối thiểu col 9, Tồn kho col 31, Giá trị col 33
+            unit      = (row[7] || "Cái").toString().trim();
+            minStock  = Number(row[9]) || 0;
+            stock     = Number(row[31]) || 0;
+            totalVal  = Number(row[33]) || 0;
+            avgCost   = stock > 0 ? Math.round(totalVal / stock) : (Number(row[19]) || 0);
+          }
 
           const idx = state.products.findIndex(p => p.id === id);
-          const pObj = { id, name, unit, stock, avgCost, totalValue: stock * avgCost, minStock };
+          const pObj = { id, name, unit, stock, avgCost, totalValue: stock * avgCost, minStock,
+            group: (row[isNewFormat ? 3 : 3] || "").toString().trim() };
           if (idx !== -1) {
-            state.products[idx] = pObj;
+            state.products[idx] = { ...state.products[idx], ...pObj };
           } else {
             state.products.push(pObj);
           }
@@ -5674,7 +6964,7 @@ function parseExcelFile(file, type) {
         }
         saveState();
         recalculateAccounting();
-        showToast(`Đã nạp thành công ${count} sản phẩm từ file Excel!`, "success");
+        showToast(`Đã nạp thành công ${count} sản phẩm từ file Excel (${isNewFormat ? 'định dạng mới' : 'định dạng cũ'})!`, "success");
       } 
       
       else if (type === 'partners') {
@@ -5683,7 +6973,7 @@ function parseExcelFile(file, type) {
           const row = rows[i];
           const id = (row[0] || "").toString().trim();
           const name = (row[1] || "").toString().trim();
-          if (!id || !name || id === "Mã khách hàng") continue;
+          if (!id || !name || id === "Mã khách hàng" || id.startsWith("TỔNG")) continue;
 
           const address = (row[2] || "").toString().trim();
           const group = (row[3] || "").toString().trim().toUpperCase();
@@ -5691,7 +6981,9 @@ function parseExcelFile(file, type) {
           const phone = (row[5] || "").toString().trim();
           const type = (group.includes("NCC") || id.startsWith("NCC")) ? "supplier" : "customer";
           const inactiveVal = row[6];
-          const inactive = inactiveVal === true || (inactiveVal || "").toString().toLowerCase().includes("true");
+          // Hỗ trợ cả "TRUE"/"FALSE" (file cũ) và "Có"/"" (file mới)
+          const inactive = inactiveVal === true || (inactiveVal || "").toString().toLowerCase() === "true"
+                        || (inactiveVal || "").toString().trim() === "Có";
 
           const idx = state.partners.findIndex(p => p.id === id);
           const pObj = { id, name, type, phone, email: "", address, taxCode, group, inactive };
@@ -5719,48 +7011,80 @@ function parseExcelFile(file, type) {
       else if (type === 'debts_opening') {
         let count = 0;
         state.partnerOpeningBalances = state.partnerOpeningBalances || {};
-        for (let i = 2; i < rows.length; i++) {
+
+        // Phát hiện định dạng: file mới xuất (10 cột: Mã, Tên, Loại, Dư đầu kỳ, PS Nợ, PS Có, Dư cuối kỳ, Địa chỉ, MST, ĐT)
+        // hay file cũ 18 cột (Mã, Tên, Phải thu HĐ, Thu trước, Còn phải thu, ...)
+        const hdr = rows[1] || [];
+        const colCount = hdr.filter(h => (h || "").toString().trim() !== "").length;
+        const isNewDebtFormat = colCount <= 12; // file mới có 10 cột
+
+        // Xác định dòng bắt đầu dữ liệu: bỏ qua dòng tiêu đề, phạm vi (nếu có)
+        let startRow = 2;
+        // Nếu row[1] có giá trị ở col 0 trông như tiêu đề cột → startRow=2
+        // Nếu row[2] lại là tiêu đề cột (file xuất mới có 3 header rows) → startRow=3
+        const row1col0 = (rows[1] ? rows[1][0] : "").toString().trim();
+        if (row1col0 === "Từ ngày:" || row1col0.startsWith("Từ")) startRow = 3;
+
+        for (let i = startRow; i < rows.length; i++) {
           const row = rows[i];
           const id = (row[0] || "").toString().trim();
-          if (!id || id === "Mã khách hàng") continue;
+          if (!id || id === "Mã" || id === "Mã khách hàng") continue;
+          // Bỏ qua dòng tổng cộng
+          if (id.startsWith("TỔNG") || id === "TỔNG KHÁCH HÀNG" || id === "TỔNG NHÀ CUNG CẤP") continue;
 
           const name = (row[1] || "").toString().trim();
-          const debit = Number(row[2]) || 0;
-          const credit = Number(row[3]) || 0;
-          
+          let debit = 0, credit = 0;
+
+          if (isNewDebtFormat) {
+            // File mới: Mã(0) Tên(1) Loại(2) Dư đầu kỳ(3) PS Nợ(4) PS Có(5) Dư cuối kỳ(6) Địa chỉ(7) MST(8) ĐT(9)
+            const loai = (row[2] || "").toString().trim().toUpperCase();
+            const duDauKy = Number(row[3]) || 0;
+            // KH: Dư đầu kỳ > 0 → debit; NCC: Dư đầu kỳ > 0 → credit
+            if (loai === "NCC" || id.startsWith("NCC")) {
+              debit = 0; credit = duDauKy;
+            } else {
+              debit = duDauKy; credit = 0;
+            }
+          } else {
+            // File cũ 18 cột: row[2] = phải thu, row[3] = thu trước/giảm trừ
+            debit  = Number(row[2]) || 0;
+            credit = Number(row[3]) || 0;
+          }
+
           state.partnerOpeningBalances[id] = { debit, credit };
-          
+
           const idx = state.partners.findIndex(p => p.id === id);
           if (idx === -1) {
-            const address = (row[5] || "").toString().trim();
-            const taxCode = (row[6] || "").toString().trim();
-            const phone = (row[7] || "").toString().trim();
+            const addrCol  = isNewDebtFormat ? 7 : 5;
+            const taxCol   = isNewDebtFormat ? 8 : 6;
+            const phoneCol = isNewDebtFormat ? 9 : 7;
+            const loaiVal  = isNewDebtFormat ? (row[2] || "").toString().trim().toUpperCase() : "";
+            const pType    = (loaiVal === "NCC" || id.startsWith("NCC")) ? "supplier" : "customer";
             state.partners.push({
-              id,
-              name,
-              type: id.startsWith("NCC") ? "supplier" : "customer",
-              phone,
-              email: "",
-              address,
-              taxCode,
-              group: id.startsWith("NCC") ? "NCC" : "KH",
+              id, name,
+              type: pType,
+              phone:   (row[phoneCol] || "").toString().trim(),
+              email:   "",
+              address: (row[addrCol]  || "").toString().trim(),
+              taxCode: (row[taxCol]   || "").toString().trim(),
+              group: pType === "supplier" ? "NCC" : "KH",
               inactive: false
             });
           }
           count++;
         }
-        
+
         // Cập nhật datalist
         const datalist = document.getElementById("datalist-partners");
         if (datalist) {
-          datalist.innerHTML = state.partners.map(p => 
+          datalist.innerHTML = state.partners.map(p =>
             `<option value="${p.id}">${p.name} [${p.type === 'supplier' ? 'NCC' : 'KH'}]</option>`
           ).join("");
         }
 
         saveState();
         recalculateAccounting();
-        showToast(`Đã nạp số dư đầu kỳ cho ${count} đối tác từ file Excel!`, "success");
+        showToast(`Đã nạp số dư đầu kỳ cho ${count} đối tác (${isNewDebtFormat ? 'định dạng mới' : 'định dạng cũ'})!`, "success");
         filterDebts();
       } 
       
@@ -6741,6 +8065,595 @@ window.autoExtractPhonesAndCleanAddresses = autoExtractPhonesAndCleanAddresses;
 // CÁC HÀM XỬ LÝ BATCH SELECTION & BATCH DELETE (VOUCHERS & PRODUCTS)
 // ==========================================================
 
+function toggleSelectAllPurchases(masterCheckbox) {
+  const checkboxes = document.querySelectorAll(".purchase-checkbox");
+  checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+  updateBatchPurchasesUI();
+}
+
+function updateBatchPurchasesUI() {
+  const checkboxes = document.querySelectorAll(".purchase-checkbox");
+  const checked = Array.from(checkboxes).filter(cb => cb.checked);
+  const btn = document.getElementById("btn-batch-delete-purchase");
+  const count = document.getElementById("selected-purchases-count");
+  
+  if (btn && count) {
+    if (checked.length > 0) {
+      btn.style.display = "inline-flex";
+      count.innerText = checked.length;
+    } else {
+      btn.style.display = "none";
+      count.innerText = "0";
+    }
+  }
+  
+  const master = document.getElementById("check-all-purchase");
+  if (master) {
+    master.checked = checked.length === checkboxes.length && checkboxes.length > 0;
+  }
+}
+
+function batchDeletePurchases() {
+  const checked = Array.from(document.querySelectorAll(".purchase-checkbox")).filter(cb => cb.checked);
+  if (checked.length === 0) return;
+  
+  if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} chứng từ mua hàng đã chọn?`)) {
+    const idsToDelete = checked.map(cb => cb.value);
+    state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+    
+    saveState();
+    recalculateAccounting();
+    
+    const master = document.getElementById("check-all-purchase");
+    if (master) master.checked = false;
+    
+    updateBatchPurchasesUI();
+    
+    renderPurchaseTable();
+    if (typeof filterSales === "function") filterSales();
+    if (typeof filterCash === "function") {
+      filterCash();
+      if (typeof recalculateCashKpis === "function") recalculateCashKpis();
+    }
+    if (typeof renderDashboard === "function") renderDashboard();
+    if (typeof filterDebts === "function") filterDebts();
+    if (typeof filterPartners === "function") filterPartners();
+    if (typeof renderInventoryTable === "function") renderInventoryTable();
+    
+    showToast(`Đã xóa thành công ${checked.length} chứng từ mua hàng!`, "success");
+  }
+}
+
+function exportPurchasesToExcel() {
+  if (typeof XLSX === "undefined") {
+    showToast("Thư viện SheetJS chưa được nạp!", "danger");
+    return;
+  }
+
+  let filteredPurchases = state.vouchers.filter(v => v.type === "purchase");
+  
+  const query = document.getElementById("search-purchase") ? document.getElementById("search-purchase").value.toLowerCase() : "";
+  const fromDate = document.getElementById("search-purchase-from") ? document.getElementById("search-purchase-from").value : "";
+  const toDate = document.getElementById("search-purchase-to") ? document.getElementById("search-purchase-to").value : "";
+
+  if (query) {
+    filteredPurchases = filteredPurchases.filter(v => 
+      (v.id || "").toLowerCase().includes(query) ||
+      (v.partnerName || "").toLowerCase().includes(query) ||
+      (v.description || "").toLowerCase().includes(query)
+    );
+  }
+  if (fromDate) filteredPurchases = filteredPurchases.filter(v => v.date >= fromDate);
+  if (toDate)   filteredPurchases = filteredPurchases.filter(v => v.date <= toDate);
+  filteredPurchases.sort((a, b) => new Date(a.date) - new Date(b.date) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+
+  try {
+    const wb = XLSX.utils.book_new();
+    const ws = {};
+    const merges = [];
+
+    // --- Style presets ---
+    const thin = { style: "thin", color: { rgb: "AAAAAA" } };
+    const border4 = { top: thin, bottom: thin, left: thin, right: thin };
+    const headerBg = { patternType: "solid", fgColor: { rgb: "1F497D" } };
+    const subHeaderBg = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
+    const altBg = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
+    const fntTitle = { name: "Times New Roman", sz: 13, bold: true };
+    const fntSub   = { name: "Times New Roman", sz: 11, italic: true };
+    const fntHdr   = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
+    const fntBold  = { name: "Times New Roman", sz: 11, bold: true };
+    const fntNorm  = { name: "Times New Roman", sz: 11 };
+    const cCenter  = { horizontal: "center", vertical: "center" };
+    const cLeft    = { horizontal: "left",   vertical: "center" };
+    const cRight   = { horizontal: "right",  vertical: "center" };
+    const numFmt   = "#,##0 ;[Red](#,##0)";
+    const dateFmt  = "dd/mm/yyyy";
+
+    const setCell = (ws, r, c, v, t, s, z) => {
+      const key = XLSX.utils.encode_cell({ r, c });
+      const cell = { v, t: t || (typeof v === 'number' ? 'n' : 's') };
+      if (s) cell.s = s;
+      if (z) cell.z = z;
+      ws[key] = cell;
+    };
+
+    // Xác định phạm vi ngày
+    const today = new Date().toLocaleDateString('vi-VN');
+    let dateRangeText = `Từ ngày: ${fromDate || 'đầu kỳ'}   Đến ngày: ${toDate || today}`;
+
+    // --- ROW 0: Tiêu đề chính ---
+    const compName = state.companyName || "CÔNG TY CP RẠNG ĐÔNG";
+    setCell(ws, 0, 0, compName, 's', { font: fntTitle, alignment: cCenter }, null);
+    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 21 } });
+
+    // --- ROW 1: Tên báo cáo ---
+    setCell(ws, 1, 0, "SỔ CHI TIẾT MUA HÀNG THEO MÃ QUY CÁCH", 's', { font: fntTitle, alignment: cCenter }, null);
+    merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 21 } });
+
+    // --- ROW 2: Phạm vi ngày ---
+    setCell(ws, 2, 0, dateRangeText, 's', { font: fntSub, alignment: cCenter }, null);
+    merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: 21 } });
+
+    // --- ROW 3: Header cột ---
+    const headers = ["Ngày hạch toán","Ngày chứng từ","Số chứng từ","Ngày hóa đơn","Số hóa đơn","Mã hàng","Tên hàng","ĐVT","Mã quy cách 1","Mã quy cách 2","Mã quy cách 3","Mã quy cách 4","Mã quy cách 5","Số lượng mua","Đơn giá","Phí trước hải quan","Phí hàng về kho","Giá trị mua","Chiết khấu","Số lượng trả lại","Giá trị trả lại","Giá trị giảm giá"];
+    headers.forEach((h, c) => {
+      setCell(ws, 3, c, h, 's', { font: fntHdr, fill: headerBg, alignment: cCenter, border: border4 }, null);
+    });
+
+    // --- ROWS DATA: 1 dòng/sản phẩm ---
+    let rowIdx = 4;
+    let totalGross = 0;
+    let totalTax = 0;
+    let totalAmt = 0;
+
+    filteredPurchases.forEach((v, vIdx) => {
+      const partnerName = v.partnerName || getPartnerNameForVoucher(v);
+      const rowBg = vIdx % 2 === 0 ? null : altBg;
+      const baseStyle = (align) => ({ font: fntNorm, fill: rowBg, alignment: align, border: border4 });
+      const numStyle  = (align) => ({ font: fntNorm, fill: rowBg, alignment: align || cRight, border: border4 });
+
+      if (v.items && v.items.length > 0) {
+        v.items.forEach(item => {
+          const prod = state.products ? state.products.find(p => p.id === item.productId) : null;
+          const itemGross = (item.qty || 0) * (item.price || 0);
+          const discVal   = itemGross * ((item.discount || 0) / 100);
+
+          setCell(ws, rowIdx, 0,  dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+          setCell(ws, rowIdx, 1,  dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+          setCell(ws, rowIdx, 2,  v.id,            's', baseStyle(cCenter), null);
+          setCell(ws, rowIdx, 3,  dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+          setCell(ws, rowIdx, 4,  v.invoiceNo || "", 's', baseStyle(cCenter), null);
+          setCell(ws, rowIdx, 5,  item.productId || "", 's', baseStyle(cLeft), null);
+          setCell(ws, rowIdx, 6,  prod ? prod.name : (item.productName || item.productId || ""), 's', baseStyle(cLeft), null);
+          setCell(ws, rowIdx, 7,  prod ? (prod.unit || "Cái") : (item.unit || "Cái"), 's', baseStyle(cCenter), null);
+          setCell(ws, rowIdx, 8,  "", 's', baseStyle(cLeft), null);  // Mã quy cách 1
+          setCell(ws, rowIdx, 9,  "", 's', baseStyle(cLeft), null);  // Mã quy cách 2
+          setCell(ws, rowIdx, 10, "", 's', baseStyle(cLeft), null);  // Mã quy cách 3
+          setCell(ws, rowIdx, 11, "", 's', baseStyle(cLeft), null);  // Mã quy cách 4
+          setCell(ws, rowIdx, 12, "", 's', baseStyle(cLeft), null);  // Mã quy cách 5
+          setCell(ws, rowIdx, 13, item.qty || 0,   'n', numStyle(cRight), "#,##0.##");
+          setCell(ws, rowIdx, 14, item.price || 0, 'n', numStyle(cRight), numFmt);
+          setCell(ws, rowIdx, 15, 0, 'n', numStyle(cRight), numFmt);  // Phí trước HQ
+          setCell(ws, rowIdx, 16, 0, 'n', numStyle(cRight), numFmt);  // Phí hàng về kho
+          setCell(ws, rowIdx, 17, itemGross - discVal, 'n', numStyle(cRight), numFmt);  // Giá trị mua
+          setCell(ws, rowIdx, 18, discVal, 'n', numStyle(cRight), numFmt);  // Chiết khấu
+          setCell(ws, rowIdx, 19, 0, 'n', numStyle(cRight), "#,##0.##");  // Số lượng trả lại
+          setCell(ws, rowIdx, 20, 0, 'n', numStyle(cRight), numFmt);  // Giá trị trả lại
+          setCell(ws, rowIdx, 21, 0, 'n', numStyle(cRight), numFmt);  // Giá trị giảm giá
+
+          totalGross += itemGross - discVal;
+          rowIdx++;
+        });
+      } else {
+        // Phiếu không có chi tiết sản phẩm → xuất 1 dòng tổng
+        const gross = v.totalAmount - (v.taxAmount || 0);
+        setCell(ws, rowIdx, 0,  dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+        setCell(ws, rowIdx, 1,  dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+        setCell(ws, rowIdx, 2,  v.id,                    's', baseStyle(cCenter), null);
+        setCell(ws, rowIdx, 3,  dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+        setCell(ws, rowIdx, 4,  v.invoiceNo || "",       's', baseStyle(cCenter), null);
+        setCell(ws, rowIdx, 5,  "",                      's', baseStyle(cLeft),   null);
+        setCell(ws, rowIdx, 6,  v.description,           's', baseStyle(cLeft),   null);
+        setCell(ws, rowIdx, 7,  "",                      's', baseStyle(cCenter), null);
+        for (let ci = 8; ci <= 12; ci++) setCell(ws, rowIdx, ci, "", 's', baseStyle(cLeft), null);
+        setCell(ws, rowIdx, 13, 0,         'n', numStyle(cRight), "#,##0.##");
+        setCell(ws, rowIdx, 14, 0,         'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 15, 0,         'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 16, 0,         'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 17, gross,     'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 18, 0,         'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 19, 0,         'n', numStyle(cRight), "#,##0.##");
+        setCell(ws, rowIdx, 20, 0,         'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 21, 0,         'n', numStyle(cRight), numFmt);
+        totalGross += gross;
+        rowIdx++;
+      }
+
+      totalTax += v.taxAmount || 0;
+      totalAmt += v.totalAmount || 0;
+    });
+
+    // --- DÒNG TỔNG ---
+    const totalBg = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
+    const totalStyle = (al) => ({ font: fntBold, fill: totalBg, alignment: al, border: border4 });
+    setCell(ws, rowIdx, 0, "TỔNG CỘNG", 's', { font: fntBold, fill: totalBg, alignment: cLeft, border: border4 }, null);
+    merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 16 } });
+    setCell(ws, rowIdx, 17, totalGross, 'n', totalStyle(cRight), numFmt);
+    setCell(ws, rowIdx, 18, 0, 'n', totalStyle(cRight), numFmt);
+    setCell(ws, rowIdx, 19, 0, 'n', totalStyle(cRight), "#,##0.##");
+    setCell(ws, rowIdx, 20, 0, 'n', totalStyle(cRight), numFmt);
+    setCell(ws, rowIdx, 21, 0, 'n', totalStyle(cRight), numFmt);
+
+    // Thiết lập metadata sheet
+    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: 21 } });
+    ws['!merges'] = merges;
+    ws['!cols'] = [
+      { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 13 },
+      { wch: 14 }, { wch: 28 }, { wch: 8  }, { wch: 13 }, { wch: 13 },
+      { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 12 }, { wch: 16 },
+      { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 14 },
+      { wch: 14 }, { wch: 14 }
+    ];
+    ws['!rows'] = [
+      { hpt: 22 }, { hpt: 20 }, { hpt: 16 }, { hpt: 22 }
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Mua hang");
+
+    let dateRangeSuffix = "";
+    if (fromDate || toDate) dateRangeSuffix = `_${fromDate || ""}_${toDate || ""}`;
+    const outName = `Mua_hang_chi_tiet_${new Date().toISOString().split('T')[0]}${dateRangeSuffix}.xlsx`;
+    XLSX.writeFile(wb, outName);
+    showToast(`Đã xuất Excel: ${outName}`, "success");
+  } catch (err) {
+    console.error(err);
+    showToast(`Lỗi xuất Excel mua hàng: ${err.message}`, "danger");
+  }
+}
+
+function toggleSelectAllEscrows(masterCheckbox) {
+  const checkboxes = document.querySelectorAll(".escrow-checkbox");
+  checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+  updateBatchEscrowsUI();
+}
+
+function updateBatchEscrowsUI() {
+  const checkboxes = document.querySelectorAll(".escrow-checkbox");
+  const checked = Array.from(checkboxes).filter(cb => cb.checked);
+  const btn = document.getElementById("btn-batch-delete-escrow");
+  const count = document.getElementById("selected-escrows-count");
+  
+  if (btn && count) {
+    if (checked.length > 0) {
+      btn.style.display = "inline-flex";
+      count.innerText = checked.length;
+    } else {
+      btn.style.display = "none";
+      count.innerText = "0";
+    }
+  }
+  
+  const master = document.getElementById("check-all-escrow");
+  if (master) {
+    master.checked = checked.length === checkboxes.length && checkboxes.length > 0;
+  }
+}
+
+function batchDeleteEscrows() {
+  const checked = Array.from(document.querySelectorAll(".escrow-checkbox")).filter(cb => cb.checked);
+  if (checked.length === 0) return;
+  
+  if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} chứng từ ký quỹ đã chọn?`)) {
+    const idsToDelete = checked.map(cb => cb.value);
+    state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+    
+    saveState();
+    recalculateAccounting();
+    
+    const master = document.getElementById("check-all-escrow");
+    if (master) master.checked = false;
+    
+    updateBatchEscrowsUI();
+    
+    renderEscrowTable();
+    if (typeof filterSales === "function") filterSales();
+    if (typeof filterCash === "function") {
+      filterCash();
+      if (typeof recalculateCashKpis === "function") recalculateCashKpis();
+    }
+    if (typeof renderDashboard === "function") renderDashboard();
+    if (typeof filterDebts === "function") filterDebts();
+    if (typeof filterPartners === "function") filterPartners();
+    if (typeof renderInventoryTable === "function") renderInventoryTable();
+    
+    showToast(`Đã xóa thành công ${checked.length} chứng từ ký quỹ!`, "success");
+  }
+}
+
+function exportEscrowsToExcel() {
+  if (typeof XLSX === "undefined") {
+    showToast("Thư viện SheetJS chưa được nạp!", "danger");
+    return;
+  }
+
+  let filteredEscrows = state.vouchers.filter(v => v.type.startsWith("escrow_"));
+  
+  const query = document.getElementById("search-escrow") ? document.getElementById("search-escrow").value.toLowerCase() : "";
+  const fromDate = document.getElementById("search-escrow-from") ? document.getElementById("search-escrow-from").value : "";
+  const toDate = document.getElementById("search-escrow-to") ? document.getElementById("search-escrow-to").value : "";
+
+  if (query) {
+    filteredEscrows = filteredEscrows.filter(v => 
+      (v.id || "").toLowerCase().includes(query) ||
+      (v.partnerName || "").toLowerCase().includes(query) ||
+      (v.description || "").toLowerCase().includes(query)
+    );
+  }
+  if (fromDate) filteredEscrows = filteredEscrows.filter(v => v.date >= fromDate);
+  if (toDate)   filteredEscrows = filteredEscrows.filter(v => v.date <= toDate);
+  filteredEscrows.sort((a, b) => new Date(b.date) - new Date(a.date) || b.id.localeCompare(a.id, undefined, { numeric: true }));
+
+  try {
+    const wb = XLSX.utils.book_new();
+    const ws = {};
+    const merges = [];
+
+    const thin = { style: "thin", color: { rgb: "AAAAAA" } };
+    const border4 = { top: thin, bottom: thin, left: thin, right: thin };
+    const headerBg = { patternType: "solid", fgColor: { rgb: "1F497D" } };
+    const altBg    = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
+    const totalBg  = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
+    const fntTitle = { name: "Times New Roman", sz: 13, bold: true };
+    const fntHdr   = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
+    const fntBold  = { name: "Times New Roman", sz: 11, bold: true };
+    const fntNorm  = { name: "Times New Roman", sz: 11 };
+    const cCenter  = { horizontal: "center", vertical: "center" };
+    const cLeft    = { horizontal: "left",   vertical: "center", wrapText: true };
+    const cRight   = { horizontal: "right",  vertical: "center" };
+    const numFmt   = "#,##0 ;[Red](#,##0)";
+    const dateFmt  = "dd/mm/yyyy";
+
+    const setCell = (ws, r, c, v, t, s, z) => {
+      const key = XLSX.utils.encode_cell({ r, c });
+      const cell = { v, t: t || (typeof v === 'number' ? 'n' : 's') };
+      if (s) cell.s = s;
+      if (z) cell.z = z;
+      ws[key] = cell;
+    };
+
+    const typeNames = {
+      escrow_pay: "Chi ký quỹ đi (Tài sản)",
+      escrow_receive: "Nhận ký quỹ về (Nợ phải trả)",
+      escrow_refund_pay: "Tất toán ký quỹ đi",
+      escrow_refund_receive: "Tất toán nhận ký quỹ"
+    };
+
+    // ROW 0: Tiêu đề
+    const compName = state.companyName || "CÔNG TY CP RẠNG ĐÔNG";
+    setCell(ws, 0, 0, compName, 's', { font: fntTitle, alignment: cCenter }, null);
+    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } });
+
+    // ROW 1: Tên báo cáo
+    setCell(ws, 1, 0, "DANH SÁCH CHỨNG TỪ KÝ QUỸ", 's', { font: fntTitle, alignment: cCenter }, null);
+    merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 7 } });
+
+    // ROW 2: Headers cột
+    const headers = ["Ngày chứng từ", "Số chứng từ", "Đối tác liên quan", "Loại nghiệp vụ", "Diễn giải", "Tài khoản", "Số tiền ký quỹ", "Trạng thái"];
+    headers.forEach((h, c) => {
+      setCell(ws, 2, c, h, 's', { font: fntHdr, fill: headerBg, alignment: cCenter, border: border4 }, null);
+    });
+
+    // DATA ROWS
+    let rowIdx = 3;
+    let totalAmt = 0;
+    filteredEscrows.forEach((v, idx) => {
+      const bg = idx % 2 === 0 ? null : altBg;
+      const bs = (al) => ({ font: fntNorm, fill: bg, alignment: al, border: border4 });
+      const acct = v.type.includes("receive") || v.type.includes("refund_receive")
+        ? (state.accountingStandard === "TT200" ? "344" : "3386")
+        : (state.accountingStandard === "TT200" ? "244" : "1386");
+      const status = v.type.includes("refund") ? "Đã tất toán" : "Đang hiệu lực";
+
+      setCell(ws, rowIdx, 0, dateStrToSerial(v.date), 'n', bs(cCenter), dateFmt);
+      setCell(ws, rowIdx, 1, v.id,                   's', bs(cCenter), null);
+      setCell(ws, rowIdx, 2, v.partnerName || getPartnerNameForVoucher(v), 's', bs(cLeft), null);
+      setCell(ws, rowIdx, 3, typeNames[v.type] || "Ký quỹ", 's', bs(cLeft), null);
+      setCell(ws, rowIdx, 4, v.description,          's', bs(cLeft), null);
+      setCell(ws, rowIdx, 5, acct,                   's', bs(cCenter), null);
+      setCell(ws, rowIdx, 6, v.amount || 0,          'n', bs(cRight), numFmt);
+      setCell(ws, rowIdx, 7, status,                 's', bs(cCenter), null);
+
+      totalAmt += v.amount || 0;
+      rowIdx++;
+    });
+
+    // DÒNG TỔNG
+    const ts = (al) => ({ font: fntBold, fill: totalBg, alignment: al, border: border4 });
+    setCell(ws, rowIdx, 0, "TỔNG CỘNG", 's', ts(cLeft), null);
+    merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 5 } });
+    setCell(ws, rowIdx, 6, totalAmt, 'n', ts(cRight), numFmt);
+    setCell(ws, rowIdx, 7, "", 's', ts(cCenter), null);
+
+    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: 7 } });
+    ws['!merges'] = merges;
+    ws['!cols'] = [
+      { wch: 14 }, { wch: 14 }, { wch: 30 }, { wch: 28 },
+      { wch: 35 }, { wch: 12 }, { wch: 18 }, { wch: 16 }
+    ];
+    ws['!rows'] = [{ hpt: 22 }, { hpt: 20 }, { hpt: 22 }];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Ky quy");
+
+    let dateRangeSuffix = "";
+    if (fromDate || toDate) dateRangeSuffix = `_${fromDate || ""}_${toDate || ""}`;
+    const outName = `Ky_quy_${new Date().toISOString().split('T')[0]}${dateRangeSuffix}.xlsx`;
+    XLSX.writeFile(wb, outName);
+    showToast(`Đã xuất Excel: ${outName}`, "success");
+  } catch (err) {
+    console.error(err);
+    showToast(`Lỗi xuất Excel ký quỹ: ${err.message}`, "danger");
+  }
+}
+
+function toggleSelectAllPartners(masterCheckbox) {
+  const checkboxes = document.querySelectorAll(".partner-checkbox");
+  checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+  updateBatchPartnersUI();
+}
+
+function updateBatchPartnersUI() {
+  const checkboxes = document.querySelectorAll(".partner-checkbox");
+  const checked = Array.from(checkboxes).filter(cb => cb.checked);
+  const btn = document.getElementById("btn-batch-delete-partners");
+  const count = document.getElementById("selected-partners-count");
+  
+  if (btn && count) {
+    if (checked.length > 0) {
+      btn.style.display = "inline-flex";
+      count.innerText = checked.length;
+    } else {
+      btn.style.display = "none";
+      count.innerText = "0";
+    }
+  }
+  
+  const master = document.getElementById("check-all-partners");
+  if (master) {
+    master.checked = checked.length === checkboxes.length && checkboxes.length > 0;
+  }
+}
+
+function batchDeletePartners() {
+  const checked = Array.from(document.querySelectorAll(".partner-checkbox")).filter(cb => cb.checked);
+  if (checked.length === 0) return;
+  
+  if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} đối tác đã chọn?`)) {
+    const idsToDelete = checked.map(cb => cb.value);
+    state.partners = state.partners.filter(p => !idsToDelete.includes(p.id));
+    
+    saveState();
+    
+    const master = document.getElementById("check-all-partners");
+    if (master) master.checked = false;
+    
+    updateBatchPartnersUI();
+    
+    filterPartners();
+    if (typeof filterDebts === "function") filterDebts();
+    
+    showToast(`Đã xóa thành công ${checked.length} đối tác!`, "success");
+  }
+}
+
+function toggleSelectAllDebts(masterCheckbox) {
+  const checkboxes = document.querySelectorAll(".debt-checkbox");
+  checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+  updateBatchDebtsUI();
+}
+
+function updateBatchDebtsUI() {
+  const checkboxes = document.querySelectorAll(".debt-checkbox");
+  const checked = Array.from(checkboxes).filter(cb => cb.checked);
+  const btn = document.getElementById("btn-batch-delete-debts");
+  const count = document.getElementById("selected-debts-count");
+  
+  if (btn && count) {
+    if (checked.length > 0) {
+      btn.style.display = "inline-flex";
+      count.innerText = checked.length;
+    } else {
+      btn.style.display = "none";
+      count.innerText = "0";
+    }
+  }
+  
+  const master = document.getElementById("check-all-debts");
+  if (master) {
+    master.checked = checked.length === checkboxes.length && checkboxes.length > 0;
+  }
+}
+
+function batchDeleteDebts() {
+  const checked = Array.from(document.querySelectorAll(".debt-checkbox")).filter(cb => cb.checked);
+  if (checked.length === 0) return;
+  
+  if (confirm(`Bạn có chắc chắn muốn xóa (đặt số dư đầu kỳ về 0) cho ${checked.length} công nợ đã chọn?`)) {
+    const idsToReset = checked.map(cb => cb.value);
+    idsToReset.forEach(id => {
+      state.partnerOpeningBalances[id] = { debit: 0, credit: 0 };
+    });
+    
+    saveState();
+    recalculateAccounting();
+    
+    const master = document.getElementById("check-all-debts");
+    if (master) master.checked = false;
+    
+    updateBatchDebtsUI();
+    
+    filterDebts();
+    
+    showToast(`Đã reset số dư đầu kỳ cho ${checked.length} đối tác!`, "success");
+  }
+}
+
+function toggleSelectAllCash(masterCheckbox) {
+  const checkboxes = document.querySelectorAll(".cash-checkbox");
+  checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+  updateBatchCashUI();
+}
+
+function updateBatchCashUI() {
+  const checkboxes = document.querySelectorAll(".cash-checkbox");
+  const checked = Array.from(checkboxes).filter(cb => cb.checked);
+  const btn = document.getElementById("btn-batch-delete-cash");
+  const count = document.getElementById("selected-cash-count");
+  
+  if (btn && count) {
+    if (checked.length > 0) {
+      btn.style.display = "inline-flex";
+      count.innerText = checked.length;
+    } else {
+      btn.style.display = "none";
+      count.innerText = "0";
+    }
+  }
+  
+  const master = document.getElementById("check-all-cash");
+  if (master) {
+    master.checked = checked.length === checkboxes.length && checkboxes.length > 0;
+  }
+}
+
+function batchDeleteCash() {
+  const checked = Array.from(document.querySelectorAll(".cash-checkbox")).filter(cb => cb.checked);
+  if (checked.length === 0) return;
+  
+  if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} chứng từ thu chi đã chọn?`)) {
+    const idsToDelete = checked.map(cb => cb.value);
+    state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+    
+    saveState();
+    recalculateAccounting();
+    
+    const master = document.getElementById("check-all-cash");
+    if (master) master.checked = false;
+    
+    updateBatchCashUI();
+    
+    filterCash();
+    if (typeof recalculateCashKpis === "function") recalculateCashKpis();
+    if (typeof renderDashboard === "function") renderDashboard();
+    if (typeof filterSales === "function") filterSales();
+    if (typeof filterPurchases === "function") filterPurchases();
+    if (typeof filterDebts === "function") filterDebts();
+    if (typeof filterPartners === "function") filterPartners();
+    if (typeof renderInventoryTable === "function") renderInventoryTable();
+    
+    showToast(`Đã xóa thành công ${checked.length} chứng từ thu chi!`, "success");
+  }
+}
+
 function toggleSelectAllSales(masterCheckbox) {
   const checkboxes = document.querySelectorAll(".sale-checkbox");
   checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
@@ -6869,7 +8782,54 @@ function deleteProduct(prodId) {
   }
 }
 
+// Quản lý hiển thị tab con của Kho hàng
+function switchInventorySubTab(subTabId) {
+  // Update buttons active class
+  const btnSummary = document.getElementById("tab-btn-inventory-summary");
+  const btnLedger = document.getElementById("tab-btn-inventory-ledger");
+  if (btnSummary && btnLedger) {
+    if (subTabId === "summary") {
+      btnSummary.classList.add("active");
+      btnLedger.classList.remove("active");
+    } else {
+      btnSummary.classList.remove("active");
+      btnLedger.classList.add("active");
+    }
+  }
+
+  // Update panels display
+  const panelSummary = document.getElementById("inventory-subtab-summary");
+  const panelLedger = document.getElementById("inventory-subtab-ledger");
+  if (panelSummary && panelLedger) {
+    if (subTabId === "summary") {
+      panelSummary.style.display = "block";
+      panelLedger.style.display = "none";
+    } else {
+      panelSummary.style.display = "none";
+      panelLedger.style.display = "block";
+      // Render stock ledger when switching to it, in case it wasn't rendered
+      renderStockLedger();
+    }
+  }
+}
+
+// Chuyển sang thẻ kho chi tiết cho một sản phẩm cụ thể
+function viewStockLedgerForProduct(productId) {
+  const select = document.getElementById("select-product-ledger");
+  if (select) {
+    select.value = productId;
+    renderStockLedger();
+  }
+  switchInventorySubTab("ledger");
+}
+
 // Đăng ký toàn cục các hàm
+window.switchInventorySubTab = switchInventorySubTab;
+window.viewStockLedgerForProduct = viewStockLedgerForProduct;
+window.selectLedgerProduct = selectLedgerProduct;
+window.filterLedgerProducts = filterLedgerProducts;
+window.exportStockLedgerToExcel = exportStockLedgerToExcel;
+window.autoIntegrateSoChiTietMuaHangExcel = autoIntegrateSoChiTietMuaHangExcel;
 window.toggleSelectAllSales = toggleSelectAllSales;
 window.updateBatchSalesUI = updateBatchSalesUI;
 window.batchDeleteSales = batchDeleteSales;
@@ -6885,23 +8845,65 @@ window.openQuickAddPartnerModal = openQuickAddPartnerModal;
 window.handleQuickAddPartnerSubmit = handleQuickAddPartnerSubmit;
 window.exportCurrentPartnerDebtExcel = exportCurrentPartnerDebtExcel;
 window.previewCurrentPartnerDebtNotice = previewCurrentPartnerDebtNotice;
+// Dashboard
+window.filterDashboard = filterDashboard;
+window.clearDashboardDateFilter = clearDashboardDateFilter;
+
+// Purchases
+window.changePurchasePage = changePurchasePage;
+window.clearPurchaseDateFilter = clearPurchaseDateFilter;
+window.toggleSelectAllPurchases = toggleSelectAllPurchases;
+window.updateBatchPurchasesUI = updateBatchPurchasesUI;
+window.batchDeletePurchases = batchDeletePurchases;
+window.exportPurchasesToExcel = exportPurchasesToExcel;
+
+// Escrows
+window.changeEscrowPage = changeEscrowPage;
+window.clearEscrowDateFilter = clearEscrowDateFilter;
+window.toggleSelectAllEscrows = toggleSelectAllEscrows;
+window.updateBatchEscrowsUI = updateBatchEscrowsUI;
+window.batchDeleteEscrows = batchDeleteEscrows;
+window.exportEscrowsToExcel = exportEscrowsToExcel;
+
+// Inventory Page Controls
+window.changeInventoryPage = changeInventoryPage;
+
+// Partners
+window.changePartnersPage = changePartnersPage;
+window.toggleSelectAllPartners = toggleSelectAllPartners;
+window.updateBatchPartnersUI = updateBatchPartnersUI;
+window.batchDeletePartners = batchDeletePartners;
+
+// Debts
+window.changeDebtsPage = changeDebtsPage;
+window.toggleSelectAllDebts = toggleSelectAllDebts;
+window.updateBatchDebtsUI = updateBatchDebtsUI;
+window.batchDeleteDebts = batchDeleteDebts;
+window.exportDebtsToExcel = exportDebtsToExcel;
+
+// Cash
+window.changeCashPage = changeCashPage;
+window.clearCashDateFilter = clearCashDateFilter;
+window.toggleSelectAllCash = toggleSelectAllCash;
+window.updateBatchCashUI = updateBatchCashUI;
+window.batchDeleteCash = batchDeleteCash;
+window.exportCashToExcel = exportCashToExcel;
+
 
 // --- PHÂN HỆ KIỂM TRA & TỰ ĐỘNG CẬP NHẬT PHẦN MỀM ---
 let appLocalVersion = "1.0.0";
 let remoteVersionGlobal = "";
 
-// Hàm tạo và hiển thị màn hình phủ tự động cập nhật
-function showAutoUpdateOverlay(version) {
+// Hiển thị hộp thoại cập nhật: mời tải bộ cài mới
+function showAutoUpdateOverlay(version, downloadUrl) {
   let overlay = document.getElementById("auto-update-overlay");
   if (!overlay) {
     overlay = document.createElement("div");
     overlay.id = "auto-update-overlay";
     overlay.style.cssText = `
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
       background: rgba(11, 15, 25, 0.96);
       z-index: 99999;
       display: flex;
@@ -6911,24 +8913,36 @@ function showAutoUpdateOverlay(version) {
       color: #fff;
       font-family: system-ui, -apple-system, sans-serif;
     `;
-    
-    // Thêm animation quay spinner
-    const style = document.createElement("style");
-    style.id = "auto-update-spinner-style";
-    style.innerHTML = `
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-    `;
-    document.head.appendChild(style);
     document.body.appendChild(overlay);
   }
-  
+
+  const url = downloadUrl || 'https://github.com/btduy13/RD/releases/latest';
+
   overlay.innerHTML = `
-    <div style="border: 4px solid rgba(255,255,255,0.1); border-left-color: #10b981; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 24px;"></div>
-    <h2 style="font-size: 22px; font-weight: bold; margin-bottom: 12px; color: #10b981; text-align: center;">Đang cập nhật lên phiên bản v${version}...</h2>
-    <p style="font-size: 14px; color: #94a3b8; max-width: 400px; text-align: center; line-height: 1.6; margin: 0 20px;">Hệ thống đang tự động tải xuống các tệp tin mới nhất từ GitHub. Phần mềm sẽ tự động khởi động lại ngay khi hoàn tất.</p>
+    <div style="background:#0f172a; border:1px solid #334155; border-radius:16px; padding:40px 48px; max-width:480px; text-align:center; box-shadow:0 25px 60px rgba(0,0,0,0.6);">
+      <div style="width:64px;height:64px;background:linear-gradient(135deg,#10b981,#0ea5e9);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px;">
+        ⬆️
+      </div>
+      <h2 style="font-size:22px;font-weight:800;color:#10b981;margin-bottom:10px;">
+        Phát hiện phiên bản mới <span style="color:#fff">v${version}</span>
+      </h2>
+      <p style="font-size:14px;color:#94a3b8;line-height:1.7;margin-bottom:28px;">
+        Bản cài đặt mới đã sẵn sàng. Nhấn nút bên dưới để mở trang tải về, sau đó chạy file
+        <strong style="color:#fff">Cai_Dat_Ke_Toan_Rang_Dong.exe</strong> để cài đè lên phấiến bản cũ.
+      </p>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        <button
+          onclick="(async()=>{ if(window.electronAPI?.openExternalUrl) await window.electronAPI.openExternalUrl('${url}'); else window.open('${url}','_blank'); })()"
+          style="padding:12px 28px;background:linear-gradient(135deg,#10b981,#0ea5e9);border:none;color:#fff;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;">
+          ⬇️ Tải bộ cài mới
+        </button>
+        <button
+          onclick="document.getElementById('auto-update-overlay').style.display='none'"
+          style="padding:12px 24px;background:#1e293b;border:1px solid #334155;color:#94a3b8;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">
+          Bỏ qua
+        </button>
+      </div>
+    </div>
   `;
   overlay.style.display = "flex";
 }
@@ -7025,42 +9039,33 @@ function compareVersions(v1, v2) {
   return 0;
 }
 
-// Kích hoạt tiến trình kéo code tự động từ Electron (nếu auto = true thì không cần hỏi confirm)
+// Kích hoạt tiến trình cập nhật: mở trang tải bộ cài mới
 async function triggerUpdateFlow(auto = false) {
   const statusContainer = document.getElementById("update-status-container");
-  
-  if (auto || confirm("Hệ thống sẽ chạy lệnh 'git pull' để tải các tệp tin mới nhất và tự động khởi động lại phần mềm. Bạn có chắc chắn muốn tiếp tục?")) {
-    if (statusContainer) {
-      statusContainer.style.background = "rgba(245, 158, 11, 0.1)";
-      statusContainer.style.color = "var(--color-warning)";
-      statusContainer.innerText = "Đang kéo mã nguồn mới từ GitHub & khởi động lại...";
+  const downloadUrl = `https://github.com/btduy13/RD/releases/latest`;
+
+  if (auto) {
+    // Kiểm tra tự động khi khởi động → chỉ hiện hộp thoại không auto-download
+    showAutoUpdateOverlay(remoteVersionGlobal || "mới", downloadUrl);
+    return;
+  }
+
+  // Bấm nút thủ công → mở trang tải ngay
+  if (statusContainer) {
+    statusContainer.style.background = "rgba(16, 185, 129, 0.1)";
+    statusContainer.style.color = "var(--color-success)";
+    statusContainer.innerText = "Đang mở trang tải bộ cài mới...";
+  }
+
+  try {
+    if (window.electronAPI?.openExternalUrl) {
+      await window.electronAPI.openExternalUrl(downloadUrl);
+    } else {
+      window.open(downloadUrl, '_blank');
     }
-    
-    showToast("Đang tự động cài đặt cập nhật...", "warning");
-    showAutoUpdateOverlay(remoteVersionGlobal || "mới");
-    
-    try {
-      const result = await window.electronAPI.triggerAutoUpdate();
-      console.log("Cập nhật thành công:", result);
-    } catch(err) {
-      if (statusContainer) {
-        statusContainer.style.background = "rgba(239, 68, 68, 0.1)";
-        statusContainer.style.color = "var(--color-danger)";
-        statusContainer.innerText = "Cập nhật thất bại: " + err;
-      }
-      showToast("Cập nhật thất bại: " + err, "danger");
-      
-      // Hiển thị lỗi lên màn hình phủ và cung cấp nút Đóng để người dùng tiếp tục sử dụng
-      const overlay = document.getElementById("auto-update-overlay");
-      if (overlay) {
-        overlay.innerHTML = `
-          <div style="border: 3px solid #ef4444; color: #ef4444; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; margin-bottom: 24px;">!</div>
-          <h2 style="font-size: 22px; font-weight: bold; margin-bottom: 12px; color: #ef4444; text-align: center;">Cập nhật thất bại</h2>
-          <p style="font-size: 14px; color: #94a3b8; max-width: 450px; text-align: center; line-height: 1.6; margin: 0 20px 24px 20px;">Lỗi: ${err}. Vui lòng kiểm tra kết nối mạng của bạn hoặc liên hệ nhà quản trị.</p>
-          <button class="btn btn-secondary" onclick="document.getElementById('auto-update-overlay').style.display='none'" style="padding: 8px 24px; font-size:14px; background:#334155; border:none; color:#fff; border-radius:4px; cursor:pointer; font-weight: 600;">Bỏ qua & Tiếp tục</button>
-        `;
-      }
-    }
+    showToast(`Đã mở trang tải bộ cài phiên bản mới v${remoteVersionGlobal}`, "success");
+  } catch(err) {
+    showToast("Định mở trình duyệt thất bại: " + err, "danger");
   }
 }
 
@@ -7162,6 +9167,10 @@ function initMouseInteractions() {
       `;
     } else if (type === "product") {
       menuHTML = `
+        <button class="context-menu-item" onclick="viewStockLedgerForProduct('${escapedId}')">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+          Xem sổ thẻ kho (${escapedId})
+        </button>
         <button class="context-menu-item" onclick="promptQuickImport('${escapedId}')">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
           Nhập kho nhanh (${escapedId})
@@ -7222,6 +9231,7 @@ function initMouseInteractions() {
   });
 
   // 4. Nhấn nút ESC để đóng cửa sổ/modal đang mở (Ưu tiên đóng modal trên cùng)
+  //    Nhấn nút F4 để thêm dòng mới, F8 để xóa dòng trong form Mua hàng/Bán hàng đang mở
   document.addEventListener("keydown", function(e) {
     if (e.key === "Escape") {
       const visibleOverlays = Array.from(document.querySelectorAll(".modal-overlay")).filter(
@@ -7238,6 +9248,66 @@ function initMouseInteractions() {
         
         if (typeof closeModal === "function") {
           closeModal(visibleOverlays[0].id);
+        }
+        e.preventDefault();
+      }
+    } else if (e.key === "F4") {
+      const salesModal = document.getElementById("modal-add-sales");
+      const isSalesVisible = salesModal && (salesModal.style.display === "flex" || window.getComputedStyle(salesModal).display === "flex");
+      const purchaseModal = document.getElementById("modal-add-purchase");
+      const isPurchaseVisible = purchaseModal && (purchaseModal.style.display === "flex" || window.getComputedStyle(purchaseModal).display === "flex");
+      
+      if (isSalesVisible) {
+        if (typeof addSalesFormRow === "function") {
+          addSalesFormRow();
+        }
+        e.preventDefault();
+      } else if (isPurchaseVisible) {
+        if (typeof addPurchaseFormRow === "function") {
+          addPurchaseFormRow();
+        }
+        e.preventDefault();
+      }
+    } else if (e.key === "F8") {
+      const salesModal = document.getElementById("modal-add-sales");
+      const isSalesVisible = salesModal && (salesModal.style.display === "flex" || window.getComputedStyle(salesModal).display === "flex");
+      const purchaseModal = document.getElementById("modal-add-purchase");
+      const isPurchaseVisible = purchaseModal && (purchaseModal.style.display === "flex" || window.getComputedStyle(purchaseModal).display === "flex");
+
+      if (isSalesVisible) {
+        const activeEl = document.activeElement;
+        const itemsBody = document.getElementById("sales-form-items-body");
+        if (itemsBody) {
+          let trToDelete = null;
+          if (activeEl && itemsBody.contains(activeEl)) {
+            trToDelete = activeEl.closest("tr");
+          } else {
+            trToDelete = itemsBody.querySelector("tr:last-child");
+          }
+          if (trToDelete) {
+            trToDelete.remove();
+            if (typeof recalculateSalesTotals === "function") {
+              recalculateSalesTotals();
+            }
+          }
+        }
+        e.preventDefault();
+      } else if (isPurchaseVisible) {
+        const activeEl = document.activeElement;
+        const itemsBody = document.getElementById("purchase-form-items-body");
+        if (itemsBody) {
+          let trToDelete = null;
+          if (activeEl && itemsBody.contains(activeEl)) {
+            trToDelete = activeEl.closest("tr");
+          } else {
+            trToDelete = itemsBody.querySelector("tr:last-child");
+          }
+          if (trToDelete) {
+            trToDelete.remove();
+            if (typeof recalculatePurchaseTotals === "function") {
+              recalculatePurchaseTotals();
+            }
+          }
         }
         e.preventDefault();
       }

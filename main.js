@@ -1,5 +1,5 @@
 // CẤU HÌNH VÒNG ĐỜI VÀ CỬA SỔ DESKTOP APP ĐỘC LẬP (MAIN.JS)
-const { app, BrowserWindow, Menu, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron');
 const path = require('path');
 const { exec } = require('child_process');
 const fs = require('fs');
@@ -60,28 +60,28 @@ ipcMain.handle('get-local-version', () => {
   return app.getVersion() || '1.0.0';
 });
 
-// 2. Chạy lệnh tự động cập nhật qua Git Pull và khởi động lại
-ipcMain.handle('trigger-auto-update', async () => {
-  return new Promise((resolve, reject) => {
-    console.log("Đang kích hoạt tự động cập nhật qua Git pull...");
-    exec('git pull origin main', { cwd: __dirname }, (error, stdout, stderr) => {
-      if (error) {
-        console.error("Lỗi chạy git pull:", error);
-        reject(error.message || "Lỗi kết nối hoặc xung đột mã nguồn.");
-        return;
-      }
-      
-      console.log("Git pull thành công:", stdout);
-      
-      // Relaunch app sau khi kéo mã nguồn mới về thành công
-      setTimeout(() => {
-        app.relaunch();
-        app.exit(0);
-      }, 1000);
-      
-      resolve(stdout);
-    });
-  });
+// 2. Mở URL bằng trình duyệt mặc định của hệ thống
+ipcMain.handle('open-external-url', async (event, url) => {
+  try {
+    await shell.openExternal(url);
+    return { ok: true };
+  } catch (err) {
+    console.error('Lỗi mở URL:', err);
+    return { ok: false, error: err.message };
+  }
+});
+
+// 3. Tự động cập nhật — mở trang GitHub Releases để tải bộ cài mới (không dùng git pull
+//    vì bản đóng gói không có git)
+ipcMain.handle('trigger-auto-update', async (event, downloadUrl) => {
+  const url = downloadUrl || 'https://github.com/btduy13/RD/releases/latest';
+  try {
+    await shell.openExternal(url);
+    return { ok: true, message: 'Đã mở trang tải bộ cài mới trong trình duyệt.' };
+  } catch (err) {
+    console.error('Lỗi mở trang tải:', err);
+    return { ok: false, error: err.message };
+  }
 });
 
 // Khởi chạy khi Electron sẵn sàng

@@ -4,6 +4,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   // Trả về phiên bản hiện tại từ package.json
   getLocalVersion: () => ipcRenderer.invoke('get-local-version'),
-  // Kích hoạt kéo mã nguồn tự động bằng Git và khởi động lại
-  triggerAutoUpdate: () => ipcRenderer.invoke('trigger-auto-update')
+  // Mở URL bên ngoài bằng trình duyệt mặc định
+  openExternalUrl: (url) => ipcRenderer.invoke('open-external-url', url),
+  // Mở trang tải bộ cài mới (GitHub Releases) trong trình duyệt
+  triggerAutoUpdate: (downloadUrl) => ipcRenderer.invoke('trigger-auto-update', downloadUrl)
 });

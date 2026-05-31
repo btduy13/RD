@@ -9,7 +9,7 @@ async function build() {
       outputDirectory: path.join(__dirname, 'dist', 'installer'),
       authors: 'Công ty Cổ phần Rạng Đông',
       exe: 'rd-accounting.exe',
-      setupExe: 'Cai_Dat_Ke_Toan_Rang_Dong.exe',
+      setupExe: 'Kế toán Rạng Đông Setup 1.2.exe',
       noMsi: true,
       title: 'Kế toán Rạng Đông',
       description: 'Phần mềm kế toán độc lập Công ty Cổ phần Rạng Đông',
@@ -17,7 +17,7 @@ async function build() {
     });
     console.log('===================================================');
     console.log('TẠO BỘ CÀI ĐẶT THÀNH CÔNG!');
-    console.log('Bộ cài đặt được lưu tại: dist/installer/Cai_Dat_Ke_Toan_Rang_Dong.exe');
+    console.log('Bộ cài đặt được lưu tại: dist/installer/Kế toán Rạng Đông Setup 1.2.exe');
     console.log('===================================================');
   } catch (e) {
     console.error('Lỗi khi tạo bộ cài đặt:', e.message);
@@ -31,14 +31,14 @@ async function build() {
           outputDirectory: path.join(__dirname, 'dist', 'installer'),
           authors: 'Công ty Cổ phần Rạng Đông',
           exe: 'rd-accounting.exe',
-          setupExe: 'Cai_Dat_Ke_Toan_Rang_Dong.exe',
+          setupExe: 'Kế toán Rạng Đông Setup 1.2.exe',
           noMsi: true,
           title: 'Kế toán Rạng Đông',
           description: 'Phần mềm kế toán độc lập Công ty Cổ phần Rạng Đông'
         });
         console.log('===================================================');
         console.log('TẠO BỘ CÀI ĐẶT THÀNH CÔNG (Không icon)!');
-        console.log('Bộ cài đặt được lưu tại: dist/installer/Cai_Dat_Ke_Toan_Rang_Dong.exe');
+        console.log('Bộ cài đặt được lưu tại: dist/installer/Kế toán Rạng Đông Setup 1.2.exe');
         console.log('===================================================');
       } catch (err) {
         console.error('Lỗi nghiêm trọng khi tạo bộ cài đặt:', err.message);
