@@ -100,6 +100,93 @@ ipcMain.handle('trigger-auto-update', async (event, downloadUrl) => {
   }
 });
 
+// 4. Tải trực tiếp tệp cài đặt mới từ GitHub và tự động kích hoạt tiến trình cài đặt
+const https = require('https');
+const http = require('http');
+const urlModule = require('url');
+
+function downloadFile(fileUrl, destPath, progressCallback) {
+  return new Promise((resolve, reject) => {
+    function get(url) {
+      const parsedUrl = urlModule.parse(url);
+      const protocol = parsedUrl.protocol === 'https:' ? https : http;
+      
+      protocol.get(url, (response) => {
+        if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+          // Follow redirect
+          return get(response.headers.location);
+        }
+        
+        if (response.statusCode !== 200) {
+          return reject(new Error(`Server returned status code ${response.statusCode}`));
+        }
+        
+        const totalSize = parseInt(response.headers['content-length'], 10) || 0;
+        let downloadedSize = 0;
+        const fileStream = fs.createWriteStream(destPath);
+        
+        response.on('data', (chunk) => {
+          downloadedSize += chunk.length;
+          fileStream.write(chunk);
+          if (progressCallback && totalSize > 0) {
+            const percent = Math.round((downloadedSize / totalSize) * 100);
+            progressCallback(percent);
+          }
+        });
+        
+        response.on('end', () => {
+          fileStream.end();
+          resolve();
+        });
+        
+        response.on('error', (err) => {
+          fileStream.destroy();
+          fs.unlink(destPath, () => {});
+          reject(err);
+        });
+        
+        fileStream.on('error', (err) => {
+          fileStream.destroy();
+          fs.unlink(destPath, () => {});
+          reject(err);
+        });
+      }).on('error', reject);
+    }
+    
+    get(fileUrl);
+  });
+}
+
+ipcMain.handle('download-and-install-update', async (event, downloadUrl) => {
+  const tempDir = app.getPath('temp');
+  const destPath = path.join(tempDir, 'Ke_Toan_Rang_Dong_Setup_Update.exe');
+  
+  try {
+    await downloadFile(downloadUrl, destPath, (percent) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('download-progress', percent);
+      }
+    });
+    
+    // Khởi chạy installer và thoát ứng dụng
+    const { spawn } = require('child_process');
+    const child = spawn(destPath, [], {
+      detached: true,
+      stdio: 'ignore'
+    });
+    child.unref();
+    
+    setTimeout(() => {
+      app.quit();
+    }, 800);
+    
+    return { ok: true };
+  } catch (err) {
+    console.error('Lỗi tải/cài đặt bản cập nhật:', err);
+    return { ok: false, error: err.message };
+  }
+});
+
 // Khởi chạy khi Electron sẵn sàng
 app.whenReady().then(() => {
   createWindow();

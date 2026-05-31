@@ -8914,25 +8914,22 @@ function showAutoUpdateOverlay(version, downloadUrl) {
     document.body.appendChild(overlay);
   }
 
-  const url = downloadUrl || 'https://github.com/btduy13/RD/releases/latest';
-
   overlay.innerHTML = `
     <div style="background:#0f172a; border:1px solid #334155; border-radius:16px; padding:40px 48px; max-width:480px; text-align:center; box-shadow:0 25px 60px rgba(0,0,0,0.6);">
       <div style="width:64px;height:64px;background:linear-gradient(135deg,#10b981,#0ea5e9);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px;">
-        ⬆️
+        🚀
       </div>
       <h2 style="font-size:22px;font-weight:800;color:#10b981;margin-bottom:10px;">
         Phát hiện phiên bản mới <span style="color:#fff">v${version}</span>
       </h2>
       <p style="font-size:14px;color:#94a3b8;line-height:1.7;margin-bottom:28px;">
-        Bản cài đặt mới đã sẵn sàng. Nhấn nút bên dưới để mở trang tải về, sau đó chạy file
-        <strong style="color:#fff">Cai_Dat_Ke_Toan_Rang_Dong.exe</strong> để cài đè lên phấiến bản cũ.
+        Bản cài đặt v${version} đã sẵn sàng trên máy chủ phát hành. Nhấp nút bên dưới để tự động tải về và cài đặt nâng cấp ngay lập tức!
       </p>
       <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
         <button
-          onclick="(async()=>{ if(window.electronAPI?.openExternalUrl) await window.electronAPI.openExternalUrl('${url}'); else window.open('${url}','_blank'); })()"
+          onclick="document.getElementById('auto-update-overlay').style.display='none'; triggerUpdateFlow();"
           style="padding:12px 28px;background:linear-gradient(135deg,#10b981,#0ea5e9);border:none;color:#fff;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;">
-          ⬇️ Tải bộ cài mới
+          ⚡ Cập nhật Tự động Ngay
         </button>
         <button
           onclick="document.getElementById('auto-update-overlay').style.display='none'"
@@ -9092,32 +9089,151 @@ function compareVersions(v1, v2) {
 }
 
 // Kích hoạt tiến trình cập nhật: mở trang tải bộ cài mới
+// Helper lấy URL tải file .exe từ danh sách Release assets
+async function getReleaseAssetUrl(version) {
+  try {
+    const response = await fetch(`https://api.github.com/repos/btduy13/RD/releases`);
+    if (response.ok) {
+      const releases = await response.json();
+      // Tìm release có tag_name khớp với v1.4.0 hoặc tương đương
+      const release = releases.find(r => r.tag_name === `v${version}` || r.tag_name === version || r.tag_name?.includes(version));
+      if (release && release.assets && release.assets.length > 0) {
+        const exeAsset = release.assets.find(a => a.name.endsWith('.exe'));
+        if (exeAsset) {
+          return exeAsset.browser_download_url;
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Lỗi lấy assets qua Releases API:", err);
+  }
+  // URL mặc định dự phòng nếu API GitHub quá giới hạn
+  return `https://github.com/btduy13/RD/releases/download/v${version}/Kế toán Rạng Đông Setup ${version}.exe`;
+}
+
+// Giao diện hiển thị Tiến trình tải về (Progress bar) trực quan
+function showDownloadProgressOverlay(version, downloadUrl) {
+  let overlay = document.getElementById("auto-update-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "auto-update-overlay";
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(11, 15, 25, 0.96);
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-family: system-ui, -apple-system, sans-serif;
+    `;
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = "flex";
+
+  overlay.innerHTML = `
+    <div style="background:#0f172a; border:1px solid #334155; border-radius:16px; padding:40px 48px; width:440px; text-align:center; box-shadow:0 25px 60px rgba(0,0,0,0.6);">
+      <div id="progress-spinner" style="width:48px;height:48px;border:4px solid #1e293b;border-top-color:#10b981;border-radius:50%;margin:0 auto 20px;animation:spin 1s linear infinite;"></div>
+      <h2 style="font-size:20px;font-weight:800;color:#fff;margin-bottom:12px;" id="progress-title">
+        Đang tải bản cập nhật v${version}
+      </h2>
+      <p style="font-size:13.5px;color:#94a3b8;line-height:1.6;margin-bottom:24px;" id="progress-subtitle">
+        Vui lòng giữ ứng dụng mở. Trình cài đặt nâng cấp sẽ tự động khởi động sau khi tải xong.
+      </p>
+      
+      <!-- Progress Bar Container -->
+      <div style="width:100%; height:8px; background:#1e293b; border-radius:4px; overflow:hidden; margin-bottom:12px; border:1px solid #334155;">
+        <div id="progress-bar-fill" style="width:0%; height:100%; background:linear-gradient(90deg,#10b981,#0ea5e9); transition:width 0.1s ease; border-radius:4px;"></div>
+      </div>
+      
+      <div style="font-size:14px; font-weight:700; color:#10b981; margin-bottom:20px;" id="progress-percent">0%</div>
+      
+      <button id="progress-cancel-btn"
+        onclick="document.getElementById('auto-update-overlay').style.display='none'"
+        style="padding:10px 20px;background:#1e293b;border:1px solid #334155;color:#94a3b8;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;width:100%;">
+        Hủy
+      </button>
+    </div>
+    <style>
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+  `;
+
+  // Lắng nghe sự kiện phần trăm tải về từ Electron
+  if (window.electronAPI && typeof window.electronAPI.onDownloadProgress === "function") {
+    window.electronAPI.onDownloadProgress((percent) => {
+      const bar = document.getElementById("progress-bar-fill");
+      const percentText = document.getElementById("progress-percent");
+      if (bar) bar.style.width = `${percent}%`;
+      if (percentText) percentText.innerText = `${percent}%`;
+      
+      if (percent >= 100) {
+        const spinner = document.getElementById("progress-spinner");
+        const title = document.getElementById("progress-title");
+        const subtitle = document.getElementById("progress-subtitle");
+        const cancelBtn = document.getElementById("progress-cancel-btn");
+        
+        if (spinner) spinner.style.borderTopColor = "#0ea5e9";
+        if (title) title.innerText = "Đang khởi chạy bộ cài đặt...";
+        if (subtitle) subtitle.innerText = "Phần mềm sẽ tự đóng để thực hiện cập nhật ghi đè an toàn.";
+        if (cancelBtn) cancelBtn.style.display = "none";
+      }
+    });
+  }
+
+  // Gọi IPC kích hoạt tải về trong tiến trình chính
+  window.electronAPI.downloadAndInstallUpdate(downloadUrl).then((result) => {
+    if (result && !result.ok) {
+      showToast("Lỗi khi tải bản cập nhật: " + result.error, "danger");
+      overlay.style.display = "none";
+    }
+  });
+}
+
+// Kích hoạt tiến trình cập nhật: tải trực tiếp hoặc mở trang tải
 async function triggerUpdateFlow(auto = false) {
   const statusContainer = document.getElementById("update-status-container");
-  const downloadUrl = `https://github.com/btduy13/RD/releases/latest`;
-
+  
   if (auto) {
-    // Kiểm tra tự động khi khởi động → chỉ hiện hộp thoại không auto-download
-    showAutoUpdateOverlay(remoteVersionGlobal || "mới", downloadUrl);
+    // Tự động kiểm tra lúc mở app -> chỉ hiện popup mời tải
+    showAutoUpdateOverlay(remoteVersionGlobal || "mới");
     return;
   }
 
-  // Bấm nút thủ công → mở trang tải ngay
-  if (statusContainer) {
-    statusContainer.style.background = "rgba(16, 185, 129, 0.1)";
-    statusContainer.style.color = "var(--color-success)";
-    statusContainer.innerText = "Đang mở trang tải bộ cài mới...";
+  // Nếu chạy trên Electron Desktop App và hỗ trợ tải trực tiếp
+  if (window.electronAPI && typeof window.electronAPI.downloadAndInstallUpdate === "function") {
+    try {
+      if (statusContainer) {
+        statusContainer.style.background = "rgba(245, 158, 11, 0.1)";
+        statusContainer.style.color = "var(--color-warning)";
+        statusContainer.innerText = "Đang liên kết với kho lưu trữ để tải bản cài mới...";
+      }
+
+      const assetUrl = await getReleaseAssetUrl(remoteVersionGlobal);
+      showDownloadProgressOverlay(remoteVersionGlobal, assetUrl);
+    } catch (err) {
+      showToast("Lỗi chuẩn bị tiến trình tải: " + err.message, "danger");
+    }
+    return;
   }
 
+  // Fallback nếu chạy ở trình duyệt: mở trang Releases
+  const fallbackUrl = `https://github.com/btduy13/RD/releases/latest`;
   try {
     if (window.electronAPI?.openExternalUrl) {
-      await window.electronAPI.openExternalUrl(downloadUrl);
+      await window.electronAPI.openExternalUrl(fallbackUrl);
     } else {
-      window.open(downloadUrl, '_blank');
+      window.open(fallbackUrl, '_blank');
     }
     showToast(`Đã mở trang tải bộ cài phiên bản mới v${remoteVersionGlobal}`, "success");
   } catch(err) {
-    showToast("Định mở trình duyệt thất bại: " + err, "danger");
+    showToast("Mở trình duyệt thất bại: " + err, "danger");
   }
 }
 

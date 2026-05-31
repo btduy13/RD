@@ -7,5 +7,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Mở URL bên ngoài bằng trình duyệt mặc định
   openExternalUrl: (url) => ipcRenderer.invoke('open-external-url', url),
   // Mở trang tải bộ cài mới (GitHub Releases) trong trình duyệt
-  triggerAutoUpdate: (downloadUrl) => ipcRenderer.invoke('trigger-auto-update', downloadUrl)
+  triggerAutoUpdate: (downloadUrl) => ipcRenderer.invoke('trigger-auto-update', downloadUrl),
+  // Kích hoạt tải và cài đặt cập nhật trực tiếp
+  downloadAndInstallUpdate: (url) => ipcRenderer.invoke('download-and-install-update', url),
+  // Đăng ký lắng nghe tiến trình tải về
+  onDownloadProgress: (callback) => ipcRenderer.on('download-progress', (event, percent) => callback(percent))
 });
