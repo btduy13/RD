@@ -1,8 +1,8 @@
 // Dữ liệu mẫu khởi tạo cho phần mềm Kế toán Rạng Đông (RD Accounting)
 
 const DEFAULT_DATA = {
-  companyName: "CÔNG TY CỔ PHẦN BÓNG ĐÈN PHÍCH NƯỚC RẠNG ĐÔNG",
-  address: "Số 87-89, Đường Hạ Đình, Phường Thanh Xuân Trung, Quận Thanh Xuân, Hà Nội",
+  companyName: "Công Ty Cổ Phần Rạng Đông",
+  address: "255 Trương Công Định",
   taxCode: "0100101438",
   accountingStandard: "TT200", // Mặc định dùng Thông tư 200, có thể chuyển sang TT133
 

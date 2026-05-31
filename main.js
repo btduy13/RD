@@ -6,7 +6,23 @@ const fs = require('fs');
 
 let mainWindow;
 
+// Helper đọc phiên bản từ package.json
+function getAppVersion() {
+  try {
+    const pkgPath = path.join(__dirname, 'package.json');
+    if (fs.existsSync(pkgPath)) {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      return pkg.version || '1.0.0';
+    }
+  } catch (err) {
+    console.error("Lỗi đọc phiên bản package.json:", err);
+  }
+  return '1.0.0';
+}
+
 function createWindow() {
+  const appVersion = getAppVersion();
+
   // 1. Khởi tạo cửa sổ Desktop với kích thước tiêu chuẩn và thiết kế cao cấp
   mainWindow = new BrowserWindow({
     width: 1300,
@@ -14,7 +30,7 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 700,
     center: true,
-    title: "Phần mềm Kế toán Rạng Đông - RD Accounting",
+    title: `RD Accounting v${appVersion} - Phần Mềm Kế Toán Rạng Đông`,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

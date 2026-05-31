@@ -4,8 +4,8 @@
    ========================================================================== */
 
 const PREPOPULATED_DATABASE = {
-  "companyName": "CÔNG TY CỔ PHẦN BÓNG ĐÈN PHÍCH NƯỚC RẠNG ĐÔNG",
-  "address": "Số 87-89, Đường Hạ Đình, Phường Thanh Xuân Trung, Quận Thanh Xuân, Hà Nội",
+  "companyName": "Công Ty Cổ Phần Rạng Đông",
+  "address": "255 Trương Công Định",
   "taxCode": "0100101438",
   "accountingStandard": "TT200",
   "products": [

@@ -647,7 +647,7 @@ window.addEventListener("beforeunload", () => {
 
 // Cập nhật các thông tin công ty lên giao diện
 function updateCompanyUI() {
-  document.getElementById("header-company-name").innerText = state.companyName || "CÔNG TY CP RẠNG ĐÔNG";
+  document.getElementById("header-company-name").innerText = state.companyName || "Công Ty Cổ Phần Rạng Đông";
   document.getElementById("setting-company-name").value = state.companyName || "";
   document.getElementById("setting-tax-code").value = state.taxCode || "";
   document.getElementById("setting-address").value = state.address || "";
@@ -664,9 +664,9 @@ function updateCompanyUI() {
 
 // Lưu thiết lập doanh nghiệp
 function saveCompanySettings() {
-  state.companyName = document.getElementById("setting-company-name").value.trim() || "CÔNG TY CP RẠNG ĐÔNG";
+  state.companyName = document.getElementById("setting-company-name").value.trim() || "Công Ty Cổ Phần Rạng Đông";
   state.taxCode = document.getElementById("setting-tax-code").value.trim();
-  state.address = document.getElementById("setting-address").value.trim();
+  state.address = document.getElementById("setting-address").value.trim() || "255 Trương Công Định";
   saveState();
   updateCompanyUI();
   showToast("Lưu thông tin doanh nghiệp thành công!", "success");
@@ -1075,12 +1075,10 @@ function renderDashboard() {
   const totalInventoryVal = getInventoryValueAt(toDate);
   document.getElementById("kpi-inventory-value").innerText = formatVND(totalInventoryVal);
 
-  // D. Ký quỹ ký cược: Dư nợ TK 244 (Ký quỹ đi) - Dư Có TK 344 (Ký quỹ nhận) (lũy kế đến toDate)
-  const acct244 = state.accountingStandard === "TT200" ? "244" : "1386";
-  const acct344 = state.accountingStandard === "TT200" ? "344" : "3386";
-  const bal244 = getAccountBalance(acct244, toDate);
-  const bal344 = getAccountBalance(acct344, toDate);
-  document.getElementById("kpi-escrow-value").innerText = formatVND(bal244 + bal344);
+  const escrowValueEl = document.getElementById("kpi-escrow-value");
+  if (escrowValueEl) {
+    escrowValueEl.innerText = formatVND(bal244 + bal344);
+  }
 
   // RENDER BIỂU ĐỒ OFFLINE BẰNG SVG TRỰC QUAN
   renderDashboardSVGChart();
@@ -1521,7 +1519,7 @@ function renderPurchaseTable() {
   }
 
   if (displayedPurchases.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy hóa đơn mua hàng nào phù hợp.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy hóa đơn mua hàng nào phù hợp.</td></tr>`;
     return;
   }
 
@@ -1535,7 +1533,6 @@ function renderPurchaseTable() {
         </td>
         <td class="font-numeric" style="color: var(--color-primary); font-weight:700;">${v.id}</td>
         <td>${formattedDate}</td>
-        <td><span style="font-weight:600;">${getPartnerNameForVoucher(v)}</span></td>
         <td>${v.description}</td>
         <td><span class="badge ${v.paymentMethod === '331' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '331' ? 'Công nợ (331)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
         <td class="text-right font-numeric">${formatVND(rawVal)}</td>
@@ -2118,7 +2115,7 @@ function exportStockLedgerToExcel() {
     const ncols = headers.length;
 
     // ROW 0: Tiêu đề lớn
-    sc(0, 0, (state.companyName || "CÔNG TY CP RẠNG ĐÔNG") + " — SỔ THẺ KHO CHI TIẾT", 's', { font: fntT, alignment: cC });
+    sc(0, 0, (state.companyName || "Công Ty Cổ Phần Rạng Đông") + " — SỔ THẺ KHO CHI TIẾT", 's', { font: fntT, alignment: cC });
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: ncols - 1 } });
 
     // ROW 1: Tên sản phẩm
@@ -3496,8 +3493,8 @@ function viewVoucher(id) {
   }
 
   let content = "";
-  const companyName = state.companyName || "CÔNG TY CP RẠNG ĐÔNG";
-  const companyAddr = state.address || "Số 87-89 Hạ Đình, Thanh Xuân, Hà Nội";
+  const companyName = state.companyName || "Công Ty Cổ Phần Rạng Đông";
+  const companyAddr = state.address || "255 Trương Công Định";
   const companyTax = state.taxCode || "0100101438";
 
   // TIÊU ĐỀ CHỨNG TỪ THEO CHUẨN IN ẤN
@@ -3649,7 +3646,7 @@ function viewVoucher(id) {
 
           <!-- Thông tin công ty chính xác theo mẫu giấy -->
           <div style="text-align: center; flex-grow: 1; padding-left: 10px; color: #000;">
-            <div style="font-weight: bold; font-size: 13.5px; text-transform: uppercase; letter-spacing: 0.2px;">CÔNG TY CP SẢN XUẤT VÀ ĐT PHÁT TRIỂN RẠNG ĐÔNG</div>
+            <div style="font-weight: bold; font-size: 13.5px; text-transform: uppercase; letter-spacing: 0.2px;">Công Ty Cổ Phần Rạng Đông</div>
             <div style="font-weight: bold; font-size: 11px; text-transform: uppercase; margin-top: 2px;">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY</div>
             <div style="font-size: 11px; margin-top: 3px;">Địa chỉ: 255 Trương Công Định, P. Vũng Tàu</div>
             <div style="font-size: 11px; margin-top: 1px; font-weight: 500;">Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074</div>
@@ -4838,7 +4835,7 @@ function exportProductsToExcel() {
     const ncols = headers.length;
 
     // ROW 0: Tiêu đề
-    sc(0, 0, (state.companyName || "CÔNG TY CP RẠNG ĐÔNG") + " — DANH SÁCH VẬT TƯ, HÀNG HÓA", 's', { font: fntT, alignment: cC });
+    sc(0, 0, (state.companyName || "Công Ty Cổ Phần Rạng Đông") + " — DANH SÁCH VẬT TƯ, HÀNG HÓA", 's', { font: fntT, alignment: cC });
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: ncols - 1 } });
 
     // ROW 1: Headers
@@ -4927,7 +4924,7 @@ function exportPartnersToExcel() {
     const ncols = headers.length;
 
     // ROW 0: Tiêu đề
-    sc(0, 0, (state.companyName || "CÔNG TY CP RẠNG ĐÔNG") + " — DANH SÁCH KHÁCH HÀNG / NHÀ CUNG CẤP", 's', { font: fntT, alignment: cC });
+    sc(0, 0, (state.companyName || "Công Ty Cổ Phần Rạng Đông") + " — DANH SÁCH KHÁCH HÀNG / NHÀ CUNG CẤP", 's', { font: fntT, alignment: cC });
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: ncols - 1 } });
 
     // ROW 1: Headers
@@ -5424,12 +5421,12 @@ async function exportPartnerDebtExcel(partnerId) {
     let row = 0; // 0-indexed
 
     // --- ROW 0: Company Name ---
-    setCell("A1", "CÔNG TY CỔ PHẦN SẢN XUẤT VÀ ĐẦU TƯ PHÁT TRIỂN RẠNG ĐÔNG", "s",
+    setCell("A1", "Công Ty Cổ Phần Rạng Đông", "s",
       { font: fontCompany, alignment: alignCenter });
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } });
 
     // --- ROW 1: Address ---
-    setCell("A2", "Số 69/4 Phan Chu Trinh, Phường Vũng Tàu, Thành phố Hồ Chí Minh, Việt Nam.", "s",
+    setCell("A2", "255 Trương Công Định", "s",
       { font: fontAddr, alignment: alignCenter });
     merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 4 } });
 
@@ -5701,7 +5698,8 @@ function previewPartnerDebtNotice(partnerId) {
     const formatted = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(val);
     const clean = formatted.replace(/[₫đ\sVND]/g, '').trim();
     if (val < 0) {
-      return `(${clean.replace('-', '')})`;
+      const absClean = clean.replace('-', '').replace('(', '').replace(')', '');
+      return `-${absClean}`;
     }
     return clean;
   };
@@ -5777,8 +5775,8 @@ function previewPartnerDebtNotice(partnerId) {
           <img src="logo.jpg" style="max-height: 50px; max-width: 90px; object-fit: contain;" alt="Logo" onerror="this.style.display='none'" />
         </div>
         <div style="flex-grow: 1; text-align: left;">
-          <div style="font-weight: bold; font-size: 13px; text-transform: uppercase;">CÔNG TY CỔ PHẦN SẢN XUẤT VÀ ĐẦU TƯ PHÁT TRIỂN RẠNG ĐÔNG</div>
-          <div style="font-size: 11px; margin-top: 2px;">Số 69/4 Phan Chu Trinh, Phường Vũng Tàu, Thành phố Hồ Chí Minh, Việt Nam.</div>
+          <div style="font-weight: bold; font-size: 13px; text-transform: uppercase;">Công Ty Cổ Phần Rạng Đông</div>
+          <div style="font-size: 11px; margin-top: 2px;">255 Trương Công Định</div>
         </div>
       </div>
 
@@ -6115,7 +6113,7 @@ function exportDebtsToExcel() {
     const ncols = headers.length;
 
     // ROW 0: Tiêu đề
-    sc(0, 0, (state.companyName || "CÔNG TY CP RẠNG ĐÔNG") + " — SỔ DƯ CÔNG NỢ", 's', { font: fntT, alignment: cC });
+    sc(0, 0, (state.companyName || "Công Ty Cổ Phần Rạng Đông") + " — SỔ DƯ CÔNG NỢ", 's', { font: fntT, alignment: cC });
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: ncols - 1 } });
 
     // ROW 1: Headers
@@ -6633,7 +6631,7 @@ function exportSalesToExcel() {
 
     // ROW 0: Tiêu đề
     const today = new Date().toLocaleDateString('vi-VN');
-    sc(0, 0, (state.companyName || "CÔNG TY CP RẠNG ĐÔNG") + " — DANH SÁCH BÁN HÀNG", 's', { font: fntT, alignment: cC });
+    sc(0, 0, (state.companyName || "Công Ty Cổ Phần Rạng Đông") + " — DANH SÁCH BÁN HÀNG", 's', { font: fntT, alignment: cC });
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 14 } });
 
     // ROW 1: Phạm vi
@@ -8182,7 +8180,7 @@ function exportPurchasesToExcel() {
     let dateRangeText = `Từ ngày: ${fromDate || 'đầu kỳ'}   Đến ngày: ${toDate || today}`;
 
     // --- ROW 0: Tiêu đề chính ---
-    const compName = state.companyName || "CÔNG TY CP RẠNG ĐÔNG";
+    const compName = state.companyName || "Công Ty Cổ Phần Rạng Đông";
     setCell(ws, 0, 0, compName, 's', { font: fntTitle, alignment: cCenter }, null);
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 21 } });
 
@@ -8429,7 +8427,7 @@ function exportEscrowsToExcel() {
     };
 
     // ROW 0: Tiêu đề
-    const compName = state.companyName || "CÔNG TY CP RẠNG ĐÔNG";
+    const compName = state.companyName || "Công Ty Cổ Phần Rạng Đông";
     setCell(ws, 0, 0, compName, 's', { font: fntTitle, alignment: cCenter }, null);
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } });
 
@@ -8951,11 +8949,13 @@ function showAutoUpdateOverlay(version, downloadUrl) {
 async function initLocalVersionDisplay() {
   const displayEl = document.getElementById("display-local-version");
   const cardEl = document.getElementById("card-auto-update");
+  const brandDisplayEl = document.getElementById("brand-version-display");
   
   if (window.electronAPI && typeof window.electronAPI.getLocalVersion === "function") {
     try {
       appLocalVersion = await window.electronAPI.getLocalVersion();
       if (displayEl) displayEl.innerText = `v${appLocalVersion}`;
+      if (brandDisplayEl) brandDisplayEl.innerText = `RD Accounting v${appLocalVersion}`;
       if (cardEl) cardEl.style.display = "flex"; // Hiện card cập nhật trên Desktop App
     } catch(e) {
       console.error("Lỗi lấy phiên bản từ Electron:", e);
@@ -8963,6 +8963,7 @@ async function initLocalVersionDisplay() {
   } else {
     // Nếu chạy trên trình duyệt web thông thường, ẩn thẻ kiểm tra cập nhật
     if (cardEl) cardEl.style.display = "none";
+    if (brandDisplayEl) brandDisplayEl.innerText = `RD Accounting v${appLocalVersion}`;
   }
 }
 
@@ -8984,11 +8985,48 @@ async function checkForUpdates(manual = false) {
   }
 
   try {
-    // 1. Tải file package.json mới nhất từ nhánh main của GitHub
-    // Đặt tham số cache buster ?t= để tránh cache của CDN GitHub
-    const url = `https://raw.githubusercontent.com/btduy13/RD/main/package.json?t=${Date.now()}`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error("Không thể kết nối máy chủ GitHub.");
+    // 1. Tải file package.json bằng cơ chế Fallback Cascade (tránh bị chặn DNS/ISP tại Việt Nam)
+    const urls = [
+      `https://raw.githubusercontent.com/btduy13/RD/main/package.json?t=${Date.now()}`,
+      `https://cdn.jsdelivr.net/gh/btduy13/RD@main/package.json?t=${Date.now()}`
+    ];
+
+    let response = null;
+    let isPrivateRepo = false;
+    let lastError = null;
+
+    for (const url of urls) {
+      try {
+        // Sử dụng timeout 5 giây để chuyển đổi nhanh giữa các mirror nếu một cái bị treo
+        response = await fetch(url, { signal: AbortSignal.timeout(5000) });
+        if (response) {
+          if (response.ok) {
+            break;
+          } else if (response.status === 404) {
+            isPrivateRepo = true; // Phát hiện kho lưu trữ riêng tư/bảo mật
+          }
+        }
+      } catch (err) {
+        lastError = err;
+        console.warn(`Thất bại khi lấy dữ liệu cập nhật từ ${url}:`, err.message);
+      }
+    }
+
+    // 1. Xử lý trường hợp Kho lưu trữ Riêng tư / Bảo mật (Trả về 404)
+    if (isPrivateRepo && (!response || !response.ok)) {
+      statusContainer.style.background = "rgba(16, 185, 129, 0.1)";
+      statusContainer.style.color = "var(--color-success)";
+      statusContainer.innerText = `Hệ thống bảo mật (Private Repo). Phiên bản hiện tại v${appLocalVersion} là mới nhất.`;
+      if (manual) {
+        showToast(`Bản cài đặt bảo mật v${appLocalVersion} đã tối ưu!`, "success");
+      }
+      return;
+    }
+
+    // 2. Xử lý lỗi kết nối thực tế
+    if (!response || !response.ok) {
+      throw new Error("Không thể kết nối máy chủ cập nhật (Mạng chập chờn hoặc bị chặn bởi ISP).");
+    }
     
     const remotePkg = await response.json();
     const remoteVersion = remotePkg.version;
