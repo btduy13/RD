@@ -4351,7 +4351,7 @@ function openEditPartnerModal(id) {
 
   document.getElementById("edit-partner-index").value = p.id;
   document.getElementById("partner-id").value = p.id;
-  document.getElementById("partner-id").disabled = true;
+  document.getElementById("partner-id").disabled = false; // Mở khóa mã đối tác cho phép chỉnh sửa
   document.getElementById("partner-name").value = p.name;
   document.getElementById("partner-type").value = p.type;
   document.getElementById("partner-phone").value = p.phone || "";
@@ -4378,7 +4378,27 @@ function handlePartnerSubmit(e) {
   if (editIndex !== "-1") {
     const idx = state.partners.findIndex(p => p.id === editIndex);
     if (idx !== -1) {
-      state.partners[idx] = { id: editIndex, name, type, phone, email: "", address, taxCode, inactive };
+      const newId = idVal.toUpperCase();
+      if (newId !== editIndex && state.partners.some(p => p.id === newId)) {
+        showToast(`Mã đối tác "${newId}" đã tồn tại!`, "danger");
+        return;
+      }
+
+      // Cập nhật tất cả các tham chiếu liên quan nếu Mã đối tác bị thay đổi
+      if (newId !== editIndex) {
+        state.vouchers.forEach(v => {
+          if (v.partnerId === editIndex) {
+            v.partnerId = newId;
+            v.partnerName = name;
+          }
+        });
+        if (state.partnerOpeningBalances && state.partnerOpeningBalances[editIndex]) {
+          state.partnerOpeningBalances[newId] = state.partnerOpeningBalances[editIndex];
+          delete state.partnerOpeningBalances[editIndex];
+        }
+      }
+
+      state.partners[idx] = { id: newId, name, type, phone, email: "", address, taxCode, inactive };
       showToast("Cập nhật đối tác thành công!", "success");
     }
   } else {
