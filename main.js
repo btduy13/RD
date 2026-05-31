@@ -125,6 +125,11 @@ function downloadFile(fileUrl, destPath, progressCallback) {
         let downloadedSize = 0;
         const fileStream = fs.createWriteStream(destPath);
         
+        // Đảm bảo chỉ resolve khi fileStream đã hoàn tất ghi toàn bộ xuống đĩa và đóng handle
+        fileStream.on('finish', () => {
+          resolve();
+        });
+        
         response.on('data', (chunk) => {
           downloadedSize += chunk.length;
           fileStream.write(chunk);
@@ -136,7 +141,6 @@ function downloadFile(fileUrl, destPath, progressCallback) {
         
         response.on('end', () => {
           fileStream.end();
-          resolve();
         });
         
         response.on('error', (err) => {
@@ -168,17 +172,33 @@ ipcMain.handle('download-and-install-update', async (event, downloadUrl) => {
       }
     });
     
-    // Khởi chạy installer và thoát ứng dụng
-    const { spawn } = require('child_process');
-    const child = spawn(destPath, [], {
-      detached: true,
-      stdio: 'ignore'
-    });
-    child.unref();
+    // Khởi chạy bộ cài đặt mới
+    // Sử dụng shell.openPath giúp tích hợp tốt với UAC (User Account Control) của Windows và tránh lỗi EBUSY
+    try {
+      const errStr = await shell.openPath(destPath);
+      if (errStr) {
+        console.error('Lỗi khi mở bộ cài qua shell.openPath, chuyển sang dùng spawn:', errStr);
+        const { spawn } = require('child_process');
+        const child = spawn(destPath, [], {
+          detached: true,
+          stdio: 'ignore'
+        });
+        child.unref();
+      }
+    } catch (openErr) {
+      console.error('Lỗi try-catch khi mở bộ cài qua shell.openPath, dùng spawn:', openErr);
+      const { spawn } = require('child_process');
+      const child = spawn(destPath, [], {
+        detached: true,
+        stdio: 'ignore'
+      });
+      child.unref();
+    }
     
+    // Thoát ứng dụng chính sau khi kích hoạt bộ cài thành công
     setTimeout(() => {
       app.quit();
-    }, 800);
+    }, 1000);
     
     return { ok: true };
   } catch (err) {
