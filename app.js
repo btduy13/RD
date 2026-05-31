@@ -8987,20 +8987,23 @@ async function checkForUpdates(manual = false) {
   try {
     // 1. Tải file package.json bằng cơ chế Fallback Cascade (tránh bị chặn DNS/ISP tại Việt Nam)
     const urls = [
-      `https://raw.githubusercontent.com/btduy13/RD/main/package.json?t=${Date.now()}`,
-      `https://cdn.jsdelivr.net/gh/btduy13/RD@main/package.json?t=${Date.now()}`
+      { type: "api", url: `https://api.github.com/repos/btduy13/RD/contents/package.json?t=${Date.now()}` },
+      { type: "raw", url: `https://raw.githubusercontent.com/btduy13/RD/main/package.json?t=${Date.now()}` },
+      { type: "cdn", url: `https://cdn.jsdelivr.net/gh/btduy13/RD@main/package.json?t=${Date.now()}` }
     ];
 
     let response = null;
     let isPrivateRepo = false;
     let lastError = null;
+    let fetchedUrlObj = null;
 
-    for (const url of urls) {
+    for (const urlObj of urls) {
       try {
         // Sử dụng timeout 5 giây để chuyển đổi nhanh giữa các mirror nếu một cái bị treo
-        response = await fetch(url, { signal: AbortSignal.timeout(5000) });
+        response = await fetch(urlObj.url, { signal: AbortSignal.timeout(5000) });
         if (response) {
           if (response.ok) {
+            fetchedUrlObj = urlObj;
             break;
           } else if (response.status === 404) {
             isPrivateRepo = true; // Phát hiện kho lưu trữ riêng tư/bảo mật
@@ -9008,7 +9011,7 @@ async function checkForUpdates(manual = false) {
         }
       } catch (err) {
         lastError = err;
-        console.warn(`Thất bại khi lấy dữ liệu cập nhật từ ${url}:`, err.message);
+        console.warn(`Thất bại khi lấy dữ liệu cập nhật từ ${urlObj.url}:`, err.message);
       }
     }
 
@@ -9028,8 +9031,19 @@ async function checkForUpdates(manual = false) {
       throw new Error("Không thể kết nối máy chủ cập nhật (Mạng chập chờn hoặc bị chặn bởi ISP).");
     }
     
-    const remotePkg = await response.json();
-    const remoteVersion = remotePkg.version;
+    let remoteVersion = null;
+    if (fetchedUrlObj && fetchedUrlObj.type === "api") {
+      const apiData = await response.json();
+      if (apiData && apiData.content) {
+        // Giải mã base64 từ API Contents
+        const decodedContent = atob(apiData.content.replace(/\s/g, ''));
+        const remotePkg = JSON.parse(decodedContent);
+        remoteVersion = remotePkg.version;
+      }
+    } else {
+      const remotePkg = await response.json();
+      remoteVersion = remotePkg.version;
+    }
     
     if (!remoteVersion) throw new Error("File cấu hình cập nhật không hợp lệ.");
     remoteVersionGlobal = remoteVersion;
