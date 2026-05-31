@@ -3668,14 +3668,14 @@ function viewVoucher(id) {
           </div>
           
           <div>
-            <strong>Điện thoại:</strong> <span>${(state.partners.find(x => x.id === v.partnerId) || {}).phone || "-"}</span>
+            <strong>Điện thoại:</strong> <span>${(getPartnerForVoucher(v) || {}).phone || "-"}</span>
           </div>
           <div style="text-align: right;">
             <strong>Số:</strong> <span style="font-family: monospace; font-weight: bold; font-size: 14px;">${v.id}</span>
           </div>
 
           <div style="grid-column: span 2;">
-            <strong>Địa chỉ:</strong> <span>${(state.partners.find(x => x.id === v.partnerId) || {}).address || "-"}</span>
+            <strong>Địa chỉ:</strong> <span>${(getPartnerForVoucher(v) || {}).address || "-"}</span>
           </div>
           
           <div style="grid-column: span 2;">
@@ -3907,12 +3907,34 @@ function escapeHtmlAttr(str) {
                   .replace(/>/g, "&gt;");
 }
 
+// Tìm đối tác an toàn từ chứng từ để lấy thông tin liên hệ sđt, địa chỉ
+function getPartnerForVoucher(v) {
+  if (!v) return null;
+  let p = null;
+  
+  // 1. Tìm theo ID trước
+  if (v.partnerId) {
+    p = state.partners.find(x => x.id === v.partnerId);
+  }
+  
+  // 2. Tìm theo tên nếu tìm theo ID thất bại hoặc nếu partnerId chính là tên đối tác
+  if (!p && v.partnerName) {
+    const nameLower = v.partnerName.trim().toLowerCase();
+    p = state.partners.find(x => x.name.trim().toLowerCase() === nameLower);
+  }
+  
+  if (!p && v.partnerId) {
+    const idLower = v.partnerId.trim().toLowerCase();
+    p = state.partners.find(x => x.name.trim().toLowerCase() === idLower);
+  }
+  
+  return p;
+}
+
 // Lấy tên đối tác mới nhất một cách động dựa trên partnerId để liên kết CSDL
 function getPartnerNameForVoucher(v) {
-  if (v && v.partnerId) {
-    const p = state.partners.find(x => x.id === v.partnerId);
-    if (p) return p.name;
-  }
+  const p = getPartnerForVoucher(v);
+  if (p) return p.name;
   return (v && v.partnerName) ? v.partnerName : "Khách hàng vãng lai";
 }
 // Phân tích chuỗi số định dạng tiền tệ Việt Nam thành Number
