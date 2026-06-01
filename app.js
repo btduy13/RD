@@ -938,8 +938,27 @@ function refreshUI() {
   }
 }
 
+// Biến toàn cục lưu trữ trạng thái các modal đang mở theo từng tab
+let activeModalsByTab = {};
+
 // 4. ĐIỀU HƯỚNG TAB CHỨNG TỪ (UI TABS SWITCHER)
 function switchTab(tabId) {
+  // Lấy tab cũ trước khi chuyển
+  const prevActiveMenu = document.querySelector(".sidebar-menu .menu-item.active");
+  const prevTabId = prevActiveMenu ? prevActiveMenu.getAttribute("data-tab") : null;
+
+  // Lưu trạng thái các modal đang mở của tab cũ và ẩn tạm thời
+  if (prevTabId) {
+    const openModals = [];
+    document.querySelectorAll(".modal-overlay").forEach(modal => {
+      if (modal.style.display === "flex" || modal.style.display === "block") {
+        openModals.push(modal.id);
+        modal.style.display = "none";
+      }
+    });
+    activeModalsByTab[prevTabId] = openModals;
+  }
+
   // Bỏ active tất cả menu
   document.querySelectorAll(".sidebar-menu .menu-item").forEach(item => {
     item.classList.remove("active");
@@ -1007,6 +1026,17 @@ function switchTab(tabId) {
     if (typeof updateErrorLogsUI === "function") {
       updateErrorLogsUI();
     }
+  }
+
+  // Khôi phục các modal đang mở trước đó của tab mới
+  const restoreModals = activeModalsByTab[tabId];
+  if (restoreModals && restoreModals.length > 0) {
+    restoreModals.forEach(modalId => {
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.style.display = "flex";
+      }
+    });
   }
 
   // Scroll to top
