@@ -9398,8 +9398,8 @@ async function checkForUpdates(manual = false) {
 
     for (const urlObj of urls) {
       try {
-        // Sử dụng timeout 5 giây để chuyển đổi nhanh giữa các mirror nếu một cái bị treo
-        response = await fetch(urlObj.url, { signal: AbortSignal.timeout(5000) });
+        // Sử dụng timeout 15 giây để đảm bảo kết nối thành công ngay cả khi mạng chậm/bị bóp băng thông
+        response = await fetch(urlObj.url, { signal: AbortSignal.timeout(15000) });
         if (response) {
           if (response.ok) {
             fetchedUrlObj = urlObj;
@@ -9494,7 +9494,8 @@ function compareVersions(v1, v2) {
 // Helper lấy URL tải file .exe từ danh sách Release assets
 async function getReleaseAssetUrl(version) {
   try {
-    const response = await fetch(`https://api.github.com/repos/btduy13/RD/releases`);
+    // Sử dụng timeout 10 giây để tránh bị treo vô hạn nếu kết nối đến GitHub API bị chặn/bóp băng thông
+    const response = await fetch(`https://api.github.com/repos/btduy13/RD/releases`, { signal: AbortSignal.timeout(10000) });
     if (response.ok) {
       const releases = await response.json();
       // Tìm release có tag_name khớp với v1.4.0 hoặc tương đương
