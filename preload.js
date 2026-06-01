@@ -11,5 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Kích hoạt tải và cài đặt cập nhật trực tiếp
   downloadAndInstallUpdate: (url) => ipcRenderer.invoke('download-and-install-update', url),
   // Đăng ký lắng nghe tiến trình tải về
-  onDownloadProgress: (callback) => ipcRenderer.on('download-progress', (event, percent) => callback(percent))
+  onDownloadProgress: (callback) => ipcRenderer.on('download-progress', (event, percent) => callback(percent)),
+  // Đọc file Excel từ thư mục excel/ trong app (dùng fs thay vì fetch để tránh lỗi file:// protocol)
+  readExcelFile: (filename) => ipcRenderer.invoke('read-excel-file', filename)
 });

@@ -62,7 +62,23 @@ function createWindow() {
 
 // IPC HANDLERS GIAO TIẾP ĐỂ TỰ ĐỘNG CẬP NHẬT
 
-// 1. Trả về phiên bản hiện tại từ package.json
+// 0. Đọc file Excel từ thư mục excel/ bằng fs (tránh lỗi fetch với file:// protocol trong Electron)
+ipcMain.handle('read-excel-file', async (event, filename) => {
+  try {
+    const filePath = path.join(__dirname, 'excel', filename);
+    if (!fs.existsSync(filePath)) {
+      return { ok: false, error: `File không tồn tại: ${filename}` };
+    }
+    const buffer = fs.readFileSync(filePath);
+    // Trả về dưới dạng mảng số nguyên để renderer có thể tạo Uint8Array
+    return { ok: true, data: Array.from(buffer) };
+  } catch (err) {
+    console.error('Lỗi đọc file Excel:', err);
+    return { ok: false, error: err.message };
+  }
+});
+
+
 ipcMain.handle('get-local-version', () => {
   try {
     const pkgPath = path.join(__dirname, 'package.json');

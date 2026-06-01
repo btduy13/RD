@@ -9,7 +9,7 @@ async function build() {
       outputDirectory: path.join(__dirname, 'dist', 'installer'),
       authors: 'Công ty Cổ phần Rạng Đông',
       exe: 'rd-accounting.exe',
-      setupExe: 'Kế toán Rạng Đông Setup 1.5.exe',
+      setupExe: 'Kế toán Rạng Đông Setup 1.5.1.exe',
       noMsi: true,
       title: 'Kế toán Rạng Đông',
       description: 'Phần mềm kế toán độc lập Công ty Cổ phần Rạng Đông',

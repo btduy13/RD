@@ -23,6 +23,25 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+// Helper đọc file Excel: ưu tiên dùng IPC (Electron), fallback sang fetch (web)
+async function readExcelViaIPC(filename) {
+  // Nếu đang chạy trong Electron desktop app, dùng IPC để tránh lỗi fetch với file:// protocol
+  if (window.electronAPI && typeof window.electronAPI.readExcelFile === 'function') {
+    const result = await window.electronAPI.readExcelFile(filename);
+    if (!result.ok) {
+      throw new Error(result.error || `Không đọc được file: ${filename}`);
+    }
+    return new Uint8Array(result.data);
+  }
+  // Fallback: dùng fetch cho môi trường web thông thường
+  const response = await fetch('excel/' + filename);
+  if (!response.ok) {
+    throw new Error(`fetch failed: ${response.status} ${response.statusText}`);
+  }
+  const arrayBuffer = await response.arrayBuffer();
+  return new Uint8Array(arrayBuffer);
+}
+
 // Khởi tạo ứng dụng: Load dữ liệu từ localStorage hoặc dùng mặc định
 function initApp() {
   const localData = localStorage.getItem("rd_accounting_db");
@@ -146,13 +165,13 @@ async function autoIntegrateSalesExcel() {
   
   console.log("Starting automatic integration of excel/Ban_hang.xlsx...");
   try {
-    const response = await fetch('excel/Ban_hang.xlsx');
-    if (!response.ok) {
-      console.warn("No excel/Ban_hang.xlsx file found or failed to fetch. Skipping auto-integration.");
+    let data;
+    try {
+      data = await readExcelViaIPC('Ban_hang.xlsx');
+    } catch (fetchErr) {
+      console.warn("No excel/Ban_hang.xlsx file found or failed to read. Skipping auto-integration.", fetchErr.message);
       return;
     }
-    const arrayBuffer = await response.arrayBuffer();
-    const data = new Uint8Array(arrayBuffer);
     const workbook = XLSX.read(data, { type: 'array' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
@@ -267,12 +286,6 @@ async function autoIntegrateSoChiTietBanHangExcel() {
   
   console.log("Starting automatic integration of excel/SO_CHI_TIET_BAN_HANG.xlsx...");
   try {
-    const response = await fetch('excel/SO_CHI_TIET_BAN_HANG.xlsx');
-    if (!response.ok) {
-      console.warn("No excel/SO_CHI_TIET_BAN_HANG.xlsx file found or failed to fetch. Skipping auto-integration.");
-      return;
-    }
-    
     if (typeof showToast === "function") {
       showToast("Đang nạp Sổ chi tiết bán hàng (48.226 dòng)... Vui lòng đợi trong giây lát.", "info");
     }
@@ -280,8 +293,13 @@ async function autoIntegrateSoChiTietBanHangExcel() {
     // Trì hoãn 100ms để Toast hiển thị trước khi CPU bận
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    const arrayBuffer = await response.arrayBuffer();
-    const data = new Uint8Array(arrayBuffer);
+    let data;
+    try {
+      data = await readExcelViaIPC('SO_CHI_TIET_BAN_HANG.xlsx');
+    } catch (fetchErr) {
+      console.warn("No excel/SO_CHI_TIET_BAN_HANG.xlsx file found or failed to read. Skipping auto-integration.", fetchErr.message);
+      return;
+    }
     const workbook = XLSX.read(data, { type: 'array' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
@@ -450,12 +468,6 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
   
   console.log("Starting automatic integration of excel/SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx...");
   try {
-    const response = await fetch('excel/SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx');
-    if (!response.ok) {
-      console.warn("No excel/SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx file found or failed to fetch. Skipping auto-integration.");
-      return;
-    }
-    
     if (typeof showToast === "function") {
       showToast("Đang nạp Sổ chi tiết mua hàng (2.352 dòng)... Vui lòng đợi trong giây lát.", "info");
     }
@@ -463,8 +475,13 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
     // Trì hoãn 100ms để Toast hiển thị trước khi CPU bận
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    const arrayBuffer = await response.arrayBuffer();
-    const data = new Uint8Array(arrayBuffer);
+    let data;
+    try {
+      data = await readExcelViaIPC('SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx');
+    } catch (fetchErr) {
+      console.warn("No excel/SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx file found or failed to read. Skipping auto-integration.", fetchErr.message);
+      return;
+    }
     const workbook = XLSX.read(data, { type: 'array' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
