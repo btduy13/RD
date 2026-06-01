@@ -9025,33 +9025,43 @@ function switchInventorySubTab(subTabId) {
 }
 
 // Chuyển sang thẻ kho chi tiết cho một sản phẩm cụ thể
-// Fix: switch tab TRƯỚC để panel hiển thị, sau đó mới set dropdown và render
+// Fix: Đồng bộ biến selectedLedgerProductId, reset ô tìm kiếm, render và scroll đến đúng mặt hàng bên cột trái
 function viewStockLedgerForProduct(productId) {
   // Bước 1: Chuyển sang tab Thẻ kho chi tiết trước
   switchInventorySubTab("ledger");
 
-  // Bước 2: Chờ 1 frame để DOM hiển thị panel ledger, rồi mới set dropdown và render
+  // Bước 2: Thiết lập sản phẩm được chọn
+  selectedLedgerProductId = productId;
+
+  // Bước 3: Reset từ khóa tìm kiếm sản phẩm để chắc chắn hiển thị sản phẩm được chọn
+  const searchInput = document.getElementById("search-ledger-products");
+  if (searchInput) {
+    searchInput.value = "";
+  }
+
+  // Bước 4: Chờ DOM hiển thị và render danh sách bên cột trái cùng dữ liệu chi tiết bên cột phải
   requestAnimationFrame(() => {
-    const select = document.getElementById("select-product-ledger");
-    if (select) {
-      select.value = productId;
+    renderLedgerProductList();
+    renderStockLedger();
 
-      // Nếu dropdown có filter text, xóa để hiển thị đúng mục
-      const filterInput = document.getElementById("ledger-filter-input");
-      if (filterInput) filterInput.value = "";
-
-      renderStockLedger();
-
-      // Bước 3: Scroll dropdown đến đúng option được chọn (nếu có thể)
-      const selectedOption = Array.from(select.options).find(o => o.value === productId);
-      if (selectedOption) {
-        selectedOption.scrollIntoView({ block: "nearest" });
+    // Bước 5: Tự động cuộn danh sách cột trái đến phần tử được chọn
+    const container = document.getElementById("ledger-product-list");
+    if (container) {
+      const items = container.querySelectorAll(".ledger-product-item");
+      for (const item of items) {
+        if (item.getAttribute("onclick") && item.getAttribute("onclick").includes(productId)) {
+          item.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          break;
+        }
       }
+    }
 
-      // Bước 4: Scroll bảng lên đầu để người dùng thấy kết quả
-      const ledgerBody = document.getElementById("stock-ledger-body");
-      if (ledgerBody) {
-        ledgerBody.closest(".table-responsive") && ledgerBody.closest(".table-responsive").scrollTo(0, 0);
+    // Bước 6: Cuộn bảng chi tiết (cột phải) lên đầu để dễ theo dõi
+    const ledgerBody = document.getElementById("stock-ledger-body");
+    if (ledgerBody) {
+      const parentTable = ledgerBody.closest(".table-responsive");
+      if (parentTable) {
+        parentTable.scrollTo(0, 0);
       }
     }
   });
