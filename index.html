@@ -1853,7 +1853,13 @@ Không có lỗi nào được ghi nhận.
           <div class="form-group col-span-full">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
               <label class="form-label">Mặt hàng bán</label>
-              <button type="button" class="btn btn-secondary btn-sm" onclick="addSalesFormRow()">+ Thêm dòng</button>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <button type="button" class="btn-text-link" onclick="openQuickAddProductModal()" style="font-size: 11.5px; color: var(--color-success); background: none; border: none; padding: 0; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 3px;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                  <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 12px; height: 12px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
+                  Thêm nhanh MH
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="addSalesFormRow()">+ Thêm dòng</button>
+              </div>
             </div>
             
             <table class="dynamic-items-table">
@@ -1934,6 +1940,57 @@ Không có lỗi nào được ghi nhận.
           <div class="form-actions" style="margin-top: 8px; display: flex; justify-content: flex-end; gap: 10px;">
             <button type="button" class="btn btn-secondary" onclick="closeModal('modal-quick-add-partner')" style="height: 36px; font-size: 13px; padding: 0 16px;">Hủy bỏ</button>
             <button type="submit" class="btn btn-success" style="height: 36px; font-size: 13px; padding: 0 16px; font-weight: 600;">Lưu lại</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: THÊM NHANH MẶT HÀNG TỪ PHÂN HỆ BÁN HÀNG -->
+  <div id="modal-quick-add-product" class="modal-overlay" style="z-index: 2000; display: none;">
+    <div class="modal-content-container" style="max-width: 460px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); border-radius: var(--radius-lg);">
+      <div class="modal-header">
+        <h3 class="card-title" style="font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--color-success);">
+          <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+          Thêm nhanh Mặt hàng mới
+        </h3>
+        <button class="icon-btn" onclick="closeModal('modal-quick-add-product')" style="width: 32px; height: 32px;">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.5; padding: 8px 12px; background: rgba(16,185,129,0.08); border-radius: var(--radius-sm); border-left: 3px solid var(--color-success);">
+          Mặt hàng sẽ được lưu ngay vào cơ sở dữ liệu và tự động điền vào dòng bán hàng hiện tại.
+        </p>
+        <form id="form-quick-add-product" class="form-grid" style="grid-template-columns: 1fr; gap: 10px;" onsubmit="handleQuickAddProductSubmit(event)">
+          <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="form-group">
+              <label class="form-label" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Mã mặt hàng</label>
+              <input type="text" id="qap-prod-id" class="form-control" placeholder="Hệ thống tự sinh nếu để trống" style="font-size: 13px; height: 36px; padding: 0 12px;">
+            </div>
+            <div class="form-group">
+              <label class="form-label" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Đơn vị tính <span style="color:var(--color-danger)">*</span></label>
+              <input type="text" id="qap-prod-unit" class="form-control" required placeholder="Cái, Bộ, Hộp..." value="Cái" style="font-size: 13px; height: 36px; padding: 0 12px;">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Tên mặt hàng <span style="color:var(--color-danger)">*</span></label>
+            <input type="text" id="qap-prod-name" class="form-control" required placeholder="Ví dụ: Đèn LED Compact 18W" style="font-size: 13px; height: 36px; padding: 0 12px;">
+          </div>
+          <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="form-group">
+              <label class="form-label" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Tồn ban đầu</label>
+              <input type="number" id="qap-prod-stock" class="form-control" value="0" min="0" style="font-size: 13px; height: 36px; padding: 0 12px;">
+            </div>
+            <div class="form-group">
+              <label class="form-label" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Giá vốn đầu kỳ (đ)</label>
+              <input type="number" id="qap-prod-cost" class="form-control" value="0" min="0" style="font-size: 13px; height: 36px; padding: 0 12px;">
+            </div>
+          </div>
+          <div class="form-actions" style="margin-top: 8px; display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('modal-quick-add-product')" style="height: 36px; font-size: 13px; padding: 0 16px;">Hủy bỏ</button>
+            <button type="submit" class="btn btn-success" style="height: 36px; font-size: 13px; padding: 0 20px; font-weight: 600;">
+              <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 13px; height: 13px; margin-right: 5px;"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+              Lưu & Thêm vào hóa đơn
+            </button>
           </div>
         </form>
       </div>

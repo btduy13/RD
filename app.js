@@ -3419,6 +3419,7 @@ function handleEscrowSubmit(e) {
 // Xóa chứng từ khỏi sổ cái
 function deleteVoucher(id) {
   if (confirm(`Bạn có chắc chắn muốn xóa và hủy ghi sổ chứng từ "${id}"? Việc này sẽ tính toán lại toàn bộ giá trị tồn kho và công nợ.`)) {
+    trackDeletedIds([id]);
     state.vouchers = state.vouchers.filter(v => v.id !== id);
     
     // Nếu có các khoản tất toán gắn liền với nó, xóa liên kết hoặc cảnh báo
@@ -7910,16 +7911,32 @@ function startFirebaseApp() {
 
 function pullFromCloudOnStartup() {
   if (!cloudSyncActive || !firebaseDb) return;
-  
+
   firebaseDb.ref("rd_accounting_db").once("value")
     .then((snapshot) => {
       const rawData = snapshot.val();
       if (rawData) {
-        const data = unescapeFirebaseObject(rawData);
-        state = data;
+        const cloudData = unescapeFirebaseObject(rawData);
+
+        // Smart Merge khi khởi động: gộp dữ liệu cục bộ + cloud
+        // Tránh mất dữ liệu nhập khi offline trước đó
+        let localData = null;
+        try {
+          const localStr = localStorage.getItem("rd_accounting_db");
+          if (localStr) localData = JSON.parse(localStr);
+        } catch(e) { localData = null; }
+
+        const merged = localData ? mergeStates(localData, cloudData) : cloudData;
+        merged._lastModified = Math.max(
+          merged._lastModified || 0,
+          cloudData._lastModified || 0,
+          localData ? (localData._lastModified || 0) : 0
+        );
+
+        state = merged;
         localStorage.setItem("rd_accounting_db", JSON.stringify(state));
-        console.log("Dữ liệu đám mây đã được nạp thành công khi khởi động!");
-        
+        console.log("[SmartMerge] Dữ liệu khởi động đã được merge thành công!");
+
         // Cập nhật giao diện
         recalculateAccounting();
         renderDashboard();
@@ -7998,9 +8015,118 @@ function forcePullFromCloud() {
     });
 }
 
+// ==========================================================================
+// SMART MERGE — Gộp dữ liệu từ 2 máy, tránh mất dữ liệu khi ghi đồng thời
+// ==========================================================================
+
+/**
+ * Ghi nhận các ID vừa bị xóa vào state.deletedIds
+ * để cơ chế Smart Merge không kéo lại dữ liệu đã xóa từ máy khác.
+ */
+function trackDeletedIds(ids) {
+  if (!ids || ids.length === 0) return;
+  if (!Array.isArray(state.deletedIds)) state.deletedIds = [];
+  ids.forEach(id => {
+    if (!state.deletedIds.includes(id)) {
+      state.deletedIds.push(id);
+    }
+  });
+  // Giới hạn deletedIds tối đa 2000 phần tử (FIFO) để tránh đầy localStorage
+  if (state.deletedIds.length > 2000) {
+    state.deletedIds = state.deletedIds.slice(-2000);
+  }
+  state._lastModified = Date.now();
+}
+
+/**
+ * Gộp 2 mảng theo trường `id`, ưu tiên giữ lại TẤT CẢ phần tử từ cả 2 nguồn.
+ * Nếu cùng id: giữ phiên bản có _updatedAt mới hơn (hoặc cloud nếu không có).
+ * Các id nằm trong deletedIds sẽ bị loại bỏ.
+ */
+function mergeArrayById(localArr, cloudArr, deletedIds) {
+  const deleted = new Set(deletedIds || []);
+  const map = new Map();
+
+  // Nạp local trước
+  (localArr || []).forEach(item => {
+    if (item && item.id && !deleted.has(item.id)) {
+      map.set(item.id, item);
+    }
+  });
+
+  // Merge cloud: nếu id chưa có → thêm vào; nếu đã có → so timestamp giữ cái mới hơn
+  (cloudArr || []).forEach(item => {
+    if (!item || !item.id || deleted.has(item.id)) return;
+    if (!map.has(item.id)) {
+      map.set(item.id, item);
+    } else {
+      const localItem = map.get(item.id);
+      const localTs = localItem._updatedAt || 0;
+      const cloudTs = item._updatedAt || 0;
+      if (cloudTs >= localTs) {
+        map.set(item.id, item); // cloud mới hơn → thay thế
+      }
+    }
+  });
+
+  return Array.from(map.values());
+}
+
+/**
+ * Merge thông minh: gộp localState và cloudState, giữ lại tất cả dữ liệu.
+ * Trả về state đã merge sẵn sàng để lưu và push lên cloud.
+ */
+function mergeStates(localState, cloudState) {
+  if (!localState) return cloudState;
+  if (!cloudState) return localState;
+
+  const cloudTs = cloudState._lastModified || 0;
+  const localTs = localState._lastModified || 0;
+
+  // Nếu cloud cũ hơn local quá 5 phút → local wins hoàn toàn
+  if (localTs - cloudTs > 5 * 60 * 1000) {
+    console.log("[SmartMerge] Local mới hơn cloud >5 phút → local wins.");
+    return { ...localState };
+  }
+
+  // Gộp deletedIds từ cả 2 nguồn để không tái xuất hiện dữ liệu đã xóa
+  const mergedDeletedIds = Array.from(
+    new Set([
+      ...(localState.deletedIds || []),
+      ...(cloudState.deletedIds || [])
+    ])
+  );
+
+  const merged = {
+    // Cloud wins cho scalar fields (tên công ty, năm tài chính...)
+    ...cloudState,
+
+    // Merge arrays theo ID — giữ tất cả, loại bỏ deletedIds
+    vouchers:    mergeArrayById(localState.vouchers,    cloudState.vouchers,    mergedDeletedIds),
+    cashEntries: mergeArrayById(localState.cashEntries, cloudState.cashEntries, mergedDeletedIds),
+    partners:    mergeArrayById(localState.partners,    cloudState.partners,    mergedDeletedIds),
+    escrowItems: mergeArrayById(localState.escrowItems, cloudState.escrowItems, mergedDeletedIds),
+    products:    mergeArrayById(localState.products,    cloudState.products,    mergedDeletedIds),
+
+    // Giữ danh sách đã xóa hợp nhất
+    deletedIds: mergedDeletedIds,
+
+    // Timestamp của bản merge = max của 2 máy
+    _lastModified: Math.max(cloudTs, localTs)
+  };
+
+  console.log(`[SmartMerge] Kết quả: ${merged.vouchers.length} vouchers, ${merged.cashEntries ? merged.cashEntries.length : 0} cashEntries, ${merged.partners.length} partners.`);
+  return merged;
+}
+
 function pushToCloud() {
   if (!cloudSyncActive || !firebaseDb) return;
-  
+
+  // Đánh dấu thời điểm lưu để hỗ trợ Smart Merge
+  if (!state._lastModified) {
+    state._lastModified = Date.now();
+  }
+
   const escapedState = escapeFirebaseObject(state);
   firebaseDb.ref("rd_accounting_db").set(escapedState)
     .then(() => {
@@ -8013,29 +8139,53 @@ function pushToCloud() {
     });
 }
 
+// Flag tránh vòng lặp: khi chính máy này push xong, listener sẽ kích hoạt lại
+// nhưng dữ liệu đã giống nhau → bỏ qua
+let _isMergePushing = false;
+
 function listenToCloudChanges() {
   if (!cloudSyncActive || !firebaseDb) return;
-  
+
   firebaseDb.ref("rd_accounting_db").off("value");
   firebaseDb.ref("rd_accounting_db").on("value", (snapshot) => {
+    // Bỏ qua event do chính lần push merge của máy này gây ra
+    if (_isMergePushing) return;
+
     const rawData = snapshot.val();
-    if (rawData) {
-      const data = unescapeFirebaseObject(rawData);
-      const localStr = localStorage.getItem("rd_accounting_db") || "";
-      const cloudStr = JSON.stringify(data);
-      
-      if (localStr !== cloudStr) {
-        console.log("Nhận thấy dữ liệu đám mây thay đổi từ máy khác, đang đồng bộ...");
-        state = data;
-        localStorage.setItem("rd_accounting_db", cloudStr);
-        
-        recalculateAccounting();
-        renderDashboard();
-        filterDebts();
-        filterPartners();
-        filterCash();
-      }
+    if (!rawData) return;
+
+    const cloudData = unescapeFirebaseObject(rawData);
+    const localStr  = localStorage.getItem("rd_accounting_db") || "";
+    const cloudStr  = JSON.stringify(cloudData);
+
+    if (localStr === cloudStr) return; // Không có thay đổi, bỏ qua
+
+    console.log("[SmartMerge] Phát hiện thay đổi từ cloud, đang merge thông minh...");
+
+    let localData = null;
+    try {
+      localData = JSON.parse(localStr);
+    } catch(e) {
+      localData = state;
     }
+
+    // Thực hiện Smart Merge: gộp local + cloud, giữ lại tất cả
+    const merged = mergeStates(localData, cloudData);
+    merged._lastModified = Date.now();
+
+    state = merged;
+    localStorage.setItem("rd_accounting_db", JSON.stringify(state));
+
+    // Đẩy bản merged ngược lên cloud để đồng bộ cho máy kia
+    _isMergePushing = true;
+    pushToCloud();
+    setTimeout(() => { _isMergePushing = false; }, 2000);
+
+    recalculateAccounting();
+    renderDashboard();
+    filterDebts();
+    filterPartners();
+    filterCash();
   });
 }
 
@@ -8156,6 +8306,7 @@ function batchDeletePurchases() {
   
   if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} chứng từ mua hàng đã chọn?`)) {
     const idsToDelete = checked.map(cb => cb.value);
+    trackDeletedIds(idsToDelete);
     state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
     
     saveState();
@@ -8402,6 +8553,7 @@ function batchDeleteEscrows() {
   
   if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} chứng từ ký quỹ đã chọn?`)) {
     const idsToDelete = checked.map(cb => cb.value);
+    trackDeletedIds(idsToDelete);
     state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
     
     saveState();
@@ -8688,6 +8840,7 @@ function batchDeleteCash() {
   
   if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} chứng từ thu chi đã chọn?`)) {
     const idsToDelete = checked.map(cb => cb.value);
+    trackDeletedIds(idsToDelete);
     state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
     
     saveState();
@@ -8745,6 +8898,7 @@ function batchDeleteSales() {
   
   if (confirm(`Bạn có chắc chắn muốn xóa và hủy ghi sổ ${checked.length} chứng từ đã chọn?`)) {
     const idsToDelete = checked.map(cb => cb.value);
+    trackDeletedIds(idsToDelete);
     state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
     
     // Remove references
@@ -8871,19 +9025,171 @@ function switchInventorySubTab(subTabId) {
 }
 
 // Chuyển sang thẻ kho chi tiết cho một sản phẩm cụ thể
+// Fix: switch tab TRƯỚC để panel hiển thị, sau đó mới set dropdown và render
 function viewStockLedgerForProduct(productId) {
-  const select = document.getElementById("select-product-ledger");
-  if (select) {
-    select.value = productId;
-    renderStockLedger();
-  }
+  // Bước 1: Chuyển sang tab Thẻ kho chi tiết trước
   switchInventorySubTab("ledger");
+
+  // Bước 2: Chờ 1 frame để DOM hiển thị panel ledger, rồi mới set dropdown và render
+  requestAnimationFrame(() => {
+    const select = document.getElementById("select-product-ledger");
+    if (select) {
+      select.value = productId;
+
+      // Nếu dropdown có filter text, xóa để hiển thị đúng mục
+      const filterInput = document.getElementById("ledger-filter-input");
+      if (filterInput) filterInput.value = "";
+
+      renderStockLedger();
+
+      // Bước 3: Scroll dropdown đến đúng option được chọn (nếu có thể)
+      const selectedOption = Array.from(select.options).find(o => o.value === productId);
+      if (selectedOption) {
+        selectedOption.scrollIntoView({ block: "nearest" });
+      }
+
+      // Bước 4: Scroll bảng lên đầu để người dùng thấy kết quả
+      const ledgerBody = document.getElementById("stock-ledger-body");
+      if (ledgerBody) {
+        ledgerBody.closest(".table-responsive") && ledgerBody.closest(".table-responsive").scrollTo(0, 0);
+      }
+    }
+  });
 }
 
 // Đăng ký toàn cục các hàm
 window.switchInventorySubTab = switchInventorySubTab;
 window.viewStockLedgerForProduct = viewStockLedgerForProduct;
 window.selectLedgerProduct = selectLedgerProduct;
+
+// ==========================================================================
+// THÊM NHANH MẶT HÀNG TỪ MODAL BÁN HÀNG
+// ==========================================================================
+
+/**
+ * Mở modal thêm nhanh mặt hàng, reset form và focus vào ô tên
+ */
+function openQuickAddProductModal() {
+  // Reset form
+  const form = document.getElementById("form-quick-add-product");
+  if (form) form.reset();
+  const unitEl = document.getElementById("qap-prod-unit");
+  if (unitEl) unitEl.value = "Cái";
+  const stockEl = document.getElementById("qap-prod-stock");
+  if (stockEl) stockEl.value = "0";
+  const costEl = document.getElementById("qap-prod-cost");
+  if (costEl) costEl.value = "0";
+
+  openModal("modal-quick-add-product");
+
+  // Focus vào ô tên sau khi modal hiển thị
+  setTimeout(() => {
+    const nameEl = document.getElementById("qap-prod-name");
+    if (nameEl) nameEl.focus();
+  }, 120);
+}
+
+/**
+ * Xử lý submit form thêm nhanh mặt hàng:
+ * 1. Xác thực và tạo object sản phẩm
+ * 2. Lưu vào state và push lên cloud ngay
+ * 3. Điền mã sản phẩm vào ô cuối cùng của bảng bán hàng
+ * 4. Cập nhật datalist để autocomplete biết mặt hàng mới
+ */
+function handleQuickAddProductSubmit(e) {
+  try {
+    e.preventDefault();
+
+    const rawId   = document.getElementById("qap-prod-id").value.trim().toUpperCase();
+    const name    = document.getElementById("qap-prod-name").value.trim();
+    const unit    = document.getElementById("qap-prod-unit").value.trim();
+    const initStock = parseInt(document.getElementById("qap-prod-stock").value) || 0;
+    const initCost  = parseInt(document.getElementById("qap-prod-cost").value) || 0;
+
+    if (!name) {
+      showToast("Vui lòng nhập tên mặt hàng!", "danger");
+      return;
+    }
+    if (!unit) {
+      showToast("Vui lòng nhập đơn vị tính!", "danger");
+      return;
+    }
+
+    // Sinh mã tự động nếu để trống
+    const newId = rawId || `SP${(state.products.length + 1).toString().padStart(3, '0')}`;
+
+    // Kiểm tra trùng mã
+    if (state.products.some(p => p.id === newId)) {
+      showToast(`Mã mặt hàng “${newId}” đã tồn tại! Vui lòng dùng mã khác.`, "danger");
+      document.getElementById("qap-prod-id").focus();
+      return;
+    }
+
+    const newProduct = {
+      id: newId,
+      name,
+      unit,
+      stock: initStock,
+      avgCost: initCost,
+      totalValue: initStock * initCost,
+      initialStock: initStock,
+      initialCost: initCost,
+      minStock: 5,
+      _updatedAt: Date.now()
+    };
+
+    // Lưu vào state
+    state.products.push(newProduct);
+
+    // Cập nhật số dư đầu kỳ TK 156
+    let newInvOpBal = 0;
+    state.products.forEach(p => {
+      const orig = (typeof DEFAULT_DATA !== 'undefined' && DEFAULT_DATA.products)
+        ? DEFAULT_DATA.products.find(o => o.id === p.id)
+        : null;
+      newInvOpBal += orig ? orig.totalValue : (p.initialStock * p.initialCost);
+    });
+    if (state.initialBalances && state.initialBalances["156"]) {
+      state.initialBalances["156"].balance = newInvOpBal;
+    }
+
+    if (typeof rebalanceEquity === "function") rebalanceEquity();
+    state._lastModified = Date.now();
+    saveState(); // Lưu local + push cloud
+    recalculateAccounting();
+    if (typeof populateDatalistProducts === "function") populateDatalistProducts();
+
+    // Điền mã sản phẩm vào ô cuối cùng của bảng bán hàng
+    const salesRows = document.querySelectorAll("#sales-form-items-body tr");
+    if (salesRows.length === 0) {
+      // Chưa có dòng nào → thêm mới
+      addSalesFormRow(newId);
+    } else {
+      // Điền vào dòng cuối cùng
+      const lastRow = salesRows[salesRows.length - 1];
+      const productInput = lastRow.querySelector(".item-productId");
+      if (productInput) {
+        // Nếu dòng cuối chưa có sản phẩm → điền vào đó
+        if (!productInput.value || productInput.value.trim() === "") {
+          productInput.value = newId;
+          autoFillProductPrice(productInput);
+        } else {
+          // Dòng cuối đã có sản phẩm → thêm dòng mới
+          addSalesFormRow(newId);
+        }
+      }
+    }
+
+    closeModal("modal-quick-add-product");
+    showToast(`Đã thêm mặt hàng “${name}” (${newId}) và điền vào hóa đơn!`, "success");
+  } catch(err) {
+    if (typeof addErrorLog === "function") addErrorLog("handleQuickAddProductSubmit", err.message, err);
+    showToast("Lỗi khi thêm mặt hàng: " + err.message, "danger");
+  }
+}
+
+window.openQuickAddProductModal = openQuickAddProductModal;
+window.handleQuickAddProductSubmit = handleQuickAddProductSubmit;
 window.filterLedgerProducts = filterLedgerProducts;
 window.exportStockLedgerToExcel = exportStockLedgerToExcel;
 window.autoIntegrateSoChiTietMuaHangExcel = autoIntegrateSoChiTietMuaHangExcel;
