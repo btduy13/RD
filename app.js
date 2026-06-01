@@ -999,14 +999,11 @@ function switchTab(tabId) {
 
   // Khởi tạo các combo-box hoặc nạp dữ liệu chuyên biệt cho từng màn hình
   if (tabId === "purchase") {
-    populatePartnerDropdown("pur-partner", "supplier");
-    resetPurchaseForm();
+    // Không reset form khi chuyển tab để bảo toàn dữ liệu nhập dở
   } else if (tabId === "sales") {
-    populatePartnerDropdown("sale-partner", "customer");
-    resetSalesForm();
+    // Không reset form khi chuyển tab để bảo toàn dữ liệu nhập dở
   } else if (tabId === "escrow") {
-    populatePartnerDropdown("esc-partner", null);
-    handleEscrowTypeChange();
+    // Không reset form khi chuyển tab để bảo toàn dữ liệu nhập dở
   } else if (tabId === "inventory") {
     populateProductLedgerDropdown();
     renderInventoryTable(); // Đảm bảo bảng tồn kho luôn được vẽ lại khi vào tab
