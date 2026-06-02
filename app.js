@@ -9878,50 +9878,9 @@ function initMouseInteractions() {
             if (typeof recalculatePurchaseTotals === "function") {
               recalculatePurchaseTotals();
             }
-        }
-        e.preventDefault();
-      }
-    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
-      const activeMenu = document.querySelector(".sidebar-menu .menu-item.active");
-      const tabId = activeMenu ? activeMenu.getAttribute("data-tab") : null;
-      
-      if (tabId) {
-        let inputId = null;
-        switch (tabId) {
-          case "purchase":
-            inputId = "search-purchase";
-            break;
-          case "sales":
-            inputId = "search-sales";
-            break;
-          case "inventory":
-            const ledgerPanel = document.getElementById("inventory-subtab-ledger");
-            const isLedgerVisible = ledgerPanel && (ledgerPanel.style.display === "block" || window.getComputedStyle(ledgerPanel).display === "block");
-            if (isLedgerVisible) {
-              inputId = "search-ledger-products";
-            } else {
-              inputId = "search-inventory";
-            }
-            break;
-          case "partners":
-            inputId = "partner-search-input";
-            break;
-          case "debts":
-            inputId = "debt-search-input";
-            break;
-          case "cash":
-            inputId = "cash-search-input";
-            break;
-        }
-        
-        if (inputId) {
-          const inputEl = document.getElementById(inputId);
-          if (inputEl) {
-            e.preventDefault();
-            inputEl.focus();
-            inputEl.select(); // Bôi đen toàn bộ để người dùng gõ tìm kiếm mới ngay lập tức
           }
         }
+        e.preventDefault();
       }
     }
   });
