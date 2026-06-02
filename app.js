@@ -9894,7 +9894,7 @@ function initMouseInteractions() {
           case "sales":
             inputId = "search-sales";
             break;
-          case "inventory":
+          case "inventory": {
             const ledgerPanel = document.getElementById("inventory-subtab-ledger");
             const isLedgerVisible = ledgerPanel && (ledgerPanel.style.display === "block" || window.getComputedStyle(ledgerPanel).display === "block");
             if (isLedgerVisible) {
@@ -9903,6 +9903,7 @@ function initMouseInteractions() {
               inputId = "search-inventory";
             }
             break;
+          }
           case "partners":
             inputId = "partner-search-input";
             break;
