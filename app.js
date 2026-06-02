@@ -148,6 +148,11 @@ function initApp() {
 
   // Mở tab mặc định
   switchTab("dashboard");
+
+  // Khởi tạo phím tắt Ctrl+F tìm kiếm trong tab hiện hành
+  if (typeof initCtrlFShortcut === "function") {
+    initCtrlFShortcut();
+  }
 }
 
 async function autoIntegrateSalesExcel() {
@@ -9897,4 +9902,65 @@ function initMouseInteractions() {
 
 window.initMouseInteractions = initMouseInteractions;
 
+// ==========================================================================
+// PHÍM TẮT CTRL+F — TÌM KIẾM NHANH TRONG TAB ĐANG HIỂN THỊ
+// ==========================================================================
+/**
+ * Ánh xạ tab/subtab → ID của ô tìm kiếm văn bản chính của trang đó.
+ * Với tab "inventory", cần kiểm tra thêm subtab đang active.
+ */
+function getActiveSearchInputId() {
+  const activeMenuItem = document.querySelector(".sidebar-menu .menu-item.active");
+  if (!activeMenuItem) return null;
+  const tabId = activeMenuItem.getAttribute("data-tab");
+
+  const tabSearchMap = {
+    purchase:   "search-purchase",
+    sales:      "search-sales",
+    partners:   "partner-search-input",
+    debts:      "debt-search-input",
+    cash:       "cash-search-input"
+  };
+
+  if (tabId === "inventory") {
+    // Kiểm tra subtab kho hàng đang hiển thị
+    const panelLedger = document.getElementById("inventory-subtab-ledger");
+    if (panelLedger && panelLedger.style.display !== "none") {
+      return "search-ledger-products"; // Subtab: Sổ thẻ kho chi tiết
+    }
+    return "search-inventory"; // Subtab: Tồn kho tổng hợp (mặc định)
+  }
+
+  return tabSearchMap[tabId] || null;
+}
+
+function initCtrlFShortcut() {
+  document.addEventListener("keydown", function(e) {
+    // Ctrl+F hoặc Cmd+F (macOS)
+    if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+      // Bỏ qua nếu đang focus vào input/textarea/select để không gây xung đột
+      const tag = document.activeElement ? document.activeElement.tagName : "";
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      // Bỏ qua nếu có modal đang mở
+      const anyModalOpen = Array.from(document.querySelectorAll(".modal-overlay")).some(
+        m => m.style.display === "flex" || m.style.display === "block"
+      );
+      if (anyModalOpen) return;
+
+      const inputId = getActiveSearchInputId();
+      if (!inputId) return;
+
+      const input = document.getElementById(inputId);
+      if (!input) return;
+
+      e.preventDefault(); // Chặn hộp tìm kiếm trình duyệt mặc định
+      input.focus();
+      input.select(); // Chọn toàn bộ nội dung cũ để gõ đè ngay
+    }
+  });
+}
+
+window.initCtrlFShortcut = initCtrlFShortcut;
+window.getActiveSearchInputId = getActiveSearchInputId;
 
