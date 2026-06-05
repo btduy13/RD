@@ -540,14 +540,7 @@
                   <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                   Xuất Excel
                 </button>
-
-                <!-- Nút nhập đơn giá từ file S06 -->
-                <button class="btn btn-secondary" onclick="triggerFileInput('excel-file-s06-price')" title="Đọc file S06_DNN và cập nhật đơn giá các mặt hàng trùng mã" style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='#f59e0b'; this.style.color='#f59e0b'" onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'">
-                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
-                  Cập nhật giá S06
-                </button>
-                <input type="file" id="excel-file-s06-price" accept=".xls,.xlsx,.csv" style="display: none;" onchange="importPricesFromS06(event)">
-
+                
                 <button class="btn btn-primary" onclick="openModal('modal-add-product')" style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25); cursor: pointer; transition: all 0.2s;">
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px; stroke-width: 2.5;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
                   Khai báo mặt hàng mới
