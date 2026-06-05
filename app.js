@@ -4958,7 +4958,7 @@ function cleanNumericUnitProducts() {
 }
 
 async function applyS06PricesOnStartup() {
-  if (localStorage.getItem("s06_prices_updated_v2") === "true") {
+  if (localStorage.getItem("s06_prices_updated_v3") === "true") {
     return;
   }
   try {
@@ -5029,7 +5029,7 @@ async function applyS06PricesOnStartup() {
       }, 1500);
     }
     
-    localStorage.setItem("s06_prices_updated_v2", "true");
+    localStorage.setItem("s06_prices_updated_v3", "true");
   } catch (err) {
     console.warn("Lỗi cập nhật đơn giá S06:", err);
   }
