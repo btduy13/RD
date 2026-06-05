@@ -153,6 +153,11 @@ function initApp() {
   if (typeof initCtrlFShortcut === "function") {
     initCtrlFShortcut();
   }
+
+  // Khởi tạo điều hướng bàn phím cho bảng nhập dòng đơn hàng (Tab / F1 / F2)
+  if (typeof initOrderFormKeyboardNavigation === "function") {
+    initOrderFormKeyboardNavigation();
+  }
 }
 
 async function autoIntegrateSalesExcel() {
@@ -2898,6 +2903,16 @@ function addPurchaseFormRow() {
 
   tbody.appendChild(tr);
   recalculatePurchaseTotals();
+
+  // Auto-focus vào ô sản phẩm của dòng vừa tạo
+  const allRows = tbody.querySelectorAll("tr");
+  const newRow = allRows[allRows.length - 1];
+  if (newRow) {
+    const firstInput = newRow.querySelector(".item-productId");
+    if (firstInput) {
+      setTimeout(() => { firstInput.focus(); }, 30);
+    }
+  }
 }
 
 // Tính toán lại tổng tiền trong form Mua
@@ -3012,6 +3027,16 @@ function addSalesFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVa
 
   tbody.appendChild(tr);
   recalculateSalesTotals();
+
+  // Auto-focus vào ô sản phẩm của dòng vừa tạo
+  const allRows = tbody.querySelectorAll("tr");
+  const newRow = allRows[allRows.length - 1];
+  if (newRow) {
+    const firstInput = newRow.querySelector(".item-productId");
+    if (firstInput) {
+      setTimeout(() => { firstInput.focus(); }, 30);
+    }
+  }
 }
 
 // Gợi ý giá bán = Giá vốn bình quan + 35% lợi nhuận biên
@@ -9963,4 +9988,134 @@ function initCtrlFShortcut() {
 
 window.initCtrlFShortcut = initCtrlFShortcut;
 window.getActiveSearchInputId = getActiveSearchInputId;
+
+// ==========================================================================
+// ĐIỀU HƯỚNG BẢNG ĐƠN HÀNG BẰNG BÀN PHÍM (TAB / F1 / F2)
+// ==========================================================================
+/**
+ * Helper: Lấy tất cả input/select có thể focus trong một dòng <tr> của bảng đơn hàng
+ * (bỏ qua các ô disabled và ô thành tiền chỉ hiển thị).
+ */
+function getEditableCellsInRow(tr) {
+  return Array.from(tr.querySelectorAll(
+    'input:not([disabled]):not([type="hidden"]), select:not([disabled])'
+  )).filter(el => !el.classList.contains('item-total-display'));
+}
+
+/**
+ * Lấy tất cả dòng <tr> trong tbody của bảng đơn hàng đang active.
+ * Hỗ trợ cả purchase-form-items-body và sales-form-items-body.
+ */
+function getOrderTableRows(currentEl) {
+  const tbodyId = currentEl.closest('#purchase-form-items-body')
+    ? 'purchase-form-items-body'
+    : currentEl.closest('#sales-form-items-body')
+    ? 'sales-form-items-body'
+    : null;
+  if (!tbodyId) return null;
+  const tbody = document.getElementById(tbodyId);
+  return { tbody, rows: Array.from(tbody.querySelectorAll('tr')), tbodyId };
+}
+
+/**
+ * Focus vào ô đầu tiên (item-productId) của một dòng cụ thể.
+ */
+function focusRowFirstCell(tr) {
+  const cell = tr.querySelector('.item-productId');
+  if (cell) { cell.focus(); cell.select && cell.select(); }
+}
+
+/**
+ * Khởi tạo điều hướng bàn phím cho bảng đơn hàng (Mua + Bán).
+ * - Tab ở ô cuối cùng của dòng → tự động thêm dòng mới (nếu chưa có) hoặc nhảy sang dòng trống tiếp
+ * - F1 → di chuyển xuống dòng tiếp theo (tạo mới nếu là dòng cuối)
+ * - F2 → di chuyển lên dòng trước đó
+ * - Esc → không làm gì thêm (giữ nguyên hành vi mặc định)
+ */
+function initOrderFormKeyboardNavigation() {
+  // Sử dụng event delegation trên document để bắt tất cả các dòng kể cả được thêm động
+  document.addEventListener('keydown', function(e) {
+    const el = document.activeElement;
+    if (!el) return;
+
+    // Chỉ xử lý khi đang focus trong bảng đơn hàng
+    const info = getOrderTableRows(el);
+    if (!info) return;
+    const { tbody, rows, tbodyId } = info;
+    if (rows.length === 0) return;
+
+    const isPurchase = tbodyId === 'purchase-form-items-body';
+    const currentRow = el.closest('tr');
+    if (!currentRow) return;
+    const rowIdx = rows.indexOf(currentRow);
+
+    // ── F1: Di chuyển xuống dòng tiếp theo ────────────────────────────────
+    if (e.key === 'F1') {
+      e.preventDefault();
+      if (rowIdx < rows.length - 1) {
+        // Còn dòng phía dưới → nhảy xuống
+        focusRowFirstCell(rows[rowIdx + 1]);
+      } else {
+        // Dòng cuối → thêm dòng mới
+        if (isPurchase) addPurchaseFormRow();
+        else addSalesFormRow();
+        // auto-focus đã được xử lý bên trong addXxxFormRow()
+      }
+      return;
+    }
+
+    // ── F2: Di chuyển lên dòng trước đó ──────────────────────────────────
+    if (e.key === 'F2') {
+      e.preventDefault();
+      if (rowIdx > 0) {
+        focusRowFirstCell(rows[rowIdx - 1]);
+      }
+      return;
+    }
+
+    // ── Tab: Nhảy giữa các ô trong dòng; ô cuối → dòng tiếp theo ─────────
+    if (e.key === 'Tab' && !e.shiftKey) {
+      const cells = getEditableCellsInRow(currentRow);
+      const cellIdx = cells.indexOf(el);
+      if (cellIdx === -1) return;
+
+      // Nếu chưa phải ô cuối cùng → để browser xử lý bình thường
+      if (cellIdx < cells.length - 1) return;
+
+      // Đang ở ô cuối của dòng → chặn Tab thoát ra ngoài
+      e.preventDefault();
+
+      if (rowIdx < rows.length - 1) {
+        // Còn dòng kế tiếp → nhảy tới ô đầu tiên của dòng đó
+        focusRowFirstCell(rows[rowIdx + 1]);
+      } else {
+        // Dòng cuối → thêm dòng mới tự động
+        if (isPurchase) addPurchaseFormRow();
+        else addSalesFormRow();
+        // auto-focus đã được xử lý bên trong addXxxFormRow()
+      }
+      return;
+    }
+
+    // ── Shift+Tab ở ô đầu tiên của dòng → lên dòng trước, ô cuối ─────────
+    if (e.key === 'Tab' && e.shiftKey) {
+      const cells = getEditableCellsInRow(currentRow);
+      const cellIdx = cells.indexOf(el);
+      if (cellIdx !== 0) return; // Không phải ô đầu → để browser xử lý
+      if (rowIdx === 0) return;  // Dòng đầu tiên → để browser xử lý bình thường
+
+      e.preventDefault();
+      const prevRow = rows[rowIdx - 1];
+      const prevCells = getEditableCellsInRow(prevRow);
+      if (prevCells.length > 0) {
+        const lastCell = prevCells[prevCells.length - 1];
+        lastCell.focus();
+        lastCell.select && lastCell.select();
+      }
+      return;
+    }
+  });
+}
+
+window.initOrderFormKeyboardNavigation = initOrderFormKeyboardNavigation;
 
