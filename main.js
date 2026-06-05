@@ -223,6 +223,18 @@ ipcMain.handle('download-and-install-update', async (event, downloadUrl) => {
   }
 });
 
+// 5. Liệt kê danh sách file trong thư mục excel/
+ipcMain.handle('list-excel-dir', async () => {
+  try {
+    const dir = path.join(__dirname, 'excel');
+    if (!fs.existsSync(dir)) return { ok: true, files: [] };
+    const files = fs.readdirSync(dir);
+    return { ok: true, files };
+  } catch (err) {
+    return { ok: false, error: err.message, files: [] };
+  }
+});
+
 // Khởi chạy khi Electron sẵn sàng
 app.whenReady().then(() => {
   createWindow();

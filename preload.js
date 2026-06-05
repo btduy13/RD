@@ -13,5 +13,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Đăng ký lắng nghe tiến trình tải về
   onDownloadProgress: (callback) => ipcRenderer.on('download-progress', (event, percent) => callback(percent)),
   // Đọc file Excel từ thư mục excel/ trong app (dùng fs thay vì fetch để tránh lỗi file:// protocol)
-  readExcelFile: (filename) => ipcRenderer.invoke('read-excel-file', filename)
+  readExcelFile: (filename) => ipcRenderer.invoke('read-excel-file', filename),
+  // Liệt kê danh sách file trong thư mục excel/
+  listExcelDir: () => ipcRenderer.invoke('list-excel-dir')
 });
