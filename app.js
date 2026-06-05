@@ -3090,15 +3090,21 @@ function addSalesFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVa
   }
 }
 
-// Gợi ý giá bán = Giá vốn bình quan + 35% lợi nhuận biên
+// Lấy giá bán từ thông tin mặt hàng
 function autoFillProductPrice(selectEl) {
   const prodVal = selectEl.value;
   const prod = resolveProduct(prodVal);
   const row = selectEl.closest("tr");
   
   if (prod && row) {
-    const suggestedPrice = Math.round(prod.avgCost * 1.35 / 1000) * 1000 || 50000;
-    row.querySelector(".item-price").value = suggestedPrice;
+    ensureProductExcelRow(prod);
+    const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0 
+      ? prod.salePrice1 
+      : (prod.excelRow && prod.excelRow[21] !== undefined && Number(prod.excelRow[21]) > 0 
+         ? Number(prod.excelRow[21]) 
+         : (Math.round(prod.avgCost * 1.35 / 1000) * 1000 || 50000));
+         
+    row.querySelector(".item-price").value = salePriceVal;
     recalculateSalesTotals();
   }
 }
