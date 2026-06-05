@@ -10151,3 +10151,255 @@ window.getOrderTableRows = getOrderTableRows;
 window.focusRowFirstCell = focusRowFirstCell;
 window.initOrderFormKeyboardNavigation = initOrderFormKeyboardNavigation;
 
+// ==========================================================================
+// CẬP NHẬT ĐƠN GIÁ HÀNG LOẠT TỪ FILE S06-DNN (MISA)
+// ==========================================================================
+/**
+ * Đọc file S06_DNN hoặc CSV đã xuất, bóc tách đơn giá bình quân cuối kỳ
+ * của từng mặt hàng, sau đó cập nhật avgCost + initialCost cho các sản phẩm
+ * có mã trùng khớp trong hệ thống.
+ *
+ * Hỗ trợ 2 định dạng:
+ *   1. File S06 gốc (.xls/.xlsx): cấu trúc MISA — "Mã hàng:" ở cột 0
+ *   2. File CSV đã xuất từ script bóc tách (cột: ma, ten, dvt, don_gia_moi)
+ */
+async function importPricesFromS06(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Reset input để có thể chọn lại file sau
+  event.target.value = "";
+
+  showToast("Đang đọc và phân tích file S06, vui lòng chờ...", "info");
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const fileName = file.name.toLowerCase();
+
+    let priceMap = {}; // { maHang: donGia }
+
+    if (fileName.endsWith(".csv")) {
+      // ── Định dạng CSV xuất sẵn ──────────────────────────────────────────
+      const text = new TextDecoder("utf-8").decode(arrayBuffer);
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      const header = lines[0].split(",");
+      const colMa  = header.findIndex(h => h.trim().toLowerCase().includes("ma"));
+      const colDg  = header.findIndex(h => h.trim().toLowerCase().includes("don_gia"));
+      if (colMa === -1 || colDg === -1) {
+        showToast("File CSV không đúng định dạng (cần cột 'ma' và 'don_gia_moi').", "danger");
+        return;
+      }
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(",");
+        const ma = (cols[colMa] || "").trim().toUpperCase();
+        const dg = parseInt((cols[colDg] || "0").trim()) || 0;
+        if (ma && dg > 0) priceMap[ma] = dg;
+      }
+
+    } else {
+      // ── Định dạng XLS/XLSX gốc MISA S06 ────────────────────────────────
+      if (typeof XLSX === "undefined") {
+        showToast("Thư viện đọc Excel chưa sẵn sàng, thử lại sau 2 giây.", "warning");
+        setTimeout(() => importPricesFromS06(event), 2000);
+        return;
+      }
+
+      const wb = XLSX.read(arrayBuffer, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+
+      let maHang = "";
+      let donViRow = "";
+      let lastDonGia = 0;
+
+      for (let r = 0; r < rows.length; r++) {
+        const row = rows[r];
+        const c0  = String(row[0] || "").trim();
+        const c7  = String(row[7] || "").trim();
+
+        // Dòng "Mã hàng:" — bắt đầu mặt hàng mới
+        if (c0.includes("hàng:") && c0.includes("ã")) {
+          maHang   = String(row[3] || "").trim().toUpperCase();
+          lastDonGia = 0;
+          continue;
+        }
+
+        // Dòng số dư đầu kỳ — lấy đơn giá khởi đầu
+        if (c7.includes("đầu kỳ") && maHang) {
+          const dg = parseFloat(row[11]) || 0;
+          if (dg > 0) lastDonGia = dg;
+          continue;
+        }
+
+        // Dòng giao dịch — cập nhật đơn giá mới nhất
+        if (maHang && c0 && !["Cộng", "Tổng cộng", "MISA", "CÔNG TY", "Số", "Chứng", "SỔ", "Từ ngày", "Mã kho", "Tên kho"].some(kw => c0.includes(kw))) {
+          const dg = parseFloat(row[11]) || 0;
+          if (dg > 0) lastDonGia = dg;
+        }
+
+        // Dòng "Cộng" — kết thúc mặt hàng, tính đơn giá bình quân tồn cuối
+        if (c0.includes("Cộng") && !c0.includes("Tổng") && maHang) {
+          const tonSl = parseFloat(row[23]) || 0;
+          const tonTt = parseFloat(row[24]) || 0;
+          let donGiaCuoi = lastDonGia;
+          if (tonSl !== 0) {
+            donGiaCuoi = Math.round(tonTt / tonSl);
+          }
+          if (donGiaCuoi > 0) {
+            priceMap[maHang] = donGiaCuoi;
+          }
+          maHang = "";
+          lastDonGia = 0;
+        }
+      }
+    }
+
+    // ── Áp dụng vào state.products ────────────────────────────────────────
+    const totalInFile = Object.keys(priceMap).length;
+    if (totalInFile === 0) {
+      showToast("Không tìm thấy đơn giá nào trong file. Hãy kiểm tra lại định dạng.", "danger");
+      return;
+    }
+
+    let updatedCount = 0;
+    let skippedCount = 0;
+    const updatedItems = [];
+    const notFoundItems = [];
+
+    state.products.forEach(prod => {
+      const key = prod.id.toUpperCase();
+      if (priceMap.hasOwnProperty(key)) {
+        const newPrice = priceMap[key];
+        const oldPrice = prod.avgCost || 0;
+        if (newPrice !== oldPrice) {
+          updatedItems.push({ id: prod.id, name: prod.name, oldPrice, newPrice });
+          prod.avgCost      = newPrice;
+          prod.initialCost  = newPrice;
+          prod.totalValue   = (prod.stock || 0) * newPrice;
+          updatedCount++;
+        } else {
+          skippedCount++;
+        }
+      }
+    });
+
+    // Các mã có trong S06 nhưng không có trong hệ thống
+    Object.keys(priceMap).forEach(ma => {
+      if (!state.products.some(p => p.id.toUpperCase() === ma)) {
+        notFoundItems.push(ma);
+      }
+    });
+
+    if (updatedCount === 0 && skippedCount === 0) {
+      showToast(`Không có mặt hàng nào trùng mã giữa file S06 (${totalInFile} mã) và hệ thống (${state.products.length} sản phẩm).`, "warning");
+      return;
+    }
+
+    // Lưu và vẽ lại
+    recalculateAccounting();
+    saveState();
+    renderInventoryTable();
+
+    // ── Hiện modal kết quả ──────────────────────────────────────────────
+    showS06ImportResult({
+      totalInFile,
+      updatedCount,
+      skippedCount,
+      notFoundCount: notFoundItems.length,
+      updatedItems,
+      notFoundItems: notFoundItems.slice(0, 30)
+    });
+
+  } catch (err) {
+    console.error("importPricesFromS06 error:", err);
+    showToast("Lỗi khi đọc file: " + err.message, "danger");
+  }
+}
+
+/**
+ * Hiển thị kết quả cập nhật trong một dialog thông báo inline.
+ */
+function showS06ImportResult({ totalInFile, updatedCount, skippedCount, notFoundCount, updatedItems, notFoundItems }) {
+  // Tạo modal kết quả động
+  const existingModal = document.getElementById("modal-s06-result");
+  if (existingModal) existingModal.remove();
+
+  const updatedHTML = updatedItems.slice(0, 50).map(it =>
+    `<tr>
+      <td style="padding:4px 8px;font-family:monospace;font-size:12px;color:var(--color-primary)">${it.id}</td>
+      <td style="padding:4px 8px;font-size:12px">${it.name}</td>
+      <td style="padding:4px 8px;text-align:right;font-size:12px;color:var(--text-muted);text-decoration:line-through">${it.oldPrice.toLocaleString("vi-VN")}đ</td>
+      <td style="padding:4px 8px;text-align:right;font-size:12px;font-weight:700;color:var(--color-success)">${it.newPrice.toLocaleString("vi-VN")}đ</td>
+    </tr>`
+  ).join("");
+
+  const notFoundHTML = notFoundItems.length > 0
+    ? `<div style="margin-top:14px;padding:10px 14px;background:var(--bg-tertiary);border-radius:var(--radius-md);border:1px solid var(--border-color);">
+        <p style="font-size:12px;font-weight:600;color:var(--text-secondary);margin:0 0 6px">
+          ${notFoundCount} mã hàng trong S06 không tìm thấy trong hệ thống${notFoundItems.length < notFoundCount ? " (hiện 30 mã đầu)" : ""}:
+        </p>
+        <p style="font-size:11px;font-family:monospace;color:var(--text-muted);margin:0;line-height:1.8">${notFoundItems.join(", ")}</p>
+       </div>`
+    : "";
+
+  const modalHTML = `
+  <div id="modal-s06-result" class="modal-overlay" style="display:flex;z-index:2100;">
+    <div class="modal-content-container" style="max-width:680px;max-height:85vh;display:flex;flex-direction:column;">
+      <div class="modal-header">
+        <h3 class="card-title" style="display:flex;align-items:center;gap:8px;">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:20px;height:20px;color:var(--color-success)"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          Kết quả cập nhật đơn giá S06
+        </h3>
+        <button class="icon-btn" onclick="document.getElementById('modal-s06-result').remove()" style="width:32px;height:32px;">×</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto;">
+        <!-- Thống kê -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">
+          <div style="background:var(--bg-tertiary);border:1px solid var(--border-color);border-radius:var(--radius-md);padding:12px;text-align:center;">
+            <div style="font-size:22px;font-weight:800;color:var(--color-primary)">${totalInFile.toLocaleString()}</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">Mã trong S06</div>
+          </div>
+          <div style="background:var(--bg-tertiary);border:1px solid var(--border-color);border-radius:var(--radius-md);padding:12px;text-align:center;">
+            <div style="font-size:22px;font-weight:800;color:var(--color-success)">${updatedCount.toLocaleString()}</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">Đã cập nhật giá</div>
+          </div>
+          <div style="background:var(--bg-tertiary);border:1px solid var(--border-color);border-radius:var(--radius-md);padding:12px;text-align:center;">
+            <div style="font-size:22px;font-weight:800;color:var(--text-muted)">${skippedCount.toLocaleString()}</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">Giá không đổi</div>
+          </div>
+          <div style="background:var(--bg-tertiary);border:1px solid var(--border-color);border-radius:var(--radius-md);padding:12px;text-align:center;">
+            <div style="font-size:22px;font-weight:800;color:var(--color-warning)">${notFoundCount.toLocaleString()}</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">Chưa có trong HT</div>
+          </div>
+        </div>
+
+        ${updatedItems.length > 0 ? `
+        <p style="font-size:13px;font-weight:600;margin-bottom:8px;">Chi tiết các mặt hàng đã cập nhật${updatedItems.length > 50 ? " (hiện 50 đầu)" : ""}:</p>
+        <div style="max-height:320px;overflow-y:auto;border:1px solid var(--border-color);border-radius:var(--radius-md);">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr style="background:var(--bg-tertiary);position:sticky;top:0;">
+                <th style="padding:6px 8px;font-size:11px;text-align:left;color:var(--text-secondary);font-weight:600;">Mã hàng</th>
+                <th style="padding:6px 8px;font-size:11px;text-align:left;color:var(--text-secondary);font-weight:600;">Tên hàng</th>
+                <th style="padding:6px 8px;font-size:11px;text-align:right;color:var(--text-secondary);font-weight:600;">Giá cũ</th>
+                <th style="padding:6px 8px;font-size:11px;text-align:right;color:var(--text-secondary);font-weight:600;">Giá mới</th>
+              </tr>
+            </thead>
+            <tbody>${updatedHTML}</tbody>
+          </table>
+        </div>` : `<p style="color:var(--text-muted);font-size:13px;">Tất cả các mặt hàng trùng mã đều đã có giá khớp, không cần cập nhật.</p>`}
+
+        ${notFoundHTML}
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="document.getElementById('modal-s06-result').remove()">Đóng</button>
+      </div>
+    </div>
+  </div>`;
+
+  document.body.insertAdjacentHTML("beforeend", modalHTML);
+}
+
+window.importPricesFromS06 = importPricesFromS06;
+window.showS06ImportResult  = showS06ImportResult;
+
