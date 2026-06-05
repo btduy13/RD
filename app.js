@@ -21,6 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (typeof initMouseInteractions === "function") {
     initMouseInteractions();
   }
+  setupNumberFormattingEventListeners();
 });
 
 // Helper đọc file Excel: ưu tiên dùng IPC (Electron), fallback sang fetch (web)
@@ -40,6 +41,19 @@ async function readExcelViaIPC(filename) {
   }
   const arrayBuffer = await response.arrayBuffer();
   return new Uint8Array(arrayBuffer);
+}
+
+function setupNumberFormattingEventListeners() {
+  document.addEventListener("input", function(e) {
+    if (e.target && e.target.classList.contains("number-format")) {
+      const rawVal = e.target.value.replace(/\D/g, "");
+      if (rawVal) {
+        e.target.value = Number(rawVal).toLocaleString("vi-VN");
+      } else {
+        e.target.value = "";
+      }
+    }
+  });
 }
 
 // Khởi tạo ứng dụng: Load dữ liệu từ localStorage hoặc dùng mặc định
@@ -3341,16 +3355,13 @@ function handleProductSubmit(e) {
   const id = document.getElementById("prod-id").value.trim().toUpperCase() || `SP${(state.products.length + 1).toString().padStart(3, '0')}`;
   const name = document.getElementById("prod-name").value.trim();
   const unit = document.getElementById("prod-unit").value.trim();
-  const initialStock = parseInt(document.getElementById("prod-stock").value) || 0;
-  const initialCost = parseInt(document.getElementById("prod-cost").value) || 0;
-  const minStock = parseInt(document.getElementById("prod-min-stock").value) || 0;
+  const initialStock = parseInt(document.getElementById("prod-stock").value.replace(/\D/g, "")) || 0;
+  const initialCost = parseInt(document.getElementById("prod-cost").value.replace(/\D/g, "")) || 0;
+  const salePrice1 = parseInt(document.getElementById("prod-sale-price").value.replace(/\D/g, "")) || 0;
+  const minStock = parseInt(document.getElementById("prod-min-stock").value.replace(/\D/g, "")) || 0;
 
   const nature = document.getElementById("prod-nature").value;
   const group = document.getElementById("prod-group").value.trim();
-  const defaultWarehouse = document.getElementById("prod-default-wh").value.trim();
-  const warehouseAccount = document.getElementById("prod-wh-acc").value.trim();
-  const cogsAccount = document.getElementById("prod-cogs-acc").value.trim();
-  const revenueAccount = document.getElementById("prod-rev-acc").value.trim();
   const inactive = document.getElementById("prod-inactive").checked;
 
   // Kiểm tra trùng mã
@@ -3368,17 +3379,14 @@ function handleProductSubmit(e) {
     totalValue: initialStock * initialCost,
     initialStock, // Lưu giữ đầu kỳ để tính thẻ kho
     initialCost,
+    salePrice1,
     minStock,
     nature,
     group,
-    defaultWarehouse,
-    warehouseAccount,
-    cogsAccount,
-    revenueAccount,
     inactive
   };
 
-  // Tạo excelRow ngay cho sản phẩm mới
+  // Tạo excelRow ngay cho sản phẩm mới (tự động phân bổ Tài khoản & Kho theo chuẩn VN)
   ensureProductExcelRow(newProduct);
 
   // Cập nhật cả số dư đầu kỳ trong tài khoản 156 của Bảng Cân đối
@@ -3447,7 +3455,7 @@ function handleEscrowTypeChange() {
     populatePartnerDropdown("esc-partner", null);
     
     // Thiết lập giá trị mặc định cho form tạo mới
-    document.getElementById("esc-amount").value = 10000000;
+    document.getElementById("esc-amount").value = Number(10000000).toLocaleString("vi-VN");
     document.getElementById("esc-date").value = new Date().toISOString().split("T")[0];
     document.getElementById("esc-return-date").value = "";
     document.getElementById("esc-desc").value = type === "escrow_pay" ? "Chi tiền gửi ký quỹ bảo lãnh" : "Nhận tiền đặt cọc ký quỹ của đối tác";
@@ -3486,7 +3494,7 @@ function autoFillEscrowRefundData() {
   const originVoucher = state.vouchers.find(v => v.id === refId);
   if (originVoucher) {
     document.getElementById("esc-partner").innerHTML = `<option value="${originVoucher.partnerId}">${originVoucher.partnerName}</option>`;
-    document.getElementById("esc-amount").value = originVoucher.amount;
+    document.getElementById("esc-amount").value = Number(originVoucher.amount || 0).toLocaleString("vi-VN");
     document.getElementById("esc-date").value = new Date().toISOString().split("T")[0];
     document.getElementById("esc-desc").value = `Tất toán hoàn trả theo chứng từ gốc ${originVoucher.id}`;
   }
@@ -3516,7 +3524,7 @@ function handleEscrowSubmit(e) {
     partnerId,
     partnerName,
     paymentMethod: document.getElementById("esc-payment-method").value,
-    amount: parseInt(document.getElementById("esc-amount").value),
+    amount: parseInt(document.getElementById("esc-amount").value.replace(/\D/g, "")) || 0,
     description: document.getElementById("esc-desc").value,
     expectedReturnDate: document.getElementById("esc-return-date") ? document.getElementById("esc-return-date").value : "",
     escrowRefId: type.includes("refund") ? refId : null // Liên kết đến chứng từ ký quỹ gốc
@@ -5036,6 +5044,7 @@ async function restoreAndApplyS06Prices(force = false) {
       const group = String(row[3] || "").trim();
       const inactiveVal = String(row[30] || "").trim();
       const inactive = inactiveVal === "1" || inactiveVal === "Có" || inactiveVal === "True" || inactiveVal === "true";
+      const salePrice1 = parseFloat(row[21]) || 0;
       
       restoredProducts.push({
         id,
@@ -5046,6 +5055,7 @@ async function restoreAndApplyS06Prices(force = false) {
         totalValue,
         initialStock: stock,
         initialCost: avgCost,
+        salePrice1,
         minStock,
         group,
         inactive,
@@ -5144,7 +5154,66 @@ async function manuallyRestoreDatabaseFromExcel() {
 }
 window.manuallyRestoreDatabaseFromExcel = manuallyRestoreDatabaseFromExcel;
 
+function getVNAccountingAccounts(nature) {
+  const nat = (nature || "").trim();
+  let defaultWarehouse = "";
+  let warehouseAccount = "";
+  let cogsAccount = "";
+  let revenueAccount = "";
+  let discountAccount = "5211";
+  let rebateAccount = "5212";
+  let returnAccount = "5213";
+
+  if (nat === "Vật tư hàng hóa" || nat === "Hàng hóa") {
+    defaultWarehouse = "1561";
+    warehouseAccount = "1561";
+    cogsAccount = "632";
+    revenueAccount = "51111";
+  } else if (nat === "Nguyên vật liệu") {
+    defaultWarehouse = "152";
+    warehouseAccount = "152";
+    cogsAccount = "632";
+    revenueAccount = "51111";
+  } else if (nat === "Công cụ dụng cụ") {
+    defaultWarehouse = "153";
+    warehouseAccount = "153";
+    cogsAccount = "632";
+    revenueAccount = "51111";
+  } else if (nat === "Thành phẩm" || nat === "Bán thành phẩm") {
+    defaultWarehouse = "155";
+    warehouseAccount = "155";
+    cogsAccount = "632";
+    revenueAccount = "5112";
+  } else if (nat === "Dịch vụ") {
+    defaultWarehouse = "";
+    warehouseAccount = "";
+    cogsAccount = "632";
+    revenueAccount = "5113";
+  } else {
+    // Chỉ là diễn giải hoặc mặc định
+    defaultWarehouse = "";
+    warehouseAccount = "";
+    cogsAccount = "";
+    revenueAccount = "";
+    discountAccount = "";
+    rebateAccount = "";
+    returnAccount = "";
+  }
+
+  return {
+    defaultWarehouse,
+    warehouseAccount,
+    cogsAccount,
+    revenueAccount,
+    discountAccount,
+    rebateAccount,
+    returnAccount
+  };
+}
+
 function ensureProductExcelRow(p) {
+  const accounts = getVNAccountingAccounts(p.nature || "Vật tư hàng hóa");
+
   if (!p.excelRow || p.excelRow.length < 57) {
     const er = new Array(57).fill("");
     er[0] = p.id || "";
@@ -5153,14 +5222,17 @@ function ensureProductExcelRow(p) {
     er[3] = p.group || "";
     er[7] = p.unit || "Cái";
     er[9] = p.minStock || 0;
-    er[11] = p.defaultWarehouse || "";
-    er[12] = p.warehouseAccount || "1561";
-    er[13] = p.cogsAccount || "632";
-    er[14] = p.revenueAccount || "51111";
+    er[11] = accounts.defaultWarehouse;
+    er[12] = accounts.warehouseAccount;
+    er[13] = accounts.cogsAccount;
+    er[14] = accounts.revenueAccount;
+    er[15] = accounts.discountAccount;
+    er[16] = accounts.rebateAccount;
+    er[17] = accounts.returnAccount;
     er[18] = 0;
     er[19] = p.initialCost || 0;
     er[20] = p.avgCost || 0;
-    er[21] = 0;
+    er[21] = p.salePrice1 || 0;
     er[22] = 0;
     er[23] = 0;
     er[24] = 0;
@@ -5184,12 +5256,16 @@ function ensureProductExcelRow(p) {
   p.excelRow[3] = p.group || "";
   p.excelRow[7] = p.unit || "Cái";
   p.excelRow[9] = p.minStock || 0;
-  p.excelRow[11] = p.defaultWarehouse || "";
-  p.excelRow[12] = p.warehouseAccount || "1561";
-  p.excelRow[13] = p.cogsAccount || "632";
-  p.excelRow[14] = p.revenueAccount || "51111";
+  p.excelRow[11] = accounts.defaultWarehouse;
+  p.excelRow[12] = accounts.warehouseAccount;
+  p.excelRow[13] = accounts.cogsAccount;
+  p.excelRow[14] = accounts.revenueAccount;
+  p.excelRow[15] = accounts.discountAccount;
+  p.excelRow[16] = accounts.rebateAccount;
+  p.excelRow[17] = accounts.returnAccount;
   p.excelRow[19] = p.initialCost || 0;
   p.excelRow[20] = p.avgCost || 0;
+  p.excelRow[21] = p.salePrice1 || 0;
   p.excelRow[30] = p.inactive ? 1 : 0;
   p.excelRow[31] = p.stock || 0;
   p.excelRow[33] = p.totalValue || 0;
@@ -6401,7 +6477,7 @@ function promptEditOrderDebt(voucherId) {
     document.getElementById("group-edit-debt-voucher").style.display = "block";
     document.getElementById("group-edit-debt-partner").style.display = "none";
     
-    document.getElementById("edit-debt-voucher-value").value = v.remainingDebt;
+    document.getElementById("edit-debt-voucher-value").value = Number(v.remainingDebt || 0).toLocaleString("vi-VN");
 
     openModal("modal-edit-debt");
   } catch (err) {
@@ -6443,8 +6519,8 @@ function promptEditPartnerOpeningDebt(partnerId) {
     document.getElementById("group-edit-debt-voucher").style.display = "none";
     document.getElementById("group-edit-debt-partner").style.display = "block";
     
-    document.getElementById("edit-debt-partner-debit").value = currentDebit;
-    document.getElementById("edit-debt-partner-credit").value = currentCredit;
+    document.getElementById("edit-debt-partner-debit").value = Number(currentDebit).toLocaleString("vi-VN");
+    document.getElementById("edit-debt-partner-credit").value = Number(currentCredit).toLocaleString("vi-VN");
 
     openModal("modal-edit-debt");
   } catch (err) {
@@ -6472,7 +6548,7 @@ function handleEditDebtSubmit(e) {
         return;
       }
       const totalAmt = v.totalAmount || v.amount || 0;
-      const newDebt = parseInt(document.getElementById("edit-debt-voucher-value").value) || 0;
+      const newDebt = parseInt(document.getElementById("edit-debt-voucher-value").value.replace(/\D/g, "")) || 0;
       
       if (newDebt < 0 || newDebt > totalAmt) {
         showToast(`Số tiền nợ hợp lệ phải từ 0đ đến ${formatVND(totalAmt)}!`, "danger");
@@ -6485,8 +6561,8 @@ function handleEditDebtSubmit(e) {
     } 
     
     else if (editType === "partner") {
-      const newDebit = parseInt(document.getElementById("edit-debt-partner-debit").value) || 0;
-      const newCredit = parseInt(document.getElementById("edit-debt-partner-credit").value) || 0;
+      const newDebit = parseInt(document.getElementById("edit-debt-partner-debit").value.replace(/\D/g, "")) || 0;
+      const newCredit = parseInt(document.getElementById("edit-debt-partner-credit").value.replace(/\D/g, "")) || 0;
       
       if (newDebit < 0 || newCredit < 0) {
         showToast("Số dư đầu kỳ phải lớn hơn hoặc bằng 0đ!", "danger");
@@ -6867,7 +6943,7 @@ function handleReceiptSubmit(e) {
   const partnerVal = document.getElementById("receipt-partner").value;
   const debit = document.getElementById("receipt-debit").value;
   const credit = document.getElementById("receipt-credit").value;
-  const amount = parseInt(document.getElementById("receipt-amount").value) || 0;
+  const amount = parseInt(document.getElementById("receipt-amount").value.replace(/\D/g, "")) || 0;
   const desc = document.getElementById("receipt-desc").value.trim();
 
   const partnerObj = resolvePartner(partnerVal);
@@ -6908,7 +6984,7 @@ function handlePaymentSubmit(e) {
   const partnerVal = document.getElementById("payment-partner").value;
   const debit = document.getElementById("payment-debit").value;
   const credit = document.getElementById("payment-credit").value;
-  const amount = parseInt(document.getElementById("payment-amount").value) || 0;
+  const amount = parseInt(document.getElementById("payment-amount").value.replace(/\D/g, "")) || 0;
   const desc = document.getElementById("payment-desc").value.trim();
 
   const partnerObj = resolvePartner(partnerVal);
@@ -7376,7 +7452,7 @@ function parseExcelFile(file, type) {
           if (!id || !name || id === "Mã" || id === "TỔNG CỘNG") continue;
 
           let unit, minStock, stock, totalVal, avgCost;
-          let initialStock, initialCost;
+          let initialStock, initialCost, salePrice1;
           let nature = "Vật tư hàng hóa";
           let defaultWarehouse = "";
           let warehouseAccount = "1561";
@@ -7393,6 +7469,7 @@ function parseExcelFile(file, type) {
             avgCost   = stock > 0 ? Math.round(totalVal / stock) : 0;
             initialStock = stock;
             initialCost  = avgCost;
+            salePrice1   = avgCost;
             
             nature           = String(row[2] || "Vật tư hàng hóa").trim();
             defaultWarehouse = String(row[6] || "").trim();
@@ -7412,6 +7489,7 @@ function parseExcelFile(file, type) {
             
             initialStock = stock;
             initialCost  = Number(row[19]) || avgCost || 0;
+            salePrice1   = Number(row[21]) || 0;
 
             nature           = String(row[2] || "Vật tư hàng hóa").trim();
             defaultWarehouse = String(row[11] || "").trim();
@@ -7435,6 +7513,7 @@ function parseExcelFile(file, type) {
             group: (row[isNewFormat ? 3 : 3] || "").toString().trim(),
             initialStock,
             initialCost,
+            salePrice1,
             nature,
             defaultWarehouse,
             warehouseAccount,
@@ -7978,7 +8057,7 @@ function promptQuickImport(productId) {
     `;
 
     document.getElementById("quick-import-qty").value = "";
-    document.getElementById("quick-import-price").value = p.avgCost || p.initialCost || "";
+    document.getElementById("quick-import-price").value = Number(p.avgCost || p.initialCost || 0).toLocaleString("vi-VN");
 
     openModal("modal-quick-import");
   } catch(err) {
@@ -7993,8 +8072,8 @@ function handleQuickImportSubmit(e) {
     e.preventDefault();
     
     const prodId = document.getElementById("quick-import-prod-id").value;
-    const qty = parseInt(document.getElementById("quick-import-qty").value) || 0;
-    const price = parseInt(document.getElementById("quick-import-price").value) || 0;
+    const qty = parseInt(document.getElementById("quick-import-qty").value.replace(/\D/g, "")) || 0;
+    const price = parseInt(document.getElementById("quick-import-price").value.replace(/\D/g, "")) || 0;
 
     if (qty <= 0 || price < 0) {
       showToast("Số lượng nhập phải lớn hơn 0 và Đơn giá phải lớn hơn hoặc bằng 0đ!", "danger");
@@ -8075,21 +8154,27 @@ function promptEditProductPrice(productId) {
     // Đảm bảo có excelRow đầy đủ
     ensureProductExcelRow(p);
 
+    const formatNum = (v) => v !== undefined && v !== null && !isNaN(v) ? Number(v).toLocaleString("vi-VN") : "0";
+
     document.getElementById("edit-prod-id").value = p.id;
     document.getElementById("edit-prod-id-display").value = p.id;
     document.getElementById("edit-prod-name").value = p.name;
     document.getElementById("edit-prod-unit").value = p.unit || "Cái";
-    document.getElementById("edit-prod-initial-cost").value = p.initialCost !== undefined ? p.initialCost : (p.avgCost || 0);
-    document.getElementById("edit-prod-initial-stock").value = p.initialStock !== undefined ? p.initialStock : (p.stock || 0);
-    document.getElementById("edit-prod-avg-cost").value = p.avgCost || 0;
-    document.getElementById("edit-prod-min-stock").value = p.minStock || 5;
+    
+    const initialCostVal = p.initialCost !== undefined ? p.initialCost : (p.avgCost || 0);
+    const initialStockVal = p.initialStock !== undefined ? p.initialStock : (p.stock || 0);
+    const avgCostVal = p.avgCost || 0;
+    const minStockVal = p.minStock || 5;
+    const salePrice1Val = p.salePrice1 !== undefined ? p.salePrice1 : (p.excelRow && p.excelRow[21] !== undefined ? Number(p.excelRow[21]) : 0);
+
+    document.getElementById("edit-prod-initial-cost").value = formatNum(initialCostVal);
+    document.getElementById("edit-prod-initial-stock").value = formatNum(initialStockVal);
+    document.getElementById("edit-prod-avg-cost").value = formatNum(avgCostVal);
+    document.getElementById("edit-prod-min-stock").value = formatNum(minStockVal);
+    document.getElementById("edit-prod-sale-price").value = formatNum(salePrice1Val);
 
     document.getElementById("edit-prod-nature").value = p.nature || p.excelRow[2] || "Vật tư hàng hóa";
     document.getElementById("edit-prod-group").value = p.group || p.excelRow[3] || "";
-    document.getElementById("edit-prod-default-wh").value = p.defaultWarehouse || p.excelRow[11] || "";
-    document.getElementById("edit-prod-wh-acc").value = p.warehouseAccount || p.excelRow[12] || "1561";
-    document.getElementById("edit-prod-cogs-acc").value = p.cogsAccount || p.excelRow[13] || "632";
-    document.getElementById("edit-prod-rev-acc").value = p.revenueAccount || p.excelRow[14] || "51111";
     
     const isInactive = p.inactive || p.excelRow[30] === 1 || p.excelRow[30] === "1" || p.excelRow[30] === "True" || p.excelRow[30] === "true" || p.excelRow[30] === true;
     document.getElementById("edit-prod-inactive").checked = !!isInactive;
@@ -8109,17 +8194,15 @@ function handleEditProductPriceSubmit(e) {
     const prodId = document.getElementById("edit-prod-id").value;
     const name = document.getElementById("edit-prod-name").value.trim();
     const unit = document.getElementById("edit-prod-unit").value.trim();
-    const initialCost = parseInt(document.getElementById("edit-prod-initial-cost").value) || 0;
-    const initialStock = parseInt(document.getElementById("edit-prod-initial-stock").value) || 0;
-    const avgCost = parseInt(document.getElementById("edit-prod-avg-cost").value) || 0;
-    const minStock = parseInt(document.getElementById("edit-prod-min-stock").value) || 0;
+    
+    const initialCost = parseInt(document.getElementById("edit-prod-initial-cost").value.replace(/\D/g, "")) || 0;
+    const initialStock = parseInt(document.getElementById("edit-prod-initial-stock").value.replace(/\D/g, "")) || 0;
+    const avgCost = parseInt(document.getElementById("edit-prod-avg-cost").value.replace(/\D/g, "")) || 0;
+    const minStock = parseInt(document.getElementById("edit-prod-min-stock").value.replace(/\D/g, "")) || 0;
+    const salePrice1 = parseInt(document.getElementById("edit-prod-sale-price").value.replace(/\D/g, "")) || 0;
 
     const nature = document.getElementById("edit-prod-nature").value;
     const group = document.getElementById("edit-prod-group").value.trim();
-    const defaultWarehouse = document.getElementById("edit-prod-default-wh").value.trim();
-    const warehouseAccount = document.getElementById("edit-prod-wh-acc").value.trim();
-    const cogsAccount = document.getElementById("edit-prod-cogs-acc").value.trim();
-    const revenueAccount = document.getElementById("edit-prod-rev-acc").value.trim();
     const inactive = document.getElementById("edit-prod-inactive").checked;
 
     if (!name || !unit) {
@@ -8136,13 +8219,10 @@ function handleEditProductPriceSubmit(e) {
     p.initialStock = initialStock;
     p.avgCost = avgCost;
     p.minStock = minStock;
+    p.salePrice1 = salePrice1;
 
     p.nature = nature;
     p.group = group;
-    p.defaultWarehouse = defaultWarehouse;
-    p.warehouseAccount = warehouseAccount;
-    p.cogsAccount = cogsAccount;
-    p.revenueAccount = revenueAccount;
     p.inactive = inactive;
 
     // Cập nhật giá trị tồn ban đầu
@@ -9597,8 +9677,8 @@ function handleQuickAddProductSubmit(e) {
     const rawId   = document.getElementById("qap-prod-id").value.trim().toUpperCase();
     const name    = document.getElementById("qap-prod-name").value.trim();
     const unit    = document.getElementById("qap-prod-unit").value.trim();
-    const initStock = parseInt(document.getElementById("qap-prod-stock").value) || 0;
-    const initCost  = parseInt(document.getElementById("qap-prod-cost").value) || 0;
+    const initStock = parseInt(document.getElementById("qap-prod-stock").value.replace(/\D/g, "")) || 0;
+    const initCost  = parseInt(document.getElementById("qap-prod-cost").value.replace(/\D/g, "")) || 0;
 
     if (!name) {
       showToast("Vui lòng nhập tên mặt hàng!", "danger");

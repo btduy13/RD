@@ -1389,7 +1389,7 @@ Không có lỗi nào được ghi nhận.
           <div id="group-edit-debt-voucher" style="display: none;">
             <div class="form-group">
               <label class="form-label" id="edit-debt-voucher-label">Số tiền còn nợ mới (đ)</label>
-              <input type="number" id="edit-debt-voucher-value" class="form-control" placeholder="Nhập số tiền nợ...">
+              <input type="text" id="edit-debt-voucher-value" class="form-control number-format" placeholder="Nhập số tiền nợ...">
             </div>
           </div>
 
@@ -1397,11 +1397,11 @@ Không có lỗi nào được ghi nhận.
           <div id="group-edit-debt-partner" style="display: none;">
             <div class="form-group">
               <label class="form-label">Số dư NỢ đầu kỳ mới (đ)</label>
-              <input type="number" id="edit-debt-partner-debit" class="form-control" placeholder="Nhập số dư nợ đầu kỳ...">
+              <input type="text" id="edit-debt-partner-debit" class="form-control number-format" placeholder="Nhập số dư nợ đầu kỳ...">
             </div>
             <div class="form-group" style="margin-top: 12px;">
               <label class="form-label">Số dư CÓ đầu kỳ mới (đ)</label>
-              <input type="number" id="edit-debt-partner-credit" class="form-control" placeholder="Nhập số dư có đầu kỳ...">
+              <input type="text" id="edit-debt-partner-credit" class="form-control number-format" placeholder="Nhập số dư có đầu kỳ...">
             </div>
           </div>
 
@@ -1449,7 +1449,7 @@ Không có lỗi nào được ghi nhận.
           </div>
           <div class="form-group">
             <label class="form-label">Số tiền (đ)</label>
-            <input type="number" id="receipt-amount" class="form-control text-right" required min="1" placeholder="Nhập số tiền VNĐ">
+            <input type="text" id="receipt-amount" class="form-control text-right number-format" required placeholder="Nhập số tiền VNĐ">
           </div>
           <div class="form-group">
             <label class="form-label">Lý do nộp tiền / Diễn giải</label>
@@ -1500,7 +1500,7 @@ Không có lỗi nào được ghi nhận.
           </div>
           <div class="form-group">
             <label class="form-label">Số tiền (đ)</label>
-            <input type="number" id="payment-amount" class="form-control text-right" required min="1" placeholder="Nhập số tiền VNĐ">
+            <input type="text" id="payment-amount" class="form-control text-right number-format" required placeholder="Nhập số tiền VNĐ">
           </div>
           <div class="form-group">
             <label class="form-label">Lý do chi tiền / Diễn giải</label>
@@ -1645,45 +1645,27 @@ Không có lỗi nào được ghi nhận.
             </div>
             <div class="form-group">
               <label class="form-label">Số lượng tồn tối thiểu (Cảnh báo)</label>
-              <input type="number" id="prod-min-stock" class="form-control" required value="5" min="0">
-            </div>
-          </div>
-
-          <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;">
-            <div class="form-group">
-              <label class="form-label">Kho ngầm định</label>
-              <input type="text" id="prod-default-wh" class="form-control" placeholder="Ví dụ: 1561, 1562">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Tài khoản kho</label>
-              <input type="text" id="prod-wh-acc" class="form-control" placeholder="Mặc định: 1561" value="1561">
-            </div>
-          </div>
-
-          <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;">
-            <div class="form-group">
-              <label class="form-label">Tài khoản chi phí (Giá vốn)</label>
-              <input type="text" id="prod-cogs-acc" class="form-control" placeholder="Mặc định: 632" value="632">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Tài khoản doanh thu</label>
-              <input type="text" id="prod-rev-acc" class="form-control" placeholder="Mặc định: 51111" value="51111">
+              <input type="text" id="prod-min-stock" class="form-control number-format" required value="5">
             </div>
           </div>
 
           <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;">
             <div class="form-group">
               <label class="form-label">Số lượng tồn ban đầu</label>
-              <input type="number" id="prod-stock" class="form-control" required value="0" min="0">
+              <input type="text" id="prod-stock" class="form-control number-format" required value="0">
             </div>
             <div class="form-group">
-              <label class="form-label">Giá vốn đầu kỳ (đ/ĐVT)</label>
-              <input type="number" id="prod-cost" class="form-control" required value="0" min="0">
+              <label class="form-label">Giá nhập (Giá mua cố định)</label>
+              <input type="text" id="prod-cost" class="form-control number-format" required value="0">
             </div>
           </div>
 
           <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;">
-            <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+            <div class="form-group">
+              <label class="form-label">Giá bán (Giá bán 1)</label>
+              <input type="text" id="prod-sale-price" class="form-control number-format" required value="0">
+            </div>
+            <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-top: 24px;">
               <input type="checkbox" id="prod-inactive" style="width: 16px; height: 16px; cursor: pointer;">
               <label for="prod-inactive" class="form-label" style="margin-bottom: 0; cursor: pointer; user-select: none;">Ngừng theo dõi</label>
             </div>
@@ -1714,12 +1696,12 @@ Không có lỗi nào được ghi nhận.
           
           <div class="form-group">
             <label class="form-label">Số lượng nhập thêm</label>
-            <input type="number" id="quick-import-qty" class="form-control" required min="1" placeholder="Ví dụ: 100">
+            <input type="text" id="quick-import-qty" class="form-control number-format" required placeholder="Ví dụ: 100">
           </div>
           
           <div class="form-group" style="margin-top: 12px;">
             <label class="form-label">Đơn giá nhập mới (đ)</label>
-            <input type="number" id="quick-import-price" class="form-control" required min="0" placeholder="Ví dụ: 45000">
+            <input type="text" id="quick-import-price" class="form-control number-format" required placeholder="Ví dụ: 45.000">
           </div>
         </form>
       </div>
@@ -1779,49 +1761,34 @@ Không có lỗi nào được ghi nhận.
             </div>
             <div class="form-group">
               <label class="form-label">Số lượng tồn tối thiểu (Cảnh báo)</label>
-              <input type="number" id="edit-prod-min-stock" class="form-control" required min="0">
-            </div>
-          </div>
-
-          <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;">
-            <div class="form-group">
-              <label class="form-label">Kho ngầm định</label>
-              <input type="text" id="edit-prod-default-wh" class="form-control">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Tài khoản kho</label>
-              <input type="text" id="edit-prod-wh-acc" class="form-control">
-            </div>
-          </div>
-
-          <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;">
-            <div class="form-group">
-              <label class="form-label">Tài khoản chi phí (Giá vốn)</label>
-              <input type="text" id="edit-prod-cogs-acc" class="form-control">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Tài khoản doanh thu</label>
-              <input type="text" id="edit-prod-rev-acc" class="form-control">
+              <input type="text" id="edit-prod-min-stock" class="form-control number-format" required>
             </div>
           </div>
 
           <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;">
             <div class="form-group">
               <label class="form-label">Tồn kho ban đầu (Lượng)</label>
-              <input type="number" id="edit-prod-initial-stock" class="form-control" required min="0">
+              <input type="text" id="edit-prod-initial-stock" class="form-control number-format" required>
             </div>
             <div class="form-group">
-              <label class="form-label">Giá vốn đầu kỳ (đ/ĐVT)</label>
-              <input type="number" id="edit-prod-initial-cost" class="form-control" required min="0">
+              <label class="form-label">Giá nhập (Giá mua cố định)</label>
+              <input type="text" id="edit-prod-initial-cost" class="form-control number-format" required>
             </div>
           </div>
 
           <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;">
             <div class="form-group">
-              <label class="form-label">Đơn giá bình quân (đ)</label>
-              <input type="number" id="edit-prod-avg-cost" class="form-control" required min="0" placeholder="Hệ thống tự tính hoặc chỉnh tay">
+              <label class="form-label">Giá bán (Giá bán 1)</label>
+              <input type="text" id="edit-prod-sale-price" class="form-control number-format" required>
             </div>
-            <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-top: 24px;">
+            <div class="form-group">
+              <label class="form-label">Đơn giá bình quân (đ)</label>
+              <input type="text" id="edit-prod-avg-cost" class="form-control number-format" required placeholder="Hệ thống tự tính hoặc chỉnh tay">
+            </div>
+          </div>
+
+          <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;">
+            <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
               <input type="checkbox" id="edit-prod-inactive" style="width: 16px; height: 16px; cursor: pointer;">
               <label for="edit-prod-inactive" class="form-label" style="margin-bottom: 0; cursor: pointer; user-select: none;">Ngừng theo dõi</label>
             </div>
@@ -2093,11 +2060,11 @@ Không có lỗi nào được ghi nhận.
           <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
             <div class="form-group">
               <label class="form-label" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Tồn ban đầu</label>
-              <input type="number" id="qap-prod-stock" class="form-control" value="0" min="0" style="font-size: 13px; height: 36px; padding: 0 12px;">
+              <input type="text" id="qap-prod-stock" class="form-control number-format" value="0" style="font-size: 13px; height: 36px; padding: 0 12px;">
             </div>
             <div class="form-group">
               <label class="form-label" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Giá vốn đầu kỳ (đ)</label>
-              <input type="number" id="qap-prod-cost" class="form-control" value="0" min="0" style="font-size: 13px; height: 36px; padding: 0 12px;">
+              <input type="text" id="qap-prod-cost" class="form-control number-format" value="0" style="font-size: 13px; height: 36px; padding: 0 12px;">
             </div>
           </div>
           <div class="form-actions" style="margin-top: 8px; display: flex; justify-content: flex-end; gap: 10px;">
@@ -2147,7 +2114,7 @@ Không có lỗi nào được ghi nhận.
           <div class="form-grid" style="grid-template-columns: 1.2fr 1fr;">
             <div class="form-group">
               <label class="form-label">Số tiền (đ)</label>
-              <input type="number" id="esc-amount" class="form-control font-numeric" required min="1000">
+              <input type="text" id="esc-amount" class="form-control font-numeric number-format" required>
             </div>
             
             <div class="form-group">
