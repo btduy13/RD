@@ -777,7 +777,8 @@ function recalculateAccounting() {
     productBalanceMap[p.id] = {
       stock: initStock,
       avgCost: initCost,
-      totalValue: initStock * initCost
+      totalValue: initStock * initCost,
+      lastPurchasePrice: p.lastPurchasePrice !== undefined ? p.lastPurchasePrice : (p.excelRow && p.excelRow[20] !== undefined ? Number(p.excelRow[20]) : initCost)
     };
   });
 
@@ -809,6 +810,8 @@ function recalculateAccounting() {
           } else {
             p.avgCost = 0;
           }
+          // Lưu đơn giá mua này làm đơn giá mua gần nhất
+          p.lastPurchasePrice = item.price;
         }
         itemSubtotal += item.amount;
       });
@@ -930,6 +933,7 @@ function recalculateAccounting() {
       p.stock = finalVal.stock;
       p.avgCost = finalVal.avgCost;
       p.totalValue = finalVal.totalValue;
+      p.lastPurchasePrice = finalVal.lastPurchasePrice;
     }
   });
 
@@ -5070,6 +5074,7 @@ async function restoreAndApplyS06Prices(force = false) {
         initialStock: stock,
         initialCost: avgCost,
         salePrice1,
+        lastPurchasePrice: avgCost,
         minStock,
         group,
         inactive,
@@ -5245,7 +5250,7 @@ function ensureProductExcelRow(p) {
     er[17] = accounts.returnAccount;
     er[18] = 0;
     er[19] = p.initialCost || 0;
-    er[20] = p.avgCost || 0;
+    er[20] = p.lastPurchasePrice !== undefined ? p.lastPurchasePrice : (p.avgCost || 0);
     er[21] = p.salePrice1 || 0;
     er[22] = 0;
     er[23] = 0;
@@ -5278,7 +5283,7 @@ function ensureProductExcelRow(p) {
   p.excelRow[16] = accounts.rebateAccount;
   p.excelRow[17] = accounts.returnAccount;
   p.excelRow[19] = p.initialCost || 0;
-  p.excelRow[20] = p.avgCost || 0;
+  p.excelRow[20] = p.lastPurchasePrice !== undefined ? p.lastPurchasePrice : (p.avgCost || 0);
   p.excelRow[21] = p.salePrice1 || 0;
   p.excelRow[30] = p.inactive ? 1 : 0;
   p.excelRow[31] = p.stock || 0;
@@ -7528,6 +7533,7 @@ function parseExcelFile(file, type) {
             initialStock,
             initialCost,
             salePrice1,
+            lastPurchasePrice: Number(row[20]) || avgCost,
             nature,
             defaultWarehouse,
             warehouseAccount,
