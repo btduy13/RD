@@ -163,6 +163,13 @@ function initApp() {
   if (typeof initOrderFormKeyboardNavigation === "function") {
     initOrderFormKeyboardNavigation();
   }
+
+  // Tự động cập nhật đơn giá theo S06 một lần khi khởi động
+  setTimeout(() => {
+    if (typeof applyS06PricesOnStartup === "function") {
+      applyS06PricesOnStartup();
+    }
+  }, 1000);
 }
 
 async function autoIntegrateSalesExcel() {
@@ -4947,6 +4954,84 @@ function cleanNumericUnitProducts() {
   if (state.products.length !== originalLength) {
     console.log(`[Database Cleanup] Đã xóa ${originalLength - state.products.length} sản phẩm lỗi có đơn vị tính là số.`);
     saveState();
+  }
+}
+
+async function applyS06PricesOnStartup() {
+  if (localStorage.getItem("s06_prices_updated_v2") === "true") {
+    return;
+  }
+  try {
+    const bytes = await readExcelViaIPC("gia_moi_tong_hop.csv");
+    if (!bytes) return;
+    const text = new TextDecoder("utf-8").decode(bytes);
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) return;
+    
+    const header = lines[0].split(",");
+    const colMa = header.findIndex(h => h.trim().toLowerCase() === "ma");
+    const colDg = header.findIndex(h => h.trim().toLowerCase() === "don_gia_moi");
+    if (colMa === -1 || colDg === -1) return;
+    
+    const priceMap = {};
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(",");
+      const ma = (cols[colMa] || "").trim().toUpperCase();
+      const dg = parseInt((cols[colDg] || "0").trim()) || 0;
+      if (ma && dg > 0) {
+        priceMap[ma] = dg;
+      }
+    }
+    
+    if (Object.keys(priceMap).length === 0) return;
+    
+    let updatedCount = 0;
+    state.products.forEach(p => {
+      const key = p.id.toUpperCase();
+      if (priceMap.hasOwnProperty(key)) {
+        const newPrice = priceMap[key];
+        if (p.avgCost !== newPrice || p.initialCost !== newPrice) {
+          p.avgCost = newPrice;
+          p.initialCost = newPrice;
+          p.totalValue = (p.stock || 0) * newPrice;
+          updatedCount++;
+        }
+      }
+    });
+    
+    if (updatedCount > 0) {
+      // Cập nhật số dư đầu kỳ TK 156
+      let newInvOpBal = 0;
+      state.products.forEach(p => {
+        const orig = (typeof DEFAULT_DATA !== 'undefined' && DEFAULT_DATA.products)
+          ? DEFAULT_DATA.products.find(o => o.id === p.id)
+          : null;
+        newInvOpBal += orig ? orig.totalValue : ((p.initialStock || 0) * (p.initialCost || 0));
+      });
+      if (state.initialBalances && state.initialBalances["156"]) {
+        state.initialBalances["156"].balance = newInvOpBal;
+      }
+      if (typeof rebalanceEquity === "function") rebalanceEquity();
+      
+      saveState();
+      recalculateAccounting();
+      
+      console.log(`[Database Cleanup] Đã cập nhật giá mới cho ${updatedCount} mặt hàng từ file S06.`);
+      
+      // Cập nhật giao diện
+      if (typeof renderInventoryTable === "function") renderInventoryTable();
+      if (typeof renderDashboard === "function") renderDashboard();
+      if (typeof populateProductLedgerDropdown === "function") populateProductLedgerDropdown();
+      
+      // Hiển thị thông báo nhỏ
+      setTimeout(() => {
+        showToast(`🏷️ Đã tự động cập nhật đơn giá cho ${updatedCount} mặt hàng từ file S06!`, "success");
+      }, 1500);
+    }
+    
+    localStorage.setItem("s06_prices_updated_v2", "true");
+  } catch (err) {
+    console.warn("Lỗi cập nhật đơn giá S06:", err);
   }
 }
 
