@@ -2936,10 +2936,10 @@ function addPurchaseFormRow() {
       </select>
     </td>
     <td>
-      <input type="number" class="form-control item-qty text-right" required value="1" min="1" oninput="recalculatePurchaseTotals()">
+      <input type="text" class="form-control item-qty text-right number-format" required value="1" oninput="recalculatePurchaseTotals()">
     </td>
     <td>
-      <input type="number" class="form-control item-price text-right" required value="10000" min="0" oninput="recalculatePurchaseTotals()">
+      <input type="text" class="form-control item-price text-right number-format" required value="${Number(10000).toLocaleString("vi-VN")}" oninput="recalculatePurchaseTotals()">
     </td>
     <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">10.000đ</td>
     <td style="text-align: center;">
@@ -2967,8 +2967,8 @@ function recalculatePurchaseTotals() {
   let subtotal = 0;
 
   rows.forEach(row => {
-    const qty = parseInt(row.querySelector(".item-qty").value) || 0;
-    const price = parseInt(row.querySelector(".item-price").value) || 0;
+    const qty = parseInt(row.querySelector(".item-qty").value.replace(/\D/g, "")) || 0;
+    const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
     const amount = qty * price;
     subtotal += amount;
 
@@ -3016,8 +3016,8 @@ function handlePurchaseSubmit(e) {
   const voucherItems = [];
   rows.forEach(row => {
     const productId = row.querySelector(".item-productId").value;
-    const qty = parseInt(row.querySelector(".item-qty").value);
-    const price = parseInt(row.querySelector(".item-price").value);
+    const qty = parseInt(row.querySelector(".item-qty").value.replace(/\D/g, "")) || 0;
+    const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
     voucherItems.push({
       productId,
       qty,
@@ -3062,13 +3062,13 @@ function addSalesFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVa
       <input type="text" class="form-control item-productId" placeholder="Gõ mã hoặc tên sản phẩm..." required list="datalist-sales-products" oninput="autoFillProductPrice(this)" onblur="autoFillProductPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
     </td>
     <td>
-      <input type="number" class="form-control item-qty text-right" required value="${qtyVal}" min="1" oninput="recalculateSalesTotals()">
+      <input type="text" class="form-control item-qty text-right number-format" required value="${qtyVal}" oninput="recalculateSalesTotals()">
     </td>
     <td>
-      <input type="number" class="form-control item-price text-right" required value="${priceVal}" min="0" oninput="recalculateSalesTotals()">
+      <input type="text" class="form-control item-price text-right number-format" required value="${Number(priceVal).toLocaleString("vi-VN")}" oninput="recalculateSalesTotals()">
     </td>
     <td>
-      <input type="number" class="form-control item-discount text-right" required value="${discountVal}" min="0" max="100" oninput="recalculateSalesTotals()" placeholder="0">
+      <input type="text" class="form-control item-discount text-right number-format" required value="${discountVal}" oninput="recalculateSalesTotals()" placeholder="0">
     </td>
     <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
     <td style="text-align: center;">
@@ -3104,7 +3104,7 @@ function autoFillProductPrice(selectEl) {
          ? Number(prod.excelRow[21]) 
          : (Math.round(prod.avgCost * 1.35 / 1000) * 1000 || 50000));
          
-    row.querySelector(".item-price").value = salePriceVal;
+    row.querySelector(".item-price").value = Number(salePriceVal).toLocaleString("vi-VN");
     recalculateSalesTotals();
   }
 }
@@ -3115,9 +3115,9 @@ function recalculateSalesTotals() {
   let subtotal = 0;
 
   rows.forEach(row => {
-    const qty = parseInt(row.querySelector(".item-qty").value) || 0;
-    const price = parseInt(row.querySelector(".item-price").value) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value) || 0;
+    const qty = parseInt(row.querySelector(".item-qty").value.replace(/\D/g, "")) || 0;
+    const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/\D/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
     subtotal += amount;
 
@@ -3207,9 +3207,9 @@ function handleSalesSubmit(e) {
     }
 
     const productId = resolvedProduct.id;
-    const qty = parseInt(row.querySelector(".item-qty").value) || 0;
-    const price = parseInt(row.querySelector(".item-price").value) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value) || 0;
+    const qty = parseInt(row.querySelector(".item-qty").value.replace(/\D/g, "")) || 0;
+    const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/\D/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
     
     // Kiểm tra hàng tồn kho khả dụng (Cộng lại lượng đã bán cũ của chứng từ này nếu đang edit)
