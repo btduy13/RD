@@ -7376,6 +7376,14 @@ function parseExcelFile(file, type) {
           if (!id || !name || id === "Mã" || id === "TỔNG CỘNG") continue;
 
           let unit, minStock, stock, totalVal, avgCost;
+          let initialStock, initialCost;
+          let nature = "Vật tư hàng hóa";
+          let defaultWarehouse = "";
+          let warehouseAccount = "1561";
+          let cogsAccount = "632";
+          let revenueAccount = "51111";
+          let inactive = false;
+
           if (isNewFormat) {
             // File mới: Mã(0) Tên(1) Tính chất(2) Nhóm(3) ĐVT(4) Tồn tối thiểu(5) Kho(6) TK kho(7) TK CP(8) TK DT(9) Ngừng TD(10) Tồn hiện tại(11) Giá trị tồn(12)
             unit      = (row[4] || "Cái").toString().trim();
@@ -7383,19 +7391,58 @@ function parseExcelFile(file, type) {
             stock     = Number(row[11]) || 0;
             totalVal  = Number(row[12]) || 0;
             avgCost   = stock > 0 ? Math.round(totalVal / stock) : 0;
+            initialStock = stock;
+            initialCost  = avgCost;
+            
+            nature           = String(row[2] || "Vật tư hàng hóa").trim();
+            defaultWarehouse = String(row[6] || "").trim();
+            warehouseAccount = String(row[7] || "1561").trim();
+            cogsAccount      = String(row[8] || "632").trim();
+            revenueAccount   = String(row[9] || "51111").trim();
+            
+            const inactiveVal = String(row[10] || "").trim();
+            inactive = inactiveVal === "1" || inactiveVal === "Có" || inactiveVal === "True" || inactiveVal === "true";
           } else {
             // File cũ (57 cột): ĐVT ở col 7, Tồn tối thiểu col 9, Tồn kho col 31, Giá trị col 33
             unit      = (row[7] || "Cái").toString().trim();
             minStock  = Number(row[9]) || 0;
             stock     = Number(row[31]) || 0;
             totalVal  = Number(row[33]) || 0;
-            avgCost   = stock > 0 ? Math.round(totalVal / stock) : (Number(row[19]) || 0);
+            avgCost   = stock > 0 ? Math.round(totalVal / stock) : (Number(row[20]) || Number(row[19]) || 0);
+            
+            initialStock = stock;
+            initialCost  = Number(row[19]) || avgCost || 0;
+
+            nature           = String(row[2] || "Vật tư hàng hóa").trim();
+            defaultWarehouse = String(row[11] || "").trim();
+            warehouseAccount = String(row[12] || "1561").trim();
+            cogsAccount      = String(row[13] || "632").trim();
+            revenueAccount   = String(row[14] || "51111").trim();
+
+            const inactiveVal = String(row[30] || "").trim();
+            inactive = inactiveVal === "1" || inactiveVal === "Có" || inactiveVal === "True" || inactiveVal === "true";
           }
 
           const idx = state.products.findIndex(p => p.id === id);
-          const pObj = { id, name, unit, stock, avgCost, totalValue: stock * avgCost, minStock,
+          const pObj = { 
+            id, 
+            name, 
+            unit, 
+            stock, 
+            avgCost, 
+            totalValue: stock * avgCost, 
+            minStock,
             group: (row[isNewFormat ? 3 : 3] || "").toString().trim(),
-            excelRow: row };
+            initialStock,
+            initialCost,
+            nature,
+            defaultWarehouse,
+            warehouseAccount,
+            cogsAccount,
+            revenueAccount,
+            inactive,
+            excelRow: row 
+          };
           if (idx !== -1) {
             state.products[idx] = { ...state.products[idx], ...pObj };
           } else {
