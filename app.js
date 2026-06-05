@@ -8443,17 +8443,25 @@ function startFirebaseApp() {
     firebaseDb = firebase.database();
     cloudSyncActive = true;
 
+    let hasPulledOnStartup = false;
+    let hasRegisteredListener = false;
+
     // Lắng nghe kết nối mạng từ Firebase
     const connectedRef = firebaseDb.ref(".info/connected");
     connectedRef.on("value", (snap) => {
       if (snap.val() === true) {
         updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
-        showToast("Đã kết nối đám mây thời gian thực thành công!", "success");
         
-        // Tải dữ liệu từ đám mây khi khởi động
-        pullFromCloudOnStartup();
-        // Lắng nghe thay đổi trực tuyến để đồng bộ đa máy
-        listenToCloudChanges();
+        if (!hasPulledOnStartup) {
+          hasPulledOnStartup = true;
+          showToast("Đã kết nối đám mây thời gian thực thành công!", "success");
+          pullFromCloudOnStartup();
+        }
+        
+        if (!hasRegisteredListener) {
+          hasRegisteredListener = true;
+          listenToCloudChanges();
+        }
       } else {
         updateCloudSyncBadge(false, "Mây: Ngoại tuyến", "#ef4444");
       }
@@ -8717,6 +8725,14 @@ function listenToCloudChanges() {
     if (!rawData) return;
 
     const cloudData = unescapeFirebaseObject(rawData);
+    
+    // Tối ưu hóa hiệu năng: So sánh timestamp sửa đổi gần nhất trước để bỏ qua dữ liệu cũ/trùng lặp
+    const cloudTs = cloudData._lastModified || 0;
+    const localTs = state._lastModified || 0;
+    if (cloudTs > 0 && localTs > 0 && cloudTs <= localTs) {
+      return;
+    }
+
     const localStr  = localStorage.getItem("rd_accounting_db") || "";
     const cloudStr  = JSON.stringify(cloudData);
 
