@@ -78,6 +78,18 @@ function initApp() {
     }
   }
 
+  // Khởi tạo các thuộc tính ban đầu cho các mặt hàng cũ nếu bị thiếu
+  if (state.products) {
+    state.products.forEach(p => {
+      if (p.initialStock === undefined) {
+        p.initialStock = p.stock !== undefined ? p.stock : 0;
+      }
+      if (p.initialCost === undefined) {
+        p.initialCost = p.avgCost !== undefined ? p.avgCost : 0;
+      }
+    });
+  }
+
   // Dọn dẹp dữ liệu rác đối tác đầu kỳ không hợp lệ
   if (state.partnerOpeningBalances) {
     const validPartnerIds = new Set(state.partners.map(p => p.id));
@@ -8020,8 +8032,8 @@ function promptEditProductPrice(productId) {
     document.getElementById("edit-prod-id-display").value = p.id;
     document.getElementById("edit-prod-name").value = p.name;
     document.getElementById("edit-prod-unit").value = p.unit || "Cái";
-    document.getElementById("edit-prod-initial-cost").value = p.initialCost || 0;
-    document.getElementById("edit-prod-initial-stock").value = p.initialStock || 0;
+    document.getElementById("edit-prod-initial-cost").value = p.initialCost !== undefined ? p.initialCost : (p.avgCost || 0);
+    document.getElementById("edit-prod-initial-stock").value = p.initialStock !== undefined ? p.initialStock : (p.stock || 0);
     document.getElementById("edit-prod-avg-cost").value = p.avgCost || 0;
     document.getElementById("edit-prod-min-stock").value = p.minStock || 5;
 
