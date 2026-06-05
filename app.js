@@ -3333,6 +3333,14 @@ function handleProductSubmit(e) {
   const initialCost = parseInt(document.getElementById("prod-cost").value) || 0;
   const minStock = parseInt(document.getElementById("prod-min-stock").value) || 0;
 
+  const nature = document.getElementById("prod-nature").value;
+  const group = document.getElementById("prod-group").value.trim();
+  const defaultWarehouse = document.getElementById("prod-default-wh").value.trim();
+  const warehouseAccount = document.getElementById("prod-wh-acc").value.trim();
+  const cogsAccount = document.getElementById("prod-cogs-acc").value.trim();
+  const revenueAccount = document.getElementById("prod-rev-acc").value.trim();
+  const inactive = document.getElementById("prod-inactive").checked;
+
   // Kiểm tra trùng mã
   if (state.products.some(p => p.id === id)) {
     showToast(`Mã sản phẩm "${id}" đã tồn tại!`, "danger");
@@ -3348,8 +3356,18 @@ function handleProductSubmit(e) {
     totalValue: initialStock * initialCost,
     initialStock, // Lưu giữ đầu kỳ để tính thẻ kho
     initialCost,
-    minStock
+    minStock,
+    nature,
+    group,
+    defaultWarehouse,
+    warehouseAccount,
+    cogsAccount,
+    revenueAccount,
+    inactive
   };
+
+  // Tạo excelRow ngay cho sản phẩm mới
+  ensureProductExcelRow(newProduct);
 
   // Cập nhật cả số dư đầu kỳ trong tài khoản 156 của Bảng Cân đối
   state.products.push(newProduct);
@@ -3359,7 +3377,7 @@ function handleProductSubmit(e) {
   state.products.forEach(p => {
     // Nếu sản phẩm có trong mặc định, nó đã được cộng, ta lấy thực tế
     const orig = DEFAULT_DATA.products.find(o => o.id === p.id);
-    newInvOpBal += orig ? orig.totalValue : (p.initialStock * p.initialCost);
+    newInvOpBal += orig ? orig.totalValue : ((p.initialStock || 0) * (p.initialCost || 0));
   });
   state.initialBalances["156"].balance = newInvOpBal;
 
@@ -3374,6 +3392,11 @@ function handleProductSubmit(e) {
   
   // Reset form
   document.getElementById("form-product").reset();
+
+  // Vẽ lại bảng tồn kho nếu đang xem tab tồn kho
+  if (typeof renderInventoryTable === "function") {
+    renderInventoryTable();
+  }
 }
 
 // Tự động cân đối tài sản và nguồn vốn bằng cách điều chỉnh TK 411 (Vốn chủ sở hữu)
@@ -5014,6 +5037,11 @@ async function restoreAndApplyS06Prices(force = false) {
         minStock,
         group,
         inactive,
+        nature: String(row[2] || "Vật tư hàng hóa").trim(),
+        defaultWarehouse: String(row[11] || "").trim(),
+        warehouseAccount: String(row[12] || "1561").trim(),
+        cogsAccount: String(row[13] || "632").trim(),
+        revenueAccount: String(row[14] || "51111").trim(),
         excelRow: row
       });
     }
@@ -5109,13 +5137,14 @@ function ensureProductExcelRow(p) {
     const er = new Array(57).fill("");
     er[0] = p.id || "";
     er[1] = p.name || "";
-    er[2] = "Vật tư hàng hóa";
+    er[2] = p.nature || "Vật tư hàng hóa";
     er[3] = p.group || "";
     er[7] = p.unit || "Cái";
     er[9] = p.minStock || 0;
-    er[12] = "1561";
-    er[13] = "632";
-    er[14] = "51111";
+    er[11] = p.defaultWarehouse || "";
+    er[12] = p.warehouseAccount || "1561";
+    er[13] = p.cogsAccount || "632";
+    er[14] = p.revenueAccount || "51111";
     er[18] = 0;
     er[19] = p.initialCost || 0;
     er[20] = p.avgCost || 0;
@@ -5139,9 +5168,14 @@ function ensureProductExcelRow(p) {
   // Đồng bộ các thuộc tính hiện tại của sản phẩm vào excelRow
   p.excelRow[0] = p.id || "";
   p.excelRow[1] = p.name || "";
+  p.excelRow[2] = p.nature || "Vật tư hàng hóa";
   p.excelRow[3] = p.group || "";
   p.excelRow[7] = p.unit || "Cái";
   p.excelRow[9] = p.minStock || 0;
+  p.excelRow[11] = p.defaultWarehouse || "";
+  p.excelRow[12] = p.warehouseAccount || "1561";
+  p.excelRow[13] = p.cogsAccount || "632";
+  p.excelRow[14] = p.revenueAccount || "51111";
   p.excelRow[19] = p.initialCost || 0;
   p.excelRow[20] = p.avgCost || 0;
   p.excelRow[30] = p.inactive ? 1 : 0;
@@ -5213,8 +5247,14 @@ function exportProductsToExcel() {
       // Đảm bảo đồng bộ thông tin mới nhất từ CSDL app
       rowData[0]  = p.id || "";
       rowData[1]  = p.name || "";
+      rowData[2]  = p.nature || "Vật tư hàng hóa";
+      rowData[3]  = p.group || "";
       rowData[7]  = p.unit || "Cái";
       rowData[9]  = p.minStock !== undefined ? p.minStock : (er[9] !== undefined ? Number(er[9]) : 0);
+      rowData[11] = p.defaultWarehouse || "";
+      rowData[12] = p.warehouseAccount || "1561";
+      rowData[13] = p.cogsAccount || "632";
+      rowData[14] = p.revenueAccount || "51111";
       rowData[19] = p.initialCost !== undefined ? p.initialCost : (er[19] !== undefined ? Number(er[19]) : 0);
       rowData[20] = p.avgCost !== undefined ? p.avgCost : (er[20] !== undefined ? Number(er[20]) : 0);
       rowData[30] = p.inactive ? 1 : (er[30] !== undefined ? Number(er[30]) : 0);
@@ -7973,6 +8013,9 @@ function promptEditProductPrice(productId) {
       return;
     }
 
+    // Đảm bảo có excelRow đầy đủ
+    ensureProductExcelRow(p);
+
     document.getElementById("edit-prod-id").value = p.id;
     document.getElementById("edit-prod-id-display").value = p.id;
     document.getElementById("edit-prod-name").value = p.name;
@@ -7981,6 +8024,16 @@ function promptEditProductPrice(productId) {
     document.getElementById("edit-prod-initial-stock").value = p.initialStock || 0;
     document.getElementById("edit-prod-avg-cost").value = p.avgCost || 0;
     document.getElementById("edit-prod-min-stock").value = p.minStock || 5;
+
+    document.getElementById("edit-prod-nature").value = p.nature || p.excelRow[2] || "Vật tư hàng hóa";
+    document.getElementById("edit-prod-group").value = p.group || p.excelRow[3] || "";
+    document.getElementById("edit-prod-default-wh").value = p.defaultWarehouse || p.excelRow[11] || "";
+    document.getElementById("edit-prod-wh-acc").value = p.warehouseAccount || p.excelRow[12] || "1561";
+    document.getElementById("edit-prod-cogs-acc").value = p.cogsAccount || p.excelRow[13] || "632";
+    document.getElementById("edit-prod-rev-acc").value = p.revenueAccount || p.excelRow[14] || "51111";
+    
+    const isInactive = p.inactive || p.excelRow[30] === 1 || p.excelRow[30] === "1" || p.excelRow[30] === "True" || p.excelRow[30] === "true" || p.excelRow[30] === true;
+    document.getElementById("edit-prod-inactive").checked = !!isInactive;
 
     openModal("modal-edit-product-price");
   } catch(err) {
@@ -8002,6 +8055,14 @@ function handleEditProductPriceSubmit(e) {
     const avgCost = parseInt(document.getElementById("edit-prod-avg-cost").value) || 0;
     const minStock = parseInt(document.getElementById("edit-prod-min-stock").value) || 0;
 
+    const nature = document.getElementById("edit-prod-nature").value;
+    const group = document.getElementById("edit-prod-group").value.trim();
+    const defaultWarehouse = document.getElementById("edit-prod-default-wh").value.trim();
+    const warehouseAccount = document.getElementById("edit-prod-wh-acc").value.trim();
+    const cogsAccount = document.getElementById("edit-prod-cogs-acc").value.trim();
+    const revenueAccount = document.getElementById("edit-prod-rev-acc").value.trim();
+    const inactive = document.getElementById("edit-prod-inactive").checked;
+
     if (!name || !unit) {
       showToast("Vui lòng điền đầy đủ Tên sản phẩm và Đơn vị tính!", "danger");
       return;
@@ -8017,9 +8078,20 @@ function handleEditProductPriceSubmit(e) {
     p.avgCost = avgCost;
     p.minStock = minStock;
 
+    p.nature = nature;
+    p.group = group;
+    p.defaultWarehouse = defaultWarehouse;
+    p.warehouseAccount = warehouseAccount;
+    p.cogsAccount = cogsAccount;
+    p.revenueAccount = revenueAccount;
+    p.inactive = inactive;
+
     // Cập nhật giá trị tồn ban đầu
     p.stock = initialStock;
     p.totalValue = initialStock * initialCost;
+
+    // Đồng bộ vào excelRow
+    ensureProductExcelRow(p);
 
     saveState();
     recalculateAccounting();
