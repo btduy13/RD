@@ -9313,6 +9313,28 @@ function batchDeleteProducts() {
   }
 }
 
+function clearAllProducts() {
+  if (confirm("CẢNH BÁO: Bạn có chắc chắn muốn xóa TOÀN BỘ sản phẩm trong kho hàng? Tất cả sản phẩm, số lượng tồn và giá trị tồn sẽ bị xóa sạch.")) {
+    if (confirm("Xác nhận lại một lần nữa: Hành động này không thể hoàn tác. Bạn thực sự muốn xóa sạch toàn bộ sản phẩm?")) {
+      state.products = [];
+      // Cập nhật số dư tài khoản 156 về 0
+      if (state.initialBalances && state.initialBalances["156"]) {
+        state.initialBalances["156"].balance = 0;
+      }
+      if (typeof rebalanceEquity === "function") rebalanceEquity();
+      saveState();
+      recalculateAccounting();
+      
+      renderInventoryTable();
+      populateProductLedgerDropdown();
+      if (typeof renderStockLedger === "function") renderStockLedger();
+      
+      showToast("Đã xóa sạch toàn bộ sản phẩm trong kho hàng!", "warning");
+    }
+  }
+}
+window.clearAllProducts = clearAllProducts;
+
 function deleteProduct(prodId) {
   if (confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${prodId}"? Dữ liệu tồn kho liên quan có thể bị ảnh hưởng.`)) {
     state.products = state.products.filter(p => p.id !== prodId);
