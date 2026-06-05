@@ -1,6 +1,6 @@
 {
   "name": "rd-accounting",
-  "version": "1.7.1",
+  "version": "1.7.4",
   "description": "Phần mềm kế toán độc lập Công ty Cổ phần Rạng Đông",
   "main": "main.js",
   "scripts": {
@@ -22,6 +22,7 @@
     "electron-winstaller": "^5.4.0"
   },
   "dependencies": {
+    "exceljs": "^4.4.0",
     "xlsx": "^0.18.5",
     "xlsx-js-style": "^1.2.0"
   },

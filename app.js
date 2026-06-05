@@ -44,7 +44,7 @@ async function readExcelViaIPC(filename) {
 }
 
 function setupNumberFormattingEventListeners() {
-  document.addEventListener("input", function(e) {
+  document.addEventListener("input", function (e) {
     if (e.target && e.target.classList.contains("number-format")) {
       const rawVal = e.target.value.replace(/\D/g, "");
       if (rawVal) {
@@ -124,7 +124,7 @@ function initApp() {
 
   // Khởi tạo các dòng Excel mặc định nếu bị thiếu
   initializeMissingExcelRows();
-  
+
   // Dọn dẹp và chuẩn hóa dữ liệu Excel cũ tránh giá trị undefined
   if (typeof migrateAndCleanExistingExcelRows === "function") {
     migrateAndCleanExistingExcelRows();
@@ -140,15 +140,15 @@ function initApp() {
 
   // Cập nhật thông tin công ty lên giao diện
   updateCompanyUI();
-  
+
   // Chạy lại thuật toán tính toán kế toán & giá vốn để đồng bộ
   recalculateAccounting();
-  
+
   // Tách số điện thoại từ địa chỉ tự động nếu có
   if (typeof autoExtractPhonesAndCleanAddresses === "function") {
     autoExtractPhonesAndCleanAddresses();
   }
-  
+
   // Nạp cấu hình & khởi tạo đồng bộ trực tuyến
   if (typeof loadCloudSettings === "function") {
     loadCloudSettings();
@@ -204,13 +204,13 @@ async function autoIntegrateSalesExcel() {
     console.log("Sales Excel database is already integrated.");
     return;
   }
-  
+
   if (typeof XLSX === "undefined") {
     console.warn("SheetJS not loaded yet, deferring Sales Excel integration...");
     setTimeout(autoIntegrateSalesExcel, 1000);
     return;
   }
-  
+
   console.log("Starting automatic integration of excel/Ban_hang.xlsx...");
   try {
     let data;
@@ -244,7 +244,7 @@ async function autoIntegrateSalesExcel() {
       const dateStr = excelDateToISOString(row[0]);
       const partnerName = (row[6] || "Khách hàng vãng lai").toString().trim();
       const description = (row[7] || "Bán hàng").toString().trim();
-      
+
       const H = Number(row[8]) || 0;
       const C = Number(row[9]) || 0;
       const T = Number(row[10]) || 0;
@@ -325,19 +325,19 @@ async function autoIntegrateSoChiTietBanHangExcel() {
     console.log("Detailed Sales Excel (SO_CHI_TIET_BAN_HANG) is already integrated.");
     return;
   }
-  
+
   if (typeof XLSX === "undefined") {
     console.warn("SheetJS not loaded yet, deferring Detailed Sales Excel integration...");
     setTimeout(autoIntegrateSoChiTietBanHangExcel, 1000);
     return;
   }
-  
+
   console.log("Starting automatic integration of excel/SO_CHI_TIET_BAN_HANG.xlsx...");
   try {
     if (typeof showToast === "function") {
       showToast("Đang nạp Sổ chi tiết bán hàng (48.226 dòng)... Vui lòng đợi trong giây lát.", "info");
     }
-    
+
     // Trì hoãn 100ms để Toast hiển thị trước khi CPU bận
     await new Promise(resolve => setTimeout(resolve, 100));
 
@@ -363,7 +363,7 @@ async function autoIntegrateSoChiTietBanHangExcel() {
       const row = rows[i];
       const voucherId = (row[2] || "").toString().trim();
       if (!voucherId) continue;
-      
+
       if (!groupMap.has(voucherId)) {
         groupMap.set(voucherId, []);
       }
@@ -384,7 +384,7 @@ async function autoIntegrateSoChiTietBanHangExcel() {
     for (const [voucherId, voucherRows] of groupMap.entries()) {
       const firstRow = voucherRows[0];
       const dateStr = excelDateToISOString(firstRow[1] || firstRow[0]);
-      
+
       const partnerIdRaw = (firstRow[7] || "").toString().trim();
       const partnerId = partnerIdRaw ? partnerIdRaw : `DT_${Math.floor(1000 + Math.random() * 9000)}`;
       const partnerName = (firstRow[8] || "Khách hàng vãng lai").toString().trim();
@@ -423,11 +423,11 @@ async function autoIntegrateSoChiTietBanHangExcel() {
         const qty = Number(row[12]) || 0;
         const price = Number(row[13]) || 0;
         const discount = Number(row[15]) || 0;
-        
+
         // Doanh số bán (row[14]) là gross, doanh thu thuần là gross - discount
         const grossAmount = qty * price;
         const amount = grossAmount - discount;
-        
+
         itemsArray.push({
           productId: productId,
           qty: qty,
@@ -484,13 +484,13 @@ async function autoIntegrateSoChiTietBanHangExcel() {
     state.salesExcelIntegrated = true; // Mark sales also integrated to bypass the Ban_hang.xlsx old loader
     saveState();
     recalculateAccounting();
-    
+
     console.log(`Successfully integrated ${count} detailed sales vouchers from SO_CHI_TIET_BAN_HANG.xlsx!`);
-    
+
     if (typeof showToast === "function") {
       showToast(`Tích hợp thành công Sổ chi tiết bán hàng! Đã nạp ${count} chứng từ.`, "success");
     }
-    
+
     if (typeof updateExcelHubUI === "function") updateExcelHubUI();
     if (typeof filterSales === "function") filterSales();
     if (typeof renderDashboard === "function") renderDashboard();
@@ -507,19 +507,19 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
     console.log("Detailed Purchase Excel (SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH) is already integrated.");
     return;
   }
-  
+
   if (typeof XLSX === "undefined") {
     console.warn("SheetJS not loaded yet, deferring Detailed Purchase Excel integration...");
     setTimeout(() => autoIntegrateSoChiTietMuaHangExcel(force), 1000);
     return;
   }
-  
+
   console.log("Starting automatic integration of excel/SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx...");
   try {
     if (typeof showToast === "function") {
       showToast("Đang nạp Sổ chi tiết mua hàng (2.352 dòng)... Vui lòng đợi trong giây lát.", "info");
     }
-    
+
     // Trì hoãn 100ms để Toast hiển thị trước khi CPU bận
     await new Promise(resolve => setTimeout(resolve, 100));
 
@@ -545,7 +545,7 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
       const row = rows[i];
       const voucherId = (row[2] || "").toString().trim();
       if (!voucherId) continue;
-      
+
       if (!groupMap.has(voucherId)) {
         groupMap.set(voucherId, []);
       }
@@ -595,10 +595,10 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
         const unit = (row[7] || "Cái").toString().trim();
         const qty = Number(row[13]) || 0;
         const price = Number(row[14]) || 0;
-        
+
         // Sử dụng giá trị mua ở row[17], nếu không có thì tính bằng qty * price
         const amount = Number(row[17]) || (qty * price);
-        
+
         itemsArray.push({
           productId: productId,
           qty: qty,
@@ -653,13 +653,13 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
     state.soChiTietMuaHangIntegrated = true;
     saveState();
     recalculateAccounting();
-    
+
     console.log(`Successfully integrated ${count} detailed purchase vouchers from SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx!`);
-    
+
     if (typeof showToast === "function") {
       showToast(`Tích hợp thành công Sổ chi tiết mua hàng! Đã nạp ${count} chứng từ.`, "success");
     }
-    
+
     if (typeof updateExcelHubUI === "function") updateExcelHubUI();
     if (typeof filterPurchaseTable === "function") filterPurchaseTable();
     if (typeof renderPurchaseTable === "function") renderPurchaseTable();
@@ -716,7 +716,7 @@ function updateCompanyUI() {
   document.getElementById("setting-company-name").value = state.companyName || "";
   document.getElementById("setting-tax-code").value = state.taxCode || "";
   document.getElementById("setting-address").value = state.address || "";
-  
+
   // Toggle active button Thông tư
   if (state.accountingStandard === "TT200") {
     document.getElementById("btn-standard-200").classList.add("active");
@@ -731,7 +731,7 @@ function updateCompanyUI() {
 function saveCompanySettings() {
   state.companyName = document.getElementById("setting-company-name").value.trim() || "Công Ty Cổ Phần Rạng Đông";
   state.taxCode = document.getElementById("setting-tax-code").value.trim();
-  state.address = document.getElementById("setting-address").value.trim() || "255 Trương Công Định";
+  state.address = document.getElementById("setting-address").value.trim() || "255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh";
   saveState();
   updateCompanyUI();
   showToast("Lưu thông tin doanh nghiệp thành công!", "success");
@@ -755,11 +755,11 @@ function recalculateAccounting() {
   // Ở đây, để đơn giản, ta xem dữ liệu ban đầu trong state.products là số dư đầu kỳ (trước khi phát sinh các voucher)
   // Nhưng để tính toán chuẩn xác, ta phải tính lại tồn kho bằng cách:
   // Lấy danh mục sản phẩm rỗng (hoặc chỉ giữ thông số khởi tạo đầu kỳ), sau đó chạy lần lượt các hóa đơn theo thời gian.
-  
+
   // Lấy số dư đầu kỳ của hàng hóa từ sản phẩm gốc ban đầu
   const productBalanceMap = {};
   const originalProducts = DEFAULT_DATA.products;
-  
+
   // Tối ưu hóa: Tạo map tra cứu O(1) thay vì dùng .find() trong vòng lặp O(N)
   const originalProductsMap = {};
   if (Array.isArray(originalProducts)) {
@@ -767,7 +767,7 @@ function recalculateAccounting() {
       originalProductsMap[o.id] = o;
     });
   }
-  
+
   // Đọc số lượng đầu kỳ của sản phẩm (nếu sản phẩm mới khai báo thì xem như tồn 0, đơn giá 0)
   state.products.forEach(p => {
     // Tìm thông số khởi tạo của sản phẩm này từ map tra cứu O(1)
@@ -801,10 +801,10 @@ function recalculateAccounting() {
         if (p) {
           const oldStock = p.stock;
           const oldVal = p.totalValue;
-          
+
           p.stock += item.qty;
           p.totalValue += item.amount; // Thành tiền mua chưa thuế
-          
+
           if (p.stock > 0) {
             p.avgCost = Math.round(p.totalValue / p.stock);
           } else {
@@ -848,11 +848,11 @@ function recalculateAccounting() {
           // Lưu giá vốn bình quân tại thời điểm xuất kho vào chi tiết hóa đơn
           item.cogsUnit = p.avgCost;
           item.cogsAmount = Math.round(item.qty * p.avgCost);
-          
+
           // Trừ tồn kho
           p.stock -= item.qty;
           p.totalValue -= item.cogsAmount;
-          
+
           totalCogs += item.cogsAmount;
         }
         itemSubtotal += item.amount; // Doanh số bán chưa thuế
@@ -958,31 +958,31 @@ function refreshUI() {
   } catch (e) {
     console.error("Lỗi vẽ bảng Dashboard:", e);
   }
-  
+
   try {
     renderPurchaseTable();
   } catch (e) {
     console.error("Lỗi vẽ bảng mua hàng:", e);
   }
-  
+
   try {
     renderSalesTable();
   } catch (e) {
     console.error("Lỗi vẽ bảng bán hàng:", e);
   }
-  
+
   try {
     renderInventoryTable();
   } catch (e) {
     console.error("Lỗi vẽ bảng tồn kho:", e);
   }
-  
+
   try {
     renderEscrowTable();
   } catch (e) {
     console.error("Lỗi vẽ bảng ký quỹ:", e);
   }
-  
+
   try {
     generateReport(); // Tự động làm mới báo cáo hiện hành
   } catch (e) {
@@ -1015,7 +1015,7 @@ function switchTab(tabId) {
   document.querySelectorAll(".sidebar-menu .menu-item").forEach(item => {
     item.classList.remove("active");
   });
-  
+
   // Set active menu hiện hành
   const activeMenu = document.querySelector(`.sidebar-menu .menu-item[data-tab="${tabId}"]`);
   if (activeMenu) activeMenu.classList.add("active");
@@ -1101,15 +1101,15 @@ function getInventoryValueAt(toDate) {
     });
     return totalInventoryVal;
   }
-  
+
   let totalVal = 0;
   state.products.forEach(p => {
     let stock = p.initialStock || 0;
     let value = (p.initialStock || 0) * (p.initialCost || 0);
-    
+
     const chronologicalVouchers = [...state.vouchers];
     chronologicalVouchers.sort((a, b) => a.date.localeCompare(b.date));
-    
+
     chronologicalVouchers.forEach(v => {
       if (v.date > toDate) return;
       if (v.type === "purchase") {
@@ -1206,9 +1206,9 @@ function renderDashboardDebts() {
   const unsettledTbody = document.getElementById("dashboard-unsettled-orders");
   if (unsettledTbody) {
     unsettledTbody.innerHTML = "";
-    
+
     const unsettled = [];
-    
+
     // A. Thêm các hóa đơn bán hàng chưa tất toán
     let salesVouchers = state.vouchers.filter(v => v.type === "sales");
     if (fromDate) salesVouchers = salesVouchers.filter(v => v.date >= fromDate);
@@ -1252,10 +1252,10 @@ function renderDashboardDebts() {
         }
       }
     });
-    
+
     // Sắp xếp đơn hàng nợ lâu nhất lên đầu
     unsettled.sort((a, b) => new Date(a.date) - new Date(b.date));
-    
+
     if (unsettled.length === 0) {
       unsettledTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:15px;">Không có đơn hàng nào đang nợ</td></tr>`;
     } else {
@@ -1264,15 +1264,15 @@ function renderDashboardDebts() {
         const isOp = item.isOpening;
         const escapedId = escapeHtmlAttr(item.id);
         const escapedPartnerId = escapeHtmlAttr(item.partnerId);
-        const idCol = isOp 
+        const idCol = isOp
           ? `<span style="color:var(--text-secondary); font-style:italic;">Dư đầu kỳ</span>`
           : `<a href="#" onclick="viewVoucher('${escapedId}'); return false;" style="color:var(--color-primary);">${escapedId}</a>`;
-        
+
         tr.innerHTML = `
           <td style="font-weight:bold;">${idCol}</td>
           <td><a href="#" onclick="viewPartnerLedger('${escapedPartnerId}'); return false;" style="font-weight:600; color:var(--text-primary); text-decoration:underline;">${item.partnerName}</a></td>
-          <td style="text-align:right;" class="font-numeric">${formatVND(item.totalAmount).replace("đ","")}</td>
-          <td style="text-align:right; font-weight:700; color:var(--color-warning);" class="font-numeric">${formatVND(item.remainingDebt).replace("đ","")}</td>
+          <td style="text-align:right;" class="font-numeric">${formatVND(item.totalAmount).replace("đ", "")}</td>
+          <td style="text-align:right; font-weight:700; color:var(--color-warning);" class="font-numeric">${formatVND(item.remainingDebt).replace("đ", "")}</td>
           <td style="text-align:center;">
             <button class="btn btn-secondary btn-sm" onclick="promptEditOrderDebt('${escapedId}')" style="padding: 2px 6px; font-size:11px;">Sửa</button>
           </td>
@@ -1286,10 +1286,10 @@ function renderDashboardDebts() {
   const agedTbody = document.getElementById("dashboard-aged-debts");
   if (agedTbody) {
     agedTbody.innerHTML = "";
-    
+
     const agedDebts = [];
     const today = new Date("2026-05-25");
-    
+
     // A. Thêm hóa đơn bán hàng chưa tất toán
     let salesVouchers = state.vouchers.filter(v => v.type === "sales");
     if (fromDate) salesVouchers = salesVouchers.filter(v => v.date >= fromDate);
@@ -1300,12 +1300,12 @@ function renderDashboardDebts() {
       if (v.remainingDebt === undefined) {
         v.remainingDebt = (v.paymentMethod === "131") ? totalAmt : 0;
       }
-      
+
       if (v.remainingDebt > 0) {
         const docDate = new Date(v.date);
         const diffTime = today - docDate;
         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        
+
         agedDebts.push({
           partnerId: v.partnerId,
           partnerName: getPartnerNameForVoucher(v),
@@ -1327,7 +1327,7 @@ function renderDashboardDebts() {
           const docDate = new Date("2026-01-01");
           const diffTime = today - docDate;
           const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-          
+
           agedDebts.push({
             partnerId: p.id,
             partnerName: p.name,
@@ -1338,16 +1338,16 @@ function renderDashboardDebts() {
         }
       }
     });
-    
+
     // Ưu tiên nợ trễ nhiều ngày nhất lên đầu
     agedDebts.sort((a, b) => b.days - a.days);
-    
+
     if (agedDebts.length === 0) {
       agedTbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:15px;">Không có công nợ quá hạn</td></tr>`;
     } else {
       agedDebts.forEach(item => {
         const tr = document.createElement("tr");
-        
+
         let dayClass = "badge-info";
         let dayLabel = `${item.days} ngày`;
         if (item.days > 90) {
@@ -1355,10 +1355,10 @@ function renderDashboardDebts() {
         } else if (item.days > 30) {
           dayClass = "badge-warning";
         }
-        
+
         tr.innerHTML = `
           <td><a href="#" onclick="viewPartnerLedger('${escapeHtmlAttr(item.partnerId)}'); return false;" style="font-weight:600; color:var(--text-primary); text-decoration:underline;">${item.partnerName}</a></td>
-          <td style="text-align:right; font-weight:700; color:var(--color-warning);" class="font-numeric">${formatVND(item.remainingDebt).replace("đ","")}</td>
+          <td style="text-align:right; font-weight:700; color:var(--color-warning);" class="font-numeric">${formatVND(item.remainingDebt).replace("đ", "")}</td>
           <td>${item.date}</td>
           <td style="text-align:center;"><span class="badge ${dayClass}">${dayLabel}</span></td>
         `;
@@ -1370,7 +1370,7 @@ function renderDashboardDebts() {
   // 3. Render giá trị KPI công nợ
   const kpiReceivable = document.getElementById("kpi-debt-receivable");
   const kpiPayable = document.getElementById("kpi-debt-payable");
-  
+
   if (kpiReceivable || kpiPayable) {
     const calculatedDebts = calculatePartnerDebts(toDate);
     let totalRec = 0;
@@ -1432,7 +1432,7 @@ function renderDashboardSVGChart() {
     barsHTML += `
       <g>
         <rect x="${xPos}" y="${revY}" width="${barWidth}" height="${revHeight}" fill="#0ea5e9" rx="4"/>
-        <text x="${xPos + barWidth/2}" y="${revY - 6}" font-size="9" fill="var(--text-primary)" text-anchor="middle" font-weight="700">${Math.round(revVal/1000)}k</text>
+        <text x="${xPos + barWidth / 2}" y="${revY - 6}" font-size="9" fill="var(--text-primary)" text-anchor="middle" font-weight="700">${Math.round(revVal / 1000)}k</text>
       </g>
     `;
 
@@ -1440,7 +1440,7 @@ function renderDashboardSVGChart() {
     barsHTML += `
       <g>
         <rect x="${xPos + barWidth + 6}" y="${cogsY}" width="${barWidth}" height="${cogsHeight}" fill="#f59e0b" rx="4"/>
-        <text x="${xPos + barWidth + 6 + barWidth/2}" y="${cogsY - 6}" font-size="9" fill="var(--text-primary)" text-anchor="middle" font-weight="700">${Math.round(cogsVal/1000)}k</text>
+        <text x="${xPos + barWidth + 6 + barWidth / 2}" y="${cogsY - 6}" font-size="9" fill="var(--text-primary)" text-anchor="middle" font-weight="700">${Math.round(cogsVal / 1000)}k</text>
       </g>
     `;
 
@@ -1549,7 +1549,7 @@ function renderPurchaseTable() {
 
   const totalCount = purchases.length;
   const totalPages = Math.ceil(totalCount / 30) || 1;
-  
+
   if (purchaseCurrentPage > totalPages) purchaseCurrentPage = totalPages;
   if (purchaseCurrentPage < 1) purchaseCurrentPage = 1;
 
@@ -1574,7 +1574,7 @@ function renderPurchaseTable() {
       paginationControls.style.display = "none";
     } else {
       paginationControls.style.display = "flex";
-      
+
       let buttonsHTML = "";
       buttonsHTML += `
         <button class="btn btn-secondary btn-sm" onclick="changePurchasePage(1)" ${purchaseCurrentPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">« Đầu</button>
@@ -1720,7 +1720,7 @@ function renderSalesTable() {
 
   const totalCount = sales.length;
   const totalPages = Math.ceil(totalCount / 30) || 1;
-  
+
   if (salesCurrentPage > totalPages) salesCurrentPage = totalPages;
   if (salesCurrentPage < 1) salesCurrentPage = 1;
 
@@ -1745,7 +1745,7 @@ function renderSalesTable() {
       paginationControls.style.display = "none";
     } else {
       paginationControls.style.display = "flex";
-      
+
       let buttonsHTML = "";
       buttonsHTML += `
         <button class="btn btn-secondary btn-sm" onclick="changeSalesPage(1)" ${salesCurrentPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">« Đầu</button>
@@ -1794,7 +1794,7 @@ function renderSalesTable() {
     const rawVal = v.totalAmount - (v.taxAmount || 0);
     // Định dạng ngày lập hiển thị dạng Ngày/Tháng/Năm (DD/MM/YYYY)
     const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
-    
+
     return `
       <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
         <td style="text-align: center;">
@@ -1898,7 +1898,7 @@ function renderInventoryTable(filterQuery = "") {
       paginationControls.style.display = "none";
     } else {
       paginationControls.style.display = "flex";
-      
+
       let buttonsHTML = "";
       buttonsHTML += `
         <button class="btn btn-secondary btn-sm" onclick="changeInventoryPage(1)" ${inventoryCurrentPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">« Đầu</button>
@@ -2022,8 +2022,8 @@ function renderLedgerProductList() {
 
   let products = state.products || [];
   if (query) {
-    products = products.filter(p => 
-      (p.id || "").toLowerCase().includes(query) || 
+    products = products.filter(p =>
+      (p.id || "").toLowerCase().includes(query) ||
       (p.name || "").toLowerCase().includes(query)
     );
   }
@@ -2111,7 +2111,7 @@ function renderStockLedger() {
   const toDate = document.getElementById("search-ledger-to") ? document.getElementById("search-ledger-to").value : "";
 
   let html = "";
-  
+
   // 1. Số dư dòng đầu tiên: Tồn đầu kỳ
   html += `
     <tr style="background-color: rgba(255, 255, 255, 0.02); font-style: italic;">
@@ -2192,20 +2192,20 @@ function exportStockLedgerToExcel() {
     const ws = {};
     const merges = [];
 
-    const thin    = { style: "thin", color: { rgb: "AAAAAA" } };
+    const thin = { style: "thin", color: { rgb: "AAAAAA" } };
     const border4 = { top: thin, bottom: thin, left: thin, right: thin };
-    const hdrBg   = { patternType: "solid", fgColor: { rgb: "1F497D" } };
-    const altBg   = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
-    const totBg   = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
-    const fntT    = { name: "Times New Roman", sz: 13, bold: true };
-    const fntSub  = { name: "Times New Roman", sz: 11, italic: true };
-    const fntH    = { name: "Times New Roman", sz: 10, bold: true, color: { rgb: "FFFFFF" } };
-    const fntB    = { name: "Times New Roman", sz: 10, bold: true };
-    const fntN    = { name: "Times New Roman", sz: 10 };
-    const cC      = { horizontal: "center", vertical: "center" };
-    const cL      = { horizontal: "left",   vertical: "center", wrapText: true };
-    const cR      = { horizontal: "right",  vertical: "center" };
-    const numFmt  = "#,##0 ;[Red](#,##0)";
+    const hdrBg = { patternType: "solid", fgColor: { rgb: "1F497D" } };
+    const altBg = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
+    const totBg = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
+    const fntT = { name: "Times New Roman", sz: 13, bold: true };
+    const fntSub = { name: "Times New Roman", sz: 11, italic: true };
+    const fntH = { name: "Times New Roman", sz: 10, bold: true, color: { rgb: "FFFFFF" } };
+    const fntB = { name: "Times New Roman", sz: 10, bold: true };
+    const fntN = { name: "Times New Roman", sz: 10 };
+    const cC = { horizontal: "center", vertical: "center" };
+    const cL = { horizontal: "left", vertical: "center", wrapText: true };
+    const cR = { horizontal: "right", vertical: "center" };
+    const numFmt = "#,##0 ;[Red](#,##0)";
 
     const sc = (r, c, v, t, s, z) => {
       const key = XLSX.utils.encode_cell({ r, c });
@@ -2277,7 +2277,7 @@ function exportStockLedgerToExcel() {
       if (!item) return;
 
       const bg = idx % 2 === 0 ? null : altBg;
-      
+
       sc(rowIdx, 0, v.date, 's', bs(cC, bg));
       sc(rowIdx, 1, v.id, 's', bs(cC, bg));
       sc(rowIdx, 2, v.description || (v.type === 'purchase' ? 'Nhập kho mua hàng' : 'Xuất kho bán hàng'), 's', bs(cL, bg));
@@ -2310,7 +2310,7 @@ function exportStockLedgerToExcel() {
 
     ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: ncols - 1 } });
     ws['!merges'] = merges;
-    ws['!cols'] = [{ wch: 14 },{ wch: 16 },{ wch: 32 },{ wch: 12 },{ wch: 12 },{ wch: 16 },{ wch: 14 }];
+    ws['!cols'] = [{ wch: 14 }, { wch: 16 }, { wch: 32 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 14 }];
     ws['!rows'] = [{ hpt: 24 }, { hpt: 20 }, { hpt: 20 }, { hpt: 12 }, { hpt: 22 }];
 
     XLSX.utils.book_append_sheet(wb, ws, "The kho chi tiet");
@@ -2385,7 +2385,7 @@ function renderEscrowTable() {
       paginationControls.style.display = "none";
     } else {
       paginationControls.style.display = "flex";
-      
+
       let buttonsHTML = "";
       buttonsHTML += `
         <button class="btn btn-secondary btn-sm" onclick="changeEscrowPage(1)" ${escrowCurrentPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">« Đầu</button>
@@ -2516,13 +2516,13 @@ function populateReportAccountDropdown() {
 function handleReportTypeChange() {
   const type = document.getElementById("select-report-type").value;
   const acctSelect = document.getElementById("report-account-selector-wrapper");
-  
+
   if (type === "ledger") {
     acctSelect.style.display = "";
   } else {
     acctSelect.style.display = "none";
   }
-  
+
   generateReport();
 }
 
@@ -2535,7 +2535,7 @@ function generateReport() {
   const std = state.accountingStandard;
 
   let html = "";
-  
+
   // A. BÁO CÁO 1: SỔ NHẬT KÝ CHUNG
   if (type === "journal") {
     html += `
@@ -2592,12 +2592,12 @@ function generateReport() {
       ${getReportSignaturesHTML()}
     `;
   }
-  
+
   // B. BÁO CÁO 2: SỔ CÁI CHI TIẾT TÀI KHOẢN
   else if (type === "ledger") {
     const acctCode = document.getElementById("select-report-account").value;
     const acctName = state.initialBalances[acctCode] ? state.initialBalances[acctCode].name : "Tài khoản";
-    
+
     html += `
       <div style="text-align:center; font-family:'Times New Roman', serif; color:#000; margin-bottom:20px;">
         <h2 style="font-size: 20px; font-weight: bold; text-transform: uppercase;">SỔ CÁI TÀI KHOẢN</h2>
@@ -2693,7 +2693,7 @@ function generateReport() {
       ${getReportSignaturesHTML()}
     `;
   }
-  
+
   // C. BÁO CÁO 3: BẢNG CÂN ĐỐI PHÁT SINH TÀI KHOẢN (TRÌNH TRẠNG THÁI CAO CẤP NHẤT)
   else if (type === "balance") {
     html += `
@@ -2816,7 +2816,7 @@ function printReport() {
 // Tính bảng cân đối phát sinh tài khoản
 function calculateTrialBalance() {
   const std = state.accountingStandard;
-  
+
   // Danh sách các tài khoản sử dụng
   const accounts = [
     { code: "111", name: "Tiền mặt tại quỹ" },
@@ -2928,7 +2928,7 @@ function addPurchaseFormRow() {
   if (!tbody) return;
 
   const rowId = `pur-row-${Date.now()}`;
-  
+
   const options = productOptionsHTML || state.products.map(p => `<option value="${p.id}">${p.name} (${p.id})</option>`).join("");
 
   const tr = document.createElement("tr");
@@ -3016,7 +3016,7 @@ function handlePurchaseSubmit(e) {
   const resolvedPartner = resolvePartner(partnerInputVal);
   const partnerId = resolvedPartner.id;
   const partnerName = resolvedPartner.name;
-  
+
   const voucherItems = [];
   rows.forEach(row => {
     const productId = row.querySelector(".item-productId").value;
@@ -3044,10 +3044,10 @@ function handlePurchaseSubmit(e) {
 
   state.vouchers.push(newVoucher);
   saveState();
-  
+
   // Chạy lại hạch toán đồng bộ
   recalculateAccounting();
-  
+
   closeModal("modal-add-purchase");
   showToast("Lập chứng từ mua hàng thành công!", "success");
 }
@@ -3099,15 +3099,15 @@ function autoFillProductPrice(selectEl) {
   const prodVal = selectEl.value;
   const prod = resolveProduct(prodVal);
   const row = selectEl.closest("tr");
-  
+
   if (prod && row) {
     ensureProductExcelRow(prod);
-    const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0 
-      ? prod.salePrice1 
-      : (prod.excelRow && prod.excelRow[21] !== undefined && Number(prod.excelRow[21]) > 0 
-         ? Number(prod.excelRow[21]) 
-         : (Math.round(prod.avgCost * 1.35 / 1000) * 1000 || 50000));
-         
+    const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
+      ? prod.salePrice1
+      : (prod.excelRow && prod.excelRow[21] !== undefined && Number(prod.excelRow[21]) > 0
+        ? Number(prod.excelRow[21])
+        : (Math.round(prod.avgCost * 1.35 / 1000) * 1000 || 50000));
+
     row.querySelector(".item-price").value = Number(salePriceVal).toLocaleString("vi-VN");
     recalculateSalesTotals();
   }
@@ -3160,11 +3160,11 @@ function resetSalesForm() {
 function generateNextSalesVoucherId(paymentMethod) {
   const isCredit = (paymentMethod === "131");
   const prefix = isCredit ? "BH" : "PT";
-  
+
   // Tìm tất cả các chứng từ có ID khớp với tiền tố + số
   const regex = new RegExp(`^${prefix}(\\d+)$`);
   let maxNum = 0;
-  
+
   state.vouchers.forEach(v => {
     const match = v.id.match(regex);
     if (match) {
@@ -3172,12 +3172,12 @@ function generateNextSalesVoucherId(paymentMethod) {
       if (num > maxNum) maxNum = num;
     }
   });
-  
+
   // Giá trị mặc định an toàn nếu chưa có chứng từ nào
   if (maxNum === 0) {
     maxNum = isCredit ? 44340 : 13122;
   }
-  
+
   return `${prefix}${maxNum + 1}`;
 }
 
@@ -3195,7 +3195,7 @@ function handleSalesSubmit(e) {
   const resolvedPartner = resolvePartner(partnerInputVal);
   const partnerId = resolvedPartner.id;
   const partnerName = resolvedPartner.name;
-  
+
   const voucherItems = [];
   let isStockInsufficient = false;
 
@@ -3203,7 +3203,7 @@ function handleSalesSubmit(e) {
     const row = rows[i];
     const productInputVal = row.querySelector(".item-productId").value;
     const resolvedProduct = resolveProduct(productInputVal);
-    
+
     if (!resolvedProduct) {
       showToast(`Không tìm thấy sản phẩm nào khớp với từ khóa "${productInputVal}"!`, "danger");
       isStockInsufficient = true;
@@ -3215,7 +3215,7 @@ function handleSalesSubmit(e) {
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
     const discount = parseFloat(row.querySelector(".item-discount").value.replace(/\D/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
-    
+
     // Kiểm tra hàng tồn kho khả dụng (Cộng lại lượng đã bán cũ của chứng từ này nếu đang edit)
     let oldQty = 0;
     if (editingSalesId) {
@@ -3268,7 +3268,7 @@ function handleSalesSubmit(e) {
 
   saveState();
   recalculateAccounting();
-  
+
   closeModal("modal-add-sales");
   showToast("Lập hóa đơn bán hàng thành công!", "success");
 }
@@ -3309,28 +3309,28 @@ function openQuickAddPartnerModal() {
   if (nameEl) nameEl.value = "";
   if (phoneEl) phoneEl.value = "";
   if (addressEl) addressEl.value = "";
-  
+
   openModal("modal-quick-add-partner");
 }
 
 function handleQuickAddPartnerSubmit(e) {
   e.preventDefault();
-  
+
   const name = document.getElementById("quick-partner-name").value.trim();
   const phone = document.getElementById("quick-partner-phone").value.trim();
   const address = document.getElementById("quick-partner-address").value.trim();
-  
+
   if (!name) {
     showToast("Vui lòng nhập tên khách hàng!", "danger");
     return;
   }
-  
+
   let partner = state.partners.find(p => p.name.toLowerCase() === name.toLowerCase());
-  
+
   if (!partner) {
     const nextNum = (state.partners.filter(p => p.type === "customer").length + 1).toString().padStart(3, '0');
     const id = `KH${nextNum}`;
-    
+
     partner = {
       id,
       name,
@@ -3341,28 +3341,28 @@ function handleQuickAddPartnerSubmit(e) {
       taxCode: "",
       inactive: false
     };
-    
+
     state.partners.push(partner);
     saveState();
-    
+
     // Nạp lại datalist đối tác
     const datalist = document.getElementById("datalist-partners");
     if (datalist && state.partners) {
-      datalist.innerHTML = state.partners.map(p => 
+      datalist.innerHTML = state.partners.map(p =>
         `<option value="${p.id}">${p.name} [${p.type === 'supplier' ? 'NCC' : 'KH'}]</option>`
       ).join("");
     }
-    
+
     showToast(`Đã thêm thành công khách hàng "${name}" với mã ${id}!`, "success");
   } else {
     showToast(`Khách hàng "${name}" đã tồn tại trên hệ thống!`, "info");
   }
-  
+
   const inputEl = document.getElementById("sale-partner");
   if (inputEl) {
     inputEl.value = partner.id;
   }
-  
+
   closeModal("modal-quick-add-partner");
 }
 
@@ -3409,7 +3409,7 @@ function handleProductSubmit(e) {
 
   // Cập nhật cả số dư đầu kỳ trong tài khoản 156 của Bảng Cân đối
   state.products.push(newProduct);
-  
+
   // Cộng dồn giá trị sản phẩm vào Số dư đầu kỳ tài khoản 156
   let newInvOpBal = 0;
   state.products.forEach(p => {
@@ -3424,10 +3424,10 @@ function handleProductSubmit(e) {
 
   saveState();
   recalculateAccounting();
-  
+
   closeModal("modal-add-product");
   showToast(`Khai báo mặt hàng "${name}" thành công!`, "success");
-  
+
   // Reset form
   document.getElementById("form-product").reset();
 
@@ -3441,7 +3441,7 @@ function handleProductSubmit(e) {
 function rebalanceEquity() {
   let debitSum = 0;
   let creditSum = 0;
-  
+
   Object.keys(state.initialBalances).forEach(code => {
     if (code === "411") return; // Bỏ qua vốn chủ để tính chênh lệch
     const b = state.initialBalances[code];
@@ -3460,7 +3460,7 @@ function handleEscrowTypeChange() {
   const type = document.getElementById("esc-type").value;
   const activeWrap = document.getElementById("esc-active-selection-wrapper");
   const returnGroup = document.getElementById("escrow-expected-date-group");
-  
+
   // Ẩn/Hiện combo tất toán nếu là nghiệp vụ hoàn trả
   if (type.includes("refund")) {
     activeWrap.style.display = "";
@@ -3471,7 +3471,7 @@ function handleEscrowTypeChange() {
     activeWrap.style.display = "none";
     returnGroup.style.display = "";
     populatePartnerDropdown("esc-partner", null);
-    
+
     // Thiết lập giá trị mặc định cho form tạo mới
     document.getElementById("esc-amount").value = Number(10000000).toLocaleString("vi-VN");
     document.getElementById("esc-date").value = new Date().toISOString().split("T")[0];
@@ -3484,7 +3484,7 @@ function handleEscrowTypeChange() {
 function populateActiveEscrowsDropdown() {
   const select = document.getElementById("esc-active-selection");
   const type = document.getElementById("esc-type").value;
-  
+
   if (!select) return;
 
   // Lọc các ký quỹ gốc mang đi hoặc nhận về chưa từng được tất toán
@@ -3527,7 +3527,7 @@ function handleEscrowSubmit(e) {
   const resolvedPartner = resolvePartner(partnerInputVal);
   const partnerId = resolvedPartner.id;
   const partnerName = resolvedPartner.name;
-  
+
   const refId = document.getElementById("esc-active-selection").value;
 
   if (type.includes("refund") && !refId) {
@@ -3551,7 +3551,7 @@ function handleEscrowSubmit(e) {
   state.vouchers.push(newVoucher);
   saveState();
   recalculateAccounting();
-  
+
   closeModal("modal-add-escrow");
   showToast("Ghi nhận nghiệp vụ ký quỹ thành công!", "success");
 }
@@ -3561,7 +3561,7 @@ function deleteVoucher(id) {
   if (confirm(`Bạn có chắc chắn muốn xóa và hủy ghi sổ chứng từ "${id}"? Việc này sẽ tính toán lại toàn bộ giá trị tồn kho và công nợ.`)) {
     trackDeletedIds([id]);
     state.vouchers = state.vouchers.filter(v => v.id !== id);
-    
+
     // Nếu có các khoản tất toán gắn liền với nó, xóa liên kết hoặc cảnh báo
     // Để an toàn, xóa các khoản tham chiếu
     state.vouchers.forEach(v => {
@@ -3572,7 +3572,7 @@ function deleteVoucher(id) {
 
     saveState();
     recalculateAccounting();
-    
+
     // Tự động làm tươi tất cả các bảng và KPIs trên mọi tab
     if (typeof filterSales === "function") filterSales();
     if (typeof filterPurchases === "function") filterPurchases();
@@ -3584,7 +3584,7 @@ function deleteVoucher(id) {
     if (typeof filterDebts === "function") filterDebts();
     if (typeof filterPartners === "function") filterPartners();
     if (typeof renderInventoryTable === "function") renderInventoryTable();
-    
+
     showToast(`Đã xóa thành công chứng từ ${id}!`, "success");
   }
 }
@@ -3593,7 +3593,7 @@ function deleteVoucher(id) {
 function findRelatedSalesVoucher(voucherId, description, partnerId, amount) {
   const v = state.vouchers.find(x => x.id === voucherId);
   if (!v) return null;
-  
+
   // 1. Tìm theo số chứng từ bán hàng trong diễn giải (ví dụ: BH39244, BH-25-0001, v.v.)
   const descStr = (description || v.description || "").toString();
   const bhMatch = descStr.match(/BH-?\d+/i);
@@ -3602,7 +3602,7 @@ function findRelatedSalesVoucher(voucherId, description, partnerId, amount) {
     const relatedSales = state.vouchers.find(x => x.type === "sales" && x.id.toUpperCase().replace("-", "") === matchedId);
     if (relatedSales) return relatedSales;
   }
-  
+
   // 2. Thử tìm bằng các số dài >= 3 trong diễn giải khớp với mã hóa đơn bán hàng
   const numMatches = descStr.match(/\d+/g);
   if (numMatches) {
@@ -3613,14 +3613,14 @@ function findRelatedSalesVoucher(voucherId, description, partnerId, amount) {
       }
     }
   }
-  
+
   // 3. Tìm hóa đơn bán hàng gần nhất của đối tác này có cùng số tiền
   const amt = amount || v.amount || 0;
   if (amt > 0) {
     const relatedSales = state.vouchers.find(x => x.type === "sales" && x.partnerId === partnerId && Math.abs(x.totalAmount - amt) < 100);
     if (relatedSales) return relatedSales;
   }
-  
+
   return null;
 }
 
@@ -3652,7 +3652,7 @@ function viewVoucher(id) {
 
   let content = "";
   const companyName = state.companyName || "Công Ty Cổ Phần Rạng Đông";
-  const companyAddr = state.address || "255 Trương Công Định";
+  const companyAddr = state.address || "255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh";
   const companyTax = state.taxCode || "0100101438";
 
   // TIÊU ĐỀ CHỨNG TỪ THEO CHUẨN IN ẤN
@@ -3679,7 +3679,7 @@ function viewVoucher(id) {
         
         <div class="voucher-title-area">
           <span class="voucher-title">PHIẾU NHẬP KHO</span><br>
-          <span class="voucher-subtitle">Ngày ${v.date.substring(8,10)} tháng ${v.date.substring(5,7)} năm ${v.date.substring(0,4)}</span>
+          <span class="voucher-subtitle">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</span>
         </div>
         
         <div class="voucher-entries-note">
@@ -3718,31 +3718,31 @@ function viewVoucher(id) {
           </thead>
           <tbody>
             ${v.items.map((item, idx) => {
-              const prod = state.products.find(p => p.id === item.productId) || { name: "Sản phẩm" };
-              return `
+      const prod = state.products.find(p => p.id === item.productId) || { name: "Sản phẩm" };
+      return `
                 <tr>
                   <td style="text-align:center;">${idx + 1}</td>
                   <td style="text-align:center; font-weight:bold;">${item.productId}</td>
                   <td>${prod.name}</td>
                   <td style="text-align:center;">${prod.unit || "Cái"}</td>
                   <td style="text-align:right;">${item.qty}</td>
-                  <td style="text-align:right;">${formatVND(item.price).replace("đ","")}</td>
-                  <td style="text-align:right; font-weight:bold;">${formatVND(item.amount).replace("đ","")}</td>
+                  <td style="text-align:right;">${formatVND(item.price).replace("đ", "")}</td>
+                  <td style="text-align:right; font-weight:bold;">${formatVND(item.amount).replace("đ", "")}</td>
                 </tr>
               `;
-            }).join("")}
+    }).join("")}
             
             <tr>
               <td colspan="6" style="text-align:right; font-weight:bold;">Cộng tiền hàng chưa thuế:</td>
-              <td style="text-align:right; font-weight:bold;">${formatVND(v.totalAmount - v.taxAmount).replace("đ","")}</td>
+              <td style="text-align:right; font-weight:bold;">${formatVND(v.totalAmount - v.taxAmount).replace("đ", "")}</td>
             </tr>
             <tr>
               <td colspan="6" style="text-align:right;">Thuế GTGT (${v.taxRate}%):</td>
-              <td style="text-align:right;">${formatVND(v.taxAmount).replace("đ","")}</td>
+              <td style="text-align:right;">${formatVND(v.taxAmount).replace("đ", "")}</td>
             </tr>
             <tr style="background-color:#e5e7eb;">
               <td colspan="6" style="text-align:right; font-weight:bold; text-transform:uppercase;">Tổng cộng tiền thanh toán:</td>
-              <td style="text-align:right; font-weight:bold; color:var(--color-primary);">${formatVND(v.totalAmount).replace("đ","")}</td>
+              <td style="text-align:right; font-weight:bold; color:var(--color-primary);">${formatVND(v.totalAmount).replace("đ", "")}</td>
             </tr>
           </tbody>
         </table>
@@ -3783,7 +3783,7 @@ function viewVoucher(id) {
     // Bán hàng -> Phiếu giao hàng / hóa đơn bán hàng theo chuẩn mẫu thực tế của Rạng Đông
     let grossTotal = 0;
     let totalDiscount = 0;
-    
+
     v.items.forEach(item => {
       const itemGross = (item.qty || 0) * (item.price || 0);
       const discountPercent = item.discount || 0;
@@ -3795,20 +3795,23 @@ function viewVoucher(id) {
     content = `
       <div class="printable-voucher" style="max-width: 800px; padding: 30px; font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #000; line-height: 1.4;">
         
-        <!-- Header: Logo Rạng Đông bên trái & Thông tin công ty bên phải -->
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 15px;">
+        <!-- Header: Logo Rạng Đông bên trái & Thông tin công ty ở giữa (Cân đối hoàn hảo) -->
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 15px;">
           <!-- Logo Rạng Đông thực tế từ file logo.jpg -->
-          <div style="display: flex; align-items: center; justify-content: center; width: 140px; margin-right: 10px; height: 60px;">
+          <div style="display: flex; align-items: center; justify-content: center; width: 140px; flex-shrink: 0;">
             <img src="logo.jpg" style="max-height: 55px; max-width: 130px; object-fit: contain;" alt="Logo Rạng Đông" />
           </div>
 
           <!-- Thông tin công ty chính xác theo mẫu giấy -->
-          <div style="text-align: center; flex-grow: 1; padding-left: 10px; color: #000;">
-            <div style="font-weight: bold; font-size: 13.5px; text-transform: uppercase; letter-spacing: 0.2px;">Công Ty Cổ Phần Rạng Đông</div>
+          <div style="text-align: center; flex-grow: 1; color: #000; padding: 0 10px;">
+            <div style="font-weight: bold; font-size: 14px; text-transform: uppercase; letter-spacing: 0.2px;">CÔNG TY CỔ PHẦN RẠNG ĐÔNG</div>
             <div style="font-weight: bold; font-size: 11px; text-transform: uppercase; margin-top: 2px;">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY</div>
-            <div style="font-size: 11px; margin-top: 3px;">Địa chỉ: 255 Trương Công Định, P. Vũng Tàu</div>
+            <div style="font-size: 11px; margin-top: 3px;">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh</div>
             <div style="font-size: 11px; margin-top: 1px; font-weight: 500;">Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074</div>
           </div>
+
+          <!-- Khoảng trống đối trọng bên phải để căn giữa tuyệt đối -->
+          <div style="width: 140px; flex-shrink: 0;"></div>
         </div>
 
         <!-- Tiêu đề Phiếu giao hàng -->
@@ -3822,7 +3825,7 @@ function viewVoucher(id) {
             <strong>Tên khách hàng:</strong> <span style="font-size: 13.5px;">${partnerName}</span>
           </div>
           <div style="text-align: right;">
-            <strong>Ngày:</strong> ${v.date.substring(8,10)}/${v.date.substring(5,7)}/${v.date.substring(0,4)}
+            <strong>Ngày:</strong> ${v.date.substring(8, 10)}/${v.date.substring(5, 7)}/${v.date.substring(0, 4)}
           </div>
           
           <div>
@@ -3856,36 +3859,36 @@ function viewVoucher(id) {
           </thead>
           <tbody>
             ${v.items.map((item, idx) => {
-              const prod = state.products.find(p => p.id === item.productId) || { name: item.productId };
-              const qtyFormatted = Number.isInteger(item.qty) ? `${item.qty},0` : item.qty.toString().replace(".", ",");
-              const gcVal = (item.discount !== undefined && item.discount !== null) ? item.discount : "0";
-              return `
+      const prod = state.products.find(p => p.id === item.productId) || { name: item.productId };
+      const qtyFormatted = Number.isInteger(item.qty) ? `${item.qty},0` : item.qty.toString().replace(".", ",");
+      const gcVal = (item.discount !== undefined && item.discount !== null) ? item.discount : "0";
+      return `
                 <tr>
                   <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${idx + 1}</td>
                   <td style="border: 1px solid #000; padding: 6px 8px; font-weight: 500;">${prod.name}</td>
                   <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${prod.unit || "Cái"}</td>
                   <td style="border: 1px solid #000; padding: 6px 6px; text-align: right;" class="font-numeric">${qtyFormatted}</td>
-                  <td style="border: 1px solid #000; padding: 6px 6px; text-align: right;" class="font-numeric">${formatVND(item.price).replace("đ","").trim()}</td>
-                  <td style="border: 1px solid #000; padding: 6px 6px; text-align: right; font-weight: bold;" class="font-numeric">${formatVND(item.amount).replace("đ","").trim()}</td>
+                  <td style="border: 1px solid #000; padding: 6px 6px; text-align: right;" class="font-numeric">${formatVND(item.price).replace("đ", "").trim()}</td>
+                  <td style="border: 1px solid #000; padding: 6px 6px; text-align: right; font-weight: bold;" class="font-numeric">${formatVND(item.amount).replace("đ", "").trim()}</td>
                   <td style="border: 1px solid #000; padding: 6px 4px; text-align: center;">${gcVal}</td>
                 </tr>
               `;
-            }).join("")}
+    }).join("")}
             
             <!-- Phần tổng tiền -->
             <tr>
               <td colspan="5" style="border: 1px solid #000; padding: 5px 10px; text-align: right; font-weight: bold; border-top: 1.5px solid #000;">Cộng tiền hàng :</td>
-              <td style="border: 1px solid #000; padding: 5px 8px; text-align: right; font-weight: bold;" class="font-numeric">${formatVND(grossTotal).replace("đ","").trim()}</td>
+              <td style="border: 1px solid #000; padding: 5px 8px; text-align: right; font-weight: bold;" class="font-numeric">${formatVND(grossTotal).replace("đ", "").trim()}</td>
               <td style="border: 1px solid #000; border-top: 1.5px solid #000;"></td>
             </tr>
             <tr>
               <td colspan="5" style="border: 1px solid #000; padding: 5px 10px; text-align: right; font-weight: 500;">Số tiền chiết khấu:</td>
-              <td style="border: 1px solid #000; padding: 5px 8px; text-align: right; font-weight: 500;" class="font-numeric">${formatVND(totalDiscount).replace("đ","").trim()}</td>
+              <td style="border: 1px solid #000; padding: 5px 8px; text-align: right; font-weight: 500;" class="font-numeric">${formatVND(totalDiscount).replace("đ", "").trim()}</td>
               <td style="border: 1px solid #000;"></td>
             </tr>
             <tr style="background-color: #f9fafb;">
               <td colspan="5" style="border: 1px solid #000; padding: 6px 10px; text-align: right; font-weight: bold; text-transform: uppercase;">Tổng tiền thanh toán:</td>
-              <td style="border: 1px solid #000; padding: 6px 8px; text-align: right; font-weight: bold;" class="font-numeric">${formatVND(v.totalAmount).replace("đ","").trim()}</td>
+              <td style="border: 1px solid #000; padding: 6px 8px; text-align: right; font-weight: bold;" class="font-numeric">${formatVND(v.totalAmount).replace("đ", "").trim()}</td>
               <td style="border: 1px solid #000;"></td>
             </tr>
           </tbody>
@@ -3932,10 +3935,10 @@ function viewVoucher(id) {
     const isReceipt = v.type === "escrow_receive" || v.type === "escrow_refund_pay" || v.type === "receipt";
     const title = isReceipt ? "PHIẾU THU" : "PHIẾU CHI";
     const templateCode = isReceipt ? "Mẫu số 01 - TT" : "Mẫu số 02 - TT";
-    
+
     // Tìm tài khoản định khoản tương ứng để hiện lên phiếu thu/chi
     const e = v.entries[0] || { debit: "111", credit: "244" };
-    
+
     content = `
       <div class="printable-voucher">
         <div class="voucher-header-top">
@@ -3957,7 +3960,7 @@ function viewVoucher(id) {
         
         <div class="voucher-title-area">
           <span class="voucher-title">${title}</span><br>
-          <span class="voucher-subtitle">Ngày ${v.date.substring(8,10)} tháng ${v.date.substring(5,7)} năm ${v.date.substring(0,4)}</span>
+          <span class="voucher-subtitle">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</span>
         </div>
         
         <div class="voucher-entries-note">
@@ -4056,36 +4059,36 @@ function escapeHtmlAttr(str) {
   if (str === undefined || str === null) return "";
   // 1. Escape cho JS (gạch chéo ngược \ và nháy đơn ')
   const jsEscaped = str.toString()
-                       .replace(/\\/g, "\\\\")
-                       .replace(/'/g, "\\'");
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\\'");
   // 2. Escape cho HTML Attribute (các ký tự đặc biệt khác bao gồm dấu ngoặc nhọn, nháy kép, và &)
   return jsEscaped.replace(/&/g, "&amp;")
-                  .replace(/"/g, "&quot;")
-                  .replace(/</g, "&lt;")
-                  .replace(/>/g, "&gt;");
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 // Tìm đối tác an toàn từ chứng từ để lấy thông tin liên hệ sđt, địa chỉ
 function getPartnerForVoucher(v) {
   if (!v) return null;
   let p = null;
-  
+
   // 1. Tìm theo ID trước
   if (v.partnerId) {
     p = state.partners.find(x => x.id === v.partnerId);
   }
-  
+
   // 2. Tìm theo tên nếu tìm theo ID thất bại hoặc nếu partnerId chính là tên đối tác
   if (!p && v.partnerName) {
     const nameLower = v.partnerName.trim().toLowerCase();
     p = state.partners.find(x => x.name.trim().toLowerCase() === nameLower);
   }
-  
+
   if (!p && v.partnerId) {
     const idLower = v.partnerId.trim().toLowerCase();
     p = state.partners.find(x => x.name.trim().toLowerCase() === idLower);
   }
-  
+
   return p;
 }
 
@@ -4111,9 +4114,9 @@ function parseFormattedNumber(str) {
 function removeAccents(str) {
   if (!str) return "";
   return str.normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/đ/g, "d")
-            .replace(/Đ/g, "D");
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D");
 }
 
 // Bộ lọc nâng cao (Advanced Filter) cho ô tìm kiếm
@@ -4142,7 +4145,7 @@ function matchAdvancedQuery(targetText, queryText, numericValue = null) {
       if (op === '<=') return numericValue <= val;
       if (op === '=' || op === '==') return numericValue === val;
     }
-    
+
     // Kiểu khoảng: 100k-500k
     const rangeMatch = cleanQuery.match(/^([0-9.]+)([kmM]?)-([0-9.]+)([kmM]?)$/);
     if (rangeMatch) {
@@ -4276,7 +4279,7 @@ function showToast(message, type = "primary") {
   const toast = document.createElement("div");
   toast.className = "toast";
   toast.style.setProperty("--toast-color", colors[type] || colors.primary);
-  
+
   toast.innerHTML = `
     <div style="color: ${colors[type] || colors.primary}; display:flex; align-items:center;">
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:20px; height:20px;">
@@ -4315,7 +4318,7 @@ function importData(event) {
   if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = function (e) {
     try {
       const imported = JSON.parse(e.target.result);
       // Kiểm tra sơ bộ tính toàn vẹn
@@ -4359,7 +4362,7 @@ function clearAllData() {
       initialBalances: JSON.parse(JSON.stringify(DEFAULT_DATA.initialBalances)),
       vouchers: []
     };
-    
+
     // Clear balances
     Object.keys(state.initialBalances).forEach(k => {
       state.initialBalances[k].balance = 0;
@@ -4456,7 +4459,7 @@ function renderPartnersTable() {
       paginationControls.style.display = "none";
     } else {
       paginationControls.style.display = "flex";
-      
+
       let buttonsHTML = "";
       buttonsHTML += `
         <button class="btn btn-secondary btn-sm" onclick="changePartnersPage(1)" ${partnersPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">« Đầu</button>
@@ -4545,7 +4548,7 @@ function openEditPartnerModal(id) {
 
 function handlePartnerSubmit(e) {
   e.preventDefault();
-  
+
   const editIndex = document.getElementById("edit-partner-index").value;
   const idVal = document.getElementById("partner-id").value.trim();
   const name = document.getElementById("partner-name").value.trim();
@@ -4588,7 +4591,7 @@ function handlePartnerSubmit(e) {
       const nextNum = (state.partners.filter(p => p.type === type).length + 1).toString().padStart(3, '0');
       id = `${prefix}${nextNum}`;
     }
-    
+
     if (state.partners.some(p => p.id === id)) {
       showToast(`Mã đối tác "${id}" đã tồn tại!`, "danger");
       return;
@@ -4621,27 +4624,27 @@ function deletePartner(id) {
 function autoExtractPhonesAndCleanAddresses() {
   let count = 0;
   if (!state.partners) return 0;
-  
+
   state.partners.forEach(p => {
     const addr = p.address || "";
     const currentPhone = (p.phone || "").trim();
-    
+
     // Thực hiện nếu chưa có số điện thoại (hoặc số điện thoại trống, null, hoặc chỉ là dấu gạch ngang)
     if (!currentPhone || currentPhone === "-" || currentPhone === "null" || currentPhone === "") {
       // Tìm số điện thoại (9-11 số, bắt đầu bằng 0, có thể chứa cách, chấm, gạch ngang)
       const phoneRegex = /(0[1-9][\s.-]?\d(?:[\s.-]?\d){7,9})/g;
       const matches = addr.match(phoneRegex);
-      
+
       if (matches && matches.length > 0) {
         // Gán số điện thoại tìm được
         p.phone = matches.join(" / ");
-        
+
         // Làm sạch địa chỉ: Loại bỏ số điện thoại và các ký tự phân tách thừa
         let cleanAddr = addr;
         matches.forEach(m => {
           cleanAddr = cleanAddr.replace(m, "");
         });
-        
+
         // Dọn dẹp khoảng trắng, dấu gạch ngang thừa ở đầu, cuối hoặc giữa địa chỉ
         cleanAddr = cleanAddr
           .replace(/\s*-\s*-\s*/g, " - ") // Tránh double dash
@@ -4649,13 +4652,13 @@ function autoExtractPhonesAndCleanAddresses() {
           .replace(/^\s*-\s*/g, "")        // Bỏ gạch ngang ở đầu
           .replace(/\s+/g, " ")            // Thu gọn khoảng trắng
           .trim();
-          
+
         p.address = cleanAddr;
         count++;
       }
     }
   });
-  
+
   if (count > 0) {
     saveState();
     if (typeof filterPartners === "function") filterPartners();
@@ -4675,7 +4678,7 @@ function triggerAutoExtractPhones() {
 function convertStyle(s) {
   if (!s) return undefined;
   const out = {};
-  
+
   // Fill style
   if (s.patternType || s.fgColor || s.bgColor) {
     out.fill = {
@@ -4686,7 +4689,7 @@ function convertStyle(s) {
   } else if (s.fill) {
     out.fill = s.fill;
   }
-  
+
   // Font style
   if (s.font) {
     out.font = s.font;
@@ -4700,7 +4703,7 @@ function convertStyle(s) {
       color: s.color
     };
   }
-  
+
   // Alignment style
   if (s.alignment) {
     out.alignment = s.alignment;
@@ -4711,7 +4714,7 @@ function convertStyle(s) {
       wrapText: s.wrapText
     };
   }
-  
+
   // Border style
   if (s.border) {
     out.border = s.border;
@@ -4723,11 +4726,11 @@ function convertStyle(s) {
       right: s.right
     };
   }
-  
+
   if (s.numFmt) {
     out.numFmt = s.numFmt;
   }
-  
+
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -4747,10 +4750,10 @@ async function exportExcelWithTemplate(templatePath, outputName, list, mapper, f
       workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array', cellStyles: true });
       sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
-      
+
       const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1:A2');
       const maxCol = range.e.c;
-      
+
       const colStyles = {};
       const sampleRow = headerRowCount;
       for (let c = range.s.c; c <= maxCol; c++) {
@@ -4759,7 +4762,7 @@ async function exportExcelWithTemplate(templatePath, outputName, list, mapper, f
         if (cell && cell.s) colStyles[c] = convertStyle(cell.s);
         if (cell && cell.z) colStyles[c + '_z'] = cell.z;
       }
-      
+
       for (const key in sheet) {
         if (key[0] === '!') continue;
         const cellCoord = XLSX.utils.decode_cell(key);
@@ -4769,12 +4772,12 @@ async function exportExcelWithTemplate(templatePath, outputName, list, mapper, f
           delete sheet[key];
         }
       }
-      
+
       list.forEach((item, idx) => {
         const r = idx + headerRowCount;
         const newRow = new Array(maxCol + 1).fill("");
         mapper(item, newRow, idx);
-        
+
         for (let c = 0; c <= maxCol; c++) {
           const val = newRow[c];
           if (val !== undefined && val !== null && val !== "") {
@@ -4801,7 +4804,7 @@ async function exportExcelWithTemplate(templatePath, outputName, list, mapper, f
           }
         }
       });
-      
+
       range.e.r = Math.max(headerRowCount - 1, list.length + headerRowCount - 1);
       sheet['!ref'] = XLSX.utils.encode_range(range);
       newSheet = sheet;
@@ -4817,7 +4820,7 @@ async function exportExcelWithTemplate(templatePath, outputName, list, mapper, f
       });
       newSheet = XLSX.utils.aoa_to_sheet(rows);
     }
-    
+
     workbook.Sheets[sheetName] = newSheet;
     if (workbook.SheetNames.indexOf(sheetName) === -1) {
       XLSX.utils.book_append_sheet(workbook, newSheet, sheetName);
@@ -4888,9 +4891,9 @@ function createDefaultDebtExcelRow(id, d) {
 
 function createDefaultVoucherExcelRow(v) {
   const r = new Array(10).fill("");
-  const typeLabel = (v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay") ? "Phiếu thu" : 
-                    ((v.type === "payment" || v.type === "escrow_pay" || v.type === "escrow_refund_receive") ? "Phiếu chi" : 
-                     (v.type === "sales" ? "Hóa đơn bán hàng" : "Hóa đơn mua hàng"));
+  const typeLabel = (v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay") ? "Phiếu thu" :
+    ((v.type === "payment" || v.type === "escrow_pay" || v.type === "escrow_refund_receive") ? "Phiếu chi" :
+      (v.type === "sales" ? "Hóa đơn bán hàng" : "Hóa đơn mua hàng"));
   r[0] = v.date || "";
   r[1] = v.date || "";
   r[2] = v.id || "";
@@ -4938,7 +4941,7 @@ function initializeMissingExcelRows() {
 
 function migrateAndCleanExistingExcelRows() {
   let migrated = false;
-  
+
   if (state.vouchers) {
     state.vouchers.forEach(v => {
       if (v.excelRow && Array.isArray(v.excelRow)) {
@@ -4951,7 +4954,7 @@ function migrateAndCleanExistingExcelRows() {
       }
     });
   }
-  
+
   if (state.products) {
     state.products.forEach(p => {
       if (p.excelRow && Array.isArray(p.excelRow)) {
@@ -4964,7 +4967,7 @@ function migrateAndCleanExistingExcelRows() {
       }
     });
   }
-  
+
   if (state.partners) {
     state.partners.forEach(p => {
       if (p.excelRow && Array.isArray(p.excelRow)) {
@@ -4977,7 +4980,7 @@ function migrateAndCleanExistingExcelRows() {
       }
     });
   }
-  
+
   if (state.partnerOpeningBalances) {
     Object.keys(state.partnerOpeningBalances).forEach(key => {
       const d = state.partnerOpeningBalances[key];
@@ -4991,7 +4994,7 @@ function migrateAndCleanExistingExcelRows() {
       }
     });
   }
-  
+
   if (migrated) {
     saveState();
   }
@@ -5000,18 +5003,18 @@ function migrateAndCleanExistingExcelRows() {
 function cleanNumericUnitProducts() {
   if (!state || !state.products) return;
   const originalLength = state.products.length;
-  
+
   // Lọc bỏ các sản phẩm có đơn vị tính là số (ví dụ "16500", "6600")
   state.products = state.products.filter(p => {
     if (!p.unit) return true;
     const unitStr = String(p.unit).trim();
     if (unitStr === "") return true;
-    
+
     // Nếu đơn vị tính chỉ toàn chữ số (hoặc số thập phân), ta coi là số và xóa bỏ
     const isNumeric = !isNaN(Number(unitStr));
     return !isNumeric;
   });
-  
+
   if (state.products.length !== originalLength) {
     console.log(`[Database Cleanup] Đã xóa ${originalLength - state.products.length} sản phẩm lỗi có đơn vị tính là số.`);
     saveState();
@@ -5033,11 +5036,11 @@ async function restoreAndApplyS06Prices(force = false) {
       }
       state.vouchers = []; // Xóa sạch toàn bộ chứng từ cũ
     }
-    
+
     // 1. Đọc và khôi phục danh mục từ Vat_tu__hang_hoa__dich_vu.xlsx
     const vtBytes = await readExcelViaIPC("Vat_tu__hang_hoa__dich_vu.xlsx");
     if (!vtBytes) return;
-    
+
     if (typeof XLSX === "undefined") {
       console.warn("Chưa nạp thư viện XLSX");
       return;
@@ -5046,14 +5049,14 @@ async function restoreAndApplyS06Prices(force = false) {
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
     if (rows.length < 3) return;
-    
+
     const restoredProducts = [];
     for (let i = 2; i < rows.length; i++) {
       const row = rows[i];
       const id = String(row[0] || "").trim().toUpperCase();
       const name = String(row[1] || "").trim();
       if (!id || !name || id === "MÃ" || id === "TỔNG CỘNG") continue;
-      
+
       const unit = String(row[7] || "").trim();
       const minStock = parseFloat(row[9]) || 0;
       const stock = parseFloat(row[31]) || 0;
@@ -5063,7 +5066,7 @@ async function restoreAndApplyS06Prices(force = false) {
       const inactiveVal = String(row[30] || "").trim();
       const inactive = inactiveVal === "1" || inactiveVal === "Có" || inactiveVal === "True" || inactiveVal === "true";
       const salePrice1 = parseFloat(row[21]) || 0;
-      
+
       restoredProducts.push({
         id,
         name,
@@ -5086,13 +5089,13 @@ async function restoreAndApplyS06Prices(force = false) {
         excelRow: row
       });
     }
-    
+
     if (restoredProducts.length === 0) return;
-    
+
     // Thay thế danh mục sản phẩm hiện tại bằng danh mục sạch
     state.products = restoredProducts;
     console.log(`[Database Restore] Đã khôi phục ${state.products.length} sản phẩm từ file gốc.`);
-    
+
     // 2. Đọc và áp dụng đơn giá mới nhất từ S06 (gia_moi_tong_hop.csv)
     const csvBytes = await readExcelViaIPC("gia_moi_tong_hop.csv");
     let matchedCount = 0;
@@ -5105,7 +5108,7 @@ async function restoreAndApplyS06Prices(force = false) {
         const cleanHeader = header.map(h => h.replace(/^\ufeff/, "").trim().toLowerCase());
         const colMa = cleanHeader.indexOf("ma");
         const colDg = cleanHeader.indexOf("don_gia_moi");
-        
+
         if (colMa !== -1 && colDg !== -1) {
           const priceMap = {};
           for (let i = 1; i < lines.length; i++) {
@@ -5114,7 +5117,7 @@ async function restoreAndApplyS06Prices(force = false) {
             const dg = parseInt((cols[colDg] || "0").trim()) || 0;
             if (ma && dg > 0) priceMap[ma] = dg;
           }
-          
+
           state.products.forEach(p => {
             const key = p.id.toUpperCase();
             if (priceMap.hasOwnProperty(key)) {
@@ -5130,7 +5133,7 @@ async function restoreAndApplyS06Prices(force = false) {
         }
       }
     }
-    
+
     // 3. Cập nhật số dư đầu kỳ TK 156
     let newInvOpBal = 0;
     state.products.forEach(p => {
@@ -5140,21 +5143,21 @@ async function restoreAndApplyS06Prices(force = false) {
       state.initialBalances["156"].balance = newInvOpBal;
     }
     if (typeof rebalanceEquity === "function") rebalanceEquity();
-    
+
     // 4. Lưu CSDL và tính toán lại sổ sách kế toán
     saveState();
     recalculateAccounting();
-    
+
     // 5. Cập nhật giao diện
     if (typeof renderInventoryTable === "function") renderInventoryTable();
     if (typeof renderDashboard === "function") renderDashboard();
     if (typeof populateProductLedgerDropdown === "function") populateProductLedgerDropdown();
-    
+
     // Hiển thị thông báo
     setTimeout(() => {
       showToast(`⚡ Đã khôi phục danh mục gốc (${state.products.length} hàng) và cập nhật đơn giá xuất S06 (${matchedCount} hàng) thành công!`, "success");
     }, 1500);
-    
+
     localStorage.setItem("db_restore_v6", "true");
   } catch (err) {
     console.warn("Lỗi khôi phục danh mục và cập nhật giá S06:", err);
@@ -5302,16 +5305,16 @@ function exportProductsToExcel() {
     const ws = {};
     const merges = [];
 
-    const thin    = { style: "thin", color: { rgb: "AAAAAA" } };
+    const thin = { style: "thin", color: { rgb: "AAAAAA" } };
     const border4 = { top: thin, bottom: thin, left: thin, right: thin };
-    const hdrBg   = { patternType: "solid", fgColor: { rgb: "CCCCFF" } }; // Nền tím nhạt (FFCCCCFF)
-    const fntT    = { name: "Times New Roman", sz: 14, bold: true };
-    const fntH    = { name: "Microsoft Sans Serif", sz: 8, bold: false };
-    const fntN    = { name: "Microsoft Sans Serif", sz: 8 };
-    const cC      = { horizontal: "center", vertical: "center" };
-    const cL      = { horizontal: "left",   vertical: "center", wrapText: true };
-    const cR      = { horizontal: "right",  vertical: "center" };
-    const numFmt  = "#,##0 ;[Red](#,##0)";
+    const hdrBg = { patternType: "solid", fgColor: { rgb: "CCCCFF" } }; // Nền tím nhạt (FFCCCCFF)
+    const fntT = { name: "Times New Roman", sz: 14, bold: true };
+    const fntH = { name: "Microsoft Sans Serif", sz: 8, bold: false };
+    const fntN = { name: "Microsoft Sans Serif", sz: 8 };
+    const cC = { horizontal: "center", vertical: "center" };
+    const cL = { horizontal: "left", vertical: "center", wrapText: true };
+    const cR = { horizontal: "right", vertical: "center" };
+    const numFmt = "#,##0 ;[Red](#,##0)";
 
     const sc = (r, c, v, t, s, z) => {
       const key = XLSX.utils.encode_cell({ r, c });
@@ -5323,16 +5326,16 @@ function exportProductsToExcel() {
 
     // 57 Cột theo đúng template gốc của MISA
     const headers = [
-      "Mã", "Tên", "Tính chất", "Nhóm VTHH", "Mô tả", "Diễn giải khi mua", "Diễn giải khi bán", 
-      "ĐVT chính", "Thời hạn BH", "Số lượng tồn tối thiểu", "Nguồn gốc", "Kho ngầm định", 
-      "Tài khoản kho", "TK chi phí", "TK doanh thu", "TK chiết khấu", "TK giảm giá", "TK trả lại", 
-      "Tỷ lệ CKMH", "Đơn giá mua cố định", "Đơn giá mua gần nhất", "Đơn giá bán 1", "Đơn giá bán 2", 
-      "Đơn giá bán 3", "Đơn giá cố định", "Là đơn giá sau thuế", "Thuế suất thuế NK", "Thuế suất thuế XK", 
-      "Nhóm HHDV chịu thuế TTĐB", "Là hàng khuyến mại", "Ngừng theo dõi", "Số lượng tồn", "Đặc tính", 
-      "Giá trị tồn", "Thuế suất GTGT", "Giảm thuế theo NQ43/2022/QH15", "Theo dõi vật tư, hàng hóa theo mã quy cách", 
-      "Chiết khấu", "Số lượng từ", "Số lượng đến", "% chiết khấu", "Số tiền chiết khấu", "Đơn vị chuyển đổi", 
-      "Tỷ lệ chuyển đổi về đơn vị chính", "Phép tính", "Mô tả", "Đơn giá bán 1", "Đơn giá bán 2", "Đơn giá bán 3", 
-      "Đơn giá cố định", "Mã nguyên vật liệu", "Tên nguyên vật liệu", "ĐVT", "Số lượng", "Mã quy cách", 
+      "Mã", "Tên", "Tính chất", "Nhóm VTHH", "Mô tả", "Diễn giải khi mua", "Diễn giải khi bán",
+      "ĐVT chính", "Thời hạn BH", "Số lượng tồn tối thiểu", "Nguồn gốc", "Kho ngầm định",
+      "Tài khoản kho", "TK chi phí", "TK doanh thu", "TK chiết khấu", "TK giảm giá", "TK trả lại",
+      "Tỷ lệ CKMH", "Đơn giá mua cố định", "Đơn giá mua gần nhất", "Đơn giá bán 1", "Đơn giá bán 2",
+      "Đơn giá bán 3", "Đơn giá cố định", "Là đơn giá sau thuế", "Thuế suất thuế NK", "Thuế suất thuế XK",
+      "Nhóm HHDV chịu thuế TTĐB", "Là hàng khuyến mại", "Ngừng theo dõi", "Số lượng tồn", "Đặc tính",
+      "Giá trị tồn", "Thuế suất GTGT", "Giảm thuế theo NQ43/2022/QH15", "Theo dõi vật tư, hàng hóa theo mã quy cách",
+      "Chiết khấu", "Số lượng từ", "Số lượng đến", "% chiết khấu", "Số tiền chiết khấu", "Đơn vị chuyển đổi",
+      "Tỷ lệ chuyển đổi về đơn vị chính", "Phép tính", "Mô tả", "Đơn giá bán 1", "Đơn giá bán 2", "Đơn giá bán 3",
+      "Đơn giá cố định", "Mã nguyên vật liệu", "Tên nguyên vật liệu", "ĐVT", "Số lượng", "Mã quy cách",
       "Tên hiển thị", "Cho phép trùng"
     ];
     const ncols = headers.length;
@@ -5350,14 +5353,14 @@ function exportProductsToExcel() {
       const bs = (al) => ({ font: fntN, alignment: al, border: border4 });
       const er = ensureProductExcelRow(p);
       const rowData = [...er];
-      
+
       // Đảm bảo đồng bộ thông tin mới nhất từ CSDL app
-      rowData[0]  = p.id || "";
-      rowData[1]  = p.name || "";
-      rowData[2]  = p.nature || "Vật tư hàng hóa";
-      rowData[3]  = p.group || "";
-      rowData[7]  = p.unit || "Cái";
-      rowData[9]  = p.minStock !== undefined ? p.minStock : (er[9] !== undefined ? Number(er[9]) : 0);
+      rowData[0] = p.id || "";
+      rowData[1] = p.name || "";
+      rowData[2] = p.nature || "Vật tư hàng hóa";
+      rowData[3] = p.group || "";
+      rowData[7] = p.unit || "Cái";
+      rowData[9] = p.minStock !== undefined ? p.minStock : (er[9] !== undefined ? Number(er[9]) : 0);
       rowData[11] = p.defaultWarehouse || "";
       rowData[12] = p.warehouseAccount || "1561";
       rowData[13] = p.cogsAccount || "632";
@@ -5367,7 +5370,7 @@ function exportProductsToExcel() {
       rowData[30] = p.inactive ? 1 : (er[30] !== undefined ? Number(er[30]) : 0);
       rowData[31] = p.stock !== undefined ? p.stock : (er[31] !== undefined ? Number(er[31]) : 0);
       rowData[33] = p.totalValue !== undefined ? p.totalValue : (er[33] !== undefined ? Number(er[33]) : 0);
-      
+
       for (let c = 34; c < 57; c++) {
         rowData[c] = er[c] !== undefined ? er[c] : "";
       }
@@ -5379,7 +5382,7 @@ function exportProductsToExcel() {
         } else if ([5, 9, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 31, 33, 37, 38, 39, 40, 41, 43, 46, 47, 48, 49, 53].includes(c)) {
           align = cR;
         }
-        
+
         let type = 's';
         let z = null;
         if (typeof val === 'number') {
@@ -5389,7 +5392,7 @@ function exportProductsToExcel() {
         } else if (typeof val === 'boolean') {
           type = 'b';
         }
-        
+
         sc(rowIdx, c, val, type, bs(align), z);
       });
       rowIdx++;
@@ -5435,18 +5438,18 @@ function exportPartnersToExcel() {
     const ws = {};
     const merges = [];
 
-    const thin    = { style: "thin", color: { rgb: "AAAAAA" } };
+    const thin = { style: "thin", color: { rgb: "AAAAAA" } };
     const border4 = { top: thin, bottom: thin, left: thin, right: thin };
-    const hdrBg   = { patternType: "solid", fgColor: { rgb: "1F497D" } };
-    const altBg   = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
-    const totBg   = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
-    const fntT    = { name: "Times New Roman", sz: 13, bold: true };
-    const fntH    = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
-    const fntB    = { name: "Times New Roman", sz: 11, bold: true };
-    const fntN    = { name: "Times New Roman", sz: 11 };
-    const cC      = { horizontal: "center", vertical: "center" };
-    const cL      = { horizontal: "left",   vertical: "center", wrapText: true };
-    const cR      = { horizontal: "right",  vertical: "center" };
+    const hdrBg = { patternType: "solid", fgColor: { rgb: "1F497D" } };
+    const altBg = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
+    const totBg = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
+    const fntT = { name: "Times New Roman", sz: 13, bold: true };
+    const fntH = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
+    const fntB = { name: "Times New Roman", sz: 11, bold: true };
+    const fntN = { name: "Times New Roman", sz: 11 };
+    const cC = { horizontal: "center", vertical: "center" };
+    const cL = { horizontal: "left", vertical: "center", wrapText: true };
+    const cR = { horizontal: "right", vertical: "center" };
 
     const sc = (r, c, v, t, s, z) => {
       const key = XLSX.utils.encode_cell({ r, c });
@@ -5473,13 +5476,13 @@ function exportPartnersToExcel() {
     (state.partners || []).forEach((p, idx) => {
       const bg = idx % 2 === 0 ? null : altBg;
       const bs = (al) => ({ font: fntN, fill: bg, alignment: al, border: border4 });
-      sc(rowIdx, 0, p.id || "",                                           's', bs(cC));
-      sc(rowIdx, 1, p.name || "",                                          's', bs(cL));
-      sc(rowIdx, 2, p.address || "",                                       's', bs(cL));
-      sc(rowIdx, 3, p.group || (p.type === "supplier" ? "NCC" : "KH"),    's', bs(cC));
-      sc(rowIdx, 4, p.taxCode || "",                                       's', bs(cC));
-      sc(rowIdx, 5, p.phone || "",                                         's', bs(cC));
-      sc(rowIdx, 6, p.inactive ? "Có" : "",                               's', bs(cC));
+      sc(rowIdx, 0, p.id || "", 's', bs(cC));
+      sc(rowIdx, 1, p.name || "", 's', bs(cL));
+      sc(rowIdx, 2, p.address || "", 's', bs(cL));
+      sc(rowIdx, 3, p.group || (p.type === "supplier" ? "NCC" : "KH"), 's', bs(cC));
+      sc(rowIdx, 4, p.taxCode || "", 's', bs(cC));
+      sc(rowIdx, 5, p.phone || "", 's', bs(cC));
+      sc(rowIdx, 6, p.inactive ? "Có" : "", 's', bs(cC));
       if (p.type === "supplier") totalNCC++; else totalKH++;
       rowIdx++;
     });
@@ -5491,7 +5494,7 @@ function exportPartnersToExcel() {
 
     ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: ncols - 1 } });
     ws['!merges'] = merges;
-    ws['!cols'] = [{ wch: 18 },{ wch: 32 },{ wch: 40 },{ wch: 14 },{ wch: 15 },{ wch: 14 },{ wch: 14 }];
+    ws['!cols'] = [{ wch: 18 }, { wch: 32 }, { wch: 40 }, { wch: 14 }, { wch: 15 }, { wch: 14 }, { wch: 14 }];
     ws['!rows'] = [{ hpt: 22 }, { hpt: 22 }];
 
     XLSX.utils.book_append_sheet(wb, ws, "Doi tuong");
@@ -5507,7 +5510,7 @@ function exportPartnersToExcel() {
 // --- Phân hệ Công nợ ---
 function calculatePartnerDebts(toDate = "") {
   const debts = {};
-  
+
   state.partners.forEach(p => {
     const opening = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
     debts[p.id] = {
@@ -5529,7 +5532,7 @@ function calculatePartnerDebts(toDate = "") {
   state.vouchers.forEach(v => {
     if (toDate && v.date > toDate) return;
     if (!v.entries) return;
-    
+
     v.entries.forEach(e => {
       if (e.debit.startsWith("131")) {
         const pId = v.partnerId;
@@ -5539,7 +5542,7 @@ function calculatePartnerDebts(toDate = "") {
         const pId = v.partnerId;
         if (debts[pId]) debts[pId].creditTrans += e.amount;
       }
-      
+
       if (e.debit.startsWith("331")) {
         const pId = v.partnerId;
         if (debts[pId]) debts[pId].debitTrans += e.amount;
@@ -5608,12 +5611,12 @@ function renderDebtsTable() {
         </td>
         <td style="font-weight:bold; color:var(--color-primary);">${d.id}</td>
         <td style="font-weight:600;"><a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${d.name}</a></td>
-        <td style="text-align:right; font-weight:500;" class="font-numeric">${d.openingDebit > 0 ? formatVND(d.openingDebit).replace("đ","") : "-"}</td>
-        <td style="text-align:right; font-weight:500;" class="font-numeric">${d.openingCredit > 0 ? formatVND(d.openingCredit).replace("đ","") : "-"}</td>
-        <td style="text-align:right; color:var(--color-primary); font-weight:500;" class="font-numeric">${d.debitTrans > 0 ? formatVND(d.debitTrans).replace("đ","") : "-"}</td>
-        <td style="text-align:right; color:var(--color-warning); font-weight:500;" class="font-numeric">${d.creditTrans > 0 ? formatVND(d.creditTrans).replace("đ","") : "-"}</td>
-        <td style="text-align:right; font-weight:700;" class="font-numeric ${d.closingDebit > 0 ? 'text-success' : ''}">${d.closingDebit > 0 ? formatVND(d.closingDebit).replace("đ","") : "-"}</td>
-        <td style="text-align:right; font-weight:700;" class="font-numeric ${d.closingCredit > 0 ? 'text-warning' : ''}">${d.closingCredit > 0 ? formatVND(d.closingCredit).replace("đ","") : "-"}</td>
+        <td style="text-align:right; font-weight:500;" class="font-numeric">${d.openingDebit > 0 ? formatVND(d.openingDebit).replace("đ", "") : "-"}</td>
+        <td style="text-align:right; font-weight:500;" class="font-numeric">${d.openingCredit > 0 ? formatVND(d.openingCredit).replace("đ", "") : "-"}</td>
+        <td style="text-align:right; color:var(--color-primary); font-weight:500;" class="font-numeric">${d.debitTrans > 0 ? formatVND(d.debitTrans).replace("đ", "") : "-"}</td>
+        <td style="text-align:right; color:var(--color-warning); font-weight:500;" class="font-numeric">${d.creditTrans > 0 ? formatVND(d.creditTrans).replace("đ", "") : "-"}</td>
+        <td style="text-align:right; font-weight:700;" class="font-numeric ${d.closingDebit > 0 ? 'text-success' : ''}">${d.closingDebit > 0 ? formatVND(d.closingDebit).replace("đ", "") : "-"}</td>
+        <td style="text-align:right; font-weight:700;" class="font-numeric ${d.closingCredit > 0 ? 'text-warning' : ''}">${d.closingCredit > 0 ? formatVND(d.closingCredit).replace("đ", "") : "-"}</td>
         <td style="text-align:center;">
           <div style="display: flex; gap: 4px; justify-content: center;">
             <button class="btn btn-secondary btn-sm" onclick="viewPartnerLedger('${escapedId}')" style="padding: 2px 8px;">Xem Sổ</button>
@@ -5644,7 +5647,7 @@ function renderDebtsTable() {
       paginationControls.style.display = "none";
     } else {
       paginationControls.style.display = "flex";
-      
+
       let buttonsHTML = "";
       buttonsHTML += `
         <button class="btn btn-secondary btn-sm" onclick="changeDebtsPage(1)" ${debtsPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">« Đầu</button>
@@ -5701,19 +5704,19 @@ function filterDebts() {
     const combined = `${d.id || ""} ${d.name || ""}`;
     const debtVal = Math.max(d.closingDebit || 0, d.closingCredit || 0);
     const matchesQuery = matchAdvancedQuery(combined, query, debtVal);
-    
+
     let matchesType = true;
     if (filterType === "131") {
       matchesType = d.type === "customer";
     } else if (filterType === "331") {
       matchesType = d.type === "supplier";
     }
-    
+
     let matchesActive = true;
     if (activeOnly) {
       matchesActive = (d.closingDebit > 0 || d.closingCredit > 0);
     }
-    
+
     return matchesQuery && matchesType && matchesActive;
   });
 
@@ -5731,7 +5734,7 @@ function viewPartnerLedger(partnerId) {
   activePartnerIdForLedger = partnerId;
 
   const opening = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
-  const openingText = p.type === "customer" 
+  const openingText = p.type === "customer"
     ? (opening.debit >= opening.credit ? `${formatVND(opening.debit - opening.credit)} (Nợ)` : `${formatVND(opening.credit - opening.debit)} (Có)`)
     : (opening.credit >= opening.debit ? `${formatVND(opening.credit - opening.debit)} (Có)` : `${formatVND(opening.debit - opening.credit)} (Nợ)`);
 
@@ -5789,11 +5792,11 @@ function viewPartnerLedger(partnerId) {
   } else {
     ledgerEntries.forEach(le => {
       const tr = document.createElement("tr");
-      
+
       // Tìm chứng từ bán hàng liên quan nếu đây là một phiếu thu công nợ
       let viewId = le.id;
       let displayId = le.id;
-      
+
       if (le.id.startsWith("PT") || le.id.startsWith("PC") || le.credit > 0) {
         const relatedSales = findRelatedSalesVoucher(le.id, le.desc, p.id, le.credit || le.debit);
         if (relatedSales) {
@@ -5801,15 +5804,15 @@ function viewPartnerLedger(partnerId) {
           displayId = `${le.id} (${relatedSales.id})`;
         }
       }
-      
+
       const escapedViewId = escapeHtmlAttr(viewId);
       tr.innerHTML = `
         <td>${le.date}</td>
         <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${displayId}</a></td>
         <td>${le.desc}</td>
         <td style="text-align:center; font-weight:700;">${le.offsetAccount}</td>
-        <td style="text-align:right; font-weight:500;">${le.debit > 0 ? formatVND(le.debit).replace("đ","") : "-"}</td>
-        <td style="text-align:right; font-weight:500;">${le.credit > 0 ? formatVND(le.credit).replace("đ","") : "-"}</td>
+        <td style="text-align:right; font-weight:500;">${le.debit > 0 ? formatVND(le.debit).replace("đ", "") : "-"}</td>
+        <td style="text-align:right; font-weight:500;">${le.credit > 0 ? formatVND(le.credit).replace("đ", "") : "-"}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -5838,7 +5841,7 @@ async function exportPartnerDebtExcel(partnerId) {
     showToast("Thư viện SheetJS chưa được nạp!", "danger");
     return;
   }
-  
+
   const p = state.partners.find(item => item.id === partnerId);
   if (!p) {
     showToast("Không tìm thấy đối tác này!", "danger");
@@ -5854,7 +5857,7 @@ async function exportPartnerDebtExcel(partnerId) {
     } else {
       openingVal = opening.credit - opening.debit;
     }
-    
+
     let debitSum = 0;
     let creditSum = 0;
     const ledgerEntries = [];
@@ -5896,7 +5899,7 @@ async function exportPartnerDebtExcel(partnerId) {
     });
 
     ledgerEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
-    
+
     // Calculate closing balance
     let closingVal = 0;
     if (p.type === "customer") {
@@ -5913,8 +5916,8 @@ async function exportPartnerDebtExcel(partnerId) {
       const dates = ledgerEntries.map(e => new Date(e.date));
       const minDate = new Date(Math.min(...dates));
       const maxDate = new Date(Math.max(...dates));
-      fromDateStr = `${pad(minDate.getDate())}/${pad(minDate.getMonth()+1)}/${minDate.getFullYear()}`;
-      toDateStr = `${pad(maxDate.getDate())}/${pad(maxDate.getMonth()+1)}/${maxDate.getFullYear()}`;
+      fromDateStr = `${pad(minDate.getDate())}/${pad(minDate.getMonth() + 1)}/${minDate.getFullYear()}`;
+      toDateStr = `${pad(maxDate.getDate())}/${pad(maxDate.getMonth() + 1)}/${maxDate.getFullYear()}`;
     }
 
     // =========================================================
@@ -5958,63 +5961,72 @@ async function exportPartnerDebtExcel(partnerId) {
     let row = 0; // 0-indexed
 
     // --- ROW 0: Company Name ---
-    setCell("A1", "Công Ty Cổ Phần Rạng Đông", "s",
+    setCell("A1", "CÔNG TY CỔ PHẦN RẠNG ĐÔNG", "s",
       { font: fontCompany, alignment: alignCenter });
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } });
 
-    // --- ROW 1: Address ---
-    setCell("A2", "255 Trương Công Định", "s",
-      { font: fontAddr, alignment: alignCenter });
+    // --- ROW 1: Sub Title / Trung tâm ---
+    setCell("A2", "TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY", "s",
+      { font: fontCompany, alignment: alignCenter });
     merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 4 } });
 
-    // --- ROW 2: blank ---
-    row = 2;
+    // --- ROW 2: Address ---
+    setCell("A3", "Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh", "s",
+      { font: fontAddr, alignment: alignCenter });
+    merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: 4 } });
 
-    // --- ROW 3: Title ---
-    setCell("A4", "THÔNG BÁO CÔNG NỢ", "s",
-      { font: fontTitle, alignment: alignCenter });
+    // --- ROW 3: Tel/Hotline ---
+    setCell("A4", "Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074", "s",
+      { font: fontAddr, alignment: alignCenter });
     merges.push({ s: { r: 3, c: 0 }, e: { r: 3, c: 4 } });
 
-    // --- ROW 4: Print date ---
-    setCell("A5", `Ngày in: ${new Date().toLocaleDateString('vi-VN')}`, "s",
+    // --- ROW 4: blank ---
+
+    // --- ROW 5: Title ---
+    setCell("A6", "THÔNG BÁO CÔNG NỢ", "s",
+      { font: fontTitle, alignment: alignCenter });
+    merges.push({ s: { r: 5, c: 0 }, e: { r: 5, c: 4 } });
+
+    // --- ROW 6: Print date ---
+    setCell("A7", `Ngày in: ${new Date().toLocaleDateString('vi-VN')}`, "s",
       { font: fontSubtitle, alignment: alignCenter });
-    merges.push({ s: { r: 4, c: 0 }, e: { r: 4, c: 4 } });
+    merges.push({ s: { r: 6, c: 0 }, e: { r: 6, c: 4 } });
 
-    // --- ROW 5: blank ---
+    // --- ROW 7: blank ---
 
-    // --- ROW 6: Kính gửi + Kỳ ---
-    setCell("A7", "Kính gửi:", "s", { font: fontBold, alignment: alignLeft });
-    setCell("D7", `Kỳ: Từ ngày ${fromDateStr} đến ngày ${toDateStr}`, "s",
+    // --- ROW 8: Kính gửi + Kỳ ---
+    setCell("A9", "Kính gửi:", "s", { font: fontBold, alignment: alignLeft });
+    setCell("D9", `Kỳ: Từ ngày ${fromDateStr} đến ngày ${toDateStr}`, "s",
       { font: fontNormal, alignment: alignRight });
-    merges.push({ s: { r: 6, c: 3 }, e: { r: 6, c: 4 } });
+    merges.push({ s: { r: 8, c: 3 }, e: { r: 8, c: 4 } });
 
-    // --- ROW 7: Đơn vị ---
-    setCell("A8", `Đơn vị: ${p.name} (${p.id})`, "s",
-      { font: fontNormal, alignment: alignLeft });
-    merges.push({ s: { r: 7, c: 0 }, e: { r: 7, c: 2 } });
-
-    // --- ROW 8: Địa chỉ + Số dư cuối kỳ ---
-    setCell("A9", `Địa chỉ: ${p.address || ""}`, "s",
-      { font: fontNormal, alignment: alignLeft });
-    merges.push({ s: { r: 8, c: 0 }, e: { r: 8, c: 2 } });
-    setCell("D9", "Số dư cuối kỳ:", "s",
-      { font: fontBold, alignment: alignRight });
-    setCell("E9", closingVal, "n",
-      { font: { name: "Times New Roman", sz: 12, bold: true, color: { rgb: "C00000" } }, alignment: alignRight }, '#,##0');
-
-    // --- ROW 9: MST + Số dư đầu kỳ ---
-    setCell("A10", `Mã số thuế: ${p.taxCode || ""}`, "s",
+    // --- ROW 9: Đơn vị ---
+    setCell("A10", `Đơn vị: ${p.name} (${p.id})`, "s",
       { font: fontNormal, alignment: alignLeft });
     merges.push({ s: { r: 9, c: 0 }, e: { r: 9, c: 2 } });
-    setCell("D10", "Số dư đầu kỳ:", "s",
+
+    // --- ROW 10: Địa chỉ + Số dư cuối kỳ ---
+    setCell("A11", `Địa chỉ: ${p.address || ""}`, "s",
+      { font: fontNormal, alignment: alignLeft });
+    merges.push({ s: { r: 10, c: 0 }, e: { r: 10, c: 2 } });
+    setCell("D11", "Số dư cuối kỳ:", "s",
+      { font: fontBold, alignment: alignRight });
+    setCell("E11", closingVal, "n",
+      { font: { name: "Times New Roman", sz: 12, bold: true, color: { rgb: "C00000" } }, alignment: alignRight }, '#,##0');
+
+    // --- ROW 11: MST + Số dư đầu kỳ ---
+    setCell("A12", `Mã số thuế: ${p.taxCode || ""}`, "s",
+      { font: fontNormal, alignment: alignLeft });
+    merges.push({ s: { r: 11, c: 0 }, e: { r: 11, c: 2 } });
+    setCell("D12", "Số dư đầu kỳ:", "s",
       { font: fontNormal, alignment: alignRight });
-    setCell("E10", openingVal, "n",
+    setCell("E12", openingVal, "n",
       { font: fontBold, alignment: alignRight }, '#,##0');
 
-    // --- ROW 10: blank ---
+    // --- ROW 12: blank ---
 
-    // --- ROW 11: Table header (row index 11, Excel row 12) ---
-    const hdrRow = 11;
+    // --- ROW 13: Table header (row index 13, Excel row 14) ---
+    const hdrRow = 13;
     const hdrCols = [
       { col: "A", label: "Ngày", align: alignCenterWrap },
       { col: "B", label: "Số chứng từ", align: alignCenterWrap },
@@ -6039,7 +6051,7 @@ async function exportPartnerDebtExcel(partnerId) {
     ledgerEntries.forEach((le, idx) => {
       const r = dataStartRow + idx;
       const excelRow = r + 1;
-      
+
       let amount = 0;
       if (p.type === "customer") {
         amount = le.debit - le.credit;
@@ -6047,9 +6059,9 @@ async function exportPartnerDebtExcel(partnerId) {
         amount = le.credit - le.debit;
       }
       currentBalance += amount;
-      
+
       const dVal = new Date(le.date);
-      const dateFormatted = `${pad(dVal.getDate())}/${pad(dVal.getMonth()+1)}/${dVal.getFullYear()}`;
+      const dateFormatted = `${pad(dVal.getDate())}/${pad(dVal.getMonth() + 1)}/${dVal.getFullYear()}`;
 
       const isAlt = idx % 2 === 1;
       const rowFill = isAlt ? altRowBg : undefined;
@@ -6087,7 +6099,7 @@ async function exportPartnerDebtExcel(partnerId) {
     setCell("B" + totalsExcelRow, "", "s", { font: fontBold, fill: totalBg, border: totalBorder });
     setCell("C" + totalsExcelRow, "TỔNG CỘNG", "s",
       { font: fontBold, alignment: alignRight, fill: totalBg, border: totalBorder });
-    
+
     const totalAmount = ledgerEntries.reduce((sum, le) => {
       if (p.type === "customer") return sum + le.debit - le.credit;
       return sum + le.credit - le.debit;
@@ -6120,8 +6132,12 @@ async function exportPartnerDebtExcel(partnerId) {
 
     // --- ROW HEIGHTS ---
     ws['!rows'] = [];
+    ws['!rows'][0] = { hpt: 20 }; // Company Name
+    ws['!rows'][1] = { hpt: 18 }; // Subtitle / Trung tâm
+    ws['!rows'][2] = { hpt: 16 }; // Address
+    ws['!rows'][3] = { hpt: 16 }; // Tel/Hotline
     // Title row
-    ws['!rows'][3] = { hpt: 26 };
+    ws['!rows'][5] = { hpt: 26 };
     // Header row
     ws['!rows'][hdrRow] = { hpt: 22 };
 
@@ -6166,7 +6182,7 @@ function previewPartnerDebtNotice(partnerId) {
   } else {
     openingVal = opening.credit - opening.debit;
   }
-  
+
   let debitSum = 0;
   let creditSum = 0;
   const ledgerEntries = [];
@@ -6208,7 +6224,7 @@ function previewPartnerDebtNotice(partnerId) {
   });
 
   ledgerEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
-  
+
   // Calculate closing balance
   let closingVal = 0;
   if (p.type === "customer") {
@@ -6224,10 +6240,10 @@ function previewPartnerDebtNotice(partnerId) {
     const dates = ledgerEntries.map(e => new Date(e.date));
     const minDate = new Date(Math.min(...dates));
     const maxDate = new Date(Math.max(...dates));
-    
+
     const pad = (n) => n.toString().padStart(2, '0');
-    fromDateStr = `${pad(minDate.getDate())}/${pad(minDate.getMonth()+1)}/${minDate.getFullYear()}`;
-    toDateStr = `${pad(maxDate.getDate())}/${pad(maxDate.getMonth()+1)}/${maxDate.getFullYear()}`;
+    fromDateStr = `${pad(minDate.getDate())}/${pad(minDate.getMonth() + 1)}/${minDate.getFullYear()}`;
+    toDateStr = `${pad(maxDate.getDate())}/${pad(maxDate.getMonth() + 1)}/${maxDate.getFullYear()}`;
   }
 
   const formatDebtAmount = (val) => {
@@ -6254,7 +6270,7 @@ function previewPartnerDebtNotice(partnerId) {
 
     const dVal = new Date(le.date);
     const pad = (n) => n.toString().padStart(2, '0');
-    const dateFormatted = `${pad(dVal.getDate())}/${pad(dVal.getMonth()+1)}/${dVal.getFullYear()}`;
+    const dateFormatted = `${pad(dVal.getDate())}/${pad(dVal.getMonth() + 1)}/${dVal.getFullYear()}`;
 
     tableRowsHtml += `
       <tr>
@@ -6307,14 +6323,22 @@ function previewPartnerDebtNotice(partnerId) {
       </style>
 
       <!-- Header -->
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px;">
-        <div style="display: flex; align-items: center; width: 100px; margin-right: 15px;">
-          <img src="logo.jpg" style="max-height: 50px; max-width: 90px; object-fit: contain;" alt="Logo" onerror="this.style.display='none'" />
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 12px;">
+        <!-- Logo Rạng Đông thực tế từ file logo.jpg -->
+        <div style="display: flex; align-items: center; justify-content: center; width: 140px; flex-shrink: 0;">
+          <img src="logo.jpg" style="max-height: 55px; max-width: 130px; object-fit: contain;" alt="Logo" onerror="this.style.display='none'" />
         </div>
-        <div style="flex-grow: 1; text-align: left;">
-          <div style="font-weight: bold; font-size: 13px; text-transform: uppercase;">Công Ty Cổ Phần Rạng Đông</div>
-          <div style="font-size: 11px; margin-top: 2px;">255 Trương Công Định</div>
+
+        <!-- Thông tin công ty chính xác theo mẫu giấy -->
+        <div style="text-align: center; flex-grow: 1; color: #000; padding: 0 10px;">
+          <div style="font-weight: bold; font-size: 14px; text-transform: uppercase; letter-spacing: 0.2px;">CÔNG TY CỔ PHẦN RẠNG ĐÔNG</div>
+          <div style="font-weight: bold; font-size: 11px; text-transform: uppercase; margin-top: 2px;">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY</div>
+          <div style="font-size: 11px; margin-top: 3px;">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh</div>
+          <div style="font-size: 11px; margin-top: 1px; font-weight: 500;">Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074</div>
         </div>
+
+        <!-- Khoảng trống đối trọng bên phải để căn giữa tuyệt đối -->
+        <div style="width: 140px; flex-shrink: 0;"></div>
       </div>
 
       <!-- Title -->
@@ -6388,7 +6412,7 @@ function switchPartnerLedgerTab(tabName) {
   const btnOrders = document.getElementById("partner-ledger-tab-btn-orders");
   const conEntries = document.getElementById("partner-ledger-container-entries");
   const conOrders = document.getElementById("partner-ledger-container-orders");
-  
+
   if (tabName === "entries") {
     if (btnEntries) {
       btnEntries.classList.add("active");
@@ -6423,21 +6447,21 @@ function renderPartnerLedgerOrders() {
   const tbody = document.getElementById("partner-ledger-orders-body");
   if (!tbody) return;
   tbody.innerHTML = "";
-  
+
   const pId = activePartnerIdForLedger;
   const orders = state.vouchers.filter(v => v.partnerId === pId && (v.type === "sales" || v.type === "purchase"));
-  
+
   if (orders.length === 0) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy hóa đơn mua/bán nào của đối tác này</td></tr>`;
     return;
   }
-  
+
   orders.forEach(o => {
     const totalAmt = o.totalAmount || o.amount || 0;
     if (o.remainingDebt === undefined) {
       o.remainingDebt = (o.paymentMethod === "131" || o.paymentMethod === "331") ? totalAmt : 0;
     }
-    
+
     const tr = document.createElement("tr");
     const escapedOrderId = escapeHtmlAttr(o.id);
     tr.className = "clickable-row";
@@ -6448,8 +6472,8 @@ function renderPartnerLedgerOrders() {
       <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedOrderId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${o.id}</a></td>
       <td>${o.date}</td>
       <td>${o.description}</td>
-      <td style="text-align:right; font-weight:500;">${formatVND(totalAmt).replace("đ","")}</td>
-      <td style="text-align:right; font-weight:700; color:${o.remainingDebt > 0 ? 'var(--color-warning)' : 'var(--color-success)'};">${formatVND(o.remainingDebt).replace("đ","")}</td>
+      <td style="text-align:right; font-weight:500;">${formatVND(totalAmt).replace("đ", "")}</td>
+      <td style="text-align:right; font-weight:700; color:${o.remainingDebt > 0 ? 'var(--color-warning)' : 'var(--color-success)'};">${formatVND(o.remainingDebt).replace("đ", "")}</td>
       <td style="text-align:center;">
         <button class="btn btn-secondary btn-sm" onclick="promptEditOrderDebt('${escapedOrderId}')" style="padding: 2px 8px;">Sửa nợ</button>
       </td>
@@ -6475,7 +6499,7 @@ function promptEditOrderDebt(voucherId) {
       }
       return;
     }
-    
+
     const totalAmt = v.totalAmount || v.amount || 0;
     if (v.remainingDebt === undefined) {
       v.remainingDebt = (v.paymentMethod === "131" || v.paymentMethod === "331") ? totalAmt : 0;
@@ -6485,7 +6509,7 @@ function promptEditOrderDebt(voucherId) {
     document.getElementById("modal-edit-debt-title").innerText = "Chỉnh sửa Công nợ Đơn hàng";
     document.getElementById("edit-debt-target-id").value = voucherId;
     document.getElementById("edit-debt-type").value = "voucher";
-    
+
     const partnerName = getPartnerNameForVoucher(v);
     document.getElementById("edit-debt-info-text").innerHTML = `
       <strong>Mã hóa đơn:</strong> ${v.id}<br>
@@ -6495,7 +6519,7 @@ function promptEditOrderDebt(voucherId) {
 
     document.getElementById("group-edit-debt-voucher").style.display = "block";
     document.getElementById("group-edit-debt-partner").style.display = "none";
-    
+
     document.getElementById("edit-debt-voucher-value").value = Number(v.remainingDebt || 0).toLocaleString("vi-VN");
 
     openModal("modal-edit-debt");
@@ -6527,7 +6551,7 @@ function promptEditPartnerOpeningDebt(partnerId) {
     document.getElementById("modal-edit-debt-title").innerText = "Chỉnh sửa Số dư Công nợ đầu kỳ";
     document.getElementById("edit-debt-target-id").value = partnerId;
     document.getElementById("edit-debt-type").value = "partner";
-    
+
     const typeLabel = p.type === "customer" ? "Khách hàng" : "Nhà cung cấp";
     document.getElementById("edit-debt-info-text").innerHTML = `
       <strong>Mã đối tác:</strong> ${p.id}<br>
@@ -6537,7 +6561,7 @@ function promptEditPartnerOpeningDebt(partnerId) {
 
     document.getElementById("group-edit-debt-voucher").style.display = "none";
     document.getElementById("group-edit-debt-partner").style.display = "block";
-    
+
     document.getElementById("edit-debt-partner-debit").value = Number(currentDebit).toLocaleString("vi-VN");
     document.getElementById("edit-debt-partner-credit").value = Number(currentCredit).toLocaleString("vi-VN");
 
@@ -6552,7 +6576,7 @@ function promptEditPartnerOpeningDebt(partnerId) {
 function handleEditDebtSubmit(e) {
   try {
     e.preventDefault();
-    
+
     const targetId = document.getElementById("edit-debt-target-id").value;
     const editType = document.getElementById("edit-debt-type").value;
 
@@ -6568,36 +6592,36 @@ function handleEditDebtSubmit(e) {
       }
       const totalAmt = v.totalAmount || v.amount || 0;
       const newDebt = parseInt(document.getElementById("edit-debt-voucher-value").value.replace(/\D/g, "")) || 0;
-      
+
       if (newDebt < 0 || newDebt > totalAmt) {
         showToast(`Số tiền nợ hợp lệ phải từ 0đ đến ${formatVND(totalAmt)}!`, "danger");
         return;
       }
-      
+
       v.remainingDebt = newDebt;
       saveState();
       showToast(`Cập nhật nợ đơn hàng ${v.id} thành ${formatVND(newDebt)} thành công!`, "success");
-    } 
-    
+    }
+
     else if (editType === "partner") {
       const newDebit = parseInt(document.getElementById("edit-debt-partner-debit").value.replace(/\D/g, "")) || 0;
       const newCredit = parseInt(document.getElementById("edit-debt-partner-credit").value.replace(/\D/g, "")) || 0;
-      
+
       if (newDebit < 0 || newCredit < 0) {
         showToast("Số dư đầu kỳ phải lớn hơn hoặc bằng 0đ!", "danger");
         return;
       }
-      
+
       state.partnerOpeningBalances = state.partnerOpeningBalances || {};
       state.partnerOpeningBalances[targetId] = { debit: newDebit, credit: newCredit };
-      
+
       saveState();
       recalculateAccounting();
       showToast(`Cập nhật số dư công nợ đầu kỳ đối tác ${targetId} thành công!`, "success");
     }
 
     closeModal("modal-edit-debt");
-    
+
     // Vẽ lại toàn bộ giao diện liên quan
     renderDashboardDebts();
     filterDebts();
@@ -6621,21 +6645,21 @@ function exportDebtsToExcel() {
     const ws = {};
     const merges = [];
 
-    const thin    = { style: "thin", color: { rgb: "AAAAAA" } };
+    const thin = { style: "thin", color: { rgb: "AAAAAA" } };
     const border4 = { top: thin, bottom: thin, left: thin, right: thin };
-    const hdrBg   = { patternType: "solid", fgColor: { rgb: "1F497D" } };
-    const altBg   = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
-    const totBg   = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
-    const khBg    = { patternType: "solid", fgColor: { rgb: "EBF3FF" } };
-    const nccBg   = { patternType: "solid", fgColor: { rgb: "FFF3EB" } };
-    const fntT    = { name: "Times New Roman", sz: 13, bold: true };
-    const fntH    = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
-    const fntB    = { name: "Times New Roman", sz: 11, bold: true };
-    const fntN    = { name: "Times New Roman", sz: 11 };
-    const cC      = { horizontal: "center", vertical: "center" };
-    const cL      = { horizontal: "left",   vertical: "center", wrapText: true };
-    const cR      = { horizontal: "right",  vertical: "center" };
-    const numFmt  = "#,##0 ;[Red](#,##0)";
+    const hdrBg = { patternType: "solid", fgColor: { rgb: "1F497D" } };
+    const altBg = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
+    const totBg = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
+    const khBg = { patternType: "solid", fgColor: { rgb: "EBF3FF" } };
+    const nccBg = { patternType: "solid", fgColor: { rgb: "FFF3EB" } };
+    const fntT = { name: "Times New Roman", sz: 13, bold: true };
+    const fntH = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
+    const fntB = { name: "Times New Roman", sz: 11, bold: true };
+    const fntN = { name: "Times New Roman", sz: 11 };
+    const cC = { horizontal: "center", vertical: "center" };
+    const cL = { horizontal: "left", vertical: "center", wrapText: true };
+    const cR = { horizontal: "right", vertical: "center" };
+    const numFmt = "#,##0 ;[Red](#,##0)";
 
     const sc = (r, c, v, t, s, z) => {
       const key = XLSX.utils.encode_cell({ r, c });
@@ -6660,8 +6684,8 @@ function exportDebtsToExcel() {
     const calculatedDebts = calculatePartnerDebts();
     let rowIdx = 2;
     let totalOpeningKH = 0, totalOpeningNCC = 0;
-    let totalDebitKH = 0,   totalCreditKH = 0;
-    let totalDebitNCC = 0,  totalCreditNCC = 0;
+    let totalDebitKH = 0, totalCreditKH = 0;
+    let totalDebitNCC = 0, totalCreditNCC = 0;
     let totalClosingKH = 0, totalClosingNCC = 0;
 
     calculatedDebts.forEach((d, idx) => {
@@ -6669,33 +6693,33 @@ function exportDebtsToExcel() {
       const openingBal = state.partnerOpeningBalances[d.id] || { debit: 0, credit: 0 };
       const openingNet = isKH ? (openingBal.debit - openingBal.credit) : (openingBal.credit - openingBal.debit);
       const closingNet = isKH ? (d.closingDebit - d.closingCredit) : (d.closingCredit - d.closingDebit);
-      const psTrans    = isKH ? d.debitTrans  : d.creditTrans;   // PS bên tăng
-      const psCred     = isKH ? d.creditTrans : d.debitTrans;   // PS bên giảm
+      const psTrans = isKH ? d.debitTrans : d.creditTrans;   // PS bên tăng
+      const psCred = isKH ? d.creditTrans : d.debitTrans;   // PS bên giảm
 
       const bg = idx % 2 === 0 ? (isKH ? null : { patternType: "solid", fgColor: { rgb: "FFFAF5" } }) : (isKH ? altBg : { patternType: "solid", fgColor: { rgb: "FFF0E0" } });
       const bs = (al) => ({ font: fntN, fill: bg, alignment: al, border: border4 });
       const ns = (al) => ({ font: fntN, fill: bg, alignment: al || cR, border: border4 });
 
-      sc(rowIdx, 0, d.id || "",       's', bs(cC));
-      sc(rowIdx, 1, d.name || "",     's', bs(cL));
+      sc(rowIdx, 0, d.id || "", 's', bs(cC));
+      sc(rowIdx, 1, d.name || "", 's', bs(cL));
       sc(rowIdx, 2, isKH ? "KH" : "NCC", 's', bs(cC));
       sc(rowIdx, 3, openingNet, 'n', ns(cR), numFmt);
-      sc(rowIdx, 4, psTrans,    'n', ns(cR), numFmt);
-      sc(rowIdx, 5, psCred,     'n', ns(cR), numFmt);
+      sc(rowIdx, 4, psTrans, 'n', ns(cR), numFmt);
+      sc(rowIdx, 5, psCred, 'n', ns(cR), numFmt);
       sc(rowIdx, 6, closingNet, 'n', ns(cR), numFmt);
-      sc(rowIdx, 7, d.address || "",  's', bs(cL));
-      sc(rowIdx, 8, d.taxCode || "",  's', bs(cC));
-      sc(rowIdx, 9, d.phone || "",    's', bs(cC));
+      sc(rowIdx, 7, d.address || "", 's', bs(cL));
+      sc(rowIdx, 8, d.taxCode || "", 's', bs(cC));
+      sc(rowIdx, 9, d.phone || "", 's', bs(cC));
 
       if (isKH) {
         totalOpeningKH += openingNet;
-        totalDebitKH   += psTrans;
-        totalCreditKH  += psCred;
+        totalDebitKH += psTrans;
+        totalCreditKH += psCred;
         totalClosingKH += closingNet;
       } else {
         totalOpeningNCC += openingNet;
-        totalDebitNCC   += psTrans;
-        totalCreditNCC  += psCred;
+        totalDebitNCC += psTrans;
+        totalCreditNCC += psCred;
         totalClosingNCC += closingNet;
       }
       rowIdx++;
@@ -6705,8 +6729,8 @@ function exportDebtsToExcel() {
     const ts = (al) => ({ font: fntB, fill: totBg, alignment: al, border: border4 });
     sc(rowIdx, 0, "TỔNG KHÁCH HÀNG", 's', ts(cL)); merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 2 } });
     sc(rowIdx, 3, totalOpeningKH, 'n', ts(cR), numFmt);
-    sc(rowIdx, 4, totalDebitKH,   'n', ts(cR), numFmt);
-    sc(rowIdx, 5, totalCreditKH,  'n', ts(cR), numFmt);
+    sc(rowIdx, 4, totalDebitKH, 'n', ts(cR), numFmt);
+    sc(rowIdx, 5, totalCreditKH, 'n', ts(cR), numFmt);
     sc(rowIdx, 6, totalClosingKH, 'n', ts(cR), numFmt);
     sc(rowIdx, 7, "", 's', ts(cL)); sc(rowIdx, 8, "", 's', ts(cC)); sc(rowIdx, 9, "", 's', ts(cC));
     rowIdx++;
@@ -6714,14 +6738,14 @@ function exportDebtsToExcel() {
     // DÒNG TỔNG NCC
     sc(rowIdx, 0, "TỔNG NHÀ CUNG CẤP", 's', ts(cL)); merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 2 } });
     sc(rowIdx, 3, totalOpeningNCC, 'n', ts(cR), numFmt);
-    sc(rowIdx, 4, totalDebitNCC,   'n', ts(cR), numFmt);
-    sc(rowIdx, 5, totalCreditNCC,  'n', ts(cR), numFmt);
+    sc(rowIdx, 4, totalDebitNCC, 'n', ts(cR), numFmt);
+    sc(rowIdx, 5, totalCreditNCC, 'n', ts(cR), numFmt);
     sc(rowIdx, 6, totalClosingNCC, 'n', ts(cR), numFmt);
     sc(rowIdx, 7, "", 's', ts(cL)); sc(rowIdx, 8, "", 's', ts(cC)); sc(rowIdx, 9, "", 's', ts(cC));
 
     ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: ncols - 1 } });
     ws['!merges'] = merges;
-    ws['!cols'] = [{ wch: 18 },{ wch: 32 },{ wch: 8 },{ wch: 16 },{ wch: 16 },{ wch: 16 },{ wch: 16 },{ wch: 38 },{ wch: 14 },{ wch: 14 }];
+    ws['!cols'] = [{ wch: 18 }, { wch: 32 }, { wch: 8 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 38 }, { wch: 14 }, { wch: 14 }];
     ws['!rows'] = [{ hpt: 22 }, { hpt: 22 }];
 
     XLSX.utils.book_append_sheet(wb, ws, "Cong no");
@@ -6738,7 +6762,7 @@ function exportDebtsToExcel() {
 function recalculateCashKpis() {
   const balance111 = getAccountBalance("111");
   const balance112 = getAccountBalance("112");
-  
+
   let totalReceipts = 0;
   let totalPayments = 0;
 
@@ -6804,7 +6828,7 @@ function renderCashTable() {
         <td style="font-weight:bold; color:var(--color-primary);">${v.id}</td>
         <td><a href="#" onclick="viewPartnerLedger('${escapedPartnerId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${getPartnerNameForVoucher(v)}</a></td>
         <td>${v.description}</td>
-        <td style="text-align:right; font-weight:700;" class="font-numeric">${formatVND(v.amount).replace("đ","")}</td>
+        <td style="text-align:right; font-weight:700;" class="font-numeric">${formatVND(v.amount).replace("đ", "")}</td>
         <td>
           <span class="badge ${isReceipt ? 'badge-success' : 'badge-danger'}">
             ${typeLabel}
@@ -6845,7 +6869,7 @@ function renderCashTable() {
       paginationControls.style.display = "none";
     } else {
       paginationControls.style.display = "flex";
-      
+
       let buttonsHTML = "";
       buttonsHTML += `
         <button class="btn btn-secondary btn-sm" onclick="changeCashPage(1)" ${cashPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">« Đầu</button>
@@ -6905,7 +6929,7 @@ function filterCash() {
     const partnerName = getPartnerNameForVoucher(v);
     const combined = `${v.id || ""} ${partnerName} ${v.description || ""}`;
     const matchesQuery = matchAdvancedQuery(combined, query, v.amount);
-    
+
     let matchesType = true;
     if (filterType === "receipt") {
       matchesType = v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay";
@@ -6957,7 +6981,7 @@ function openAddPaymentModal() {
 
 function handleReceiptSubmit(e) {
   e.preventDefault();
-  
+
   const date = document.getElementById("receipt-date").value;
   const partnerVal = document.getElementById("receipt-partner").value;
   const debit = document.getElementById("receipt-debit").value;
@@ -6966,7 +6990,7 @@ function handleReceiptSubmit(e) {
   const desc = document.getElementById("receipt-desc").value.trim();
 
   const partnerObj = resolvePartner(partnerVal);
-  
+
   const nextNum = (state.vouchers.filter(v => v.type === 'receipt').length + 1).toString().padStart(4, '0');
   const id = `PT-${new Date().getFullYear().toString().substring(2)}-${nextNum}`;
 
@@ -6987,18 +7011,18 @@ function handleReceiptSubmit(e) {
   state.vouchers.push(newVoucher);
   saveState();
   recalculateAccounting();
-  
+
   closeModal("modal-add-receipt");
   document.getElementById("form-receipt").reset();
   showToast("Lập phiếu thu thành công!", "success");
-  
+
   filterCash();
   recalculateCashKpis();
 }
 
 function handlePaymentSubmit(e) {
   e.preventDefault();
-  
+
   const date = document.getElementById("payment-date").value;
   const partnerVal = document.getElementById("payment-partner").value;
   const debit = document.getElementById("payment-debit").value;
@@ -7007,7 +7031,7 @@ function handlePaymentSubmit(e) {
   const desc = document.getElementById("payment-desc").value.trim();
 
   const partnerObj = resolvePartner(partnerVal);
-  
+
   const nextNum = (state.vouchers.filter(v => v.type === 'payment').length + 1).toString().padStart(4, '0');
   const id = `PC-${new Date().getFullYear().toString().substring(2)}-${nextNum}`;
 
@@ -7028,11 +7052,11 @@ function handlePaymentSubmit(e) {
   state.vouchers.push(newVoucher);
   saveState();
   recalculateAccounting();
-  
+
   closeModal("modal-add-payment");
   document.getElementById("form-payment").reset();
   showToast("Lập phiếu chi thành công!", "success");
-  
+
   filterCash();
   recalculateCashKpis();
 }
@@ -7056,7 +7080,7 @@ function exportCashToExcel() {
     const partnerName = getPartnerNameForVoucher(v);
     const combined = `${v.id || ""} ${partnerName} ${v.description || ""}`;
     const matchesQuery = matchAdvancedQuery(combined, query, v.amount);
-    
+
     let matchesType = true;
     if (filterType === "receipt") {
       matchesType = v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay";
@@ -7124,9 +7148,9 @@ function exportSalesToExcel() {
   }
   let filteredSales = state.vouchers.filter(v => v.type === "sales");
 
-  const query    = document.getElementById("search-sales")      ? document.getElementById("search-sales").value.toLowerCase() : "";
+  const query = document.getElementById("search-sales") ? document.getElementById("search-sales").value.toLowerCase() : "";
   const fromDate = document.getElementById("search-sales-from") ? document.getElementById("search-sales-from").value : "";
-  const toDate   = document.getElementById("search-sales-to")   ? document.getElementById("search-sales-to").value : "";
+  const toDate = document.getElementById("search-sales-to") ? document.getElementById("search-sales-to").value : "";
 
   if (query) filteredSales = filteredSales.filter(v =>
     (v.id || "").toLowerCase().includes(query) ||
@@ -7134,7 +7158,7 @@ function exportSalesToExcel() {
     (v.description || "").toLowerCase().includes(query)
   );
   if (fromDate) filteredSales = filteredSales.filter(v => v.date >= fromDate);
-  if (toDate)   filteredSales = filteredSales.filter(v => v.date <= toDate);
+  if (toDate) filteredSales = filteredSales.filter(v => v.date <= toDate);
   filteredSales.sort((a, b) => new Date(a.date) - new Date(b.date) || a.id.localeCompare(b.id, undefined, { numeric: true }));
 
   try {
@@ -7142,20 +7166,20 @@ function exportSalesToExcel() {
     const ws = {};
     const merges = [];
 
-    const thin    = { style: "thin", color: { rgb: "AAAAAA" } };
+    const thin = { style: "thin", color: { rgb: "AAAAAA" } };
     const border4 = { top: thin, bottom: thin, left: thin, right: thin };
-    const hdrBg   = { patternType: "solid", fgColor: { rgb: "1F497D" } };
-    const altBg   = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
-    const totBg   = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
-    const fntT    = { name: "Times New Roman", sz: 13, bold: true };
-    const fntSub  = { name: "Times New Roman", sz: 11, italic: true };
-    const fntH    = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
-    const fntB    = { name: "Times New Roman", sz: 11, bold: true };
-    const fntN    = { name: "Times New Roman", sz: 11 };
-    const cC      = { horizontal: "center", vertical: "center" };
-    const cL      = { horizontal: "left",   vertical: "center", wrapText: true };
-    const cR      = { horizontal: "right",  vertical: "center" };
-    const numFmt  = "#,##0 ;[Red](#,##0)";
+    const hdrBg = { patternType: "solid", fgColor: { rgb: "1F497D" } };
+    const altBg = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
+    const totBg = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
+    const fntT = { name: "Times New Roman", sz: 13, bold: true };
+    const fntSub = { name: "Times New Roman", sz: 11, italic: true };
+    const fntH = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
+    const fntB = { name: "Times New Roman", sz: 11, bold: true };
+    const fntN = { name: "Times New Roman", sz: 11 };
+    const cC = { horizontal: "center", vertical: "center" };
+    const cL = { horizontal: "left", vertical: "center", wrapText: true };
+    const cR = { horizontal: "right", vertical: "center" };
+    const numFmt = "#,##0 ;[Red](#,##0)";
     const dateFmt = "dd/mm/yyyy";
 
     const sc = (r, c, v, t, s, z) => {
@@ -7177,7 +7201,7 @@ function exportSalesToExcel() {
 
     // ROW 2: Headers
     //  0=Ngày HT  1=Ngày CT  2=Số CT  3=Số HĐ  4=Mẫu số  5=Ký hiệu  6=Khách hàng  7=Diễn giải  8=Tổng tiền hàng  9=Chiết khấu  10=Thuế  11=Thanh toán  12=Đã lập  13=Đã xuất  14=Loại CT
-    const headers = ["Ngày hạch toán","Ngày chứng từ","Số chứng từ","Số hóa đơn","Mẫu số HĐ","Ký hiệu HĐ","Khách hàng","Diễn giải","Tổng tiền hàng","Tiền chiết khấu","Tiền thuế GTGT","Tổng tiền thanh toán","Đã lập hóa đơn","Đã xuất hàng","Loại chứng từ"];
+    const headers = ["Ngày hạch toán", "Ngày chứng từ", "Số chứng từ", "Số hóa đơn", "Mẫu số HĐ", "Ký hiệu HĐ", "Khách hàng", "Diễn giải", "Tổng tiền hàng", "Tiền chiết khấu", "Tiền thuế GTGT", "Tổng tiền thanh toán", "Đã lập hóa đơn", "Đã xuất hàng", "Loại chứng từ"];
     headers.forEach((h, c) => sc(2, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: border4 }));
 
     // DATA ROWS
@@ -7193,8 +7217,8 @@ function exportSalesToExcel() {
       if (v.items && v.items.length > 0) {
         v.items.forEach(item => {
           const itemGross = (item.qty || 0) * (item.price || 0);
-          const discVal   = itemGross * ((item.discount || 0) / 100);
-          grossTotal   += itemGross;
+          const discVal = itemGross * ((item.discount || 0) / 100);
+          grossTotal += itemGross;
           discountTotal += discVal;
         });
       } else {
@@ -7202,41 +7226,41 @@ function exportSalesToExcel() {
       }
 
       const er = v.excelRow || [];
-      sc(rowIdx,  0, dateStrToSerial(v.date),   'n', bs(cC), dateFmt);
-      sc(rowIdx,  1, dateStrToSerial(v.date),   'n', bs(cC), dateFmt);
-      sc(rowIdx,  2, v.id,                      's', bs(cC));
-      sc(rowIdx,  3, er[3] || v.invoiceNo || "", 's', bs(cC));
-      sc(rowIdx,  4, er[4] || "",               's', bs(cC));
-      sc(rowIdx,  5, er[5] || "",               's', bs(cC));
-      sc(rowIdx,  6, v.partnerName || "",        's', bs(cL));
-      sc(rowIdx,  7, v.description || "",        's', bs(cL));
-      sc(rowIdx,  8, grossTotal,                 'n', ns(cR), numFmt);
-      sc(rowIdx,  9, discountTotal,              'n', ns(cR), numFmt);
-      sc(rowIdx, 10, v.taxAmount || 0,           'n', ns(cR), numFmt);
-      sc(rowIdx, 11, v.totalAmount || 0,         'n', ns(cR), numFmt);
-      sc(rowIdx, 12, er[12] || "Đã lập",         's', bs(cC));
-      sc(rowIdx, 13, er[13] || "Đã xuất",         's', bs(cC));
+      sc(rowIdx, 0, dateStrToSerial(v.date), 'n', bs(cC), dateFmt);
+      sc(rowIdx, 1, dateStrToSerial(v.date), 'n', bs(cC), dateFmt);
+      sc(rowIdx, 2, v.id, 's', bs(cC));
+      sc(rowIdx, 3, er[3] || v.invoiceNo || "", 's', bs(cC));
+      sc(rowIdx, 4, er[4] || "", 's', bs(cC));
+      sc(rowIdx, 5, er[5] || "", 's', bs(cC));
+      sc(rowIdx, 6, v.partnerName || "", 's', bs(cL));
+      sc(rowIdx, 7, v.description || "", 's', bs(cL));
+      sc(rowIdx, 8, grossTotal, 'n', ns(cR), numFmt);
+      sc(rowIdx, 9, discountTotal, 'n', ns(cR), numFmt);
+      sc(rowIdx, 10, v.taxAmount || 0, 'n', ns(cR), numFmt);
+      sc(rowIdx, 11, v.totalAmount || 0, 'n', ns(cR), numFmt);
+      sc(rowIdx, 12, er[12] || "Đã lập", 's', bs(cC));
+      sc(rowIdx, 13, er[13] || "Đã xuất", 's', bs(cC));
       sc(rowIdx, 14, v.paymentMethod === "111" ? "Bán hàng - Tiền mặt" : "Bán hàng - Chưa thu", 's', bs(cL));
 
-      totalGross    += grossTotal;
+      totalGross += grossTotal;
       totalDiscount += discountTotal;
-      totalTax      += v.taxAmount || 0;
-      totalAmt      += v.totalAmount || 0;
+      totalTax += v.taxAmount || 0;
+      totalAmt += v.totalAmount || 0;
       rowIdx++;
     });
 
     // DÒNG TỔNG
     const ts = (al) => ({ font: fntB, fill: totBg, alignment: al, border: border4 });
     sc(rowIdx, 0, "TỔNG CỘNG", 's', ts(cL)); merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 7 } });
-    sc(rowIdx,  8, totalGross,    'n', ts(cR), numFmt);
-    sc(rowIdx,  9, totalDiscount, 'n', ts(cR), numFmt);
-    sc(rowIdx, 10, totalTax,      'n', ts(cR), numFmt);
-    sc(rowIdx, 11, totalAmt,      'n', ts(cR), numFmt);
+    sc(rowIdx, 8, totalGross, 'n', ts(cR), numFmt);
+    sc(rowIdx, 9, totalDiscount, 'n', ts(cR), numFmt);
+    sc(rowIdx, 10, totalTax, 'n', ts(cR), numFmt);
+    sc(rowIdx, 11, totalAmt, 'n', ts(cR), numFmt);
     sc(rowIdx, 12, "", 's', ts(cC)); sc(rowIdx, 13, "", 's', ts(cC)); sc(rowIdx, 14, "", 's', ts(cC));
 
     ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: 14 } });
     ws['!merges'] = merges;
-    ws['!cols'] = [{ wch: 13 },{ wch: 13 },{ wch: 14 },{ wch: 13 },{ wch: 11 },{ wch: 11 },{ wch: 28 },{ wch: 28 },{ wch: 16 },{ wch: 14 },{ wch: 12 },{ wch: 16 },{ wch: 12 },{ wch: 11 },{ wch: 28 }];
+    ws['!cols'] = [{ wch: 13 }, { wch: 13 }, { wch: 14 }, { wch: 13 }, { wch: 11 }, { wch: 11 }, { wch: 28 }, { wch: 28 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 11 }, { wch: 28 }];
     ws['!rows'] = [{ hpt: 22 }, { hpt: 16 }, { hpt: 22 }];
 
     XLSX.utils.book_append_sheet(wb, ws, "Ban hang");
@@ -7260,7 +7284,7 @@ function createDefaultSalesExcelRow(v) {
   r[5] = "";
   r[6] = v.partnerName;
   r[7] = v.description;
-  
+
   let grossTotal = 0;
   let totalDiscount = 0;
   v.items.forEach(item => {
@@ -7269,7 +7293,7 @@ function createDefaultSalesExcelRow(v) {
     grossTotal += itemGross;
     totalDiscount += discountVal;
   });
-  
+
   r[8] = grossTotal;
   r[9] = totalDiscount;
   r[10] = v.taxAmount || 0;
@@ -7290,11 +7314,11 @@ let productOptionsSalesHTML = "";
 // Khởi tạo cache sản phẩm và datalist đối tác
 function initExcelIntegration() {
   cacheProductOptions();
-  
+
   // Nạp datalist partners
   const datalist = document.getElementById("datalist-partners");
   if (datalist && state.partners) {
-    datalist.innerHTML = state.partners.map(p => 
+    datalist.innerHTML = state.partners.map(p =>
       `<option value="${p.id}">${p.name} [${p.type === 'supplier' ? 'NCC' : 'KH'}]</option>`
     ).join("");
   }
@@ -7302,14 +7326,14 @@ function initExcelIntegration() {
   // Nạp datalist sản phẩm phục vụ autocomplete trong hóa đơn bán hàng
   const productDatalist = document.getElementById("datalist-sales-products");
   if (productDatalist && state.products) {
-    productDatalist.innerHTML = state.products.map(p => 
+    productDatalist.innerHTML = state.products.map(p =>
       `<option value="${p.id}">${p.name} (Tồn: ${p.stock})</option>`
     ).join("");
   }
 
   // Khởi tạo các sự kiện kéo thả (Drag & Drop) cho Excel Drop Zones
   initExcelDragAndDrop();
-  
+
   // Cập nhật thống kê
   updateExcelHubUI();
 }
@@ -7322,7 +7346,7 @@ function cacheProductOptions() {
 
   const productDatalist = document.getElementById("datalist-sales-products");
   if (productDatalist) {
-    productDatalist.innerHTML = state.products.map(p => 
+    productDatalist.innerHTML = state.products.map(p =>
       `<option value="${p.id}">${p.name} (Tồn: ${p.stock})</option>`
     ).join("");
   }
@@ -7334,7 +7358,7 @@ function updateExcelHubUI() {
   const statParts = document.getElementById("excel-stat-partners");
   const statVouch = document.getElementById("excel-stat-vouchers");
   const statStatus = document.getElementById("excel-stat-status");
-  
+
   if (statProds && state.products) statProds.innerText = state.products.length.toLocaleString();
   if (statParts && state.partners) statParts.innerText = state.partners.length.toLocaleString();
   if (statVouch && state.vouchers) statVouch.innerText = state.vouchers.length.toLocaleString();
@@ -7353,19 +7377,19 @@ function updateExcelHubUI() {
 function resolvePartner(value) {
   const val = (value || "").toString().trim();
   if (!val) return { id: "DT_VANGLAI", name: "Khách hàng vãng lai" };
-  
+
   // 1. Tìm chính xác theo ID
   let p = state.partners.find(item => item.id.toLowerCase() === val.toLowerCase());
   if (p) return p;
-  
+
   // 2. Tìm chính xác theo Tên
   p = state.partners.find(item => item.name.toLowerCase() === val.toLowerCase());
   if (p) return p;
-  
+
   // 3. Tìm tương đối theo Tên hoặc ID
   p = state.partners.find(item => item.name.toLowerCase().includes(val.toLowerCase()) || item.id.toLowerCase().includes(val.toLowerCase()));
   if (p) return p;
-  
+
   // 4. Tạo đối tác mới tự động nếu không tồn tại
   return { id: val, name: val };
 }
@@ -7412,7 +7436,7 @@ function initExcelDragAndDrop() {
     el.addEventListener('drop', (e) => {
       e.preventDefault();
       el.classList.remove('dragover');
-      
+
       const file = e.dataTransfer.files[0];
       if (file) {
         const type = zone.id.replace('excel-drop-zone-', '');
@@ -7444,7 +7468,7 @@ function parseExcelFile(file, type) {
   }
 
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = function (e) {
     try {
       const data = new Uint8Array(e.target.result);
       const workbook = XLSX.read(data, { type: 'array' });
@@ -7481,53 +7505,53 @@ function parseExcelFile(file, type) {
 
           if (isNewFormat) {
             // File mới: Mã(0) Tên(1) Tính chất(2) Nhóm(3) ĐVT(4) Tồn tối thiểu(5) Kho(6) TK kho(7) TK CP(8) TK DT(9) Ngừng TD(10) Tồn hiện tại(11) Giá trị tồn(12)
-            unit      = (row[4] || "Cái").toString().trim();
-            minStock  = Number(row[5]) || 0;
-            stock     = Number(row[11]) || 0;
-            totalVal  = Number(row[12]) || 0;
-            avgCost   = stock > 0 ? Math.round(totalVal / stock) : 0;
+            unit = (row[4] || "Cái").toString().trim();
+            minStock = Number(row[5]) || 0;
+            stock = Number(row[11]) || 0;
+            totalVal = Number(row[12]) || 0;
+            avgCost = stock > 0 ? Math.round(totalVal / stock) : 0;
             initialStock = stock;
-            initialCost  = avgCost;
-            salePrice1   = avgCost;
-            
-            nature           = String(row[2] || "Vật tư hàng hóa").trim();
+            initialCost = avgCost;
+            salePrice1 = avgCost;
+
+            nature = String(row[2] || "Vật tư hàng hóa").trim();
             defaultWarehouse = String(row[6] || "").trim();
             warehouseAccount = String(row[7] || "1561").trim();
-            cogsAccount      = String(row[8] || "632").trim();
-            revenueAccount   = String(row[9] || "51111").trim();
-            
+            cogsAccount = String(row[8] || "632").trim();
+            revenueAccount = String(row[9] || "51111").trim();
+
             const inactiveVal = String(row[10] || "").trim();
             inactive = inactiveVal === "1" || inactiveVal === "Có" || inactiveVal === "True" || inactiveVal === "true";
           } else {
             // File cũ (57 cột): ĐVT ở col 7, Tồn tối thiểu col 9, Tồn kho col 31, Giá trị col 33
-            unit      = (row[7] || "Cái").toString().trim();
-            minStock  = Number(row[9]) || 0;
-            stock     = Number(row[31]) || 0;
-            totalVal  = Number(row[33]) || 0;
-            avgCost   = stock > 0 ? Math.round(totalVal / stock) : (Number(row[20]) || Number(row[19]) || 0);
-            
-            initialStock = stock;
-            initialCost  = Number(row[19]) || avgCost || 0;
-            salePrice1   = Number(row[21]) || 0;
+            unit = (row[7] || "Cái").toString().trim();
+            minStock = Number(row[9]) || 0;
+            stock = Number(row[31]) || 0;
+            totalVal = Number(row[33]) || 0;
+            avgCost = stock > 0 ? Math.round(totalVal / stock) : (Number(row[20]) || Number(row[19]) || 0);
 
-            nature           = String(row[2] || "Vật tư hàng hóa").trim();
+            initialStock = stock;
+            initialCost = Number(row[19]) || avgCost || 0;
+            salePrice1 = Number(row[21]) || 0;
+
+            nature = String(row[2] || "Vật tư hàng hóa").trim();
             defaultWarehouse = String(row[11] || "").trim();
             warehouseAccount = String(row[12] || "1561").trim();
-            cogsAccount      = String(row[13] || "632").trim();
-            revenueAccount   = String(row[14] || "51111").trim();
+            cogsAccount = String(row[13] || "632").trim();
+            revenueAccount = String(row[14] || "51111").trim();
 
             const inactiveVal = String(row[30] || "").trim();
             inactive = inactiveVal === "1" || inactiveVal === "Có" || inactiveVal === "True" || inactiveVal === "true";
           }
 
           const idx = state.products.findIndex(p => p.id === id);
-          const pObj = { 
-            id, 
-            name, 
-            unit, 
-            stock, 
-            avgCost, 
-            totalValue: stock * avgCost, 
+          const pObj = {
+            id,
+            name,
+            unit,
+            stock,
+            avgCost,
+            totalValue: stock * avgCost,
             minStock,
             group: (row[isNewFormat ? 3 : 3] || "").toString().trim(),
             initialStock,
@@ -7540,7 +7564,7 @@ function parseExcelFile(file, type) {
             cogsAccount,
             revenueAccount,
             inactive,
-            excelRow: row 
+            excelRow: row
           };
           if (idx !== -1) {
             state.products[idx] = { ...state.products[idx], ...pObj };
@@ -7552,8 +7576,8 @@ function parseExcelFile(file, type) {
         saveState();
         recalculateAccounting();
         showToast(`Đã nạp thành công ${count} sản phẩm từ file Excel (${isNewFormat ? 'định dạng mới' : 'định dạng cũ'})!`, "success");
-      } 
-      
+      }
+
       else if (type === 'partners') {
         let count = 0;
         for (let i = 2; i < rows.length; i++) {
@@ -7570,7 +7594,7 @@ function parseExcelFile(file, type) {
           const inactiveVal = row[6];
           // Hỗ trợ cả "TRUE"/"FALSE" (file cũ) và "Có"/"" (file mới)
           const inactive = inactiveVal === true || (inactiveVal || "").toString().toLowerCase() === "true"
-                        || (inactiveVal || "").toString().trim() === "Có";
+            || (inactiveVal || "").toString().trim() === "Có";
 
           const idx = state.partners.findIndex(p => p.id === id);
           const pObj = { id, name, type, phone, email: "", address, taxCode, group, inactive };
@@ -7581,11 +7605,11 @@ function parseExcelFile(file, type) {
           }
           count++;
         }
-        
+
         // Cập nhật datalist
         const datalist = document.getElementById("datalist-partners");
         if (datalist) {
-          datalist.innerHTML = state.partners.map(p => 
+          datalist.innerHTML = state.partners.map(p =>
             `<option value="${p.id}">${p.name} [${p.type === 'supplier' ? 'NCC' : 'KH'}]</option>`
           ).join("");
         }
@@ -7593,8 +7617,8 @@ function parseExcelFile(file, type) {
         saveState();
         showToast(`Đã nạp thành công ${count} đối tác từ file Excel!`, "success");
         filterPartners();
-      } 
-      
+      }
+
       else if (type === 'debts_opening') {
         let count = 0;
         state.partnerOpeningBalances = state.partnerOpeningBalances || {};
@@ -7634,7 +7658,7 @@ function parseExcelFile(file, type) {
             }
           } else {
             // File cũ 18 cột: row[2] = phải thu, row[3] = thu trước/giảm trừ
-            debit  = Number(row[2]) || 0;
+            debit = Number(row[2]) || 0;
             credit = Number(row[3]) || 0;
           }
 
@@ -7642,18 +7666,18 @@ function parseExcelFile(file, type) {
 
           const idx = state.partners.findIndex(p => p.id === id);
           if (idx === -1) {
-            const addrCol  = isNewDebtFormat ? 7 : 5;
-            const taxCol   = isNewDebtFormat ? 8 : 6;
+            const addrCol = isNewDebtFormat ? 7 : 5;
+            const taxCol = isNewDebtFormat ? 8 : 6;
             const phoneCol = isNewDebtFormat ? 9 : 7;
-            const loaiVal  = isNewDebtFormat ? (row[2] || "").toString().trim().toUpperCase() : "";
-            const pType    = (loaiVal === "NCC" || id.startsWith("NCC")) ? "supplier" : "customer";
+            const loaiVal = isNewDebtFormat ? (row[2] || "").toString().trim().toUpperCase() : "";
+            const pType = (loaiVal === "NCC" || id.startsWith("NCC")) ? "supplier" : "customer";
             state.partners.push({
               id, name,
               type: pType,
-              phone:   (row[phoneCol] || "").toString().trim(),
-              email:   "",
-              address: (row[addrCol]  || "").toString().trim(),
-              taxCode: (row[taxCol]   || "").toString().trim(),
+              phone: (row[phoneCol] || "").toString().trim(),
+              email: "",
+              address: (row[addrCol] || "").toString().trim(),
+              taxCode: (row[taxCol] || "").toString().trim(),
               group: pType === "supplier" ? "NCC" : "KH",
               inactive: false
             });
@@ -7673,8 +7697,8 @@ function parseExcelFile(file, type) {
         recalculateAccounting();
         showToast(`Đã nạp số dư đầu kỳ cho ${count} đối tác (${isNewDebtFormat ? 'định dạng mới' : 'định dạng cũ'})!`, "success");
         filterDebts();
-      } 
-      
+      }
+
       else if (type === 'vouchers') {
         let count = 0;
         for (let i = 2; i < rows.length; i++) {
@@ -7702,7 +7726,7 @@ function parseExcelFile(file, type) {
             type = "payment";
             debitAccount = "331";
             creditAccount = paymentMethod;
-            
+
             if (descLower.includes("mua hàng") || descLower.includes("nhập kho")) {
               debitAccount = "156";
             } else if (descLower.includes("chi phí") || descLower.includes("thuê xưởng")) {
@@ -7763,7 +7787,7 @@ function parseExcelFile(file, type) {
           const dateStr = excelDateToISOString(row[0]);
           const partnerName = (row[6] || "Khách hàng vãng lai").toString().trim();
           const description = (row[7] || "Bán hàng").toString().trim();
-          
+
           const H = Number(row[8]) || 0;
           const C = Number(row[9]) || 0;
           const T = Number(row[10]) || 0;
@@ -7922,7 +7946,7 @@ try {
   if (savedLogs) {
     errorLogs = JSON.parse(savedLogs);
   }
-} catch(e) {
+} catch (e) {
   console.error("Error reading logs:", e);
 }
 
@@ -7932,26 +7956,26 @@ function addErrorLog(context, message, err = null) {
     message: err.message,
     stack: err.stack
   } : null;
-  
+
   const logEntry = {
     timestamp,
     context,
     message,
     error: errorDetails
   };
-  
+
   errorLogs.unshift(logEntry);
   if (errorLogs.length > 100) errorLogs.pop(); // Giữ tối đa 100 log
-  
+
   try {
     localStorage.setItem("rd_accounting_error_logs", JSON.stringify(errorLogs));
-  } catch(e) {
+  } catch (e) {
     console.error("Error saving logs:", e);
   }
-  
+
   // Cập nhật giao diện log
   updateErrorLogsUI();
-  
+
   // Hiển thị toast cảnh báo nếu có lỗi mới
   if (typeof showToast === "function") {
     showToast(`Lỗi [${context}]: ${message}`, "danger");
@@ -7961,13 +7985,13 @@ function addErrorLog(context, message, err = null) {
 function updateErrorLogsUI() {
   const container = document.getElementById("error-logs-container");
   if (!container) return;
-  
+
   if (errorLogs.length === 0) {
     container.innerHTML = "Không có lỗi nào được ghi nhận.";
     container.style.color = "var(--text-secondary)";
     return;
   }
-  
+
   container.innerHTML = errorLogs.map(log => {
     let errStr = "";
     if (log.error) {
@@ -7982,7 +8006,7 @@ function clearErrorLogs() {
   errorLogs = [];
   try {
     localStorage.removeItem("rd_accounting_error_logs");
-  } catch(e) {
+  } catch (e) {
     console.error(e);
   }
   updateErrorLogsUI();
@@ -7998,7 +8022,7 @@ function exportErrorLogs() {
     }
     return;
   }
-  
+
   const logStr = errorLogs.map(log => {
     let errStr = "";
     if (log.error) {
@@ -8006,12 +8030,12 @@ function exportErrorLogs() {
     }
     return `[${log.timestamp}] [${log.context}] ${log.message}${errStr}`;
   }).join("\n" + "=".repeat(80) + "\n");
-  
+
   const blob = new Blob([logStr], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `RD_Accounting_Error_Logs_${new Date().toISOString().slice(0,10)}.txt`;
+  a.download = `RD_Accounting_Error_Logs_${new Date().toISOString().slice(0, 10)}.txt`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -8019,14 +8043,14 @@ function exportErrorLogs() {
 }
 
 // Bắt lỗi runtime không được xử lý
-window.onerror = function(message, source, lineno, colno, error) {
+window.onerror = function (message, source, lineno, colno, error) {
   const errMsg = `${message} tại ${source}:${lineno}:${colno}`;
   addErrorLog("Global Runtime Error", errMsg, error);
   return false;
 };
 
 // Bắt lỗi Promise bị Reject mà không được catch
-window.onunhandledrejection = function(event) {
+window.onunhandledrejection = function (event) {
   const reason = event.reason;
   const errMsg = reason ? (reason.message || String(reason)) : "Unhandled Promise Rejection";
   addErrorLog("Unhandled Promise", errMsg, reason instanceof Error ? reason : null);
@@ -8080,7 +8104,7 @@ function promptQuickImport(productId) {
     document.getElementById("quick-import-price").value = Number(p.avgCost || p.initialCost || 0).toLocaleString("vi-VN");
 
     openModal("modal-quick-import");
-  } catch(err) {
+  } catch (err) {
     if (typeof addErrorLog === "function") {
       addErrorLog("promptQuickImport", err.message, err);
     }
@@ -8090,7 +8114,7 @@ function promptQuickImport(productId) {
 function handleQuickImportSubmit(e) {
   try {
     e.preventDefault();
-    
+
     const prodId = document.getElementById("quick-import-prod-id").value;
     const qty = parseInt(document.getElementById("quick-import-qty").value.replace(/\D/g, "")) || 0;
     const price = parseInt(document.getElementById("quick-import-price").value.replace(/\D/g, "")) || 0;
@@ -8105,7 +8129,7 @@ function handleQuickImportSubmit(e) {
 
     // Tìm nhà cung cấp đầu tiên hoặc dùng mặc định
     const supplier = state.partners.find(x => x.type === "supplier") || { id: "NCC001", name: "Nhà cung cấp vãng lai" };
-    
+
     // Tạo mã chứng từ nhập kho nhanh
     const quickId = "PNK-Q" + Math.floor(1000 + Math.random() * 9000);
     const amount = qty * price;
@@ -8142,17 +8166,17 @@ function handleQuickImportSubmit(e) {
     };
 
     state.vouchers.push(voucher);
-    
+
     saveState();
     recalculateAccounting();
     closeModal("modal-quick-import");
     showToast(`Nhập nhanh ${qty} ${p.unit || 'Cái'} hàng ${p.name} thành công!`, "success");
-    
+
     // Vẽ lại bảng tồn kho và thẻ kho
     renderInventoryTable();
     populateProductLedgerDropdown();
     renderStockLedger();
-  } catch(err) {
+  } catch (err) {
     if (typeof addErrorLog === "function") {
       addErrorLog("handleQuickImportSubmit", err.message, err);
     }
@@ -8180,7 +8204,7 @@ function promptEditProductPrice(productId) {
     document.getElementById("edit-prod-id-display").value = p.id;
     document.getElementById("edit-prod-name").value = p.name;
     document.getElementById("edit-prod-unit").value = p.unit || "Cái";
-    
+
     const initialCostVal = p.initialCost !== undefined ? p.initialCost : (p.avgCost || 0);
     const initialStockVal = p.initialStock !== undefined ? p.initialStock : (p.stock || 0);
     const avgCostVal = p.avgCost || 0;
@@ -8195,12 +8219,12 @@ function promptEditProductPrice(productId) {
 
     document.getElementById("edit-prod-nature").value = p.nature || p.excelRow[2] || "Vật tư hàng hóa";
     document.getElementById("edit-prod-group").value = p.group || p.excelRow[3] || "";
-    
+
     const isInactive = p.inactive || p.excelRow[30] === 1 || p.excelRow[30] === "1" || p.excelRow[30] === "True" || p.excelRow[30] === "true" || p.excelRow[30] === true;
     document.getElementById("edit-prod-inactive").checked = !!isInactive;
 
     openModal("modal-edit-product-price");
-  } catch(err) {
+  } catch (err) {
     if (typeof addErrorLog === "function") {
       addErrorLog("promptEditProductPrice", err.message, err);
     }
@@ -8210,11 +8234,11 @@ function promptEditProductPrice(productId) {
 function handleEditProductPriceSubmit(e) {
   try {
     e.preventDefault();
-    
+
     const prodId = document.getElementById("edit-prod-id").value;
     const name = document.getElementById("edit-prod-name").value.trim();
     const unit = document.getElementById("edit-prod-unit").value.trim();
-    
+
     const initialCost = parseInt(document.getElementById("edit-prod-initial-cost").value.replace(/\D/g, "")) || 0;
     const initialStock = parseInt(document.getElementById("edit-prod-initial-stock").value.replace(/\D/g, "")) || 0;
     const avgCost = parseInt(document.getElementById("edit-prod-avg-cost").value.replace(/\D/g, "")) || 0;
@@ -8256,12 +8280,12 @@ function handleEditProductPriceSubmit(e) {
     recalculateAccounting();
     closeModal("modal-edit-product-price");
     showToast(`Đã cập nhật thông tin và đơn giá sản phẩm ${p.id} thành công!`, "success");
-    
+
     // Vẽ lại bảng tồn kho và thẻ kho
     renderInventoryTable();
     populateProductLedgerDropdown();
     renderStockLedger();
-  } catch(err) {
+  } catch (err) {
     if (typeof addErrorLog === "function") {
       addErrorLog("handleEditProductPriceSubmit", err.message, err);
     }
@@ -8272,7 +8296,7 @@ function handleEditProductPriceSubmit(e) {
 setTimeout(() => {
   try {
     updateErrorLogsUI();
-  } catch(e) {
+  } catch (e) {
     console.error(e);
   }
 }, 50);
@@ -8306,10 +8330,10 @@ function unescapeFirebaseKey(key) {
 
 function escapeFirebaseObject(obj) {
   if (!obj) return obj;
-  
+
   // Tạo bản sao cạn (shallow clone) của state để không làm thay đổi trực tiếp bộ nhớ cục bộ
   const copy = { ...obj };
-  
+
   // Chỉ thực hiện escape cho partnerOpeningBalances
   if (copy.partnerOpeningBalances) {
     const escapedBalances = {};
@@ -8321,15 +8345,15 @@ function escapeFirebaseObject(obj) {
     }
     copy.partnerOpeningBalances = escapedBalances;
   }
-  
+
   return copy;
 }
 
 function unescapeFirebaseObject(obj) {
   if (!obj) return obj;
-  
+
   const copy = { ...obj };
-  
+
   if (copy.partnerOpeningBalances) {
     const unescapedBalances = {};
     for (const key in copy.partnerOpeningBalances) {
@@ -8340,7 +8364,7 @@ function unescapeFirebaseObject(obj) {
     }
     copy.partnerOpeningBalances = unescapedBalances;
   }
-  
+
   return copy;
 }
 
@@ -8369,24 +8393,24 @@ function loadCloudSettings() {
       // Sử dụng cấu hình Firebase mặc định của người dùng
       localStorage.setItem("rd_accounting_cloud_settings", JSON.stringify(cloudSyncSettings));
     }
-    
+
     const chk = document.getElementById("setting-cloud-enabled");
     if (chk) chk.checked = cloudSyncSettings.enabled;
-    
+
     const apiKey = document.getElementById("setting-cloud-apikey");
     if (apiKey) apiKey.value = cloudSyncSettings.apiKey || "";
-    
+
     const dburl = document.getElementById("setting-cloud-dburl");
     if (dburl) dburl.value = cloudSyncSettings.databaseURL || "";
-    
+
     const pid = document.getElementById("setting-cloud-projectid");
     if (pid) pid.value = cloudSyncSettings.projectId || "";
-    
+
     const appid = document.getElementById("setting-cloud-appid");
     if (appid) appid.value = cloudSyncSettings.appId || "";
-    
+
     toggleCloudSyncInputs();
-  } catch(e) {
+  } catch (e) {
     console.error("Lỗi đọc cấu hình cloud:", e);
   }
 }
@@ -8404,7 +8428,7 @@ function initCloudSync() {
 
   try {
     updateCloudSyncBadge(false, "Mây: Đang kết nối...", "#f59e0b");
-    
+
     if (typeof firebase === "undefined") {
       if (typeof addErrorLog === "function") {
         addErrorLog("initCloudSync", "Thư viện Firebase chưa được tải. Vui lòng kiểm tra Internet.");
@@ -8422,7 +8446,7 @@ function initCloudSync() {
     } else {
       startFirebaseApp();
     }
-  } catch(err) {
+  } catch (err) {
     if (typeof addErrorLog === "function") {
       addErrorLog("initCloudSync", err.message, err);
     }
@@ -8438,7 +8462,7 @@ function startFirebaseApp() {
       projectId: cloudSyncSettings.projectId,
       appId: cloudSyncSettings.appId
     };
-    
+
     firebaseApp = firebase.initializeApp(config);
     firebaseDb = firebase.database();
     cloudSyncActive = true;
@@ -8451,13 +8475,13 @@ function startFirebaseApp() {
     connectedRef.on("value", (snap) => {
       if (snap.val() === true) {
         updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
-        
+
         if (!hasPulledOnStartup) {
           hasPulledOnStartup = true;
           showToast("Đã kết nối đám mây thời gian thực thành công!", "success");
           pullFromCloudOnStartup();
         }
-        
+
         if (!hasRegisteredListener) {
           hasRegisteredListener = true;
           listenToCloudChanges();
@@ -8471,7 +8495,7 @@ function startFirebaseApp() {
     if (forcePullBtn) forcePullBtn.style.display = "inline-block";
     const forcePushBtn = document.getElementById("btn-force-push");
     if (forcePushBtn) forcePushBtn.style.display = "inline-block";
-  } catch(err) {
+  } catch (err) {
     if (typeof addErrorLog === "function") {
       addErrorLog("startFirebaseApp", err.message, err);
     }
@@ -8494,7 +8518,7 @@ function pullFromCloudOnStartup() {
         try {
           const localStr = localStorage.getItem("rd_accounting_db");
           if (localStr) localData = JSON.parse(localStr);
-        } catch(e) { localData = null; }
+        } catch (e) { localData = null; }
 
         const merged = localData ? mergeStates(localData, cloudData) : cloudData;
         merged._lastModified = Math.max(
@@ -8531,7 +8555,7 @@ function forcePushToCloud() {
     showToast("Ứng dụng chưa kết nối đám mây!", "danger");
     return;
   }
-  
+
   if (confirm("Bạn có chắc chắn muốn ĐẨY toàn bộ dữ liệu cục bộ hiện tại (bao gồm lịch sử bán hàng) và GHI ĐÈ dữ liệu trên đám mây?")) {
     updateCloudSyncBadge(false, "Mây: Đang đẩy...", "#f59e0b");
     const escapedState = escapeFirebaseObject(state);
@@ -8672,11 +8696,11 @@ function mergeStates(localState, cloudState) {
     ...cloudState,
 
     // Merge arrays theo ID — giữ tất cả, loại bỏ deletedIds
-    vouchers:    mergeArrayById(localState.vouchers,    cloudState.vouchers,    mergedDeletedIds),
+    vouchers: mergeArrayById(localState.vouchers, cloudState.vouchers, mergedDeletedIds),
     cashEntries: mergeArrayById(localState.cashEntries, cloudState.cashEntries, mergedDeletedIds),
-    partners:    mergeArrayById(localState.partners,    cloudState.partners,    mergedDeletedIds),
+    partners: mergeArrayById(localState.partners, cloudState.partners, mergedDeletedIds),
     escrowItems: mergeArrayById(localState.escrowItems, cloudState.escrowItems, mergedDeletedIds),
-    products:    mergeArrayById(localState.products,    cloudState.products,    mergedDeletedIds),
+    products: mergeArrayById(localState.products, cloudState.products, mergedDeletedIds),
 
     // Giữ danh sách đã xóa hợp nhất
     deletedIds: mergedDeletedIds,
@@ -8725,7 +8749,7 @@ function listenToCloudChanges() {
     if (!rawData) return;
 
     const cloudData = unescapeFirebaseObject(rawData);
-    
+
     // Tối ưu hóa hiệu năng: So sánh timestamp sửa đổi gần nhất trước để bỏ qua dữ liệu cũ/trùng lặp
     const cloudTs = cloudData._lastModified || 0;
     const localTs = state._lastModified || 0;
@@ -8733,8 +8757,8 @@ function listenToCloudChanges() {
       return;
     }
 
-    const localStr  = localStorage.getItem("rd_accounting_db") || "";
-    const cloudStr  = JSON.stringify(cloudData);
+    const localStr = localStorage.getItem("rd_accounting_db") || "";
+    const cloudStr = JSON.stringify(cloudData);
 
     if (localStr === cloudStr) return; // Không có thay đổi, bỏ qua
 
@@ -8743,7 +8767,7 @@ function listenToCloudChanges() {
     let localData = null;
     try {
       localData = JSON.parse(localStr);
-    } catch(e) {
+    } catch (e) {
       localData = state;
     }
 
@@ -8778,7 +8802,7 @@ function toggleCloudSyncInputs() {
 function saveCloudConfig(e) {
   try {
     e.preventDefault();
-    
+
     const enabled = document.getElementById("setting-cloud-enabled").checked;
     const apiKey = document.getElementById("setting-cloud-apikey").value.trim();
     const databaseURL = document.getElementById("setting-cloud-dburl").value.trim();
@@ -8811,7 +8835,7 @@ function saveCloudConfig(e) {
       updateCloudSyncBadge(false, "Mây: Tắt", "#64748b");
       showToast("Đã tắt đồng bộ trực tuyến đám mây.", "info");
     }
-  } catch(err) {
+  } catch (err) {
     if (typeof addErrorLog === "function") {
       addErrorLog("saveCloudConfig", err.message, err);
     }
@@ -8822,12 +8846,12 @@ function updateCloudSyncBadge(connected, text, color = "#64748b") {
   const badge = document.getElementById("cloud-sync-badge");
   const indicator = document.getElementById("cloud-sync-indicator");
   const textEl = document.getElementById("cloud-sync-status-text");
-  
+
   if (badge && indicator && textEl) {
     textEl.innerText = text;
     textEl.style.color = color;
     indicator.style.backgroundColor = color;
-    
+
     if (connected) {
       indicator.classList.add("pulse-indicator");
     } else {
@@ -8861,7 +8885,7 @@ function updateBatchPurchasesUI() {
   const checked = Array.from(checkboxes).filter(cb => cb.checked);
   const btn = document.getElementById("btn-batch-delete-purchase");
   const count = document.getElementById("selected-purchases-count");
-  
+
   if (btn && count) {
     if (checked.length > 0) {
       btn.style.display = "inline-flex";
@@ -8871,7 +8895,7 @@ function updateBatchPurchasesUI() {
       count.innerText = "0";
     }
   }
-  
+
   const master = document.getElementById("check-all-purchase");
   if (master) {
     master.checked = checked.length === checkboxes.length && checkboxes.length > 0;
@@ -8881,20 +8905,20 @@ function updateBatchPurchasesUI() {
 function batchDeletePurchases() {
   const checked = Array.from(document.querySelectorAll(".purchase-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
-  
+
   if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} chứng từ mua hàng đã chọn?`)) {
     const idsToDelete = checked.map(cb => cb.value);
     trackDeletedIds(idsToDelete);
     state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
-    
+
     saveState();
     recalculateAccounting();
-    
+
     const master = document.getElementById("check-all-purchase");
     if (master) master.checked = false;
-    
+
     updateBatchPurchasesUI();
-    
+
     renderPurchaseTable();
     if (typeof filterSales === "function") filterSales();
     if (typeof filterCash === "function") {
@@ -8905,7 +8929,7 @@ function batchDeletePurchases() {
     if (typeof filterDebts === "function") filterDebts();
     if (typeof filterPartners === "function") filterPartners();
     if (typeof renderInventoryTable === "function") renderInventoryTable();
-    
+
     showToast(`Đã xóa thành công ${checked.length} chứng từ mua hàng!`, "success");
   }
 }
@@ -8917,20 +8941,20 @@ function exportPurchasesToExcel() {
   }
 
   let filteredPurchases = state.vouchers.filter(v => v.type === "purchase");
-  
+
   const query = document.getElementById("search-purchase") ? document.getElementById("search-purchase").value.toLowerCase() : "";
   const fromDate = document.getElementById("search-purchase-from") ? document.getElementById("search-purchase-from").value : "";
   const toDate = document.getElementById("search-purchase-to") ? document.getElementById("search-purchase-to").value : "";
 
   if (query) {
-    filteredPurchases = filteredPurchases.filter(v => 
+    filteredPurchases = filteredPurchases.filter(v =>
       (v.id || "").toLowerCase().includes(query) ||
       (v.partnerName || "").toLowerCase().includes(query) ||
       (v.description || "").toLowerCase().includes(query)
     );
   }
   if (fromDate) filteredPurchases = filteredPurchases.filter(v => v.date >= fromDate);
-  if (toDate)   filteredPurchases = filteredPurchases.filter(v => v.date <= toDate);
+  if (toDate) filteredPurchases = filteredPurchases.filter(v => v.date <= toDate);
   filteredPurchases.sort((a, b) => new Date(a.date) - new Date(b.date) || a.id.localeCompare(b.id, undefined, { numeric: true }));
 
   try {
@@ -8945,15 +8969,15 @@ function exportPurchasesToExcel() {
     const subHeaderBg = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
     const altBg = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
     const fntTitle = { name: "Times New Roman", sz: 13, bold: true };
-    const fntSub   = { name: "Times New Roman", sz: 11, italic: true };
-    const fntHdr   = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
-    const fntBold  = { name: "Times New Roman", sz: 11, bold: true };
-    const fntNorm  = { name: "Times New Roman", sz: 11 };
-    const cCenter  = { horizontal: "center", vertical: "center" };
-    const cLeft    = { horizontal: "left",   vertical: "center" };
-    const cRight   = { horizontal: "right",  vertical: "center" };
-    const numFmt   = "#,##0 ;[Red](#,##0)";
-    const dateFmt  = "dd/mm/yyyy";
+    const fntSub = { name: "Times New Roman", sz: 11, italic: true };
+    const fntHdr = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
+    const fntBold = { name: "Times New Roman", sz: 11, bold: true };
+    const fntNorm = { name: "Times New Roman", sz: 11 };
+    const cCenter = { horizontal: "center", vertical: "center" };
+    const cLeft = { horizontal: "left", vertical: "center" };
+    const cRight = { horizontal: "right", vertical: "center" };
+    const numFmt = "#,##0 ;[Red](#,##0)";
+    const dateFmt = "dd/mm/yyyy";
 
     const setCell = (ws, r, c, v, t, s, z) => {
       const key = XLSX.utils.encode_cell({ r, c });
@@ -8981,7 +9005,7 @@ function exportPurchasesToExcel() {
     merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: 21 } });
 
     // --- ROW 3: Header cột ---
-    const headers = ["Ngày hạch toán","Ngày chứng từ","Số chứng từ","Ngày hóa đơn","Số hóa đơn","Mã hàng","Tên hàng","ĐVT","Mã quy cách 1","Mã quy cách 2","Mã quy cách 3","Mã quy cách 4","Mã quy cách 5","Số lượng mua","Đơn giá","Phí trước hải quan","Phí hàng về kho","Giá trị mua","Chiết khấu","Số lượng trả lại","Giá trị trả lại","Giá trị giảm giá"];
+    const headers = ["Ngày hạch toán", "Ngày chứng từ", "Số chứng từ", "Ngày hóa đơn", "Số hóa đơn", "Mã hàng", "Tên hàng", "ĐVT", "Mã quy cách 1", "Mã quy cách 2", "Mã quy cách 3", "Mã quy cách 4", "Mã quy cách 5", "Số lượng mua", "Đơn giá", "Phí trước hải quan", "Phí hàng về kho", "Giá trị mua", "Chiết khấu", "Số lượng trả lại", "Giá trị trả lại", "Giá trị giảm giá"];
     headers.forEach((h, c) => {
       setCell(ws, 3, c, h, 's', { font: fntHdr, fill: headerBg, alignment: cCenter, border: border4 }, null);
     });
@@ -8996,28 +9020,28 @@ function exportPurchasesToExcel() {
       const partnerName = v.partnerName || getPartnerNameForVoucher(v);
       const rowBg = vIdx % 2 === 0 ? null : altBg;
       const baseStyle = (align) => ({ font: fntNorm, fill: rowBg, alignment: align, border: border4 });
-      const numStyle  = (align) => ({ font: fntNorm, fill: rowBg, alignment: align || cRight, border: border4 });
+      const numStyle = (align) => ({ font: fntNorm, fill: rowBg, alignment: align || cRight, border: border4 });
 
       if (v.items && v.items.length > 0) {
         v.items.forEach(item => {
           const prod = state.products ? state.products.find(p => p.id === item.productId) : null;
           const itemGross = (item.qty || 0) * (item.price || 0);
-          const discVal   = itemGross * ((item.discount || 0) / 100);
+          const discVal = itemGross * ((item.discount || 0) / 100);
 
-          setCell(ws, rowIdx, 0,  dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
-          setCell(ws, rowIdx, 1,  dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
-          setCell(ws, rowIdx, 2,  v.id,            's', baseStyle(cCenter), null);
-          setCell(ws, rowIdx, 3,  dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
-          setCell(ws, rowIdx, 4,  v.invoiceNo || "", 's', baseStyle(cCenter), null);
-          setCell(ws, rowIdx, 5,  item.productId || "", 's', baseStyle(cLeft), null);
-          setCell(ws, rowIdx, 6,  prod ? prod.name : (item.productName || item.productId || ""), 's', baseStyle(cLeft), null);
-          setCell(ws, rowIdx, 7,  prod ? (prod.unit || "Cái") : (item.unit || "Cái"), 's', baseStyle(cCenter), null);
-          setCell(ws, rowIdx, 8,  "", 's', baseStyle(cLeft), null);  // Mã quy cách 1
-          setCell(ws, rowIdx, 9,  "", 's', baseStyle(cLeft), null);  // Mã quy cách 2
+          setCell(ws, rowIdx, 0, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+          setCell(ws, rowIdx, 1, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+          setCell(ws, rowIdx, 2, v.id, 's', baseStyle(cCenter), null);
+          setCell(ws, rowIdx, 3, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+          setCell(ws, rowIdx, 4, v.invoiceNo || "", 's', baseStyle(cCenter), null);
+          setCell(ws, rowIdx, 5, item.productId || "", 's', baseStyle(cLeft), null);
+          setCell(ws, rowIdx, 6, prod ? prod.name : (item.productName || item.productId || ""), 's', baseStyle(cLeft), null);
+          setCell(ws, rowIdx, 7, prod ? (prod.unit || "Cái") : (item.unit || "Cái"), 's', baseStyle(cCenter), null);
+          setCell(ws, rowIdx, 8, "", 's', baseStyle(cLeft), null);  // Mã quy cách 1
+          setCell(ws, rowIdx, 9, "", 's', baseStyle(cLeft), null);  // Mã quy cách 2
           setCell(ws, rowIdx, 10, "", 's', baseStyle(cLeft), null);  // Mã quy cách 3
           setCell(ws, rowIdx, 11, "", 's', baseStyle(cLeft), null);  // Mã quy cách 4
           setCell(ws, rowIdx, 12, "", 's', baseStyle(cLeft), null);  // Mã quy cách 5
-          setCell(ws, rowIdx, 13, item.qty || 0,   'n', numStyle(cRight), "#,##0.##");
+          setCell(ws, rowIdx, 13, item.qty || 0, 'n', numStyle(cRight), "#,##0.##");
           setCell(ws, rowIdx, 14, item.price || 0, 'n', numStyle(cRight), numFmt);
           setCell(ws, rowIdx, 15, 0, 'n', numStyle(cRight), numFmt);  // Phí trước HQ
           setCell(ws, rowIdx, 16, 0, 'n', numStyle(cRight), numFmt);  // Phí hàng về kho
@@ -9033,24 +9057,24 @@ function exportPurchasesToExcel() {
       } else {
         // Phiếu không có chi tiết sản phẩm → xuất 1 dòng tổng
         const gross = v.totalAmount - (v.taxAmount || 0);
-        setCell(ws, rowIdx, 0,  dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
-        setCell(ws, rowIdx, 1,  dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
-        setCell(ws, rowIdx, 2,  v.id,                    's', baseStyle(cCenter), null);
-        setCell(ws, rowIdx, 3,  dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
-        setCell(ws, rowIdx, 4,  v.invoiceNo || "",       's', baseStyle(cCenter), null);
-        setCell(ws, rowIdx, 5,  "",                      's', baseStyle(cLeft),   null);
-        setCell(ws, rowIdx, 6,  v.description,           's', baseStyle(cLeft),   null);
-        setCell(ws, rowIdx, 7,  "",                      's', baseStyle(cCenter), null);
+        setCell(ws, rowIdx, 0, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+        setCell(ws, rowIdx, 1, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+        setCell(ws, rowIdx, 2, v.id, 's', baseStyle(cCenter), null);
+        setCell(ws, rowIdx, 3, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+        setCell(ws, rowIdx, 4, v.invoiceNo || "", 's', baseStyle(cCenter), null);
+        setCell(ws, rowIdx, 5, "", 's', baseStyle(cLeft), null);
+        setCell(ws, rowIdx, 6, v.description, 's', baseStyle(cLeft), null);
+        setCell(ws, rowIdx, 7, "", 's', baseStyle(cCenter), null);
         for (let ci = 8; ci <= 12; ci++) setCell(ws, rowIdx, ci, "", 's', baseStyle(cLeft), null);
-        setCell(ws, rowIdx, 13, 0,         'n', numStyle(cRight), "#,##0.##");
-        setCell(ws, rowIdx, 14, 0,         'n', numStyle(cRight), numFmt);
-        setCell(ws, rowIdx, 15, 0,         'n', numStyle(cRight), numFmt);
-        setCell(ws, rowIdx, 16, 0,         'n', numStyle(cRight), numFmt);
-        setCell(ws, rowIdx, 17, gross,     'n', numStyle(cRight), numFmt);
-        setCell(ws, rowIdx, 18, 0,         'n', numStyle(cRight), numFmt);
-        setCell(ws, rowIdx, 19, 0,         'n', numStyle(cRight), "#,##0.##");
-        setCell(ws, rowIdx, 20, 0,         'n', numStyle(cRight), numFmt);
-        setCell(ws, rowIdx, 21, 0,         'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 13, 0, 'n', numStyle(cRight), "#,##0.##");
+        setCell(ws, rowIdx, 14, 0, 'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 15, 0, 'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 16, 0, 'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 17, gross, 'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 18, 0, 'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 19, 0, 'n', numStyle(cRight), "#,##0.##");
+        setCell(ws, rowIdx, 20, 0, 'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 21, 0, 'n', numStyle(cRight), numFmt);
         totalGross += gross;
         rowIdx++;
       }
@@ -9075,7 +9099,7 @@ function exportPurchasesToExcel() {
     ws['!merges'] = merges;
     ws['!cols'] = [
       { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 13 },
-      { wch: 14 }, { wch: 28 }, { wch: 8  }, { wch: 13 }, { wch: 13 },
+      { wch: 14 }, { wch: 28 }, { wch: 8 }, { wch: 13 }, { wch: 13 },
       { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 12 }, { wch: 16 },
       { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 14 },
       { wch: 14 }, { wch: 14 }
@@ -9108,7 +9132,7 @@ function updateBatchEscrowsUI() {
   const checked = Array.from(checkboxes).filter(cb => cb.checked);
   const btn = document.getElementById("btn-batch-delete-escrow");
   const count = document.getElementById("selected-escrows-count");
-  
+
   if (btn && count) {
     if (checked.length > 0) {
       btn.style.display = "inline-flex";
@@ -9118,7 +9142,7 @@ function updateBatchEscrowsUI() {
       count.innerText = "0";
     }
   }
-  
+
   const master = document.getElementById("check-all-escrow");
   if (master) {
     master.checked = checked.length === checkboxes.length && checkboxes.length > 0;
@@ -9128,20 +9152,20 @@ function updateBatchEscrowsUI() {
 function batchDeleteEscrows() {
   const checked = Array.from(document.querySelectorAll(".escrow-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
-  
+
   if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} chứng từ ký quỹ đã chọn?`)) {
     const idsToDelete = checked.map(cb => cb.value);
     trackDeletedIds(idsToDelete);
     state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
-    
+
     saveState();
     recalculateAccounting();
-    
+
     const master = document.getElementById("check-all-escrow");
     if (master) master.checked = false;
-    
+
     updateBatchEscrowsUI();
-    
+
     renderEscrowTable();
     if (typeof filterSales === "function") filterSales();
     if (typeof filterCash === "function") {
@@ -9152,7 +9176,7 @@ function batchDeleteEscrows() {
     if (typeof filterDebts === "function") filterDebts();
     if (typeof filterPartners === "function") filterPartners();
     if (typeof renderInventoryTable === "function") renderInventoryTable();
-    
+
     showToast(`Đã xóa thành công ${checked.length} chứng từ ký quỹ!`, "success");
   }
 }
@@ -9164,20 +9188,20 @@ function exportEscrowsToExcel() {
   }
 
   let filteredEscrows = state.vouchers.filter(v => v.type.startsWith("escrow_"));
-  
+
   const query = document.getElementById("search-escrow") ? document.getElementById("search-escrow").value.toLowerCase() : "";
   const fromDate = document.getElementById("search-escrow-from") ? document.getElementById("search-escrow-from").value : "";
   const toDate = document.getElementById("search-escrow-to") ? document.getElementById("search-escrow-to").value : "";
 
   if (query) {
-    filteredEscrows = filteredEscrows.filter(v => 
+    filteredEscrows = filteredEscrows.filter(v =>
       (v.id || "").toLowerCase().includes(query) ||
       (v.partnerName || "").toLowerCase().includes(query) ||
       (v.description || "").toLowerCase().includes(query)
     );
   }
   if (fromDate) filteredEscrows = filteredEscrows.filter(v => v.date >= fromDate);
-  if (toDate)   filteredEscrows = filteredEscrows.filter(v => v.date <= toDate);
+  if (toDate) filteredEscrows = filteredEscrows.filter(v => v.date <= toDate);
   filteredEscrows.sort((a, b) => new Date(b.date) - new Date(a.date) || b.id.localeCompare(a.id, undefined, { numeric: true }));
 
   try {
@@ -9188,17 +9212,17 @@ function exportEscrowsToExcel() {
     const thin = { style: "thin", color: { rgb: "AAAAAA" } };
     const border4 = { top: thin, bottom: thin, left: thin, right: thin };
     const headerBg = { patternType: "solid", fgColor: { rgb: "1F497D" } };
-    const altBg    = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
-    const totalBg  = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
+    const altBg = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
+    const totalBg = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
     const fntTitle = { name: "Times New Roman", sz: 13, bold: true };
-    const fntHdr   = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
-    const fntBold  = { name: "Times New Roman", sz: 11, bold: true };
-    const fntNorm  = { name: "Times New Roman", sz: 11 };
-    const cCenter  = { horizontal: "center", vertical: "center" };
-    const cLeft    = { horizontal: "left",   vertical: "center", wrapText: true };
-    const cRight   = { horizontal: "right",  vertical: "center" };
-    const numFmt   = "#,##0 ;[Red](#,##0)";
-    const dateFmt  = "dd/mm/yyyy";
+    const fntHdr = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
+    const fntBold = { name: "Times New Roman", sz: 11, bold: true };
+    const fntNorm = { name: "Times New Roman", sz: 11 };
+    const cCenter = { horizontal: "center", vertical: "center" };
+    const cLeft = { horizontal: "left", vertical: "center", wrapText: true };
+    const cRight = { horizontal: "right", vertical: "center" };
+    const numFmt = "#,##0 ;[Red](#,##0)";
+    const dateFmt = "dd/mm/yyyy";
 
     const setCell = (ws, r, c, v, t, s, z) => {
       const key = XLSX.utils.encode_cell({ r, c });
@@ -9242,13 +9266,13 @@ function exportEscrowsToExcel() {
       const status = v.type.includes("refund") ? "Đã tất toán" : "Đang hiệu lực";
 
       setCell(ws, rowIdx, 0, dateStrToSerial(v.date), 'n', bs(cCenter), dateFmt);
-      setCell(ws, rowIdx, 1, v.id,                   's', bs(cCenter), null);
+      setCell(ws, rowIdx, 1, v.id, 's', bs(cCenter), null);
       setCell(ws, rowIdx, 2, v.partnerName || getPartnerNameForVoucher(v), 's', bs(cLeft), null);
       setCell(ws, rowIdx, 3, typeNames[v.type] || "Ký quỹ", 's', bs(cLeft), null);
-      setCell(ws, rowIdx, 4, v.description,          's', bs(cLeft), null);
-      setCell(ws, rowIdx, 5, acct,                   's', bs(cCenter), null);
-      setCell(ws, rowIdx, 6, v.amount || 0,          'n', bs(cRight), numFmt);
-      setCell(ws, rowIdx, 7, status,                 's', bs(cCenter), null);
+      setCell(ws, rowIdx, 4, v.description, 's', bs(cLeft), null);
+      setCell(ws, rowIdx, 5, acct, 's', bs(cCenter), null);
+      setCell(ws, rowIdx, 6, v.amount || 0, 'n', bs(cRight), numFmt);
+      setCell(ws, rowIdx, 7, status, 's', bs(cCenter), null);
 
       totalAmt += v.amount || 0;
       rowIdx++;
@@ -9293,7 +9317,7 @@ function updateBatchPartnersUI() {
   const checked = Array.from(checkboxes).filter(cb => cb.checked);
   const btn = document.getElementById("btn-batch-delete-partners");
   const count = document.getElementById("selected-partners-count");
-  
+
   if (btn && count) {
     if (checked.length > 0) {
       btn.style.display = "inline-flex";
@@ -9303,7 +9327,7 @@ function updateBatchPartnersUI() {
       count.innerText = "0";
     }
   }
-  
+
   const master = document.getElementById("check-all-partners");
   if (master) {
     master.checked = checked.length === checkboxes.length && checkboxes.length > 0;
@@ -9313,21 +9337,21 @@ function updateBatchPartnersUI() {
 function batchDeletePartners() {
   const checked = Array.from(document.querySelectorAll(".partner-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
-  
+
   if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} đối tác đã chọn?`)) {
     const idsToDelete = checked.map(cb => cb.value);
     state.partners = state.partners.filter(p => !idsToDelete.includes(p.id));
-    
+
     saveState();
-    
+
     const master = document.getElementById("check-all-partners");
     if (master) master.checked = false;
-    
+
     updateBatchPartnersUI();
-    
+
     filterPartners();
     if (typeof filterDebts === "function") filterDebts();
-    
+
     showToast(`Đã xóa thành công ${checked.length} đối tác!`, "success");
   }
 }
@@ -9343,7 +9367,7 @@ function updateBatchDebtsUI() {
   const checked = Array.from(checkboxes).filter(cb => cb.checked);
   const btn = document.getElementById("btn-batch-delete-debts");
   const count = document.getElementById("selected-debts-count");
-  
+
   if (btn && count) {
     if (checked.length > 0) {
       btn.style.display = "inline-flex";
@@ -9353,7 +9377,7 @@ function updateBatchDebtsUI() {
       count.innerText = "0";
     }
   }
-  
+
   const master = document.getElementById("check-all-debts");
   if (master) {
     master.checked = checked.length === checkboxes.length && checkboxes.length > 0;
@@ -9363,23 +9387,23 @@ function updateBatchDebtsUI() {
 function batchDeleteDebts() {
   const checked = Array.from(document.querySelectorAll(".debt-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
-  
+
   if (confirm(`Bạn có chắc chắn muốn xóa (đặt số dư đầu kỳ về 0) cho ${checked.length} công nợ đã chọn?`)) {
     const idsToReset = checked.map(cb => cb.value);
     idsToReset.forEach(id => {
       state.partnerOpeningBalances[id] = { debit: 0, credit: 0 };
     });
-    
+
     saveState();
     recalculateAccounting();
-    
+
     const master = document.getElementById("check-all-debts");
     if (master) master.checked = false;
-    
+
     updateBatchDebtsUI();
-    
+
     filterDebts();
-    
+
     showToast(`Đã reset số dư đầu kỳ cho ${checked.length} đối tác!`, "success");
   }
 }
@@ -9395,7 +9419,7 @@ function updateBatchCashUI() {
   const checked = Array.from(checkboxes).filter(cb => cb.checked);
   const btn = document.getElementById("btn-batch-delete-cash");
   const count = document.getElementById("selected-cash-count");
-  
+
   if (btn && count) {
     if (checked.length > 0) {
       btn.style.display = "inline-flex";
@@ -9405,7 +9429,7 @@ function updateBatchCashUI() {
       count.innerText = "0";
     }
   }
-  
+
   const master = document.getElementById("check-all-cash");
   if (master) {
     master.checked = checked.length === checkboxes.length && checkboxes.length > 0;
@@ -9415,20 +9439,20 @@ function updateBatchCashUI() {
 function batchDeleteCash() {
   const checked = Array.from(document.querySelectorAll(".cash-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
-  
+
   if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} chứng từ thu chi đã chọn?`)) {
     const idsToDelete = checked.map(cb => cb.value);
     trackDeletedIds(idsToDelete);
     state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
-    
+
     saveState();
     recalculateAccounting();
-    
+
     const master = document.getElementById("check-all-cash");
     if (master) master.checked = false;
-    
+
     updateBatchCashUI();
-    
+
     filterCash();
     if (typeof recalculateCashKpis === "function") recalculateCashKpis();
     if (typeof renderDashboard === "function") renderDashboard();
@@ -9437,7 +9461,7 @@ function batchDeleteCash() {
     if (typeof filterDebts === "function") filterDebts();
     if (typeof filterPartners === "function") filterPartners();
     if (typeof renderInventoryTable === "function") renderInventoryTable();
-    
+
     showToast(`Đã xóa thành công ${checked.length} chứng từ thu chi!`, "success");
   }
 }
@@ -9453,7 +9477,7 @@ function updateBatchSalesUI() {
   const checked = Array.from(checkboxes).filter(cb => cb.checked);
   const btn = document.getElementById("btn-batch-delete-sales");
   const count = document.getElementById("selected-sales-count");
-  
+
   if (btn && count) {
     if (checked.length > 0) {
       btn.style.display = "inline-flex";
@@ -9463,7 +9487,7 @@ function updateBatchSalesUI() {
       count.innerText = "0";
     }
   }
-  
+
   const master = document.getElementById("check-all-sales");
   if (master) {
     master.checked = checked.length === checkboxes.length && checkboxes.length > 0;
@@ -9473,27 +9497,27 @@ function updateBatchSalesUI() {
 function batchDeleteSales() {
   const checked = Array.from(document.querySelectorAll(".sale-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
-  
+
   if (confirm(`Bạn có chắc chắn muốn xóa và hủy ghi sổ ${checked.length} chứng từ đã chọn?`)) {
     const idsToDelete = checked.map(cb => cb.value);
     trackDeletedIds(idsToDelete);
     state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
-    
+
     // Remove references
     state.vouchers.forEach(v => {
       if (v.escrowRefId && idsToDelete.includes(v.escrowRefId)) {
         v.escrowRefId = null;
       }
     });
-    
+
     saveState();
     recalculateAccounting();
-    
+
     const master = document.getElementById("check-all-sales");
     if (master) master.checked = false;
-    
+
     updateBatchSalesUI();
-    
+
     if (typeof filterSales === "function") filterSales();
     if (typeof filterPurchases === "function") filterPurchases();
     if (typeof filterCash === "function") {
@@ -9504,7 +9528,7 @@ function batchDeleteSales() {
     if (typeof filterDebts === "function") filterDebts();
     if (typeof filterPartners === "function") filterPartners();
     if (typeof renderInventoryTable === "function") renderInventoryTable();
-    
+
     showToast(`Đã xóa thành công ${checked.length} chứng từ bán hàng!`, "success");
   }
 }
@@ -9520,7 +9544,7 @@ function updateBatchProductsUI() {
   const checked = Array.from(checkboxes).filter(cb => cb.checked);
   const btn = document.getElementById("btn-batch-delete-products");
   const count = document.getElementById("selected-products-count");
-  
+
   if (btn && count) {
     if (checked.length > 0) {
       btn.style.display = "inline-flex";
@@ -9530,7 +9554,7 @@ function updateBatchProductsUI() {
       count.innerText = "0";
     }
   }
-  
+
   const master = document.getElementById("check-all-products");
   if (master) {
     master.checked = checked.length === checkboxes.length && checkboxes.length > 0;
@@ -9540,22 +9564,22 @@ function updateBatchProductsUI() {
 function batchDeleteProducts() {
   const checked = Array.from(document.querySelectorAll(".product-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
-  
+
   if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} sản phẩm đã chọn? Các chứng từ liên quan có thể bị ảnh hưởng.`)) {
     const idsToDelete = checked.map(cb => cb.value);
     state.products = state.products.filter(p => !idsToDelete.includes(p.id));
-    
+
     saveState();
     recalculateAccounting();
-    
+
     const master = document.getElementById("check-all-products");
     if (master) master.checked = false;
-    
+
     updateBatchProductsUI();
-    
+
     renderInventoryTable();
     populateProductLedgerDropdown();
-    
+
     showToast(`Đã xóa thành công ${checked.length} sản phẩm!`, "success");
   }
 }
@@ -9571,11 +9595,11 @@ function clearAllProducts() {
       if (typeof rebalanceEquity === "function") rebalanceEquity();
       saveState();
       recalculateAccounting();
-      
+
       renderInventoryTable();
       populateProductLedgerDropdown();
       if (typeof renderStockLedger === "function") renderStockLedger();
-      
+
       showToast("Đã xóa sạch toàn bộ sản phẩm trong kho hàng!", "warning");
     }
   }
@@ -9710,11 +9734,11 @@ function handleQuickAddProductSubmit(e) {
   try {
     e.preventDefault();
 
-    const rawId   = document.getElementById("qap-prod-id").value.trim().toUpperCase();
-    const name    = document.getElementById("qap-prod-name").value.trim();
-    const unit    = document.getElementById("qap-prod-unit").value.trim();
+    const rawId = document.getElementById("qap-prod-id").value.trim().toUpperCase();
+    const name = document.getElementById("qap-prod-name").value.trim();
+    const unit = document.getElementById("qap-prod-unit").value.trim();
     const initStock = parseInt(document.getElementById("qap-prod-stock").value.replace(/\D/g, "")) || 0;
-    const initCost  = parseInt(document.getElementById("qap-prod-cost").value.replace(/\D/g, "")) || 0;
+    const initCost = parseInt(document.getElementById("qap-prod-cost").value.replace(/\D/g, "")) || 0;
 
     if (!name) {
       showToast("Vui lòng nhập tên mặt hàng!", "danger");
@@ -9792,7 +9816,7 @@ function handleQuickAddProductSubmit(e) {
 
     closeModal("modal-quick-add-product");
     showToast(`Đã thêm mặt hàng “${name}” (${newId}) và điền vào hóa đơn!`, "success");
-  } catch(err) {
+  } catch (err) {
     if (typeof addErrorLog === "function") addErrorLog("handleQuickAddProductSubmit", err.message, err);
     showToast("Lỗi khi thêm mặt hàng: " + err.message, "danger");
   }
@@ -9922,14 +9946,14 @@ async function initLocalVersionDisplay() {
   const displayEl = document.getElementById("display-local-version");
   const cardEl = document.getElementById("card-auto-update");
   const brandDisplayEl = document.getElementById("brand-version-display");
-  
+
   if (window.electronAPI && typeof window.electronAPI.getLocalVersion === "function") {
     try {
       appLocalVersion = await window.electronAPI.getLocalVersion();
       if (displayEl) displayEl.innerText = `v${appLocalVersion}`;
       if (brandDisplayEl) brandDisplayEl.innerText = `RD Accounting v${appLocalVersion}`;
       if (cardEl) cardEl.style.display = "flex"; // Hiện card cập nhật trên Desktop App
-    } catch(e) {
+    } catch (e) {
       console.error("Lỗi lấy phiên bản từ Electron:", e);
     }
   } else {
@@ -9943,12 +9967,12 @@ async function initLocalVersionDisplay() {
 async function checkForUpdates(manual = false) {
   const statusContainer = document.getElementById("update-status-container");
   if (!statusContainer) return;
-  
+
   statusContainer.style.display = "block";
   statusContainer.style.background = "rgba(245, 158, 11, 0.1)";
   statusContainer.style.color = "var(--color-warning)";
   statusContainer.innerText = "Đang kiểm tra máy chủ cập nhật...";
- 
+
   if (!window.electronAPI) {
     statusContainer.style.background = "rgba(239, 68, 68, 0.1)";
     statusContainer.style.color = "var(--color-danger)";
@@ -10002,7 +10026,7 @@ async function checkForUpdates(manual = false) {
     if (!response || !response.ok) {
       throw new Error("Không thể kết nối máy chủ cập nhật (Mạng chập chờn hoặc bị chặn bởi ISP).");
     }
-    
+
     let remoteVersion = null;
     if (fetchedUrlObj && fetchedUrlObj.type === "api") {
       const apiData = await response.json();
@@ -10016,18 +10040,18 @@ async function checkForUpdates(manual = false) {
       const remotePkg = await response.json();
       remoteVersion = remotePkg.version;
     }
-    
+
     if (!remoteVersion) throw new Error("File cấu hình cập nhật không hợp lệ.");
     remoteVersionGlobal = remoteVersion;
 
     // Hàm so sánh phiên bản (semver đơn giản)
     const isNewer = compareVersions(remoteVersion, appLocalVersion) > 0;
-    
+
     if (isNewer) {
       statusContainer.style.background = "rgba(16, 185, 129, 0.1)";
       statusContainer.style.color = "var(--color-success)";
       statusContainer.innerHTML = `Phát hiện phiên bản mới: <span style="font-weight:800; text-decoration:underline;">v${remoteVersion}</span>!<br><button class="btn btn-success btn-sm" onclick="triggerUpdateFlow()" style="margin-top: 8px; width: 100%; font-size:11px; padding: 4px 8px;">Cập nhật Tự động Ngay</button>`;
-      
+
       // Nếu là tự động kiểm tra khi mở app và phát hiện bản mới, tự động chạy luồng cập nhật
       if (!manual) {
         showToast(`Tự động cập nhật lên bản mới v${remoteVersion}...`, "success");
@@ -10148,13 +10172,13 @@ function showDownloadProgressOverlay(version, downloadUrl) {
       const percentText = document.getElementById("progress-percent");
       if (bar) bar.style.width = `${percent}%`;
       if (percentText) percentText.innerText = `${percent}%`;
-      
+
       if (percent >= 100) {
         const spinner = document.getElementById("progress-spinner");
         const title = document.getElementById("progress-title");
         const subtitle = document.getElementById("progress-subtitle");
         const cancelBtn = document.getElementById("progress-cancel-btn");
-        
+
         if (spinner) spinner.style.borderTopColor = "#0ea5e9";
         if (title) title.innerText = "Đang khởi chạy bộ cài đặt...";
         if (subtitle) subtitle.innerText = "Phần mềm sẽ tự đóng để thực hiện cập nhật ghi đè an toàn.";
@@ -10175,7 +10199,7 @@ function showDownloadProgressOverlay(version, downloadUrl) {
 // Kích hoạt tiến trình cập nhật: tải trực tiếp hoặc mở trang tải
 async function triggerUpdateFlow(auto = false) {
   const statusContainer = document.getElementById("update-status-container");
-  
+
   if (auto) {
     // Tự động kiểm tra lúc mở app -> chỉ hiện popup mời tải
     showAutoUpdateOverlay(remoteVersionGlobal || "mới");
@@ -10208,7 +10232,7 @@ async function triggerUpdateFlow(auto = false) {
       window.open(fallbackUrl, '_blank');
     }
     showToast(`Đã mở trang tải bộ cài phiên bản mới v${remoteVersionGlobal}`, "success");
-  } catch(err) {
+  } catch (err) {
     showToast("Mở trình duyệt thất bại: " + err, "danger");
   }
 }
@@ -10226,9 +10250,9 @@ function initMouseInteractions() {
   if (!contextMenu) {
     console.warn("custom-context-menu element not found!");
   }
-  
+
   // 1. Nhấp đơn -> Highlight dòng được chọn
-  document.addEventListener("click", function(e) {
+  document.addEventListener("click", function (e) {
     const row = e.target.closest("tr");
     if (row && row.hasAttribute("data-type")) {
       document.querySelectorAll("tr.active-row").forEach(r => r.classList.remove("active-row"));
@@ -10241,10 +10265,10 @@ function initMouseInteractions() {
   });
 
   // 2. Nhấp đúp -> Kích hoạt hành động chính
-  document.addEventListener("dblclick", function(e) {
+  document.addEventListener("dblclick", function (e) {
     const row = e.target.closest("tr");
     if (!row) return;
-    
+
     const type = row.getAttribute("data-type");
     const id = row.getAttribute("data-id");
     if (!type || !id) return;
@@ -10265,13 +10289,13 @@ function initMouseInteractions() {
   });
 
   // 3. Nhấp chuột phải -> Context Menu tùy biến
-  document.addEventListener("contextmenu", function(e) {
+  document.addEventListener("contextmenu", function (e) {
     const row = e.target.closest("tr");
     if (!row || !row.hasAttribute("data-type")) {
       if (contextMenu) contextMenu.style.display = "none";
       return;
     }
-    
+
     // Ngăn chặn menu chuột phải mặc định của trình duyệt
     e.preventDefault();
 
@@ -10355,17 +10379,17 @@ function initMouseInteractions() {
 
     // Xác định vị trí hiển thị Menu để không bị tràn màn hình
     contextMenu.style.display = "block";
-    
+
     const menuWidth = contextMenu.offsetWidth || 190;
     const menuHeight = contextMenu.offsetHeight || 150;
-    
+
     let x = e.pageX;
     let y = e.pageY;
-    
+
     if (x + menuWidth > window.innerWidth + window.scrollX) {
       x = window.innerWidth + window.scrollX - menuWidth - 10;
     }
-    
+
     if (y + menuHeight > window.innerHeight + window.scrollY) {
       y = window.innerHeight + window.scrollY - menuHeight - 10;
     }
@@ -10376,12 +10400,12 @@ function initMouseInteractions() {
 
   // 4. Nhấn nút ESC để đóng cửa sổ/modal đang mở (Ưu tiên đóng modal trên cùng)
   //    Nhấn nút F4 để thêm dòng mới, F8 để xóa dòng trong form Mua hàng/Bán hàng đang mở
-  document.addEventListener("keydown", function(e) {
+  document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") {
       const visibleOverlays = Array.from(document.querySelectorAll(".modal-overlay")).filter(
         el => el.style.display === "flex" || window.getComputedStyle(el).display === "flex"
       );
-      
+
       if (visibleOverlays.length > 0) {
         // Sắp xếp theo z-index giảm dần để ưu tiên đóng modal phụ mở sau (như quick-add-partner)
         visibleOverlays.sort((a, b) => {
@@ -10389,7 +10413,7 @@ function initMouseInteractions() {
           const zB = parseInt(window.getComputedStyle(b).zIndex) || 1000;
           return zB - zA;
         });
-        
+
         if (typeof closeModal === "function") {
           closeModal(visibleOverlays[0].id);
         }
@@ -10400,7 +10424,7 @@ function initMouseInteractions() {
       const isSalesVisible = salesModal && (salesModal.style.display === "flex" || window.getComputedStyle(salesModal).display === "flex");
       const purchaseModal = document.getElementById("modal-add-purchase");
       const isPurchaseVisible = purchaseModal && (purchaseModal.style.display === "flex" || window.getComputedStyle(purchaseModal).display === "flex");
-      
+
       if (isSalesVisible) {
         if (typeof addSalesFormRow === "function") {
           addSalesFormRow();
@@ -10459,7 +10483,7 @@ function initMouseInteractions() {
   });
 
   // 5. Nhấp chuột vào phần nền đen (backdrop) của modal để tự động đóng cửa sổ
-  document.addEventListener("click", function(e) {
+  document.addEventListener("click", function (e) {
     if (e.target.classList.contains("modal-overlay")) {
       if (typeof closeModal === "function") {
         closeModal(e.target.id);
@@ -10483,11 +10507,11 @@ function getActiveSearchInputId() {
   const tabId = activeMenuItem.getAttribute("data-tab");
 
   const tabSearchMap = {
-    purchase:   "search-purchase",
-    sales:      "search-sales",
-    partners:   "partner-search-input",
-    debts:      "debt-search-input",
-    cash:       "cash-search-input"
+    purchase: "search-purchase",
+    sales: "search-sales",
+    partners: "partner-search-input",
+    debts: "debt-search-input",
+    cash: "cash-search-input"
   };
 
   if (tabId === "inventory") {
@@ -10503,7 +10527,7 @@ function getActiveSearchInputId() {
 }
 
 function initCtrlFShortcut() {
-  document.addEventListener("keydown", function(e) {
+  document.addEventListener("keydown", function (e) {
     // Ctrl+F hoặc Cmd+F (macOS)
     if ((e.ctrlKey || e.metaKey) && e.key === "f") {
       // Bỏ qua nếu đang focus vào input/textarea/select để không gây xung đột
@@ -10571,8 +10595,8 @@ function getOrderTableRows(currentEl) {
   const tbodyId = currentEl.closest('#purchase-form-items-body')
     ? 'purchase-form-items-body'
     : currentEl.closest('#sales-form-items-body')
-    ? 'sales-form-items-body'
-    : null;
+      ? 'sales-form-items-body'
+      : null;
   if (!tbodyId) return null;
   const tbody = document.getElementById(tbodyId);
   return { tbody, rows: Array.from(tbody.querySelectorAll('tr')), tbodyId };
@@ -10595,7 +10619,7 @@ function focusRowFirstCell(tr) {
  * Shift+Tab ở ô đầu dòng → lên dòng trước
  */
 function initOrderFormKeyboardNavigation() {
-  document.addEventListener('keydown', function(e) {
+  document.addEventListener('keydown', function (e) {
     const el = document.activeElement;
     if (!el) return;
 

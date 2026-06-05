@@ -5,7 +5,7 @@
 
 const PREPOPULATED_DATABASE = {
   "companyName": "Công Ty Cổ Phần Rạng Đông",
-  "address": "255 Trương Công Định",
+  "address": "255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh",
   "taxCode": "0100101438",
   "accountingStandard": "TT200",
   "products": [
@@ -141465,7 +141465,7 @@ const PREPOPULATED_DATABASE = {
       "type": "customer",
       "phone": "",
       "email": "",
-      "address": "Số 255 Trương Công Định"
+      "address": "Số 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh"
     },
     {
       "id": "256/LEHONGPHONG",

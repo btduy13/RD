@@ -2,7 +2,7 @@
 
 const DEFAULT_DATA = {
   companyName: "Công Ty Cổ Phần Rạng Đông",
-  address: "255 Trương Công Định",
+  address: "255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh",
   taxCode: "0100101438",
   accountingStandard: "TT200", // Mặc định dùng Thông tư 200, có thể chuyển sang TT133
 
