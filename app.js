@@ -1935,13 +1935,18 @@ function renderInventoryTable(filterQuery = "") {
   }
 
   if (displayedProducts.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy sản phẩm phù hợp.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy sản phẩm phù hợp.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = displayedProducts.map(p => {
     const isLow = (p.stock || 0) <= (p.minStock || 0);
     const escapedId = escapeHtmlAttr(p.id);
+    ensureProductExcelRow(p);
+    const initialCostVal = p.initialCost !== undefined ? p.initialCost : (p.excelRow[19] !== undefined ? Number(p.excelRow[19]) : 0);
+    const lastPurchasePriceVal = p.excelRow[20] !== undefined ? Number(p.excelRow[20]) : (p.avgCost || 0);
+    const salePriceVal = p.salePrice1 !== undefined ? p.salePrice1 : (p.excelRow[21] !== undefined ? Number(p.excelRow[21]) : 0);
+
     return `
       <tr class="clickable-row" data-type="product" data-id="${escapedId}">
         <td style="text-align: center;">
@@ -1950,6 +1955,9 @@ function renderInventoryTable(filterQuery = "") {
         <td class="font-numeric" style="font-weight:700;">${p.id}</td>
         <td><span style="font-weight:600; color:var(--text-primary);">${p.name}</span></td>
         <td>${p.unit || "Cái"}</td>
+        <td class="text-right font-numeric" style="color: var(--text-secondary);">${formatVND(initialCostVal)}</td>
+        <td class="text-right font-numeric" style="color: var(--text-secondary);">${formatVND(lastPurchasePriceVal)}</td>
+        <td class="text-right font-numeric" style="color: var(--color-success); font-weight: 600;">${formatVND(salePriceVal)}</td>
         <td class="text-right font-numeric" style="font-weight:700; ${isLow ? 'color: var(--color-danger);' : ''}">${p.stock || 0}</td>
         <td class="text-right font-numeric">${formatVND(p.avgCost || 0)}</td>
         <td class="text-right font-numeric" style="font-weight:700;">${formatVND(p.totalValue || 0)}</td>
