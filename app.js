@@ -5068,8 +5068,20 @@ function exportProductsToExcel() {
       ws[key] = cell;
     };
 
-    // Columns: Mã(0) Tên(1) Tính chất(2) Nhóm(3) ĐVT(4) Tồn tối thiểu(5) Kho(6) TK kho(7) TK CP(8) TK DT(9) Ngừng TD(10) Tồn hiện tại(11) Giá trị tồn(12)
-    const headers = ["Mã", "Tên", "Tính chất", "Nhóm VTHH", "ĐVT", "Tồn tối thiểu", "Kho ngầm định", "Tài khoản kho", "TK chi phí", "TK doanh thu", "Ngừng theo dõi", "Tồn hiện tại", "Giá trị tồn"];
+    // 57 Cột theo đúng template gốc của MISA
+    const headers = [
+      "Mã", "Tên", "Tính chất", "Nhóm VTHH", "Mô tả", "Diễn giải khi mua", "Diễn giải khi bán", 
+      "ĐVT chính", "Thời hạn BH", "Số lượng tồn tối thiểu", "Nguồn gốc", "Kho ngầm định", 
+      "Tài khoản kho", "TK chi phí", "TK doanh thu", "TK chiết khấu", "TK giảm giá", "TK trả lại", 
+      "Tỷ lệ CKMH", "Đơn giá mua cố định", "Đơn giá mua gần nhất", "Đơn giá bán 1", "Đơn giá bán 2", 
+      "Đơn giá bán 3", "Đơn giá cố định", "Là đơn giá sau thuế", "Thuế suất thuế NK", "Thuế suất thuế XK", 
+      "Nhóm HHDV chịu thuế TTĐB", "Là hàng khuyến mại", "Ngừng theo dõi", "Số lượng tồn", "Đặc tính", 
+      "Giá trị tồn", "Thuế suất GTGT", "Giảm thuế theo NQ43/2022/QH15", "Theo dõi vật tư, hàng hóa theo mã quy cách", 
+      "Chiết khấu", "Số lượng từ", "Số lượng đến", "% chiết khấu", "Số tiền chiết khấu", "Đơn vị chuyển đổi", 
+      "Tỷ lệ chuyển đổi về đơn vị chính", "Phép tính", "Mô tả", "Đơn giá bán 1", "Đơn giá bán 2", "Đơn giá bán 3", 
+      "Đơn giá cố định", "Mã nguyên vật liệu", "Tên nguyên vật liệu", "ĐVT", "Số lượng", "Mã quy cách", 
+      "Tên hiển thị", "Cho phép trùng"
+    ];
     const ncols = headers.length;
 
     // ROW 0: Tiêu đề
@@ -5086,34 +5098,100 @@ function exportProductsToExcel() {
       const bg = idx % 2 === 0 ? null : altBg;
       const bs = (al) => ({ font: fntN, fill: bg, alignment: al, border: border4 });
       const er = p.excelRow || [];
-      sc(rowIdx, 0,  p.id || "",                        's', bs(cC));
-      sc(rowIdx, 1,  p.name || "",                       's', bs(cL));
-      sc(rowIdx, 2,  er[2] || "Vật tư hàng hóa",         's', bs(cC));
-      sc(rowIdx, 3,  p.group || er[3] || "",             's', bs(cL));
-      sc(rowIdx, 4,  p.unit || "Cái",                    's', bs(cC));
-      sc(rowIdx, 5,  p.minStock || 0,                    'n', bs(cR), numFmt);
-      sc(rowIdx, 6,  er[11] || "",                       's', bs(cC));
-      sc(rowIdx, 7,  er[12] || "1561",                   's', bs(cC));
-      sc(rowIdx, 8,  er[13] || "632",                    's', bs(cC));
-      sc(rowIdx, 9,  er[14] || "51111",                  's', bs(cC));
-      sc(rowIdx, 10, p.inactive ? "Có" : "",             's', bs(cC));
-      sc(rowIdx, 11, p.stock || 0,                       'n', bs(cR), "#,##0.##");
-      sc(rowIdx, 12, p.totalValue || 0,                  'n', bs(cR), numFmt);
-      totalStock += p.stock || 0;
-      totalValue += p.totalValue || 0;
+      
+      const rowData = [];
+      rowData[0]  = p.id || "";
+      rowData[1]  = p.name || "";
+      rowData[2]  = er[2] !== undefined ? er[2] : "Vật tư hàng hóa";
+      rowData[3]  = p.group || er[3] || "";
+      rowData[4]  = er[4] !== undefined ? er[4] : "";
+      rowData[5]  = er[5] !== undefined ? er[5] : "";
+      rowData[6]  = er[6] !== undefined ? er[6] : "";
+      rowData[7]  = p.unit || er[7] || "Cái";
+      rowData[8]  = er[8] !== undefined ? er[8] : "";
+      rowData[9]  = p.minStock !== undefined ? p.minStock : (er[9] !== undefined ? Number(er[9]) : 0);
+      rowData[10] = er[10] !== undefined ? er[10] : "";
+      rowData[11] = er[11] !== undefined ? er[11] : "";
+      rowData[12] = er[12] !== undefined ? er[12] : "1561";
+      rowData[13] = er[13] !== undefined ? er[13] : "632";
+      rowData[14] = er[14] !== undefined ? er[14] : "51111";
+      rowData[15] = er[15] !== undefined ? er[15] : "";
+      rowData[16] = er[16] !== undefined ? er[16] : "";
+      rowData[17] = er[17] !== undefined ? er[17] : "";
+      rowData[18] = er[18] !== undefined ? Number(er[18]) : 0;
+      rowData[19] = p.initialCost !== undefined ? p.initialCost : (er[19] !== undefined ? Number(er[19]) : 0);
+      rowData[20] = p.avgCost !== undefined ? p.avgCost : (er[20] !== undefined ? Number(er[20]) : 0);
+      rowData[21] = er[21] !== undefined ? Number(er[21]) : 0;
+      rowData[22] = er[22] !== undefined ? Number(er[22]) : 0;
+      rowData[23] = er[23] !== undefined ? Number(er[23]) : 0;
+      rowData[24] = er[24] !== undefined ? Number(er[24]) : 0;
+      rowData[25] = er[25] !== undefined ? Number(er[25]) : 0;
+      rowData[26] = er[26] !== undefined ? Number(er[26]) : 0;
+      rowData[27] = er[27] !== undefined ? Number(er[27]) : 0;
+      rowData[28] = er[28] !== undefined ? er[28] : "";
+      rowData[29] = er[29] !== undefined ? String(er[29]) : "False";
+      rowData[30] = p.inactive ? 1 : (er[30] !== undefined ? Number(er[30]) : 0);
+      rowData[31] = p.stock !== undefined ? p.stock : (er[31] !== undefined ? Number(er[31]) : 0);
+      rowData[32] = er[32] !== undefined ? er[32] : "";
+      rowData[33] = p.totalValue !== undefined ? p.totalValue : (er[33] !== undefined ? Number(er[33]) : 0);
+      
+      for (let c = 34; c < 57; c++) {
+        rowData[c] = er[c] !== undefined ? er[c] : "";
+      }
+
+      rowData.forEach((val, c) => {
+        let align = cL;
+        if ([0, 2, 7, 10, 11, 12, 13, 14, 15, 16, 17, 28, 29, 30, 32].includes(c)) {
+          align = cC;
+        } else if ([5, 9, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 31, 33, 37, 38, 39, 40, 41, 43, 46, 47, 48, 49, 53].includes(c)) {
+          align = cR;
+        }
+        
+        let type = 's';
+        let z = null;
+        if (typeof val === 'number') {
+          type = 'n';
+          z = numFmt;
+          if (c === 31) z = "#,##0.##";
+        } else if (typeof val === 'boolean') {
+          type = 'b';
+        }
+        
+        sc(rowIdx, c, val, type, bs(align), z);
+      });
+      
+      totalStock += rowData[31] || 0;
+      totalValue += rowData[33] || 0;
       rowIdx++;
     });
 
     // DÒNG TỔNG
     const ts = (al) => ({ font: fntB, fill: totBg, alignment: al, border: border4 });
     sc(rowIdx, 0, "TỔNG CỘNG", 's', ts(cL));
-    merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 10 } });
-    sc(rowIdx, 11, totalStock, 'n', ts(cR), "#,##0.##");
-    sc(rowIdx, 12, totalValue, 'n', ts(cR), numFmt);
+    merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 30 } });
+    
+    for (let c = 0; c < 57; c++) {
+      if (c === 31) {
+        sc(rowIdx, c, totalStock, 'n', ts(cR), "#,##0.##");
+      } else if (c === 33) {
+        sc(rowIdx, c, totalValue, 'n', ts(cR), numFmt);
+      } else if (c > 30 && c !== 31 && c !== 33) {
+        sc(rowIdx, c, "", 's', ts(cC));
+      }
+    }
 
     ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: ncols - 1 } });
     ws['!merges'] = merges;
-    ws['!cols'] = [{ wch: 16 },{ wch: 28 },{ wch: 16 },{ wch: 20 },{ wch: 8 },{ wch: 13 },{ wch: 12 },{ wch: 12 },{ wch: 10 },{ wch: 10 },{ wch: 12 },{ wch: 13 },{ wch: 16 }];
+
+    // Thiết lập độ rộng cột
+    const colWidths = [];
+    for (let c = 0; c < 57; c++) {
+      if (c === 0) colWidths.push({ wch: 16 }); // Mã
+      else if (c === 1) colWidths.push({ wch: 32 }); // Tên
+      else if (c === 3) colWidths.push({ wch: 18 }); // Nhóm VTHH
+      else colWidths.push({ wch: 12 });
+    }
+    ws['!cols'] = colWidths;
     ws['!rows'] = [{ hpt: 22 }, { hpt: 22 }];
 
     XLSX.utils.book_append_sheet(wb, ws, "Hang hoa");
