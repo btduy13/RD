@@ -104,6 +104,11 @@ function initApp() {
     migrateAndCleanExistingExcelRows();
   }
 
+  // Dọn dẹp hàng trong kho hàng có đơn vị tính là số
+  if (typeof cleanNumericUnitProducts === "function") {
+    cleanNumericUnitProducts();
+  }
+
   // Khởi tạo cache sản phẩm & datalist đối tác Excel
   initExcelIntegration();
 
@@ -4920,6 +4925,27 @@ function migrateAndCleanExistingExcelRows() {
   }
   
   if (migrated) {
+    saveState();
+  }
+}
+
+function cleanNumericUnitProducts() {
+  if (!state || !state.products) return;
+  const originalLength = state.products.length;
+  
+  // Lọc bỏ các sản phẩm có đơn vị tính là số (ví dụ "16500", "6600")
+  state.products = state.products.filter(p => {
+    if (!p.unit) return true;
+    const unitStr = String(p.unit).trim();
+    if (unitStr === "") return true;
+    
+    // Nếu đơn vị tính chỉ toàn chữ số (hoặc số thập phân), ta coi là số và xóa bỏ
+    const isNumeric = !isNaN(Number(unitStr));
+    return !isNumeric;
+  });
+  
+  if (state.products.length !== originalLength) {
+    console.log(`[Database Cleanup] Đã xóa ${originalLength - state.products.length} sản phẩm lỗi có đơn vị tính là số.`);
     saveState();
   }
 }
