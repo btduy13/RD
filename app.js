@@ -2944,7 +2944,12 @@ function resetPurchaseForm() {
   if (tbody) tbody.innerHTML = "";
   document.getElementById("pur-desc").value = "Mua vật tư hàng hóa nhập kho";
   document.getElementById("pur-date").value = new Date().toISOString().split("T")[0];
-  addPurchaseFormRow(); // Tạo 1 dòng trống mặc định
+  addPurchaseFormRow();
+  // Auto-focus vào ô ngày hạch toán (trường đầu tiên hiển thị của form mua)
+  setTimeout(() => {
+    const el = document.getElementById("pur-date");
+    if (el) el.focus();
+  }, 60);
 }
 
 // Xử lý nộp form Mua hàng
@@ -3089,6 +3094,11 @@ function resetSalesForm() {
   document.getElementById("sale-desc").value = "Bán sản phẩm Rạng Đông xuất kho";
   document.getElementById("sale-date").value = new Date().toISOString().split("T")[0];
   addSalesFormRow();
+  // Auto-focus vào ô “Khách hàng mua” — trường quan trọng nhất khi mở form
+  setTimeout(() => {
+    const el = document.getElementById("sale-partner");
+    if (el) { el.focus(); el.select && el.select(); }
+  }, 60);
 }
 
 function generateNextSalesVoucherId(paymentMethod) {
@@ -9992,19 +10002,37 @@ window.getActiveSearchInputId = getActiveSearchInputId;
 // ==========================================================================
 // ĐIỀU HƯỚNG BẢNG ĐƠN HÀNG BẰNG BÀN PHÍM (TAB / F1 / F2)
 // ==========================================================================
+
 /**
- * Helper: Lấy tất cả input/select có thể focus trong một dòng <tr> của bảng đơn hàng
- * (bỏ qua các ô disabled và ô thành tiền chỉ hiển thị).
+ * Lấy tất cả phần tử có thể focus trong một modal đang hiển thị,
+ * theo đúng thứ tự xuất hiện trên giao diện (DOM order).
+ * Bỏ qua: disabled, hidden, nút xóa dòng, các ô chỉ hiển thị (item-total-display).
+ */
+function getFocusableFieldsInModal(modalEl) {
+  return Array.from(
+    modalEl.querySelectorAll(
+      'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])'
+    )
+  ).filter(el => {
+    // Bỏ qua ô thành tiền chỉ hiển thị
+    if (el.classList.contains('item-total-display')) return false;
+    // Bỏ qua các ô ẩn (bởi style hoặc parent ẩn)
+    if (el.offsetParent === null) return false;
+    return true;
+  });
+}
+
+/**
+ * Helper: Lấy tất cả input/select có thể focus trong một dòng <tr> của bảng đơn hàng.
  */
 function getEditableCellsInRow(tr) {
   return Array.from(tr.querySelectorAll(
     'input:not([disabled]):not([type="hidden"]), select:not([disabled])'
-  )).filter(el => !el.classList.contains('item-total-display'));
+  )).filter(el => !el.classList.contains('item-total-display') && el.offsetParent !== null);
 }
 
 /**
- * Lấy tất cả dòng <tr> trong tbody của bảng đơn hàng đang active.
- * Hỗ trợ cả purchase-form-items-body và sales-form-items-body.
+ * Lấy tbody của bảng đơn hàng nếu el đang nằm bên trong.
  */
 function getOrderTableRows(currentEl) {
   const tbodyId = currentEl.closest('#purchase-form-items-body')
@@ -10018,7 +10046,7 @@ function getOrderTableRows(currentEl) {
 }
 
 /**
- * Focus vào ô đầu tiên (item-productId) của một dòng cụ thể.
+ * Focus vào ô đầu tiên (item-productId) của một dòng.
  */
 function focusRowFirstCell(tr) {
   const cell = tr.querySelector('.item-productId');
@@ -10026,83 +10054,83 @@ function focusRowFirstCell(tr) {
 }
 
 /**
- * Khởi tạo điều hướng bàn phím cho bảng đơn hàng (Mua + Bán).
- * - Tab ở ô cuối cùng của dòng → tự động thêm dòng mới (nếu chưa có) hoặc nhảy sang dòng trống tiếp
- * - F1 → di chuyển xuống dòng tiếp theo (tạo mới nếu là dòng cuối)
- * - F2 → di chuyển lên dòng trước đó
- * - Esc → không làm gì thêm (giữ nguyên hành vi mặc định)
+ * Khởi tạo điều hướng bàn phím cho form đơn hàng (Mua + Bán).
+ *
+ * F1 = di chuyển tới ô TIẾP THEO trong toàn bộ modal đang mở
+ * F2 = di chuyển tới ô TRƯỚC ĐÓ trong toàn bộ modal đang mở
+ * Tab ở ô cuối dòng bảng → nhảy sang dòng tiếp hoặc thêm dòng mới
+ * Shift+Tab ở ô đầu dòng → lên dòng trước
  */
 function initOrderFormKeyboardNavigation() {
-  // Sử dụng event delegation trên document để bắt tất cả các dòng kể cả được thêm động
   document.addEventListener('keydown', function(e) {
     const el = document.activeElement;
     if (!el) return;
 
-    // Chỉ xử lý khi đang focus trong bảng đơn hàng
+    // Xác định modal đang mở chứa el hiện tại
+    const activeModal = el.closest('#modal-add-purchase, #modal-add-sales');
+    if (!activeModal) return;
+
+    // ── F1: chuyển sang ô tiếp theo trong toàn bộ modal ──────────────────
+    if (e.key === 'F1') {
+      e.preventDefault();
+      const fields = getFocusableFieldsInModal(activeModal);
+      const idx = fields.indexOf(el);
+      if (idx === -1) return;
+      if (idx < fields.length - 1) {
+        fields[idx + 1].focus();
+        fields[idx + 1].select && fields[idx + 1].select();
+      } else {
+        // Đang ở ô cuối cùng của modal → thêm dòng mới nếu đang trong bảng
+        const info = getOrderTableRows(el);
+        if (info) {
+          if (info.tbodyId === 'purchase-form-items-body') addPurchaseFormRow();
+          else addSalesFormRow();
+        }
+      }
+      return;
+    }
+
+    // ── F2: quay lại ô trước đó trong toàn bộ modal ────────────────────
+    if (e.key === 'F2') {
+      e.preventDefault();
+      const fields = getFocusableFieldsInModal(activeModal);
+      const idx = fields.indexOf(el);
+      if (idx > 0) {
+        fields[idx - 1].focus();
+        fields[idx - 1].select && fields[idx - 1].select();
+      }
+      return;
+    }
+
+    // ── Tab: chuyển dòng trong bảng đơn hàng ─────────────────────────────
     const info = getOrderTableRows(el);
     if (!info) return;
-    const { tbody, rows, tbodyId } = info;
+    const { rows, tbodyId } = info;
     if (rows.length === 0) return;
-
     const isPurchase = tbodyId === 'purchase-form-items-body';
     const currentRow = el.closest('tr');
     if (!currentRow) return;
     const rowIdx = rows.indexOf(currentRow);
 
-    // ── F1: Di chuyển xuống dòng tiếp theo ────────────────────────────────
-    if (e.key === 'F1') {
-      e.preventDefault();
-      if (rowIdx < rows.length - 1) {
-        // Còn dòng phía dưới → nhảy xuống
-        focusRowFirstCell(rows[rowIdx + 1]);
-      } else {
-        // Dòng cuối → thêm dòng mới
-        if (isPurchase) addPurchaseFormRow();
-        else addSalesFormRow();
-        // auto-focus đã được xử lý bên trong addXxxFormRow()
-      }
-      return;
-    }
-
-    // ── F2: Di chuyển lên dòng trước đó ──────────────────────────────────
-    if (e.key === 'F2') {
-      e.preventDefault();
-      if (rowIdx > 0) {
-        focusRowFirstCell(rows[rowIdx - 1]);
-      }
-      return;
-    }
-
-    // ── Tab: Nhảy giữa các ô trong dòng; ô cuối → dòng tiếp theo ─────────
     if (e.key === 'Tab' && !e.shiftKey) {
       const cells = getEditableCellsInRow(currentRow);
       const cellIdx = cells.indexOf(el);
-      if (cellIdx === -1) return;
+      if (cellIdx === -1 || cellIdx < cells.length - 1) return; // Chưa ở ô cuối
 
-      // Nếu chưa phải ô cuối cùng → để browser xử lý bình thường
-      if (cellIdx < cells.length - 1) return;
-
-      // Đang ở ô cuối của dòng → chặn Tab thoát ra ngoài
       e.preventDefault();
-
       if (rowIdx < rows.length - 1) {
-        // Còn dòng kế tiếp → nhảy tới ô đầu tiên của dòng đó
         focusRowFirstCell(rows[rowIdx + 1]);
       } else {
-        // Dòng cuối → thêm dòng mới tự động
         if (isPurchase) addPurchaseFormRow();
         else addSalesFormRow();
-        // auto-focus đã được xử lý bên trong addXxxFormRow()
       }
       return;
     }
 
-    // ── Shift+Tab ở ô đầu tiên của dòng → lên dòng trước, ô cuối ─────────
     if (e.key === 'Tab' && e.shiftKey) {
       const cells = getEditableCellsInRow(currentRow);
       const cellIdx = cells.indexOf(el);
-      if (cellIdx !== 0) return; // Không phải ô đầu → để browser xử lý
-      if (rowIdx === 0) return;  // Dòng đầu tiên → để browser xử lý bình thường
+      if (cellIdx !== 0 || rowIdx === 0) return;
 
       e.preventDefault();
       const prevRow = rows[rowIdx - 1];
@@ -10117,5 +10145,9 @@ function initOrderFormKeyboardNavigation() {
   });
 }
 
+window.getFocusableFieldsInModal = getFocusableFieldsInModal;
+window.getEditableCellsInRow = getEditableCellsInRow;
+window.getOrderTableRows = getOrderTableRows;
+window.focusRowFirstCell = focusRowFirstCell;
 window.initOrderFormKeyboardNavigation = initOrderFormKeyboardNavigation;
 
