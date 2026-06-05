@@ -164,10 +164,10 @@ function initApp() {
     initOrderFormKeyboardNavigation();
   }
 
-  // Tự động cập nhật đơn giá theo S06 một lần khi khởi động
+  // Tự động khôi phục danh mục gốc và cập nhật đơn giá xuất S06 khi khởi động
   setTimeout(() => {
-    if (typeof applyS06PricesOnStartup === "function") {
-      applyS06PricesOnStartup();
+    if (typeof restoreAndApplyS06Prices === "function") {
+      restoreAndApplyS06Prices();
     }
   }, 1000);
 }
@@ -4957,82 +4957,197 @@ function cleanNumericUnitProducts() {
   }
 }
 
-async function applyS06PricesOnStartup() {
-  if (localStorage.getItem("s06_prices_updated_v3") === "true") {
+async function restoreAndApplyS06Prices(force = false) {
+  if (!force && localStorage.getItem("db_restore_v6") === "true") {
     return;
   }
   try {
-    const bytes = await readExcelViaIPC("gia_moi_tong_hop.csv");
-    if (!bytes) return;
-    const text = new TextDecoder("utf-8").decode(bytes);
-    const lines = text.split(/\r?\n/).filter(l => l.trim());
-    if (lines.length < 2) return;
-    
-    const header = lines[0].split(",");
-    const colMa = header.findIndex(h => h.trim().toLowerCase() === "ma");
-    const colDg = header.findIndex(h => h.trim().toLowerCase() === "don_gia_moi");
-    if (colMa === -1 || colDg === -1) return;
-    
-    const priceMap = {};
-    for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(",");
-      const ma = (cols[colMa] || "").trim().toUpperCase();
-      const dg = parseInt((cols[colDg] || "0").trim()) || 0;
-      if (ma && dg > 0) {
-        priceMap[ma] = dg;
+    // Nếu chạy tự động lần đầu (startup), xóa sạch database cũ về trạng thái gốc sạch
+    if (!force) {
+      console.log("Forcing database clean reset for version 6...");
+      if (typeof PREPOPULATED_DATABASE !== "undefined") {
+        state = JSON.parse(JSON.stringify(PREPOPULATED_DATABASE));
+      } else {
+        state = JSON.parse(JSON.stringify(DEFAULT_DATA));
       }
+      state.vouchers = []; // Xóa sạch toàn bộ chứng từ cũ
     }
     
-    if (Object.keys(priceMap).length === 0) return;
+    // 1. Đọc và khôi phục danh mục từ Vat_tu__hang_hoa__dich_vu.xlsx
+    const vtBytes = await readExcelViaIPC("Vat_tu__hang_hoa__dich_vu.xlsx");
+    if (!vtBytes) return;
     
-    let updatedCount = 0;
-    state.products.forEach(p => {
-      const key = p.id.toUpperCase();
-      if (priceMap.hasOwnProperty(key)) {
-        const newPrice = priceMap[key];
-        if (p.avgCost !== newPrice || p.initialCost !== newPrice) {
-          p.avgCost = newPrice;
-          p.initialCost = newPrice;
-          p.totalValue = (p.stock || 0) * newPrice;
-          updatedCount++;
+    if (typeof XLSX === "undefined") {
+      console.warn("Chưa nạp thư viện XLSX");
+      return;
+    }
+    const wb = XLSX.read(vtBytes, { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+    if (rows.length < 3) return;
+    
+    const restoredProducts = [];
+    for (let i = 2; i < rows.length; i++) {
+      const row = rows[i];
+      const id = String(row[0] || "").trim().toUpperCase();
+      const name = String(row[1] || "").trim();
+      if (!id || !name || id === "MÃ" || id === "TỔNG CỘNG") continue;
+      
+      const unit = String(row[7] || "").trim();
+      const minStock = parseFloat(row[9]) || 0;
+      const stock = parseFloat(row[31]) || 0;
+      const avgCost = parseFloat(row[20]) || 0;
+      const totalValue = parseFloat(row[33]) || 0;
+      const group = String(row[3] || "").trim();
+      const inactiveVal = String(row[30] || "").trim();
+      const inactive = inactiveVal === "1" || inactiveVal === "Có" || inactiveVal === "True" || inactiveVal === "true";
+      
+      restoredProducts.push({
+        id,
+        name,
+        unit,
+        stock,
+        avgCost,
+        totalValue,
+        initialStock: stock,
+        initialCost: avgCost,
+        minStock,
+        group,
+        inactive,
+        excelRow: row
+      });
+    }
+    
+    if (restoredProducts.length === 0) return;
+    
+    // Thay thế danh mục sản phẩm hiện tại bằng danh mục sạch
+    state.products = restoredProducts;
+    console.log(`[Database Restore] Đã khôi phục ${state.products.length} sản phẩm từ file gốc.`);
+    
+    // 2. Đọc và áp dụng đơn giá mới nhất từ S06 (gia_moi_tong_hop.csv)
+    const csvBytes = await readExcelViaIPC("gia_moi_tong_hop.csv");
+    let matchedCount = 0;
+    if (csvBytes) {
+      const text = new TextDecoder("utf-8").decode(csvBytes);
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length >= 2) {
+        const header = lines[0].split(",");
+        // Sửa lỗi Byte Order Mark (BOM) bằng cách replace /^\ufeff/
+        const cleanHeader = header.map(h => h.replace(/^\ufeff/, "").trim().toLowerCase());
+        const colMa = cleanHeader.indexOf("ma");
+        const colDg = cleanHeader.indexOf("don_gia_moi");
+        
+        if (colMa !== -1 && colDg !== -1) {
+          const priceMap = {};
+          for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(",");
+            const ma = (cols[colMa] || "").trim().toUpperCase();
+            const dg = parseInt((cols[colDg] || "0").trim()) || 0;
+            if (ma && dg > 0) priceMap[ma] = dg;
+          }
+          
+          state.products.forEach(p => {
+            const key = p.id.toUpperCase();
+            if (priceMap.hasOwnProperty(key)) {
+              const newPrice = priceMap[key];
+              p.avgCost = newPrice;
+              p.initialCost = newPrice;
+              p.totalValue = (p.stock || 0) * newPrice;
+              matchedCount++;
+            }
+          });
+        } else {
+          console.warn("[Database Restore] Không tìm thấy cột ma hoặc don_gia_moi trong csv:", cleanHeader);
         }
       }
-    });
-    
-    if (updatedCount > 0) {
-      // Cập nhật số dư đầu kỳ TK 156
-      let newInvOpBal = 0;
-      state.products.forEach(p => {
-        const orig = (typeof DEFAULT_DATA !== 'undefined' && DEFAULT_DATA.products)
-          ? DEFAULT_DATA.products.find(o => o.id === p.id)
-          : null;
-        newInvOpBal += orig ? orig.totalValue : ((p.initialStock || 0) * (p.initialCost || 0));
-      });
-      if (state.initialBalances && state.initialBalances["156"]) {
-        state.initialBalances["156"].balance = newInvOpBal;
-      }
-      if (typeof rebalanceEquity === "function") rebalanceEquity();
-      
-      saveState();
-      recalculateAccounting();
-      
-      console.log(`[Database Cleanup] Đã cập nhật giá mới cho ${updatedCount} mặt hàng từ file S06.`);
-      
-      // Cập nhật giao diện
-      if (typeof renderInventoryTable === "function") renderInventoryTable();
-      if (typeof renderDashboard === "function") renderDashboard();
-      if (typeof populateProductLedgerDropdown === "function") populateProductLedgerDropdown();
-      
-      // Hiển thị thông báo nhỏ
-      setTimeout(() => {
-        showToast(`🏷️ Đã tự động cập nhật đơn giá cho ${updatedCount} mặt hàng từ file S06!`, "success");
-      }, 1500);
     }
     
-    localStorage.setItem("s06_prices_updated_v3", "true");
+    // 3. Cập nhật số dư đầu kỳ TK 156
+    let newInvOpBal = 0;
+    state.products.forEach(p => {
+      newInvOpBal += (p.initialStock || 0) * (p.initialCost || 0);
+    });
+    if (state.initialBalances && state.initialBalances["156"]) {
+      state.initialBalances["156"].balance = newInvOpBal;
+    }
+    if (typeof rebalanceEquity === "function") rebalanceEquity();
+    
+    // 4. Lưu CSDL và tính toán lại sổ sách kế toán
+    saveState();
+    recalculateAccounting();
+    
+    // 5. Cập nhật giao diện
+    if (typeof renderInventoryTable === "function") renderInventoryTable();
+    if (typeof renderDashboard === "function") renderDashboard();
+    if (typeof populateProductLedgerDropdown === "function") populateProductLedgerDropdown();
+    
+    // Hiển thị thông báo
+    setTimeout(() => {
+      showToast(`⚡ Đã khôi phục danh mục gốc (${state.products.length} hàng) và cập nhật đơn giá xuất S06 (${matchedCount} hàng) thành công!`, "success");
+    }, 1500);
+    
+    localStorage.setItem("db_restore_v6", "true");
   } catch (err) {
-    console.warn("Lỗi cập nhật đơn giá S06:", err);
+    console.warn("Lỗi khôi phục danh mục và cập nhật giá S06:", err);
   }
+}
+
+async function manuallyRestoreDatabaseFromExcel() {
+  if (confirm("Bạn có chắc chắn muốn nhập lại toàn bộ danh mục sản phẩm từ file gốc 'Vat_tu__hang_hoa__dich_vu.xlsx' và cập nhật đơn giá xuất từ 'gia_moi_tong_hop.csv'? Thao tác này sẽ khôi phục danh mục kho hàng về trạng thái sạch ban đầu của Rạng Đông.")) {
+    try {
+      showToast("Đang đọc file gốc và cập nhật đơn giá... Vui lòng đợi.", "info");
+      await restoreAndApplyS06Prices(true);
+    } catch (err) {
+      showToast(`Lỗi khôi phục: ${err.message}`, "danger");
+    }
+  }
+}
+window.manuallyRestoreDatabaseFromExcel = manuallyRestoreDatabaseFromExcel;
+
+function ensureProductExcelRow(p) {
+  if (!p.excelRow || p.excelRow.length < 57) {
+    const er = new Array(57).fill("");
+    er[0] = p.id || "";
+    er[1] = p.name || "";
+    er[2] = "Vật tư hàng hóa";
+    er[3] = p.group || "";
+    er[7] = p.unit || "Cái";
+    er[9] = p.minStock || 0;
+    er[12] = "1561";
+    er[13] = "632";
+    er[14] = "51111";
+    er[18] = 0;
+    er[19] = p.initialCost || 0;
+    er[20] = p.avgCost || 0;
+    er[21] = 0;
+    er[22] = 0;
+    er[23] = 0;
+    er[24] = 0;
+    er[25] = 0;
+    er[26] = 0;
+    er[27] = 0;
+    er[29] = "False";
+    er[30] = p.inactive ? 1 : 0;
+    er[31] = p.stock || 0;
+    er[33] = p.totalValue || 0;
+    er[35] = "Chưa xác định";
+    er[36] = 0;
+    er[37] = 0;
+    er[41] = 0;
+    p.excelRow = er;
+  }
+  // Đồng bộ các thuộc tính hiện tại của sản phẩm vào excelRow
+  p.excelRow[0] = p.id || "";
+  p.excelRow[1] = p.name || "";
+  p.excelRow[3] = p.group || "";
+  p.excelRow[7] = p.unit || "Cái";
+  p.excelRow[9] = p.minStock || 0;
+  p.excelRow[19] = p.initialCost || 0;
+  p.excelRow[20] = p.avgCost || 0;
+  p.excelRow[30] = p.inactive ? 1 : 0;
+  p.excelRow[31] = p.stock || 0;
+  p.excelRow[33] = p.totalValue || 0;
+  return p.excelRow;
 }
 
 
@@ -5048,13 +5163,10 @@ function exportProductsToExcel() {
 
     const thin    = { style: "thin", color: { rgb: "AAAAAA" } };
     const border4 = { top: thin, bottom: thin, left: thin, right: thin };
-    const hdrBg   = { patternType: "solid", fgColor: { rgb: "1F497D" } };
-    const altBg   = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
-    const totBg   = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
-    const fntT    = { name: "Times New Roman", sz: 13, bold: true };
-    const fntH    = { name: "Times New Roman", sz: 10, bold: true, color: { rgb: "FFFFFF" } };
-    const fntB    = { name: "Times New Roman", sz: 10, bold: true };
-    const fntN    = { name: "Times New Roman", sz: 10 };
+    const hdrBg   = { patternType: "solid", fgColor: { rgb: "CCCCFF" } }; // Nền tím nhạt (FFCCCCFF)
+    const fntT    = { name: "Times New Roman", sz: 14, bold: true };
+    const fntH    = { name: "Microsoft Sans Serif", sz: 8, bold: false };
+    const fntN    = { name: "Microsoft Sans Serif", sz: 8 };
     const cC      = { horizontal: "center", vertical: "center" };
     const cL      = { horizontal: "left",   vertical: "center", wrapText: true };
     const cR      = { horizontal: "right",  vertical: "center" };
@@ -5084,8 +5196,8 @@ function exportProductsToExcel() {
     ];
     const ncols = headers.length;
 
-    // ROW 0: Tiêu đề
-    sc(0, 0, (state.companyName || "Công Ty Cổ Phần Rạng Đông") + " — DANH SÁCH VẬT TƯ, HÀNG HÓA", 's', { font: fntT, alignment: cC });
+    // ROW 0: Tiêu đề khớp 100% tệp mẫu MISA
+    sc(0, 0, "DANH SÁCH VẬT TƯ, HÀNG HÓA, DỊCH VỤ", 's', { font: fntT, alignment: cC });
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: ncols - 1 } });
 
     // ROW 1: Headers
@@ -5093,46 +5205,20 @@ function exportProductsToExcel() {
 
     // DATA ROWS
     let rowIdx = 2;
-    let totalStock = 0, totalValue = 0;
-    (state.products || []).forEach((p, idx) => {
-      const bg = idx % 2 === 0 ? null : altBg;
-      const bs = (al) => ({ font: fntN, fill: bg, alignment: al, border: border4 });
-      const er = p.excelRow || [];
+    (state.products || []).forEach((p) => {
+      const bs = (al) => ({ font: fntN, alignment: al, border: border4 });
+      const er = ensureProductExcelRow(p);
+      const rowData = [...er];
       
-      const rowData = [];
+      // Đảm bảo đồng bộ thông tin mới nhất từ CSDL app
       rowData[0]  = p.id || "";
       rowData[1]  = p.name || "";
-      rowData[2]  = er[2] !== undefined ? er[2] : "Vật tư hàng hóa";
-      rowData[3]  = p.group || er[3] || "";
-      rowData[4]  = er[4] !== undefined ? er[4] : "";
-      rowData[5]  = er[5] !== undefined ? er[5] : "";
-      rowData[6]  = er[6] !== undefined ? er[6] : "";
-      rowData[7]  = p.unit || er[7] || "Cái";
-      rowData[8]  = er[8] !== undefined ? er[8] : "";
+      rowData[7]  = p.unit || "Cái";
       rowData[9]  = p.minStock !== undefined ? p.minStock : (er[9] !== undefined ? Number(er[9]) : 0);
-      rowData[10] = er[10] !== undefined ? er[10] : "";
-      rowData[11] = er[11] !== undefined ? er[11] : "";
-      rowData[12] = er[12] !== undefined ? er[12] : "1561";
-      rowData[13] = er[13] !== undefined ? er[13] : "632";
-      rowData[14] = er[14] !== undefined ? er[14] : "51111";
-      rowData[15] = er[15] !== undefined ? er[15] : "";
-      rowData[16] = er[16] !== undefined ? er[16] : "";
-      rowData[17] = er[17] !== undefined ? er[17] : "";
-      rowData[18] = er[18] !== undefined ? Number(er[18]) : 0;
       rowData[19] = p.initialCost !== undefined ? p.initialCost : (er[19] !== undefined ? Number(er[19]) : 0);
       rowData[20] = p.avgCost !== undefined ? p.avgCost : (er[20] !== undefined ? Number(er[20]) : 0);
-      rowData[21] = er[21] !== undefined ? Number(er[21]) : 0;
-      rowData[22] = er[22] !== undefined ? Number(er[22]) : 0;
-      rowData[23] = er[23] !== undefined ? Number(er[23]) : 0;
-      rowData[24] = er[24] !== undefined ? Number(er[24]) : 0;
-      rowData[25] = er[25] !== undefined ? Number(er[25]) : 0;
-      rowData[26] = er[26] !== undefined ? Number(er[26]) : 0;
-      rowData[27] = er[27] !== undefined ? Number(er[27]) : 0;
-      rowData[28] = er[28] !== undefined ? er[28] : "";
-      rowData[29] = er[29] !== undefined ? String(er[29]) : "False";
       rowData[30] = p.inactive ? 1 : (er[30] !== undefined ? Number(er[30]) : 0);
       rowData[31] = p.stock !== undefined ? p.stock : (er[31] !== undefined ? Number(er[31]) : 0);
-      rowData[32] = er[32] !== undefined ? er[32] : "";
       rowData[33] = p.totalValue !== undefined ? p.totalValue : (er[33] !== undefined ? Number(er[33]) : 0);
       
       for (let c = 34; c < 57; c++) {
@@ -5159,25 +5245,13 @@ function exportProductsToExcel() {
         
         sc(rowIdx, c, val, type, bs(align), z);
       });
-      
-      totalStock += rowData[31] || 0;
-      totalValue += rowData[33] || 0;
       rowIdx++;
     });
 
-    // DÒNG TỔNG
-    const ts = (al) => ({ font: fntB, fill: totBg, alignment: al, border: border4 });
-    sc(rowIdx, 0, "TỔNG CỘNG", 's', ts(cL));
-    merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 30 } });
-    
-    for (let c = 0; c < 57; c++) {
-      if (c === 31) {
-        sc(rowIdx, c, totalStock, 'n', ts(cR), "#,##0.##");
-      } else if (c === 33) {
-        sc(rowIdx, c, totalValue, 'n', ts(cR), numFmt);
-      } else if (c > 30 && c !== 31 && c !== 33) {
-        sc(rowIdx, c, "", 's', ts(cC));
-      }
+    // DÒNG TỔNG SỐ DÒNG (Dưới cùng của file MISA mẫu)
+    sc(rowIdx, 0, "Số dòng = " + state.products.length, 's', { font: fntN });
+    for (let c = 1; c < ncols; c++) {
+      sc(rowIdx, c, "", 's');
     }
 
     ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: ncols - 1 } });
@@ -5185,7 +5259,7 @@ function exportProductsToExcel() {
 
     // Thiết lập độ rộng cột
     const colWidths = [];
-    for (let c = 0; c < 57; c++) {
+    for (let c = 0; c < ncols; c++) {
       if (c === 0) colWidths.push({ wch: 16 }); // Mã
       else if (c === 1) colWidths.push({ wch: 32 }); // Tên
       else if (c === 3) colWidths.push({ wch: 18 }); // Nhóm VTHH
@@ -5194,7 +5268,7 @@ function exportProductsToExcel() {
     ws['!cols'] = colWidths;
     ws['!rows'] = [{ hpt: 22 }, { hpt: 22 }];
 
-    XLSX.utils.book_append_sheet(wb, ws, "Hang hoa");
+    XLSX.utils.book_append_sheet(wb, ws, "Vat_tu__hang_hoa__dich_vu");
     const outName = `Vat_tu_hang_hoa_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(wb, outName);
     showToast(`Đã xuất Excel: ${outName}`, "success");
@@ -7268,7 +7342,8 @@ function parseExcelFile(file, type) {
 
           const idx = state.products.findIndex(p => p.id === id);
           const pObj = { id, name, unit, stock, avgCost, totalValue: stock * avgCost, minStock,
-            group: (row[isNewFormat ? 3 : 3] || "").toString().trim() };
+            group: (row[isNewFormat ? 3 : 3] || "").toString().trim(),
+            excelRow: row };
           if (idx !== -1) {
             state.products[idx] = { ...state.products[idx], ...pObj };
           } else {
