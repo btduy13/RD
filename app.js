@@ -1759,12 +1759,11 @@ function renderPurchaseTable() {
   }
 
   if (displayedPurchases.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy hóa đơn mua hàng nào phù hợp.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy hóa đơn mua hàng nào phù hợp.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = displayedPurchases.map(v => {
-    const rawVal = v.totalAmount - (v.taxAmount || 0);
     const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
     return `
       <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
@@ -1775,8 +1774,6 @@ function renderPurchaseTable() {
         <td>${formattedDate}</td>
         <td>${v.description}</td>
         <td><span class="badge ${v.paymentMethod === '331' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '331' ? 'Công nợ (331)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
-        <td class="text-right font-numeric">${formatVND(rawVal)}</td>
-        <td class="text-right font-numeric">${formatVND(v.taxAmount)}</td>
         <td class="text-right font-numeric" style="font-weight:700; color:var(--color-primary);">${formatVND(v.totalAmount)}</td>
         <td>
           <div class="accounting-detail-box">
@@ -1792,6 +1789,9 @@ function renderPurchaseTable() {
           <div style="display:flex; justify-content:center; gap:6px;">
             <button class="print-btn" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')" title="Xem và In mẫu chứng từ" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-success); cursor: pointer; transition: all 0.2s;">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            </button>
+            <button class="edit-btn" onclick="editPurchaseVoucher('${escapeHtmlAttr(v.id)}')" title="Chỉnh sửa hóa đơn" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-primary); cursor: pointer; transition: all 0.2s;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
             </button>
             <button class="trash-btn" onclick="deleteVoucher('${escapeHtmlAttr(v.id)}')" title="Xóa chứng từ" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-danger); cursor: pointer; transition: all 0.2s;">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
@@ -1930,12 +1930,11 @@ function renderSalesTable() {
   }
 
   if (displayedSales.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy hóa đơn bán hàng nào phù hợp.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy hóa đơn bán hàng nào phù hợp.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = displayedSales.map(v => {
-    const rawVal = v.totalAmount - (v.taxAmount || 0);
     // Định dạng ngày lập hiển thị dạng Ngày/Tháng/Năm (DD/MM/YYYY)
     const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
 
@@ -1949,9 +1948,8 @@ function renderSalesTable() {
         <td><span style="font-weight:600;">${getPartnerNameForVoucher(v)}</span></td>
         <td>${v.description}</td>
         <td><span class="badge ${v.paymentMethod === '131' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '131' ? 'Công nợ (131)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
-        <td class="text-right font-numeric">${formatVND(rawVal)}</td>
+        <td class="text-right font-numeric">${formatVND(v.totalAmount)}</td>
         <td class="text-right font-numeric" style="color:var(--text-secondary);">${formatVND(v.cogsAmount)}</td>
-        <td class="text-right font-numeric">${formatVND(v.taxAmount)}</td>
         <td class="text-right font-numeric" style="font-weight:700; color:var(--color-success);">${formatVND(v.totalAmount)}</td>
         <td>
           <div class="accounting-detail-box">
@@ -3067,36 +3065,35 @@ function closeModal(modalId) {
 }
 
 // Bổ sung các hàng sản phẩm động vào form Mua hàng
-function addPurchaseFormRow() {
+// Bổ sung các hàng sản phẩm động vào form Mua hàng
+function addPurchaseFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
   const tbody = document.getElementById("purchase-form-items-body");
   if (!tbody) return;
 
-  const rowId = `pur-row-${Date.now()}`;
-
-  const options = productOptionsHTML || state.products.map(p => `<option value="${p.id}">${p.name} (${p.id})</option>`).join("");
+  const rowId = `pur-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
   const tr = document.createElement("tr");
   tr.id = rowId;
   tr.innerHTML = `
     <td>
-      <select class="form-control item-productId" required style="width:100%;">
-        ${options}
-      </select>
+      <input type="text" class="form-control item-productId" placeholder="Gõ mã hoặc tên sản phẩm..." required list="datalist-purchase-products" oninput="autoFillPurchasePrice(this)" onblur="autoFillPurchasePrice(this)" value="${escapeHtmlAttr(productIdVal)}">
     </td>
     <td>
-      <input type="text" class="form-control item-qty text-right number-format" required value="1" oninput="recalculatePurchaseTotals()">
+      <input type="text" class="form-control item-qty text-right number-format" required value="${qtyVal}" oninput="recalculatePurchaseTotals()">
     </td>
     <td>
-      <input type="text" class="form-control item-price text-right number-format" required value="${Number(10000).toLocaleString("vi-VN")}" oninput="recalculatePurchaseTotals()">
+      <input type="text" class="form-control item-price text-right number-format" required value="${Number(priceVal).toLocaleString("vi-VN")}" oninput="recalculatePurchaseTotals()">
     </td>
-    <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">10.000đ</td>
+    <td>
+      <input type="text" class="form-control item-discount text-right number-format" required value="${discountVal}" oninput="recalculatePurchaseTotals()" placeholder="0">
+    </td>
+    <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
     <td style="text-align: center;">
       <button type="button" class="trash-btn" onclick="document.getElementById('${rowId}').remove(); recalculatePurchaseTotals();">×</button>
     </td>
   `;
 
   tbody.appendChild(tr);
-  recalculatePurchaseTotals();
 
   // Auto-focus vào ô sản phẩm của dòng vừa tạo
   const allRows = tbody.querySelectorAll("tr");
@@ -3106,6 +3103,30 @@ function addPurchaseFormRow() {
     if (firstInput) {
       setTimeout(() => { firstInput.focus(); }, 30);
     }
+  }
+
+  recalculatePurchaseTotals();
+}
+
+// Tự động điền đơn giá mua hàng của sản phẩm được chọn
+function autoFillPurchasePrice(selectEl) {
+  const prodVal = selectEl.value;
+  const prod = resolveProduct(prodVal);
+  const row = selectEl.closest("tr");
+
+  if (prod && row) {
+    if (document.activeElement !== selectEl) {
+      selectEl.value = `${prod.name} (${prod.id})`;
+    }
+    ensureProductExcelRow(prod);
+    const purchasePriceVal = prod.lastPurchasePrice !== undefined && prod.lastPurchasePrice > 0
+      ? prod.lastPurchasePrice
+      : (prod.excelRow && prod.excelRow[20] !== undefined && Number(prod.excelRow[20]) > 0
+        ? Number(prod.excelRow[20])
+        : (prod.avgCost || prod.initialCost || 10000));
+
+    row.querySelector(".item-price").value = Number(purchasePriceVal).toLocaleString("vi-VN");
+    recalculatePurchaseTotals();
   }
 }
 
@@ -3117,27 +3138,39 @@ function recalculatePurchaseTotals() {
   rows.forEach(row => {
     const qty = parseInt(row.querySelector(".item-qty").value.replace(/\D/g, "")) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const amount = qty * price;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/\D/g, "")) || 0;
+    const amount = Math.round(qty * price * (1 - discount / 100));
     subtotal += amount;
 
     row.querySelector(".item-total-display").innerText = formatVND(amount);
   });
 
-  const taxRate = parseInt(document.getElementById("pur-tax-rate").value) || 0;
-  const taxAmount = Math.round(subtotal * (taxRate / 100));
-  const total = subtotal + taxAmount;
+  const taxRate = 0;
+  const taxAmount = 0;
+  const total = subtotal;
 
-  document.getElementById("pur-subtotal-display").value = formatVND(subtotal);
-  document.getElementById("pur-tax-display").value = formatVND(taxAmount);
-  document.getElementById("pur-total-display").value = formatVND(total);
+  if (document.getElementById("pur-subtotal-display")) {
+    document.getElementById("pur-subtotal-display").value = formatVND(subtotal);
+  }
+  if (document.getElementById("pur-tax-display")) {
+    document.getElementById("pur-tax-display").value = formatVND(taxAmount);
+  }
+  if (document.getElementById("pur-total-display")) {
+    document.getElementById("pur-total-display").value = formatVND(total);
+  }
 }
 
 // Reset form mua hàng
 function resetPurchaseForm() {
+  editingPurchaseId = null;
+  const modalTitle = document.querySelector("#modal-add-purchase .card-title");
+  if (modalTitle) modalTitle.innerText = "Chứng từ Mua hàng nhập kho";
+
   const tbody = document.getElementById("purchase-form-items-body");
   if (tbody) tbody.innerHTML = "";
   document.getElementById("pur-desc").value = "Mua vật tư hàng hóa nhập kho";
   document.getElementById("pur-date").value = new Date().toISOString().split("T")[0];
+  
   addPurchaseFormRow();
   // Auto-focus vào ô ngày hạch toán (trường đầu tiên hiển thị của form mua)
   setTimeout(() => {
@@ -3162,38 +3195,68 @@ function handlePurchaseSubmit(e) {
   const partnerName = resolvedPartner.name;
 
   const voucherItems = [];
-  rows.forEach(row => {
-    const productId = row.querySelector(".item-productId").value;
+  let hasError = false;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const productInputVal = row.querySelector(".item-productId").value;
+    const resolvedProduct = resolveProduct(productInputVal);
+
+    if (!resolvedProduct) {
+      showToast(`Không tìm thấy sản phẩm nào khớp với từ khóa "${productInputVal}"!`, "danger");
+      hasError = true;
+      break;
+    }
+
+    const productId = resolvedProduct.id;
     const qty = parseInt(row.querySelector(".item-qty").value.replace(/\D/g, "")) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/\D/g, "")) || 0;
+    const amount = Math.round(qty * price * (1 - discount / 100));
+
     voucherItems.push({
       productId,
       qty,
       price,
-      amount: qty * price
+      discount,
+      amount
     });
-  });
+  }
 
+  if (hasError) return;
+
+  const paymentMethod = document.getElementById("pur-payment").value;
   const newVoucher = {
-    id: `MH-${new Date().getFullYear().toString().substring(2)}-${(state.vouchers.filter(v => v.type === 'purchase').length + 1).toString().padStart(4, '0')}`,
+    id: editingPurchaseId || generateNextPurchaseVoucherId(paymentMethod),
     type: "purchase",
     date: document.getElementById("pur-date").value,
     partnerId,
     partnerName,
-    paymentMethod: document.getElementById("pur-payment").value,
+    paymentMethod,
     description: document.getElementById("pur-desc").value,
     items: voucherItems,
-    taxRate: parseInt(document.getElementById("pur-tax-rate").value)
+    taxRate: 0,
+    taxAmount: 0
   };
 
-  state.vouchers.push(newVoucher);
-  saveState();
+  if (editingPurchaseId) {
+    const idx = state.vouchers.findIndex(v => v.id === editingPurchaseId);
+    if (idx !== -1) {
+      if (state.vouchers[idx].excelRow) {
+        newVoucher.excelRow = state.vouchers[idx].excelRow;
+      }
+      state.vouchers[idx] = newVoucher;
+    }
+    editingPurchaseId = null;
+  } else {
+    state.vouchers.push(newVoucher);
+  }
 
-  // Chạy lại hạch toán đồng bộ
+  saveState();
   recalculateAccounting();
 
   closeModal("modal-add-purchase");
-  showToast("Lập chứng từ mua hàng thành công!", "success");
+  showToast(editingPurchaseId ? "Cập nhật chứng từ mua hàng thành công!" : "Lập chứng từ mua hàng thành công!", "success");
 }
 
 // Bổ sung các hàng sản phẩm động vào form Bán hàng
@@ -3245,6 +3308,9 @@ function autoFillProductPrice(selectEl) {
   const row = selectEl.closest("tr");
 
   if (prod && row) {
+    if (document.activeElement !== selectEl) {
+      selectEl.value = `${prod.name} (${prod.id})`;
+    }
     ensureProductExcelRow(prod);
     const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
       ? prod.salePrice1
@@ -3281,6 +3347,7 @@ function recalculateSalesTotals() {
   document.getElementById("sale-total-display").value = formatVND(total);
 }
 
+let editingPurchaseId = null;
 let editingSalesId = null;
 
 // Reset form bán hàng
@@ -3299,6 +3366,25 @@ function resetSalesForm() {
     const el = document.getElementById("sale-partner");
     if (el) { el.focus(); el.select && el.select(); }
   }, 60);
+}
+
+function generateNextPurchaseVoucherId(paymentMethod) {
+  const currentYear = new Date().getFullYear().toString().substring(2);
+  const prefix = `MH-${currentYear}-`;
+  const regex = new RegExp(`^MH-${currentYear}-(\\d+)$`);
+  let maxNum = 0;
+
+  state.vouchers.forEach(v => {
+    if (v.type === 'purchase') {
+      const match = v.id.match(regex);
+      if (match) {
+        const num = parseInt(match[1]);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+  });
+
+  return `${prefix}${(maxNum + 1).toString().padStart(4, '0')}`;
 }
 
 function generateNextSalesVoucherId(paymentMethod) {
@@ -3446,7 +3532,52 @@ function editSalesVoucher(id) {
   openModal("modal-add-sales");
 }
 
-function openQuickAddPartnerModal() {
+function editPurchaseVoucher(id) {
+  const v = state.vouchers.find(v => v.id === id);
+  if (!v) return;
+
+  editingPurchaseId = id;
+
+  const modalTitle = document.querySelector("#modal-add-purchase .card-title");
+  if (modalTitle) modalTitle.innerText = `Chỉnh sửa chứng từ mua hàng: ${id}`;
+
+  document.getElementById("pur-date").value = v.date;
+  document.getElementById("pur-partner").value = getPartnerNameForVoucher(v);
+  document.getElementById("pur-desc").value = v.description;
+  document.getElementById("pur-payment").value = v.paymentMethod;
+  if (document.getElementById("pur-tax-rate")) {
+    document.getElementById("pur-tax-rate").value = v.taxRate || 0;
+  }
+
+  const tbody = document.getElementById("purchase-form-items-body");
+  if (tbody) tbody.innerHTML = "";
+
+  v.items.forEach(item => {
+    const prod = state.products.find(p => p.id === item.productId);
+    const prodVal = prod ? `${prod.name} (${prod.id})` : item.productId;
+    addPurchaseFormRow(prodVal, item.qty, item.price, item.discount || 0);
+  });
+
+  openModal("modal-add-purchase");
+}
+
+let quickAddPartnerType = "customer";
+
+function openQuickAddPartnerModal(type = "customer") {
+  quickAddPartnerType = type;
+  const modalTitle = document.querySelector("#modal-quick-add-partner .card-title");
+  if (modalTitle) {
+    modalTitle.innerHTML = type === "customer"
+      ? `<svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg> Thêm nhanh Khách hàng mới`
+      : `<svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg> Thêm nhanh Nhà cung cấp mới`;
+  }
+  const labelName = document.getElementById("quick-partner-label-name");
+  if (labelName) {
+    labelName.innerHTML = type === "customer"
+      ? `Tên khách hàng <span style="color:var(--color-danger)">*</span>`
+      : `Tên nhà cung cấp <span style="color:var(--color-danger)">*</span>`;
+  }
+
   const nameEl = document.getElementById("quick-partner-name");
   const phoneEl = document.getElementById("quick-partner-phone");
   const addressEl = document.getElementById("quick-partner-address");
@@ -3464,21 +3595,25 @@ function handleQuickAddPartnerSubmit(e) {
   const phone = document.getElementById("quick-partner-phone").value.trim();
   const address = document.getElementById("quick-partner-address").value.trim();
 
+  const isSupplier = (quickAddPartnerType === "supplier");
+  const typeLabel = isSupplier ? "nhà cung cấp" : "khách hàng";
+  const typeNameCap = isSupplier ? "Nhà cung cấp" : "Khách hàng";
+
   if (!name) {
-    showToast("Vui lòng nhập tên khách hàng!", "danger");
+    showToast(`Vui lòng nhập tên ${typeLabel}!`, "danger");
     return;
   }
 
   let partner = state.partners.find(p => p.name.toLowerCase() === name.toLowerCase());
 
   if (!partner) {
-    const nextNum = (state.partners.filter(p => p.type === "customer").length + 1).toString().padStart(3, '0');
-    const id = `KH${nextNum}`;
+    const nextNum = (state.partners.filter(p => p.type === (isSupplier ? "supplier" : "customer")).length + 1).toString().padStart(3, '0');
+    const id = isSupplier ? `NCC${nextNum}` : `KH${nextNum}`;
 
     partner = {
       id,
       name,
-      type: "customer",
+      type: isSupplier ? "supplier" : "customer",
       phone,
       email: "",
       address,
@@ -3497,12 +3632,12 @@ function handleQuickAddPartnerSubmit(e) {
       ).join("");
     }
 
-    showToast(`Đã thêm thành công khách hàng "${name}" với mã ${id}!`, "success");
+    showToast(`Đã thêm thành công ${typeLabel} "${name}" với mã ${id}!`, "success");
   } else {
-    showToast(`Khách hàng "${name}" đã tồn tại trên hệ thống!`, "info");
+    showToast(`${typeNameCap} "${name}" đã tồn tại trên hệ thống!`, "info");
   }
 
-  const inputEl = document.getElementById("sale-partner");
+  const inputEl = document.getElementById(isSupplier ? "pur-partner" : "sale-partner");
   if (inputEl) {
     inputEl.value = partner.id;
   }
@@ -3574,6 +3709,9 @@ function handleProductSubmit(e) {
 
   // Reset form
   document.getElementById("form-product").reset();
+
+  // Cập nhật lại cache datalist gợi ý của hóa đơn
+  cacheProductOptions();
 
   // Vẽ lại bảng tồn kho nếu đang xem tab tồn kho
   if (typeof renderInventoryTable === "function") {
@@ -3876,14 +4014,6 @@ function viewVoucher(id) {
               `;
     }).join("")}
             
-            <tr>
-              <td colspan="6" style="text-align:right; font-weight:bold;">Cộng tiền hàng chưa thuế:</td>
-              <td style="text-align:right; font-weight:bold;">${formatVND(v.totalAmount - v.taxAmount).replace("đ", "")}</td>
-            </tr>
-            <tr>
-              <td colspan="6" style="text-align:right;">Thuế GTGT (${v.taxRate}%):</td>
-              <td style="text-align:right;">${formatVND(v.taxAmount).replace("đ", "")}</td>
-            </tr>
             <tr style="background-color:#e5e7eb;">
               <td colspan="6" style="text-align:right; font-weight:bold; text-transform:uppercase;">Tổng cộng tiền thanh toán:</td>
               <td style="text-align:right; font-weight:bold; color:var(--color-primary);">${formatVND(v.totalAmount).replace("đ", "")}</td>
@@ -7475,12 +7605,15 @@ function initExcelIntegration() {
     ).join("");
   }
 
-  // Nạp datalist sản phẩm phục vụ autocomplete trong hóa đơn bán hàng
+  // Nạp datalist sản phẩm phục vụ autocomplete trong hóa đơn bán hàng & mua hàng
   const productDatalist = document.getElementById("datalist-sales-products");
-  if (productDatalist && state.products) {
-    productDatalist.innerHTML = state.products.map(p =>
+  const purchaseProductDatalist = document.getElementById("datalist-purchase-products");
+  if (state.products) {
+    const optionsHTML = state.products.map(p =>
       `<option value="${p.id}">${p.name} (Tồn: ${p.stock})</option>`
     ).join("");
+    if (productDatalist) productDatalist.innerHTML = optionsHTML;
+    if (purchaseProductDatalist) purchaseProductDatalist.innerHTML = optionsHTML;
   }
 
   // Khởi tạo các sự kiện kéo thả (Drag & Drop) cho Excel Drop Zones
@@ -7493,15 +7626,23 @@ function initExcelIntegration() {
 // Caching dropdown sản phẩm
 function cacheProductOptions() {
   if (!state.products) return;
-  productOptionsHTML = state.products.map(p => `<option value="${p.id}">${p.name} (${p.id})</option>`).join("");
+  productOptionsHTML = state.products.map(p => `<option value="${p.id}">${p.name} (Tồn: ${p.stock})</option>`).join("");
   productOptionsSalesHTML = state.products.map(p => `<option value="${p.id}">${p.name} (Tồn: ${p.stock})</option>`).join("");
 
   const productDatalist = document.getElementById("datalist-sales-products");
-  if (productDatalist) {
-    productDatalist.innerHTML = state.products.map(p =>
+  const purchaseProductDatalist = document.getElementById("datalist-purchase-products");
+  if (state.products) {
+    const optionsHTML = state.products.map(p =>
       `<option value="${p.id}">${p.name} (Tồn: ${p.stock})</option>`
     ).join("");
+    if (productDatalist) productDatalist.innerHTML = optionsHTML;
+    if (purchaseProductDatalist) purchaseProductDatalist.innerHTML = optionsHTML;
   }
+}
+
+// Hàm cập nhật datalist sản phẩm (Backward-compatibility)
+function populateDatalistProducts() {
+  cacheProductOptions();
 }
 
 // Cập nhật thống kê trên Excel Hub
@@ -7550,6 +7691,14 @@ function resolvePartner(value) {
 function resolveProduct(value) {
   const val = (value || "").toString().trim();
   if (!val) return null;
+
+  // Hỗ trợ định dạng "Tên sản phẩm (Mã sản phẩm)" khi nạp từ form sửa hoặc khi blur
+  const match = val.match(/\(([^)]+)\)$/);
+  if (match) {
+    const idInParens = match[1].trim();
+    let p = state.products.find(item => item.id.toLowerCase() === idInParens.toLowerCase());
+    if (p) return p;
+  }
 
   // 1. Tìm chính xác theo ID
   let p = state.products.find(item => item.id.toLowerCase() === val.toLowerCase());
@@ -10121,6 +10270,7 @@ function batchDeleteProducts() {
 
     renderInventoryTable();
     populateProductLedgerDropdown();
+    cacheProductOptions();
 
     showToast(`Đã xóa thành công ${checked.length} sản phẩm!`, "success");
   }
@@ -10143,6 +10293,7 @@ function clearAllProducts() {
       renderInventoryTable();
       populateProductLedgerDropdown();
       if (typeof renderStockLedger === "function") renderStockLedger();
+      cacheProductOptions();
 
       showToast("Đã xóa sạch toàn bộ sản phẩm trong kho hàng!", "warning");
     }
@@ -10158,6 +10309,7 @@ function deleteProduct(prodId) {
     recalculateAccounting();
     renderInventoryTable();
     populateProductLedgerDropdown();
+    cacheProductOptions();
     showToast(`Đã xóa sản phẩm ${prodId}!`, "success");
   }
 }
@@ -10381,6 +10533,9 @@ window.batchDeleteProducts = batchDeleteProducts;
 window.deleteProduct = deleteProduct;
 window.editSalesVoucher = editSalesVoucher;
 window.resetSalesForm = resetSalesForm;
+window.editPurchaseVoucher = editPurchaseVoucher;
+window.resetPurchaseForm = resetPurchaseForm;
+window.autoFillPurchasePrice = autoFillPurchasePrice;
 window.changeSalesPage = changeSalesPage;
 window.clearSalesDateFilter = clearSalesDateFilter;
 window.openQuickAddPartnerModal = openQuickAddPartnerModal;
@@ -10866,7 +11021,14 @@ function initMouseInteractions() {
         menuHTML += `
           <button class="context-menu-item" onclick="editSalesVoucher('${escapedId}')">
             <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-            Chỉnh sửa hóa đơn
+            Chỉnh sửa hóa đơn bán hàng
+          </button>
+        `;
+      } else if (subtype === "purchase") {
+        menuHTML += `
+          <button class="context-menu-item" onclick="editPurchaseVoucher('${escapedId}')">
+            <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            Chỉnh sửa hóa đơn mua hàng
           </button>
         `;
       }
@@ -11204,6 +11366,31 @@ function initOrderFormKeyboardNavigation() {
       const isPurchaseOpen = purchaseModal && (purchaseModal.style.display === 'flex' || window.getComputedStyle(purchaseModal).display === 'flex');
       if (isPurchaseOpen) {
         e.preventDefault();
+        const purchaseRows = purchaseModal.querySelectorAll("#purchase-form-items-body tr");
+        if (purchaseRows.length > 0) {
+          let count = 0;
+          purchaseRows.forEach(row => {
+            const selectEl = row.querySelector(".item-productId");
+            if (!selectEl) return;
+            const prodVal = selectEl.value;
+            const prod = resolveProduct(prodVal);
+            if (prod) {
+              ensureProductExcelRow(prod);
+              const purchasePriceVal = prod.lastPurchasePrice !== undefined && prod.lastPurchasePrice > 0
+                ? prod.lastPurchasePrice
+                : (prod.excelRow && prod.excelRow[20] !== undefined && Number(prod.excelRow[20]) > 0
+                  ? Number(prod.excelRow[20])
+                  : (prod.avgCost || prod.initialCost || 10000));
+              
+              row.querySelector(".item-price").value = Number(purchasePriceVal).toLocaleString("vi-VN");
+              count++;
+            }
+          });
+          recalculatePurchaseTotals();
+          if (typeof showToast === "function") {
+            showToast(`Đã khôi phục đơn giá gốc của ${count} mặt hàng từ kho!`, "success");
+          }
+        }
         return;
       }
     }

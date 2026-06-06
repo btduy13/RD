@@ -519,9 +519,7 @@
                     <th>Ngày lập</th>
                     <th>Diễn giải</th>
                     <th>Phương thức</th>
-                    <th class="text-right">Tiền hàng</th>
-                    <th class="text-right">Thuế VAT</th>
-                    <th class="text-right">Tổng thanh toán</th>
+                    <th class="text-right">Tổng cộng</th>
                     <th>Định khoản</th>
                     <th style="text-align: center;">Thao tác</th>
                   </tr>
@@ -652,7 +650,6 @@
                     <th>Phương thức</th>
                     <th class="text-right">Doanh thu</th>
                     <th class="text-right">Giá vốn</th>
-                    <th class="text-right">Thuế VAT</th>
                     <th class="text-right">Tổng thanh toán</th>
                     <th>Định khoản</th>
                     <th style="text-align: center;">Thao tác</th>
@@ -2412,11 +2409,12 @@
             <table class="dynamic-items-table">
               <thead>
                 <tr>
-                  <th style="width: 45%;">Tên sản phẩm</th>
-                  <th style="width: 15%; text-align: right;">Số lượng</th>
-                  <th style="width: 20%; text-align: right;">Đơn giá mua (đ)</th>
-                  <th style="width: 20%; text-align: right;">Thành tiền</th>
-                  <th style="width: 10%;"></th>
+                  <th style="width: 35%;">Tên sản phẩm</th>
+                  <th style="width: 12%; text-align: right;">Số lượng</th>
+                  <th style="width: 18%; text-align: right;">Đơn giá mua (đ)</th>
+                  <th style="width: 15%; text-align: right;">Chiết khấu (%)</th>
+                  <th style="width: 15%; text-align: right;">Thành tiền</th>
+                  <th style="width: 5%;"></th>
                 </tr>
               </thead>
               <tbody id="purchase-form-items-body">
@@ -2429,26 +2427,26 @@
           <div class="form-group col-span-full"
             style="background-color: var(--bg-tertiary); padding: 16px; border-radius: var(--radius-md); margin-top: 10px;">
             <div class="form-grid">
-              <div class="form-group">
+              <div class="form-group" style="display: none;">
                 <label class="form-label">Thuế suất GTGT đầu vào</label>
                 <select id="pur-tax-rate" class="form-control" onchange="recalculatePurchaseTotals()">
                   <option value="10">10%</option>
                   <option value="5">5%</option>
-                  <option value="0">0%</option>
+                  <option value="0" selected>0%</option>
                 </select>
               </div>
-              <div class="form-group">
+              <div class="form-group" style="display: none;">
                 <label class="form-label">Tiền hàng chưa VAT</label>
                 <input type="text" id="pur-subtotal-display" class="form-control text-right font-numeric" disabled
                   value="0đ">
               </div>
-              <div class="form-group">
+              <div class="form-group" style="display: none;">
                 <label class="form-label">Tiền thuế GTGT (Nợ 1331)</label>
                 <input type="text" id="pur-tax-display" class="form-control text-right font-numeric" disabled
                   value="0đ">
               </div>
-              <div class="form-group">
-                <label class="form-label">Tổng tiền thanh toán</label>
+              <div class="form-group col-span-full">
+                <label class="form-label">Tổng cộng thanh toán</label>
                 <input type="text" id="pur-total-display" class="form-control text-right font-numeric" disabled
                   style="color: var(--color-primary); font-weight: 800;" value="0đ">
               </div>
@@ -2567,7 +2565,7 @@
                   value="0đ">
               </div>
               <div class="form-group col-span-full">
-                <label class="form-label">Tổng thanh toán (Đã bao gồm thuế)</label>
+                <label class="form-label">Tổng cộng thanh toán</label>
                 <input type="text" id="sale-total-display" class="form-control text-right font-numeric" disabled
                   style="color: var(--color-success); font-weight: 800;" value="0đ">
               </div>
@@ -2602,8 +2600,7 @@
         <form id="form-quick-add-partner" class="form-grid" style="grid-template-columns: 1fr; gap: 12px;"
           onsubmit="handleQuickAddPartnerSubmit(event)">
           <div class="form-group">
-            <label class="form-label" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Tên khách hàng
-              <span style="color:var(--color-danger)">*</span></label>
+            <label id="quick-partner-label-name" class="form-label" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Tên khách hàng <span style="color:var(--color-danger)">*</span></label>
             <input type="text" id="quick-partner-name" class="form-control" required
               placeholder="Ví dụ: Đại lý Thiết bị Điện Đông Á" style="font-size: 13px; height: 36px; padding: 0 12px;">
           </div>
@@ -2810,6 +2807,7 @@
   <!-- DATALIST CHO AUTOCOMPLETE ĐỐI TÁC DỮ LIỆU LỚN -->
   <datalist id="datalist-partners"></datalist>
   <datalist id="datalist-sales-products"></datalist>
+  <datalist id="datalist-purchase-products"></datalist>
 
   <!-- FILE JAVASCRIPT LOGIC CHÍNH -->
   <script src="xlsx.full.min.js"></script>
