@@ -166,6 +166,9 @@ function initApp() {
   // Tự động tích hợp lịch sử mua hàng chi tiết từ SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx nếu chưa tích hợp
   autoIntegrateSoChiTietMuaHangExcel();
 
+  // Tự động tích hợp quỹ thu/chi từ Thu__chi_tien.xlsx nếu chưa tích hợp
+  autoIntegrateVouchersExcel();
+
   // Hiển thị phiên bản cục bộ & tự động kiểm tra cập nhật nếu là Desktop App
   if (typeof initLocalVersionDisplay === "function") {
     initLocalVersionDisplay();
@@ -196,6 +199,118 @@ function initApp() {
       restoreAndApplyS06Prices();
     }
   }, 1000);
+}
+
+async function autoIntegrateVouchersExcel() {
+  const hasCash = state.vouchers && state.vouchers.some(v => v.type === "receipt" || v.type === "payment");
+  if (hasCash) {
+    console.log("Vouchers (cash entries) are already integrated.");
+    return;
+  }
+
+  if (typeof XLSX === "undefined") {
+    console.warn("SheetJS not loaded yet, deferring Vouchers Excel integration...");
+    setTimeout(autoIntegrateVouchersExcel, 1000);
+    return;
+  }
+
+  console.log("Starting automatic integration of excel/Thu__chi_tien.xlsx...");
+  try {
+    let data;
+    try {
+      data = await readExcelViaIPC('Thu__chi_tien.xlsx');
+    } catch (fetchErr) {
+      console.warn("No excel/Thu__chi_tien.xlsx file found or failed to read. Skipping auto-integration.", fetchErr.message);
+      return;
+    }
+
+    if (!data) return;
+
+    const bytes = new Uint8Array(data);
+    const workbook = XLSX.read(bytes, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+
+    if (rows.length < 3) return;
+
+    let count = 0;
+    for (let i = 2; i < rows.length; i++) {
+      const row = rows[i];
+      const id = (row[2] || "").toString().trim();
+      if (!id || id === "Số chứng từ") continue;
+
+      const dateStr = excelDateToISOString(row[0]);
+      const description = (row[3] || "Giao dịch phát sinh").toString().trim();
+      const amount = Number(row[4]) || 0;
+      const partnerName = (row[5] || "Khách hàng vãng lai").toString().trim();
+      const voucherTypeStr = (row[8] || "").toString().trim().toUpperCase();
+
+      const descLower = description.toLowerCase();
+      let paymentMethod = "111";
+      if (descLower.includes("ck") || descLower.includes("chuyển khoản") || descLower.includes("ủy nhiệm chi") || descLower.includes("ngân hàng")) {
+        paymentMethod = "112";
+      }
+
+      let type = "receipt";
+      let debitAccount = "111";
+      let creditAccount = "131";
+
+      if (voucherTypeStr.includes("CHI") || voucherTypeStr.includes("MUA HÀNG") || voucherTypeStr.includes("TRẢ LẠI")) {
+        type = "payment";
+        debitAccount = "331";
+        creditAccount = paymentMethod;
+
+        if (descLower.includes("mua hàng") || descLower.includes("nhập kho")) {
+          debitAccount = "156";
+        } else if (descLower.includes("chi phí") || descLower.includes("thuê xưởng")) {
+          debitAccount = "642";
+        }
+      } else {
+        type = "receipt";
+        debitAccount = paymentMethod;
+        creditAccount = "131";
+        if (descLower.includes("doanh thu") || descLower.includes("bán hàng")) {
+          creditAccount = "511";
+        }
+      }
+
+      let partnerId = "";
+      const matched = state.partners.find(p => p.name === partnerName);
+      if (matched) {
+        partnerId = matched.id;
+      } else {
+        partnerId = `DT_${Math.floor(1000 + Math.random() * 9000)}`;
+        state.partners.push({ id: partnerId, name: partnerName, type: type === "receipt" ? "customer" : "supplier", phone: "", email: "", address: "" });
+      }
+
+      const idx = state.vouchers.findIndex(v => v.id === id);
+      const vObj = {
+        id,
+        type,
+        date: dateStr,
+        partnerId,
+        partnerName,
+        paymentMethod,
+        description,
+        amount,
+        entries: [{ debit: debitAccount, credit: creditAccount, amount, desc: description }]
+      };
+      if (idx !== -1) {
+        state.vouchers[idx] = vObj;
+      } else {
+        state.vouchers.push(vObj);
+      }
+      count++;
+    }
+
+    saveState();
+    recalculateAccounting();
+    console.log(`[AutoIntegration] Successfully integrated ${count} cash vouchers.`);
+    if (typeof renderDashboard === "function") renderDashboard();
+    if (typeof filterCash === "function") filterCash();
+  } catch (err) {
+    console.warn("Lỗi tự động tích hợp quỹ thu/chi:", err.message);
+  }
 }
 
 async function autoIntegrateSalesExcel() {
@@ -504,7 +619,7 @@ async function autoIntegrateSoChiTietBanHangExcel() {
 
 async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
   if (state.soChiTietMuaHangIntegrated && !force) {
-    console.log("Detailed Purchase Excel (SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH) is already integrated.");
+    console.log("Detailed Purchase Excel is already integrated.");
     return;
   }
 
@@ -514,37 +629,66 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
     return;
   }
 
-  console.log("Starting automatic integration of excel/SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx...");
+  console.log("Starting automatic integration of detailed purchase excel...");
   try {
     if (typeof showToast === "function") {
-      showToast("Đang nạp Sổ chi tiết mua hàng (2.352 dòng)... Vui lòng đợi trong giây lát.", "info");
+      showToast("Đang nạp Sổ chi tiết mua hàng... Vui lòng đợi trong giây lát.", "info");
     }
 
     // Trì hoãn 100ms để Toast hiển thị trước khi CPU bận
     await new Promise(resolve => setTimeout(resolve, 100));
 
     let data;
+    let loadedFilename = 'SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx';
     try {
       data = await readExcelViaIPC('SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx');
     } catch (fetchErr) {
-      console.warn("No excel/SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx file found or failed to read. Skipping auto-integration.", fetchErr.message);
-      return;
+      try {
+        data = await readExcelViaIPC('SO_CHI_TIET_MUA_HANG.xlsx');
+        loadedFilename = 'SO_CHI_TIET_MUA_HANG.xlsx';
+      } catch (err2) {
+        console.warn("No detailed purchase excel file found or failed to read. Skipping auto-integration.", err2.message);
+        return;
+      }
     }
     const workbook = XLSX.read(data, { type: 'array' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
 
     if (rows.length < 3) {
-      console.warn("excel/SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx is empty.");
+      console.warn(`excel/${loadedFilename} is empty.`);
       return;
+    }
+
+    let colQty = 13;
+    let colPrice = 14;
+    let colAmount = 17;
+
+    let headerIdx = -1;
+    for (let r = 0; r < Math.min(rows.length, 10); r++) {
+      if (rows[r] && rows[r].includes("Số chứng từ") && rows[r].includes("Mã hàng")) {
+        headerIdx = r;
+        break;
+      }
+    }
+
+    if (headerIdx !== -1) {
+      const header = rows[headerIdx];
+      const qIdx = header.indexOf("Số lượng mua");
+      const pIdx = header.indexOf("Đơn giá");
+      const aIdx = header.indexOf("Giá trị mua");
+      if (qIdx !== -1) colQty = qIdx;
+      if (pIdx !== -1) colPrice = pIdx;
+      if (aIdx !== -1) colAmount = aIdx;
     }
 
     // Gom nhóm các dòng theo Số chứng từ (row[2])
     const groupMap = new Map();
-    for (let i = 3; i < rows.length; i++) {
+    const startRow = headerIdx !== -1 ? headerIdx + 1 : 3;
+    for (let i = startRow; i < rows.length; i++) {
       const row = rows[i];
       const voucherId = (row[2] || "").toString().trim();
-      if (!voucherId) continue;
+      if (!voucherId || voucherId.startsWith("TỔNG")) continue;
 
       if (!groupMap.has(voucherId)) {
         groupMap.set(voucherId, []);
@@ -593,11 +737,11 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
         const productId = (row[5] || "SP_GENERIC").toString().trim();
         const productName = (row[6] || "Sản phẩm generic").toString().trim();
         const unit = (row[7] || "Cái").toString().trim();
-        const qty = Number(row[13]) || 0;
-        const price = Number(row[14]) || 0;
+        const qty = Number(row[colQty]) || 0;
+        const price = Number(row[colPrice]) || 0;
 
-        // Sử dụng giá trị mua ở row[17], nếu không có thì tính bằng qty * price
-        const amount = Number(row[17]) || (qty * price);
+        // Sử dụng giá trị mua ở row[colAmount], nếu không có thì tính bằng qty * price
+        const amount = Number(row[colAmount]) || (qty * price);
 
         itemsArray.push({
           productId: productId,
@@ -654,7 +798,7 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
     saveState();
     recalculateAccounting();
 
-    console.log(`Successfully integrated ${count} detailed purchase vouchers from SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx!`);
+    console.log(`Successfully integrated ${count} detailed purchase vouchers from ${loadedFilename}!`);
 
     if (typeof showToast === "function") {
       showToast(`Tích hợp thành công Sổ chi tiết mua hàng! Đã nạp ${count} chứng từ.`, "success");
@@ -4610,6 +4754,7 @@ function handlePartnerSubmit(e) {
 
 function deletePartner(id) {
   if (confirm(`Bạn có chắc chắn muốn xóa đối tác "${id}" không?`)) {
+    trackDeletedIds([id]);
     state.partners = state.partners.filter(p => p.id !== id);
     if (state.partnerOpeningBalances && state.partnerOpeningBalances[id]) {
       delete state.partnerOpeningBalances[id];
@@ -5033,6 +5178,13 @@ async function restoreAndApplyS06Prices(force = false) {
         state = JSON.parse(JSON.stringify(PREPOPULATED_DATABASE));
       } else {
         state = JSON.parse(JSON.stringify(DEFAULT_DATA));
+      }
+      // Khởi tạo các tài khoản số dư đầu kỳ
+      if (!state.initialBalances || Object.keys(state.initialBalances).length === 0) {
+        state.initialBalances = JSON.parse(JSON.stringify(DEFAULT_DATA.initialBalances));
+      }
+      if (!state.partnerOpeningBalances || Object.keys(state.partnerOpeningBalances).length === 0) {
+        state.partnerOpeningBalances = {};
       }
       state.vouchers = []; // Xóa sạch toàn bộ chứng từ cũ
     }
@@ -7773,88 +7925,363 @@ function parseExcelFile(file, type) {
         recalculateAccounting();
         showToast(`Đã nạp thành công ${count} chứng từ vào sổ cái!`, "success");
       } else if (type === 'sales') {
+        let isDetailed = false;
+        let headerIdx = -1;
+        for (let r = 0; r < Math.min(rows.length, 10); r++) {
+          if (rows[r] && rows[r].includes("Số chứng từ") && rows[r].includes("Mã hàng")) {
+            headerIdx = r;
+            isDetailed = true;
+            break;
+          }
+        }
+
+        if (isDetailed) {
+          let count = 0;
+          const groupMap = new Map();
+          const startRow = headerIdx + 1;
+          for (let i = startRow; i < rows.length; i++) {
+            const row = rows[i];
+            const voucherId = (row[2] || "").toString().trim();
+            if (!voucherId || voucherId.startsWith("TỔNG")) continue;
+
+            if (!groupMap.has(voucherId)) {
+              groupMap.set(voucherId, []);
+            }
+            groupMap.get(voucherId).push(row);
+          }
+
+          const partnerMap = new Map();
+          state.partners.forEach(p => partnerMap.set(p.id, p));
+
+          const productMap = new Map();
+          state.products.forEach(p => productMap.set(p.id, p));
+
+          const voucherMap = new Map();
+          state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
+
+          for (const [voucherId, voucherRows] of groupMap.entries()) {
+            const firstRow = voucherRows[0];
+            const dateStr = excelDateToISOString(firstRow[1] || firstRow[0]);
+
+            const partnerIdRaw = (firstRow[7] || "").toString().trim();
+            const partnerId = partnerIdRaw ? partnerIdRaw : `DT_${Math.floor(1000 + Math.random() * 9000)}`;
+            const partnerName = (firstRow[8] || "Khách hàng vãng lai").toString().trim();
+            const description = (firstRow[5] || "Bán hàng").toString().trim();
+
+            if (!partnerMap.has(partnerId)) {
+              const pObj = {
+                id: partnerId,
+                name: partnerName,
+                type: "customer",
+                phone: "",
+                email: "",
+                address: ""
+              };
+              state.partners.push(pObj);
+              partnerMap.set(partnerId, pObj);
+            }
+
+            let paymentMethod = "131";
+            const descUpper = description.toUpperCase();
+            const nameUpper = partnerName.toUpperCase();
+            if (descUpper.includes("TIỀN MẶT") || descUpper.includes("TM") || nameUpper.includes("BÁN LẺ") || nameUpper.includes("KHÁCH LẺ") || nameUpper.includes("VÃNG LAI")) {
+              paymentMethod = "111";
+            }
+
+            const itemsArray = [];
+            let totalVoucherAmount = 0;
+
+            for (const row of voucherRows) {
+              const productId = (row[9] || "SP_GENERIC").toString().trim();
+              const productName = (row[10] || "Sản phẩm generic").toString().trim();
+              const unit = (row[11] || "Cái").toString().trim();
+              const qty = Number(row[12]) || 0;
+              const price = Number(row[13]) || 0;
+              const discount = Number(row[15]) || 0;
+
+              const grossAmount = qty * price;
+              const amount = grossAmount - discount;
+
+              itemsArray.push({
+                productId: productId,
+                qty: qty,
+                price: price,
+                discount: discount,
+                amount: amount
+              });
+
+              totalVoucherAmount += amount;
+
+              if (!productMap.has(productId)) {
+                const prodObj = {
+                  id: productId,
+                  name: productName,
+                  unit: unit,
+                  stock: 0,
+                  avgCost: 0,
+                  totalValue: 0
+                };
+                state.products.push(prodObj);
+                productMap.set(productId, prodObj);
+              }
+            }
+
+            const vObj = {
+              id: voucherId,
+              type: "sales",
+              date: dateStr,
+              partnerId: partnerId,
+              partnerName: partnerName,
+              paymentMethod: paymentMethod,
+              description: description,
+              taxRate: 0,
+              taxAmount: 0,
+              totalAmount: totalVoucherAmount,
+              amount: totalVoucherAmount,
+              items: itemsArray
+            };
+
+            const existingIdx = voucherMap.get(voucherId);
+            if (existingIdx !== undefined) {
+              state.vouchers[existingIdx] = vObj;
+            } else {
+              state.vouchers.push(vObj);
+              voucherMap.set(voucherId, state.vouchers.length - 1);
+            }
+            count++;
+          }
+
+          saveState();
+          recalculateAccounting();
+          showToast(`Đã nạp thành công ${count} chứng từ chi tiết bán hàng từ file Excel!`, "success");
+          if (typeof filterSales === "function") filterSales();
+          if (typeof renderDashboard === "function") renderDashboard();
+        } else {
+          let count = 0;
+          const partnerMap = new Map();
+          state.partners.forEach(p => partnerMap.set(p.name, p.id));
+          const voucherMap = new Map();
+          state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
+
+          for (let i = 2; i < rows.length; i++) {
+            const row = rows[i];
+            const id = (row[2] || "").toString().trim();
+            if (!id || id === "Số chứng từ") continue;
+
+            const dateStr = excelDateToISOString(row[0]);
+            const partnerName = (row[6] || "Khách hàng vãng lai").toString().trim();
+            const description = (row[7] || "Bán hàng").toString().trim();
+
+            const H = Number(row[8]) || 0;
+            const C = Number(row[9]) || 0;
+            const T = Number(row[10]) || 0;
+            const totalAmount = Number(row[11]) || 0;
+
+            let paymentMethod = "131";
+            const docTypeStr = (row[14] || "").toString().trim().toUpperCase();
+            if (docTypeStr.includes("TIỀN MẶT")) {
+              paymentMethod = "111";
+            }
+
+            let partnerId = partnerMap.get(partnerName);
+            if (!partnerId) {
+              partnerId = `DT_${Math.floor(1000 + Math.random() * 9000)}`;
+              state.partners.push({
+                id: partnerId,
+                name: partnerName,
+                type: "customer",
+                phone: "",
+                email: "",
+                address: ""
+              });
+              partnerMap.set(partnerName, partnerId);
+            }
+
+            const originalRow = [];
+            for (let col = 0; col < 15; col++) {
+              originalRow[col] = row[col] !== undefined ? row[col] : "";
+            }
+
+            const vObj = {
+              id,
+              type: "sales",
+              date: dateStr,
+              partnerId,
+              partnerName,
+              paymentMethod,
+              description,
+              taxRate: 0,
+              taxAmount: T,
+              totalAmount: totalAmount,
+              amount: totalAmount,
+              items: [
+                {
+                  productId: "SP_GENERIC",
+                  qty: 1,
+                  price: H,
+                  discount: H > 0 ? Math.round((C / H) * 100 * 100) / 100 : 0,
+                  amount: H - C
+                }
+              ],
+              excelRow: originalRow
+            };
+
+            const existingIdx = voucherMap.get(id);
+            if (existingIdx !== undefined) {
+              state.vouchers[existingIdx] = vObj;
+            } else {
+              state.vouchers.push(vObj);
+              voucherMap.set(id, state.vouchers.length - 1);
+            }
+            count++;
+          }
+          saveState();
+          recalculateAccounting();
+          showToast(`Đã nạp thành công ${count} hóa đơn bán hàng vào lịch sử!`, "success");
+          if (typeof filterSales === "function") filterSales();
+        }
+      }
+      
+      else if (type === 'purchase') {
         let count = 0;
+        const groupMap = new Map();
+        
+        let startRow = 2;
+        for (let i = 0; i < Math.min(rows.length, 10); i++) {
+          const firstVal = (rows[i] ? rows[i][2] : "").toString().trim();
+          if (firstVal === "Số chứng từ") {
+            startRow = i + 1;
+            break;
+          }
+        }
+
+        let colQty = 13;
+        let colPrice = 14;
+        let colAmount = 17;
+
+        let headerIdx = -1;
+        for (let r = 0; r < Math.min(rows.length, 10); r++) {
+          if (rows[r] && rows[r].includes("Số chứng từ") && rows[r].includes("Mã hàng")) {
+            headerIdx = r;
+            break;
+          }
+        }
+
+        if (headerIdx !== -1) {
+          const header = rows[headerIdx];
+          const qIdx = header.indexOf("Số lượng mua");
+          const pIdx = header.indexOf("Đơn giá");
+          const aIdx = header.indexOf("Giá trị mua");
+          if (qIdx !== -1) colQty = qIdx;
+          if (pIdx !== -1) colPrice = pIdx;
+          if (aIdx !== -1) colAmount = aIdx;
+        }
+
+        for (let i = startRow; i < rows.length; i++) {
+          const row = rows[i];
+          const voucherId = (row[2] || "").toString().trim();
+          if (!voucherId || voucherId.startsWith("TỔNG")) continue;
+
+          if (!groupMap.has(voucherId)) {
+            groupMap.set(voucherId, []);
+          }
+          groupMap.get(voucherId).push(row);
+        }
+
         const partnerMap = new Map();
-        state.partners.forEach(p => partnerMap.set(p.name, p.id));
+        state.partners.forEach(p => partnerMap.set(p.id, p));
+
+        const productMap = new Map();
+        state.products.forEach(p => productMap.set(p.id, p));
+
         const voucherMap = new Map();
         state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
 
-        for (let i = 2; i < rows.length; i++) {
-          const row = rows[i];
-          const id = (row[2] || "").toString().trim();
-          if (!id || id === "Số chứng từ") continue;
+        const partnerId = "NCC_EXCEL";
+        const partnerName = "Nhà cung cấp Sổ chi tiết";
+        if (!partnerMap.has(partnerId)) {
+          const pObj = {
+            id: partnerId,
+            name: partnerName,
+            type: "supplier",
+            phone: "",
+            email: "",
+            address: ""
+          };
+          state.partners.push(pObj);
+          partnerMap.set(partnerId, pObj);
+        }
 
-          const dateStr = excelDateToISOString(row[0]);
-          const partnerName = (row[6] || "Khách hàng vãng lai").toString().trim();
-          const description = (row[7] || "Bán hàng").toString().trim();
+        for (const [voucherId, voucherRows] of groupMap.entries()) {
+          const firstRow = voucherRows[0];
+          const dateStr = excelDateToISOString(firstRow[1] || firstRow[0]);
+          const invoiceNo = firstRow[4] || "";
+          const description = `Nhập kho mua hàng theo số hóa đơn ${invoiceNo || voucherId}`;
 
-          const H = Number(row[8]) || 0;
-          const C = Number(row[9]) || 0;
-          const T = Number(row[10]) || 0;
-          const totalAmount = Number(row[11]) || 0;
+          const itemsArray = [];
+          let totalVoucherAmount = 0;
 
-          let paymentMethod = "131";
-          const docTypeStr = (row[14] || "").toString().trim().toUpperCase();
-          if (docTypeStr.includes("TIỀN MẶT")) {
-            paymentMethod = "111";
-          }
+          for (const row of voucherRows) {
+            const productId = (row[5] || "SP_GENERIC").toString().trim();
+            const productName = (row[6] || "Sản phẩm generic").toString().trim();
+            const unit = (row[7] || "Cái").toString().trim();
+            const qty = Number(row[colQty]) || 0;
+            const price = Number(row[colPrice]) || 0;
+            const amount = Number(row[colAmount]) || (qty * price);
 
-          let partnerId = partnerMap.get(partnerName);
-          if (!partnerId) {
-            partnerId = `DT_${Math.floor(1000 + Math.random() * 9000)}`;
-            state.partners.push({
-              id: partnerId,
-              name: partnerName,
-              type: "customer",
-              phone: "",
-              email: "",
-              address: ""
+            itemsArray.push({
+              productId: productId,
+              qty: qty,
+              price: price,
+              amount: amount
             });
-            partnerMap.set(partnerName, partnerId);
-          }
 
-          const originalRow = [];
-          for (let col = 0; col < 15; col++) {
-            originalRow[col] = row[col] !== undefined ? row[col] : "";
+            totalVoucherAmount += amount;
+
+            if (!productMap.has(productId)) {
+              const prodObj = {
+                id: productId,
+                name: productName,
+                unit: unit,
+                stock: 0,
+                avgCost: 0,
+                totalValue: 0
+              };
+              state.products.push(prodObj);
+              productMap.set(productId, prodObj);
+            }
           }
 
           const vObj = {
-            id,
-            type: "sales",
+            id: voucherId,
+            type: "purchase",
             date: dateStr,
-            partnerId,
-            partnerName,
-            paymentMethod,
-            description,
+            partnerId: partnerId,
+            partnerName: partnerName,
+            paymentMethod: "331",
+            description: description,
             taxRate: 0,
-            taxAmount: T,
-            totalAmount: totalAmount,
-            amount: totalAmount,
-            items: [
-              {
-                productId: "SP_GENERIC",
-                qty: 1,
-                price: H,
-                discount: H > 0 ? Math.round((C / H) * 100 * 100) / 100 : 0,
-                amount: H - C
-              }
-            ],
-            excelRow: originalRow
+            taxAmount: 0,
+            totalAmount: totalVoucherAmount,
+            amount: totalVoucherAmount,
+            items: itemsArray
           };
 
-          const existingIdx = voucherMap.get(id);
+          const existingIdx = voucherMap.get(voucherId);
           if (existingIdx !== undefined) {
             state.vouchers[existingIdx] = vObj;
           } else {
             state.vouchers.push(vObj);
-            voucherMap.set(id, state.vouchers.length - 1);
+            voucherMap.set(voucherId, state.vouchers.length - 1);
           }
           count++;
         }
+
         saveState();
         recalculateAccounting();
-        showToast(`Đã nạp thành công ${count} hóa đơn bán hàng vào lịch sử!`, "success");
-        if (typeof filterSales === "function") filterSales();
+        showToast(`Đã nạp thành công ${count} chứng từ mua hàng từ file Excel!`, "success");
+        if (typeof filterPurchaseTable === "function") filterPurchaseTable();
+        if (typeof renderPurchaseTable === "function") renderPurchaseTable();
       }
     } catch (err) {
       console.error(err);
@@ -8558,8 +8985,12 @@ function forcePushToCloud() {
 
   if (confirm("Bạn có chắc chắn muốn ĐẨY toàn bộ dữ liệu cục bộ hiện tại (bao gồm lịch sử bán hàng) và GHI ĐÈ dữ liệu trên đám mây?")) {
     updateCloudSyncBadge(false, "Mây: Đang đẩy...", "#f59e0b");
-    const escapedState = escapeFirebaseObject(state);
-    firebaseDb.ref("rd_accounting_db").set(escapedState)
+    
+    // Đảm bảo cập nhật timestamp sửa đổi cục bộ trước khi đẩy
+    state._lastModified = Date.now();
+    saveState();
+
+    pushToCloud()
       .then(() => {
         showToast("Đã đồng bộ hóa ngược lên đám mây thành công!", "success");
         updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
@@ -8713,29 +9144,139 @@ function mergeStates(localState, cloudState) {
   return merged;
 }
 
-function pushToCloud() {
-  if (!cloudSyncActive || !firebaseDb) return;
+let isPushing = false;
+let pushPending = false;
+let _isMergePushing = false;
 
-  // Đánh dấu thời điểm lưu để hỗ trợ Smart Merge
-  if (!state._lastModified) {
-    state._lastModified = Date.now();
+async function pushToCloud() {
+  if (!cloudSyncActive || !firebaseDb) return;
+  if (isPushing) {
+    pushPending = true;
+    return;
+  }
+  isPushing = true;
+  pushPending = false;
+  _isMergePushing = true;
+
+  if (typeof updateCloudSyncBadge === "function") {
+    updateCloudSyncBadge(false, "Mây: Đang đẩy...", "#f59e0b");
   }
 
-  const escapedState = escapeFirebaseObject(state);
-  firebaseDb.ref("rd_accounting_db").set(escapedState)
-    .then(() => {
-      console.log("Đã đồng bộ hóa state lên đám mây thành công!");
-    })
-    .catch((err) => {
-      if (typeof addErrorLog === "function") {
-        addErrorLog("pushToCloud", err.message, err);
+  try {
+    if (!state._lastModified) {
+      state._lastModified = Date.now();
+    }
+
+    const escapedState = escapeFirebaseObject(state);
+
+    // Tách các thành phần lớn
+    const { vouchers, partners, products, ...metadata } = escapedState;
+
+    // 1. Ghi nhận cờ _isSyncing = true lên Cloud đầu tiên
+    await firebaseDb.ref("rd_accounting_db/_isSyncing").set(true);
+
+    // 2. Đẩy metadata và cấu hình nhỏ (tạm thời không bao gồm _lastModified)
+    const metaWithoutTs = { ...metadata };
+    delete metaWithoutTs._lastModified;
+    await firebaseDb.ref("rd_accounting_db").update(metaWithoutTs);
+
+    // 3. Đẩy products (thường nhỏ)
+    if (products) {
+      await firebaseDb.ref("rd_accounting_db/products").set(products);
+    } else {
+      await firebaseDb.ref("rd_accounting_db/products").set(null);
+    }
+
+    // 4. Đẩy partners theo khối (500 đối tác/khối)
+    if (partners && partners.length > 0) {
+      const cloudPartnersLength = await getCloudArrayLength("rd_accounting_db/partners");
+      if (cloudPartnersLength > partners.length) {
+        const cleanupObj = {};
+        for (let i = partners.length; i < cloudPartnersLength; i++) {
+          cleanupObj[i] = null;
+        }
+        await firebaseDb.ref("rd_accounting_db/partners").update(cleanupObj);
       }
-    });
+
+      const chunkSize = 500;
+      for (let i = 0; i < partners.length; i += chunkSize) {
+        const chunk = partners.slice(i, i + chunkSize);
+        const updateObj = {};
+        chunk.forEach((item, index) => {
+          updateObj[i + index] = item;
+        });
+        await firebaseDb.ref("rd_accounting_db/partners").update(updateObj);
+      }
+    } else {
+      await firebaseDb.ref("rd_accounting_db/partners").set(null);
+    }
+
+    // 5. Đẩy vouchers theo khối (500 chứng từ/khối)
+    if (vouchers && vouchers.length > 0) {
+      const cloudVouchersLength = await getCloudArrayLength("rd_accounting_db/vouchers");
+      if (cloudVouchersLength > vouchers.length) {
+        const cleanupObj = {};
+        for (let i = vouchers.length; i < cloudVouchersLength; i++) {
+          cleanupObj[i] = null;
+        }
+        await firebaseDb.ref("rd_accounting_db/vouchers").update(cleanupObj);
+      }
+
+      const chunkSize = 500;
+      for (let i = 0; i < vouchers.length; i += chunkSize) {
+        const chunk = vouchers.slice(i, i + chunkSize);
+        const updateObj = {};
+        chunk.forEach((item, index) => {
+          updateObj[i + index] = item;
+        });
+        await firebaseDb.ref("rd_accounting_db/vouchers").update(updateObj);
+      }
+    } else {
+      await firebaseDb.ref("rd_accounting_db/vouchers").set(null);
+    }
+
+    // 6. Cập nhật timestamp _lastModified của bản ghi hoàn chỉnh
+    await firebaseDb.ref("rd_accounting_db/_lastModified").set(escapedState._lastModified);
+
+    // 7. Hoàn tất quá trình đồng bộ, gỡ cờ _isSyncing = false
+    await firebaseDb.ref("rd_accounting_db/_isSyncing").set(false);
+
+    console.log("Đã đồng bộ hóa state lên đám mây thành công theo từng khối!");
+    if (typeof updateCloudSyncBadge === "function") {
+      updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
+    }
+  } catch (err) {
+    console.error("Lỗi khi đồng bộ dữ liệu lên đám mây:", err);
+    if (typeof addErrorLog === "function") {
+      addErrorLog("pushToCloud", err.message, err);
+    }
+    if (typeof updateCloudSyncBadge === "function") {
+      updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
+    }
+    throw err;
+  } finally {
+    isPushing = false;
+    _isMergePushing = false;
+    if (pushPending) {
+      pushToCloud();
+    }
+  }
 }
 
-// Flag tránh vòng lặp: khi chính máy này push xong, listener sẽ kích hoạt lại
-// nhưng dữ liệu đã giống nhau → bỏ qua
-let _isMergePushing = false;
+async function getCloudArrayLength(path) {
+  try {
+    const snap = await firebaseDb.ref(path).orderByKey().limitToLast(1).once("value");
+    if (!snap.exists()) return 0;
+    let lastKey = 0;
+    snap.forEach(child => {
+      lastKey = parseInt(child.key) || 0;
+    });
+    return lastKey + 1;
+  } catch (e) {
+    console.warn(`Error getting length for ${path}:`, e);
+    return 0;
+  }
+}
 
 function listenToCloudChanges() {
   if (!cloudSyncActive || !firebaseDb) return;
@@ -8747,6 +9288,9 @@ function listenToCloudChanges() {
 
     const rawData = snapshot.val();
     if (!rawData) return;
+
+    // Bỏ qua nếu máy trạm khác đang đẩy dữ liệu (tránh đọc dữ liệu dở dang)
+    if (rawData._isSyncing) return;
 
     const cloudData = unescapeFirebaseObject(rawData);
 
@@ -8779,9 +9323,7 @@ function listenToCloudChanges() {
     localStorage.setItem("rd_accounting_db", JSON.stringify(state));
 
     // Đẩy bản merged ngược lên cloud để đồng bộ cho máy kia
-    _isMergePushing = true;
     pushToCloud();
-    setTimeout(() => { _isMergePushing = false; }, 2000);
 
     recalculateAccounting();
     renderDashboard();
@@ -9587,6 +10129,8 @@ function batchDeleteProducts() {
 function clearAllProducts() {
   if (confirm("CẢNH BÁO: Bạn có chắc chắn muốn xóa TOÀN BỘ sản phẩm trong kho hàng? Tất cả sản phẩm, số lượng tồn và giá trị tồn sẽ bị xóa sạch.")) {
     if (confirm("Xác nhận lại một lần nữa: Hành động này không thể hoàn tác. Bạn thực sự muốn xóa sạch toàn bộ sản phẩm?")) {
+      const idsToDelete = state.products.map(p => p.id);
+      trackDeletedIds(idsToDelete);
       state.products = [];
       // Cập nhật số dư tài khoản 156 về 0
       if (state.initialBalances && state.initialBalances["156"]) {
@@ -9608,6 +10152,7 @@ window.clearAllProducts = clearAllProducts;
 
 function deleteProduct(prodId) {
   if (confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${prodId}"? Dữ liệu tồn kho liên quan có thể bị ảnh hưởng.`)) {
+    trackDeletedIds([prodId]);
     state.products = state.products.filter(p => p.id !== prodId);
     saveState();
     recalculateAccounting();
@@ -10620,6 +11165,49 @@ function focusRowFirstCell(tr) {
  */
 function initOrderFormKeyboardNavigation() {
   document.addEventListener('keydown', function (e) {
+    // ── F5: Reset đơn giá bán hàng theo giá kho (chặn load lại trang) ─────
+    if (e.key === 'F5') {
+      const salesModal = document.getElementById('modal-add-sales');
+      const isSalesOpen = salesModal && (salesModal.style.display === 'flex' || window.getComputedStyle(salesModal).display === 'flex');
+      
+      if (isSalesOpen) {
+        e.preventDefault();
+        const salesRows = salesModal.querySelectorAll("#sales-form-items-body tr");
+        if (salesRows.length > 0) {
+          let count = 0;
+          salesRows.forEach(row => {
+            const selectEl = row.querySelector(".item-productId");
+            if (!selectEl) return;
+            const prodVal = selectEl.value;
+            const prod = resolveProduct(prodVal);
+            if (prod) {
+              ensureProductExcelRow(prod);
+              const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
+                ? prod.salePrice1
+                : (prod.excelRow && prod.excelRow[21] !== undefined && Number(prod.excelRow[21]) > 0
+                  ? Number(prod.excelRow[21])
+                  : (Math.round(prod.avgCost * 1.35 / 1000) * 1000 || 50000));
+              
+              row.querySelector(".item-price").value = Number(salePriceVal).toLocaleString("vi-VN");
+              count++;
+            }
+          });
+          recalculateSalesTotals();
+          if (typeof showToast === "function") {
+            showToast(`Đã khôi phục đơn giá gốc của ${count} mặt hàng từ kho!`, "success");
+          }
+        }
+        return;
+      }
+
+      const purchaseModal = document.getElementById('modal-add-purchase');
+      const isPurchaseOpen = purchaseModal && (purchaseModal.style.display === 'flex' || window.getComputedStyle(purchaseModal).display === 'flex');
+      if (isPurchaseOpen) {
+        e.preventDefault();
+        return;
+      }
+    }
+
     const el = document.activeElement;
     if (!el) return;
 

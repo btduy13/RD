@@ -52,6 +52,30 @@ function createWindow() {
   // 4. Hiển thị cửa sổ khi đã nạp xong toàn bộ tài nguyên
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    setTimeout(async () => {
+      try {
+        const db = await mainWindow.webContents.executeJavaScript("localStorage.getItem('rd_accounting_db')");
+        console.log('--- LOCAL_STORAGE_DB_SIZE: ' + (db ? db.length : 0));
+        if (db) {
+          const parsed = JSON.parse(db);
+          console.log('--- LOCAL_STORAGE_VOUCHERS_COUNT: ' + (parsed.vouchers ? parsed.vouchers.length : 0));
+          const types = {};
+          if (parsed.vouchers) {
+            parsed.vouchers.forEach(v => types[v.type] = (types[v.type] || 0) + 1);
+          }
+          console.log('--- LOCAL_STORAGE_VOUCHER_TYPES: ' + JSON.stringify(types));
+          
+          const errLogs = await mainWindow.webContents.executeJavaScript("localStorage.getItem('rd_accounting_error_logs')");
+          console.log('--- LOCAL_STORAGE_ERRORS: ' + errLogs);
+          const restoreV6 = await mainWindow.webContents.executeJavaScript("localStorage.getItem('db_restore_v6')");
+          console.log('--- LOCAL_STORAGE_RESTORE_V6: ' + restoreV6);
+          const fbStatus = await mainWindow.webContents.executeJavaScript("({ active: cloudSyncActive, hasDb: !!firebaseDb, hasFirebase: typeof firebase !== 'undefined', badge: document.getElementById('cloud-sync-status-text') ? document.getElementById('cloud-sync-status-text').innerText : 'no badge' })");
+          console.log('--- FIREBASE_STATUS: ' + JSON.stringify(fbStatus));
+        }
+      } catch (err) {
+        console.error('Error reading localStorage:', err);
+      }
+    }, 5000);
   });
 
   // 5. Giải phóng tài nguyên khi cửa sổ đóng
