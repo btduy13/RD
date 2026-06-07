@@ -166,6 +166,10 @@ function initApp() {
   // Tự động tích hợp lịch sử mua hàng chi tiết từ SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH.xlsx nếu chưa tích hợp
   autoIntegrateSoChiTietMuaHangExcel();
 
+  // Tự động tích hợp đơn đặt hàng từ Don_mua_hang.xlsx nếu chưa tích hợp
+  autoIntegratePurchaseOrdersExcel();
+
+
   // Tự động tích hợp quỹ thu/chi từ Thu__chi_tien.xlsx nếu chưa tích hợp
   autoIntegrateVouchersExcel();
 
@@ -192,13 +196,6 @@ function initApp() {
   if (typeof initOrderFormKeyboardNavigation === "function") {
     initOrderFormKeyboardNavigation();
   }
-
-  // Tự động khôi phục danh mục gốc và cập nhật đơn giá xuất S06 khi khởi động
-  setTimeout(() => {
-    if (typeof restoreAndApplyS06Prices === "function") {
-      restoreAndApplyS06Prices();
-    }
-  }, 1000);
 }
 
 async function autoIntegrateVouchersExcel() {
@@ -812,6 +809,175 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
     console.error("Error auto-integrating detailed purchase Excel:", err);
     if (typeof showToast === "function") {
       showToast("Lỗi tích hợp Sổ chi tiết mua hàng Excel: " + err.message, "danger");
+    }
+  }
+}
+
+async function autoIntegratePurchaseOrdersExcel(force = false) {
+  if (state.purchaseOrdersIntegrated && !force) {
+    console.log("Purchase orders Excel is already integrated.");
+    return;
+  }
+
+  if (typeof XLSX === "undefined") {
+    console.warn("SheetJS not loaded yet, deferring Purchase Orders Excel integration...");
+    setTimeout(() => autoIntegratePurchaseOrdersExcel(force), 1000);
+    return;
+  }
+
+  console.log("Starting automatic integration of Don_mua_hang.xlsx...");
+  try {
+    if (typeof showToast === "function") {
+      showToast("Đang nạp dữ liệu Đơn đặt hàng... Vui lòng đợi trong giây lát.", "info");
+    }
+
+    // Trì hoãn 100ms để Toast hiển thị
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    let data;
+    try {
+      data = await readExcelViaIPC('Don_mua_hang.xlsx');
+    } catch (err) {
+      console.warn("No Don_mua_hang.xlsx found. Skipping auto-integration.", err.message);
+      return;
+    }
+
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+
+    if (rows.length < 2) {
+      console.warn("Don_mua_hang.xlsx is empty.");
+      return;
+    }
+
+    let headerIdx = -1;
+    for (let r = 0; r < Math.min(rows.length, 10); r++) {
+      const row = rows[r];
+      if (row && (row.includes("Số chứng từ") || row.includes("Số đơn hàng"))) {
+        headerIdx = r;
+        break;
+      }
+    }
+
+    const partnerMap = new Map();
+    state.partners.forEach(p => partnerMap.set(p.id, p));
+
+    const productMap = new Map();
+    state.products.forEach(p => productMap.set(p.id, p));
+
+    const voucherMap = new Map();
+    state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
+
+    let startRow = headerIdx !== -1 ? headerIdx + 1 : 2;
+    const header = headerIdx !== -1 ? rows[headerIdx] : [];
+
+    const colDate = header.indexOf("Ngày đơn hàng") !== -1 ? header.indexOf("Ngày đơn hàng") : 1;
+    const colId = header.indexOf("Số đơn hàng") !== -1 ? header.indexOf("Số đơn hàng") : 2;
+    const colPartner = header.indexOf("Nhà cung cấp") !== -1 ? header.indexOf("Nhà cung cấp") : 4;
+    const colDesc = header.indexOf("Diễn giải") !== -1 ? header.indexOf("Diễn giải") : 5;
+    const colTotal = header.indexOf("Giá trị đơn hàng") !== -1 ? header.indexOf("Giá trị đơn hàng") : 6;
+
+    // Đảm bảo có sản phẩm generic
+    const genericProductId = "SP_GENERIC";
+    const genericProductName = "Sản phẩm tổng hợp (Theo đơn hàng)";
+    if (!productMap.has(genericProductId)) {
+      const prodObj = {
+        id: genericProductId,
+        name: genericProductName,
+        unit: "Cái",
+        stock: 0,
+        avgCost: 0,
+        totalValue: 0
+      };
+      state.products.push(prodObj);
+      productMap.set(genericProductId, prodObj);
+    }
+
+    let count = 0;
+    for (let i = startRow; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length === 0) continue;
+
+      const voucherId = (row[colId] || "").toString().trim();
+      if (!voucherId || voucherId === "" || voucherId.startsWith("TỔNG")) continue;
+
+      const rawDate = row[colDate];
+      const dateStr = excelDateToISOString(rawDate);
+      const partnerInputVal = (row[colPartner] || "").toString().trim();
+      const description = (row[colDesc] || "").toString().trim() || "Đơn đặt hàng nhập khẩu lịch sử";
+      const totalAmount = Number(row[colTotal]) || 0;
+
+      // Resolve/Create Partner
+      const resolvedPartner = resolvePartner(partnerInputVal);
+      const pId = resolvedPartner.id;
+      const pName = resolvedPartner.name;
+
+      if (!partnerMap.has(pId)) {
+        const pObj = {
+          id: pId,
+          name: pName,
+          type: "supplier",
+          phone: "",
+          email: "",
+          address: ""
+        };
+        state.partners.push(pObj);
+        partnerMap.set(pId, pObj);
+      }
+
+      // Create generic item list for the PO
+      const itemsArray = [
+        {
+          productId: genericProductId,
+          qty: 1,
+          price: totalAmount,
+          amount: totalAmount
+        }
+      ];
+
+      const vObj = {
+        id: voucherId,
+        type: "purchase_order",
+        date: dateStr,
+        partnerId: pId,
+        partnerName: pName,
+        paymentMethod: "331",
+        description: description,
+        taxRate: 0,
+        taxAmount: 0,
+        totalAmount: totalAmount,
+        amount: totalAmount,
+        items: itemsArray
+      };
+
+      const existingIdx = voucherMap.get(voucherId);
+      if (existingIdx !== undefined) {
+        state.vouchers[existingIdx] = vObj;
+      } else {
+        state.vouchers.push(vObj);
+        voucherMap.set(voucherId, state.vouchers.length - 1);
+      }
+      count++;
+    }
+
+    state.purchaseOrdersIntegrated = true;
+    saveState();
+    recalculateAccounting();
+
+    console.log(`Successfully integrated ${count} purchase orders from Don_mua_hang.xlsx!`);
+
+    if (typeof showToast === "function") {
+      showToast(`Tích hợp thành công Đơn đặt hàng! Đã nạp ${count} đơn đặt hàng.`, "success");
+    }
+
+    if (typeof updateExcelHubUI === "function") updateExcelHubUI();
+    if (typeof renderPurchaseOrderTable === "function") renderPurchaseOrderTable();
+    if (typeof renderDashboard === "function") renderDashboard();
+  } catch (err) {
+    console.error("Error auto-integrating purchase orders Excel:", err);
+    if (typeof showToast === "function") {
+      showToast("Lỗi tích hợp Đơn đặt hàng Excel: " + err.message, "danger");
     }
   }
 }
@@ -5478,167 +5644,6 @@ function cleanNumericUnitProducts() {
   }
 }
 
-async function restoreAndApplyS06Prices(force = false) {
-  if (!force && localStorage.getItem("db_restore_v6") === "true") {
-    return;
-  }
-  try {
-    // Nếu chạy tự động lần đầu (startup), xóa sạch database cũ về trạng thái gốc sạch
-    if (!force) {
-      console.log("Forcing database clean reset for version 6...");
-      if (typeof PREPOPULATED_DATABASE !== "undefined") {
-        state = JSON.parse(JSON.stringify(PREPOPULATED_DATABASE));
-      } else {
-        state = JSON.parse(JSON.stringify(DEFAULT_DATA));
-      }
-      // Khởi tạo các tài khoản số dư đầu kỳ
-      if (!state.initialBalances || Object.keys(state.initialBalances).length === 0) {
-        state.initialBalances = JSON.parse(JSON.stringify(DEFAULT_DATA.initialBalances));
-      }
-      if (!state.partnerOpeningBalances || Object.keys(state.partnerOpeningBalances).length === 0) {
-        state.partnerOpeningBalances = {};
-      }
-      state.vouchers = []; // Xóa sạch toàn bộ chứng từ cũ
-    }
-
-    // 1. Đọc và khôi phục danh mục từ Vat_tu__hang_hoa__dich_vu.xlsx
-    const vtBytes = await readExcelViaIPC("Vat_tu__hang_hoa__dich_vu.xlsx");
-    if (!vtBytes) return;
-
-    if (typeof XLSX === "undefined") {
-      console.warn("Chưa nạp thư viện XLSX");
-      return;
-    }
-    const wb = XLSX.read(vtBytes, { type: "array" });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
-    if (rows.length < 3) return;
-
-    const restoredProducts = [];
-    for (let i = 2; i < rows.length; i++) {
-      const row = rows[i];
-      const id = String(row[0] || "").trim().toUpperCase();
-      const name = String(row[1] || "").trim();
-      if (!id || !name || id === "MÃ" || id === "TỔNG CỘNG") continue;
-
-      const unit = String(row[7] || "").trim();
-      const minStock = parseFloat(row[9]) || 0;
-      const stock = parseFloat(row[31]) || 0;
-      const avgCost = parseFloat(row[20]) || 0;
-      const totalValue = parseFloat(row[33]) || 0;
-      const group = String(row[3] || "").trim();
-      const inactiveVal = String(row[30] || "").trim();
-      const inactive = inactiveVal === "1" || inactiveVal === "Có" || inactiveVal === "True" || inactiveVal === "true";
-      const salePrice1 = parseFloat(row[21]) || 0;
-
-      restoredProducts.push({
-        id,
-        name,
-        unit,
-        stock,
-        avgCost,
-        totalValue,
-        initialStock: stock,
-        initialCost: avgCost,
-        salePrice1,
-        lastPurchasePrice: avgCost,
-        minStock,
-        group,
-        inactive,
-        nature: String(row[2] || "Vật tư hàng hóa").trim(),
-        defaultWarehouse: String(row[11] || "").trim(),
-        warehouseAccount: String(row[12] || "1561").trim(),
-        cogsAccount: String(row[13] || "632").trim(),
-        revenueAccount: String(row[14] || "51111").trim(),
-        excelRow: row
-      });
-    }
-
-    if (restoredProducts.length === 0) return;
-
-    // Thay thế danh mục sản phẩm hiện tại bằng danh mục sạch
-    state.products = restoredProducts;
-    console.log(`[Database Restore] Đã khôi phục ${state.products.length} sản phẩm từ file gốc.`);
-
-    // 2. Đọc và áp dụng đơn giá mới nhất từ S06 (gia_moi_tong_hop.csv)
-    const csvBytes = await readExcelViaIPC("gia_moi_tong_hop.csv");
-    let matchedCount = 0;
-    if (csvBytes) {
-      const text = new TextDecoder("utf-8").decode(csvBytes);
-      const lines = text.split(/\r?\n/).filter(l => l.trim());
-      if (lines.length >= 2) {
-        const header = lines[0].split(",");
-        // Sửa lỗi Byte Order Mark (BOM) bằng cách replace /^\ufeff/
-        const cleanHeader = header.map(h => h.replace(/^\ufeff/, "").trim().toLowerCase());
-        const colMa = cleanHeader.indexOf("ma");
-        const colDg = cleanHeader.indexOf("don_gia_moi");
-
-        if (colMa !== -1 && colDg !== -1) {
-          const priceMap = {};
-          for (let i = 1; i < lines.length; i++) {
-            const cols = lines[i].split(",");
-            const ma = (cols[colMa] || "").trim().toUpperCase();
-            const dg = parseInt((cols[colDg] || "0").trim()) || 0;
-            if (ma && dg > 0) priceMap[ma] = dg;
-          }
-
-          state.products.forEach(p => {
-            const key = p.id.toUpperCase();
-            if (priceMap.hasOwnProperty(key)) {
-              const newPrice = priceMap[key];
-              p.avgCost = newPrice;
-              p.initialCost = newPrice;
-              p.totalValue = (p.stock || 0) * newPrice;
-              matchedCount++;
-            }
-          });
-        } else {
-          console.warn("[Database Restore] Không tìm thấy cột ma hoặc don_gia_moi trong csv:", cleanHeader);
-        }
-      }
-    }
-
-    // 3. Cập nhật số dư đầu kỳ TK 156
-    let newInvOpBal = 0;
-    state.products.forEach(p => {
-      newInvOpBal += (p.initialStock || 0) * (p.initialCost || 0);
-    });
-    if (state.initialBalances && state.initialBalances["156"]) {
-      state.initialBalances["156"].balance = newInvOpBal;
-    }
-    if (typeof rebalanceEquity === "function") rebalanceEquity();
-
-    // 4. Lưu CSDL và tính toán lại sổ sách kế toán
-    saveState();
-    recalculateAccounting();
-
-    // 5. Cập nhật giao diện
-    if (typeof renderInventoryTable === "function") renderInventoryTable();
-    if (typeof renderDashboard === "function") renderDashboard();
-    if (typeof populateProductLedgerDropdown === "function") populateProductLedgerDropdown();
-
-    // Hiển thị thông báo
-    setTimeout(() => {
-      showToast(`⚡ Đã khôi phục danh mục gốc (${state.products.length} hàng) và cập nhật đơn giá xuất S06 (${matchedCount} hàng) thành công!`, "success");
-    }, 1500);
-
-    localStorage.setItem("db_restore_v6", "true");
-  } catch (err) {
-    console.warn("Lỗi khôi phục danh mục và cập nhật giá S06:", err);
-  }
-}
-
-async function manuallyRestoreDatabaseFromExcel() {
-  if (confirm("Bạn có chắc chắn muốn nhập lại toàn bộ danh mục sản phẩm từ file gốc 'Vat_tu__hang_hoa__dich_vu.xlsx' và cập nhật đơn giá xuất từ 'gia_moi_tong_hop.csv'? Thao tác này sẽ khôi phục danh mục kho hàng về trạng thái sạch ban đầu của Rạng Đông.")) {
-    try {
-      showToast("Đang đọc file gốc và cập nhật đơn giá... Vui lòng đợi.", "info");
-      await restoreAndApplyS06Prices(true);
-    } catch (err) {
-      showToast(`Lỗi khôi phục: ${err.message}`, "danger");
-    }
-  }
-}
-window.manuallyRestoreDatabaseFromExcel = manuallyRestoreDatabaseFromExcel;
 
 function getVNAccountingAccounts(nature) {
   const nat = (nature || "").trim();
@@ -7900,8 +7905,10 @@ function initExcelDragAndDrop() {
   const zones = [
     { id: 'excel-drop-zone-products', fileId: 'excel-file-products' },
     { id: 'excel-drop-zone-partners', fileId: 'excel-file-partners' },
-    { id: 'excel-drop-zone-vouchers', fileId: 'excel-file-vouchers' }
+    { id: 'excel-drop-zone-vouchers', fileId: 'excel-file-vouchers' },
+    { id: 'excel-drop-zone-purchase_order', fileId: 'excel-file-purchase-orders-import' }
   ];
+
 
   zones.forEach(zone => {
     const el = document.getElementById(zone.id);
@@ -8928,7 +8935,17 @@ function exportDataToExcelSample() {
   setTimeout(() => {
     exportCashToExcel();
   }, 600);
+  setTimeout(() => {
+    if (typeof exportSalesToExcel === "function") exportSalesToExcel();
+  }, 900);
+  setTimeout(() => {
+    if (typeof exportPurchasesToExcel === "function") exportPurchasesToExcel();
+  }, 1200);
+  setTimeout(() => {
+    if (typeof exportPurchaseOrdersToExcel === "function") exportPurchaseOrdersToExcel();
+  }, 1500);
 }
+
 
 // ==========================================================================
 // HỆ THỐNG GIÁM SÁT VÀ GHI NHẬT KÝ LỖI TOÀN CỤC (GLOBAL MONITOR & LOGGER)
@@ -12656,4 +12673,6 @@ window.toggleSelectAllPurchaseOrders = toggleSelectAllPurchaseOrders;
 window.updateBatchPurchaseOrdersUI = updateBatchPurchaseOrdersUI;
 window.batchDeletePurchaseOrders = batchDeletePurchaseOrders;
 window.exportPurchaseOrdersToExcel = exportPurchaseOrdersToExcel;
+window.autoIntegratePurchaseOrdersExcel = autoIntegratePurchaseOrdersExcel;
+
 
