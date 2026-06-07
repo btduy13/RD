@@ -135,6 +135,9 @@ function initApp() {
     cleanNumericUnitProducts();
   }
 
+  // Khôi phục các giá trị chiết khấu tuyệt đối về tỷ lệ % (nếu có)
+  migrateDiscountValues();
+
   // Khởi tạo cache sản phẩm & datalist đối tác Excel
   initExcelIntegration();
 
@@ -191,6 +194,30 @@ function initApp() {
   // Khởi tạo điều hướng bàn phím cho bảng nhập dòng đơn hàng (Tab / F1 / F2)
   if (typeof initOrderFormKeyboardNavigation === "function") {
     initOrderFormKeyboardNavigation();
+  }
+}
+
+function migrateDiscountValues() {
+  let migrated = false;
+  if (state && Array.isArray(state.vouchers)) {
+    state.vouchers.forEach(v => {
+      if (v.type === "sales" && Array.isArray(v.items)) {
+        v.items.forEach(item => {
+          if (item.discount > 100) {
+            const gross = (item.qty || 0) * (item.price || 0);
+            if (gross > 0) {
+              const oldDiscount = item.discount;
+              item.discount = Math.round((oldDiscount / gross) * 100 * 100) / 100;
+              migrated = true;
+            }
+          }
+        });
+      }
+    });
+  }
+  if (migrated) {
+    console.log("Migrated legacy absolute discount values to percentages.");
+    saveState();
   }
 }
 
@@ -530,17 +557,18 @@ async function autoIntegrateSoChiTietBanHangExcel() {
         const unit = (row[11] || "Cái").toString().trim();
         const qty = Number(row[12]) || 0;
         const price = Number(row[13]) || 0;
-        const discount = Number(row[15]) || 0;
+        const discountAmount = Number(row[15]) || 0;
 
         // Doanh số bán (row[14]) là gross, doanh thu thuần là gross - discount
         const grossAmount = qty * price;
-        const amount = grossAmount - discount;
+        const amount = grossAmount - discountAmount;
+        const discountPercent = grossAmount > 0 ? Math.round((discountAmount / grossAmount) * 100 * 100) / 100 : 0;
 
         itemsArray.push({
           productId: productId,
           qty: qty,
           price: price,
-          discount: discount,
+          discount: discountPercent,
           amount: amount
         });
 
@@ -8130,16 +8158,17 @@ function parseExcelFile(file, type) {
               const unit = (row[11] || "Cái").toString().trim();
               const qty = Number(row[12]) || 0;
               const price = Number(row[13]) || 0;
-              const discount = Number(row[15]) || 0;
+              const discountAmount = Number(row[15]) || 0;
 
               const grossAmount = qty * price;
-              const amount = grossAmount - discount;
+              const amount = grossAmount - discountAmount;
+              const discountPercent = grossAmount > 0 ? Math.round((discountAmount / grossAmount) * 100 * 100) / 100 : 0;
 
               itemsArray.push({
                 productId: productId,
                 qty: qty,
                 price: price,
-                discount: discount,
+                discount: discountPercent,
                 amount: amount
               });
 
