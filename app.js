@@ -952,7 +952,8 @@ function recalculateAccounting() {
           if (p.stock > 0) {
             p.avgCost = Math.round(p.totalValue / p.stock);
           } else {
-            p.avgCost = 0;
+            p.avgCost = item.price;
+            p.totalValue = p.stock * p.avgCost;
           }
           // Lưu đơn giá mua này làm đơn giá mua gần nhất
           p.lastPurchasePrice = item.price;
