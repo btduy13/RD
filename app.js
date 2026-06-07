@@ -9419,31 +9419,17 @@ function pullFromCloudOnStartup() {
       if (rawData) {
         const cloudData = unescapeFirebaseObject(rawData);
 
-        // Smart Merge khi khởi động: gộp dữ liệu cục bộ + cloud
-        // Tránh mất dữ liệu nhập khi offline trước đó
-        let localData = null;
-        try {
-          const localStr = localStorage.getItem("rd_accounting_db");
-          if (localStr) localData = JSON.parse(localStr);
-        } catch (e) { localData = null; }
-
-        const merged = localData ? mergeStates(localData, cloudData) : cloudData;
-        merged._lastModified = Math.max(
-          merged._lastModified || 0,
-          cloudData._lastModified || 0,
-          localData ? (localData._lastModified || 0) : 0
-        );
-
-        state = merged;
+        // Online-First: Ghi đè hoàn toàn dữ liệu cục bộ bằng dữ liệu chuẩn từ Cloud
+        state = cloudData;
         localStorage.setItem("rd_accounting_db", JSON.stringify(state));
-        console.log("[SmartMerge] Dữ liệu khởi động đã được merge thành công!");
+        console.log("[CloudSync] Đã tải và ghi đè dữ liệu chuẩn từ Cloud lúc khởi động!");
 
         // Khởi tạo trạng thái đồng bộ tăng trưởng từ dữ liệu cloud tải về
         _lastSyncedState = JSON.parse(JSON.stringify(cloudData));
         _syncStartupTime = Date.now();
         initIncrementalListeners();
 
-        // [FIX 5] Mở cờ cho phép push SAU KHI đã pull và merge xong
+        // [FIX 5] Mở cờ cho phép push SAU KHI đã pull xong
         _cloudPullCompleted = true;
 
         // Cập nhật giao diện
@@ -9452,9 +9438,6 @@ function pullFromCloudOnStartup() {
         filterDebts();
         filterPartners();
         filterCash();
-
-        // [FIX 6] Đẩy bản đã merge ngược lên cloud để đồng bộ cho các máy khác
-        pushToCloud();
       } else {
         // Cơ sở dữ liệu đám mây trống (Lần kết nối đầu tiên) -> Tự động đẩy dữ liệu cục bộ (đã nạp từ Excel) lên đám mây
         console.log("Cơ sở dữ liệu đám mây trống. Tự động đồng bộ ngược dữ liệu cục bộ lên đám mây...");
@@ -9930,9 +9913,7 @@ function initIncrementalListeners() {
   if (_incrementalListenersActive) return;
   _incrementalListenersActive = true;
 
-  // Sử dụng sai số 2 giờ so với thời điểm startup để tránh lỗi lệch múi giờ/đồng hồ hệ thống giữa các máy
-  const queryTime = (_syncStartupTime || Date.now()) - 2 * 60 * 60 * 1000;
-  console.log(`[CloudSync] Bắt đầu lắng nghe tăng trưởng từ thời điểm: ${new Date(queryTime).toLocaleString()}`);
+  console.log(`[CloudSync] Bắt đầu lắng nghe toàn bộ các sự kiện thay đổi thời gian thực...`);
 
   const collections = ['vouchers', 'partners', 'products', 'cashEntries', 'escrowItems'];
 
@@ -9942,12 +9923,12 @@ function initIncrementalListeners() {
     // Tắt các lắng nghe cũ nếu có
     colRef.off();
 
-    // Lắng nghe phần tử được thêm mới hoặc cập nhật có _updatedAt >= queryTime
-    colRef.orderByChild("_updatedAt").startAt(queryTime).on("child_added", (snapshot) => {
+    // Lắng nghe phần tử được thêm mới hoặc cập nhật thời gian thực
+    colRef.on("child_added", (snapshot) => {
       handleIncrementalUpdate(col, snapshot);
     });
 
-    colRef.orderByChild("_updatedAt").startAt(queryTime).on("child_changed", (snapshot) => {
+    colRef.on("child_changed", (snapshot) => {
       handleIncrementalUpdate(col, snapshot);
     });
   });
@@ -9955,18 +9936,25 @@ function initIncrementalListeners() {
   // Lắng nghe các ID bị xóa
   const deletedRef = firebaseDb.ref("rd_accounting_db/deletedIds");
   deletedRef.off();
-  deletedRef.orderByValue().startAt(queryTime).on("child_added", (snapshot) => {
+  deletedRef.on("child_added", (snapshot) => {
     handleIncrementalDelete(snapshot);
   });
 }
 
-function handleIncrementalUpdate(collectionName, snapshot) {
-  // Nếu đang push → xếp hàng đợi thay vì bỏ qua (tránh mất sự kiện vĩnh viễn)
-  if (_isMergePushing || isPushing) {
-    _pendingCloudEvents.push({ type: 'update', collectionName, snapshot });
-    return;
-  }
+let renderTimeout = null;
+function triggerUIRender() {
+  if (renderTimeout) clearTimeout(renderTimeout);
+  renderTimeout = setTimeout(() => {
+    console.log("[CloudSync] Thực hiện gom nhóm render lại giao diện...");
+    recalculateAccounting();
+    renderDashboard();
+    filterDebts();
+    filterPartners();
+    filterCash();
+  }, 50); // Hoãn 50ms để gộp nhiều sự kiện
+}
 
+function handleIncrementalUpdate(collectionName, snapshot) {
   const rawItem = snapshot.val();
   if (!rawItem) return;
 
@@ -9976,15 +9964,8 @@ function handleIncrementalUpdate(collectionName, snapshot) {
   const item = { ...rawItem };
   item.id = unescapedKey;
 
-  // Lấy trạng thái local hiện tại
-  const localStr = localStorage.getItem("rd_accounting_db") || "";
-  let localData = null;
-  try {
-    localData = JSON.parse(localStr);
-  } catch (e) {
-    localData = state;
-  }
-
+  // Sử dụng state trong bộ nhớ trực tiếp thay vì parse localStorage (tránh đơ UI khi dữ liệu lớn)
+  let localData = state;
   if (!localData) return;
   if (!localData[collectionName]) localData[collectionName] = [];
 
@@ -9992,23 +9973,12 @@ function handleIncrementalUpdate(collectionName, snapshot) {
   const index = localData[collectionName].findIndex(x => x && x.id === item.id);
   const localItem = index !== -1 ? localData[collectionName][index] : null;
 
-  // Kiểm tra timestamp để tránh ghi đè dữ liệu mới hơn của local
-  const localTs = (localItem && localItem._updatedAt) || 0;
-  const cloudTs = item._updatedAt || 0;
-
-  if (localItem && localTs >= cloudTs) {
-    // Local đã mới hơn hoặc bằng cloud, bỏ qua
+  // Online-First: Nếu dữ liệu cục bộ và dữ liệu nhận về giống hệt nhau, bỏ qua không xử lý
+  if (localItem && JSON.stringify(localItem) === JSON.stringify(item)) {
     return;
   }
 
-  console.log(`[IncrementalSync] Nhận cập nhật từ cloud cho ${collectionName}/${item.id} (Cloud TS: ${cloudTs}, Local TS: ${localTs})`);
-
-  // Kiểm tra xem ID này có nằm trong danh sách đã xóa không
-  const deletedSet = new Set(localData.deletedIds || []);
-  if (deletedSet.has(item.id)) {
-    // Nếu ID này đã bị xóa cục bộ rồi, bỏ qua
-    return;
-  }
+  console.log(`[IncrementalSync] Nhận cập nhật từ cloud cho ${collectionName}/${item.id}`);
 
   // Cập nhật vào mảng cục bộ
   if (index !== -1) {
@@ -10036,34 +10006,17 @@ function handleIncrementalUpdate(collectionName, snapshot) {
     _lastSyncedState._lastModified = localData._lastModified;
   }
 
-  // Cập nhật giao diện
-  recalculateAccounting();
-  renderDashboard();
-  filterDebts();
-  filterPartners();
-  filterCash();
+  // Kích hoạt render lại giao diện (được debounce)
+  triggerUIRender();
 }
 
 function handleIncrementalDelete(snapshot) {
-  // Nếu đang push → xếp hàng đợi thay vì bỏ qua (tránh mất sự kiện vĩnh viễn)
-  if (_isMergePushing || isPushing) {
-    _pendingCloudEvents.push({ type: 'delete', snapshot });
-    return;
-  }
-
   const deletedId = unescapeFirebaseKey(snapshot.key);
   const timestamp = snapshot.val();
 
   console.log(`[IncrementalSync] Nhận yêu cầu xóa ID: ${deletedId} từ cloud (TS: ${timestamp})`);
 
-  const localStr = localStorage.getItem("rd_accounting_db") || "";
-  let localData = null;
-  try {
-    localData = JSON.parse(localStr);
-  } catch (e) {
-    localData = state;
-  }
-
+  let localData = state;
   if (!localData) return;
 
   let changed = false;
@@ -10106,11 +10059,7 @@ function handleIncrementalDelete(snapshot) {
       _lastSyncedState._lastModified = localData._lastModified;
     }
 
-    recalculateAccounting();
-    renderDashboard();
-    filterDebts();
-    filterPartners();
-    filterCash();
+    triggerUIRender();
   }
 }
 
