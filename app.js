@@ -9365,6 +9365,7 @@ function startFirebaseApp() {
     firebaseApp = firebase.initializeApp(config);
     firebaseDb = firebase.database();
     cloudSyncActive = true;
+    _incrementalListenersActive = false;
 
     let hasPulledOnStartup = false;
     let hasRegisteredListener = false;
@@ -9887,7 +9888,9 @@ function initIncrementalListeners() {
   if (_incrementalListenersActive) return;
   _incrementalListenersActive = true;
 
-  console.log(`[CloudSync] Bắt đầu lắng nghe tăng trưởng từ thời điểm: ${new Date(_syncStartupTime).toLocaleString()}`);
+  // Sử dụng sai số 2 giờ so với thời điểm startup để tránh lỗi lệch múi giờ/đồng hồ hệ thống giữa các máy
+  const queryTime = (_syncStartupTime || Date.now()) - 2 * 60 * 60 * 1000;
+  console.log(`[CloudSync] Bắt đầu lắng nghe tăng trưởng từ thời điểm: ${new Date(queryTime).toLocaleString()}`);
 
   const collections = ['vouchers', 'partners', 'products', 'cashEntries', 'escrowItems'];
 
@@ -9897,12 +9900,12 @@ function initIncrementalListeners() {
     // Tắt các lắng nghe cũ nếu có
     colRef.off();
 
-    // Lắng nghe phần tử được thêm mới hoặc cập nhật có _updatedAt >= _syncStartupTime
-    colRef.orderByChild("_updatedAt").startAt(_syncStartupTime).on("child_added", (snapshot) => {
+    // Lắng nghe phần tử được thêm mới hoặc cập nhật có _updatedAt >= queryTime
+    colRef.orderByChild("_updatedAt").startAt(queryTime).on("child_added", (snapshot) => {
       handleIncrementalUpdate(col, snapshot);
     });
 
-    colRef.orderByChild("_updatedAt").startAt(_syncStartupTime).on("child_changed", (snapshot) => {
+    colRef.orderByChild("_updatedAt").startAt(queryTime).on("child_changed", (snapshot) => {
       handleIncrementalUpdate(col, snapshot);
     });
   });
@@ -9910,7 +9913,7 @@ function initIncrementalListeners() {
   // Lắng nghe các ID bị xóa
   const deletedRef = firebaseDb.ref("rd_accounting_db/deletedIds");
   deletedRef.off();
-  deletedRef.orderByValue().startAt(_syncStartupTime).on("child_added", (snapshot) => {
+  deletedRef.orderByValue().startAt(queryTime).on("child_added", (snapshot) => {
     handleIncrementalDelete(snapshot);
   });
 }
