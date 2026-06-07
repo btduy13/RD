@@ -370,35 +370,22 @@
           <!-- Hàng Biểu đồ và Lịch sử Giao dịch nhanh -->
           <div class="dashboard-details-row">
 
-            <!-- Bảng cảnh báo tồn kho (tồn âm & tồn thấp) -->
+            <!-- Biểu đồ cột tự vẽ offline -->
             <div class="chart-card">
               <div class="card-header-bar">
-                <span class="card-title" style="color: var(--color-danger);">
+                <span class="card-title">
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
                     style="width: 20px; height: 20px;">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
                     </path>
                   </svg>
-                  Cảnh báo Kho hàng (Tồn âm & Tồn thấp)
+                  Phân tích Doanh thu & Giá vốn
                 </span>
                 <span class="header-subtitle">Tính toán tự động theo thời gian thực</span>
               </div>
-              <div class="table-responsive" style="flex-grow: 1; max-height: 290px; overflow-y: auto;">
-                <table class="data-table" style="font-size: 12px; width: 100%;">
-                  <thead>
-                    <tr>
-                      <th>Mã hàng</th>
-                      <th>Tên hàng</th>
-                      <th class="text-right">Tồn thực tế</th>
-                      <th class="text-right">Tồn tối thiểu</th>
-                      <th style="text-align: center;">Trạng thái</th>
-                    </tr>
-                  </thead>
-                  <tbody id="dashboard-stock-alerts">
-                    <!-- Sẽ được vẽ động bằng Javascript ở đây -->
-                  </tbody>
-                </table>
+              <div class="chart-container-inner" id="dashboard-chart-container">
+                <!-- SVG Chart sẽ được vẽ động bằng Javascript ở đây -->
               </div>
             </div>
 
@@ -1793,10 +1780,6 @@
                   <label class="form-label">Địa chỉ trụ sở</label>
                   <input type="text" id="setting-address" class="form-control" value="">
                 </div>
-                <div class="form-group col-span-full">
-                  <label class="form-label">Ký hiệu Máy trạm (Tránh trùng mã đơn khi dùng nhiều máy, ví dụ: A, B, C)</label>
-                  <input type="text" id="setting-machine-suffix" class="form-control" placeholder="Ví dụ: A" style="text-transform: uppercase;">
-                </div>
               </div>
               <button class="btn btn-primary" onclick="saveCompanySettings()"
                 style="margin-top: 16px; align-self: flex-start;">Lưu thông tin</button>
@@ -1851,6 +1834,12 @@
                   </button>
                 </div>
 
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                  <button class="btn btn-primary" onclick="manuallyRestoreDatabaseFromExcel()"
+                    style="flex: 1; background-color: var(--color-success); border-color: var(--color-success); color: white;">
+                    📥 Nhập lại danh mục gốc & Giá S06
+                  </button>
+                </div>
               </div>
             </div>
 

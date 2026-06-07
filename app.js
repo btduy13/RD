@@ -4,13 +4,6 @@
    ========================================================================== */
 
 // 1. STATE TOÀN CỤC CỦA ỨNG DỤNG
-let machineSuffix = localStorage.getItem("rd_accounting_machine_suffix");
-if (!machineSuffix) {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  machineSuffix = chars[Math.floor(Math.random() * chars.length)];
-  localStorage.setItem("rd_accounting_machine_suffix", machineSuffix);
-}
-
 let state = {
   companyName: "",
   address: "",
@@ -142,9 +135,6 @@ function initApp() {
     cleanNumericUnitProducts();
   }
 
-  // Khôi phục các giá trị chiết khấu tuyệt đối về tỷ lệ % (nếu có)
-  migrateDiscountValues();
-
   // Khởi tạo cache sản phẩm & datalist đối tác Excel
   initExcelIntegration();
 
@@ -202,30 +192,13 @@ function initApp() {
   if (typeof initOrderFormKeyboardNavigation === "function") {
     initOrderFormKeyboardNavigation();
   }
-}
 
-function migrateDiscountValues() {
-  let migrated = false;
-  if (state && Array.isArray(state.vouchers)) {
-    state.vouchers.forEach(v => {
-      if (v.type === "sales" && Array.isArray(v.items)) {
-        v.items.forEach(item => {
-          if (item.discount > 100) {
-            const gross = (item.qty || 0) * (item.price || 0);
-            if (gross > 0) {
-              const oldDiscount = item.discount;
-              item.discount = Math.round((oldDiscount / gross) * 100 * 100) / 100;
-              migrated = true;
-            }
-          }
-        });
-      }
-    });
-  }
-  if (migrated) {
-    console.log("Migrated legacy absolute discount values to percentages.");
-    saveState();
-  }
+  // Tự động khôi phục danh mục gốc và cập nhật đơn giá xuất S06 khi khởi động
+  setTimeout(() => {
+    if (typeof restoreAndApplyS06Prices === "function") {
+      restoreAndApplyS06Prices();
+    }
+  }, 1000);
 }
 
 async function autoIntegrateVouchersExcel() {
@@ -564,18 +537,17 @@ async function autoIntegrateSoChiTietBanHangExcel() {
         const unit = (row[11] || "Cái").toString().trim();
         const qty = Number(row[12]) || 0;
         const price = Number(row[13]) || 0;
-        const discountAmount = Number(row[15]) || 0;
+        const discount = Number(row[15]) || 0;
 
         // Doanh số bán (row[14]) là gross, doanh thu thuần là gross - discount
         const grossAmount = qty * price;
-        const amount = grossAmount - discountAmount;
-        const discountPercent = grossAmount > 0 ? Math.round((discountAmount / grossAmount) * 100 * 100) / 100 : 0;
+        const amount = grossAmount - discount;
 
         itemsArray.push({
           productId: productId,
           qty: qty,
           price: price,
-          discount: discountPercent,
+          discount: discount,
           amount: amount
         });
 
@@ -847,7 +819,6 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
 // Biến phục vụ tối ưu lưu trữ (Debounce saveState để tránh đơ UI khi dữ liệu lớn)
 let saveStateTimeout = null;
 let saveStateIsDirty = false;
-let _cloudPullCompleted = false; // Cờ ngăn push trước khi pull cloud xong
 
 function saveState() {
   saveStateIsDirty = true;
@@ -867,9 +838,7 @@ function executeSaveState() {
     // để máy nhận có thể nhận biết đây là bản mới nhất
     state._lastModified = Date.now();
     localStorage.setItem("rd_accounting_db", JSON.stringify(state));
-    // [FIX 4] Chỉ push lên cloud khi đã pull xong dữ liệu cloud lúc khởi động
-    // Tránh race condition: máy A bật lên → push dữ liệu cũ → ghi đè dữ liệu mới của máy B
-    if (_cloudPullCompleted && typeof pushToCloud === "function") {
+    if (typeof pushToCloud === "function") {
       pushToCloud();
     }
     saveStateIsDirty = false;
@@ -895,11 +864,6 @@ function updateCompanyUI() {
   document.getElementById("setting-tax-code").value = state.taxCode || "";
   document.getElementById("setting-address").value = state.address || "";
 
-  const machineSuffixEl = document.getElementById("setting-machine-suffix");
-  if (machineSuffixEl) {
-    machineSuffixEl.value = machineSuffix || "";
-  }
-
   // Toggle active button Thông tư
   if (state.accountingStandard === "TT200") {
     document.getElementById("btn-standard-200").classList.add("active");
@@ -915,16 +879,6 @@ function saveCompanySettings() {
   state.companyName = document.getElementById("setting-company-name").value.trim() || "Công Ty Cổ Phần Rạng Đông";
   state.taxCode = document.getElementById("setting-tax-code").value.trim();
   state.address = document.getElementById("setting-address").value.trim() || "255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh";
-
-  const machineSuffixEl = document.getElementById("setting-machine-suffix");
-  if (machineSuffixEl) {
-    const val = machineSuffixEl.value.trim().toUpperCase();
-    if (val) {
-      localStorage.setItem("rd_accounting_machine_suffix", val);
-      machineSuffix = val;
-    }
-  }
-
   saveState();
   updateCompanyUI();
   showToast("Lưu thông tin doanh nghiệp thành công!", "success");
@@ -1005,8 +959,7 @@ function recalculateAccounting() {
           if (p.stock > 0) {
             p.avgCost = Math.round(p.totalValue / p.stock);
           } else {
-            p.avgCost = item.price;
-            p.totalValue = p.stock * p.avgCost;
+            p.avgCost = 0;
           }
           // Lưu đơn giá mua này làm đơn giá mua gần nhất
           p.lastPurchasePrice = item.price;
@@ -1379,8 +1332,8 @@ function renderDashboard() {
     escrowValueEl.innerText = formatVND(bal244 + bal344);
   }
 
-  // RENDER CẢNH BÁO TỒN KHO (TỒN ÂM & TỒN THẤP)
-  renderDashboardStockAlerts();
+  // RENDER BIỂU ĐỒ OFFLINE BẰNG SVG TRỰC QUAN
+  renderDashboardSVGChart();
 
   // RENDER HOẠT ĐỘNG GẦN ĐÂY
   renderRecentActivities();
@@ -1587,44 +1540,86 @@ function renderDashboardDebts() {
   }
 }
 
-function renderDashboardStockAlerts() {
-  const tbody = document.getElementById("dashboard-stock-alerts");
-  if (!tbody) return;
+function renderDashboardSVGChart() {
+  const container = document.getElementById("dashboard-chart-container");
+  if (!container) return;
 
-  const alerts = state.products.filter(p => p.stock < 0 || p.stock < (p.minStock || 0));
+  const fromDate = document.getElementById("search-dashboard-from") ? document.getElementById("search-dashboard-from").value : "";
+  const toDate = document.getElementById("search-dashboard-to") ? document.getElementById("search-dashboard-to").value : "";
 
-  alerts.sort((a, b) => {
-    const aIsNegative = a.stock < 0;
-    const bIsNegative = b.stock < 0;
-    if (aIsNegative && !bIsNegative) return -1;
-    if (!aIsNegative && bIsNegative) return 1;
-    return a.stock - b.stock;
-  });
+  // Lấy dữ liệu bán hàng trong khoảng thời gian hoặc mặc định
+  let salesVouchers = state.vouchers.filter(v => v.type === "sales");
+  if (fromDate) salesVouchers = salesVouchers.filter(v => v.date >= fromDate);
+  if (toDate) salesVouchers = salesVouchers.filter(v => v.date <= toDate);
+  salesVouchers = salesVouchers.slice(-5);
 
-  if (alerts.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--color-success); padding: 30px; font-weight: 600;">✅ Tất cả hàng hóa đều trong giới hạn tồn an toàn.</td></tr>`;
+  if (salesVouchers.length === 0) {
+    container.innerHTML = `<div style="color: var(--text-muted); font-size: 13px; padding: 20px; text-align: center;">Chưa có giao dịch bán hàng nào trong khoảng thời gian này.</div>`;
     return;
   }
 
-  tbody.innerHTML = alerts.map(p => {
-    const isNegative = p.stock < 0;
-    const minStock = p.minStock || 0;
-    const badgeClass = isNegative ? "badge-danger" : "badge-warning";
-    const badgeText = isNegative ? "Tồn âm" : "Tồn thấp";
-    const stockStyle = isNegative ? "color: var(--color-danger); font-weight: 800;" : "color: var(--color-warning); font-weight: 700;";
-    
-    return `
-      <tr>
-        <td class="font-numeric" style="color: var(--color-primary); font-weight:700;">${p.id}</td>
-        <td style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;" title="${escapeHtmlAttr(p.name)}">${p.name}</td>
-        <td class="text-right font-numeric" style="${stockStyle}">${p.stock}</td>
-        <td class="text-right font-numeric" style="color: var(--text-secondary);">${minStock}</td>
-        <td style="text-align: center;">
-          <span class="badge ${badgeClass}">${badgeText}</span>
-        </td>
-      </tr>
+  // Xác định cực đại tiền để định thang tỉ lệ
+  let maxMoney = 1000000;
+  salesVouchers.forEach(v => {
+    const totalAmount = v.totalAmount - (v.taxAmount || 0);
+    const cogs = v.cogsAmount || 0;
+    if (totalAmount > maxMoney) maxMoney = totalAmount;
+    if (cogs > maxMoney) maxMoney = cogs;
+  });
+  maxMoney = maxMoney * 1.15;
+
+  let barsHTML = "";
+  const chartHeight = 200;
+  const barWidth = 20;
+  const groupSpacing = 48;
+
+  salesVouchers.forEach((v, index) => {
+    const revVal = v.totalAmount - (v.taxAmount || 0);
+    const cogsVal = v.cogsAmount || 0;
+
+    const revHeight = (revVal / maxMoney) * chartHeight;
+    const cogsHeight = (cogsVal / maxMoney) * chartHeight;
+
+    const xPos = 40 + index * (barWidth * 2 + groupSpacing);
+    const revY = 220 - revHeight;
+    const cogsY = 220 - cogsHeight;
+
+    // Cột Doanh thu (Màu xanh teal mượt mà)
+    barsHTML += `
+      <g>
+        <rect x="${xPos}" y="${revY}" width="${barWidth}" height="${revHeight}" fill="#0ea5e9" rx="4"/>
+        <text x="${xPos + barWidth / 2}" y="${revY - 6}" font-size="9" fill="var(--text-primary)" text-anchor="middle" font-weight="700">${Math.round(revVal / 1000)}k</text>
+      </g>
     `;
-  }).join("");
+
+    // Cột Giá vốn (Màu cam sáng ấm áp)
+    barsHTML += `
+      <g>
+        <rect x="${xPos + barWidth + 6}" y="${cogsY}" width="${barWidth}" height="${cogsHeight}" fill="#f59e0b" rx="4"/>
+        <text x="${xPos + barWidth + 6 + barWidth / 2}" y="${cogsY - 6}" font-size="9" fill="var(--text-primary)" text-anchor="middle" font-weight="700">${Math.round(cogsVal / 1000)}k</text>
+      </g>
+    `;
+
+    // Nhãn trục X (Mã chứng từ ngắn gọn)
+    const label = v.id.includes("-") ? v.id.split("-").pop() : (v.id.length > 8 ? v.id.substring(8) : v.id);
+    barsHTML += `
+      <text x="${xPos + barWidth + 3}" y="240" font-size="10" fill="var(--text-secondary)" text-anchor="middle" font-weight="600">${label}</text>
+    `;
+  });
+
+  container.innerHTML = `
+    <svg class="svg-chart" viewBox="0 0 500 260" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;">
+      <line x1="20" y1="220" x2="480" y2="220" stroke="var(--border-color)" stroke-width="2"/>
+      ${barsHTML}
+      <g transform="translate(20, 10)">
+        <rect x="0" y="0" width="12" height="12" fill="#0ea5e9" rx="2"/>
+        <text x="18" y="10" font-size="11" fill="var(--text-secondary)" font-weight="600">Doanh thu bán</text>
+        
+        <rect x="120" y="0" width="12" height="12" fill="#f59e0b" rx="2"/>
+        <text x="138" y="10" font-size="11" fill="var(--text-secondary)" font-weight="600">Giá vốn hàng bán</text>
+      </g>
+    </svg>
+  `;
 }
 
 function renderRecentActivities() {
@@ -3391,8 +3386,7 @@ function resetSalesForm() {
 function generateNextPurchaseVoucherId(paymentMethod) {
   const currentYear = new Date().getFullYear().toString().substring(2);
   const prefix = `MH-${currentYear}-`;
-  // Cho phép ký hiệu máy trạm tùy chọn ở cuối, ví dụ: MH-26-0001-A
-  const regex = new RegExp(`^MH-${currentYear}-(\\d+)(?:-[A-Z0-9]+)?$`);
+  const regex = new RegExp(`^MH-${currentYear}-(\\d+)$`);
   let maxNum = 0;
 
   state.vouchers.forEach(v => {
@@ -3405,15 +3399,15 @@ function generateNextPurchaseVoucherId(paymentMethod) {
     }
   });
 
-  return `${prefix}${(maxNum + 1).toString().padStart(4, '0')}-${machineSuffix}`;
+  return `${prefix}${(maxNum + 1).toString().padStart(4, '0')}`;
 }
 
 function generateNextSalesVoucherId(paymentMethod) {
   const isCredit = (paymentMethod === "131");
   const prefix = isCredit ? "BH" : "PT";
 
-  // Tìm tất cả các chứng từ có ID khớp với tiền tố + số + ký hiệu máy tùy chọn
-  const regex = new RegExp(`^${prefix}(\\d+)(?:-[A-Z0-9]+)?$`);
+  // Tìm tất cả các chứng từ có ID khớp với tiền tố + số
+  const regex = new RegExp(`^${prefix}(\\d+)$`);
   let maxNum = 0;
 
   state.vouchers.forEach(v => {
@@ -3429,7 +3423,7 @@ function generateNextSalesVoucherId(paymentMethod) {
     maxNum = isCredit ? 44340 : 13122;
   }
 
-  return `${prefix}${maxNum + 1}-${machineSuffix}`;
+  return `${prefix}${maxNum + 1}`;
 }
 
 // Xử lý nộp form Bán hàng (Có xác thực kiểm kho hàng tồn)
@@ -3477,7 +3471,8 @@ function handleSalesSubmit(e) {
       }
     }
     if ((resolvedProduct.stock + oldQty) < qty) {
-      showToast(`Cảnh báo: Hàng tồn kho sản phẩm "${resolvedProduct.name}" bị âm (Còn tồn ${resolvedProduct.stock + oldQty}, bán ${qty})!`, "warning");
+      showToast(`Hàng tồn kho sản phẩm "${resolvedProduct.name}" không đủ (Còn tồn ${resolvedProduct.stock + oldQty}, cần bán ${qty})!`, "danger");
+      isStockInsufficient = true;
     }
 
     voucherItems.push({
@@ -3838,7 +3833,7 @@ function handleEscrowSubmit(e) {
   }
 
   const newVoucher = {
-    id: `KQ-${new Date().getFullYear().toString().substring(2)}-${(state.vouchers.filter(v => v.type.startsWith('escrow_')).length + 1).toString().padStart(4, '0')}-${machineSuffix}`,
+    id: `KQ-${new Date().getFullYear().toString().substring(2)}-${(state.vouchers.filter(v => v.type.startsWith('escrow_')).length + 1).toString().padStart(4, '0')}`,
     type,
     date: document.getElementById("esc-date").value,
     partnerId,
@@ -3861,9 +3856,6 @@ function handleEscrowSubmit(e) {
 // Xóa chứng từ khỏi sổ cái
 function deleteVoucher(id) {
   if (confirm(`Bạn có chắc chắn muốn xóa và hủy ghi sổ chứng từ "${id}"? Việc này sẽ tính toán lại toàn bộ giá trị tồn kho và công nợ.`)) {
-    const targetVoucher = state.vouchers.find(v => v.id === id);
-    const isPO = targetVoucher && targetVoucher.type === "purchase_order";
-
     trackDeletedIds([id]);
     state.vouchers = state.vouchers.filter(v => v.id !== id);
 
@@ -3876,14 +3868,6 @@ function deleteVoucher(id) {
     });
 
     saveState();
-    if (isPO) {
-      if (typeof executeSaveState === "function") {
-        executeSaveState();
-      }
-      if (cloudSyncActive && firebaseDb) {
-        showToast("⚡ Đã tự động sao lưu và đồng bộ lên đám mây!", "success");
-      }
-    }
     recalculateAccounting();
 
     // Tự động làm tươi tất cả các bảng và KPIs trên mọi tab
@@ -5494,7 +5478,167 @@ function cleanNumericUnitProducts() {
   }
 }
 
+async function restoreAndApplyS06Prices(force = false) {
+  if (!force && localStorage.getItem("db_restore_v6") === "true") {
+    return;
+  }
+  try {
+    // Nếu chạy tự động lần đầu (startup), xóa sạch database cũ về trạng thái gốc sạch
+    if (!force) {
+      console.log("Forcing database clean reset for version 6...");
+      if (typeof PREPOPULATED_DATABASE !== "undefined") {
+        state = JSON.parse(JSON.stringify(PREPOPULATED_DATABASE));
+      } else {
+        state = JSON.parse(JSON.stringify(DEFAULT_DATA));
+      }
+      // Khởi tạo các tài khoản số dư đầu kỳ
+      if (!state.initialBalances || Object.keys(state.initialBalances).length === 0) {
+        state.initialBalances = JSON.parse(JSON.stringify(DEFAULT_DATA.initialBalances));
+      }
+      if (!state.partnerOpeningBalances || Object.keys(state.partnerOpeningBalances).length === 0) {
+        state.partnerOpeningBalances = {};
+      }
+      state.vouchers = []; // Xóa sạch toàn bộ chứng từ cũ
+    }
 
+    // 1. Đọc và khôi phục danh mục từ Vat_tu__hang_hoa__dich_vu.xlsx
+    const vtBytes = await readExcelViaIPC("Vat_tu__hang_hoa__dich_vu.xlsx");
+    if (!vtBytes) return;
+
+    if (typeof XLSX === "undefined") {
+      console.warn("Chưa nạp thư viện XLSX");
+      return;
+    }
+    const wb = XLSX.read(vtBytes, { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+    if (rows.length < 3) return;
+
+    const restoredProducts = [];
+    for (let i = 2; i < rows.length; i++) {
+      const row = rows[i];
+      const id = String(row[0] || "").trim().toUpperCase();
+      const name = String(row[1] || "").trim();
+      if (!id || !name || id === "MÃ" || id === "TỔNG CỘNG") continue;
+
+      const unit = String(row[7] || "").trim();
+      const minStock = parseFloat(row[9]) || 0;
+      const stock = parseFloat(row[31]) || 0;
+      const avgCost = parseFloat(row[20]) || 0;
+      const totalValue = parseFloat(row[33]) || 0;
+      const group = String(row[3] || "").trim();
+      const inactiveVal = String(row[30] || "").trim();
+      const inactive = inactiveVal === "1" || inactiveVal === "Có" || inactiveVal === "True" || inactiveVal === "true";
+      const salePrice1 = parseFloat(row[21]) || 0;
+
+      restoredProducts.push({
+        id,
+        name,
+        unit,
+        stock,
+        avgCost,
+        totalValue,
+        initialStock: stock,
+        initialCost: avgCost,
+        salePrice1,
+        lastPurchasePrice: avgCost,
+        minStock,
+        group,
+        inactive,
+        nature: String(row[2] || "Vật tư hàng hóa").trim(),
+        defaultWarehouse: String(row[11] || "").trim(),
+        warehouseAccount: String(row[12] || "1561").trim(),
+        cogsAccount: String(row[13] || "632").trim(),
+        revenueAccount: String(row[14] || "51111").trim(),
+        excelRow: row
+      });
+    }
+
+    if (restoredProducts.length === 0) return;
+
+    // Thay thế danh mục sản phẩm hiện tại bằng danh mục sạch
+    state.products = restoredProducts;
+    console.log(`[Database Restore] Đã khôi phục ${state.products.length} sản phẩm từ file gốc.`);
+
+    // 2. Đọc và áp dụng đơn giá mới nhất từ S06 (gia_moi_tong_hop.csv)
+    const csvBytes = await readExcelViaIPC("gia_moi_tong_hop.csv");
+    let matchedCount = 0;
+    if (csvBytes) {
+      const text = new TextDecoder("utf-8").decode(csvBytes);
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length >= 2) {
+        const header = lines[0].split(",");
+        // Sửa lỗi Byte Order Mark (BOM) bằng cách replace /^\ufeff/
+        const cleanHeader = header.map(h => h.replace(/^\ufeff/, "").trim().toLowerCase());
+        const colMa = cleanHeader.indexOf("ma");
+        const colDg = cleanHeader.indexOf("don_gia_moi");
+
+        if (colMa !== -1 && colDg !== -1) {
+          const priceMap = {};
+          for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(",");
+            const ma = (cols[colMa] || "").trim().toUpperCase();
+            const dg = parseInt((cols[colDg] || "0").trim()) || 0;
+            if (ma && dg > 0) priceMap[ma] = dg;
+          }
+
+          state.products.forEach(p => {
+            const key = p.id.toUpperCase();
+            if (priceMap.hasOwnProperty(key)) {
+              const newPrice = priceMap[key];
+              p.avgCost = newPrice;
+              p.initialCost = newPrice;
+              p.totalValue = (p.stock || 0) * newPrice;
+              matchedCount++;
+            }
+          });
+        } else {
+          console.warn("[Database Restore] Không tìm thấy cột ma hoặc don_gia_moi trong csv:", cleanHeader);
+        }
+      }
+    }
+
+    // 3. Cập nhật số dư đầu kỳ TK 156
+    let newInvOpBal = 0;
+    state.products.forEach(p => {
+      newInvOpBal += (p.initialStock || 0) * (p.initialCost || 0);
+    });
+    if (state.initialBalances && state.initialBalances["156"]) {
+      state.initialBalances["156"].balance = newInvOpBal;
+    }
+    if (typeof rebalanceEquity === "function") rebalanceEquity();
+
+    // 4. Lưu CSDL và tính toán lại sổ sách kế toán
+    saveState();
+    recalculateAccounting();
+
+    // 5. Cập nhật giao diện
+    if (typeof renderInventoryTable === "function") renderInventoryTable();
+    if (typeof renderDashboard === "function") renderDashboard();
+    if (typeof populateProductLedgerDropdown === "function") populateProductLedgerDropdown();
+
+    // Hiển thị thông báo
+    setTimeout(() => {
+      showToast(`⚡ Đã khôi phục danh mục gốc (${state.products.length} hàng) và cập nhật đơn giá xuất S06 (${matchedCount} hàng) thành công!`, "success");
+    }, 1500);
+
+    localStorage.setItem("db_restore_v6", "true");
+  } catch (err) {
+    console.warn("Lỗi khôi phục danh mục và cập nhật giá S06:", err);
+  }
+}
+
+async function manuallyRestoreDatabaseFromExcel() {
+  if (confirm("Bạn có chắc chắn muốn nhập lại toàn bộ danh mục sản phẩm từ file gốc 'Vat_tu__hang_hoa__dich_vu.xlsx' và cập nhật đơn giá xuất từ 'gia_moi_tong_hop.csv'? Thao tác này sẽ khôi phục danh mục kho hàng về trạng thái sạch ban đầu của Rạng Đông.")) {
+    try {
+      showToast("Đang đọc file gốc và cập nhật đơn giá... Vui lòng đợi.", "info");
+      await restoreAndApplyS06Prices(true);
+    } catch (err) {
+      showToast(`Lỗi khôi phục: ${err.message}`, "danger");
+    }
+  }
+}
+window.manuallyRestoreDatabaseFromExcel = manuallyRestoreDatabaseFromExcel;
 
 function getVNAccountingAccounts(nature) {
   const nat = (nature || "").trim();
@@ -8184,17 +8328,16 @@ function parseExcelFile(file, type) {
               const unit = (row[11] || "Cái").toString().trim();
               const qty = Number(row[12]) || 0;
               const price = Number(row[13]) || 0;
-              const discountAmount = Number(row[15]) || 0;
+              const discount = Number(row[15]) || 0;
 
               const grossAmount = qty * price;
-              const amount = grossAmount - discountAmount;
-              const discountPercent = grossAmount > 0 ? Math.round((discountAmount / grossAmount) * 100 * 100) / 100 : 0;
+              const amount = grossAmount - discount;
 
               itemsArray.push({
                 productId: productId,
                 qty: qty,
                 price: price,
-                discount: discountPercent,
+                discount: discount,
                 amount: amount
               });
 
@@ -8701,12 +8844,6 @@ function parseExcelFile(file, type) {
         }
 
         saveState();
-        if (typeof executeSaveState === "function") {
-          executeSaveState();
-        }
-        if (cloudSyncActive && firebaseDb) {
-          showToast("⚡ Đã tự động sao lưu và đồng bộ lên đám mây!", "success");
-        }
         recalculateAccounting();
         showToast(`Đã nạp thành công ${count} đơn đặt hàng từ file Excel!`, "success");
         if (typeof filterPurchaseOrderTable === "function") filterPurchaseOrderTable();
@@ -9205,26 +9342,6 @@ function escapeFirebaseObject(obj) {
   return copy;
 }
 
-function firebaseCollectionToArray(collection) {
-  if (!collection) return [];
-  if (Array.isArray(collection)) {
-    return collection.filter(Boolean);
-  }
-  if (typeof collection === 'object') {
-    return Object.keys(collection).map(key => {
-      const item = collection[key];
-      if (item && typeof item === 'object') {
-        const unescapedId = unescapeFirebaseKey(key);
-        // Đảm bảo item.id khớp với key đã unescape
-        item.id = unescapedId;
-        return item;
-      }
-      return null;
-    }).filter(Boolean);
-  }
-  return [];
-}
-
 function unescapeFirebaseObject(obj) {
   if (!obj) return obj;
 
@@ -9239,29 +9356,6 @@ function unescapeFirebaseObject(obj) {
       }
     }
     copy.partnerOpeningBalances = unescapedBalances;
-  }
-
-  // Chuyển đổi các collection dạng Object/Array của Firebase về Array chuẩn của local
-  const collections = ['vouchers', 'partners', 'products', 'cashEntries', 'escrowItems'];
-  collections.forEach(col => {
-    if (copy[col]) {
-      copy[col] = firebaseCollectionToArray(copy[col]);
-    } else {
-      copy[col] = [];
-    }
-  });
-
-  // Chuyển đổi deletedIds dạng Object/Array về Array chuẩn
-  if (copy.deletedIds) {
-    if (Array.isArray(copy.deletedIds)) {
-      copy.deletedIds = copy.deletedIds.filter(Boolean);
-    } else if (typeof copy.deletedIds === 'object') {
-      copy.deletedIds = Object.keys(copy.deletedIds).map(unescapeFirebaseKey);
-    } else {
-      copy.deletedIds = [];
-    }
-  } else {
-    copy.deletedIds = [];
   }
 
   return copy;
@@ -9365,7 +9459,6 @@ function startFirebaseApp() {
     firebaseApp = firebase.initializeApp(config);
     firebaseDb = firebase.database();
     cloudSyncActive = true;
-    _incrementalListenersActive = false;
 
     let hasPulledOnStartup = false;
     let hasRegisteredListener = false;
@@ -9431,52 +9524,19 @@ function pullFromCloudOnStartup() {
         localStorage.setItem("rd_accounting_db", JSON.stringify(state));
         console.log("[SmartMerge] Dữ liệu khởi động đã được merge thành công!");
 
-        // Khởi tạo trạng thái đồng bộ tăng trưởng từ dữ liệu cloud tải về
-        _lastSyncedState = JSON.parse(JSON.stringify(cloudData));
-        _syncStartupTime = Date.now();
-        initIncrementalListeners();
-
-        // [FIX 5] Mở cờ cho phép push SAU KHI đã pull và merge xong
-        _cloudPullCompleted = true;
-
         // Cập nhật giao diện
         recalculateAccounting();
         renderDashboard();
         filterDebts();
         filterPartners();
         filterCash();
-
-        // [FIX 6] Đẩy bản đã merge ngược lên cloud để đồng bộ cho các máy khác
-        pushToCloud();
       } else {
         // Cơ sở dữ liệu đám mây trống (Lần kết nối đầu tiên) -> Tự động đẩy dữ liệu cục bộ (đã nạp từ Excel) lên đám mây
         console.log("Cơ sở dữ liệu đám mây trống. Tự động đồng bộ ngược dữ liệu cục bộ lên đám mây...");
-        
-        _lastSyncedState = {
-          vouchers: [],
-          partners: [],
-          products: [],
-          cashEntries: [],
-          escrowItems: [],
-          deletedIds: [],
-          _lastModified: 0
-        };
-        _syncStartupTime = Date.now();
-        initIncrementalListeners();
-
-        _cloudPullCompleted = true;
         pushToCloud();
       }
     })
     .catch((err) => {
-      // [FIX 7] Nếu pull thất bại (mất mạng), vẫn cho phép push sau 10 giây
-      // để không bị kẹt vĩnh viễn nếu mạng đứt lúc khởi động
-      console.warn("[CloudSync] Pull thất bại, sẽ cho phép push sau 10 giây.");
-      setTimeout(() => { 
-        _syncStartupTime = Date.now();
-        initIncrementalListeners();
-        _cloudPullCompleted = true; 
-      }, 10000);
       if (typeof addErrorLog === "function") {
         addErrorLog("pullFromCloudOnStartup", err.message, err);
       }
@@ -9496,7 +9556,7 @@ function forcePushToCloud() {
     state._lastModified = Date.now();
     saveState();
 
-    pushToCloud(true)
+    pushToCloud()
       .then(() => {
         showToast("Đã đồng bộ hóa ngược lên đám mây thành công!", "success");
         updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
@@ -9517,41 +9577,33 @@ function forcePullFromCloud() {
     return;
   }
 
-  if (confirm("Bạn có chắc chắn muốn TẢI VỀ và GHI ĐÈ toàn bộ dữ liệu hiện tại bằng dữ liệu trên đám mây?")) {
-    updateCloudSyncBadge(false, "Mây: Đang tải...", "#f59e0b");
-    firebaseDb.ref("rd_accounting_db").once("value")
-      .then((snapshot) => {
-        const rawData = snapshot.val();
-        if (rawData) {
-          const data = unescapeFirebaseObject(rawData);
-          state = data;
-          localStorage.setItem("rd_accounting_db", JSON.stringify(state));
-
-          // Reset baseline đồng bộ tăng trưởng
-          _lastSyncedState = JSON.parse(JSON.stringify(data));
-          _syncStartupTime = Date.now();
-          initIncrementalListeners();
-
-          recalculateAccounting();
-          renderDashboard();
-          filterDebts();
-          filterPartners();
-          filterCash();
-          updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
-          showToast("Tải dữ liệu từ Đám mây về máy này thành công!", "success");
-        } else {
-          showToast("Không tìm thấy dữ liệu trên Đám mây để tải về!", "warning");
-          updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
-        }
-      })
-      .catch((err) => {
-        if (typeof addErrorLog === "function") {
-          addErrorLog("forcePullFromCloud", err.message, err);
-        }
-        showToast("Lỗi khi tải dữ liệu đám mây: " + err.message, "danger");
+  updateCloudSyncBadge(false, "Mây: Đang tải...", "#f59e0b");
+  firebaseDb.ref("rd_accounting_db").once("value")
+    .then((snapshot) => {
+      const rawData = snapshot.val();
+      if (rawData) {
+        const data = unescapeFirebaseObject(rawData);
+        state = data;
+        localStorage.setItem("rd_accounting_db", JSON.stringify(state));
+        recalculateAccounting();
+        renderDashboard();
+        filterDebts();
+        filterPartners();
+        filterCash();
         updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
-      });
-  }
+        showToast("Tải dữ liệu từ Đám mây về máy này thành công!", "success");
+      } else {
+        showToast("Không tìm thấy dữ liệu trên Đám mây để tải về!", "warning");
+        updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
+      }
+    })
+    .catch((err) => {
+      if (typeof addErrorLog === "function") {
+        addErrorLog("forcePullFromCloud", err.message, err);
+      }
+      showToast("Lỗi khi tải dữ liệu đám mây: " + err.message, "danger");
+      updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
+    });
 }
 
 // ==========================================================================
@@ -9622,10 +9674,11 @@ function mergeStates(localState, cloudState) {
   const cloudTs = cloudState._lastModified || 0;
   const localTs = localState._lastModified || 0;
 
-  // [FIX 8] XÓA BỎ logic "local wins hoàn toàn" khi local mới hơn 5 phút
-  // Logic cũ gây mất dữ liệu: Máy A tắt lâu → bật lên → recalculate cập nhật
-  // timestamp local thành "mới nhất" → lần merge tiếp theo bỏ qua hết cloud data.
-  // Thay vào đó, LUÔN merge đầy đủ cả 2 nguồn dữ liệu.
+  // Nếu cloud cũ hơn local quá 5 phút → local wins hoàn toàn
+  if (localTs - cloudTs > 5 * 60 * 1000) {
+    console.log("[SmartMerge] Local mới hơn cloud >5 phút → local wins.");
+    return { ...localState };
+  }
 
   // Gộp deletedIds từ cả 2 nguồn để không tái xuất hiện dữ liệu đã xóa
   const mergedDeletedIds = Array.from(
@@ -9657,15 +9710,11 @@ function mergeStates(localState, cloudState) {
   return merged;
 }
 
-let _lastSyncedState = null;
-let _syncStartupTime = 0;
-let _incrementalListenersActive = false;
-
 let isPushing = false;
 let pushPending = false;
 let _isMergePushing = false;
 
-async function pushToCloud(forceFullPush = false) {
+async function pushToCloud() {
   if (!cloudSyncActive || !firebaseDb) return;
   if (isPushing) {
     pushPending = true;
@@ -9685,155 +9734,80 @@ async function pushToCloud(forceFullPush = false) {
     }
 
     const escapedState = escapeFirebaseObject(state);
-    const collections = ['vouchers', 'partners', 'products', 'cashEntries', 'escrowItems'];
 
-    const isFullPush = forceFullPush || !_lastSyncedState;
+    // Tách các thành phần lớn
+    const { vouchers, partners, products, ...metadata } = escapedState;
 
-    if (isFullPush) {
-      console.log("[CloudSync] Thực hiện đẩy toàn bộ dữ liệu lên cloud...");
-      
-      // 1. Ghi nhận cờ _isSyncing = true lên Cloud đầu tiên
-      await firebaseDb.ref("rd_accounting_db/_isSyncing").set(true);
+    // 1. Ghi nhận cờ _isSyncing = true lên Cloud đầu tiên
+    await firebaseDb.ref("rd_accounting_db/_isSyncing").set(true);
 
-      // 2. Đẩy metadata và cấu hình nhỏ
-      const { vouchers, partners, products, cashEntries, escrowItems, deletedIds, ...metadata } = escapedState;
-      const metaWithoutTs = { ...metadata };
-      delete metaWithoutTs._lastModified;
-      await firebaseDb.ref("rd_accounting_db").update(metaWithoutTs);
+    // 2. Đẩy metadata và cấu hình nhỏ (tạm thời không bao gồm _lastModified)
+    const metaWithoutTs = { ...metadata };
+    delete metaWithoutTs._lastModified;
+    await firebaseDb.ref("rd_accounting_db").update(metaWithoutTs);
 
-      // 3. Đẩy các collections dạng Object (được khóa bởi ID đã escaped)
-      for (const col of collections) {
-        const colObj = {};
-        const items = escapedState[col] || [];
-        items.forEach(item => {
-          if (item && item.id) {
-            const escapedId = escapeFirebaseKey(item.id);
-            colObj[escapedId] = item;
-          }
-        });
-        // Sử dụng .set() để ghi đè cấu trúc mảng cũ thành cấu trúc đối tượng mới
-        await firebaseDb.ref(`rd_accounting_db/${col}`).set(colObj);
-      }
-
-      // 4. Đẩy deletedIds dưới dạng Object
-      const deletedObj = {};
-      const delIds = escapedState.deletedIds || [];
-      delIds.forEach(id => {
-        if (id) {
-          deletedObj[escapeFirebaseKey(id)] = Date.now();
-        }
-      });
-      await firebaseDb.ref("rd_accounting_db/deletedIds").set(deletedObj);
-
-      // 5. Cập nhật timestamp sửa đổi cuối
-      await firebaseDb.ref("rd_accounting_db/_lastModified").set(escapedState._lastModified);
-
-      // 6. Gỡ cờ _isSyncing = false
-      await firebaseDb.ref("rd_accounting_db/_isSyncing").set(false);
-
+    // 3. Đẩy products (thường nhỏ)
+    if (products) {
+      await firebaseDb.ref("rd_accounting_db/products").set(products);
     } else {
-      // ĐỒNG BỘ TĂNG TRƯỞNG (INCREMENTAL SYNC)
-      console.log("[CloudSync] Thực hiện đồng bộ tăng trưởng...");
-
-      // Tách cấu hình chung và so sánh
-      const { vouchers, partners, products, cashEntries, escrowItems, deletedIds, ...metadata } = escapedState;
-      const { vouchers: sV, partners: sPa, products: sPr, cashEntries: sC, escrowItems: sE, deletedIds: sDel, ...sMeta } = _lastSyncedState;
-
-      // So sánh cấu hình chung, nếu khác thì cập nhật
-      const metaUpdates = {};
-      let hasMetaChanges = false;
-      for (const key in metadata) {
-        if (JSON.stringify(metadata[key]) !== JSON.stringify(sMeta[key])) {
-          metaUpdates[key] = metadata[key];
-          hasMetaChanges = true;
-        }
-      }
-      if (hasMetaChanges) {
-        console.log("[IncrementalSync] Đẩy thay đổi cho cấu hình chung:", Object.keys(metaUpdates));
-        await firebaseDb.ref("rd_accounting_db").update(metaUpdates);
-      }
-
-      const syncTime = Date.now();
-
-      // So sánh từng collection
-      for (const col of collections) {
-        const localItems = escapedState[col] || [];
-        const syncedItems = _lastSyncedState[col] || [];
-
-        const localMap = new Map();
-        localItems.forEach(item => { if (item && item.id) localMap.set(item.id, item); });
-
-        const syncedMap = new Map();
-        syncedItems.forEach(item => { if (item && item.id) syncedMap.set(item.id, item); });
-
-        // Tìm phần tử thêm hoặc sửa
-        const updates = {};
-        let hasUpdates = false;
-
-        localMap.forEach((item, id) => {
-          const syncedItem = syncedMap.get(id);
-          if (!syncedItem || JSON.stringify(item) !== JSON.stringify(syncedItem)) {
-            // Đánh dấu mốc thời gian sửa đổi cho phần tử này
-            item._updatedAt = syncTime;
-            
-            const escapedId = escapeFirebaseKey(id);
-            updates[escapedId] = item;
-            hasUpdates = true;
-          }
-        });
-
-        if (hasUpdates) {
-          console.log(`[IncrementalSync] Đẩy cập nhật cho ${col}:`, Object.keys(updates));
-          await firebaseDb.ref(`rd_accounting_db/${col}`).update(updates);
-        }
-
-        // Tìm phần tử bị xóa
-        const deletes = [];
-        syncedMap.forEach((item, id) => {
-          if (!localMap.has(id)) {
-            deletes.push(id);
-          }
-        });
-
-        if (deletes.length > 0) {
-          console.log(`[IncrementalSync] Đẩy yêu cầu xóa cho ${col}:`, deletes);
-          const deletePayload = {};
-          const deletedIdsPayload = {};
-          
-          deletes.forEach(id => {
-            const escapedId = escapeFirebaseKey(id);
-            deletePayload[escapedId] = null;
-            deletedIdsPayload[escapedId] = syncTime;
-          });
-
-          // Xóa trên nhánh của collection
-          await firebaseDb.ref(`rd_accounting_db/${col}`).update(deletePayload);
-          // Ghi vào nhánh deletedIds
-          await firebaseDb.ref("rd_accounting_db/deletedIds").update(deletedIdsPayload);
-        }
-      }
-
-      // Xử lý deletedIds mới được thêm mà không thông qua việc so sánh mảng (đã có sẵn trong localData.deletedIds)
-      const localDelIds = escapedState.deletedIds || [];
-      const syncedDelIds = _lastSyncedState.deletedIds || [];
-      const newDelIds = localDelIds.filter(id => id && !syncedDelIds.includes(id));
-      if (newDelIds.length > 0) {
-        console.log("[IncrementalSync] Đẩy thêm deletedIds:", newDelIds);
-        const delPayload = {};
-        newDelIds.forEach(id => {
-          delPayload[escapeFirebaseKey(id)] = syncTime;
-        });
-        await firebaseDb.ref("rd_accounting_db/deletedIds").update(delPayload);
-      }
-
-      // Cập nhật timestamp chung
-      await firebaseDb.ref("rd_accounting_db/_lastModified").set(escapedState._lastModified);
+      await firebaseDb.ref("rd_accounting_db/products").set(null);
     }
 
-    // Cập nhật lại _lastSyncedState thành bản sao của state hiện tại
-    _lastSyncedState = JSON.parse(JSON.stringify(state));
+    // 4. Đẩy partners theo khối (500 đối tác/khối)
+    if (partners && partners.length > 0) {
+      const cloudPartnersLength = await getCloudArrayLength("rd_accounting_db/partners");
+      if (cloudPartnersLength > partners.length) {
+        const cleanupObj = {};
+        for (let i = partners.length; i < cloudPartnersLength; i++) {
+          cleanupObj[i] = null;
+        }
+        await firebaseDb.ref("rd_accounting_db/partners").update(cleanupObj);
+      }
 
-    console.log("Đã đồng bộ hóa dữ liệu thành công!");
+      const chunkSize = 500;
+      for (let i = 0; i < partners.length; i += chunkSize) {
+        const chunk = partners.slice(i, i + chunkSize);
+        const updateObj = {};
+        chunk.forEach((item, index) => {
+          updateObj[i + index] = item;
+        });
+        await firebaseDb.ref("rd_accounting_db/partners").update(updateObj);
+      }
+    } else {
+      await firebaseDb.ref("rd_accounting_db/partners").set(null);
+    }
+
+    // 5. Đẩy vouchers theo khối (500 chứng từ/khối)
+    if (vouchers && vouchers.length > 0) {
+      const cloudVouchersLength = await getCloudArrayLength("rd_accounting_db/vouchers");
+      if (cloudVouchersLength > vouchers.length) {
+        const cleanupObj = {};
+        for (let i = vouchers.length; i < cloudVouchersLength; i++) {
+          cleanupObj[i] = null;
+        }
+        await firebaseDb.ref("rd_accounting_db/vouchers").update(cleanupObj);
+      }
+
+      const chunkSize = 500;
+      for (let i = 0; i < vouchers.length; i += chunkSize) {
+        const chunk = vouchers.slice(i, i + chunkSize);
+        const updateObj = {};
+        chunk.forEach((item, index) => {
+          updateObj[i + index] = item;
+        });
+        await firebaseDb.ref("rd_accounting_db/vouchers").update(updateObj);
+      }
+    } else {
+      await firebaseDb.ref("rd_accounting_db/vouchers").set(null);
+    }
+
+    // 6. Cập nhật timestamp _lastModified của bản ghi hoàn chỉnh
+    await firebaseDb.ref("rd_accounting_db/_lastModified").set(escapedState._lastModified);
+
+    // 7. Hoàn tất quá trình đồng bộ, gỡ cờ _isSyncing = false
+    await firebaseDb.ref("rd_accounting_db/_isSyncing").set(false);
+
+    console.log("Đã đồng bộ hóa state lên đám mây thành công theo từng khối!");
     if (typeof updateCloudSyncBadge === "function") {
       updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
     }
@@ -9845,20 +9819,21 @@ async function pushToCloud(forceFullPush = false) {
     if (typeof updateCloudSyncBadge === "function") {
       updateCloudSyncBadge(false, "Mây: Lỗi đẩy", "#ef4444");
     }
-    // Khi push thất bại → retry sau 5 giây để không mất dữ liệu
+    // [FIX 3] Khi push thất bại → retry sau 5 giây để không mất dữ liệu khi mạng chập chờn
     setTimeout(() => {
       if (cloudSyncActive && firebaseDb && !isPushing) {
         console.log("[CloudSync] Thử lại push sau lỗi...");
-        pushPending = false;
-        pushToCloud(forceFullPush);
+        pushPending = false; // Reset để pushToCloud không bị chặn
+        pushToCloud();
       }
     }, 5000);
   } finally {
     isPushing = false;
     _isMergePushing = false;
+    // Nếu có push đang xếp hàng (do bị block lúc đang push), xử lý ngay
     if (pushPending) {
       pushPending = false;
-      setTimeout(() => pushToCloud(forceFullPush), 100);
+      setTimeout(() => pushToCloud(), 100);
     }
   }
 }
@@ -9879,190 +9854,61 @@ async function getCloudArrayLength(path) {
 }
 
 function listenToCloudChanges() {
-  // Không dùng listener root .on("value") nữa để tối ưu hiệu năng.
-  // Các bộ lắng nghe tăng trưởng sẽ tự động kích hoạt sau khi pull xong ở startup.
-}
-
-function initIncrementalListeners() {
   if (!cloudSyncActive || !firebaseDb) return;
-  if (_incrementalListenersActive) return;
-  _incrementalListenersActive = true;
 
-  // Sử dụng sai số 2 giờ so với thời điểm startup để tránh lỗi lệch múi giờ/đồng hồ hệ thống giữa các máy
-  const queryTime = (_syncStartupTime || Date.now()) - 2 * 60 * 60 * 1000;
-  console.log(`[CloudSync] Bắt đầu lắng nghe tăng trưởng từ thời điểm: ${new Date(queryTime).toLocaleString()}`);
+  firebaseDb.ref("rd_accounting_db").off("value");
+  firebaseDb.ref("rd_accounting_db").on("value", (snapshot) => {
+    // Bỏ qua event do chính lần push merge của máy này gây ra
+    if (_isMergePushing) return;
 
-  const collections = ['vouchers', 'partners', 'products', 'cashEntries', 'escrowItems'];
+    const rawData = snapshot.val();
+    if (!rawData) return;
 
-  collections.forEach(col => {
-    const colRef = firebaseDb.ref(`rd_accounting_db/${col}`);
-    
-    // Tắt các lắng nghe cũ nếu có
-    colRef.off();
+    // Bỏ qua nếu máy trạm khác đang đẩy dữ liệu (tránh đọc dữ liệu dở dang)
+    if (rawData._isSyncing) return;
 
-    // Lắng nghe phần tử được thêm mới hoặc cập nhật có _updatedAt >= queryTime
-    colRef.orderByChild("_updatedAt").startAt(queryTime).on("child_added", (snapshot) => {
-      handleIncrementalUpdate(col, snapshot);
-    });
+    const cloudData = unescapeFirebaseObject(rawData);
 
-    colRef.orderByChild("_updatedAt").startAt(queryTime).on("child_changed", (snapshot) => {
-      handleIncrementalUpdate(col, snapshot);
-    });
-  });
-
-  // Lắng nghe các ID bị xóa
-  const deletedRef = firebaseDb.ref("rd_accounting_db/deletedIds");
-  deletedRef.off();
-  deletedRef.orderByValue().startAt(queryTime).on("child_added", (snapshot) => {
-    handleIncrementalDelete(snapshot);
-  });
-}
-
-function handleIncrementalUpdate(collectionName, snapshot) {
-  // Bỏ qua sự kiện do chính lần push của máy này gây ra
-  if (_isMergePushing || isPushing) return;
-
-  const rawItem = snapshot.val();
-  if (!rawItem) return;
-
-  const unescapedKey = unescapeFirebaseKey(snapshot.key);
-  
-  // Clone đối tượng để tránh sửa trực tiếp
-  const item = { ...rawItem };
-  item.id = unescapedKey;
-
-  // Lấy trạng thái local hiện tại
-  const localStr = localStorage.getItem("rd_accounting_db") || "";
-  let localData = null;
-  try {
-    localData = JSON.parse(localStr);
-  } catch (e) {
-    localData = state;
-  }
-
-  if (!localData) return;
-  if (!localData[collectionName]) localData[collectionName] = [];
-
-  // Tìm xem item đã tồn tại trong local chưa
-  const index = localData[collectionName].findIndex(x => x && x.id === item.id);
-  const localItem = index !== -1 ? localData[collectionName][index] : null;
-
-  // Kiểm tra timestamp để tránh ghi đè dữ liệu mới hơn của local
-  const localTs = (localItem && localItem._updatedAt) || 0;
-  const cloudTs = item._updatedAt || 0;
-
-  if (localItem && localTs >= cloudTs) {
-    // Local đã mới hơn hoặc bằng cloud, bỏ qua
-    return;
-  }
-
-  console.log(`[IncrementalSync] Nhận cập nhật từ cloud cho ${collectionName}/${item.id} (Cloud TS: ${cloudTs}, Local TS: ${localTs})`);
-
-  // Kiểm tra xem ID này có nằm trong danh sách đã xóa không
-  const deletedSet = new Set(localData.deletedIds || []);
-  if (deletedSet.has(item.id)) {
-    // Nếu ID này đã bị xóa cục bộ rồi, bỏ qua
-    return;
-  }
-
-  // Cập nhật vào mảng cục bộ
-  if (index !== -1) {
-    localData[collectionName][index] = item;
-  } else {
-    localData[collectionName].push(item);
-  }
-
-  // Cập nhật timestamp của database cục bộ
-  localData._lastModified = Date.now();
-
-  // Lưu lại và đồng bộ biến toàn cục
-  state = localData;
-  localStorage.setItem("rd_accounting_db", JSON.stringify(state));
-
-  // Cập nhật bản sao đã đồng bộ để tránh push lại chính nó
-  if (_lastSyncedState) {
-    if (!_lastSyncedState[collectionName]) _lastSyncedState[collectionName] = [];
-    const syncIndex = _lastSyncedState[collectionName].findIndex(x => x && x.id === item.id);
-    if (syncIndex !== -1) {
-      _lastSyncedState[collectionName][syncIndex] = item;
-    } else {
-      _lastSyncedState[collectionName].push(item);
+    // [FIX 2] Dùng khoảng dung sai 2 giây thay vì so sánh tuyệt đối
+    // Clock của 2 máy có thể lệch nhau vài giây → dùng <= localTs sẽ bỏ sót dữ liệu mới
+    const cloudTs = cloudData._lastModified || 0;
+    const localTs = state._lastModified || 0;
+    const CLOCK_TOLERANCE_MS = 2000; // 2 giây dung sai đồng hồ giữa các máy
+    if (cloudTs > 0 && localTs > 0 && cloudTs < localTs - CLOCK_TOLERANCE_MS) {
+      // Cloud thực sự cũ hơn local rõ ràng (cách nhau > 2s), bỏ qua
+      return;
     }
-    _lastSyncedState._lastModified = localData._lastModified;
-  }
 
-  // Cập nhật giao diện
-  recalculateAccounting();
-  renderDashboard();
-  filterDebts();
-  filterPartners();
-  filterCash();
-}
+    const localStr = localStorage.getItem("rd_accounting_db") || "";
+    const cloudStr = JSON.stringify(cloudData);
 
-function handleIncrementalDelete(snapshot) {
-  if (_isMergePushing || isPushing) return;
+    if (localStr === cloudStr) return; // Không có thay đổi, bỏ qua
 
-  const deletedId = unescapeFirebaseKey(snapshot.key);
-  const timestamp = snapshot.val();
+    console.log("[SmartMerge] Phát hiện thay đổi từ cloud, đang merge thông minh...");
 
-  console.log(`[IncrementalSync] Nhận yêu cầu xóa ID: ${deletedId} từ cloud (TS: ${timestamp})`);
-
-  const localStr = localStorage.getItem("rd_accounting_db") || "";
-  let localData = null;
-  try {
-    localData = JSON.parse(localStr);
-  } catch (e) {
-    localData = state;
-  }
-
-  if (!localData) return;
-
-  let changed = false;
-  
-  // Xóa khỏi các collection
-  const collections = ['vouchers', 'partners', 'products', 'cashEntries', 'escrowItems'];
-  collections.forEach(col => {
-    if (localData[col]) {
-      const originalLength = localData[col].length;
-      localData[col] = localData[col].filter(x => x && x.id !== deletedId);
-      if (localData[col].length !== originalLength) {
-        changed = true;
-      }
+    let localData = null;
+    try {
+      localData = JSON.parse(localStr);
+    } catch (e) {
+      localData = state;
     }
-  });
 
-  // Đưa vào danh sách deletedIds cục bộ nếu chưa có
-  if (!localData.deletedIds) localData.deletedIds = [];
-  if (!localData.deletedIds.includes(deletedId)) {
-    localData.deletedIds.push(deletedId);
-    changed = true;
-  }
+    // Thực hiện Smart Merge: gộp local + cloud, giữ lại tất cả
+    const merged = mergeStates(localData, cloudData);
+    merged._lastModified = Date.now();
 
-  if (changed) {
-    localData._lastModified = Date.now();
-    state = localData;
+    state = merged;
     localStorage.setItem("rd_accounting_db", JSON.stringify(state));
 
-    // Cập nhật bản sao đã đồng bộ
-    if (_lastSyncedState) {
-      collections.forEach(col => {
-        if (_lastSyncedState[col]) {
-          _lastSyncedState[col] = _lastSyncedState[col].filter(x => x && x.id !== deletedId);
-        }
-      });
-      if (!_lastSyncedState.deletedIds) _lastSyncedState.deletedIds = [];
-      if (!_lastSyncedState.deletedIds.includes(deletedId)) {
-        _lastSyncedState.deletedIds.push(deletedId);
-      }
-      _lastSyncedState._lastModified = localData._lastModified;
-    }
+    // Đẩy bản merged ngược lên cloud để đồng bộ cho máy kia
+    pushToCloud();
 
     recalculateAccounting();
     renderDashboard();
     filterDebts();
     filterPartners();
     filterCash();
-  }
+  });
 }
 
 function toggleCloudSyncInputs() {
@@ -12170,7 +12016,7 @@ function switchPurchaseSubTab(subTabId) {
 
 function generateNextPurchaseOrderVoucherId() {
   const prefix = `ĐMH`;
-  const regex = /^ĐMH(\d+)(?:-[A-Z0-9]+)?$/;
+  const regex = /^ĐMH(\d+)$/;
   let maxNum = 0;
 
   state.vouchers.forEach(v => {
@@ -12183,7 +12029,7 @@ function generateNextPurchaseOrderVoucherId() {
     }
   });
 
-  return `${prefix}${(maxNum + 1).toString().padStart(5, '0')}-${machineSuffix}`;
+  return `${prefix}${(maxNum + 1).toString().padStart(5, '0')}`;
 }
 
 function addPurchaseOrderFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
@@ -12355,7 +12201,6 @@ function handlePurchaseOrderSubmit(e) {
     taxAmount: 0
   };
 
-  const isEditing = !!editingPurchaseOrderId;
   if (editingPurchaseOrderId) {
     const idx = state.vouchers.findIndex(v => v.id === editingPurchaseOrderId);
     if (idx !== -1) {
@@ -12370,16 +12215,10 @@ function handlePurchaseOrderSubmit(e) {
   }
 
   saveState();
-  if (typeof executeSaveState === "function") {
-    executeSaveState();
-  }
-  if (cloudSyncActive && firebaseDb) {
-    showToast("⚡ Đã tự động sao lưu và đồng bộ lên đám mây!", "success");
-  }
   recalculateAccounting();
 
   closeModal("modal-add-purchase-order");
-  showToast(isEditing ? "Cập nhật đơn đặt hàng thành công!" : "Lập đơn đặt hàng thành công!", "success");
+  showToast(editingPurchaseOrderId ? "Cập nhật đơn đặt hàng thành công!" : "Lập đơn đặt hàng thành công!", "success");
 }
 
 function editPurchaseOrderVoucher(id) {
@@ -12608,12 +12447,6 @@ function batchDeletePurchaseOrders() {
     state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
 
     saveState();
-    if (typeof executeSaveState === "function") {
-      executeSaveState();
-    }
-    if (cloudSyncActive && firebaseDb) {
-      showToast("⚡ Đã tự động sao lưu và đồng bộ lên đám mây!", "success");
-    }
     recalculateAccounting();
 
     const master = document.getElementById("check-all-purchase-order");
