@@ -17,6 +17,3 @@ dist/
 out/
 .electron-builder/
 dist-installer/
-backup/
-*.log
-
