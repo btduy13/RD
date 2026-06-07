@@ -370,22 +370,35 @@
           <!-- Hàng Biểu đồ và Lịch sử Giao dịch nhanh -->
           <div class="dashboard-details-row">
 
-            <!-- Biểu đồ cột tự vẽ offline -->
+            <!-- Bảng cảnh báo tồn kho (tồn âm & tồn thấp) -->
             <div class="chart-card">
               <div class="card-header-bar">
-                <span class="card-title">
+                <span class="card-title" style="color: var(--color-danger);">
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
                     style="width: 20px; height: 20px;">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
                     </path>
                   </svg>
-                  Phân tích Doanh thu & Giá vốn
+                  Cảnh báo Kho hàng (Tồn âm & Tồn thấp)
                 </span>
                 <span class="header-subtitle">Tính toán tự động theo thời gian thực</span>
               </div>
-              <div class="chart-container-inner" id="dashboard-chart-container">
-                <!-- SVG Chart sẽ được vẽ động bằng Javascript ở đây -->
+              <div class="table-responsive" style="flex-grow: 1; max-height: 290px; overflow-y: auto;">
+                <table class="data-table" style="font-size: 12px; width: 100%;">
+                  <thead>
+                    <tr>
+                      <th>Mã hàng</th>
+                      <th>Tên hàng</th>
+                      <th class="text-right">Tồn thực tế</th>
+                      <th class="text-right">Tồn tối thiểu</th>
+                      <th style="text-align: center;">Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dashboard-stock-alerts">
+                    <!-- Sẽ được vẽ động bằng Javascript ở đây -->
+                  </tbody>
+                </table>
               </div>
             </div>
 

@@ -1325,8 +1325,8 @@ function renderDashboard() {
     escrowValueEl.innerText = formatVND(bal244 + bal344);
   }
 
-  // RENDER BIỂU ĐỒ OFFLINE BẰNG SVG TRỰC QUAN
-  renderDashboardSVGChart();
+  // RENDER CẢNH BÁO TỒN KHO (TỒN ÂM & TỒN THẤP)
+  renderDashboardStockAlerts();
 
   // RENDER HOẠT ĐỘNG GẦN ĐÂY
   renderRecentActivities();
@@ -1533,86 +1533,44 @@ function renderDashboardDebts() {
   }
 }
 
-function renderDashboardSVGChart() {
-  const container = document.getElementById("dashboard-chart-container");
-  if (!container) return;
+function renderDashboardStockAlerts() {
+  const tbody = document.getElementById("dashboard-stock-alerts");
+  if (!tbody) return;
 
-  const fromDate = document.getElementById("search-dashboard-from") ? document.getElementById("search-dashboard-from").value : "";
-  const toDate = document.getElementById("search-dashboard-to") ? document.getElementById("search-dashboard-to").value : "";
+  const alerts = state.products.filter(p => p.stock < 0 || p.stock < (p.minStock || 0));
 
-  // Lấy dữ liệu bán hàng trong khoảng thời gian hoặc mặc định
-  let salesVouchers = state.vouchers.filter(v => v.type === "sales");
-  if (fromDate) salesVouchers = salesVouchers.filter(v => v.date >= fromDate);
-  if (toDate) salesVouchers = salesVouchers.filter(v => v.date <= toDate);
-  salesVouchers = salesVouchers.slice(-5);
+  alerts.sort((a, b) => {
+    const aIsNegative = a.stock < 0;
+    const bIsNegative = b.stock < 0;
+    if (aIsNegative && !bIsNegative) return -1;
+    if (!aIsNegative && bIsNegative) return 1;
+    return a.stock - b.stock;
+  });
 
-  if (salesVouchers.length === 0) {
-    container.innerHTML = `<div style="color: var(--text-muted); font-size: 13px; padding: 20px; text-align: center;">Chưa có giao dịch bán hàng nào trong khoảng thời gian này.</div>`;
+  if (alerts.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--color-success); padding: 30px; font-weight: 600;">✅ Tất cả hàng hóa đều trong giới hạn tồn an toàn.</td></tr>`;
     return;
   }
 
-  // Xác định cực đại tiền để định thang tỉ lệ
-  let maxMoney = 1000000;
-  salesVouchers.forEach(v => {
-    const totalAmount = v.totalAmount - (v.taxAmount || 0);
-    const cogs = v.cogsAmount || 0;
-    if (totalAmount > maxMoney) maxMoney = totalAmount;
-    if (cogs > maxMoney) maxMoney = cogs;
-  });
-  maxMoney = maxMoney * 1.15;
-
-  let barsHTML = "";
-  const chartHeight = 200;
-  const barWidth = 20;
-  const groupSpacing = 48;
-
-  salesVouchers.forEach((v, index) => {
-    const revVal = v.totalAmount - (v.taxAmount || 0);
-    const cogsVal = v.cogsAmount || 0;
-
-    const revHeight = (revVal / maxMoney) * chartHeight;
-    const cogsHeight = (cogsVal / maxMoney) * chartHeight;
-
-    const xPos = 40 + index * (barWidth * 2 + groupSpacing);
-    const revY = 220 - revHeight;
-    const cogsY = 220 - cogsHeight;
-
-    // Cột Doanh thu (Màu xanh teal mượt mà)
-    barsHTML += `
-      <g>
-        <rect x="${xPos}" y="${revY}" width="${barWidth}" height="${revHeight}" fill="#0ea5e9" rx="4"/>
-        <text x="${xPos + barWidth / 2}" y="${revY - 6}" font-size="9" fill="var(--text-primary)" text-anchor="middle" font-weight="700">${Math.round(revVal / 1000)}k</text>
-      </g>
+  tbody.innerHTML = alerts.map(p => {
+    const isNegative = p.stock < 0;
+    const minStock = p.minStock || 0;
+    const badgeClass = isNegative ? "badge-danger" : "badge-warning";
+    const badgeText = isNegative ? "Tồn âm" : "Tồn thấp";
+    const stockStyle = isNegative ? "color: var(--color-danger); font-weight: 800;" : "color: var(--color-warning); font-weight: 700;";
+    
+    return `
+      <tr>
+        <td class="font-numeric" style="color: var(--color-primary); font-weight:700;">${p.id}</td>
+        <td style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;" title="${escapeHtmlAttr(p.name)}">${p.name}</td>
+        <td class="text-right font-numeric" style="${stockStyle}">${p.stock}</td>
+        <td class="text-right font-numeric" style="color: var(--text-secondary);">${minStock}</td>
+        <td style="text-align: center;">
+          <span class="badge ${badgeClass}">${badgeText}</span>
+        </td>
+      </tr>
     `;
-
-    // Cột Giá vốn (Màu cam sáng ấm áp)
-    barsHTML += `
-      <g>
-        <rect x="${xPos + barWidth + 6}" y="${cogsY}" width="${barWidth}" height="${cogsHeight}" fill="#f59e0b" rx="4"/>
-        <text x="${xPos + barWidth + 6 + barWidth / 2}" y="${cogsY - 6}" font-size="9" fill="var(--text-primary)" text-anchor="middle" font-weight="700">${Math.round(cogsVal / 1000)}k</text>
-      </g>
-    `;
-
-    // Nhãn trục X (Mã chứng từ ngắn gọn)
-    const label = v.id.includes("-") ? v.id.split("-").pop() : (v.id.length > 8 ? v.id.substring(8) : v.id);
-    barsHTML += `
-      <text x="${xPos + barWidth + 3}" y="240" font-size="10" fill="var(--text-secondary)" text-anchor="middle" font-weight="600">${label}</text>
-    `;
-  });
-
-  container.innerHTML = `
-    <svg class="svg-chart" viewBox="0 0 500 260" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;">
-      <line x1="20" y1="220" x2="480" y2="220" stroke="var(--border-color)" stroke-width="2"/>
-      ${barsHTML}
-      <g transform="translate(20, 10)">
-        <rect x="0" y="0" width="12" height="12" fill="#0ea5e9" rx="2"/>
-        <text x="18" y="10" font-size="11" fill="var(--text-secondary)" font-weight="600">Doanh thu bán</text>
-        
-        <rect x="120" y="0" width="12" height="12" fill="#f59e0b" rx="2"/>
-        <text x="138" y="10" font-size="11" fill="var(--text-secondary)" font-weight="600">Giá vốn hàng bán</text>
-      </g>
-    </svg>
-  `;
+  }).join("");
 }
 
 function renderRecentActivities() {
@@ -3464,8 +3422,7 @@ function handleSalesSubmit(e) {
       }
     }
     if ((resolvedProduct.stock + oldQty) < qty) {
-      showToast(`Hàng tồn kho sản phẩm "${resolvedProduct.name}" không đủ (Còn tồn ${resolvedProduct.stock + oldQty}, cần bán ${qty})!`, "danger");
-      isStockInsufficient = true;
+      showToast(`Cảnh báo: Hàng tồn kho sản phẩm "${resolvedProduct.name}" bị âm (Còn tồn ${resolvedProduct.stock + oldQty}, bán ${qty})!`, "warning");
     }
 
     voucherItems.push({
