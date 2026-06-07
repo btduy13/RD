@@ -4,6 +4,13 @@
    ========================================================================== */
 
 // 1. STATE TOÀN CỤC CỦA ỨNG DỤNG
+let machineSuffix = localStorage.getItem("rd_accounting_machine_suffix");
+if (!machineSuffix) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  machineSuffix = chars[Math.floor(Math.random() * chars.length)];
+  localStorage.setItem("rd_accounting_machine_suffix", machineSuffix);
+}
+
 let state = {
   companyName: "",
   address: "",
@@ -888,6 +895,11 @@ function updateCompanyUI() {
   document.getElementById("setting-tax-code").value = state.taxCode || "";
   document.getElementById("setting-address").value = state.address || "";
 
+  const machineSuffixEl = document.getElementById("setting-machine-suffix");
+  if (machineSuffixEl) {
+    machineSuffixEl.value = machineSuffix || "";
+  }
+
   // Toggle active button Thông tư
   if (state.accountingStandard === "TT200") {
     document.getElementById("btn-standard-200").classList.add("active");
@@ -903,6 +915,16 @@ function saveCompanySettings() {
   state.companyName = document.getElementById("setting-company-name").value.trim() || "Công Ty Cổ Phần Rạng Đông";
   state.taxCode = document.getElementById("setting-tax-code").value.trim();
   state.address = document.getElementById("setting-address").value.trim() || "255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh";
+
+  const machineSuffixEl = document.getElementById("setting-machine-suffix");
+  if (machineSuffixEl) {
+    const val = machineSuffixEl.value.trim().toUpperCase();
+    if (val) {
+      localStorage.setItem("rd_accounting_machine_suffix", val);
+      machineSuffix = val;
+    }
+  }
+
   saveState();
   updateCompanyUI();
   showToast("Lưu thông tin doanh nghiệp thành công!", "success");
@@ -3369,7 +3391,8 @@ function resetSalesForm() {
 function generateNextPurchaseVoucherId(paymentMethod) {
   const currentYear = new Date().getFullYear().toString().substring(2);
   const prefix = `MH-${currentYear}-`;
-  const regex = new RegExp(`^MH-${currentYear}-(\\d+)$`);
+  // Cho phép ký hiệu máy trạm tùy chọn ở cuối, ví dụ: MH-26-0001-A
+  const regex = new RegExp(`^MH-${currentYear}-(\\d+)(?:-[A-Z0-9]+)?$`);
   let maxNum = 0;
 
   state.vouchers.forEach(v => {
@@ -3382,15 +3405,15 @@ function generateNextPurchaseVoucherId(paymentMethod) {
     }
   });
 
-  return `${prefix}${(maxNum + 1).toString().padStart(4, '0')}`;
+  return `${prefix}${(maxNum + 1).toString().padStart(4, '0')}-${machineSuffix}`;
 }
 
 function generateNextSalesVoucherId(paymentMethod) {
   const isCredit = (paymentMethod === "131");
   const prefix = isCredit ? "BH" : "PT";
 
-  // Tìm tất cả các chứng từ có ID khớp với tiền tố + số
-  const regex = new RegExp(`^${prefix}(\\d+)$`);
+  // Tìm tất cả các chứng từ có ID khớp với tiền tố + số + ký hiệu máy tùy chọn
+  const regex = new RegExp(`^${prefix}(\\d+)(?:-[A-Z0-9]+)?$`);
   let maxNum = 0;
 
   state.vouchers.forEach(v => {
@@ -3406,7 +3429,7 @@ function generateNextSalesVoucherId(paymentMethod) {
     maxNum = isCredit ? 44340 : 13122;
   }
 
-  return `${prefix}${maxNum + 1}`;
+  return `${prefix}${maxNum + 1}-${machineSuffix}`;
 }
 
 // Xử lý nộp form Bán hàng (Có xác thực kiểm kho hàng tồn)
@@ -3815,7 +3838,7 @@ function handleEscrowSubmit(e) {
   }
 
   const newVoucher = {
-    id: `KQ-${new Date().getFullYear().toString().substring(2)}-${(state.vouchers.filter(v => v.type.startsWith('escrow_')).length + 1).toString().padStart(4, '0')}`,
+    id: `KQ-${new Date().getFullYear().toString().substring(2)}-${(state.vouchers.filter(v => v.type.startsWith('escrow_')).length + 1).toString().padStart(4, '0')}-${machineSuffix}`,
     type,
     date: document.getElementById("esc-date").value,
     partnerId,
@@ -12144,7 +12167,7 @@ function switchPurchaseSubTab(subTabId) {
 
 function generateNextPurchaseOrderVoucherId() {
   const prefix = `ĐMH`;
-  const regex = /^ĐMH(\d+)$/;
+  const regex = /^ĐMH(\d+)(?:-[A-Z0-9]+)?$/;
   let maxNum = 0;
 
   state.vouchers.forEach(v => {
@@ -12157,7 +12180,7 @@ function generateNextPurchaseOrderVoucherId() {
     }
   });
 
-  return `${prefix}${(maxNum + 1).toString().padStart(5, '0')}`;
+  return `${prefix}${(maxNum + 1).toString().padStart(5, '0')}-${machineSuffix}`;
 }
 
 function addPurchaseOrderFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
