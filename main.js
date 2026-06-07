@@ -6,6 +6,44 @@ const fs = require('fs');
 
 let mainWindow;
 
+// ===========================================================================
+// AUTO-BACKUP: Tự động lưu file backup JSON vào thư mục backup/ khi đóng app
+// ===========================================================================
+const BACKUP_DIR = path.join(__dirname, 'backup');
+const MAX_BACKUP_FILES = 30; // Giữ tối đa 30 bản sao lưu gần nhất
+
+function ensureBackupDir() {
+  if (!fs.existsSync(BACKUP_DIR)) {
+    fs.mkdirSync(BACKUP_DIR, { recursive: true });
+  }
+}
+
+function cleanOldBackups() {
+  try {
+    const files = fs.readdirSync(BACKUP_DIR)
+      .filter(f => f.startsWith('RD_Backup_') && f.endsWith('.json'))
+      .map(f => ({ name: f, time: fs.statSync(path.join(BACKUP_DIR, f)).mtimeMs }))
+      .sort((a, b) => b.time - a.time); // Mới nhất trước
+
+    // Xóa các file cũ vượt quá giới hạn
+    files.slice(MAX_BACKUP_FILES).forEach(f => {
+      try { fs.unlinkSync(path.join(BACKUP_DIR, f.name)); } catch(e) {}
+    });
+  } catch(e) {
+    console.error('Lỗi dọn backup cũ:', e);
+  }
+}
+
+function makeBackupTimestamp() {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+}
+
+// ===========================================================================
+// HELPER
+// ===========================================================================
+
 // Helper đọc phiên bản từ package.json
 function getAppVersion() {
   try {
@@ -20,6 +58,9 @@ function getAppVersion() {
   return '1.0.0';
 }
 
+// ===========================================================================
+// TẠO CỬA SỔ CHÍNH
+// ===========================================================================
 function createWindow() {
   const appVersion = getAppVersion();
 
@@ -78,13 +119,56 @@ function createWindow() {
     }, 5000);
   });
 
-  // 5. Giải phóng tài nguyên khi cửa sổ đóng
+  // 5. Tự động sao lưu và đẩy Cloud trước khi đóng (ngăn tắt tức thì, chờ xong rồi destroy)
+  let _isClosing = false;
+  mainWindow.on('close', async (e) => {
+    if (_isClosing) return; // Đã xử lý xong, cho phép đóng
+    e.preventDefault();    // Ngăn đóng ngay lập tức
+
+    _isClosing = true;
+
+    // Timeout fallback: nếu quá 10 giây vẫn chưa xong thì buộc đóng
+    const forceCloseTimer = setTimeout(() => {
+      console.warn('[AutoSave] Timeout 10s, buộc đóng ứng dụng.');
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();
+    }, 10000);
+
+    try {
+      // Bước 1: Gọi renderer thực hiện saveState() + pushToCloud() và chờ
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        await mainWindow.webContents.executeJavaScript('autoSaveBeforeClose()');
+      }
+
+      // Bước 2: Đọc lại localStorage (sau khi đã lưu) để ghi file backup cục bộ
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        const jsonData = await mainWindow.webContents.executeJavaScript(
+          "localStorage.getItem('rd_accounting_db') || ''"
+        );
+        if (jsonData && jsonData.length > 10) {
+          ensureBackupDir();
+          const backupPath = path.join(BACKUP_DIR, `RD_Backup_${makeBackupTimestamp()}.json`);
+          fs.writeFileSync(backupPath, jsonData, 'utf8');
+          cleanOldBackups();
+          console.log(`[AutoBackup] Đã tự động sao lưu khi đóng: ${backupPath}`);
+        }
+      }
+    } catch (err) {
+      console.error('[AutoSave] Lỗi trong quá trình lưu trước khi đóng:', err);
+    } finally {
+      clearTimeout(forceCloseTimer);
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();
+    }
+  });
+
+  // 6. Giải phóng tài nguyên khi cửa sổ đóng
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 }
 
+// ===========================================================================
 // IPC HANDLERS GIAO TIẾP ĐỂ TỰ ĐỘNG CẬP NHẬT
+// ===========================================================================
 
 // 0. Đọc file Excel từ thư mục excel/ bằng fs (tránh lỗi fetch với file:// protocol trong Electron)
 ipcMain.handle('read-excel-file', async (event, filename) => {
@@ -102,6 +186,26 @@ ipcMain.handle('read-excel-file', async (event, filename) => {
   }
 });
 
+// IPC Handler: Renderer gửi dữ liệu JSON để main.js ghi xuống đĩa (sao lưu thủ công)
+ipcMain.handle('save-backup-on-exit', async (event, jsonData) => {
+  try {
+    ensureBackupDir();
+    const backupPath = path.join(BACKUP_DIR, `RD_Backup_${makeBackupTimestamp()}.json`);
+    fs.writeFileSync(backupPath, jsonData, 'utf8');
+    cleanOldBackups();
+    console.log(`[AutoBackup] Đã lưu sao lưu: ${backupPath}`);
+    return { ok: true, path: backupPath };
+  } catch (err) {
+    console.error('[AutoBackup] Lỗi ghi backup:', err);
+    return { ok: false, error: err.message };
+  }
+});
+
+// IPC Handler: Trả về đường dẫn thư mục backup
+ipcMain.handle('get-backup-dir', () => {
+  ensureBackupDir();
+  return BACKUP_DIR;
+});
 
 ipcMain.handle('get-local-version', () => {
   try {
@@ -246,6 +350,10 @@ ipcMain.handle('download-and-install-update', async (event, downloadUrl) => {
     return { ok: false, error: err.message };
   }
 });
+
+// ===========================================================================
+// VÒNG ĐỜI ỨNG DỤNG
+// ===========================================================================
 
 // Khởi chạy khi Electron sẵn sàng
 app.whenReady().then(() => {

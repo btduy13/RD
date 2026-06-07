@@ -834,6 +834,9 @@ function saveState() {
 function executeSaveState() {
   if (!saveStateIsDirty) return;
   try {
+    // [FIX 1] Luôn cập nhật timestamp trước khi lưu và push
+    // để máy nhận có thể nhận biết đây là bản mới nhất
+    state._lastModified = Date.now();
     localStorage.setItem("rd_accounting_db", JSON.stringify(state));
     if (typeof pushToCloud === "function") {
       pushToCloud();
@@ -937,7 +940,11 @@ function recalculateAccounting() {
 
   // BƯỚC C: Duyệt qua từng chứng từ để tính giá vốn và tự động cập nhật Định khoản kép
   state.vouchers.forEach(v => {
-    if (v.type === "purchase") {
+    if (v.type === "purchase_order") {
+      v.taxAmount = 0;
+      v.totalAmount = v.items ? v.items.reduce((sum, item) => sum + (item.amount || 0), 0) : 0;
+      v.entries = [];
+    } else if (v.type === "purchase") {
       // Mua hàng: Tăng số lượng và tăng giá trị tồn
       let itemSubtotal = 0;
       v.items.forEach(item => {
@@ -1315,6 +1322,11 @@ function renderDashboard() {
   const totalInventoryVal = getInventoryValueAt(toDate);
   document.getElementById("kpi-inventory-value").innerText = formatVND(totalInventoryVal);
 
+  const acctEscrowPay = state.accountingStandard === "TT200" ? "244" : "1386";
+  const acctEscrowReceive = state.accountingStandard === "TT200" ? "344" : "3386";
+  const bal244 = getAccountBalance(acctEscrowPay, toDate);
+  const bal344 = getAccountBalance(acctEscrowReceive, toDate);
+
   const escrowValueEl = document.getElementById("kpi-escrow-value");
   if (escrowValueEl) {
     escrowValueEl.innerText = formatVND(bal244 + bal344);
@@ -1630,6 +1642,7 @@ function renderRecentActivities() {
 
   const badgeLabels = {
     purchase: "Mua hàng",
+    purchase_order: "Đơn đặt hàng",
     sales: "Bán hàng",
     escrow_pay: "Ký quỹ đi",
     escrow_receive: "Nhận ký quỹ",
@@ -1647,7 +1660,7 @@ function renderRecentActivities() {
         </div>
         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
           <span class="activity-price font-numeric">${formatVND(amount)}</span>
-          <span class="badge ${v.type === 'sales' ? 'badge-success' : v.type === 'purchase' ? 'badge-info' : 'badge-warning'}" style="font-size:9px; padding:2px 6px;">
+          <span class="badge ${v.type === 'sales' ? 'badge-success' : v.type === 'purchase' ? 'badge-info' : v.type === 'purchase_order' ? 'badge-warning' : 'badge-secondary'}" style="font-size:9px; padding:2px 6px;">
             ${badgeLabels[v.type] || "Chứng từ"}
           </span>
         </div>
@@ -1824,6 +1837,7 @@ function changePurchasePage(p) {
 
 let salesCurrentPage = 1;
 let purchaseCurrentPage = 1;
+let purchaseOrderCurrentPage = 1;
 let inventoryCurrentPage = 1;
 let escrowCurrentPage = 1;
 
@@ -3348,6 +3362,7 @@ function recalculateSalesTotals() {
 }
 
 let editingPurchaseId = null;
+let editingPurchaseOrderId = null;
 let editingSalesId = null;
 
 // Reset form bán hàng
@@ -3938,7 +3953,114 @@ function viewVoucher(id) {
   const companyTax = state.taxCode || "0100101438";
 
   // TIÊU ĐỀ CHỨNG TỪ THEO CHUẨN IN ẤN
-  if (v.type === "purchase") {
+  if (v.type === "purchase_order") {
+    // Đơn đặt hàng (Mẫu đơn đặt hàng)
+    content = `
+      <div class="printable-voucher">
+        <div class="voucher-header-top">
+          <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="display: flex; align-items: center; justify-content: center; width: 120px; height: 50px; flex-shrink: 0;">
+              <img src="logo.jpg" style="max-height: 48px; max-width: 120px; object-fit: contain;" alt="Logo Rạng Đông" />
+            </div>
+            <div class="voucher-co-info" style="width: auto;">
+              <span class="voucher-co-name">${companyName}</span><br>
+              <span class="voucher-co-addr">Địa chỉ: ${companyAddr}</span><br>
+              <span class="voucher-co-addr">MST: ${companyTax}</span>
+            </div>
+          </div>
+          <div class="voucher-template-code">
+            <span class="template-bold">Mẫu Đơn Đặt Hàng</span><br>
+            <span>RD-PO</span>
+          </div>
+        </div>
+        
+        <div class="voucher-title-area">
+          <span class="voucher-title">ĐƠN ĐẶT HÀNG</span><br>
+          <span class="voucher-subtitle">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</span>
+        </div>
+        
+        <div class="voucher-entries-note">
+          <span>Số: <span class="template-bold">${v.id}</span></span><br>
+          <span style="font-size: 11px; color: #666; font-style: italic;">(Không hạch toán kho & kế toán)</span>
+        </div>
+        
+        <div style="margin-top:20px;">
+          <div class="voucher-info-row">
+            <span class="info-label">- Nhà cung cấp:</span>
+            <span class="info-dotted">${partnerName}</span>
+          </div>
+          <div class="voucher-info-row">
+            <span class="info-label">- Diễn giải:</span>
+            <span class="info-dotted">${v.description}</span>
+          </div>
+        </div>
+        
+        <table class="voucher-table">
+          <thead>
+            <tr>
+              <th style="width:5%;">STT</th>
+              <th style="width:50%;">Tên, nhãn hiệu quy cách sản phẩm vật tư</th>
+              <th style="width:10%;">ĐVT</th>
+              <th style="width:10%;">Số lượng</th>
+              <th style="width:10%;">Đơn giá (đ)</th>
+              <th style="width:15%;">Thành tiền (đ)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${v.items.map((item, idx) => {
+              const prod = state.products.find(p => p.id === item.productId) || { name: "Sản phẩm" };
+              return `
+                <tr>
+                  <td style="text-align:center;">${idx + 1}</td>
+                  <td>${prod.name}</td>
+                  <td style="text-align:center;">${prod.unit || "Cái"}</td>
+                  <td style="text-align:right;">${item.qty}</td>
+                  <td style="text-align:right;">${formatVND(item.price).replace("đ", "")}</td>
+                  <td style="text-align:right; font-weight:bold;">${formatVND(item.amount).replace("đ", "")}</td>
+                </tr>
+              `;
+            }).join("")}
+            
+            <tr style="background-color:#e5e7eb;">
+              <td colspan="5" style="text-align:right; font-weight:bold; text-transform:uppercase;">Tổng cộng tiền đặt hàng:</td>
+              <td style="text-align:right; font-weight:bold; color:var(--color-primary);">${formatVND(v.totalAmount).replace("đ", "")}</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <div class="voucher-amount-word">
+          Tổng số tiền (viết bằng chữ): <span style="font-weight:bold; font-style:italic;">${numberToVietnameseWords(v.totalAmount)}</span>
+        </div>
+        
+        <div class="voucher-signatures">
+          <div class="sig-block">
+            <span class="sig-title">Người lập đơn</span><br>
+            <span class="sig-subtext">(Ký, họ tên)</span>
+            <div class="sig-space"></div>
+            <span class="sig-name">Kế toán viên</span>
+          </div>
+          <div class="sig-block">
+            <span class="sig-title">Đại diện bộ phận nhận</span><br>
+            <span class="sig-subtext">(Ký, họ tên)</span>
+            <div class="sig-space"></div>
+            <span class="sig-name">Người duyệt đơn</span>
+          </div>
+          <div class="sig-block">
+            <span class="sig-title">Đại diện NCC</span><br>
+            <span class="sig-subtext">(Ký, họ tên)</span>
+            <div class="sig-space"></div>
+            <span class="sig-name">${partnerName.split(" ").slice(-2).join(" ")}</span>
+          </div>
+          <div class="sig-block">
+            <span class="sig-title">Giám đốc</span><br>
+            <span class="sig-subtext">(Ký, đóng dấu)</span>
+            <div class="sig-space"></div>
+            <span class="sig-name">Lê Hoàng Đông</span>
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (v.type === "purchase") {
     // Mua hàng -> Phiếu Nhập Kho (Mẫu số 01 - VT)
     content = `
       <div class="printable-voucher">
@@ -3990,8 +4112,7 @@ function viewVoucher(id) {
           <thead>
             <tr>
               <th style="width:5%;">STT</th>
-              <th style="width:15%;">Mã SP</th>
-              <th style="width:40%;">Tên, nhãn hiệu quy cách sản phẩm vật tư</th>
+              <th style="width:50%;">Tên, nhãn hiệu quy cách sản phẩm vật tư</th>
               <th style="width:10%;">ĐVT</th>
               <th style="width:10%;">Số lượng</th>
               <th style="width:10%;">Đơn giá (đ)</th>
@@ -4004,7 +4125,6 @@ function viewVoucher(id) {
       return `
                 <tr>
                   <td style="text-align:center;">${idx + 1}</td>
-                  <td style="text-align:center; font-weight:bold;">${item.productId}</td>
                   <td>${prod.name}</td>
                   <td style="text-align:center;">${prod.unit || "Cái"}</td>
                   <td style="text-align:right;">${item.qty}</td>
@@ -4015,7 +4135,7 @@ function viewVoucher(id) {
     }).join("")}
             
             <tr style="background-color:#e5e7eb;">
-              <td colspan="6" style="text-align:right; font-weight:bold; text-transform:uppercase;">Tổng cộng tiền thanh toán:</td>
+              <td colspan="5" style="text-align:right; font-weight:bold; text-transform:uppercase;">Tổng cộng tiền thanh toán:</td>
               <td style="text-align:right; font-weight:bold; color:var(--color-primary);">${formatVND(v.totalAmount).replace("đ", "")}</td>
             </tr>
           </tbody>
@@ -4584,6 +4704,68 @@ function exportData() {
   downloadAnchor.click();
   downloadAnchor.remove();
   showToast("Xuất dữ liệu lưu trữ thành công!", "success");
+}
+
+// Sao lưu thủ công ngay lập tức vào thư mục backup/ (chỉ hoạt động trong Electron)
+async function manualBackupNow() {
+  if (window.electronAPI && window.electronAPI.saveBackupOnExit) {
+    try {
+      const jsonData = localStorage.getItem("rd_accounting_db") || JSON.stringify(state);
+      const result = await window.electronAPI.saveBackupOnExit(jsonData);
+      if (result && result.ok) {
+        const fileName = result.path ? result.path.split(/[/\\]/).pop() : "";
+        showToast(`Đã sao lưu thành công${fileName ? ": " + fileName : ""}`, "success");
+      } else {
+        showToast("Sao lưu thất bại: " + (result && result.error ? result.error : "Lỗi không rõ"), "danger");
+      }
+    } catch (err) {
+      showToast("Lỗi khi sao lưu: " + err.message, "danger");
+    }
+  } else {
+    // Fallback: tải file qua trình duyệt nếu không chạy trong Electron
+    exportData();
+  }
+}
+
+// Mở thư mục backup trong File Explorer (chỉ hoạt động trong Electron)
+async function openBackupFolder() {
+  if (window.electronAPI && window.electronAPI.getBackupDir) {
+    try {
+      const dir = await window.electronAPI.getBackupDir();
+      if (window.electronAPI.openExternalUrl) {
+        await window.electronAPI.openExternalUrl("file://" + dir.replace(/\\/g, '/'));
+      }
+    } catch (err) {
+      showToast("Không thể mở thư mục backup: " + err.message, "danger");
+    }
+  } else {
+    showToast("Tính năng này chỉ khả dụng trong ứng dụng Desktop.", "info");
+  }
+}
+
+/**
+ * Gọi từ main.js khi cửa sổ sắp đóng.
+ * Đảm bảo dữ liệu được lưu localStorage VÀ đẩy lên Cloud (nếu kết nối).
+ * Trả về Promise — main.js sẽ chờ resolve rồi mới destroy cửa sổ.
+ */
+async function autoSaveBeforeClose() {
+  try {
+    // 1. Lưu state mới nhất xuống localStorage
+    saveState();
+
+    // 2. Nếu Cloud đang kết nối → đẩy ngay lên Cloud và chờ
+    if (cloudSyncActive && firebaseDb) {
+      // Cập nhật timestamp để cloud nhận biết đây là bản mới nhất
+      state._lastModified = Date.now();
+      saveState();
+      await pushToCloud();
+      console.log("[AutoSave] Đã đẩy dữ liệu lên Cloud trước khi đóng.");
+    } else {
+      console.log("[AutoSave] Cloud không kết nối, chỉ lưu cục bộ.");
+    }
+  } catch (err) {
+    console.error("[AutoSave] Lỗi khi lưu trước khi đóng:", err);
+  }
 }
 
 // Nhập dữ liệu kế toán từ file JSON ngoài
@@ -8431,6 +8613,241 @@ function parseExcelFile(file, type) {
         showToast(`Đã nạp thành công ${count} chứng từ mua hàng từ file Excel!`, "success");
         if (typeof filterPurchaseTable === "function") filterPurchaseTable();
         if (typeof renderPurchaseTable === "function") renderPurchaseTable();
+      } else if (type === 'purchase_order') {
+        let count = 0;
+        
+        // 1. Phân biệt định dạng
+        let headerIdx = -1;
+        let isDetailedFormat = false;
+
+        for (let r = 0; r < Math.min(rows.length, 10); r++) {
+          const row = rows[r];
+          if (row && (row.includes("Số chứng từ") || row.includes("Số đơn hàng"))) {
+            headerIdx = r;
+            if (row.includes("Mã hàng") || row.includes("Mã SP")) {
+              isDetailedFormat = true;
+            }
+            break;
+          }
+        }
+
+        const partnerMap = new Map();
+        state.partners.forEach(p => partnerMap.set(p.id, p));
+
+        const productMap = new Map();
+        state.products.forEach(p => productMap.set(p.id, p));
+
+        const voucherMap = new Map();
+        state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
+
+        if (isDetailedFormat) {
+          // --- THẾ HỆ CŨ: SỔ CHI TIẾT ---
+          const groupMap = new Map();
+          let startRow = headerIdx !== -1 ? headerIdx + 1 : 2;
+
+          let colQty = 13;
+          let colPrice = 14;
+          let colAmount = 17;
+
+          if (headerIdx !== -1) {
+            const header = rows[headerIdx];
+            const qIdx = header.indexOf("Số lượng mua") !== -1 ? header.indexOf("Số lượng mua") : header.indexOf("Số lượng");
+            const pIdx = header.indexOf("Đơn giá");
+            const aIdx = header.indexOf("Giá trị mua") !== -1 ? header.indexOf("Giá trị mua") : header.indexOf("Thành tiền");
+            if (qIdx !== -1) colQty = qIdx;
+            if (pIdx !== -1) colPrice = pIdx;
+            if (aIdx !== -1) colAmount = aIdx;
+          }
+
+          for (let i = startRow; i < rows.length; i++) {
+            const row = rows[i];
+            const voucherId = (row[2] || "").toString().trim();
+            if (!voucherId || voucherId.startsWith("TỔNG")) continue;
+
+            if (!groupMap.has(voucherId)) {
+              groupMap.set(voucherId, []);
+            }
+            groupMap.get(voucherId).push(row);
+          }
+
+          const partnerId = "NCC_ORDER_EXCEL";
+          const partnerName = "Nhà cung cấp Đơn đặt hàng Sổ chi tiết";
+          if (!partnerMap.has(partnerId)) {
+            const pObj = {
+              id: partnerId,
+              name: partnerName,
+              type: "supplier",
+              phone: "",
+              email: "",
+              address: ""
+            };
+            state.partners.push(pObj);
+            partnerMap.set(partnerId, pObj);
+          }
+
+          for (const [voucherId, voucherRows] of groupMap.entries()) {
+            const firstRow = voucherRows[0];
+            const dateStr = excelDateToISOString(firstRow[1] || firstRow[0]);
+            const invoiceNo = firstRow[4] || "";
+            const description = `Đơn đặt hàng mua hàng theo số ${invoiceNo || voucherId}`;
+
+            const itemsArray = [];
+            let totalVoucherAmount = 0;
+
+            for (const row of voucherRows) {
+              const productId = (row[5] || "SP_GENERIC").toString().trim();
+              const productName = (row[6] || "Sản phẩm generic").toString().trim();
+              const unit = (row[7] || "Cái").toString().trim();
+              const qty = Number(row[colQty]) || 0;
+              const price = Number(row[colPrice]) || 0;
+              const amount = Number(row[colAmount]) || (qty * price);
+
+              itemsArray.push({
+                productId: productId,
+                qty: qty,
+                price: price,
+                amount: amount
+              });
+
+              totalVoucherAmount += amount;
+
+              if (!productMap.has(productId)) {
+                const prodObj = {
+                  id: productId,
+                  name: productName,
+                  unit: unit,
+                  stock: 0,
+                  avgCost: 0,
+                  totalValue: 0
+                };
+                state.products.push(prodObj);
+                productMap.set(productId, prodObj);
+              }
+            }
+
+            const vObj = {
+              id: voucherId,
+              type: "purchase_order",
+              date: dateStr,
+              partnerId: partnerId,
+              partnerName: partnerName,
+              paymentMethod: "331",
+              description: description,
+              taxRate: 0,
+              taxAmount: 0,
+              totalAmount: totalVoucherAmount,
+              amount: totalVoucherAmount,
+              items: itemsArray
+            };
+
+            const existingIdx = voucherMap.get(voucherId);
+            if (existingIdx !== undefined) {
+              state.vouchers[existingIdx] = vObj;
+            } else {
+              state.vouchers.push(vObj);
+              voucherMap.set(voucherId, state.vouchers.length - 1);
+            }
+            count++;
+          }
+        } else {
+          // --- THẾ HỆ MỚI: DANH SÁCH ĐƠN MUA HÀNG (MẪU DON_MUA_HANG.XLSX) ---
+          let startRow = headerIdx !== -1 ? headerIdx + 1 : 2;
+          const header = headerIdx !== -1 ? rows[headerIdx] : [];
+
+          const colDate = header.indexOf("Ngày đơn hàng") !== -1 ? header.indexOf("Ngày đơn hàng") : 1;
+          const colId = header.indexOf("Số đơn hàng") !== -1 ? header.indexOf("Số đơn hàng") : 2;
+          const colPartner = header.indexOf("Nhà cung cấp") !== -1 ? header.indexOf("Nhà cung cấp") : 4;
+          const colDesc = header.indexOf("Diễn giải") !== -1 ? header.indexOf("Diễn giải") : 5;
+          const colTotal = header.indexOf("Giá trị đơn hàng") !== -1 ? header.indexOf("Giá trị đơn hàng") : 6;
+
+          // Đảm bảo có sản phẩm generic
+          const genericProductId = "SP_GENERIC";
+          const genericProductName = "Sản phẩm tổng hợp (Theo đơn hàng)";
+          if (!productMap.has(genericProductId)) {
+            const prodObj = {
+              id: genericProductId,
+              name: genericProductName,
+              unit: "Cái",
+              stock: 0,
+              avgCost: 0,
+              totalValue: 0
+            };
+            state.products.push(prodObj);
+            productMap.set(genericProductId, prodObj);
+          }
+
+          for (let i = startRow; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || row.length === 0) continue;
+
+            const voucherId = (row[colId] || "").toString().trim();
+            if (!voucherId || voucherId === "" || voucherId.startsWith("TỔNG")) continue;
+
+            const rawDate = row[colDate];
+            const dateStr = excelDateToISOString(rawDate);
+            const partnerInputVal = (row[colPartner] || "").toString().trim();
+            const description = (row[colDesc] || "").toString().trim() || "Đơn đặt hàng nhập khẩu lịch sử";
+            const totalAmount = Number(row[colTotal]) || 0;
+
+            // Resolve/Create Partner
+            const resolvedPartner = resolvePartner(partnerInputVal);
+            const pId = resolvedPartner.id;
+            const pName = resolvedPartner.name;
+
+            if (!partnerMap.has(pId)) {
+              const pObj = {
+                id: pId,
+                name: pName,
+                type: "supplier",
+                phone: "",
+                email: "",
+                address: ""
+              };
+              state.partners.push(pObj);
+              partnerMap.set(pId, pObj);
+            }
+
+            // Create generic item list for the PO
+            const itemsArray = [
+              {
+                productId: genericProductId,
+                qty: 1,
+                price: totalAmount,
+                amount: totalAmount
+              }
+            ];
+
+            const vObj = {
+              id: voucherId,
+              type: "purchase_order",
+              date: dateStr,
+              partnerId: pId,
+              partnerName: pName,
+              paymentMethod: "331",
+              description: description,
+              taxRate: 0,
+              taxAmount: 0,
+              totalAmount: totalAmount,
+              amount: totalAmount,
+              items: itemsArray
+            };
+
+            const existingIdx = voucherMap.get(voucherId);
+            if (existingIdx !== undefined) {
+              state.vouchers[existingIdx] = vObj;
+            } else {
+              state.vouchers.push(vObj);
+              voucherMap.set(voucherId, state.vouchers.length - 1);
+            }
+            count++;
+          }
+        }
+
+        saveState();
+        recalculateAccounting();
+        showToast(`Đã nạp thành công ${count} đơn đặt hàng từ file Excel!`, "success");
+        if (typeof filterPurchaseOrderTable === "function") filterPurchaseOrderTable();
+        if (typeof renderPurchaseOrderTable === "function") renderPurchaseOrderTable();
       }
     } catch (err) {
       console.error(err);
@@ -9400,14 +9817,23 @@ async function pushToCloud() {
       addErrorLog("pushToCloud", err.message, err);
     }
     if (typeof updateCloudSyncBadge === "function") {
-      updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
+      updateCloudSyncBadge(false, "Mây: Lỗi đẩy", "#ef4444");
     }
-    throw err;
+    // [FIX 3] Khi push thất bại → retry sau 5 giây để không mất dữ liệu khi mạng chập chờn
+    setTimeout(() => {
+      if (cloudSyncActive && firebaseDb && !isPushing) {
+        console.log("[CloudSync] Thử lại push sau lỗi...");
+        pushPending = false; // Reset để pushToCloud không bị chặn
+        pushToCloud();
+      }
+    }, 5000);
   } finally {
     isPushing = false;
     _isMergePushing = false;
+    // Nếu có push đang xếp hàng (do bị block lúc đang push), xử lý ngay
     if (pushPending) {
-      pushToCloud();
+      pushPending = false;
+      setTimeout(() => pushToCloud(), 100);
     }
   }
 }
@@ -9443,10 +9869,13 @@ function listenToCloudChanges() {
 
     const cloudData = unescapeFirebaseObject(rawData);
 
-    // Tối ưu hóa hiệu năng: So sánh timestamp sửa đổi gần nhất trước để bỏ qua dữ liệu cũ/trùng lặp
+    // [FIX 2] Dùng khoảng dung sai 2 giây thay vì so sánh tuyệt đối
+    // Clock của 2 máy có thể lệch nhau vài giây → dùng <= localTs sẽ bỏ sót dữ liệu mới
     const cloudTs = cloudData._lastModified || 0;
     const localTs = state._lastModified || 0;
-    if (cloudTs > 0 && localTs > 0 && cloudTs <= localTs) {
+    const CLOCK_TOLERANCE_MS = 2000; // 2 giây dung sai đồng hồ giữa các máy
+    if (cloudTs > 0 && localTs > 0 && cloudTs < localTs - CLOCK_TOLERANCE_MS) {
+      // Cloud thực sự cũ hơn local rõ ràng (cách nhau > 2s), bỏ qua
       return;
     }
 
@@ -11031,8 +11460,14 @@ function initMouseInteractions() {
             Chỉnh sửa hóa đơn mua hàng
           </button>
         `;
+      } else if (subtype === "purchase_order") {
+        menuHTML += `
+          <button class="context-menu-item" onclick="editPurchaseOrderVoucher('${escapedId}')">
+            <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            Chỉnh sửa đơn đặt hàng
+          </button>
+        `;
       }
-
       menuHTML += `
         <div class="context-menu-divider"></div>
         <button class="context-menu-item item-danger" onclick="deleteVoucher('${escapedId}')">
@@ -11131,6 +11566,8 @@ function initMouseInteractions() {
       const isSalesVisible = salesModal && (salesModal.style.display === "flex" || window.getComputedStyle(salesModal).display === "flex");
       const purchaseModal = document.getElementById("modal-add-purchase");
       const isPurchaseVisible = purchaseModal && (purchaseModal.style.display === "flex" || window.getComputedStyle(purchaseModal).display === "flex");
+      const purchaseOrderModal = document.getElementById("modal-add-purchase-order");
+      const isPurchaseOrderVisible = purchaseOrderModal && (purchaseOrderModal.style.display === "flex" || window.getComputedStyle(purchaseOrderModal).display === "flex");
 
       if (isSalesVisible) {
         if (typeof addSalesFormRow === "function") {
@@ -11142,12 +11579,19 @@ function initMouseInteractions() {
           addPurchaseFormRow();
         }
         e.preventDefault();
+      } else if (isPurchaseOrderVisible) {
+        if (typeof addPurchaseOrderFormRow === "function") {
+          addPurchaseOrderFormRow();
+        }
+        e.preventDefault();
       }
     } else if (e.key === "F8") {
       const salesModal = document.getElementById("modal-add-sales");
       const isSalesVisible = salesModal && (salesModal.style.display === "flex" || window.getComputedStyle(salesModal).display === "flex");
       const purchaseModal = document.getElementById("modal-add-purchase");
       const isPurchaseVisible = purchaseModal && (purchaseModal.style.display === "flex" || window.getComputedStyle(purchaseModal).display === "flex");
+      const purchaseOrderModal = document.getElementById("modal-add-purchase-order");
+      const isPurchaseOrderVisible = purchaseOrderModal && (purchaseOrderModal.style.display === "flex" || window.getComputedStyle(purchaseOrderModal).display === "flex");
 
       if (isSalesVisible) {
         const activeEl = document.activeElement;
@@ -11181,6 +11625,24 @@ function initMouseInteractions() {
             trToDelete.remove();
             if (typeof recalculatePurchaseTotals === "function") {
               recalculatePurchaseTotals();
+            }
+          }
+        }
+        e.preventDefault();
+      } else if (isPurchaseOrderVisible) {
+        const activeEl = document.activeElement;
+        const itemsBody = document.getElementById("purchase-order-form-items-body");
+        if (itemsBody) {
+          let trToDelete = null;
+          if (activeEl && itemsBody.contains(activeEl)) {
+            trToDelete = activeEl.closest("tr");
+          } else {
+            trToDelete = itemsBody.querySelector("tr:last-child");
+          }
+          if (trToDelete) {
+            trToDelete.remove();
+            if (typeof recalculatePurchaseOrderTotals === "function") {
+              recalculatePurchaseOrderTotals();
             }
           }
         }
@@ -11303,7 +11765,9 @@ function getOrderTableRows(currentEl) {
     ? 'purchase-form-items-body'
     : currentEl.closest('#sales-form-items-body')
       ? 'sales-form-items-body'
-      : null;
+      : currentEl.closest('#purchase-order-form-items-body')
+        ? 'purchase-order-form-items-body'
+        : null;
   if (!tbodyId) return null;
   const tbody = document.getElementById(tbodyId);
   return { tbody, rows: Array.from(tbody.querySelectorAll('tr')), tbodyId };
@@ -11393,13 +11857,45 @@ function initOrderFormKeyboardNavigation() {
         }
         return;
       }
+
+      const purchaseOrderModal = document.getElementById('modal-add-purchase-order');
+      const isPurchaseOrderOpen = purchaseOrderModal && (purchaseOrderModal.style.display === 'flex' || window.getComputedStyle(purchaseOrderModal).display === 'flex');
+      if (isPurchaseOrderOpen) {
+        e.preventDefault();
+        const purchaseOrderRows = purchaseOrderModal.querySelectorAll("#purchase-order-form-items-body tr");
+        if (purchaseOrderRows.length > 0) {
+          let count = 0;
+          purchaseOrderRows.forEach(row => {
+            const selectEl = row.querySelector(".item-productId");
+            if (!selectEl) return;
+            const prodVal = selectEl.value;
+            const prod = resolveProduct(prodVal);
+            if (prod) {
+              ensureProductExcelRow(prod);
+              const purchasePriceVal = prod.lastPurchasePrice !== undefined && prod.lastPurchasePrice > 0
+                ? prod.lastPurchasePrice
+                : (prod.excelRow && prod.excelRow[20] !== undefined && Number(prod.excelRow[20]) > 0
+                  ? Number(prod.excelRow[20])
+                  : (prod.avgCost || prod.initialCost || 10000));
+              
+              row.querySelector(".item-price").value = Number(purchasePriceVal).toLocaleString("vi-VN");
+              count++;
+            }
+          });
+          recalculatePurchaseOrderTotals();
+          if (typeof showToast === "function") {
+            showToast(`Đã khôi phục đơn giá gốc của ${count} mặt hàng từ kho!`, "success");
+          }
+        }
+        return;
+      }
     }
 
     const el = document.activeElement;
     if (!el) return;
 
     // Xác định modal đang mở chứa el hiện tại
-    const activeModal = el.closest('#modal-add-purchase, #modal-add-sales');
+    const activeModal = el.closest('#modal-add-purchase, #modal-add-sales, #modal-add-purchase-order');
     if (!activeModal) return;
 
     // ── F1: chuyển sang ô tiếp theo trong toàn bộ modal ──────────────────
@@ -11416,6 +11912,7 @@ function initOrderFormKeyboardNavigation() {
         const info = getOrderTableRows(el);
         if (info) {
           if (info.tbodyId === 'purchase-form-items-body') addPurchaseFormRow();
+          else if (info.tbodyId === 'purchase-order-form-items-body') addPurchaseOrderFormRow();
           else addSalesFormRow();
         }
       }
@@ -11440,6 +11937,7 @@ function initOrderFormKeyboardNavigation() {
     const { rows, tbodyId } = info;
     if (rows.length === 0) return;
     const isPurchase = tbodyId === 'purchase-form-items-body';
+    const isPurchaseOrder = tbodyId === 'purchase-order-form-items-body';
     const currentRow = el.closest('tr');
     if (!currentRow) return;
     const rowIdx = rows.indexOf(currentRow);
@@ -11454,6 +11952,7 @@ function initOrderFormKeyboardNavigation() {
         focusRowFirstCell(rows[rowIdx + 1]);
       } else {
         if (isPurchase) addPurchaseFormRow();
+        else if (isPurchaseOrder) addPurchaseOrderFormRow();
         else addSalesFormRow();
       }
       return;
@@ -11482,4 +11981,679 @@ window.getEditableCellsInRow = getEditableCellsInRow;
 window.getOrderTableRows = getOrderTableRows;
 window.focusRowFirstCell = focusRowFirstCell;
 window.initOrderFormKeyboardNavigation = initOrderFormKeyboardNavigation;
+
+
+// ==========================================================================
+// PHÂN HỆ ĐƠN ĐẶT HÀNG (PURCHASE ORDERS)
+// ==========================================================================
+
+function switchPurchaseSubTab(subTabId) {
+  const btnInvoice = document.getElementById("tab-btn-purchase-invoice");
+  const btnOrder = document.getElementById("tab-btn-purchase-order");
+  if (btnInvoice && btnOrder) {
+    if (subTabId === "invoice") {
+      btnInvoice.classList.add("active");
+      btnOrder.classList.remove("active");
+    } else {
+      btnInvoice.classList.remove("active");
+      btnOrder.classList.add("active");
+    }
+  }
+
+  const panelInvoice = document.getElementById("purchase-subtab-invoice");
+  const panelOrder = document.getElementById("purchase-subtab-order");
+  if (panelInvoice && panelOrder) {
+    if (subTabId === "invoice") {
+      panelInvoice.style.display = "block";
+      panelOrder.style.display = "none";
+    } else {
+      panelInvoice.style.display = "none";
+      panelOrder.style.display = "block";
+      renderPurchaseOrderTable();
+    }
+  }
+}
+
+function generateNextPurchaseOrderVoucherId() {
+  const prefix = `ĐMH`;
+  const regex = /^ĐMH(\d+)$/;
+  let maxNum = 0;
+
+  state.vouchers.forEach(v => {
+    if (v.type === 'purchase_order') {
+      const match = v.id.match(regex);
+      if (match) {
+        const num = parseInt(match[1]);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+  });
+
+  return `${prefix}${(maxNum + 1).toString().padStart(5, '0')}`;
+}
+
+function addPurchaseOrderFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
+  const tbody = document.getElementById("purchase-order-form-items-body");
+  if (!tbody) return;
+
+  const rowId = `pur-order-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+  const tr = document.createElement("tr");
+  tr.id = rowId;
+  tr.innerHTML = `
+    <td>
+      <input type="text" class="form-control item-productId" placeholder="Gõ mã hoặc tên sản phẩm..." required list="datalist-purchase-products" oninput="autoFillPurchaseOrderPrice(this)" onblur="autoFillPurchaseOrderPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
+    </td>
+    <td>
+      <input type="text" class="form-control item-qty text-right number-format" required value="${qtyVal}" oninput="recalculatePurchaseOrderTotals()">
+    </td>
+    <td>
+      <input type="text" class="form-control item-price text-right number-format" required value="${Number(priceVal).toLocaleString("vi-VN")}" oninput="recalculatePurchaseOrderTotals()">
+    </td>
+    <td>
+      <input type="text" class="form-control item-discount text-right number-format" required value="${discountVal}" oninput="recalculatePurchaseOrderTotals()" placeholder="0">
+    </td>
+    <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
+    <td style="text-align: center;">
+      <button type="button" class="trash-btn" onclick="document.getElementById('${rowId}').remove(); recalculatePurchaseOrderTotals();">×</button>
+    </td>
+  `;
+
+  tbody.appendChild(tr);
+
+  // Auto-focus vào ô sản phẩm của dòng vừa tạo
+  const allRows = tbody.querySelectorAll("tr");
+  const newRow = allRows[allRows.length - 1];
+  if (newRow) {
+    const firstInput = newRow.querySelector(".item-productId");
+    if (firstInput) {
+      setTimeout(() => { firstInput.focus(); }, 30);
+    }
+  }
+
+  recalculatePurchaseOrderTotals();
+}
+
+function autoFillPurchaseOrderPrice(selectEl) {
+  const prodVal = selectEl.value;
+  const prod = resolveProduct(prodVal);
+  const row = selectEl.closest("tr");
+
+  if (prod && row) {
+    if (document.activeElement !== selectEl) {
+      selectEl.value = `${prod.name} (${prod.id})`;
+    }
+    ensureProductExcelRow(prod);
+    const purchasePriceVal = prod.lastPurchasePrice !== undefined && prod.lastPurchasePrice > 0
+      ? prod.lastPurchasePrice
+      : (prod.excelRow && prod.excelRow[20] !== undefined && Number(prod.excelRow[20]) > 0
+        ? Number(prod.excelRow[20])
+        : (prod.avgCost || prod.initialCost || 10000));
+
+    row.querySelector(".item-price").value = Number(purchasePriceVal).toLocaleString("vi-VN");
+    recalculatePurchaseOrderTotals();
+  }
+}
+
+function recalculatePurchaseOrderTotals() {
+  const rows = document.querySelectorAll("#purchase-order-form-items-body tr");
+  let subtotal = 0;
+
+  rows.forEach(row => {
+    const qty = parseInt(row.querySelector(".item-qty").value.replace(/\D/g, "")) || 0;
+    const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/\D/g, "")) || 0;
+    const amount = Math.round(qty * price * (1 - discount / 100));
+    subtotal += amount;
+
+    row.querySelector(".item-total-display").innerText = formatVND(amount);
+  });
+
+  const taxRate = 0;
+  const taxAmount = 0;
+  const total = subtotal;
+
+  if (document.getElementById("pur-order-subtotal-display")) {
+    document.getElementById("pur-order-subtotal-display").value = formatVND(subtotal);
+  }
+  if (document.getElementById("pur-order-tax-display")) {
+    document.getElementById("pur-order-tax-display").value = formatVND(taxAmount);
+  }
+  if (document.getElementById("pur-order-total-display")) {
+    document.getElementById("pur-order-total-display").value = formatVND(total);
+  }
+}
+
+function resetPurchaseOrderForm() {
+  editingPurchaseOrderId = null;
+  const modalTitle = document.querySelector("#modal-add-purchase-order .card-title");
+  if (modalTitle) modalTitle.innerText = "Chứng từ Đơn đặt hàng";
+
+  const tbody = document.getElementById("purchase-order-form-items-body");
+  if (tbody) tbody.innerHTML = "";
+  document.getElementById("pur-order-desc").value = "Đơn đặt hàng mua vật tư hàng hóa";
+  document.getElementById("pur-order-date").value = new Date().toISOString().split("T")[0];
+
+  addPurchaseOrderFormRow();
+  // Auto-focus vào ô ngày hạch toán
+  setTimeout(() => {
+    const el = document.getElementById("pur-order-date");
+    if (el) el.focus();
+  }, 60);
+}
+
+function handlePurchaseOrderSubmit(e) {
+  e.preventDefault();
+
+  const rows = document.querySelectorAll("#purchase-order-form-items-body tr");
+  if (rows.length === 0) {
+    showToast("Vui lòng thêm ít nhất một sản phẩm cần đặt!", "danger");
+    return;
+  }
+
+  const partnerInputVal = document.getElementById("pur-order-partner").value;
+  const resolvedPartner = resolvePartner(partnerInputVal);
+  const partnerId = resolvedPartner.id;
+  const partnerName = resolvedPartner.name;
+
+  const voucherItems = [];
+  let hasError = false;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const productInputVal = row.querySelector(".item-productId").value;
+    const resolvedProduct = resolveProduct(productInputVal);
+
+    if (!resolvedProduct) {
+      showToast(`Không tìm thấy sản phẩm nào khớp với từ khóa "${productInputVal}"!`, "danger");
+      hasError = true;
+      break;
+    }
+
+    const productId = resolvedProduct.id;
+    const qty = parseInt(row.querySelector(".item-qty").value.replace(/\D/g, "")) || 0;
+    const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/\D/g, "")) || 0;
+    const amount = Math.round(qty * price * (1 - discount / 100));
+
+    voucherItems.push({
+      productId,
+      qty,
+      price,
+      discount,
+      amount
+    });
+  }
+
+  if (hasError) return;
+
+  const paymentMethod = document.getElementById("pur-order-payment").value;
+  const newVoucher = {
+    id: editingPurchaseOrderId || generateNextPurchaseOrderVoucherId(),
+    type: "purchase_order",
+    date: document.getElementById("pur-order-date").value,
+    partnerId,
+    partnerName,
+    paymentMethod,
+    description: document.getElementById("pur-order-desc").value,
+    items: voucherItems,
+    taxRate: 0,
+    taxAmount: 0
+  };
+
+  if (editingPurchaseOrderId) {
+    const idx = state.vouchers.findIndex(v => v.id === editingPurchaseOrderId);
+    if (idx !== -1) {
+      if (state.vouchers[idx].excelRow) {
+        newVoucher.excelRow = state.vouchers[idx].excelRow;
+      }
+      state.vouchers[idx] = newVoucher;
+    }
+    editingPurchaseOrderId = null;
+  } else {
+    state.vouchers.push(newVoucher);
+  }
+
+  saveState();
+  recalculateAccounting();
+
+  closeModal("modal-add-purchase-order");
+  showToast(editingPurchaseOrderId ? "Cập nhật đơn đặt hàng thành công!" : "Lập đơn đặt hàng thành công!", "success");
+}
+
+function editPurchaseOrderVoucher(id) {
+  const v = state.vouchers.find(v => v.id === id);
+  if (!v) return;
+
+  editingPurchaseOrderId = id;
+
+  const modalTitle = document.querySelector("#modal-add-purchase-order .card-title");
+  if (modalTitle) modalTitle.innerText = `Chỉnh sửa đơn đặt hàng: ${id}`;
+
+  document.getElementById("pur-order-date").value = v.date;
+  document.getElementById("pur-order-partner").value = getPartnerNameForVoucher(v);
+  document.getElementById("pur-order-desc").value = v.description;
+  document.getElementById("pur-order-payment").value = v.paymentMethod;
+  if (document.getElementById("pur-order-tax-rate")) {
+    document.getElementById("pur-order-tax-rate").value = v.taxRate || 0;
+  }
+
+  const tbody = document.getElementById("purchase-order-form-items-body");
+  if (tbody) tbody.innerHTML = "";
+
+  v.items.forEach(item => {
+    const prod = state.products.find(p => p.id === item.productId);
+    const prodVal = prod ? `${prod.name} (${prod.id})` : item.productId;
+    addPurchaseOrderFormRow(prodVal, item.qty, item.price, item.discount || 0);
+  });
+
+  openModal("modal-add-purchase-order");
+}
+
+function renderPurchaseOrderTable() {
+  const tbody = document.getElementById("purchase-order-table-body");
+  if (!tbody) return;
+
+  let orders = state.vouchers.filter(v => v.type === "purchase_order");
+
+  // Advanced search filters
+  const query = document.getElementById("search-purchase-order") ? document.getElementById("search-purchase-order").value : "";
+  const fromDate = document.getElementById("search-purchase-order-from") ? document.getElementById("search-purchase-order-from").value : "";
+  const toDate = document.getElementById("search-purchase-order-to") ? document.getElementById("search-purchase-order-to").value : "";
+
+  if (query) {
+    orders = orders.filter(v => {
+      const partnerName = getPartnerNameForVoucher(v);
+      const combined = `${v.id || ""} ${partnerName} ${v.description || ""}`;
+      return matchAdvancedQuery(combined, query, v.totalAmount);
+    });
+  }
+
+  if (fromDate) {
+    orders = orders.filter(v => v.date >= fromDate);
+  }
+  if (toDate) {
+    orders = orders.filter(v => v.date <= toDate);
+  }
+
+  // Sắp xếp số đơn hàng giảm dần
+  orders.sort((a, b) => {
+    if (b.date !== a.date) {
+      return b.date.localeCompare(a.date);
+    }
+    return b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' });
+  });
+
+  const totalCount = orders.length;
+  const totalPages = Math.ceil(totalCount / 30) || 1;
+
+  if (purchaseOrderCurrentPage > totalPages) purchaseOrderCurrentPage = totalPages;
+  if (purchaseOrderCurrentPage < 1) purchaseOrderCurrentPage = 1;
+
+  const startIdx = (purchaseOrderCurrentPage - 1) * 30;
+  const displayedOrders = orders.slice(startIdx, startIdx + 30);
+
+  // Cập nhật thông tin phân trang trên tiêu đề bảng
+  const countEl = document.getElementById("purchase-order-pagination-info");
+  if (countEl) {
+    countEl.innerText = `Hiển thị đơn hàng từ ${totalCount > 0 ? startIdx + 1 : 0} - ${Math.min(startIdx + 30, totalCount)} trong số ${totalCount} đơn hàng (Trang ${purchaseOrderCurrentPage}/${totalPages})`;
+  }
+
+  // Reset check-all-purchase-order checkbox
+  const checkAll = document.getElementById("check-all-purchase-order");
+  if (checkAll) checkAll.checked = false;
+  updateBatchPurchaseOrdersUI();
+
+  // Render các nút chuyển trang động
+  const paginationControls = document.getElementById("purchase-order-pagination-controls");
+  if (paginationControls) {
+    if (totalPages <= 1) {
+      paginationControls.style.display = "none";
+    } else {
+      paginationControls.style.display = "flex";
+
+      let buttonsHTML = "";
+      buttonsHTML += `
+        <button class="btn btn-secondary btn-sm" onclick="changePurchaseOrderPage(1)" ${purchaseOrderCurrentPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">« Đầu</button>
+        <button class="btn btn-secondary btn-sm" onclick="changePurchaseOrderPage(${purchaseOrderCurrentPage - 1})" ${purchaseOrderCurrentPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">‹ Trước</button>
+      `;
+
+      let startPage = Math.max(1, purchaseOrderCurrentPage - 2);
+      let endPage = Math.min(totalPages, purchaseOrderCurrentPage + 2);
+
+      if (startPage > 1) {
+        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
+      }
+
+      for (let p = startPage; p <= endPage; p++) {
+        buttonsHTML += `
+          <button class="btn ${p === purchaseOrderCurrentPage ? 'btn-success' : 'btn-secondary'} btn-sm" onclick="changePurchaseOrderPage(${p})" style="padding: 4px 10px; font-size: 12px; font-weight: ${p === purchaseOrderCurrentPage ? '800' : 'normal'};">${p}</button>
+        `;
+      }
+
+      if (endPage < totalPages) {
+        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
+      }
+
+      buttonsHTML += `
+        <button class="btn btn-secondary btn-sm" onclick="changePurchaseOrderPage(${purchaseOrderCurrentPage + 1})" ${purchaseOrderCurrentPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Sau ›</button>
+        <button class="btn btn-secondary btn-sm" onclick="changePurchaseOrderPage(${totalPages})" ${purchaseOrderCurrentPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Cuối »</button>
+      `;
+
+      paginationControls.innerHTML = `
+        <span style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">
+          Hiển thị ${startIdx + 1} - ${Math.min(startIdx + 30, totalCount)} của ${totalCount} đơn hàng
+        </span>
+        <div style="display: flex; gap: 4px; align-items: center;">
+          ${buttonsHTML}
+        </div>
+      `;
+    }
+  }
+
+  if (displayedOrders.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy đơn đặt hàng nào phù hợp.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = displayedOrders.map(v => {
+    const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
+    return `
+      <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
+        <td style="text-align: center;">
+          <input type="checkbox" class="purchase-order-checkbox" value="${escapeHtmlAttr(v.id)}" onchange="updateBatchPurchaseOrdersUI()">
+        </td>
+        <td class="font-numeric" style="color: var(--color-primary); font-weight:700;">${v.id}</td>
+        <td>${formattedDate}</td>
+        <td>${v.description}</td>
+        <td><span class="badge ${v.paymentMethod === '331' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '331' ? 'Công nợ (331)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
+        <td class="text-right font-numeric" style="font-weight:700; color:var(--color-primary);">${formatVND(v.totalAmount)}</td>
+        <td>
+          <div class="accounting-detail-box" style="color: var(--text-muted); text-align: center; font-style: italic;">
+            (Không hạch toán kho/sổ cái)
+          </div>
+        </td>
+        <td style="text-align: center;">
+          <div style="display:flex; justify-content:center; gap:6px;">
+            <button class="print-btn" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')" title="Xem và In mẫu đơn hàng" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-success); cursor: pointer; transition: all 0.2s;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            </button>
+            <button class="edit-btn" onclick="editPurchaseOrderVoucher('${escapeHtmlAttr(v.id)}')" title="Chỉnh sửa đơn hàng" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-primary); cursor: pointer; transition: all 0.2s;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            </button>
+            <button class="trash-btn" onclick="deleteVoucher('${escapeHtmlAttr(v.id)}')" title="Xóa đơn hàng" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-danger); cursor: pointer; transition: all 0.2s;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function filterPurchaseOrderTable() {
+  purchaseOrderCurrentPage = 1;
+  renderPurchaseOrderTable();
+}
+
+function clearPurchaseOrderDateFilter() {
+  const fromEl = document.getElementById("search-purchase-order-from");
+  const toEl = document.getElementById("search-purchase-order-to");
+  if (fromEl) fromEl.value = "";
+  if (toEl) toEl.value = "";
+  filterPurchaseOrderTable();
+}
+
+function changePurchaseOrderPage(p) {
+  purchaseOrderCurrentPage = p;
+  renderPurchaseOrderTable();
+}
+
+function toggleSelectAllPurchaseOrders(masterCheckbox) {
+  const checkboxes = document.querySelectorAll(".purchase-order-checkbox");
+  checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+  updateBatchPurchaseOrdersUI();
+}
+
+function updateBatchPurchaseOrdersUI() {
+  const checkboxes = document.querySelectorAll(".purchase-order-checkbox");
+  const checked = Array.from(checkboxes).filter(cb => cb.checked);
+  const btn = document.getElementById("btn-batch-delete-purchase-order");
+  const count = document.getElementById("selected-purchase-orders-count");
+
+  if (btn && count) {
+    if (checked.length > 0) {
+      btn.style.display = "inline-flex";
+      count.innerText = checked.length;
+    } else {
+      btn.style.display = "none";
+      count.innerText = "0";
+    }
+  }
+
+  const master = document.getElementById("check-all-purchase-order");
+  if (master) {
+    master.checked = checked.length === checkboxes.length && checkboxes.length > 0;
+  }
+}
+
+function batchDeletePurchaseOrders() {
+  const checked = Array.from(document.querySelectorAll(".purchase-order-checkbox")).filter(cb => cb.checked);
+  if (checked.length === 0) return;
+
+  if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} đơn đặt hàng đã chọn?`)) {
+    const idsToDelete = checked.map(cb => cb.value);
+    trackDeletedIds(idsToDelete);
+    state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+
+    saveState();
+    recalculateAccounting();
+
+    const master = document.getElementById("check-all-purchase-order");
+    if (master) master.checked = false;
+
+    updateBatchPurchaseOrdersUI();
+    renderPurchaseOrderTable();
+
+    showToast(`Đã xóa thành công ${checked.length} đơn đặt hàng!`, "success");
+  }
+}
+
+function exportPurchaseOrdersToExcel() {
+  if (typeof XLSX === "undefined") {
+    showToast("Thư viện SheetJS chưa được nạp!", "danger");
+    return;
+  }
+
+  let filteredOrders = state.vouchers.filter(v => v.type === "purchase_order");
+
+  const query = document.getElementById("search-purchase-order") ? document.getElementById("search-purchase-order").value.toLowerCase() : "";
+  const fromDate = document.getElementById("search-purchase-order-from") ? document.getElementById("search-purchase-order-from").value : "";
+  const toDate = document.getElementById("search-purchase-order-to") ? document.getElementById("search-purchase-order-to").value : "";
+
+  if (query) {
+    filteredOrders = filteredOrders.filter(v =>
+      (v.id || "").toLowerCase().includes(query) ||
+      (v.partnerName || "").toLowerCase().includes(query) ||
+      (v.description || "").toLowerCase().includes(query)
+    );
+  }
+  if (fromDate) filteredOrders = filteredOrders.filter(v => v.date >= fromDate);
+  if (toDate) filteredOrders = filteredOrders.filter(v => v.date <= toDate);
+  filteredOrders.sort((a, b) => new Date(a.date) - new Date(b.date) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+
+  try {
+    const wb = XLSX.utils.book_new();
+    const ws = {};
+    const merges = [];
+
+    // --- Style presets ---
+    const thin = { style: "thin", color: { rgb: "AAAAAA" } };
+    const border4 = { top: thin, bottom: thin, left: thin, right: thin };
+    const headerBg = { patternType: "solid", fgColor: { rgb: "1F497D" } };
+    const altBg = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
+    const fntTitle = { name: "Times New Roman", sz: 13, bold: true };
+    const fntSub = { name: "Times New Roman", sz: 11, italic: true };
+    const fntHdr = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
+    const fntBold = { name: "Times New Roman", sz: 11, bold: true };
+    const fntNorm = { name: "Times New Roman", sz: 11 };
+    const cCenter = { horizontal: "center", vertical: "center" };
+    const cLeft = { horizontal: "left", vertical: "center" };
+    const cRight = { horizontal: "right", vertical: "center" };
+    const numFmt = "#,##0 ;[Red](#,##0)";
+    const dateFmt = "dd/mm/yyyy";
+
+    const setCell = (ws, r, c, v, t, s, z) => {
+      const key = XLSX.utils.encode_cell({ r, c });
+      const cell = { v, t: t || (typeof v === 'number' ? 'n' : 's') };
+      if (s) cell.s = s;
+      if (z) cell.z = z;
+      ws[key] = cell;
+    };
+
+    const today = new Date().toLocaleDateString('vi-VN');
+    let dateRangeText = `Từ ngày: ${fromDate || 'đầu kỳ'}   Đến ngày: ${toDate || today}`;
+
+    // --- ROW 0: Tiêu đề chính ---
+    const compName = state.companyName || "Công Ty Cổ Phần Rạng Đông";
+    setCell(ws, 0, 0, compName, 's', { font: fntTitle, alignment: cCenter }, null);
+    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 21 } });
+
+    // --- ROW 1: Tên báo cáo ---
+    setCell(ws, 1, 0, "SỔ CHI TIẾT ĐƠN ĐẶT HÀNG THEO MÃ QUY CÁCH", 's', { font: fntTitle, alignment: cCenter }, null);
+    merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 21 } });
+
+    // --- ROW 2: Phạm vi ngày ---
+    setCell(ws, 2, 0, dateRangeText, 's', { font: fntSub, alignment: cCenter }, null);
+    merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: 21 } });
+
+    // --- ROW 3: Header cột ---
+    const headers = ["Ngày hạch toán", "Ngày chứng từ", "Số đơn hàng", "Ngày hóa đơn", "Số hóa đơn", "Mã hàng", "Tên hàng", "ĐVT", "Mã quy cách 1", "Mã quy cách 2", "Mã quy cách 3", "Mã quy cách 4", "Mã quy cách 5", "Số lượng", "Đơn giá", "Phí trước hải quan", "Phí hàng về kho", "Thành tiền", "Chiết khấu", "Số lượng trả lại", "Giá trị trả lại", "Giá trị giảm giá"];
+    headers.forEach((h, c) => {
+      setCell(ws, 3, c, h, 's', { font: fntHdr, fill: headerBg, alignment: cCenter, border: border4 }, null);
+    });
+
+    let rowIdx = 4;
+    let totalGross = 0;
+
+    filteredOrders.forEach((v, vIdx) => {
+      const rowBg = vIdx % 2 === 0 ? null : altBg;
+      const baseStyle = (align) => ({ font: fntNorm, fill: rowBg, alignment: align, border: border4 });
+      const numStyle = (align) => ({ font: fntNorm, fill: rowBg, alignment: align || cRight, border: border4 });
+
+      if (v.items && v.items.length > 0) {
+        v.items.forEach(item => {
+          const prod = state.products ? state.products.find(p => p.id === item.productId) : null;
+          const itemGross = (item.qty || 0) * (item.price || 0);
+          const discVal = itemGross * ((item.discount || 0) / 100);
+
+          setCell(ws, rowIdx, 0, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+          setCell(ws, rowIdx, 1, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+          setCell(ws, rowIdx, 2, v.id, 's', baseStyle(cCenter), null);
+          setCell(ws, rowIdx, 3, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+          setCell(ws, rowIdx, 4, v.invoiceNo || "", 's', baseStyle(cCenter), null);
+          setCell(ws, rowIdx, 5, item.productId || "", 's', baseStyle(cLeft), null);
+          setCell(ws, rowIdx, 6, prod ? prod.name : (item.productName || item.productId || ""), 's', baseStyle(cLeft), null);
+          setCell(ws, rowIdx, 7, prod ? (prod.unit || "Cái") : (item.unit || "Cái"), 's', baseStyle(cCenter), null);
+          setCell(ws, rowIdx, 8, "", 's', baseStyle(cLeft), null);
+          setCell(ws, rowIdx, 9, "", 's', baseStyle(cLeft), null);
+          setCell(ws, rowIdx, 10, "", 's', baseStyle(cLeft), null);
+          setCell(ws, rowIdx, 11, "", 's', baseStyle(cLeft), null);
+          setCell(ws, rowIdx, 12, "", 's', baseStyle(cLeft), null);
+          setCell(ws, rowIdx, 13, item.qty || 0, 'n', numStyle(cRight), "#,##0.##");
+          setCell(ws, rowIdx, 14, item.price || 0, 'n', numStyle(cRight), numFmt);
+          setCell(ws, rowIdx, 15, 0, 'n', numStyle(cRight), numFmt);
+          setCell(ws, rowIdx, 16, 0, 'n', numStyle(cRight), numFmt);
+          setCell(ws, rowIdx, 17, itemGross - discVal, 'n', numStyle(cRight), numFmt);
+          setCell(ws, rowIdx, 18, discVal, 'n', numStyle(cRight), numFmt);
+          setCell(ws, rowIdx, 19, 0, 'n', numStyle(cRight), "#,##0.##");
+          setCell(ws, rowIdx, 20, 0, 'n', numStyle(cRight), numFmt);
+          setCell(ws, rowIdx, 21, 0, 'n', numStyle(cRight), numFmt);
+
+          totalGross += itemGross - discVal;
+          rowIdx++;
+        });
+      } else {
+        const gross = v.totalAmount - (v.taxAmount || 0);
+        setCell(ws, rowIdx, 0, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+        setCell(ws, rowIdx, 1, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+        setCell(ws, rowIdx, 2, v.id, 's', baseStyle(cCenter), null);
+        setCell(ws, rowIdx, 3, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+        setCell(ws, rowIdx, 4, v.invoiceNo || "", 's', baseStyle(cCenter), null);
+        setCell(ws, rowIdx, 5, "GENERIC", 's', baseStyle(cLeft), null);
+        setCell(ws, rowIdx, 6, "Đơn đặt hàng chi tiết tổng", 's', baseStyle(cLeft), null);
+        setCell(ws, rowIdx, 7, "Cái", 's', baseStyle(cCenter), null);
+        setCell(ws, rowIdx, 8, "", 's', baseStyle(cLeft), null);
+        setCell(ws, rowIdx, 9, "", 's', baseStyle(cLeft), null);
+        setCell(ws, rowIdx, 10, "", 's', baseStyle(cLeft), null);
+        setCell(ws, rowIdx, 11, "", 's', baseStyle(cLeft), null);
+        setCell(ws, rowIdx, 12, "", 's', baseStyle(cLeft), null);
+        setCell(ws, rowIdx, 13, 0, 'n', numStyle(cRight), "#,##0.##");
+        setCell(ws, rowIdx, 14, 0, 'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 15, 0, 'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 16, 0, 'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 17, gross, 'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 18, 0, 'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 19, 0, 'n', numStyle(cRight), "#,##0.##");
+        setCell(ws, rowIdx, 20, 0, 'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 21, 0, 'n', numStyle(cRight), numFmt);
+
+        totalGross += gross;
+        rowIdx++;
+      }
+    });
+
+    // --- DÒNG TỔNG ---
+    const totalBg = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
+    const totalStyle = (al) => ({ font: fntBold, fill: totalBg, alignment: al, border: border4 });
+    setCell(ws, rowIdx, 0, "TỔNG CỘNG", 's', { font: fntBold, fill: totalBg, alignment: cLeft, border: border4 }, null);
+    merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 16 } });
+    setCell(ws, rowIdx, 17, totalGross, 'n', totalStyle(cRight), numFmt);
+    setCell(ws, rowIdx, 18, 0, 'n', totalStyle(cRight), numFmt);
+    setCell(ws, rowIdx, 19, 0, 'n', totalStyle(cRight), "#,##0.##");
+    setCell(ws, rowIdx, 20, 0, 'n', totalStyle(cRight), numFmt);
+    setCell(ws, rowIdx, 21, 0, 'n', totalStyle(cRight), numFmt);
+
+    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: 21 } });
+    ws['!merges'] = merges;
+    ws['!cols'] = [
+      { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 13 },
+      { wch: 14 }, { wch: 28 }, { wch: 8 }, { wch: 13 }, { wch: 13 },
+      { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 12 }, { wch: 16 },
+      { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 14 },
+      { wch: 14 }, { wch: 14 }
+    ];
+    ws['!rows'] = [
+      { hpt: 22 }, { hpt: 20 }, { hpt: 16 }, { hpt: 22 }
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Don dat hang");
+
+    let dateRangeSuffix = "";
+    if (fromDate || toDate) dateRangeSuffix = `_${fromDate || ""}_${toDate || ""}`;
+    const outName = `Don_dat_hang_chi_tiet_${new Date().toISOString().split('T')[0]}${dateRangeSuffix}.xlsx`;
+    XLSX.writeFile(wb, outName);
+    showToast(`Đã xuất Excel: ${outName}`, "success");
+  } catch (err) {
+    console.error(err);
+    showToast(`Lỗi xuất Excel đơn đặt hàng: ${err.message}`, "danger");
+  }
+}
+
+// REGISTER GLOBALS TO WINDOW
+window.switchPurchaseSubTab = switchPurchaseSubTab;
+window.addPurchaseOrderFormRow = addPurchaseOrderFormRow;
+window.autoFillPurchaseOrderPrice = autoFillPurchaseOrderPrice;
+window.recalculatePurchaseOrderTotals = recalculatePurchaseOrderTotals;
+window.resetPurchaseOrderForm = resetPurchaseOrderForm;
+window.handlePurchaseOrderSubmit = handlePurchaseOrderSubmit;
+window.editPurchaseOrderVoucher = editPurchaseOrderVoucher;
+window.renderPurchaseOrderTable = renderPurchaseOrderTable;
+window.filterPurchaseOrderTable = filterPurchaseOrderTable;
+window.clearPurchaseOrderDateFilter = clearPurchaseOrderDateFilter;
+window.changePurchaseOrderPage = changePurchaseOrderPage;
+window.toggleSelectAllPurchaseOrders = toggleSelectAllPurchaseOrders;
+window.updateBatchPurchaseOrdersUI = updateBatchPurchaseOrdersUI;
+window.batchDeletePurchaseOrders = batchDeletePurchaseOrders;
+window.exportPurchaseOrdersToExcel = exportPurchaseOrdersToExcel;
 

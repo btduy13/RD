@@ -13,5 +13,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Đăng ký lắng nghe tiến trình tải về
   onDownloadProgress: (callback) => ipcRenderer.on('download-progress', (event, percent) => callback(percent)),
   // Đọc file Excel từ thư mục excel/ trong app (dùng fs thay vì fetch để tránh lỗi file:// protocol)
-  readExcelFile: (filename) => ipcRenderer.invoke('read-excel-file', filename)
+  readExcelFile: (filename) => ipcRenderer.invoke('read-excel-file', filename),
+  // Sao lưu thủ công (renderer gửi JSON data lên main để ghi file)
+  saveBackupOnExit: (jsonData) => ipcRenderer.invoke('save-backup-on-exit', jsonData),
+  // Lấy đường dẫn thư mục backup
+  getBackupDir: () => ipcRenderer.invoke('get-backup-dir'),
 });
