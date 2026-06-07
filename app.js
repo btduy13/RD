@@ -840,6 +840,7 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
 // Biến phục vụ tối ưu lưu trữ (Debounce saveState để tránh đơ UI khi dữ liệu lớn)
 let saveStateTimeout = null;
 let saveStateIsDirty = false;
+let _cloudPullCompleted = false; // Cờ ngăn push trước khi pull cloud xong
 
 function saveState() {
   saveStateIsDirty = true;
@@ -859,7 +860,9 @@ function executeSaveState() {
     // để máy nhận có thể nhận biết đây là bản mới nhất
     state._lastModified = Date.now();
     localStorage.setItem("rd_accounting_db", JSON.stringify(state));
-    if (typeof pushToCloud === "function") {
+    // [FIX 4] Chỉ push lên cloud khi đã pull xong dữ liệu cloud lúc khởi động
+    // Tránh race condition: máy A bật lên → push dữ liệu cũ → ghi đè dữ liệu mới của máy B
+    if (_cloudPullCompleted && typeof pushToCloud === "function") {
       pushToCloud();
     }
     saveStateIsDirty = false;
@@ -9361,19 +9364,30 @@ function pullFromCloudOnStartup() {
         localStorage.setItem("rd_accounting_db", JSON.stringify(state));
         console.log("[SmartMerge] Dữ liệu khởi động đã được merge thành công!");
 
+        // [FIX 5] Mở cờ cho phép push SAU KHI đã pull và merge xong
+        _cloudPullCompleted = true;
+
         // Cập nhật giao diện
         recalculateAccounting();
         renderDashboard();
         filterDebts();
         filterPartners();
         filterCash();
+
+        // [FIX 6] Đẩy bản đã merge ngược lên cloud để đồng bộ cho các máy khác
+        pushToCloud();
       } else {
         // Cơ sở dữ liệu đám mây trống (Lần kết nối đầu tiên) -> Tự động đẩy dữ liệu cục bộ (đã nạp từ Excel) lên đám mây
         console.log("Cơ sở dữ liệu đám mây trống. Tự động đồng bộ ngược dữ liệu cục bộ lên đám mây...");
+        _cloudPullCompleted = true;
         pushToCloud();
       }
     })
     .catch((err) => {
+      // [FIX 7] Nếu pull thất bại (mất mạng), vẫn cho phép push sau 10 giây
+      // để không bị kẹt vĩnh viễn nếu mạng đứt lúc khởi động
+      console.warn("[CloudSync] Pull thất bại, sẽ cho phép push sau 10 giây.");
+      setTimeout(() => { _cloudPullCompleted = true; }, 10000);
       if (typeof addErrorLog === "function") {
         addErrorLog("pullFromCloudOnStartup", err.message, err);
       }
@@ -9511,11 +9525,10 @@ function mergeStates(localState, cloudState) {
   const cloudTs = cloudState._lastModified || 0;
   const localTs = localState._lastModified || 0;
 
-  // Nếu cloud cũ hơn local quá 5 phút → local wins hoàn toàn
-  if (localTs - cloudTs > 5 * 60 * 1000) {
-    console.log("[SmartMerge] Local mới hơn cloud >5 phút → local wins.");
-    return { ...localState };
-  }
+  // [FIX 8] XÓA BỎ logic "local wins hoàn toàn" khi local mới hơn 5 phút
+  // Logic cũ gây mất dữ liệu: Máy A tắt lâu → bật lên → recalculate cập nhật
+  // timestamp local thành "mới nhất" → lần merge tiếp theo bỏ qua hết cloud data.
+  // Thay vào đó, LUÔN merge đầy đủ cả 2 nguồn dữ liệu.
 
   // Gộp deletedIds từ cả 2 nguồn để không tái xuất hiện dữ liệu đã xóa
   const mergedDeletedIds = Array.from(
