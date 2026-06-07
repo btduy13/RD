@@ -9214,9 +9214,16 @@ function firebaseCollectionToArray(collection) {
     return Object.keys(collection).map(key => {
       const item = collection[key];
       if (item && typeof item === 'object') {
-        const unescapedId = unescapeFirebaseKey(key);
-        // Đảm bảo item.id khớp với key đã unescape
-        item.id = unescapedId;
+        // Nếu key là chỉ số mảng cũ (0, 1, 2...) thì giữ nguyên item.id gốc
+        // Nếu key là ID thực (cấu trúc object mới) thì gán item.id từ key
+        const isNumericKey = /^\d+$/.test(key);
+        if (!isNumericKey) {
+          item.id = unescapeFirebaseKey(key);
+        }
+        // Nếu key là số nhưng item không có id, dùng key làm id dự phòng
+        if (!item.id) {
+          item.id = unescapeFirebaseKey(key);
+        }
         return item;
       }
       return null;
@@ -9664,6 +9671,7 @@ let _incrementalListenersActive = false;
 let isPushing = false;
 let pushPending = false;
 let _isMergePushing = false;
+let _pendingCloudEvents = []; // Hàng đợi sự kiện từ Cloud trong khi đang push
 
 async function pushToCloud(forceFullPush = false) {
   if (!cloudSyncActive || !firebaseDb) return;
@@ -9674,6 +9682,8 @@ async function pushToCloud(forceFullPush = false) {
   isPushing = true;
   pushPending = false;
   _isMergePushing = true;
+  _pendingCloudEvents = []; // Xóa hàng đợi cũ khi bắt đầu push mới
+  const _lastPushedIds = new Set(); // Theo dõi các ID do chính lần push này tạo ra
 
   if (typeof updateCloudSyncBadge === "function") {
     updateCloudSyncBadge(false, "Mây: Đang đẩy...", "#f59e0b");
@@ -9784,6 +9794,8 @@ async function pushToCloud(forceFullPush = false) {
 
         if (hasUpdates) {
           console.log(`[IncrementalSync] Đẩy cập nhật cho ${col}:`, Object.keys(updates));
+          // Ghi nhận các ID vừa push để lọc self-echo trong hàng đợi
+          Object.keys(updates).forEach(eid => _lastPushedIds.add(eid));
           await firebaseDb.ref(`rd_accounting_db/${col}`).update(updates);
         }
 
@@ -9854,8 +9866,38 @@ async function pushToCloud(forceFullPush = false) {
       }
     }, 5000);
   } finally {
+    // [FIX] Lưu lại _updatedAt vào localStorage sau khi push hoàn tất
+    try {
+      localStorage.setItem("rd_accounting_db", JSON.stringify(state));
+    } catch(e) { /* ignore */ }
+
     isPushing = false;
     _isMergePushing = false;
+
+    // [FIX] Xử lý hàng đợi sự kiện từ Cloud nhận trong lúc đang push
+    // (trước đây bị bỏ qua vĩnh viễn → mất dữ liệu từ máy khác)
+    if (_pendingCloudEvents.length > 0) {
+      // Lọc bỏ self-echo: sự kiện do chính lần push này tạo ra
+      const externalEvents = _pendingCloudEvents.filter(evt => {
+        if (evt.snapshot && evt.snapshot.key) {
+          return !_lastPushedIds.has(evt.snapshot.key);
+        }
+        return true;
+      });
+      const selfEchoCount = _pendingCloudEvents.length - externalEvents.length;
+      _pendingCloudEvents = [];
+      if (externalEvents.length > 0) {
+        console.log(`[CloudSync] Xử lý ${externalEvents.length} sự kiện từ máy khác đã xếp hàng đợi (lọc ${selfEchoCount} self-echo)...`);
+        externalEvents.forEach(evt => {
+          if (evt.type === 'update') {
+            handleIncrementalUpdate(evt.collectionName, evt.snapshot);
+          } else if (evt.type === 'delete') {
+            handleIncrementalDelete(evt.snapshot);
+          }
+        });
+      }
+    }
+
     if (pushPending) {
       pushPending = false;
       setTimeout(() => pushToCloud(forceFullPush), 100);
@@ -9919,8 +9961,11 @@ function initIncrementalListeners() {
 }
 
 function handleIncrementalUpdate(collectionName, snapshot) {
-  // Bỏ qua sự kiện do chính lần push của máy này gây ra
-  if (_isMergePushing || isPushing) return;
+  // Nếu đang push → xếp hàng đợi thay vì bỏ qua (tránh mất sự kiện vĩnh viễn)
+  if (_isMergePushing || isPushing) {
+    _pendingCloudEvents.push({ type: 'update', collectionName, snapshot });
+    return;
+  }
 
   const rawItem = snapshot.val();
   if (!rawItem) return;
@@ -10000,7 +10045,11 @@ function handleIncrementalUpdate(collectionName, snapshot) {
 }
 
 function handleIncrementalDelete(snapshot) {
-  if (_isMergePushing || isPushing) return;
+  // Nếu đang push → xếp hàng đợi thay vì bỏ qua (tránh mất sự kiện vĩnh viễn)
+  if (_isMergePushing || isPushing) {
+    _pendingCloudEvents.push({ type: 'delete', snapshot });
+    return;
+  }
 
   const deletedId = unescapeFirebaseKey(snapshot.key);
   const timestamp = snapshot.val();
