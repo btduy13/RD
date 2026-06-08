@@ -9770,7 +9770,7 @@ async function startSupabaseClient() {
 async function fetchAllRows() {
   let allRows = [];
   let from = 0;
-  const step = 1000;
+  const step = 200;
   while (true) {
     const { data, error } = await supabaseClient
       .from("rd_accounting_data")
@@ -10284,8 +10284,8 @@ async function pushToCloud() {
 
     console.log(`[pushToCloud] Delta: Cần upsert ${rowsToUpsert.length} dòng, delete ${idsToDelete.length} dòng.`);
 
-    // 3. Upsert các dòng mới/thay đổi theo lô 1000 dòng
-    const BATCH_SIZE = 1000;
+    // 3. Upsert các dòng mới/thay đổi theo lô 150 dòng
+    const BATCH_SIZE = 150;
     for (let i = 0; i < rowsToUpsert.length; i += BATCH_SIZE) {
       const batch = rowsToUpsert.slice(i, i + BATCH_SIZE);
       const { error: batchError } = await supabaseClient
@@ -10294,7 +10294,7 @@ async function pushToCloud() {
       if (batchError) throw batchError;
     }
 
-    // 4. Thực hiện xóa các dòng bị loại bỏ theo lô 1000 dòng
+    // 4. Thực hiện xóa các dòng bị loại bỏ theo lô 150 dòng
     if (idsToDelete.length > 0) {
       for (let i = 0; i < idsToDelete.length; i += BATCH_SIZE) {
         const batch = idsToDelete.slice(i, i + BATCH_SIZE);
