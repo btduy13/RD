@@ -1052,6 +1052,12 @@ function executeSaveState() {
     // [FIX 1] Luôn cập nhật timestamp trước khi lưu và push
     // để máy nhận có thể nhận biết đây là bản mới nhất
     state._lastModified = Date.now();
+
+    // Dọn dẹp deletedIds: Loại bỏ bất kỳ ID nào hiện đang hoạt động trong vouchers
+    if (Array.isArray(state.deletedIds) && Array.isArray(state.vouchers)) {
+      const activeIds = new Set(state.vouchers.map(v => v.id));
+      state.deletedIds = state.deletedIds.filter(id => !activeIds.has(id));
+    }
     
     // Ghi cache cục bộ tức thời
     try {
@@ -3618,9 +3624,8 @@ function resetSalesForm() {
 }
 
 function generateNextPurchaseVoucherId(paymentMethod) {
-  const currentYear = new Date().getFullYear().toString().substring(2);
-  const prefix = `MH-${currentYear}-`;
-  const regex = new RegExp(`^MH-${currentYear}-(\\d+)$`);
+  const prefix = "NK";
+  const regex = /^NK(\d+)$/;
   let maxNum = 0;
 
   state.vouchers.forEach(v => {
@@ -3633,7 +3638,23 @@ function generateNextPurchaseVoucherId(paymentMethod) {
     }
   });
 
-  return `${prefix}${(maxNum + 1).toString().padStart(4, '0')}`;
+  // Giá trị mặc định an toàn nếu chưa có hoặc số maxNum quá nhỏ so với lịch sử
+  if (maxNum === 0) {
+    maxNum = 8459; // Vì số trong ảnh là NK08459
+  }
+
+  let nextId = `${prefix}${(maxNum + 1).toString().padStart(5, '0')}`;
+  
+  // Tấm lưới bảo vệ: Nếu ID tiếp theo nằm trong deletedIds, tiếp tục tăng cho đến khi tìm được mã chưa dùng
+  if (Array.isArray(state.deletedIds)) {
+    let checkNum = maxNum + 1;
+    while (state.deletedIds.includes(nextId)) {
+      checkNum++;
+      nextId = `${prefix}${checkNum.toString().padStart(5, '0')}`;
+    }
+  }
+
+  return nextId;
 }
 
 function generateNextSalesVoucherId(paymentMethod) {
@@ -3657,7 +3678,17 @@ function generateNextSalesVoucherId(paymentMethod) {
     maxNum = isCredit ? 44340 : 13122;
   }
 
-  return `${prefix}${maxNum + 1}`;
+  let nextId = `${prefix}${maxNum + 1}`;
+  
+  if (Array.isArray(state.deletedIds)) {
+    let checkNum = maxNum + 1;
+    while (state.deletedIds.includes(nextId)) {
+      checkNum++;
+      nextId = `${prefix}${checkNum}`;
+    }
+  }
+
+  return nextId;
 }
 
 // Xử lý nộp form Bán hàng (Có xác thực kiểm kho hàng tồn)
@@ -12445,7 +12476,17 @@ function generateNextPurchaseOrderVoucherId() {
     }
   });
 
-  return `${prefix}${(maxNum + 1).toString().padStart(4, '0')}`;
+  let nextId = `${prefix}${(maxNum + 1).toString().padStart(4, '0')}`;
+  
+  if (Array.isArray(state.deletedIds)) {
+    let checkNum = maxNum + 1;
+    while (state.deletedIds.includes(nextId)) {
+      checkNum++;
+      nextId = `${prefix}${checkNum.toString().padStart(4, '0')}`;
+    }
+  }
+
+  return nextId;
 }
 
 function addPurchaseOrderFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
