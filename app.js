@@ -56,29 +56,21 @@ function setupNumberFormattingEventListeners() {
   });
 }
 
-// Khởi tạo ứng dụng: Load dữ liệu từ localStorage hoặc dùng mặc định
+// Khởi tạo ứng dụng: Ở chế độ Online-Only, CSDL cục bộ sẽ bị loại bỏ hoàn toàn
 function initApp() {
-  const localData = localStorage.getItem("rd_accounting_db");
-  if (localData) {
-    try {
-      state = JSON.parse(localData);
-      // Tự động nâng cấp lên CSDL Excel nếu đang sử dụng CSDL Demo hoặc CSDL trống
-      if (!state.products || state.products.length < 10) {
-        if (typeof PREPOPULATED_DATABASE !== "undefined") {
-          console.log("Auto-upgrading to integrated Excel database...");
-          state = JSON.parse(JSON.stringify(PREPOPULATED_DATABASE));
-          saveState();
-        }
-      }
-    } catch (e) {
-      console.error("Lỗi đọc dữ liệu localStorage, nạp lại mặc định:", e);
-      state = typeof PREPOPULATED_DATABASE !== "undefined" ? JSON.parse(JSON.stringify(PREPOPULATED_DATABASE)) : JSON.parse(JSON.stringify(DEFAULT_DATA));
-    }
-  } else {
-    // Nạp dữ liệu mẫu ban đầu từ Excel nạp sẵn hoặc data.js
-    state = typeof PREPOPULATED_DATABASE !== "undefined" ? JSON.parse(JSON.stringify(PREPOPULATED_DATABASE)) : JSON.parse(JSON.stringify(DEFAULT_DATA));
-    saveState();
-  }
+  localStorage.removeItem("rd_accounting_db");
+
+  // Khởi tạo state trống ban đầu (sẽ được tải từ Cloud khi Supabase Client kết nối thành công)
+  state = {
+    companyName: "",
+    address: "",
+    taxCode: "",
+    accountingStandard: "TT200",
+    products: [],
+    partners: [],
+    initialBalances: {},
+    vouchers: []
+  };
 
   // Đảm bảo khởi tạo các tài khoản số dư đầu kỳ và số dư đối tác
   if (!state.initialBalances || Object.keys(state.initialBalances).length === 0) {
@@ -837,7 +829,6 @@ function executeSaveState() {
     // [FIX 1] Luôn cập nhật timestamp trước khi lưu và push
     // để máy nhận có thể nhận biết đây là bản mới nhất
     state._lastModified = Date.now();
-    localStorage.setItem("rd_accounting_db", JSON.stringify(state));
     if (typeof pushToCloud === "function") {
       pushToCloud();
     }
@@ -4713,7 +4704,7 @@ function exportData() {
 async function manualBackupNow() {
   if (window.electronAPI && window.electronAPI.saveBackupOnExit) {
     try {
-      const jsonData = localStorage.getItem("rd_accounting_db") || JSON.stringify(state);
+      const jsonData = JSON.stringify(state);
       const result = await window.electronAPI.saveBackupOnExit(jsonData);
       if (result && result.ok) {
         const fileName = result.path ? result.path.split(/[/\\]/).pop() : "";
@@ -9345,17 +9336,20 @@ function loadCloudSettings() {
       // Chấp nhận cấu hình Supabase mới (có supabaseUrl)
       if (parsed && parsed.supabaseUrl) {
         cloudSyncSettings = parsed;
+        cloudSyncSettings.enabled = true;
       } else {
         // Cấu hình cũ (Firebase) hoặc không hợp lệ → ghi đè bằng cấu hình Supabase mặc định
+        cloudSyncSettings.enabled = true;
         localStorage.setItem("rd_accounting_cloud_settings", JSON.stringify(cloudSyncSettings));
       }
     } else {
       // Sử dụng cấu hình Supabase mặc định
+      cloudSyncSettings.enabled = true;
       localStorage.setItem("rd_accounting_cloud_settings", JSON.stringify(cloudSyncSettings));
     }
 
     const chk = document.getElementById("setting-cloud-enabled");
-    if (chk) chk.checked = cloudSyncSettings.enabled;
+    if (chk) chk.checked = true;
 
     const urlInput = document.getElementById("setting-cloud-supabase-url");
     if (urlInput) urlInput.value = cloudSyncSettings.supabaseUrl || "";
@@ -9538,30 +9532,8 @@ async function pullFromCloudOnStartup() {
   try {
     const cloudData = await fetchCloudData();
     if (cloudData) {
-      // Smart Merge khi khởi động: gộp dữ liệu cục bộ + cloud
-      // Tránh mất dữ liệu nhập khi offline trước đó
-      let localData = null;
-      try {
-        const localStr = localStorage.getItem("rd_accounting_db");
-        if (localStr) localData = JSON.parse(localStr);
-      } catch (e) { localData = null; }
-
-      // [TỐI ƯU HÓA BỘ NHỚ KHỞI ĐỘNG] Nếu localData và cloudData có cùng và khác không timestamp, không cần merge hay ghi đè
-      if (localData && cloudData && localData._lastModified > 0 && localData._lastModified === cloudData._lastModified) {
-        state = localData;
-        console.log("[SmartMerge] Khởi động: Trùng timestamp với Cloud, dùng dữ liệu cục bộ.");
-      } else {
-        const merged = localData ? mergeStates(localData, cloudData) : cloudData;
-        merged._lastModified = Math.max(
-          merged._lastModified || 0,
-          cloudData._lastModified || 0,
-          localData ? (localData._lastModified || 0) : 0
-        );
-
-        state = merged;
-        localStorage.setItem("rd_accounting_db", JSON.stringify(state));
-        console.log("[SmartMerge] Dữ liệu khởi động đã được merge thành công!");
-      }
+      state = cloudData;
+      console.log("[Supabase] Tải dữ liệu đám mây thành công!");
 
       // Cập nhật giao diện
       recalculateAccounting();
@@ -9569,15 +9541,31 @@ async function pullFromCloudOnStartup() {
       filterDebts();
       filterPartners();
       filterCash();
+      if (typeof renderInventoryTable === "function") renderInventoryTable();
+      if (typeof renderEscrowTable === "function") renderEscrowTable();
+      if (typeof renderPurchaseTable === "function") renderPurchaseTable();
+      if (typeof renderSalesTable === "function") renderSalesTable();
+      if (typeof initExcelIntegration === "function") initExcelIntegration();
     } else {
-      // Cơ sở dữ liệu đám mây trống (Lần kết nối đầu tiên) → Tự động đẩy dữ liệu cục bộ lên đám mây
-      console.log("Cơ sở dữ liệu đám mây trống. Tự động đồng bộ ngược dữ liệu cục bộ lên đám mây...");
+      // Cơ sở dữ liệu đám mây trống (Lần kết nối đầu tiên) → Tạo dữ liệu mặc định trống và đẩy lên đám mây
+      console.log("Cơ sở dữ liệu đám mây trống. Tạo dữ liệu mặc định và đẩy lên đám mây...");
+      state = {
+        companyName: "",
+        address: "",
+        taxCode: "",
+        accountingStandard: "TT200",
+        products: [],
+        partners: [],
+        initialBalances: JSON.parse(JSON.stringify(DEFAULT_DATA.initialBalances)),
+        vouchers: []
+      };
       pushToCloud();
     }
   } catch (err) {
     if (typeof addErrorLog === "function") {
       addErrorLog("pullFromCloudOnStartup", err.message, err);
     }
+    showToast("Không thể tải dữ liệu đám mây khi khởi động. Hãy kiểm tra Internet hoặc máy chủ.", "danger");
   }
 }
 
@@ -9621,12 +9609,16 @@ function forcePullFromCloud() {
     .then((cloudData) => {
       if (cloudData) {
         state = cloudData;
-        localStorage.setItem("rd_accounting_db", JSON.stringify(state));
         recalculateAccounting();
         renderDashboard();
         filterDebts();
         filterPartners();
         filterCash();
+        if (typeof renderInventoryTable === "function") renderInventoryTable();
+        if (typeof renderEscrowTable === "function") renderEscrowTable();
+        if (typeof renderPurchaseTable === "function") renderPurchaseTable();
+        if (typeof renderSalesTable === "function") renderSalesTable();
+        if (typeof initExcelIntegration === "function") initExcelIntegration();
         updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
         showToast("Tải dữ liệu từ Đám mây về máy này thành công!", "success");
       } else {
@@ -9890,43 +9882,26 @@ async function pullAndMergeFromCloud() {
   try {
     const cloudData = await fetchCloudData();
     if (cloudData) {
-      // [TỐI ƯU HÓA BỘ NHỚ] Kiểm tra timestamp trước để tránh xử lý chuỗi 34MB không cần thiết
       const cloudTs = cloudData._lastModified || 0;
       const localTs = state._lastModified || 0;
       if (cloudTs > 0 && localTs > 0 && cloudTs === localTs) {
-        console.log("[SmartMerge] Trùng timestamp, bỏ qua không cần merge.");
+        console.log("[Supabase] Trùng timestamp, không cần tải lại.");
         return;
       }
 
-      const localStr = localStorage.getItem("rd_accounting_db") || "";
-      const cloudStr = JSON.stringify(cloudData);
-
-      if (localStr === cloudStr) return; // Không có thay đổi, bỏ qua
-
-      console.log("[SmartMerge] Phát hiện thay đổi từ Supabase cloud, đang merge thông minh...");
-
-      let localData = null;
-      try {
-        localData = JSON.parse(localStr);
-      } catch (e) {
-        localData = state;
-      }
-
-      // Thực hiện Smart Merge: gộp local + cloud, giữ lại tất cả
-      const merged = mergeStates(localData, cloudData);
-      merged._lastModified = Date.now();
-
-      state = merged;
-      localStorage.setItem("rd_accounting_db", JSON.stringify(state));
-
-      // Đẩy bản merged ngược lên cloud để đồng bộ cho máy kia
-      pushToCloud();
+      console.log("[Supabase] Nhận được thay đổi mới từ cloud, đang tải về...");
+      state = cloudData;
 
       recalculateAccounting();
       renderDashboard();
       filterDebts();
       filterPartners();
       filterCash();
+      if (typeof renderInventoryTable === "function") renderInventoryTable();
+      if (typeof renderEscrowTable === "function") renderEscrowTable();
+      if (typeof renderPurchaseTable === "function") renderPurchaseTable();
+      if (typeof renderSalesTable === "function") renderSalesTable();
+      if (typeof initExcelIntegration === "function") initExcelIntegration();
     }
   } catch (err) {
     if (typeof addErrorLog === "function") {

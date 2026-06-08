@@ -95,9 +95,9 @@ function createWindow() {
     mainWindow.show();
     setTimeout(async () => {
       try {
-        const db = await mainWindow.webContents.executeJavaScript("localStorage.getItem('rd_accounting_db')");
+        const db = await mainWindow.webContents.executeJavaScript("JSON.stringify(state)");
         console.log('--- LOCAL_STORAGE_DB_SIZE: ' + (db ? db.length : 0));
-        if (db) {
+        if (db && db !== '{}') {
           const parsed = JSON.parse(db);
           console.log('--- LOCAL_STORAGE_VOUCHERS_COUNT: ' + (parsed.vouchers ? parsed.vouchers.length : 0));
           const types = {};
@@ -139,10 +139,10 @@ function createWindow() {
         await mainWindow.webContents.executeJavaScript('autoSaveBeforeClose()');
       }
 
-      // Bước 2: Đọc lại localStorage (sau khi đã lưu) để ghi file backup cục bộ
+      // Bước 2: Ghi file backup cục bộ từ in-memory state
       if (mainWindow && !mainWindow.isDestroyed()) {
         const jsonData = await mainWindow.webContents.executeJavaScript(
-          "localStorage.getItem('rd_accounting_db') || ''"
+          "JSON.stringify(state) || ''"
         );
         if (jsonData && jsonData.length > 10) {
           ensureBackupDir();
