@@ -139,6 +139,11 @@ function initApp() {
     }
   }
 
+  // === ƯU TIÊN KHỞI CHẠY ĐẦU TIÊN: Nạp ngay các dropdown list của cửa sổ bán hàng từ cache cục bộ ===
+  if (typeof initExcelIntegration === "function") {
+    initExcelIntegration();
+  }
+
   // Khởi tạo các thuộc tính ban đầu cho các mặt hàng cũ nếu bị thiếu
   if (state.products) {
     state.products.forEach(p => {
