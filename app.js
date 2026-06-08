@@ -9768,21 +9768,53 @@ async function startSupabaseClient() {
 }
 
 async function fetchAllRows() {
-  let allRows = [];
+  // 1. Tải danh sách tất cả các ID và timestamp trước (rất nhẹ, không bao giờ timeout)
+  let allItems = [];
   let from = 0;
-  const step = 200;
+  const step = 1000;
   while (true) {
     const { data, error } = await supabaseClient
       .from("rd_accounting_data")
-      .select("id, data, last_modified")
+      .select("id, last_modified")
       .range(from, from + step - 1);
     
     if (error) throw error;
     if (!data || data.length === 0) break;
-    allRows = allRows.concat(data);
+    allItems = allItems.concat(data);
     if (data.length < step) break;
     from += step;
   }
+
+  if (allItems.length === 0) return [];
+
+  // 2. Phân chia danh sách ID thành các lô 300 ID để tải dữ liệu chi tiết
+  const ids = allItems.map(item => item.id);
+  const batches = [];
+  const BATCH_SIZE = 300;
+  for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+    batches.push(ids.slice(i, i + BATCH_SIZE));
+  }
+
+  // 3. Tải song song với mức độ đồng thời (concurrency) kiểm soát = 6
+  let allRows = [];
+  const CONCURRENCY = 6;
+  for (let i = 0; i < batches.length; i += CONCURRENCY) {
+    const slice = batches.slice(i, i + CONCURRENCY);
+    const promises = slice.map(batch =>
+      supabaseClient
+        .from("rd_accounting_data")
+        .select("id, data, last_modified")
+        .in("id", batch)
+    );
+    const responses = await Promise.all(promises);
+    for (const res of responses) {
+      if (res.error) throw res.error;
+      if (res.data) {
+        allRows = allRows.concat(res.data);
+      }
+    }
+  }
+
   return allRows;
 }
 
@@ -10284,8 +10316,8 @@ async function pushToCloud() {
 
     console.log(`[pushToCloud] Delta: Cần upsert ${rowsToUpsert.length} dòng, delete ${idsToDelete.length} dòng.`);
 
-    // 3. Upsert các dòng mới/thay đổi theo lô 150 dòng
-    const BATCH_SIZE = 150;
+    // 3. Upsert các dòng mới/thay đổi theo lô 1000 dòng
+    const BATCH_SIZE = 1000;
     for (let i = 0; i < rowsToUpsert.length; i += BATCH_SIZE) {
       const batch = rowsToUpsert.slice(i, i + BATCH_SIZE);
       const { error: batchError } = await supabaseClient
@@ -10294,7 +10326,7 @@ async function pushToCloud() {
       if (batchError) throw batchError;
     }
 
-    // 4. Thực hiện xóa các dòng bị loại bỏ theo lô 150 dòng
+    // 4. Thực hiện xóa các dòng bị loại bỏ theo lô 1000 dòng
     if (idsToDelete.length > 0) {
       for (let i = 0; i < idsToDelete.length; i += BATCH_SIZE) {
         const batch = idsToDelete.slice(i, i + BATCH_SIZE);
