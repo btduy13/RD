@@ -8944,13 +8944,15 @@ try {
         const msg = (log.message || "").toLowerCase();
         const ctx = (log.context || "").toLowerCase();
         const stack = (log.error && (log.error.stack || log.error.message) || "").toLowerCase();
-        const hasFirebaseOrMongo = 
+        const isTransientMigrationError = 
           msg.includes("firebase") || msg.includes("mongodb") ||
           ctx.includes("firebase") || ctx.includes("mongodb") ||
           stack.includes("firebase") || stack.includes("mongodb") ||
           msg.includes("append .json") || msg.includes("google") ||
-          msg.includes("forbidden") || msg.includes("403");
-        return !hasFirebaseOrMongo;
+          msg.includes("forbidden") || msg.includes("403") ||
+          msg.includes("statement timeout") || msg.includes("unique constraint") ||
+          msg.includes("duplicate key");
+        return !isTransientMigrationError;
       });
       localStorage.setItem("rd_accounting_error_logs", JSON.stringify(errorLogs));
     }
