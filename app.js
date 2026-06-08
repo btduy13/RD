@@ -3705,8 +3705,7 @@ function handleSalesSubmit(e) {
       }
     }
     if ((resolvedProduct.stock + oldQty) < qty) {
-      showToast(`Hàng tồn kho sản phẩm "${resolvedProduct.name}" không đủ (Còn tồn ${resolvedProduct.stock + oldQty}, cần bán ${qty})!`, "danger");
-      isStockInsufficient = true;
+      showToast(`Cảnh báo: Hàng tồn kho sản phẩm "${resolvedProduct.name}" không đủ (Còn tồn ${resolvedProduct.stock + oldQty}, cần bán ${qty})!`, "warning");
     }
 
     voucherItems.push({
@@ -12431,8 +12430,9 @@ function switchPurchaseSubTab(subTabId) {
 }
 
 function generateNextPurchaseOrderVoucherId() {
-  const prefix = `ĐMH`;
-  const regex = /^ĐMH(\d+)$/;
+  const currentYear = new Date().getFullYear().toString().substring(2);
+  const prefix = `ĐMH-${currentYear}-`;
+  const regex = new RegExp(`^ĐMH-${currentYear}-(\\d+)$`);
   let maxNum = 0;
 
   state.vouchers.forEach(v => {
@@ -12445,7 +12445,7 @@ function generateNextPurchaseOrderVoucherId() {
     }
   });
 
-  return `${prefix}${(maxNum + 1).toString().padStart(5, '0')}`;
+  return `${prefix}${(maxNum + 1).toString().padStart(4, '0')}`;
 }
 
 function addPurchaseOrderFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
