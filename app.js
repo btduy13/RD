@@ -97,17 +97,35 @@ function setupNumberFormattingEventListeners() {
 function initApp() {
   localStorage.removeItem("rd_accounting_db");
 
-  // Khởi tạo state trống ban đầu (sẽ được tải từ Cloud khi Supabase Client kết nối thành công)
-  state = {
-    companyName: "",
-    address: "",
-    taxCode: "",
-    accountingStandard: "TT200",
-    products: [],
-    partners: [],
-    initialBalances: {},
-    vouchers: []
-  };
+  // Khởi tạo từ cache cục bộ (nếu có) để giao diện hiển thị ngay lập tức
+  let hasCache = false;
+  try {
+    const cache = localStorage.getItem("rd_accounting_online_cache");
+    if (cache) {
+      const parsed = JSON.parse(cache);
+      if (parsed && Array.isArray(parsed.products) && Array.isArray(parsed.vouchers)) {
+        state = parsed;
+        hasCache = true;
+        console.log(`[Cache] Khởi tạo dữ liệu từ cache cục bộ thành công! (${(state.vouchers || []).length} chứng từ, ${(state.partners || []).length} đối tác)`);
+      }
+    }
+  } catch (err) {
+    console.error("[Cache] Lỗi đọc cache khởi động:", err);
+  }
+
+  if (!hasCache) {
+    // Khởi tạo state trống ban đầu (sẽ được tải từ Cloud khi Supabase Client kết nối thành công)
+    state = {
+      companyName: "",
+      address: "",
+      taxCode: "",
+      accountingStandard: "TT200",
+      products: [],
+      partners: [],
+      initialBalances: {},
+      vouchers: []
+    };
+  }
 
   // Đảm bảo khởi tạo các tài khoản số dư đầu kỳ và số dư đối tác
   if (!state.initialBalances || Object.keys(state.initialBalances).length === 0) {
@@ -1029,6 +1047,14 @@ function executeSaveState() {
     // [FIX 1] Luôn cập nhật timestamp trước khi lưu và push
     // để máy nhận có thể nhận biết đây là bản mới nhất
     state._lastModified = Date.now();
+    
+    // Ghi cache cục bộ tức thời
+    try {
+      localStorage.setItem("rd_accounting_online_cache", JSON.stringify(state));
+    } catch (cacheErr) {
+      console.error("[Cache] Lỗi ghi cache cục bộ:", cacheErr);
+    }
+
     if (typeof pushToCloud === "function") {
       pushToCloud();
     }
@@ -9821,6 +9847,13 @@ async function pullFromCloudOnStartup() {
       state = cloudData;
       console.log(`[Supabase] Tải dữ liệu đám mây thành công! (${cloudVoucherCount} chứng từ)`);
 
+      // Ghi cache cục bộ
+      try {
+        localStorage.setItem("rd_accounting_online_cache", JSON.stringify(state));
+      } catch (cacheErr) {
+        console.error("[Cache] Lỗi ghi cache cục bộ:", cacheErr);
+      }
+
       // Nếu deduplication đã loại bỏ voucher trùng lặp → đẩy ngay lên cloud để sửa dữ liệu
       const stateVoucherCount = (state.vouchers || []).length;
       if (stateVoucherCount < cloudVoucherCount) {
@@ -9910,6 +9943,14 @@ function forcePullFromCloud() {
     .then((cloudData) => {
       if (cloudData) {
         state = cloudData;
+        
+        // Ghi cache cục bộ
+        try {
+          localStorage.setItem("rd_accounting_online_cache", JSON.stringify(state));
+        } catch (cacheErr) {
+          console.error("[Cache] Lỗi ghi cache cục bộ:", cacheErr);
+        }
+
         // LƯU Ý: recalculateAccounting đã gọi refreshUI() bên trong nên không cần render lại lần 2
         recalculateAccounting();
         filterDebts();
@@ -10199,6 +10240,13 @@ async function pullAndMergeFromCloud() {
 
       console.log("[Supabase] Nhận được thay đổi mới từ cloud, đang tải về...");
       state = cloudData;
+
+      // Ghi cache cục bộ
+      try {
+        localStorage.setItem("rd_accounting_online_cache", JSON.stringify(state));
+      } catch (cacheErr) {
+        console.error("[Cache] Lỗi ghi cache cục bộ:", cacheErr);
+      }
 
       // LƯU Ý: recalculateAccounting đã gọi refreshUI() bên trong nên không cần render lại lần 2
       recalculateAccounting(false);
