@@ -9767,86 +9767,107 @@ async function startSupabaseClient() {
   }
 }
 
-async function fetchAllRows() {
-  // 1. Tải danh sách tất cả các ID và timestamp trước (rất nhẹ, không bao giờ timeout)
-  let allItems = [];
-  let from = 0;
-  const step = 1000;
-  while (true) {
-    const { data, error } = await supabaseClient
-      .from("rd_accounting_data")
-      .select("id, last_modified")
-      .range(from, from + step - 1);
+async function fetchCloudDelta(localTs) {
+  // 1. Tải dòng metadata trước để lấy last_modified mới nhất trên đám mây
+  const { data: metadataRow, error: metaError } = await supabaseClient
+    .from("rd_accounting_data")
+    .select("data, last_modified")
+    .eq("id", "metadata")
+    .single();
     
-    if (error) throw error;
-    if (!data || data.length === 0) break;
-    allItems = allItems.concat(data);
-    if (data.length < step) break;
-    from += step;
+  if (metaError) throw metaError;
+  if (!metadataRow) return null;
+
+  const cloudTs = metadataRow.last_modified || 0;
+  if (localTs > 0 && cloudTs <= localTs) {
+    console.log(`[Supabase] Dữ liệu cục bộ đã mới nhất hoặc trùng khớp. (Cloud: ${cloudTs}, Local: ${localTs})`);
+    return null; // Không cần tải thêm
   }
 
-  if (allItems.length === 0) return [];
-
-  // 2. Phân chia danh sách ID thành các lô 300 ID để tải dữ liệu chi tiết
-  const ids = allItems.map(item => item.id);
-  const batches = [];
-  const BATCH_SIZE = 300;
-  for (let i = 0; i < ids.length; i += BATCH_SIZE) {
-    batches.push(ids.slice(i, i + BATCH_SIZE));
-  }
-
-  // 3. Tải song song với mức độ đồng thời (concurrency) kiểm soát = 6
-  let allRows = [];
-  const CONCURRENCY = 6;
-  for (let i = 0; i < batches.length; i += CONCURRENCY) {
-    const slice = batches.slice(i, i + CONCURRENCY);
-    const promises = slice.map(batch =>
-      supabaseClient
+  // 2. Tải các dòng thay đổi
+  let changedRows = [];
+  if (localTs === 0) {
+    // Tải mới hoàn toàn, dùng phân trang tuần tự với kích thước trang 400 để an toàn tuyệt đối
+    let from = 0;
+    const step = 400;
+    while (true) {
+      if (typeof updateCloudSyncBadge === "function") {
+        updateCloudSyncBadge(false, `Mây: Tải mới (${Math.floor(from / step) + 1})...`, "#f59e0b");
+      }
+      const { data, error } = await supabaseClient
         .from("rd_accounting_data")
         .select("id, data, last_modified")
-        .in("id", batch)
-    );
-    const responses = await Promise.all(promises);
-    for (const res of responses) {
-      if (res.error) throw res.error;
-      if (res.data) {
-        allRows = allRows.concat(res.data);
-      }
+        .range(from, from + step - 1);
+        
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      changedRows = changedRows.concat(data);
+      if (data.length < step) break;
+      from += step;
+    }
+  } else {
+    // Chỉ tải các dòng thay đổi từ mốc localTs
+    let from = 0;
+    const step = 400;
+    while (true) {
+      const { data, error } = await supabaseClient
+        .from("rd_accounting_data")
+        .select("id, data, last_modified")
+        .gt("last_modified", localTs)
+        .range(from, from + step - 1);
+        
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      changedRows = changedRows.concat(data);
+      if (data.length < step) break;
+      from += step;
     }
   }
 
-  return allRows;
+  // Luôn đảm bảo có hàng metadata trong changedRows để cập nhật deletedIds
+  if (!changedRows.some(r => r.id === "metadata")) {
+    changedRows.push({
+      id: "metadata",
+      data: metadataRow.data,
+      last_modified: cloudTs
+    });
+  }
+
+  return { changedRows, cloudTs };
 }
 
-async function fetchCloudData() {
-  const rows = await fetchAllRows();
-  if (!rows || rows.length === 0) return null;
-
-  let reconstructedState = {
-    companyName: "",
-    address: "",
-    taxCode: "",
-    accountingStandard: "TT200",
-    products: [],
-    partners: [],
-    initialBalances: {},
-    vouchers: []
-  };
+function applyDeltaToState(changedRows, cloudTs) {
+  let baseState;
+  
+  if (lastSyncState) {
+    // Nhân bản local state làm gốc để hợp nhất delta
+    baseState = JSON.parse(JSON.stringify(state));
+  } else {
+    // Tải mới hoàn toàn
+    baseState = {
+      companyName: "",
+      address: "",
+      taxCode: "",
+      accountingStandard: "TT200",
+      products: [],
+      partners: [],
+      initialBalances: {},
+      vouchers: []
+    };
+  }
 
   const vouchersChunks = [];
   const partnersChunks = [];
-  let maxLastModified = 0;
   foundOldChunkIds = [];
 
-  rows.forEach(row => {
+  // 1. Hợp nhất các dòng thay đổi
+  changedRows.forEach(row => {
     if (!row) return;
-    const lm = row.last_modified || 0;
-    if (lm > maxLastModified) maxLastModified = lm;
-
+    
     if (row.id === "metadata") {
-      Object.assign(reconstructedState, row.data);
+      Object.assign(baseState, row.data);
     } else if (row.id === "products") {
-      reconstructedState.products = row.data || [];
+      baseState.products = row.data || [];
       foundOldChunkIds.push(row.id);
     } else if (row.id.startsWith("partners_")) {
       const idx = parseInt(row.id.split("_")[1]) || 0;
@@ -9857,46 +9878,82 @@ async function fetchCloudData() {
       vouchersChunks[idx] = row.data || [];
       foundOldChunkIds.push(row.id);
     } else if (row.id.startsWith("v_")) {
-      reconstructedState.vouchers.push(row.data);
+      const voucher = row.data;
+      if (voucher && voucher.id) {
+        const idx = baseState.vouchers.findIndex(v => v.id === voucher.id);
+        if (idx !== -1) {
+          baseState.vouchers[idx] = voucher;
+        } else {
+          baseState.vouchers.push(voucher);
+        }
+      }
     } else if (row.id.startsWith("p_")) {
-      reconstructedState.products.push(row.data);
+      const product = row.data;
+      if (product && product.id) {
+        const idx = baseState.products.findIndex(p => p.id === product.id);
+        if (idx !== -1) {
+          baseState.products[idx] = product;
+        } else {
+          baseState.products.push(product);
+        }
+      }
     } else if (row.id.startsWith("part_")) {
-      reconstructedState.partners.push(row.data);
+      const partner = row.data;
+      if (partner && partner.id) {
+        const idx = baseState.partners.findIndex(p => p.id === partner.id);
+        if (idx !== -1) {
+          baseState.partners[idx] = partner;
+        } else {
+          baseState.partners.push(partner);
+        }
+      }
     }
   });
 
-  // Flatten partners
-  for (let i = 0; i < partnersChunks.length; i++) {
-    if (partnersChunks[i]) {
-      reconstructedState.partners = reconstructedState.partners.concat(partnersChunks[i]);
+  // 2. Xử lý các chunk cũ (nếu có lúc di chuyển)
+  if (partnersChunks.length > 0) {
+    const tempPartners = [];
+    partnersChunks.forEach(chunk => {
+      if (chunk) tempPartners.push(...chunk);
+    });
+    tempPartners.forEach(part => {
+      if (part && part.id && !baseState.partners.some(p => p.id === part.id)) {
+        baseState.partners.push(part);
+      }
+    });
+  }
+
+  if (vouchersChunks.length > 0) {
+    const tempVouchers = [];
+    vouchersChunks.forEach(chunk => {
+      if (chunk) tempVouchers.push(...chunk);
+    });
+    tempVouchers.forEach(v => {
+      if (v && v.id && !baseState.vouchers.some(item => item.id === v.id)) {
+        baseState.vouchers.push(v);
+      }
+    });
+  }
+
+  baseState._lastModified = cloudTs;
+
+  // === SAFETY NET 1: Lọc bỏ các ID đã xóa (deletedIds) ===
+  if (baseState.deletedIds && baseState.deletedIds.length > 0) {
+    const deletedSet = new Set(baseState.deletedIds);
+    baseState.vouchers = (baseState.vouchers || []).filter(v => v && !deletedSet.has(v.id));
+    baseState.products = (baseState.products || []).filter(p => p && !deletedSet.has(p.id));
+    baseState.partners = (baseState.partners || []).filter(part => part && !deletedSet.has(part.id));
+    if (baseState.cashEntries) {
+      baseState.cashEntries = baseState.cashEntries.filter(e => e && !deletedSet.has(e.id));
+    }
+    if (baseState.escrowItems) {
+      baseState.escrowItems = baseState.escrowItems.filter(e => e && !deletedSet.has(e.id));
     }
   }
 
-  // Flatten vouchers
-  for (let i = 0; i < vouchersChunks.length; i++) {
-    if (vouchersChunks[i]) {
-      reconstructedState.vouchers = reconstructedState.vouchers.concat(vouchersChunks[i]);
-    }
-  }
-
-  reconstructedState._lastModified = maxLastModified || reconstructedState._lastModified || 0;
-
-  // === SAFETY NET 1: Lọc bỏ các voucher/entry đã xóa (deletedIds) ===
-  if (reconstructedState.deletedIds && reconstructedState.deletedIds.length > 0) {
-    const deletedSet = new Set(reconstructedState.deletedIds);
-    reconstructedState.vouchers = (reconstructedState.vouchers || []).filter(v => !deletedSet.has(v.id));
-    if (reconstructedState.cashEntries) {
-      reconstructedState.cashEntries = reconstructedState.cashEntries.filter(e => !deletedSet.has(e.id));
-    }
-    if (reconstructedState.escrowItems) {
-      reconstructedState.escrowItems = reconstructedState.escrowItems.filter(e => !deletedSet.has(e.id));
-    }
-    console.log(`[fetchCloudData] Đã lọc ${deletedSet.size} ID đã xóa khỏi dữ liệu đám mây.`);
-  }
-
-  // === SAFETY NET 2: Khử trùng lặp ID voucher (deduplication) ===
+  // === SAFETY NET 2: Khử trùng lặp ID voucher ===
   const voucherMap = new Map();
-  (reconstructedState.vouchers || []).forEach(v => {
+  (baseState.vouchers || []).forEach(v => {
     if (v && v.id) {
       if (!voucherMap.has(v.id)) {
         voucherMap.set(v.id, v);
@@ -9908,25 +9965,29 @@ async function fetchCloudData() {
       }
     }
   });
-  const beforeDedup = (reconstructedState.vouchers || []).length;
-  reconstructedState.vouchers = Array.from(voucherMap.values());
-  if (beforeDedup !== reconstructedState.vouchers.length) {
-    console.warn(`[fetchCloudData] Đã loại bỏ ${beforeDedup - reconstructedState.vouchers.length} voucher trùng lặp!`);
-  }
+  baseState.vouchers = Array.from(voucherMap.values());
 
   if (foundOldChunkIds.length > 0) {
     console.log(`[Migration] Phát hiện ${foundOldChunkIds.length} chunks cũ. Đặt cờ di chuyển dữ liệu...`);
     migrationPending = true;
   }
 
-  return reconstructedState;
+  return baseState;
+}
+
+async function fetchCloudData(localTs = 0) {
+  const delta = await fetchCloudDelta(localTs);
+  if (!delta) {
+    return state;
+  }
+  return applyDeltaToState(delta.changedRows, delta.cloudTs);
 }
 
 async function pullFromCloudOnStartup() {
   if (!cloudSyncActive || !supabaseClient) return;
 
   try {
-    const cloudData = await fetchCloudData();
+    const cloudData = await fetchCloudData(state._lastModified || 0);
     const hasCloudProducts = cloudData && cloudData.products && cloudData.products.length > 0;
 
     if (cloudData && hasCloudProducts) {
@@ -10033,7 +10094,7 @@ function forcePullFromCloud() {
 
   updateCloudSyncBadge(false, "Mây: Đang tải...", "#f59e0b");
 
-  fetchCloudData()
+  fetchCloudData(0)
     .then((cloudData) => {
       if (cloudData) {
         state = cloudData;
@@ -10409,7 +10470,7 @@ async function pullAndMergeFromCloud() {
   if (!cloudSyncActive || !supabaseClient) return;
 
   try {
-    const cloudData = await fetchCloudData();
+    const cloudData = await fetchCloudData(state._lastModified || 0);
     if (cloudData) {
       const cloudTs = cloudData._lastModified || 0;
       const localTs = state._lastModified || 0;
