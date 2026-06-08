@@ -24,6 +24,43 @@ document.addEventListener("DOMContentLoaded", () => {
   setupNumberFormattingEventListeners();
 });
 
+// Helper chuyển đổi an toàn mọi giá trị (chuỗi định dạng Việt Nam/Quốc tế, số) sang kiểu Float
+function safeParseFloat(val) {
+  if (val === undefined || val === null || val === "") return 0;
+  if (typeof val === "number") return val;
+  const str = String(val).trim();
+  if (str === "") return 0;
+  
+  let cleaned = str;
+  const hasComma = str.includes(",");
+  const hasDot = str.includes(".");
+  
+  if (hasComma && hasDot) {
+    if (str.indexOf(",") > str.indexOf(".")) {
+      // Định dạng Việt Nam: 1.234,56 -> xóa chấm, thay phẩy bằng chấm
+      cleaned = str.replace(/\./g, "").replace(",", ".");
+    } else {
+      // Định dạng Quốc tế: 1,234.56 -> xóa phẩy
+      cleaned = str.replace(/,/g, "");
+    }
+  } else if (hasComma) {
+    const commaCount = (str.match(/,/g) || []).length;
+    if (commaCount > 1) {
+      cleaned = str.replace(/,/g, "");
+    } else {
+      cleaned = str.replace(",", ".");
+    }
+  } else if (hasDot) {
+    const dotCount = (str.match(/\./g) || []).length;
+    if (dotCount > 1) {
+      cleaned = str.replace(/\./g, "");
+    }
+  }
+  
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
 // Helper đọc file Excel: ưu tiên dùng IPC (Electron), fallback sang fetch (web)
 async function readExcelViaIPC(filename) {
   // Nếu đang chạy trong Electron desktop app, dùng IPC để tránh lỗi fetch với file:// protocol
@@ -245,7 +282,7 @@ async function autoIntegrateVouchersExcel() {
 
       const dateStr = excelDateToISOString(row[0]);
       const description = (row[3] || "Giao dịch phát sinh").toString().trim();
-      const amount = Number(row[4]) || 0;
+      const amount = safeParseFloat(row[4]);
       const partnerName = (row[5] || "Khách hàng vãng lai").toString().trim();
       const voucherTypeStr = (row[8] || "").toString().trim().toUpperCase();
 
@@ -365,10 +402,10 @@ async function autoIntegrateSalesExcel() {
       const partnerName = (row[6] || "Khách hàng vãng lai").toString().trim();
       const description = (row[7] || "Bán hàng").toString().trim();
 
-      const H = Number(row[8]) || 0;
-      const C = Number(row[9]) || 0;
-      const T = Number(row[10]) || 0;
-      const totalAmount = Number(row[11]) || 0;
+      const H = safeParseFloat(row[8]);
+      const C = safeParseFloat(row[9]);
+      const T = safeParseFloat(row[10]);
+      const totalAmount = safeParseFloat(row[11]);
 
       let paymentMethod = "131";
       const docTypeStr = (row[14] || "").toString().trim().toUpperCase();
@@ -541,9 +578,9 @@ async function autoIntegrateSoChiTietBanHangExcel() {
         const productId = (row[9] || "SP_GENERIC").toString().trim();
         const productName = (row[10] || "Sản phẩm generic").toString().trim();
         const unit = (row[11] || "Cái").toString().trim();
-        const qty = Number(row[12]) || 0;
-        const price = Number(row[13]) || 0;
-        const discount = Number(row[15]) || 0;
+        const qty = safeParseFloat(row[12]);
+        const price = safeParseFloat(row[13]);
+        const discount = safeParseFloat(row[15]);
 
         // Doanh số bán (row[14]) là gross, doanh thu thuần là gross - discount
         const grossAmount = qty * price;
@@ -744,11 +781,11 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
         const productId = (row[5] || "SP_GENERIC").toString().trim();
         const productName = (row[6] || "Sản phẩm generic").toString().trim();
         const unit = (row[7] || "Cái").toString().trim();
-        const qty = Number(row[colQty]) || 0;
-        const price = Number(row[colPrice]) || 0;
+        const qty = safeParseFloat(row[colQty]);
+        const price = safeParseFloat(row[colPrice]);
 
         // Sử dụng giá trị mua ở row[colAmount], nếu không có thì tính bằng qty * price
-        const amount = Number(row[colAmount]) || (qty * price);
+        const amount = safeParseFloat(row[colAmount]) || (qty * price);
 
         itemsArray.push({
           productId: productId,
@@ -975,7 +1012,7 @@ function recalculateAccounting() {
       stock: initStock,
       avgCost: initCost,
       totalValue: initStock * initCost,
-      lastPurchasePrice: p.lastPurchasePrice !== undefined ? p.lastPurchasePrice : (p.excelRow && p.excelRow[20] !== undefined ? Number(p.excelRow[20]) : initCost)
+      lastPurchasePrice: p.lastPurchasePrice !== undefined ? p.lastPurchasePrice : (p.excelRow && p.excelRow[20] !== undefined ? safeParseFloat(p.excelRow[20]) : initCost)
     };
   });
 
@@ -1006,10 +1043,18 @@ function recalculateAccounting() {
           p.stock += item.qty;
           p.totalValue += item.amount; // Thành tiền mua chưa thuế
 
-          if (p.stock > 0) {
+          if (oldStock >= 0 && p.stock > 0) {
             p.avgCost = Math.round(p.totalValue / p.stock);
+          } else if (p.stock > 0) {
+            // Trước đó bị âm, nay dương trở lại: Đơn giá bình quân = đơn giá mua mới
+            p.avgCost = item.price;
+            p.totalValue = p.stock * p.avgCost;
           } else {
-            p.avgCost = 0;
+            // Vẫn bị âm hoặc bằng 0: giữ nguyên đơn giá cũ
+            if (!p.avgCost || p.avgCost <= 0) {
+              p.avgCost = item.price;
+            }
+            p.totalValue = p.stock * p.avgCost;
           }
           // Lưu đơn giá mua này làm đơn giá mua gần nhất
           p.lastPurchasePrice = item.price;
@@ -1046,6 +1091,10 @@ function recalculateAccounting() {
       v.items.forEach(item => {
         const p = productBalanceMap[item.productId];
         if (p) {
+          // Nếu chưa có đơn giá bình quân (bị 0), lấy đơn giá mua gần nhất hoặc đơn giá khởi tạo
+          if (!p.avgCost || p.avgCost <= 0) {
+            p.avgCost = p.lastPurchasePrice || p.initialCost || 0;
+          }
           // Lưu giá vốn bình quân tại thời điểm xuất kho vào chi tiết hóa đơn
           item.cogsUnit = p.avgCost;
           item.cogsAmount = Math.round(item.qty * p.avgCost);
@@ -5579,14 +5628,15 @@ async function restoreAndApplyS06Prices(force = false) {
       if (!id || !name || id === "MÃ" || id === "TỔNG CỘNG") continue;
 
       const unit = String(row[7] || "").trim();
-      const minStock = parseFloat(row[9]) || 0;
-      const stock = parseFloat(row[31]) || 0;
-      const avgCost = parseFloat(row[20]) || 0;
-      const totalValue = parseFloat(row[33]) || 0;
+      const minStock = safeParseFloat(row[9]);
+      const stock = safeParseFloat(row[31]);
+      const totalValue = safeParseFloat(row[33]);
+      const avgCost = stock > 0 ? Math.round(totalValue / stock) : (safeParseFloat(row[20]) || safeParseFloat(row[19]) || 0);
       const group = String(row[3] || "").trim();
       const inactiveVal = String(row[30] || "").trim();
       const inactive = inactiveVal === "1" || inactiveVal === "Có" || inactiveVal === "True" || inactiveVal === "true";
-      const salePrice1 = parseFloat(row[21]) || 0;
+      const salePrice1 = safeParseFloat(row[21]);
+      const initialCost = safeParseFloat(row[19]) || avgCost || 0;
 
       restoredProducts.push({
         id,
@@ -5597,7 +5647,7 @@ async function restoreAndApplyS06Prices(force = false) {
         totalValue,
         initialStock: stock,
         actualStock: stock,
-        initialCost: avgCost,
+        initialCost: initialCost,
         salePrice1,
         lastPurchasePrice: avgCost,
         minStock,
@@ -5882,16 +5932,17 @@ function exportProductsToExcel() {
       rowData[2] = p.nature || "Vật tư hàng hóa";
       rowData[3] = p.group || "";
       rowData[7] = p.unit || "Cái";
-      rowData[9] = p.minStock !== undefined ? p.minStock : (er[9] !== undefined ? Number(er[9]) : 0);
+      rowData[9] = p.minStock !== undefined ? p.minStock : (er[9] !== undefined ? safeParseFloat(er[9]) : 0);
       rowData[11] = p.defaultWarehouse || "";
       rowData[12] = p.warehouseAccount || "1561";
       rowData[13] = p.cogsAccount || "632";
       rowData[14] = p.revenueAccount || "51111";
-      rowData[19] = p.initialCost !== undefined ? p.initialCost : (er[19] !== undefined ? Number(er[19]) : 0);
-      rowData[20] = p.avgCost !== undefined ? p.avgCost : (er[20] !== undefined ? Number(er[20]) : 0);
-      rowData[30] = p.inactive ? 1 : (er[30] !== undefined ? Number(er[30]) : 0);
-      rowData[31] = p.stock !== undefined ? p.stock : (er[31] !== undefined ? Number(er[31]) : 0);
-      rowData[33] = p.totalValue !== undefined ? p.totalValue : (er[33] !== undefined ? Number(er[33]) : 0);
+      rowData[19] = p.initialCost !== undefined ? p.initialCost : (er[19] !== undefined ? safeParseFloat(er[19]) : 0);
+      rowData[20] = p.avgCost !== undefined ? p.avgCost : (er[20] !== undefined ? safeParseFloat(er[20]) : 0);
+      rowData[21] = p.salePrice1 !== undefined ? p.salePrice1 : (er[21] !== undefined ? safeParseFloat(er[21]) : 0);
+      rowData[30] = p.inactive ? 1 : (er[30] !== undefined ? safeParseFloat(er[30]) : 0);
+      rowData[31] = p.stock !== undefined ? p.stock : (er[31] !== undefined ? safeParseFloat(er[31]) : 0);
+      rowData[33] = p.totalValue !== undefined ? p.totalValue : (er[33] !== undefined ? safeParseFloat(er[33]) : 0);
 
       for (let c = 34; c < 57; c++) {
         rowData[c] = er[c] !== undefined ? er[c] : "";
@@ -8033,17 +8084,32 @@ function parseExcelFile(file, type) {
 
       if (type === 'products') {
         let count = 0;
-        // Phát hiện định dạng: file mới xuất (13 cột) hoặc template gốc (57 cột)
-        // Kiểm tra header row (row[1]) để xác định số cột thực
-        const headerRow = rows[1] || [];
-        const maxColCount = headerRow.filter(h => (h || "").toString().trim() !== "").length;
-        const isNewFormat = maxColCount <= 15; // file mới có 13 cột, cũ có 57 cột
+        // Phát hiện hàng chứa header động
+        let headerRowIdx = 1; // Mặc định ở hàng chỉ số 1 (MISA template)
+        for (let r = 0; r < Math.min(rows.length, 5); r++) {
+          const rCells = rows[r] || [];
+          const hasMa = rCells.some(cell => {
+            const val = (cell || "").toString().trim().toLowerCase();
+            return val === "mã" || val === "mã hàng" || val === "mã sản phẩm" || val === "mã đối tác" || val === "mã khách hàng";
+          });
+          const hasTen = rCells.some(cell => {
+            const val = (cell || "").toString().trim().toLowerCase();
+            return val === "tên" || val === "tên sản phẩm" || val === "tên đối tác" || val === "tên khách hàng";
+          });
+          if (hasMa && hasTen) {
+            headerRowIdx = r;
+            break;
+          }
+        }
 
-        for (let i = 2; i < rows.length; i++) {
+        const headerRow = rows[headerRowIdx] || [];
+        const isNewFormat = headerRow.length <= 15; // file mới có <= 15 cột, cũ có 57 cột
+
+        for (let i = headerRowIdx + 1; i < rows.length; i++) {
           const row = rows[i];
           const id = (row[0] || "").toString().trim();
           const name = (row[1] || "").toString().trim();
-          if (!id || !name || id === "Mã" || id === "TỔNG CỘNG") continue;
+          if (!id || !name || id === "Mã" || id === "Mã sản phẩm" || id === "Mã hàng" || id === "TỔNG CỘNG") continue;
 
           let unit, minStock, stock, totalVal, avgCost;
           let initialStock, initialCost, salePrice1;
@@ -8057,9 +8123,9 @@ function parseExcelFile(file, type) {
           if (isNewFormat) {
             // File mới: Mã(0) Tên(1) Tính chất(2) Nhóm(3) ĐVT(4) Tồn tối thiểu(5) Kho(6) TK kho(7) TK CP(8) TK DT(9) Ngừng TD(10) Tồn hiện tại(11) Giá trị tồn(12)
             unit = (row[4] || "Cái").toString().trim();
-            minStock = Number(row[5]) || 0;
-            stock = Number(row[11]) || 0;
-            totalVal = Number(row[12]) || 0;
+            minStock = safeParseFloat(row[5]);
+            stock = safeParseFloat(row[11]);
+            totalVal = safeParseFloat(row[12]);
             avgCost = stock > 0 ? Math.round(totalVal / stock) : 0;
             initialStock = stock;
             initialCost = avgCost;
@@ -8076,14 +8142,14 @@ function parseExcelFile(file, type) {
           } else {
             // File cũ (57 cột): ĐVT ở col 7, Tồn tối thiểu col 9, Tồn kho col 31, Giá trị col 33
             unit = (row[7] || "Cái").toString().trim();
-            minStock = Number(row[9]) || 0;
-            stock = Number(row[31]) || 0;
-            totalVal = Number(row[33]) || 0;
-            avgCost = stock > 0 ? Math.round(totalVal / stock) : (Number(row[20]) || Number(row[19]) || 0);
+            minStock = safeParseFloat(row[9]);
+            stock = safeParseFloat(row[31]);
+            totalVal = safeParseFloat(row[33]);
+            avgCost = stock > 0 ? Math.round(totalVal / stock) : (safeParseFloat(row[20]) || safeParseFloat(row[19]) || 0);
 
             initialStock = stock;
-            initialCost = Number(row[19]) || avgCost || 0;
-            salePrice1 = Number(row[21]) || 0;
+            initialCost = safeParseFloat(row[19]) || avgCost || 0;
+            salePrice1 = safeParseFloat(row[21]);
 
             nature = String(row[2] || "Vật tư hàng hóa").trim();
             defaultWarehouse = String(row[11] || "").trim();
@@ -8109,7 +8175,7 @@ function parseExcelFile(file, type) {
             actualStock: stock,
             initialCost,
             salePrice1,
-            lastPurchasePrice: Number(row[20]) || avgCost,
+            lastPurchasePrice: safeParseFloat(row[20]) || avgCost,
             nature,
             defaultWarehouse,
             warehouseAccount,
@@ -8201,7 +8267,7 @@ function parseExcelFile(file, type) {
           if (isNewDebtFormat) {
             // File mới: Mã(0) Tên(1) Loại(2) Dư đầu kỳ(3) PS Nợ(4) PS Có(5) Dư cuối kỳ(6) Địa chỉ(7) MST(8) ĐT(9)
             const loai = (row[2] || "").toString().trim().toUpperCase();
-            const duDauKy = Number(row[3]) || 0;
+            const duDauKy = safeParseFloat(row[3]);
             // KH: Dư đầu kỳ > 0 → debit; NCC: Dư đầu kỳ > 0 → credit
             if (loai === "NCC" || id.startsWith("NCC")) {
               debit = 0; credit = duDauKy;
@@ -8210,8 +8276,8 @@ function parseExcelFile(file, type) {
             }
           } else {
             // File cũ 18 cột: row[2] = phải thu, row[3] = thu trước/giảm trừ
-            debit = Number(row[2]) || 0;
-            credit = Number(row[3]) || 0;
+            debit = safeParseFloat(row[2]);
+            credit = safeParseFloat(row[3]);
           }
 
           state.partnerOpeningBalances[id] = { debit, credit };
@@ -8260,7 +8326,7 @@ function parseExcelFile(file, type) {
 
           const dateStr = excelDateToISOString(row[0]);
           const description = (row[3] || "Giao dịch phát sinh").toString().trim();
-          const amount = Number(row[4]) || 0;
+          const amount = safeParseFloat(row[4]);
           const partnerName = (row[5] || "Khách hàng vãng lai").toString().trim();
           const voucherTypeStr = (row[8] || "").toString().trim().toUpperCase();
 
@@ -8396,9 +8462,9 @@ function parseExcelFile(file, type) {
               const productId = (row[9] || "SP_GENERIC").toString().trim();
               const productName = (row[10] || "Sản phẩm generic").toString().trim();
               const unit = (row[11] || "Cái").toString().trim();
-              const qty = Number(row[12]) || 0;
-              const price = Number(row[13]) || 0;
-              const discount = Number(row[15]) || 0;
+              const qty = safeParseFloat(row[12]);
+              const price = safeParseFloat(row[13]);
+              const discount = safeParseFloat(row[15]);
 
               const grossAmount = qty * price;
               const amount = grossAmount - discount;
@@ -8474,10 +8540,10 @@ function parseExcelFile(file, type) {
             const partnerName = (row[6] || "Khách hàng vãng lai").toString().trim();
             const description = (row[7] || "Bán hàng").toString().trim();
 
-            const H = Number(row[8]) || 0;
-            const C = Number(row[9]) || 0;
-            const T = Number(row[10]) || 0;
-            const totalAmount = Number(row[11]) || 0;
+            const H = safeParseFloat(row[8]);
+            const C = safeParseFloat(row[9]);
+            const T = safeParseFloat(row[10]);
+            const totalAmount = safeParseFloat(row[11]);
 
             let paymentMethod = "131";
             const docTypeStr = (row[14] || "").toString().trim().toUpperCase();
@@ -8628,9 +8694,9 @@ function parseExcelFile(file, type) {
             const productId = (row[5] || "SP_GENERIC").toString().trim();
             const productName = (row[6] || "Sản phẩm generic").toString().trim();
             const unit = (row[7] || "Cái").toString().trim();
-            const qty = Number(row[colQty]) || 0;
-            const price = Number(row[colPrice]) || 0;
-            const amount = Number(row[colAmount]) || (qty * price);
+            const qty = safeParseFloat(row[colQty]);
+            const price = safeParseFloat(row[colPrice]);
+            const amount = safeParseFloat(row[colAmount]) || (qty * price);
 
             itemsArray.push({
               productId: productId,
@@ -8771,9 +8837,9 @@ function parseExcelFile(file, type) {
               const productId = (row[5] || "SP_GENERIC").toString().trim();
               const productName = (row[6] || "Sản phẩm generic").toString().trim();
               const unit = (row[7] || "Cái").toString().trim();
-              const qty = Number(row[colQty]) || 0;
-              const price = Number(row[colPrice]) || 0;
-              const amount = Number(row[colAmount]) || (qty * price);
+              const qty = safeParseFloat(row[colQty]);
+              const price = safeParseFloat(row[colPrice]);
+              const amount = safeParseFloat(row[colAmount]) || (qty * price);
 
               itemsArray.push({
                 productId: productId,
@@ -8861,7 +8927,7 @@ function parseExcelFile(file, type) {
             const dateStr = excelDateToISOString(rawDate);
             const partnerInputVal = (row[colPartner] || "").toString().trim();
             const description = (row[colDesc] || "").toString().trim() || "Đơn đặt hàng nhập khẩu lịch sử";
-            const totalAmount = Number(row[colTotal]) || 0;
+            const totalAmount = safeParseFloat(row[colTotal]);
 
             // Resolve/Create Partner
             const resolvedPartner = resolvePartner(partnerInputVal);
