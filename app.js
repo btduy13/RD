@@ -105,6 +105,7 @@ function initApp() {
       const parsed = JSON.parse(cache);
       if (parsed && Array.isArray(parsed.products) && Array.isArray(parsed.vouchers)) {
         state = parsed;
+        lastSyncState = JSON.parse(JSON.stringify(parsed));
         hasCache = true;
         console.log(`[Cache] Khởi tạo dữ liệu từ cache cục bộ thành công! (${(state.vouchers || []).length} chứng từ, ${(state.partners || []).length} đối tác)`);
       }
@@ -9631,6 +9632,9 @@ setTimeout(() => {
 let supabaseClient = null;
 let cloudSyncActive = false;
 let realtimeChannel = null;
+let lastSyncState = null;
+let foundOldChunkIds = [];
+let migrationPending = false;
 const clientSessionId = "client_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
 let cloudSyncSettings = {
   enabled: true,
@@ -9763,24 +9767,28 @@ async function startSupabaseClient() {
   }
 }
 
-async function fetchCloudData() {
-  const { data: list, error: listError } = await supabaseClient
-    .from("rd_accounting_data")
-    .select("id, last_modified");
-
-  if (listError) throw listError;
-  if (!list || list.length === 0) return null;
-
-  const rows = [];
-  for (const item of list) {
+async function fetchAllRows() {
+  let allRows = [];
+  let from = 0;
+  const step = 1000;
+  while (true) {
     const { data, error } = await supabaseClient
       .from("rd_accounting_data")
       .select("id, data, last_modified")
-      .eq("id", item.id)
-      .single();
+      .range(from, from + step - 1);
+    
     if (error) throw error;
-    rows.push(data);
+    if (!data || data.length === 0) break;
+    allRows = allRows.concat(data);
+    if (data.length < step) break;
+    from += step;
   }
+  return allRows;
+}
+
+async function fetchCloudData() {
+  const rows = await fetchAllRows();
+  if (!rows || rows.length === 0) return null;
 
   let reconstructedState = {
     companyName: "",
@@ -9796,6 +9804,7 @@ async function fetchCloudData() {
   const vouchersChunks = [];
   const partnersChunks = [];
   let maxLastModified = 0;
+  foundOldChunkIds = [];
 
   rows.forEach(row => {
     if (!row) return;
@@ -9806,17 +9815,25 @@ async function fetchCloudData() {
       Object.assign(reconstructedState, row.data);
     } else if (row.id === "products") {
       reconstructedState.products = row.data || [];
+      foundOldChunkIds.push(row.id);
     } else if (row.id.startsWith("partners_")) {
       const idx = parseInt(row.id.split("_")[1]) || 0;
       partnersChunks[idx] = row.data || [];
+      foundOldChunkIds.push(row.id);
     } else if (row.id.startsWith("vouchers_")) {
       const idx = parseInt(row.id.split("_")[1]) || 0;
       vouchersChunks[idx] = row.data || [];
+      foundOldChunkIds.push(row.id);
+    } else if (row.id.startsWith("v_")) {
+      reconstructedState.vouchers.push(row.data);
+    } else if (row.id.startsWith("p_")) {
+      reconstructedState.products.push(row.data);
+    } else if (row.id.startsWith("part_")) {
+      reconstructedState.partners.push(row.data);
     }
   });
 
   // Flatten partners
-  reconstructedState.partners = [];
   for (let i = 0; i < partnersChunks.length; i++) {
     if (partnersChunks[i]) {
       reconstructedState.partners = reconstructedState.partners.concat(partnersChunks[i]);
@@ -9824,7 +9841,6 @@ async function fetchCloudData() {
   }
 
   // Flatten vouchers
-  reconstructedState.vouchers = [];
   for (let i = 0; i < vouchersChunks.length; i++) {
     if (vouchersChunks[i]) {
       reconstructedState.vouchers = reconstructedState.vouchers.concat(vouchersChunks[i]);
@@ -9847,7 +9863,6 @@ async function fetchCloudData() {
   }
 
   // === SAFETY NET 2: Khử trùng lặp ID voucher (deduplication) ===
-  // Bảo vệ khỏi race condition khi nhiều push chạy đồng thời gây chunk trùng lặp
   const voucherMap = new Map();
   (reconstructedState.vouchers || []).forEach(v => {
     if (v && v.id) {
@@ -9867,6 +9882,11 @@ async function fetchCloudData() {
     console.warn(`[fetchCloudData] Đã loại bỏ ${beforeDedup - reconstructedState.vouchers.length} voucher trùng lặp!`);
   }
 
+  if (foundOldChunkIds.length > 0) {
+    console.log(`[Migration] Phát hiện ${foundOldChunkIds.length} chunks cũ. Đặt cờ di chuyển dữ liệu...`);
+    migrationPending = true;
+  }
+
   return reconstructedState;
 }
 
@@ -9880,6 +9900,7 @@ async function pullFromCloudOnStartup() {
     if (cloudData && hasCloudProducts) {
       const cloudVoucherCount = (cloudData.vouchers || []).length;
       state = cloudData;
+      lastSyncState = JSON.parse(JSON.stringify(state));
       console.log(`[Supabase] Tải dữ liệu đám mây thành công! (${cloudVoucherCount} chứng từ)`);
 
       // Ghi cache cục bộ
@@ -9898,18 +9919,23 @@ async function pullFromCloudOnStartup() {
           pushToCloud().then(() => {
             showToast(`Đã tự động dọn dẹp ${cloudVoucherCount - stateVoucherCount} chứng từ bị trùng lặp trên cloud!`, "success");
           }).catch(err => console.error("[Supabase] Lỗi tự sửa dedup:", err));
-        }, 3000); // Chờ 3s để cloud sync ổn định trước
+        }, 3000);
+      } else if (migrationPending) {
+        console.log("[Migration] Kích hoạt tự động đẩy dữ liệu sang định dạng mới...");
+        setTimeout(() => {
+          pushToCloud().then(() => {
+            showToast("Đã tự động chuyển đổi cấu trúc dữ liệu sang dòng đơn lẻ!", "success");
+          }).catch(err => console.error("[Migration] Lỗi tự động chuyển đổi cấu trúc:", err));
+        }, 5000);
       }
 
       // Cập nhật giao diện
-      // LƯU Ý: recalculateAccounting đã gọi refreshUI() bên trong nên không cần render lại lần 2
       recalculateAccounting(false);
       filterDebts();
       filterPartners();
       filterCash();
       if (typeof initExcelIntegration === "function") initExcelIntegration();
     } else {
-      // Cơ sở dữ liệu đám mây trống hoặc chưa có sản phẩm → nạp từ Excel cục bộ để đồng bộ hóa lần đầu
       console.log("Cơ sở dữ liệu đám mây trống hoặc chưa có sản phẩm. Nạp dữ liệu từ Excel cục bộ...");
       if (cloudData) {
         state = cloudData;
@@ -9925,6 +9951,7 @@ async function pullFromCloudOnStartup() {
           vouchers: []
         };
       }
+      lastSyncState = JSON.parse(JSON.stringify(state));
       recalculateAccounting(false);
 
       // Chạy tích hợp tự động một lần duy nhất để đẩy lên cloud
@@ -9978,6 +10005,7 @@ function forcePullFromCloud() {
     .then((cloudData) => {
       if (cloudData) {
         state = cloudData;
+        lastSyncState = JSON.parse(JSON.stringify(state));
         
         // Ghi cache cục bộ
         try {
@@ -10117,6 +10145,83 @@ let pushPending = false;
 let _isMergePushing = false;
 let pushRetryTimeout = null;
 
+function computeDelta() {
+  const rowsToUpsert = [];
+  const idsToDelete = [];
+
+  const makeRow = (id, data) => ({
+    id,
+    data,
+    last_modified: state._lastModified || Date.now(),
+    is_syncing: false,
+    updated_at: new Date().toISOString()
+  });
+
+  const forceFullSync = migrationPending || !lastSyncState;
+
+  if (forceFullSync) {
+    (state.vouchers || []).forEach(v => rowsToUpsert.push(makeRow(`v_${v.id}`, v)));
+    (state.products || []).forEach(p => rowsToUpsert.push(makeRow(`p_${p.id}`, p)));
+    (state.partners || []).forEach(part => rowsToUpsert.push(makeRow(`part_${part.id}`, part)));
+  } else {
+    // 1. Vouchers
+    const localVouchers = state.vouchers || [];
+    const lastVouchersMap = new Map((lastSyncState.vouchers || []).map(v => [v.id, v]));
+    const localVouchersMap = new Map(localVouchers.map(v => [v.id, v]));
+
+    localVouchers.forEach(v => {
+      const oldV = lastVouchersMap.get(v.id);
+      if (!oldV || JSON.stringify(oldV) !== JSON.stringify(v)) {
+        rowsToUpsert.push(makeRow(`v_${v.id}`, v));
+      }
+    });
+
+    (lastSyncState.vouchers || []).forEach(v => {
+      if (!localVouchersMap.has(v.id)) {
+        idsToDelete.push(`v_${v.id}`);
+      }
+    });
+
+    // 2. Products
+    const localProducts = state.products || [];
+    const lastProductsMap = new Map((lastSyncState.products || []).map(p => [p.id, p]));
+    const localProductsMap = new Map(localProducts.map(p => [p.id, p]));
+
+    localProducts.forEach(p => {
+      const oldP = lastProductsMap.get(p.id);
+      if (!oldP || JSON.stringify(oldP) !== JSON.stringify(p)) {
+        rowsToUpsert.push(makeRow(`p_${p.id}`, p));
+      }
+    });
+
+    (lastSyncState.products || []).forEach(p => {
+      if (!localProductsMap.has(p.id)) {
+        idsToDelete.push(`p_${p.id}`);
+      }
+    });
+
+    // 3. Partners
+    const localPartners = state.partners || [];
+    const lastPartnersMap = new Map((lastSyncState.partners || []).map(part => [part.id, part]));
+    const localPartnersMap = new Map(localPartners.map(part => [part.id, part]));
+
+    localPartners.forEach(part => {
+      const oldPart = lastPartnersMap.get(part.id);
+      if (!oldPart || JSON.stringify(oldPart) !== JSON.stringify(part)) {
+        rowsToUpsert.push(makeRow(`part_${part.id}`, part));
+      }
+    });
+
+    (lastSyncState.partners || []).forEach(part => {
+      if (!localPartnersMap.has(part.id)) {
+        idsToDelete.push(`part_${part.id}`);
+      }
+    });
+  }
+
+  return { rowsToUpsert, idsToDelete };
+}
+
 async function pushToCloud() {
   if (!cloudSyncActive || !supabaseClient) return;
   if (isPushing) {
@@ -10150,67 +10255,48 @@ async function pushToCloud() {
         updated_at: new Date().toISOString()
       });
 
-    // 2. Chuẩn bị các chunk để upsert
-    const chunks = [];
+    // 2. Tính toán Delta
+    const { rowsToUpsert, idsToDelete } = computeDelta();
+    console.log(`[pushToCloud] Delta: Cần upsert ${rowsToUpsert.length} dòng, delete ${idsToDelete.length} dòng.`);
 
-    // Products
-    chunks.push({
-      id: "products",
-      data: products || [],
-      last_modified: state._lastModified,
-      is_syncing: false,
-      updated_at: new Date().toISOString()
-    });
-
-    // Partners (chunk 1000)
-    const partnerChunkSize = 1000;
-    const partnersArray = partners || [];
-    for (let i = 0; i < partnersArray.length; i += partnerChunkSize) {
-      const chunk = partnersArray.slice(i, i + partnerChunkSize);
-      chunks.push({
-        id: `partners_${Math.floor(i / partnerChunkSize)}`,
-        data: chunk,
-        last_modified: state._lastModified,
-        is_syncing: false,
-        updated_at: new Date().toISOString()
-      });
+    // 3. Upsert các dòng mới/thay đổi theo lô 1000 dòng
+    const BATCH_SIZE = 1000;
+    for (let i = 0; i < rowsToUpsert.length; i += BATCH_SIZE) {
+      const batch = rowsToUpsert.slice(i, i + BATCH_SIZE);
+      const { error: batchError } = await supabaseClient
+        .from("rd_accounting_data")
+        .upsert(batch);
+      if (batchError) throw batchError;
     }
 
-    // Vouchers (chunk 500)
-    const voucherChunkSize = 500;
-    const vouchersArray = vouchers || [];
-    for (let i = 0; i < vouchersArray.length; i += voucherChunkSize) {
-      const chunk = vouchersArray.slice(i, i + voucherChunkSize);
-      chunks.push({
-        id: `vouchers_${Math.floor(i / voucherChunkSize)}`,
-        data: chunk,
-        last_modified: state._lastModified,
-        is_syncing: false,
-        updated_at: new Date().toISOString()
-      });
-    }
-
-    // 3. Xóa các chunk cũ không còn dùng
-    const currentIds = ["metadata", "products", ...chunks.map(c => c.id)];
-    await supabaseClient
-      .from("rd_accounting_data")
-      .delete()
-      .not("id", "in", currentIds);
-
-    // 4. Đẩy tất cả các chunk mới lên song song (tối đa 4 kết nối đồng thời)
-    // → Giảm thời gian upload từ ~30s xuống ~8-10s so với tuần tự
-    const UPLOAD_CONCURRENCY = 4;
-    for (let i = 0; i < chunks.length; i += UPLOAD_CONCURRENCY) {
-      const batch = chunks.slice(i, i + UPLOAD_CONCURRENCY);
-      const results = await Promise.all(
-        batch.map(chunk => supabaseClient.from("rd_accounting_data").upsert(chunk))
-      );
-      for (const { error } of results) {
-        if (error) throw error;
+    // 4. Thực hiện xóa các dòng bị loại bỏ theo lô 1000 dòng
+    if (idsToDelete.length > 0) {
+      for (let i = 0; i < idsToDelete.length; i += BATCH_SIZE) {
+        const batch = idsToDelete.slice(i, i + BATCH_SIZE);
+        const { error: deleteError } = await supabaseClient
+          .from("rd_accounting_data")
+          .delete()
+          .in("id", batch);
+        if (deleteError) throw deleteError;
       }
     }
 
-    // 5. Cập nhật cờ is_syncing = false lên metadata cuối cùng
+    // 5. Nếu có di chuyển cấu trúc cũ (migrationPending) thì xóa các chunk cũ
+    if (migrationPending && foundOldChunkIds.length > 0) {
+      console.log(`[Migration] Đang dọn dẹp các chunk cũ khỏi Supabase:`, foundOldChunkIds);
+      const { error: deleteOldError } = await supabaseClient
+        .from("rd_accounting_data")
+        .delete()
+        .in("id", foundOldChunkIds);
+      if (deleteOldError) {
+        console.error("Lỗi khi dọn dẹp chunk cũ:", deleteOldError);
+      } else {
+        migrationPending = false;
+        foundOldChunkIds = [];
+      }
+    }
+
+    // 6. Cập nhật cờ is_syncing = false lên metadata cuối cùng
     const { error: finalError } = await supabaseClient
       .from("rd_accounting_data")
       .upsert({
@@ -10223,7 +10309,10 @@ async function pushToCloud() {
 
     if (finalError) throw finalError;
 
-    console.log("Đã đồng bộ hóa state lên Supabase thành công theo từng chunk!");
+    // Cập nhật mốc so sánh
+    lastSyncState = JSON.parse(JSON.stringify(state));
+
+    console.log("Đã đồng bộ hóa state lên Supabase thành công theo dòng delta!");
     if (pushRetryTimeout) {
       clearTimeout(pushRetryTimeout);
       pushRetryTimeout = null;
@@ -10239,7 +10328,6 @@ async function pushToCloud() {
     if (typeof updateCloudSyncBadge === "function") {
       updateCloudSyncBadge(false, "Mây: Lỗi đẩy", "#ef4444");
     }
-    // Khi push thất bại → retry sau 5 giây để không mất dữ liệu khi mạng chập chờn (quản lý qua pushRetryTimeout duy nhất)
     if (pushRetryTimeout) {
       clearTimeout(pushRetryTimeout);
     }
@@ -10275,6 +10363,7 @@ async function pullAndMergeFromCloud() {
 
       console.log("[Supabase] Nhận được thay đổi mới từ cloud, đang tải về...");
       state = cloudData;
+      lastSyncState = JSON.parse(JSON.stringify(state));
 
       // Ghi cache cục bộ
       try {
