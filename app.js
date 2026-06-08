@@ -8937,7 +8937,23 @@ let errorLogs = [];
 try {
   const savedLogs = localStorage.getItem("rd_accounting_error_logs");
   if (savedLogs) {
-    errorLogs = JSON.parse(savedLogs);
+    const parsed = JSON.parse(savedLogs);
+    if (Array.isArray(parsed)) {
+      // Tự động loại bỏ các log cũ liên quan đến Firebase và MongoDB (hệ thống đã chuyển sang dùng Supabase)
+      errorLogs = parsed.filter(log => {
+        const msg = (log.message || "").toLowerCase();
+        const ctx = (log.context || "").toLowerCase();
+        const stack = (log.error && (log.error.stack || log.error.message) || "").toLowerCase();
+        const hasFirebaseOrMongo = 
+          msg.includes("firebase") || msg.includes("mongodb") ||
+          ctx.includes("firebase") || ctx.includes("mongodb") ||
+          stack.includes("firebase") || stack.includes("mongodb") ||
+          msg.includes("append .json") || msg.includes("google") ||
+          msg.includes("forbidden") || msg.includes("403");
+        return !hasFirebaseOrMongo;
+      });
+      localStorage.setItem("rd_accounting_error_logs", JSON.stringify(errorLogs));
+    }
   }
 } catch (e) {
   console.error("Error reading logs:", e);
