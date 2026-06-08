@@ -1087,7 +1087,7 @@ function setAccountingStandard(standard) {
 // 3. THUẬT TOÁN KẾ TOÁN CỐT LÕI (ENGINE)
 // - Tính giá vốn bình quân gia quyền liên hoàn sau mỗi lần nhập hàng
 // - Tự động tạo bút toán Nhật ký kép đồng bộ
-function recalculateAccounting() {
+function recalculateAccounting(shouldSave = true) {
   // Đảm bảo di trú dữ liệu khi nạp/thay đổi trạng thái
   if (state.products) {
     state.products.forEach(p => {
@@ -1344,7 +1344,9 @@ function recalculateAccounting() {
   }
 
   // Lưu lại và vẽ giao diện
-  saveState();
+  if (shouldSave) {
+    saveState();
+  }
   refreshUI();
 }
 
@@ -9771,7 +9773,7 @@ async function pullFromCloudOnStartup() {
       console.log("[Supabase] Tải dữ liệu đám mây thành công!");
 
       // Cập nhật giao diện
-      recalculateAccounting();
+      recalculateAccounting(false);
       renderDashboard();
       filterDebts();
       filterPartners();
@@ -9781,9 +9783,6 @@ async function pullFromCloudOnStartup() {
       if (typeof renderPurchaseTable === "function") renderPurchaseTable();
       if (typeof renderSalesTable === "function") renderSalesTable();
       if (typeof initExcelIntegration === "function") initExcelIntegration();
-
-      // Chạy tích hợp tự động sau khi đã kéo dữ liệu đám mây
-      await runAutoIntegrations();
     } else {
       // Cơ sở dữ liệu đám mây trống (Lần kết nối đầu tiên) → Tạo dữ liệu mặc định trống và đẩy lên đám mây
       console.log("Cơ sở dữ liệu đám mây trống. Tạo dữ liệu mặc định và đẩy lên đám mây...");
@@ -9798,7 +9797,6 @@ async function pullFromCloudOnStartup() {
         vouchers: []
       };
       await pushToCloud();
-      await runAutoIntegrations();
     }
   } catch (err) {
     if (typeof addErrorLog === "function") {
@@ -9981,6 +9979,7 @@ function mergeStates(localState, cloudState) {
 let isPushing = false;
 let pushPending = false;
 let _isMergePushing = false;
+let pushRetryTimeout = null;
 
 async function pushToCloud() {
   if (!cloudSyncActive || !supabaseClient) return;
@@ -10084,6 +10083,10 @@ async function pushToCloud() {
     if (finalError) throw finalError;
 
     console.log("Đã đồng bộ hóa state lên Supabase thành công theo từng chunk!");
+    if (pushRetryTimeout) {
+      clearTimeout(pushRetryTimeout);
+      pushRetryTimeout = null;
+    }
     if (typeof updateCloudSyncBadge === "function") {
       updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
     }
@@ -10095,8 +10098,11 @@ async function pushToCloud() {
     if (typeof updateCloudSyncBadge === "function") {
       updateCloudSyncBadge(false, "Mây: Lỗi đẩy", "#ef4444");
     }
-    // Khi push thất bại → retry sau 5 giây để không mất dữ liệu khi mạng chập chờn
-    setTimeout(() => {
+    // Khi push thất bại → retry sau 5 giây để không mất dữ liệu khi mạng chập chờn (quản lý qua pushRetryTimeout duy nhất)
+    if (pushRetryTimeout) {
+      clearTimeout(pushRetryTimeout);
+    }
+    pushRetryTimeout = setTimeout(() => {
       if (cloudSyncActive && supabaseClient && !isPushing) {
         console.log("[CloudSync] Thử lại push sau lỗi...");
         pushPending = false;
@@ -10129,7 +10135,7 @@ async function pullAndMergeFromCloud() {
       console.log("[Supabase] Nhận được thay đổi mới từ cloud, đang tải về...");
       state = cloudData;
 
-      recalculateAccounting();
+      recalculateAccounting(false);
       renderDashboard();
       filterDebts();
       filterPartners();
