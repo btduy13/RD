@@ -1,6 +1,6 @@
 {
   "name": "rd-accounting",
-  "version": "1.8.13",
+  "version": "1.9.0",
   "description": "Phần mềm kế toán độc lập Công ty Cổ phần Rạng Đông",
   "main": "main.js",
   "scripts": {
