@@ -1384,7 +1384,12 @@ function refreshUI() {
   }
 
   try {
-    generateReport(); // Tự động làm mới báo cáo hiện hành
+    // Chỉ tái tạo báo cáo khi tab Báo cáo đang hiển thị
+    // → Tránh tính toán nặng (7000+ chứng từ) trong các vòng lặp đồng bộ hóa đám mây
+    const reportsView = document.getElementById("view-reports");
+    if (reportsView && reportsView.classList.contains("active-tab")) {
+      generateReport();
+    }
   } catch (e) {
     console.error("Lỗi tạo báo cáo kế toán:", e);
   }
@@ -1462,6 +1467,7 @@ function switchTab(tabId) {
     renderStockLedger();
   } else if (tabId === "reports") {
     populateReportAccountDropdown();
+    try { generateReport(); } catch (e) { console.error("Lỗi tạo báo cáo:", e); }
   } else if (tabId === "partners") {
     filterPartners();
   } else if (tabId === "debts") {
@@ -4953,14 +4959,19 @@ async function openBackupFolder() {
  */
 async function autoSaveBeforeClose() {
   try {
-    // 1. Lưu state mới nhất xuống localStorage
-    saveState();
+    // 1. Hủy bỏ bộ đếm debounce để tránh push trùng lặp
+    if (saveStateTimeout) {
+      clearTimeout(saveStateTimeout);
+      saveStateTimeout = null;
+    }
 
-    // 2. Nếu Cloud đang kết nối → đẩy ngay lên Cloud và chờ
+    // 2. Nếu Cloud đang kết nối → đẩy trạng thái cuối cùng lên Cloud
     if (cloudSyncActive && supabaseClient) {
-      // Cập nhật timestamp để cloud nhận biết đây là bản mới nhất
+      // LƯU Ý: KHÔNG reset isPushing ở đây!
+      // Việc reset isPushing khi đang có push chạy sẽ gây ra CONCURRENT PUSH,
+      // dẫn đến race condition và dữ liệu bị trùng lặp trên cloud!
+      // pushToCloud() tự quản lý với isPushing/pushPending.
       state._lastModified = Date.now();
-      saveState();
       await pushToCloud();
       console.log("[AutoSave] Đã đẩy dữ liệu lên Cloud trước khi đóng.");
     } else {
@@ -9760,6 +9771,41 @@ async function fetchCloudData() {
   }
 
   reconstructedState._lastModified = maxLastModified || reconstructedState._lastModified || 0;
+
+  // === SAFETY NET 1: Lọc bỏ các voucher/entry đã xóa (deletedIds) ===
+  if (reconstructedState.deletedIds && reconstructedState.deletedIds.length > 0) {
+    const deletedSet = new Set(reconstructedState.deletedIds);
+    reconstructedState.vouchers = (reconstructedState.vouchers || []).filter(v => !deletedSet.has(v.id));
+    if (reconstructedState.cashEntries) {
+      reconstructedState.cashEntries = reconstructedState.cashEntries.filter(e => !deletedSet.has(e.id));
+    }
+    if (reconstructedState.escrowItems) {
+      reconstructedState.escrowItems = reconstructedState.escrowItems.filter(e => !deletedSet.has(e.id));
+    }
+    console.log(`[fetchCloudData] Đã lọc ${deletedSet.size} ID đã xóa khỏi dữ liệu đám mây.`);
+  }
+
+  // === SAFETY NET 2: Khử trùng lặp ID voucher (deduplication) ===
+  // Bảo vệ khỏi race condition khi nhiều push chạy đồng thời gây chunk trùng lặp
+  const voucherMap = new Map();
+  (reconstructedState.vouchers || []).forEach(v => {
+    if (v && v.id) {
+      if (!voucherMap.has(v.id)) {
+        voucherMap.set(v.id, v);
+      } else {
+        const existing = voucherMap.get(v.id);
+        if ((v._updatedAt || 0) > (existing._updatedAt || 0)) {
+          voucherMap.set(v.id, v);
+        }
+      }
+    }
+  });
+  const beforeDedup = (reconstructedState.vouchers || []).length;
+  reconstructedState.vouchers = Array.from(voucherMap.values());
+  if (beforeDedup !== reconstructedState.vouchers.length) {
+    console.warn(`[fetchCloudData] Đã loại bỏ ${beforeDedup - reconstructedState.vouchers.length} voucher trùng lặp!`);
+  }
+
   return reconstructedState;
 }
 
@@ -9771,19 +9817,28 @@ async function pullFromCloudOnStartup() {
     const hasCloudProducts = cloudData && cloudData.products && cloudData.products.length > 0;
 
     if (cloudData && hasCloudProducts) {
+      const cloudVoucherCount = (cloudData.vouchers || []).length;
       state = cloudData;
-      console.log("[Supabase] Tải dữ liệu đám mây thành công!");
+      console.log(`[Supabase] Tải dữ liệu đám mây thành công! (${cloudVoucherCount} chứng từ)`);
+
+      // Nếu deduplication đã loại bỏ voucher trùng lặp → đẩy ngay lên cloud để sửa dữ liệu
+      const stateVoucherCount = (state.vouchers || []).length;
+      if (stateVoucherCount < cloudVoucherCount) {
+        console.warn(`[Supabase] Phát hiện ${cloudVoucherCount - stateVoucherCount} voucher trùng lặp → tự động sửa và đẩy lên cloud...`);
+        setTimeout(() => {
+          state._lastModified = Date.now();
+          pushToCloud().then(() => {
+            showToast(`Đã tự động dọn dẹp ${cloudVoucherCount - stateVoucherCount} chứng từ bị trùng lặp trên cloud!`, "success");
+          }).catch(err => console.error("[Supabase] Lỗi tự sửa dedup:", err));
+        }, 3000); // Chờ 3s để cloud sync ổn định trước
+      }
 
       // Cập nhật giao diện
+      // LƯU Ý: recalculateAccounting đã gọi refreshUI() bên trong nên không cần render lại lần 2
       recalculateAccounting(false);
-      renderDashboard();
       filterDebts();
       filterPartners();
       filterCash();
-      if (typeof renderInventoryTable === "function") renderInventoryTable();
-      if (typeof renderEscrowTable === "function") renderEscrowTable();
-      if (typeof renderPurchaseTable === "function") renderPurchaseTable();
-      if (typeof renderSalesTable === "function") renderSalesTable();
       if (typeof initExcelIntegration === "function") initExcelIntegration();
     } else {
       // Cơ sở dữ liệu đám mây trống hoặc chưa có sản phẩm → nạp từ Excel cục bộ để đồng bộ hóa lần đầu
@@ -9855,15 +9910,11 @@ function forcePullFromCloud() {
     .then((cloudData) => {
       if (cloudData) {
         state = cloudData;
+        // LƯU Ý: recalculateAccounting đã gọi refreshUI() bên trong nên không cần render lại lần 2
         recalculateAccounting();
-        renderDashboard();
         filterDebts();
         filterPartners();
         filterCash();
-        if (typeof renderInventoryTable === "function") renderInventoryTable();
-        if (typeof renderEscrowTable === "function") renderEscrowTable();
-        if (typeof renderPurchaseTable === "function") renderPurchaseTable();
-        if (typeof renderSalesTable === "function") renderSalesTable();
         if (typeof initExcelIntegration === "function") initExcelIntegration();
         updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
         showToast("Tải dữ liệu từ Đám mây về máy này thành công!", "success");
@@ -10070,12 +10121,17 @@ async function pushToCloud() {
       .delete()
       .not("id", "in", currentIds);
 
-    // 4. Đẩy tất cả các chunk mới lên (Chạy tuần tự để tránh quá tải kết nối và gây timeout database)
-    for (const chunk of chunks) {
-      const { error } = await supabaseClient
-        .from("rd_accounting_data")
-        .upsert(chunk);
-      if (error) throw error;
+    // 4. Đẩy tất cả các chunk mới lên song song (tối đa 4 kết nối đồng thời)
+    // → Giảm thời gian upload từ ~30s xuống ~8-10s so với tuần tự
+    const UPLOAD_CONCURRENCY = 4;
+    for (let i = 0; i < chunks.length; i += UPLOAD_CONCURRENCY) {
+      const batch = chunks.slice(i, i + UPLOAD_CONCURRENCY);
+      const results = await Promise.all(
+        batch.map(chunk => supabaseClient.from("rd_accounting_data").upsert(chunk))
+      );
+      for (const { error } of results) {
+        if (error) throw error;
+      }
     }
 
     // 5. Cập nhật cờ is_syncing = false lên metadata cuối cùng
@@ -10144,15 +10200,11 @@ async function pullAndMergeFromCloud() {
       console.log("[Supabase] Nhận được thay đổi mới từ cloud, đang tải về...");
       state = cloudData;
 
+      // LƯU Ý: recalculateAccounting đã gọi refreshUI() bên trong nên không cần render lại lần 2
       recalculateAccounting(false);
-      renderDashboard();
       filterDebts();
       filterPartners();
       filterCash();
-      if (typeof renderInventoryTable === "function") renderInventoryTable();
-      if (typeof renderEscrowTable === "function") renderEscrowTable();
-      if (typeof renderPurchaseTable === "function") renderPurchaseTable();
-      if (typeof renderSalesTable === "function") renderSalesTable();
       if (typeof initExcelIntegration === "function") initExcelIntegration();
     }
   } catch (err) {

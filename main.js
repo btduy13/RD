@@ -4,6 +4,10 @@ const path = require('path');
 const { exec } = require('child_process');
 const fs = require('fs');
 
+// Tăng giới hạn heap V8 lên 4 GB để xử lý tập dữ liệu lớn (7000+ chứng từ, 1600+ sản phẩm)
+// Ngăn chặn lỗi "FATAL ERROR: Oilpan: Large allocation" khi ghi nhớ vượt ngưỡng mặc định ~1.5 GB
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=8192');
+
 let mainWindow;
 
 // ===========================================================================
@@ -127,11 +131,12 @@ function createWindow() {
 
     _isClosing = true;
 
-    // Timeout fallback: nếu quá 10 giây vẫn chưa xong thì buộc đóng
+    // Timeout fallback: nếu quá 45 giây vẫn chưa xong thì buộc đóng
+    // (upload song song cải thiện tốc độ, nhưng cần dự phòng cho mạng chậm)
     const forceCloseTimer = setTimeout(() => {
-      console.warn('[AutoSave] Timeout 10s, buộc đóng ứng dụng.');
+      console.warn('[AutoSave] Timeout 45s, buộc đóng ứng dụng.');
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();
-    }, 10000);
+    }, 45000);
 
     try {
       // Bước 1: Gọi renderer thực hiện saveState() + pushToCloud() và chờ
