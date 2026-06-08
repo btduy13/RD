@@ -3643,7 +3643,7 @@ function handleQuickAddPartnerSubmit(e) {
     const datalist = document.getElementById("datalist-partners");
     if (datalist && state.partners) {
       datalist.innerHTML = state.partners.map(p =>
-        `<option value="${p.id}">${p.name} [${p.type === 'supplier' ? 'NCC' : 'KH'}]</option>`
+        `<option value="${p.name} (${p.id})">[${p.type === 'supplier' ? 'NCC' : 'KH'}]</option>`
       ).join("");
     }
 
@@ -3654,7 +3654,7 @@ function handleQuickAddPartnerSubmit(e) {
 
   const inputEl = document.getElementById(isSupplier ? "pur-partner" : "sale-partner");
   if (inputEl) {
-    inputEl.value = partner.id;
+    inputEl.value = `${partner.name} (${partner.id})`;
   }
 
   closeModal("modal-quick-add-partner");
@@ -7786,7 +7786,7 @@ function initExcelIntegration() {
   const datalist = document.getElementById("datalist-partners");
   if (datalist && state.partners) {
     datalist.innerHTML = state.partners.map(p =>
-      `<option value="${p.id}">${p.name} [${p.type === 'supplier' ? 'NCC' : 'KH'}]</option>`
+      `<option value="${p.name} (${p.id})">[${p.type === 'supplier' ? 'NCC' : 'KH'}]</option>`
     ).join("");
   }
 
@@ -7795,7 +7795,7 @@ function initExcelIntegration() {
   const purchaseProductDatalist = document.getElementById("datalist-purchase-products");
   if (state.products) {
     const optionsHTML = state.products.map(p =>
-      `<option value="${p.id}">${p.name} (Tồn: ${p.stock})</option>`
+      `<option value="${p.name} (${p.id})">(Tồn: ${p.stock})</option>`
     ).join("");
     if (productDatalist) productDatalist.innerHTML = optionsHTML;
     if (purchaseProductDatalist) purchaseProductDatalist.innerHTML = optionsHTML;
@@ -7811,14 +7811,14 @@ function initExcelIntegration() {
 // Caching dropdown sản phẩm
 function cacheProductOptions() {
   if (!state.products) return;
-  productOptionsHTML = state.products.map(p => `<option value="${p.id}">${p.name} (Tồn: ${p.stock})</option>`).join("");
-  productOptionsSalesHTML = state.products.map(p => `<option value="${p.id}">${p.name} (Tồn: ${p.stock})</option>`).join("");
+  productOptionsHTML = state.products.map(p => `<option value="${p.name} (${p.id})">(Tồn: ${p.stock})</option>`).join("");
+  productOptionsSalesHTML = state.products.map(p => `<option value="${p.name} (${p.id})">(Tồn: ${p.stock})</option>`).join("");
 
   const productDatalist = document.getElementById("datalist-sales-products");
   const purchaseProductDatalist = document.getElementById("datalist-purchase-products");
   if (state.products) {
     const optionsHTML = state.products.map(p =>
-      `<option value="${p.id}">${p.name} (Tồn: ${p.stock})</option>`
+      `<option value="${p.name} (${p.id})">(Tồn: ${p.stock})</option>`
     ).join("");
     if (productDatalist) productDatalist.innerHTML = optionsHTML;
     if (purchaseProductDatalist) purchaseProductDatalist.innerHTML = optionsHTML;
@@ -7855,6 +7855,14 @@ function updateExcelHubUI() {
 function resolvePartner(value) {
   const val = (value || "").toString().trim();
   if (!val) return { id: "DT_VANGLAI", name: "Khách hàng vãng lai" };
+
+  // Hỗ trợ định dạng "Tên đối tác (Mã đối tác)"
+  const match = val.match(/\(([^)]+)\)$/);
+  if (match) {
+    const idInParens = match[1].trim();
+    let p = state.partners.find(item => String(item.id).toLowerCase() === idInParens.toLowerCase());
+    if (p) return p;
+  }
 
   // 1. Tìm chính xác theo ID
   let p = state.partners.find(item => String(item.id).toLowerCase() === val.toLowerCase());
@@ -8096,7 +8104,7 @@ function parseExcelFile(file, type) {
         const datalist = document.getElementById("datalist-partners");
         if (datalist) {
           datalist.innerHTML = state.partners.map(p =>
-            `<option value="${p.id}">${p.name} [${p.type === 'supplier' ? 'NCC' : 'KH'}]</option>`
+            `<option value="${p.name} (${p.id})">[${p.type === 'supplier' ? 'NCC' : 'KH'}]</option>`
           ).join("");
         }
 
@@ -8175,7 +8183,7 @@ function parseExcelFile(file, type) {
         const datalist = document.getElementById("datalist-partners");
         if (datalist) {
           datalist.innerHTML = state.partners.map(p =>
-            `<option value="${p.id}">${p.name} [${p.type === 'supplier' ? 'NCC' : 'KH'}]</option>`
+            `<option value="${p.name} (${p.id})">[${p.type === 'supplier' ? 'NCC' : 'KH'}]</option>`
           ).join("");
         }
 
