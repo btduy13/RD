@@ -1146,11 +1146,12 @@ function recalculateAccounting() {
     // Tìm thông số khởi tạo của sản phẩm này từ map tra cứu O(1)
     const orig = originalProductsMap[p.id];
     let initStock = orig ? orig.stock : (p.initialStock !== undefined ? p.initialStock : (p.stock || 0));
+    initStock = Number((initStock || 0).toFixed(3));
     
     // Nếu sản phẩm được nhập từ Excel và có actualStock, ta tính ngược lại tồn đầu kỳ để tồn cuối kỳ chính là actualStock
     if (!orig && p.actualStock !== undefined) {
       const changes = voucherChanges[p.id] || { purchases: 0, sales: 0 };
-      initStock = p.actualStock - changes.purchases + changes.sales;
+      initStock = Number((p.actualStock - changes.purchases + changes.sales).toFixed(3));
       p.initialStock = initStock;
     }
 
@@ -1187,7 +1188,7 @@ function recalculateAccounting() {
           const oldStock = p.stock;
           const oldVal = p.totalValue;
 
-          p.stock += item.qty;
+          p.stock = Number((p.stock + item.qty).toFixed(3));
           p.totalValue += item.amount; // Thành tiền mua chưa thuế
 
           if (oldStock >= 0 && p.stock > 0) {
@@ -1247,7 +1248,7 @@ function recalculateAccounting() {
           item.cogsAmount = Math.round(item.qty * p.avgCost);
 
           // Trừ tồn kho
-          p.stock -= item.qty;
+          p.stock = Number((p.stock - item.qty).toFixed(3));
           p.totalValue -= item.cogsAmount;
 
           totalCogs += item.cogsAmount;
@@ -1327,7 +1328,7 @@ function recalculateAccounting() {
   state.products.forEach(p => {
     const finalVal = productBalanceMap[p.id];
     if (finalVal) {
-      p.stock = finalVal.stock;
+      p.stock = Number((finalVal.stock || 0).toFixed(3));
       p.avgCost = finalVal.avgCost;
       p.totalValue = finalVal.totalValue;
       p.lastPurchasePrice = finalVal.lastPurchasePrice;
