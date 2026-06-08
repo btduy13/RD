@@ -9768,7 +9768,9 @@ async function pullFromCloudOnStartup() {
 
   try {
     const cloudData = await fetchCloudData();
-    if (cloudData) {
+    const hasCloudProducts = cloudData && cloudData.products && cloudData.products.length > 0;
+
+    if (cloudData && hasCloudProducts) {
       state = cloudData;
       console.log("[Supabase] Tải dữ liệu đám mây thành công!");
 
@@ -9784,19 +9786,26 @@ async function pullFromCloudOnStartup() {
       if (typeof renderSalesTable === "function") renderSalesTable();
       if (typeof initExcelIntegration === "function") initExcelIntegration();
     } else {
-      // Cơ sở dữ liệu đám mây trống (Lần kết nối đầu tiên) → Tạo dữ liệu mặc định trống và đẩy lên đám mây
-      console.log("Cơ sở dữ liệu đám mây trống. Tạo dữ liệu mặc định và đẩy lên đám mây...");
-      state = {
-        companyName: "",
-        address: "",
-        taxCode: "",
-        accountingStandard: "TT200",
-        products: [],
-        partners: [],
-        initialBalances: JSON.parse(JSON.stringify(DEFAULT_DATA.initialBalances)),
-        vouchers: []
-      };
-      await pushToCloud();
+      // Cơ sở dữ liệu đám mây trống hoặc chưa có sản phẩm → nạp từ Excel cục bộ để đồng bộ hóa lần đầu
+      console.log("Cơ sở dữ liệu đám mây trống hoặc chưa có sản phẩm. Nạp dữ liệu từ Excel cục bộ...");
+      if (cloudData) {
+        state = cloudData;
+      } else {
+        state = {
+          companyName: "",
+          address: "",
+          taxCode: "",
+          accountingStandard: "TT200",
+          products: [],
+          partners: [],
+          initialBalances: JSON.parse(JSON.stringify(DEFAULT_DATA.initialBalances)),
+          vouchers: []
+        };
+      }
+      recalculateAccounting(false);
+
+      // Chạy tích hợp tự động một lần duy nhất để đẩy lên cloud
+      await runAutoIntegrations();
     }
   } catch (err) {
     if (typeof addErrorLog === "function") {
