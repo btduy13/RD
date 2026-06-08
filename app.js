@@ -93,6 +93,18 @@ function initApp() {
       if (p.initialCost === undefined) {
         p.initialCost = p.avgCost !== undefined ? p.avgCost : 0;
       }
+      if (p.actualStock === undefined && p.initialStock !== undefined) {
+        p.actualStock = p.initialStock;
+      }
+    });
+  }
+
+  // Đánh dấu các chứng từ cũ từ database là imported (trừ khi đã có isManual)
+  if (state.vouchers) {
+    state.vouchers.forEach(v => {
+      if (v.isManual === undefined && v.isImported === undefined) {
+        v.isImported = true;
+      }
     });
   }
 
@@ -285,6 +297,7 @@ async function autoIntegrateVouchersExcel() {
         paymentMethod,
         description,
         amount,
+        isImported: true,
         entries: [{ debit: debitAccount, credit: creditAccount, amount, desc: description }]
       };
       if (idx !== -1) {
@@ -394,6 +407,7 @@ async function autoIntegrateSalesExcel() {
         taxAmount: T,
         totalAmount: totalAmount,
         amount: totalAmount,
+        isImported: true,
         items: [
           {
             productId: "SP_GENERIC",
@@ -572,6 +586,7 @@ async function autoIntegrateSoChiTietBanHangExcel() {
         taxAmount: 0,
         totalAmount: totalVoucherAmount,
         amount: totalVoucherAmount,
+        isImported: true,
         items: itemsArray
       };
 
@@ -771,6 +786,7 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
         taxAmount: 0,
         totalAmount: totalVoucherAmount,
         amount: totalVoucherAmount,
+        isImported: true,
         items: itemsArray
       };
 
@@ -888,6 +904,22 @@ function setAccountingStandard(standard) {
 // - Tính giá vốn bình quân gia quyền liên hoàn sau mỗi lần nhập hàng
 // - Tự động tạo bút toán Nhật ký kép đồng bộ
 function recalculateAccounting() {
+  // Đảm bảo di trú dữ liệu khi nạp/thay đổi trạng thái
+  if (state.products) {
+    state.products.forEach(p => {
+      if (p.actualStock === undefined && p.initialStock !== undefined) {
+        p.actualStock = p.initialStock;
+      }
+    });
+  }
+  if (state.vouchers) {
+    state.vouchers.forEach(v => {
+      if (v.isManual === undefined && v.isImported === undefined) {
+        v.isImported = true;
+      }
+    });
+  }
+
   // BƯỚC A: Reset lại danh mục sản phẩm về trạng thái số dư đầu kỳ
   // Ta lấy số lượng tồn đầu kỳ và giá vốn đầu kỳ từ danh mục gốc trong data.js hoặc từ state
   // Ở đây, để đơn giản, ta xem dữ liệu ban đầu trong state.products là số dư đầu kỳ (trước khi phát sinh các voucher)
@@ -906,11 +938,38 @@ function recalculateAccounting() {
     });
   }
 
+  // Tính lượng chênh lệch tồn kho từ các chứng từ nhập khẩu (isImported)
+  const voucherChanges = {};
+  if (state.vouchers) {
+    state.vouchers.forEach(v => {
+      if (v.isImported && v.items) {
+        v.items.forEach(item => {
+          if (!voucherChanges[item.productId]) {
+            voucherChanges[item.productId] = { purchases: 0, sales: 0 };
+          }
+          if (v.type === "purchase") {
+            voucherChanges[item.productId].purchases += (item.qty || 0);
+          } else if (v.type === "sales") {
+            voucherChanges[item.productId].sales += (item.qty || 0);
+          }
+        });
+      }
+    });
+  }
+
   // Đọc số lượng đầu kỳ của sản phẩm (nếu sản phẩm mới khai báo thì xem như tồn 0, đơn giá 0)
   state.products.forEach(p => {
     // Tìm thông số khởi tạo của sản phẩm này từ map tra cứu O(1)
     const orig = originalProductsMap[p.id];
-    const initStock = orig ? orig.stock : (p.initialStock !== undefined ? p.initialStock : (p.stock || 0));
+    let initStock = orig ? orig.stock : (p.initialStock !== undefined ? p.initialStock : (p.stock || 0));
+    
+    // Nếu sản phẩm được nhập từ Excel và có actualStock, ta tính ngược lại tồn đầu kỳ để tồn cuối kỳ chính là actualStock
+    if (!orig && p.actualStock !== undefined) {
+      const changes = voucherChanges[p.id] || { purchases: 0, sales: 0 };
+      initStock = p.actualStock - changes.purchases + changes.sales;
+      p.initialStock = initStock;
+    }
+
     const initCost = orig ? orig.avgCost : (p.initialCost !== undefined ? p.initialCost : (p.avgCost || 0));
     productBalanceMap[p.id] = {
       stock: initStock,
@@ -3241,7 +3300,8 @@ function handlePurchaseSubmit(e) {
     description: document.getElementById("pur-desc").value,
     items: voucherItems,
     taxRate: 0,
-    taxAmount: 0
+    taxAmount: 0,
+    isManual: true
   };
 
   if (editingPurchaseId) {
@@ -3486,7 +3546,8 @@ function handleSalesSubmit(e) {
     paymentMethod: document.getElementById("sale-payment").value,
     description: document.getElementById("sale-desc").value,
     items: voucherItems,
-    taxRate: parseInt(document.getElementById("sale-tax-rate").value)
+    taxRate: parseInt(document.getElementById("sale-tax-rate").value),
+    isManual: true
   };
 
   if (editingSalesId) {
@@ -3833,7 +3894,8 @@ function handleEscrowSubmit(e) {
     amount: parseInt(document.getElementById("esc-amount").value.replace(/\D/g, "")) || 0,
     description: document.getElementById("esc-desc").value,
     expectedReturnDate: document.getElementById("esc-return-date") ? document.getElementById("esc-return-date").value : "",
-    escrowRefId: type.includes("refund") ? refId : null // Liên kết đến chứng từ ký quỹ gốc
+    escrowRefId: type.includes("refund") ? refId : null, // Liên kết đến chứng từ ký quỹ gốc
+    isManual: true
   };
 
   state.vouchers.push(newVoucher);
@@ -5533,6 +5595,7 @@ async function restoreAndApplyS06Prices(force = false) {
         avgCost,
         totalValue,
         initialStock: stock,
+        actualStock: stock,
         initialCost: avgCost,
         salePrice1,
         lastPurchasePrice: avgCost,
@@ -7461,6 +7524,7 @@ function handleReceiptSubmit(e) {
     paymentMethod: debit,
     description: desc,
     amount,
+    isManual: true,
     entries: [
       { debit, credit, amount, desc }
     ]
@@ -7502,6 +7566,7 @@ function handlePaymentSubmit(e) {
     paymentMethod: credit,
     description: desc,
     amount,
+    isManual: true,
     entries: [
       { debit, credit, amount, desc }
     ]
@@ -8040,6 +8105,7 @@ function parseExcelFile(file, type) {
             minStock,
             group: (row[isNewFormat ? 3 : 3] || "").toString().trim(),
             initialStock,
+            actualStock: stock,
             initialCost,
             salePrice1,
             lastPurchasePrice: Number(row[20]) || avgCost,
@@ -8245,6 +8311,7 @@ function parseExcelFile(file, type) {
             paymentMethod,
             description,
             amount,
+            isImported: true,
             entries: [{ debit: debitAccount, credit: creditAccount, amount, desc: description }]
           };
           if (idx !== -1) {
@@ -8371,6 +8438,7 @@ function parseExcelFile(file, type) {
               taxAmount: 0,
               totalAmount: totalVoucherAmount,
               amount: totalVoucherAmount,
+              isImported: true,
               items: itemsArray
             };
 
@@ -8447,6 +8515,7 @@ function parseExcelFile(file, type) {
               taxAmount: T,
               totalAmount: totalAmount,
               amount: totalAmount,
+              isImported: true,
               items: [
                 {
                   productId: "SP_GENERIC",
@@ -8597,6 +8666,7 @@ function parseExcelFile(file, type) {
             taxAmount: 0,
             totalAmount: totalVoucherAmount,
             amount: totalVoucherAmount,
+            isImported: true,
             items: itemsArray
           };
 
@@ -8739,6 +8809,7 @@ function parseExcelFile(file, type) {
               taxAmount: 0,
               totalAmount: totalVoucherAmount,
               amount: totalVoucherAmount,
+              isImported: true,
               items: itemsArray
             };
 
@@ -8831,6 +8902,7 @@ function parseExcelFile(file, type) {
               taxAmount: 0,
               totalAmount: totalAmount,
               amount: totalAmount,
+              isImported: true,
               items: itemsArray
             };
 
@@ -9787,8 +9859,8 @@ async function pushToCloud() {
       updated_at: new Date().toISOString()
     });
 
-    // Partners (chunk 2000)
-    const partnerChunkSize = 2000;
+    // Partners (chunk 1000)
+    const partnerChunkSize = 1000;
     const partnersArray = partners || [];
     for (let i = 0; i < partnersArray.length; i += partnerChunkSize) {
       const chunk = partnersArray.slice(i, i + partnerChunkSize);
@@ -9801,8 +9873,8 @@ async function pushToCloud() {
       });
     }
 
-    // Vouchers (chunk 1000)
-    const voucherChunkSize = 1000;
+    // Vouchers (chunk 500)
+    const voucherChunkSize = 500;
     const vouchersArray = vouchers || [];
     for (let i = 0; i < vouchersArray.length; i += voucherChunkSize) {
       const chunk = vouchersArray.slice(i, i + voucherChunkSize);
@@ -12250,7 +12322,8 @@ function handlePurchaseOrderSubmit(e) {
     description: document.getElementById("pur-order-desc").value,
     items: voucherItems,
     taxRate: 0,
-    taxAmount: 0
+    taxAmount: 0,
+    isManual: true
   };
 
   if (editingPurchaseOrderId) {
