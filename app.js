@@ -9385,11 +9385,11 @@ async function startSupabaseClient() {
 
     cloudSyncActive = true;
 
-    // Kiểm tra kết nối bằng cách đọc bản ghi chính
+    // Kiểm tra kết nối bằng cách đọc bản ghi metadata chính
     const { data, error } = await supabaseClient
       .from("rd_accounting_data")
       .select("id")
-      .eq("id", "main")
+      .eq("id", "metadata")
       .maybeSingle();
 
     if (error) {
@@ -9397,13 +9397,13 @@ async function startSupabaseClient() {
     }
 
     if (!data) {
-      // Bản ghi chưa tồn tại → tạo mới
+      // Bản ghi chưa tồn tại → tạo mới bản ghi metadata
       const { error: insertError } = await supabaseClient
         .from("rd_accounting_data")
-        .insert({ id: "main", data: {}, last_modified: 0, is_syncing: false });
+        .upsert({ id: "metadata", data: {}, last_modified: 0, is_syncing: false });
 
       if (insertError) {
-        throw new Error("Không thể tạo bản ghi: " + insertError.message);
+        throw new Error("Không thể tạo bản ghi metadata: " + insertError.message);
       }
     }
 
@@ -9433,17 +9433,63 @@ async function pullFromCloudOnStartup() {
   if (!cloudSyncActive || !supabaseClient) return;
 
   try {
-    const { data, error } = await supabaseClient
+    const { data: rows, error } = await supabaseClient
       .from("rd_accounting_data")
-      .select("data, last_modified")
-      .eq("id", "main")
-      .single();
+      .select("id, data, last_modified");
 
     if (error) throw error;
 
-    if (data && data.data && Object.keys(data.data).length > 0) {
-      const cloudData = data.data;
-      cloudData._lastModified = data.last_modified || cloudData._lastModified || 0;
+    if (rows && rows.length > 0) {
+      let reconstructedState = {
+        companyName: "",
+        address: "",
+        taxCode: "",
+        accountingStandard: "TT200",
+        products: [],
+        partners: [],
+        initialBalances: {},
+        vouchers: []
+      };
+
+      const vouchersChunks = [];
+      const partnersChunks = [];
+      let maxLastModified = 0;
+
+      rows.forEach(row => {
+        const lm = row.last_modified || 0;
+        if (lm > maxLastModified) maxLastModified = lm;
+
+        if (row.id === "metadata") {
+          Object.assign(reconstructedState, row.data);
+        } else if (row.id === "products") {
+          reconstructedState.products = row.data || [];
+        } else if (row.id.startsWith("partners_")) {
+          const idx = parseInt(row.id.split("_")[1]) || 0;
+          partnersChunks[idx] = row.data || [];
+        } else if (row.id.startsWith("vouchers_")) {
+          const idx = parseInt(row.id.split("_")[1]) || 0;
+          vouchersChunks[idx] = row.data || [];
+        }
+      });
+
+      // Flatten partners
+      reconstructedState.partners = [];
+      for (let i = 0; i < partnersChunks.length; i++) {
+        if (partnersChunks[i]) {
+          reconstructedState.partners = reconstructedState.partners.concat(partnersChunks[i]);
+        }
+      }
+
+      // Flatten vouchers
+      reconstructedState.vouchers = [];
+      for (let i = 0; i < vouchersChunks.length; i++) {
+        if (vouchersChunks[i]) {
+          reconstructedState.vouchers = reconstructedState.vouchers.concat(vouchersChunks[i]);
+        }
+      }
+
+      reconstructedState._lastModified = maxLastModified || reconstructedState._lastModified || 0;
+      const cloudData = reconstructedState;
 
       // Smart Merge khi khởi động: gộp dữ liệu cục bộ + cloud
       // Tránh mất dữ liệu nhập khi offline trước đó
@@ -9520,16 +9566,62 @@ function forcePullFromCloud() {
 
   supabaseClient
     .from("rd_accounting_data")
-    .select("data, last_modified")
-    .eq("id", "main")
-    .single()
-    .then(({ data, error }) => {
+    .select("id, data, last_modified")
+    .then(({ data: rows, error }) => {
       if (error) throw error;
 
-      if (data && data.data && Object.keys(data.data).length > 0) {
-        const cloudData = data.data;
-        cloudData._lastModified = data.last_modified || cloudData._lastModified || 0;
-        state = cloudData;
+      if (rows && rows.length > 0) {
+        let reconstructedState = {
+          companyName: "",
+          address: "",
+          taxCode: "",
+          accountingStandard: "TT200",
+          products: [],
+          partners: [],
+          initialBalances: {},
+          vouchers: []
+        };
+
+        const vouchersChunks = [];
+        const partnersChunks = [];
+        let maxLastModified = 0;
+
+        rows.forEach(row => {
+          const lm = row.last_modified || 0;
+          if (lm > maxLastModified) maxLastModified = lm;
+
+          if (row.id === "metadata") {
+            Object.assign(reconstructedState, row.data);
+          } else if (row.id === "products") {
+            reconstructedState.products = row.data || [];
+          } else if (row.id.startsWith("partners_")) {
+            const idx = parseInt(row.id.split("_")[1]) || 0;
+            partnersChunks[idx] = row.data || [];
+          } else if (row.id.startsWith("vouchers_")) {
+            const idx = parseInt(row.id.split("_")[1]) || 0;
+            vouchersChunks[idx] = row.data || [];
+          }
+        });
+
+        // Flatten partners
+        reconstructedState.partners = [];
+        for (let i = 0; i < partnersChunks.length; i++) {
+          if (partnersChunks[i]) {
+            reconstructedState.partners = reconstructedState.partners.concat(partnersChunks[i]);
+          }
+        }
+
+        // Flatten vouchers
+        reconstructedState.vouchers = [];
+        for (let i = 0; i < vouchersChunks.length; i++) {
+          if (vouchersChunks[i]) {
+            reconstructedState.vouchers = reconstructedState.vouchers.concat(vouchersChunks[i]);
+          }
+        }
+
+        reconstructedState._lastModified = maxLastModified || reconstructedState._lastModified || 0;
+
+        state = reconstructedState;
         localStorage.setItem("rd_accounting_db", JSON.stringify(state));
         recalculateAccounting();
         renderDashboard();
@@ -9679,20 +9771,87 @@ async function pushToCloud() {
       state._lastModified = Date.now();
     }
 
-    // Đẩy toàn bộ state dưới dạng JSONB (Supabase xử lý được JSON lớn, không cần chia khối)
-    const { error } = await supabaseClient
+    const { products, partners, vouchers, ...metadata } = state;
+
+    // 1. Đẩy cờ is_syncing = true lên metadata trước
+    await supabaseClient
       .from("rd_accounting_data")
       .upsert({
-        id: "main",
-        data: state,
+        id: "metadata",
+        data: metadata,
+        last_modified: state._lastModified,
+        is_syncing: true,
+        updated_at: new Date().toISOString()
+      });
+
+    // 2. Chuẩn bị các chunk để upsert
+    const chunks = [];
+
+    // Products
+    chunks.push({
+      id: "products",
+      data: products || [],
+      last_modified: state._lastModified,
+      is_syncing: false,
+      updated_at: new Date().toISOString()
+    });
+
+    // Partners (chunk 2000)
+    const partnerChunkSize = 2000;
+    const partnersArray = partners || [];
+    for (let i = 0; i < partnersArray.length; i += partnerChunkSize) {
+      const chunk = partnersArray.slice(i, i + partnerChunkSize);
+      chunks.push({
+        id: `partners_${Math.floor(i / partnerChunkSize)}`,
+        data: chunk,
+        last_modified: state._lastModified,
+        is_syncing: false,
+        updated_at: new Date().toISOString()
+      });
+    }
+
+    // Vouchers (chunk 1000)
+    const voucherChunkSize = 1000;
+    const vouchersArray = vouchers || [];
+    for (let i = 0; i < vouchersArray.length; i += voucherChunkSize) {
+      const chunk = vouchersArray.slice(i, i + voucherChunkSize);
+      chunks.push({
+        id: `vouchers_${Math.floor(i / voucherChunkSize)}`,
+        data: chunk,
+        last_modified: state._lastModified,
+        is_syncing: false,
+        updated_at: new Date().toISOString()
+      });
+    }
+
+    // 3. Xóa các chunk cũ không còn dùng
+    const currentIds = ["metadata", "products", ...chunks.map(c => c.id)];
+    await supabaseClient
+      .from("rd_accounting_data")
+      .delete()
+      .not("id", "in", currentIds);
+
+    // 4. Đẩy tất cả các chunk mới lên (Upsert nhiều dòng)
+    const { error: upsertError } = await supabaseClient
+      .from("rd_accounting_data")
+      .upsert(chunks);
+
+    if (upsertError) throw upsertError;
+
+    // 5. Cập nhật cờ is_syncing = false lên metadata cuối cùng
+    const { error: finalError } = await supabaseClient
+      .from("rd_accounting_data")
+      .upsert({
+        id: "metadata",
+        data: metadata,
         last_modified: state._lastModified,
         is_syncing: false,
         updated_at: new Date().toISOString()
       });
 
-    if (error) throw error;
+    if (finalError) throw finalError;
 
-    console.log("Đã đồng bộ hóa state lên Supabase thành công!");
+    console.log("Đã đồng bộ hóa state lên Supabase thành công theo từng chunk!");
     if (typeof updateCloudSyncBadge === "function") {
       updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
     }
@@ -9715,10 +9874,108 @@ async function pushToCloud() {
   } finally {
     isPushing = false;
     _isMergePushing = false;
-    // Nếu có push đang xếp hàng (do bị block lúc đang push), xử lý ngay
     if (pushPending) {
       pushPending = false;
       setTimeout(() => pushToCloud(), 100);
+    }
+  }
+}
+
+async function pullAndMergeFromCloud() {
+  if (!cloudSyncActive || !supabaseClient) return;
+
+  try {
+    const { data: rows, error } = await supabaseClient
+      .from("rd_accounting_data")
+      .select("id, data, last_modified");
+
+    if (error) throw error;
+
+    if (rows && rows.length > 0) {
+      let reconstructedState = {
+        companyName: "",
+        address: "",
+        taxCode: "",
+        accountingStandard: "TT200",
+        products: [],
+        partners: [],
+        initialBalances: {},
+        vouchers: []
+      };
+
+      const vouchersChunks = [];
+      const partnersChunks = [];
+      let maxLastModified = 0;
+
+      rows.forEach(row => {
+        const lm = row.last_modified || 0;
+        if (lm > maxLastModified) maxLastModified = lm;
+
+        if (row.id === "metadata") {
+          Object.assign(reconstructedState, row.data);
+        } else if (row.id === "products") {
+          reconstructedState.products = row.data || [];
+        } else if (row.id.startsWith("partners_")) {
+          const idx = parseInt(row.id.split("_")[1]) || 0;
+          partnersChunks[idx] = row.data || [];
+        } else if (row.id.startsWith("vouchers_")) {
+          const idx = parseInt(row.id.split("_")[1]) || 0;
+          vouchersChunks[idx] = row.data || [];
+        }
+      });
+
+      // Flatten partners
+      reconstructedState.partners = [];
+      for (let i = 0; i < partnersChunks.length; i++) {
+        if (partnersChunks[i]) {
+          reconstructedState.partners = reconstructedState.partners.concat(partnersChunks[i]);
+        }
+      }
+
+      // Flatten vouchers
+      reconstructedState.vouchers = [];
+      for (let i = 0; i < vouchersChunks.length; i++) {
+        if (vouchersChunks[i]) {
+          reconstructedState.vouchers = reconstructedState.vouchers.concat(vouchersChunks[i]);
+        }
+      }
+
+      reconstructedState._lastModified = maxLastModified || reconstructedState._lastModified || 0;
+      const cloudData = reconstructedState;
+
+      const localStr = localStorage.getItem("rd_accounting_db") || "";
+      const cloudStr = JSON.stringify(cloudData);
+
+      if (localStr === cloudStr) return; // Không có thay đổi, bỏ qua
+
+      console.log("[SmartMerge] Phát hiện thay đổi từ Supabase cloud, đang merge thông minh...");
+
+      let localData = null;
+      try {
+        localData = JSON.parse(localStr);
+      } catch (e) {
+        localData = state;
+      }
+
+      // Thực hiện Smart Merge: gộp local + cloud, giữ lại tất cả
+      const merged = mergeStates(localData, cloudData);
+      merged._lastModified = Date.now();
+
+      state = merged;
+      localStorage.setItem("rd_accounting_db", JSON.stringify(state));
+
+      // Đẩy bản merged ngược lên cloud để đồng bộ cho máy kia
+      pushToCloud();
+
+      recalculateAccounting();
+      renderDashboard();
+      filterDebts();
+      filterPartners();
+      filterCash();
+    }
+  } catch (err) {
+    if (typeof addErrorLog === "function") {
+      addErrorLog("pullAndMergeFromCloud", err.message, err);
     }
   }
 }
@@ -9739,23 +9996,19 @@ function listenToCloudChanges() {
         event: "UPDATE",
         schema: "public",
         table: "rd_accounting_data",
-        filter: "id=eq.main"
+        filter: "id=eq.metadata"
       },
       (payload) => {
         // Bỏ qua event do chính lần push merge của máy này gây ra
         if (_isMergePushing) return;
 
         const row = payload.new;
-        if (!row || !row.data) return;
+        if (!row) return;
 
         // Bỏ qua nếu máy trạm khác đang đẩy dữ liệu (tránh đọc dữ liệu dở dang)
         if (row.is_syncing) return;
 
-        const cloudData = row.data;
-
-        // Dùng khoảng dung sai 2 giây thay vì so sánh tuyệt đối
-        // Clock của 2 máy có thể lệch nhau vài giây
-        const cloudTs = row.last_modified || cloudData._lastModified || 0;
+        const cloudTs = row.last_modified || 0;
         const localTs = state._lastModified || 0;
         const CLOCK_TOLERANCE_MS = 2000; // 2 giây dung sai đồng hồ giữa các máy
         if (cloudTs > 0 && localTs > 0 && cloudTs < localTs - CLOCK_TOLERANCE_MS) {
@@ -9763,35 +10016,8 @@ function listenToCloudChanges() {
           return;
         }
 
-        const localStr = localStorage.getItem("rd_accounting_db") || "";
-        const cloudStr = JSON.stringify(cloudData);
-
-        if (localStr === cloudStr) return; // Không có thay đổi, bỏ qua
-
-        console.log("[SmartMerge] Phát hiện thay đổi từ Supabase cloud, đang merge thông minh...");
-
-        let localData = null;
-        try {
-          localData = JSON.parse(localStr);
-        } catch (e) {
-          localData = state;
-        }
-
-        // Thực hiện Smart Merge: gộp local + cloud, giữ lại tất cả
-        const merged = mergeStates(localData, cloudData);
-        merged._lastModified = Date.now();
-
-        state = merged;
-        localStorage.setItem("rd_accounting_db", JSON.stringify(state));
-
-        // Đẩy bản merged ngược lên cloud để đồng bộ cho máy kia
-        pushToCloud();
-
-        recalculateAccounting();
-        renderDashboard();
-        filterDebts();
-        filterPartners();
-        filterCash();
+        // Kéo toàn bộ dữ liệu mới từ cloud về để merge
+        pullAndMergeFromCloud();
       }
     )
     .subscribe((status) => {
