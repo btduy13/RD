@@ -1431,8 +1431,8 @@ function renderDashboard() {
     escrowValueEl.innerText = formatVND(bal244 + bal344);
   }
 
-  // RENDER BIỂU ĐỒ OFFLINE BẰNG SVG TRỰC QUAN
-  renderDashboardSVGChart();
+  // CẢNH BÁO SẢN PHẨM ÂM KHO
+  renderDashboardNegativeStocks();
 
   // RENDER HOẠT ĐỘNG GẦN ĐÂY
   renderRecentActivities();
@@ -1639,86 +1639,33 @@ function renderDashboardDebts() {
   }
 }
 
-function renderDashboardSVGChart() {
-  const container = document.getElementById("dashboard-chart-container");
-  if (!container) return;
+function renderDashboardNegativeStocks() {
+  const tbody = document.getElementById("dashboard-negative-stock-list");
+  const countEl = document.getElementById("dashboard-negative-stock-count");
+  if (!tbody || !countEl) return;
 
-  const fromDate = document.getElementById("search-dashboard-from") ? document.getElementById("search-dashboard-from").value : "";
-  const toDate = document.getElementById("search-dashboard-to") ? document.getElementById("search-dashboard-to").value : "";
-
-  // Lấy dữ liệu bán hàng trong khoảng thời gian hoặc mặc định
-  let salesVouchers = state.vouchers.filter(v => v.type === "sales");
-  if (fromDate) salesVouchers = salesVouchers.filter(v => v.date >= fromDate);
-  if (toDate) salesVouchers = salesVouchers.filter(v => v.date <= toDate);
-  salesVouchers = salesVouchers.slice(-5);
-
-  if (salesVouchers.length === 0) {
-    container.innerHTML = `<div style="color: var(--text-muted); font-size: 13px; padding: 20px; text-align: center;">Chưa có giao dịch bán hàng nào trong khoảng thời gian này.</div>`;
+  const negativeProducts = (state.products || []).filter(p => (p.stock || 0) < 0);
+  countEl.innerText = `${negativeProducts.length} sản phẩm`;
+  if (negativeProducts.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Không có sản phẩm nào bị âm kho.</td></tr>`;
     return;
   }
 
-  // Xác định cực đại tiền để định thang tỉ lệ
-  let maxMoney = 1000000;
-  salesVouchers.forEach(v => {
-    const totalAmount = v.totalAmount - (v.taxAmount || 0);
-    const cogs = v.cogsAmount || 0;
-    if (totalAmount > maxMoney) maxMoney = totalAmount;
-    if (cogs > maxMoney) maxMoney = cogs;
-  });
-  maxMoney = maxMoney * 1.15;
-
-  let barsHTML = "";
-  const chartHeight = 200;
-  const barWidth = 20;
-  const groupSpacing = 48;
-
-  salesVouchers.forEach((v, index) => {
-    const revVal = v.totalAmount - (v.taxAmount || 0);
-    const cogsVal = v.cogsAmount || 0;
-
-    const revHeight = (revVal / maxMoney) * chartHeight;
-    const cogsHeight = (cogsVal / maxMoney) * chartHeight;
-
-    const xPos = 40 + index * (barWidth * 2 + groupSpacing);
-    const revY = 220 - revHeight;
-    const cogsY = 220 - cogsHeight;
-
-    // Cột Doanh thu (Màu xanh teal mượt mà)
-    barsHTML += `
-      <g>
-        <rect x="${xPos}" y="${revY}" width="${barWidth}" height="${revHeight}" fill="#0ea5e9" rx="4"/>
-        <text x="${xPos + barWidth / 2}" y="${revY - 6}" font-size="9" fill="var(--text-primary)" text-anchor="middle" font-weight="700">${Math.round(revVal / 1000)}k</text>
-      </g>
+  tbody.innerHTML = negativeProducts.map(p => {
+    const escapedId = escapeHtmlAttr(p.id);
+    const stockVal = Number((p.stock || 0).toFixed(3));
+    return `
+      <tr>
+        <td class="font-numeric" style="font-weight: 700;">
+          <a onclick="viewStockLedgerForProduct('${escapedId}')" style="cursor: pointer; color: var(--color-primary); text-decoration: underline;">${p.id}</a>
+        </td>
+        <td><span style="font-weight: 600; color: var(--text-primary);">${p.name}</span></td>
+        <td style="text-align: center;">${p.unit || 'Cái'}</td>
+        <td class="text-right font-numeric" style="color: var(--color-danger); font-weight: 700;">${stockVal}</td>
+        <td class="text-right font-numeric">${formatVND(p.avgCost || 0)}</td>
+      </tr>
     `;
-
-    // Cột Giá vốn (Màu cam sáng ấm áp)
-    barsHTML += `
-      <g>
-        <rect x="${xPos + barWidth + 6}" y="${cogsY}" width="${barWidth}" height="${cogsHeight}" fill="#f59e0b" rx="4"/>
-        <text x="${xPos + barWidth + 6 + barWidth / 2}" y="${cogsY - 6}" font-size="9" fill="var(--text-primary)" text-anchor="middle" font-weight="700">${Math.round(cogsVal / 1000)}k</text>
-      </g>
-    `;
-
-    // Nhãn trục X (Mã chứng từ ngắn gọn)
-    const label = v.id.includes("-") ? v.id.split("-").pop() : (v.id.length > 8 ? v.id.substring(8) : v.id);
-    barsHTML += `
-      <text x="${xPos + barWidth + 3}" y="240" font-size="10" fill="var(--text-secondary)" text-anchor="middle" font-weight="600">${label}</text>
-    `;
-  });
-
-  container.innerHTML = `
-    <svg class="svg-chart" viewBox="0 0 500 260" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;">
-      <line x1="20" y1="220" x2="480" y2="220" stroke="var(--border-color)" stroke-width="2"/>
-      ${barsHTML}
-      <g transform="translate(20, 10)">
-        <rect x="0" y="0" width="12" height="12" fill="#0ea5e9" rx="2"/>
-        <text x="18" y="10" font-size="11" fill="var(--text-secondary)" font-weight="600">Doanh thu bán</text>
-        
-        <rect x="120" y="0" width="12" height="12" fill="#f59e0b" rx="2"/>
-        <text x="138" y="10" font-size="11" fill="var(--text-secondary)" font-weight="600">Giá vốn hàng bán</text>
-      </g>
-    </svg>
-  `;
+  }).join("");
 }
 
 function renderRecentActivities() {
@@ -10970,7 +10917,10 @@ function switchInventorySubTab(subTabId) {
 // Chuyển sang thẻ kho chi tiết cho một sản phẩm cụ thể
 // Fix: Đồng bộ biến selectedLedgerProductId, reset ô tìm kiếm, render và scroll đến đúng mặt hàng bên cột trái
 function viewStockLedgerForProduct(productId) {
-  // Bước 1: Chuyển sang tab Thẻ kho chi tiết trước
+  // Bước 1: Chuyển sang tab Kho hàng trước
+  switchTab("inventory");
+
+  // Bước 2: Chuyển sang thẻ kho chi tiết trước
   switchInventorySubTab("ledger");
 
   // Bước 2: Thiết lập sản phẩm được chọn
