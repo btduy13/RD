@@ -9831,12 +9831,15 @@ async function pushToCloud() {
       .delete()
       .not("id", "in", currentIds);
 
-    // 4. Đẩy tất cả các chunk mới lên (Upsert nhiều dòng)
-    const { error: upsertError } = await supabaseClient
-      .from("rd_accounting_data")
-      .upsert(chunks);
+    // 4. Đẩy tất cả các chunk mới lên (Tách thành các request độc lập chạy song song)
+    const promises = chunks.map(async (chunk) => {
+      const { error } = await supabaseClient
+        .from("rd_accounting_data")
+        .upsert(chunk);
+      if (error) throw error;
+    });
 
-    if (upsertError) throw upsertError;
+    await Promise.all(promises);
 
     // 5. Cập nhật cờ is_syncing = false lên metadata cuối cùng
     const { error: finalError } = await supabaseClient
