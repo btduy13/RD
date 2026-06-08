@@ -4754,7 +4754,7 @@ async function autoSaveBeforeClose() {
     saveState();
 
     // 2. Nếu Cloud đang kết nối → đẩy ngay lên Cloud và chờ
-    if (cloudSyncActive && firebaseDb) {
+    if (cloudSyncActive && supabaseClient) {
       // Cập nhật timestamp để cloud nhận biết đây là bản mới nhất
       state._lastModified = Date.now();
       saveState();
@@ -9295,81 +9295,16 @@ setTimeout(() => {
 }, 50);
 
 // ==========================================================================
-// HỆ THỐNG ĐỒNG BỘ CƠ SỞ DỮ LIỆU ĐÁM MÂY (FIREBASE REALTIME DATABASE CLOUD SYNC)
+// HỆ THỐNG ĐỒNG BỘ CƠ SỞ DỮ LIỆU ĐÁM MÂY (SUPABASE CLOUD DATABASE SYNC)
 // ==========================================================================
-function escapeFirebaseKey(key) {
-  if (typeof key !== 'string') return key;
-  return key
-    .replace(/%/g, '_esc_percent_')
-    .replace(/\./g, '_esc_dot_')
-    .replace(/#/g, '_esc_hash_')
-    .replace(/\$/g, '_esc_dollar_')
-    .replace(/\//g, '_esc_slash_')
-    .replace(/\[/g, '_esc_obrack_')
-    .replace(/\]/g, '_esc_cbrack_');
-}
 
-function unescapeFirebaseKey(key) {
-  if (typeof key !== 'string') return key;
-  return key
-    .replace(/_esc_dot_/g, '.')
-    .replace(/_esc_hash_/g, '#')
-    .replace(/_esc_dollar_/g, '$')
-    .replace(/_esc_slash_/g, '/')
-    .replace(/_esc_obrack_/g, '[')
-    .replace(/_esc_cbrack_/g, ']')
-    .replace(/_esc_percent_/g, '%');
-}
-
-function escapeFirebaseObject(obj) {
-  if (!obj) return obj;
-
-  // Tạo bản sao cạn (shallow clone) của state để không làm thay đổi trực tiếp bộ nhớ cục bộ
-  const copy = { ...obj };
-
-  // Chỉ thực hiện escape cho partnerOpeningBalances
-  if (copy.partnerOpeningBalances) {
-    const escapedBalances = {};
-    for (const key in copy.partnerOpeningBalances) {
-      if (Object.prototype.hasOwnProperty.call(copy.partnerOpeningBalances, key)) {
-        const escapedKey = escapeFirebaseKey(key);
-        escapedBalances[escapedKey] = copy.partnerOpeningBalances[key];
-      }
-    }
-    copy.partnerOpeningBalances = escapedBalances;
-  }
-
-  return copy;
-}
-
-function unescapeFirebaseObject(obj) {
-  if (!obj) return obj;
-
-  const copy = { ...obj };
-
-  if (copy.partnerOpeningBalances) {
-    const unescapedBalances = {};
-    for (const key in copy.partnerOpeningBalances) {
-      if (Object.prototype.hasOwnProperty.call(copy.partnerOpeningBalances, key)) {
-        const unescapedKey = unescapeFirebaseKey(key);
-        unescapedBalances[unescapedKey] = copy.partnerOpeningBalances[key];
-      }
-    }
-    copy.partnerOpeningBalances = unescapedBalances;
-  }
-
-  return copy;
-}
-
-let firebaseApp = null;
-let firebaseDb = null;
+let supabaseClient = null;
 let cloudSyncActive = false;
+let realtimeChannel = null;
 let cloudSyncSettings = {
   enabled: true,
-  apiKey: "AIzaSyAe2A71K8H9YuFPzm62dI-cTq9ImREARG0",
-  databaseURL: "https://rangdong-accounting-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "rangdong-accounting",
-  appId: "1:317276892113:web:434f1da4d0c1db12184ef0"
+  supabaseUrl: "https://drnrfdbjzyffdxtytbpg.supabase.co",
+  supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRybnJmZGJqenlmZmR4dHl0YnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NTUzNzAsImV4cCI6MjA5NjQzMTM3MH0.IZ1kL0dqL7WuKAIKKnmpcym4YUEnWJvZ9eIiext4Keg"
 };
 
 function loadCloudSettings() {
@@ -9377,30 +9312,26 @@ function loadCloudSettings() {
     const saved = localStorage.getItem("rd_accounting_cloud_settings");
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (parsed && parsed.apiKey) {
+      // Chấp nhận cấu hình Supabase mới (có supabaseUrl)
+      if (parsed && parsed.supabaseUrl) {
         cloudSyncSettings = parsed;
       } else {
+        // Cấu hình cũ (Firebase) hoặc không hợp lệ → ghi đè bằng cấu hình Supabase mặc định
         localStorage.setItem("rd_accounting_cloud_settings", JSON.stringify(cloudSyncSettings));
       }
     } else {
-      // Sử dụng cấu hình Firebase mặc định của người dùng
+      // Sử dụng cấu hình Supabase mặc định
       localStorage.setItem("rd_accounting_cloud_settings", JSON.stringify(cloudSyncSettings));
     }
 
     const chk = document.getElementById("setting-cloud-enabled");
     if (chk) chk.checked = cloudSyncSettings.enabled;
 
-    const apiKey = document.getElementById("setting-cloud-apikey");
-    if (apiKey) apiKey.value = cloudSyncSettings.apiKey || "";
+    const urlInput = document.getElementById("setting-cloud-supabase-url");
+    if (urlInput) urlInput.value = cloudSyncSettings.supabaseUrl || "";
 
-    const dburl = document.getElementById("setting-cloud-dburl");
-    if (dburl) dburl.value = cloudSyncSettings.databaseURL || "";
-
-    const pid = document.getElementById("setting-cloud-projectid");
-    if (pid) pid.value = cloudSyncSettings.projectId || "";
-
-    const appid = document.getElementById("setting-cloud-appid");
-    if (appid) appid.value = cloudSyncSettings.appId || "";
+    const keyInput = document.getElementById("setting-cloud-supabase-key");
+    if (keyInput) keyInput.value = cloudSyncSettings.supabaseAnonKey || "";
 
     toggleCloudSyncInputs();
   } catch (e) {
@@ -9414,7 +9345,7 @@ function initCloudSync() {
     return;
   }
 
-  if (!cloudSyncSettings.apiKey || !cloudSyncSettings.databaseURL || !cloudSyncSettings.projectId) {
+  if (!cloudSyncSettings.supabaseUrl || !cloudSyncSettings.supabaseAnonKey) {
     updateCloudSyncBadge(false, "Mây: Chưa cấu hình", "#ef4444");
     return;
   }
@@ -9422,23 +9353,15 @@ function initCloudSync() {
   try {
     updateCloudSyncBadge(false, "Mây: Đang kết nối...", "#f59e0b");
 
-    if (typeof firebase === "undefined") {
+    if (typeof supabase === "undefined" || !supabase.createClient) {
       if (typeof addErrorLog === "function") {
-        addErrorLog("initCloudSync", "Thư viện Firebase chưa được tải. Vui lòng kiểm tra Internet.");
+        addErrorLog("initCloudSync", "Thư viện Supabase chưa được tải. Vui lòng kiểm tra Internet.");
       }
       updateCloudSyncBadge(false, "Mây: Không có mạng", "#ef4444");
       return;
     }
 
-    if (firebase.apps.length > 0) {
-      firebase.app().delete().then(startFirebaseApp).catch(err => {
-        if (typeof addErrorLog === "function") {
-          addErrorLog("initCloudSync App Delete", err.message, err);
-        }
-      });
-    } else {
-      startFirebaseApp();
-    }
+    startSupabaseClient();
   } catch (err) {
     if (typeof addErrorLog === "function") {
       addErrorLog("initCloudSync", err.message, err);
@@ -9447,42 +9370,51 @@ function initCloudSync() {
   }
 }
 
-function startFirebaseApp() {
+async function startSupabaseClient() {
   try {
-    const config = {
-      apiKey: cloudSyncSettings.apiKey,
-      databaseURL: cloudSyncSettings.databaseURL,
-      projectId: cloudSyncSettings.projectId,
-      appId: cloudSyncSettings.appId
-    };
+    // Đóng kênh realtime cũ nếu có
+    if (realtimeChannel && supabaseClient) {
+      supabaseClient.removeChannel(realtimeChannel);
+      realtimeChannel = null;
+    }
 
-    firebaseApp = firebase.initializeApp(config);
-    firebaseDb = firebase.database();
+    supabaseClient = supabase.createClient(
+      cloudSyncSettings.supabaseUrl,
+      cloudSyncSettings.supabaseAnonKey
+    );
+
     cloudSyncActive = true;
 
-    let hasPulledOnStartup = false;
-    let hasRegisteredListener = false;
+    // Kiểm tra kết nối bằng cách đọc bản ghi chính
+    const { data, error } = await supabaseClient
+      .from("rd_accounting_data")
+      .select("id")
+      .eq("id", "main")
+      .maybeSingle();
 
-    // Lắng nghe kết nối mạng từ Firebase
-    const connectedRef = firebaseDb.ref(".info/connected");
-    connectedRef.on("value", (snap) => {
-      if (snap.val() === true) {
-        updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
+    if (error) {
+      throw new Error("Lỗi kết nối Supabase: " + error.message);
+    }
 
-        if (!hasPulledOnStartup) {
-          hasPulledOnStartup = true;
-          showToast("Đã kết nối đám mây thời gian thực thành công!", "success");
-          pullFromCloudOnStartup();
-        }
+    if (!data) {
+      // Bản ghi chưa tồn tại → tạo mới
+      const { error: insertError } = await supabaseClient
+        .from("rd_accounting_data")
+        .insert({ id: "main", data: {}, last_modified: 0, is_syncing: false });
 
-        if (!hasRegisteredListener) {
-          hasRegisteredListener = true;
-          listenToCloudChanges();
-        }
-      } else {
-        updateCloudSyncBadge(false, "Mây: Ngoại tuyến", "#ef4444");
+      if (insertError) {
+        throw new Error("Không thể tạo bản ghi: " + insertError.message);
       }
-    });
+    }
+
+    updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
+    showToast("Đã kết nối Supabase đám mây thành công!", "success");
+
+    // Kéo dữ liệu khi khởi động
+    await pullFromCloudOnStartup();
+
+    // Đăng ký lắng nghe thay đổi realtime
+    listenToCloudChanges();
 
     const forcePullBtn = document.getElementById("btn-force-pull");
     if (forcePullBtn) forcePullBtn.style.display = "inline-block";
@@ -9490,68 +9422,75 @@ function startFirebaseApp() {
     if (forcePushBtn) forcePushBtn.style.display = "inline-block";
   } catch (err) {
     if (typeof addErrorLog === "function") {
-      addErrorLog("startFirebaseApp", err.message, err);
+      addErrorLog("startSupabaseClient", err.message, err);
     }
     updateCloudSyncBadge(false, "Mây: Lỗi khởi tạo", "#ef4444");
+    cloudSyncActive = false;
   }
 }
 
-function pullFromCloudOnStartup() {
-  if (!cloudSyncActive || !firebaseDb) return;
+async function pullFromCloudOnStartup() {
+  if (!cloudSyncActive || !supabaseClient) return;
 
-  firebaseDb.ref("rd_accounting_db").once("value")
-    .then((snapshot) => {
-      const rawData = snapshot.val();
-      if (rawData) {
-        const cloudData = unescapeFirebaseObject(rawData);
+  try {
+    const { data, error } = await supabaseClient
+      .from("rd_accounting_data")
+      .select("data, last_modified")
+      .eq("id", "main")
+      .single();
 
-        // Smart Merge khi khởi động: gộp dữ liệu cục bộ + cloud
-        // Tránh mất dữ liệu nhập khi offline trước đó
-        let localData = null;
-        try {
-          const localStr = localStorage.getItem("rd_accounting_db");
-          if (localStr) localData = JSON.parse(localStr);
-        } catch (e) { localData = null; }
+    if (error) throw error;
 
-        const merged = localData ? mergeStates(localData, cloudData) : cloudData;
-        merged._lastModified = Math.max(
-          merged._lastModified || 0,
-          cloudData._lastModified || 0,
-          localData ? (localData._lastModified || 0) : 0
-        );
+    if (data && data.data && Object.keys(data.data).length > 0) {
+      const cloudData = data.data;
+      cloudData._lastModified = data.last_modified || cloudData._lastModified || 0;
 
-        state = merged;
-        localStorage.setItem("rd_accounting_db", JSON.stringify(state));
-        console.log("[SmartMerge] Dữ liệu khởi động đã được merge thành công!");
+      // Smart Merge khi khởi động: gộp dữ liệu cục bộ + cloud
+      // Tránh mất dữ liệu nhập khi offline trước đó
+      let localData = null;
+      try {
+        const localStr = localStorage.getItem("rd_accounting_db");
+        if (localStr) localData = JSON.parse(localStr);
+      } catch (e) { localData = null; }
 
-        // Cập nhật giao diện
-        recalculateAccounting();
-        renderDashboard();
-        filterDebts();
-        filterPartners();
-        filterCash();
-      } else {
-        // Cơ sở dữ liệu đám mây trống (Lần kết nối đầu tiên) -> Tự động đẩy dữ liệu cục bộ (đã nạp từ Excel) lên đám mây
-        console.log("Cơ sở dữ liệu đám mây trống. Tự động đồng bộ ngược dữ liệu cục bộ lên đám mây...");
-        pushToCloud();
-      }
-    })
-    .catch((err) => {
-      if (typeof addErrorLog === "function") {
-        addErrorLog("pullFromCloudOnStartup", err.message, err);
-      }
-    });
+      const merged = localData ? mergeStates(localData, cloudData) : cloudData;
+      merged._lastModified = Math.max(
+        merged._lastModified || 0,
+        cloudData._lastModified || 0,
+        localData ? (localData._lastModified || 0) : 0
+      );
+
+      state = merged;
+      localStorage.setItem("rd_accounting_db", JSON.stringify(state));
+      console.log("[SmartMerge] Dữ liệu khởi động đã được merge thành công!");
+
+      // Cập nhật giao diện
+      recalculateAccounting();
+      renderDashboard();
+      filterDebts();
+      filterPartners();
+      filterCash();
+    } else {
+      // Cơ sở dữ liệu đám mây trống (Lần kết nối đầu tiên) → Tự động đẩy dữ liệu cục bộ lên đám mây
+      console.log("Cơ sở dữ liệu đám mây trống. Tự động đồng bộ ngược dữ liệu cục bộ lên đám mây...");
+      pushToCloud();
+    }
+  } catch (err) {
+    if (typeof addErrorLog === "function") {
+      addErrorLog("pullFromCloudOnStartup", err.message, err);
+    }
+  }
 }
 
 function forcePushToCloud() {
-  if (!cloudSyncActive || !firebaseDb) {
+  if (!cloudSyncActive || !supabaseClient) {
     showToast("Ứng dụng chưa kết nối đám mây!", "danger");
     return;
   }
 
   if (confirm("Bạn có chắc chắn muốn ĐẨY toàn bộ dữ liệu cục bộ hiện tại (bao gồm lịch sử bán hàng) và GHI ĐÈ dữ liệu trên đám mây?")) {
     updateCloudSyncBadge(false, "Mây: Đang đẩy...", "#f59e0b");
-    
+
     // Đảm bảo cập nhật timestamp sửa đổi cục bộ trước khi đẩy
     state._lastModified = Date.now();
     saveState();
@@ -9572,18 +9511,25 @@ function forcePushToCloud() {
 }
 
 function forcePullFromCloud() {
-  if (!cloudSyncActive || !firebaseDb) {
+  if (!cloudSyncActive || !supabaseClient) {
     showToast("Ứng dụng chưa kết nối Đám mây!", "danger");
     return;
   }
 
   updateCloudSyncBadge(false, "Mây: Đang tải...", "#f59e0b");
-  firebaseDb.ref("rd_accounting_db").once("value")
-    .then((snapshot) => {
-      const rawData = snapshot.val();
-      if (rawData) {
-        const data = unescapeFirebaseObject(rawData);
-        state = data;
+
+  supabaseClient
+    .from("rd_accounting_data")
+    .select("data, last_modified")
+    .eq("id", "main")
+    .single()
+    .then(({ data, error }) => {
+      if (error) throw error;
+
+      if (data && data.data && Object.keys(data.data).length > 0) {
+        const cloudData = data.data;
+        cloudData._lastModified = data.last_modified || cloudData._lastModified || 0;
+        state = cloudData;
         localStorage.setItem("rd_accounting_db", JSON.stringify(state));
         recalculateAccounting();
         renderDashboard();
@@ -9715,7 +9661,7 @@ let pushPending = false;
 let _isMergePushing = false;
 
 async function pushToCloud() {
-  if (!cloudSyncActive || !firebaseDb) return;
+  if (!cloudSyncActive || !supabaseClient) return;
   if (isPushing) {
     pushPending = true;
     return;
@@ -9733,81 +9679,20 @@ async function pushToCloud() {
       state._lastModified = Date.now();
     }
 
-    const escapedState = escapeFirebaseObject(state);
+    // Đẩy toàn bộ state dưới dạng JSONB (Supabase xử lý được JSON lớn, không cần chia khối)
+    const { error } = await supabaseClient
+      .from("rd_accounting_data")
+      .upsert({
+        id: "main",
+        data: state,
+        last_modified: state._lastModified,
+        is_syncing: false,
+        updated_at: new Date().toISOString()
+      });
 
-    // Tách các thành phần lớn
-    const { vouchers, partners, products, ...metadata } = escapedState;
+    if (error) throw error;
 
-    // 1. Ghi nhận cờ _isSyncing = true lên Cloud đầu tiên
-    await firebaseDb.ref("rd_accounting_db/_isSyncing").set(true);
-
-    // 2. Đẩy metadata và cấu hình nhỏ (tạm thời không bao gồm _lastModified)
-    const metaWithoutTs = { ...metadata };
-    delete metaWithoutTs._lastModified;
-    await firebaseDb.ref("rd_accounting_db").update(metaWithoutTs);
-
-    // 3. Đẩy products (thường nhỏ)
-    if (products) {
-      await firebaseDb.ref("rd_accounting_db/products").set(products);
-    } else {
-      await firebaseDb.ref("rd_accounting_db/products").set(null);
-    }
-
-    // 4. Đẩy partners theo khối (500 đối tác/khối)
-    if (partners && partners.length > 0) {
-      const cloudPartnersLength = await getCloudArrayLength("rd_accounting_db/partners");
-      if (cloudPartnersLength > partners.length) {
-        const cleanupObj = {};
-        for (let i = partners.length; i < cloudPartnersLength; i++) {
-          cleanupObj[i] = null;
-        }
-        await firebaseDb.ref("rd_accounting_db/partners").update(cleanupObj);
-      }
-
-      const chunkSize = 500;
-      for (let i = 0; i < partners.length; i += chunkSize) {
-        const chunk = partners.slice(i, i + chunkSize);
-        const updateObj = {};
-        chunk.forEach((item, index) => {
-          updateObj[i + index] = item;
-        });
-        await firebaseDb.ref("rd_accounting_db/partners").update(updateObj);
-      }
-    } else {
-      await firebaseDb.ref("rd_accounting_db/partners").set(null);
-    }
-
-    // 5. Đẩy vouchers theo khối (500 chứng từ/khối)
-    if (vouchers && vouchers.length > 0) {
-      const cloudVouchersLength = await getCloudArrayLength("rd_accounting_db/vouchers");
-      if (cloudVouchersLength > vouchers.length) {
-        const cleanupObj = {};
-        for (let i = vouchers.length; i < cloudVouchersLength; i++) {
-          cleanupObj[i] = null;
-        }
-        await firebaseDb.ref("rd_accounting_db/vouchers").update(cleanupObj);
-      }
-
-      const chunkSize = 500;
-      for (let i = 0; i < vouchers.length; i += chunkSize) {
-        const chunk = vouchers.slice(i, i + chunkSize);
-        const updateObj = {};
-        chunk.forEach((item, index) => {
-          updateObj[i + index] = item;
-        });
-        await firebaseDb.ref("rd_accounting_db/vouchers").update(updateObj);
-      }
-    } else {
-      await firebaseDb.ref("rd_accounting_db/vouchers").set(null);
-    }
-
-    // 6. Cập nhật timestamp _lastModified của bản ghi hoàn chỉnh
-    await firebaseDb.ref("rd_accounting_db/_lastModified").set(escapedState._lastModified);
-
-    // 7. Hoàn tất quá trình đồng bộ, gỡ cờ _isSyncing = false
-    await firebaseDb.ref("rd_accounting_db/_isSyncing").set(false);
-
-    console.log("Đã đồng bộ hóa state lên đám mây thành công theo từng khối!");
+    console.log("Đã đồng bộ hóa state lên Supabase thành công!");
     if (typeof updateCloudSyncBadge === "function") {
       updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
     }
@@ -9819,11 +9704,11 @@ async function pushToCloud() {
     if (typeof updateCloudSyncBadge === "function") {
       updateCloudSyncBadge(false, "Mây: Lỗi đẩy", "#ef4444");
     }
-    // [FIX 3] Khi push thất bại → retry sau 5 giây để không mất dữ liệu khi mạng chập chờn
+    // Khi push thất bại → retry sau 5 giây để không mất dữ liệu khi mạng chập chờn
     setTimeout(() => {
-      if (cloudSyncActive && firebaseDb && !isPushing) {
+      if (cloudSyncActive && supabaseClient && !isPushing) {
         console.log("[CloudSync] Thử lại push sau lỗi...");
-        pushPending = false; // Reset để pushToCloud không bị chặn
+        pushPending = false;
         pushToCloud();
       }
     }, 5000);
@@ -9838,77 +9723,85 @@ async function pushToCloud() {
   }
 }
 
-async function getCloudArrayLength(path) {
-  try {
-    const snap = await firebaseDb.ref(path).orderByKey().limitToLast(1).once("value");
-    if (!snap.exists()) return 0;
-    let lastKey = 0;
-    snap.forEach(child => {
-      lastKey = parseInt(child.key) || 0;
-    });
-    return lastKey + 1;
-  } catch (e) {
-    console.warn(`Error getting length for ${path}:`, e);
-    return 0;
-  }
-}
-
 function listenToCloudChanges() {
-  if (!cloudSyncActive || !firebaseDb) return;
+  if (!cloudSyncActive || !supabaseClient) return;
 
-  firebaseDb.ref("rd_accounting_db").off("value");
-  firebaseDb.ref("rd_accounting_db").on("value", (snapshot) => {
-    // Bỏ qua event do chính lần push merge của máy này gây ra
-    if (_isMergePushing) return;
+  // Đóng kênh cũ nếu có
+  if (realtimeChannel) {
+    supabaseClient.removeChannel(realtimeChannel);
+  }
 
-    const rawData = snapshot.val();
-    if (!rawData) return;
+  realtimeChannel = supabaseClient
+    .channel("rd-accounting-changes")
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "rd_accounting_data",
+        filter: "id=eq.main"
+      },
+      (payload) => {
+        // Bỏ qua event do chính lần push merge của máy này gây ra
+        if (_isMergePushing) return;
 
-    // Bỏ qua nếu máy trạm khác đang đẩy dữ liệu (tránh đọc dữ liệu dở dang)
-    if (rawData._isSyncing) return;
+        const row = payload.new;
+        if (!row || !row.data) return;
 
-    const cloudData = unescapeFirebaseObject(rawData);
+        // Bỏ qua nếu máy trạm khác đang đẩy dữ liệu (tránh đọc dữ liệu dở dang)
+        if (row.is_syncing) return;
 
-    // [FIX 2] Dùng khoảng dung sai 2 giây thay vì so sánh tuyệt đối
-    // Clock của 2 máy có thể lệch nhau vài giây → dùng <= localTs sẽ bỏ sót dữ liệu mới
-    const cloudTs = cloudData._lastModified || 0;
-    const localTs = state._lastModified || 0;
-    const CLOCK_TOLERANCE_MS = 2000; // 2 giây dung sai đồng hồ giữa các máy
-    if (cloudTs > 0 && localTs > 0 && cloudTs < localTs - CLOCK_TOLERANCE_MS) {
-      // Cloud thực sự cũ hơn local rõ ràng (cách nhau > 2s), bỏ qua
-      return;
-    }
+        const cloudData = row.data;
 
-    const localStr = localStorage.getItem("rd_accounting_db") || "";
-    const cloudStr = JSON.stringify(cloudData);
+        // Dùng khoảng dung sai 2 giây thay vì so sánh tuyệt đối
+        // Clock của 2 máy có thể lệch nhau vài giây
+        const cloudTs = row.last_modified || cloudData._lastModified || 0;
+        const localTs = state._lastModified || 0;
+        const CLOCK_TOLERANCE_MS = 2000; // 2 giây dung sai đồng hồ giữa các máy
+        if (cloudTs > 0 && localTs > 0 && cloudTs < localTs - CLOCK_TOLERANCE_MS) {
+          // Cloud thực sự cũ hơn local rõ ràng (cách nhau > 2s), bỏ qua
+          return;
+        }
 
-    if (localStr === cloudStr) return; // Không có thay đổi, bỏ qua
+        const localStr = localStorage.getItem("rd_accounting_db") || "";
+        const cloudStr = JSON.stringify(cloudData);
 
-    console.log("[SmartMerge] Phát hiện thay đổi từ cloud, đang merge thông minh...");
+        if (localStr === cloudStr) return; // Không có thay đổi, bỏ qua
 
-    let localData = null;
-    try {
-      localData = JSON.parse(localStr);
-    } catch (e) {
-      localData = state;
-    }
+        console.log("[SmartMerge] Phát hiện thay đổi từ Supabase cloud, đang merge thông minh...");
 
-    // Thực hiện Smart Merge: gộp local + cloud, giữ lại tất cả
-    const merged = mergeStates(localData, cloudData);
-    merged._lastModified = Date.now();
+        let localData = null;
+        try {
+          localData = JSON.parse(localStr);
+        } catch (e) {
+          localData = state;
+        }
 
-    state = merged;
-    localStorage.setItem("rd_accounting_db", JSON.stringify(state));
+        // Thực hiện Smart Merge: gộp local + cloud, giữ lại tất cả
+        const merged = mergeStates(localData, cloudData);
+        merged._lastModified = Date.now();
 
-    // Đẩy bản merged ngược lên cloud để đồng bộ cho máy kia
-    pushToCloud();
+        state = merged;
+        localStorage.setItem("rd_accounting_db", JSON.stringify(state));
 
-    recalculateAccounting();
-    renderDashboard();
-    filterDebts();
-    filterPartners();
-    filterCash();
-  });
+        // Đẩy bản merged ngược lên cloud để đồng bộ cho máy kia
+        pushToCloud();
+
+        recalculateAccounting();
+        renderDashboard();
+        filterDebts();
+        filterPartners();
+        filterCash();
+      }
+    )
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        console.log("[Supabase Realtime] Đã đăng ký lắng nghe thay đổi thành công!");
+      } else if (status === "CHANNEL_ERROR") {
+        console.error("[Supabase Realtime] Lỗi kênh realtime!");
+        updateCloudSyncBadge(false, "Mây: Lỗi realtime", "#ef4444");
+      }
+    });
 }
 
 function toggleCloudSyncInputs() {
@@ -9924,22 +9817,18 @@ function saveCloudConfig(e) {
     e.preventDefault();
 
     const enabled = document.getElementById("setting-cloud-enabled").checked;
-    const apiKey = document.getElementById("setting-cloud-apikey").value.trim();
-    const databaseURL = document.getElementById("setting-cloud-dburl").value.trim();
-    const projectId = document.getElementById("setting-cloud-projectid").value.trim();
-    const appId = document.getElementById("setting-cloud-appid").value.trim();
+    const supabaseUrl = document.getElementById("setting-cloud-supabase-url").value.trim();
+    const supabaseAnonKey = document.getElementById("setting-cloud-supabase-key").value.trim();
 
-    if (enabled && (!apiKey || !databaseURL || !projectId)) {
-      showToast("Vui lòng điền các trường bắt buộc (API Key, Database URL, Project ID)!", "danger");
+    if (enabled && (!supabaseUrl || !supabaseAnonKey)) {
+      showToast("Vui lòng điền Supabase URL và Anon Key!", "danger");
       return;
     }
 
     cloudSyncSettings = {
       enabled,
-      apiKey,
-      databaseURL,
-      projectId,
-      appId
+      supabaseUrl,
+      supabaseAnonKey
     };
 
     localStorage.setItem("rd_accounting_cloud_settings", JSON.stringify(cloudSyncSettings));
@@ -9948,10 +9837,15 @@ function saveCloudConfig(e) {
     if (enabled) {
       initCloudSync();
     } else {
-      if (firebaseDb) firebaseDb.ref("rd_accounting_db").off("value");
+      if (realtimeChannel && supabaseClient) {
+        supabaseClient.removeChannel(realtimeChannel);
+        realtimeChannel = null;
+      }
       cloudSyncActive = false;
       const forcePullBtn = document.getElementById("btn-force-pull");
       if (forcePullBtn) forcePullBtn.style.display = "none";
+      const forcePushBtn = document.getElementById("btn-force-push");
+      if (forcePushBtn) forcePushBtn.style.display = "none";
       updateCloudSyncBadge(false, "Mây: Tắt", "#64748b");
       showToast("Đã tắt đồng bộ trực tuyến đám mây.", "info");
     }

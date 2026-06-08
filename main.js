@@ -110,8 +110,8 @@ function createWindow() {
           console.log('--- LOCAL_STORAGE_ERRORS: ' + errLogs);
           const restoreV6 = await mainWindow.webContents.executeJavaScript("localStorage.getItem('db_restore_v6')");
           console.log('--- LOCAL_STORAGE_RESTORE_V6: ' + restoreV6);
-          const fbStatus = await mainWindow.webContents.executeJavaScript("({ active: cloudSyncActive, hasDb: !!firebaseDb, hasFirebase: typeof firebase !== 'undefined', badge: document.getElementById('cloud-sync-status-text') ? document.getElementById('cloud-sync-status-text').innerText : 'no badge' })");
-          console.log('--- FIREBASE_STATUS: ' + JSON.stringify(fbStatus));
+          const cloudStatus = await mainWindow.webContents.executeJavaScript("({ active: cloudSyncActive, hasClient: !!supabaseClient, hasSupabase: typeof supabase !== 'undefined', badge: document.getElementById('cloud-sync-status-text') ? document.getElementById('cloud-sync-status-text').innerText : 'no badge' })");
+          console.log('--- SUPABASE_STATUS: ' + JSON.stringify(cloudStatus));
         }
       } catch (err) {
         console.error('Error reading localStorage:', err);

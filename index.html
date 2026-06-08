@@ -1877,7 +1877,7 @@
               </div>
             </div>
 
-            <!-- Cấu hình Đồng bộ Đám mây (Firebase Realtime Database) -->
+            <!-- Cấu hình Đồng bộ Đám mây (Supabase Cloud Database) -->
             <div class="chart-card" style="min-height: auto;">
               <span class="card-title"
                 style="color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
@@ -1885,10 +1885,10 @@
                   stroke-linecap="round" stroke-linejoin="round" class="feather feather-cloud">
                   <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
                 </svg>
-                Cấu hình Đồng bộ Đám mây trực tuyến (Firebase)
+                Cấu hình Đồng bộ Đám mây trực tuyến (Supabase)
               </span>
               <p class="header-subtitle" style="margin-bottom: 12px;">Đồng bộ dữ liệu thời gian thực giữa nhiều máy bằng
-                cơ sở dữ liệu Firebase của riêng bạn.</p>
+                cơ sở dữ liệu Supabase của riêng bạn.</p>
 
               <form id="form-cloud-sync" onsubmit="saveCloudConfig(event)" class="form-grid"
                 style="grid-template-columns: 1fr; gap: 8px;">
@@ -1903,24 +1903,15 @@
                 <div id="cloud-sync-inputs-group"
                   style="display: none; flex-direction: column; gap: 8px; border-top: 1px dashed var(--border-color); padding-top: 10px;">
                   <div class="form-group">
-                    <label class="form-label" style="font-size: 11px;">API Key</label>
-                    <input type="password" id="setting-cloud-apikey" class="form-control" placeholder="AIzaSy..."
+                    <label class="form-label" style="font-size: 11px;">Supabase URL</label>
+                    <input type="text" id="setting-cloud-supabase-url" class="form-control"
+                      placeholder="https://your-project.supabase.co"
                       style="padding: 6px 10px; font-size: 12px;">
                   </div>
                   <div class="form-group">
-                    <label class="form-label" style="font-size: 11px;">Database URL (Realtime DB)</label>
-                    <input type="text" id="setting-cloud-dburl" class="form-control"
-                      placeholder="https://your-app-default-rtdb.firebaseio.com"
-                      style="padding: 6px 10px; font-size: 12px;">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" style="font-size: 11px;">Project ID</label>
-                    <input type="text" id="setting-cloud-projectid" class="form-control" placeholder="your-app-id"
-                      style="padding: 6px 10px; font-size: 12px;">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" style="font-size: 11px;">App ID</label>
-                    <input type="text" id="setting-cloud-appid" class="form-control" placeholder="1:12345:web:abcd"
+                    <label class="form-label" style="font-size: 11px;">Supabase Anon Key</label>
+                    <input type="password" id="setting-cloud-supabase-key" class="form-control"
+                      placeholder="eyJhbGciOiJIUzI1NiIs..."
                       style="padding: 6px 10px; font-size: 12px;">
                   </div>
                 </div>
@@ -3067,9 +3058,8 @@
   <script src="xlsx.full.min.js"></script>
   <script src="prepopulated_database.js"></script>
   <script src="data.js"></script>
-  <!-- Thư viện Google Firebase Cloud Database CDN -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <!-- Thư viện Supabase Cloud Database CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
 </body>
 

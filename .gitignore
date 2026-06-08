@@ -17,3 +17,7 @@ dist/
 out/
 .electron-builder/
 dist-installer/
+
+# Backups and scratch
+backup/
+scratch/
