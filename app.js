@@ -9319,6 +9319,7 @@ setTimeout(() => {
 let supabaseClient = null;
 let cloudSyncActive = false;
 let realtimeChannel = null;
+const clientSessionId = "client_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
 let cloudSyncSettings = {
   enabled: true,
   supabaseUrl: "https://drnrfdbjzyffdxtytbpg.supabase.co",
@@ -9517,16 +9518,22 @@ async function pullFromCloudOnStartup() {
         if (localStr) localData = JSON.parse(localStr);
       } catch (e) { localData = null; }
 
-      const merged = localData ? mergeStates(localData, cloudData) : cloudData;
-      merged._lastModified = Math.max(
-        merged._lastModified || 0,
-        cloudData._lastModified || 0,
-        localData ? (localData._lastModified || 0) : 0
-      );
+      // [TỐI ƯU HÓA BỘ NHỚ KHỞI ĐỘNG] Nếu localData và cloudData có cùng và khác không timestamp, không cần merge hay ghi đè
+      if (localData && cloudData && localData._lastModified > 0 && localData._lastModified === cloudData._lastModified) {
+        state = localData;
+        console.log("[SmartMerge] Khởi động: Trùng timestamp với Cloud, dùng dữ liệu cục bộ.");
+      } else {
+        const merged = localData ? mergeStates(localData, cloudData) : cloudData;
+        merged._lastModified = Math.max(
+          merged._lastModified || 0,
+          cloudData._lastModified || 0,
+          localData ? (localData._lastModified || 0) : 0
+        );
 
-      state = merged;
-      localStorage.setItem("rd_accounting_db", JSON.stringify(state));
-      console.log("[SmartMerge] Dữ liệu khởi động đã được merge thành công!");
+        state = merged;
+        localStorage.setItem("rd_accounting_db", JSON.stringify(state));
+        console.log("[SmartMerge] Dữ liệu khởi động đã được merge thành công!");
+      }
 
       // Cập nhật giao diện
       recalculateAccounting();
@@ -9790,6 +9797,7 @@ async function pushToCloud() {
     }
 
     const { products, partners, vouchers, ...metadata } = state;
+    metadata.lastModifiedBy = clientSessionId;
 
     // 1. Đẩy cờ is_syncing = true lên metadata trước
     await supabaseClient
@@ -9964,6 +9972,14 @@ async function pullAndMergeFromCloud() {
       reconstructedState._lastModified = maxLastModified || reconstructedState._lastModified || 0;
       const cloudData = reconstructedState;
 
+      // [TỐI ƯU HÓA BỘ NHỚ] Kiểm tra timestamp trước để tránh xử lý chuỗi 34MB không cần thiết
+      const cloudTs = cloudData._lastModified || 0;
+      const localTs = state._lastModified || 0;
+      if (cloudTs > 0 && localTs > 0 && cloudTs === localTs) {
+        console.log("[SmartMerge] Trùng timestamp, bỏ qua không cần merge.");
+        return;
+      }
+
       const localStr = localStorage.getItem("rd_accounting_db") || "";
       const cloudStr = JSON.stringify(cloudData);
 
@@ -10025,6 +10041,11 @@ function listenToCloudChanges() {
 
         const row = payload.new;
         if (!row) return;
+
+        // Bỏ qua nếu là cập nhật do chính máy này gửi lên
+        if (row.data && row.data.lastModifiedBy === clientSessionId) {
+          return;
+        }
 
         // Bỏ qua nếu máy trạm khác đang đẩy dữ liệu (tránh đọc dữ liệu dở dang)
         if (row.is_syncing) return;
