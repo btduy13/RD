@@ -10160,60 +10160,72 @@ function computeDelta() {
   const forceFullSync = migrationPending || !lastSyncState;
 
   if (forceFullSync) {
-    (state.vouchers || []).forEach(v => rowsToUpsert.push(makeRow(`v_${v.id}`, v)));
-    (state.products || []).forEach(p => rowsToUpsert.push(makeRow(`p_${p.id}`, p)));
-    (state.partners || []).forEach(part => rowsToUpsert.push(makeRow(`part_${part.id}`, part)));
+    (state.vouchers || []).forEach(v => {
+      if (v && v.id) rowsToUpsert.push(makeRow(`v_${v.id}`, v));
+    });
+    (state.products || []).forEach(p => {
+      if (p && p.id) rowsToUpsert.push(makeRow(`p_${p.id}`, p));
+    });
+    (state.partners || []).forEach(part => {
+      if (part && part.id) rowsToUpsert.push(makeRow(`part_${part.id}`, part));
+    });
   } else {
     // 1. Vouchers
     const localVouchers = state.vouchers || [];
-    const lastVouchersMap = new Map((lastSyncState.vouchers || []).map(v => [v.id, v]));
-    const localVouchersMap = new Map(localVouchers.map(v => [v.id, v]));
+    const lastVouchersMap = new Map((lastSyncState.vouchers || []).filter(v => v && v.id).map(v => [v.id, v]));
+    const localVouchersMap = new Map(localVouchers.filter(v => v && v.id).map(v => [v.id, v]));
 
     localVouchers.forEach(v => {
-      const oldV = lastVouchersMap.get(v.id);
-      if (!oldV || JSON.stringify(oldV) !== JSON.stringify(v)) {
-        rowsToUpsert.push(makeRow(`v_${v.id}`, v));
+      if (v && v.id) {
+        const oldV = lastVouchersMap.get(v.id);
+        if (!oldV || JSON.stringify(oldV) !== JSON.stringify(v)) {
+          rowsToUpsert.push(makeRow(`v_${v.id}`, v));
+        }
       }
     });
 
     (lastSyncState.vouchers || []).forEach(v => {
-      if (!localVouchersMap.has(v.id)) {
+      if (v && v.id && !localVouchersMap.has(v.id)) {
         idsToDelete.push(`v_${v.id}`);
       }
     });
 
     // 2. Products
     const localProducts = state.products || [];
-    const lastProductsMap = new Map((lastSyncState.products || []).map(p => [p.id, p]));
-    const localProductsMap = new Map(localProducts.map(p => [p.id, p]));
+    const lastProductsMap = new Map((lastSyncState.products || []).filter(p => p && p.id).map(p => [p.id, p]));
+    const localProductsMap = new Map(localProducts.filter(p => p && p.id).map(p => [p.id, p]));
 
     localProducts.forEach(p => {
-      const oldP = lastProductsMap.get(p.id);
-      if (!oldP || JSON.stringify(oldP) !== JSON.stringify(p)) {
-        rowsToUpsert.push(makeRow(`p_${p.id}`, p));
+      if (p && p.id) {
+        const oldP = lastProductsMap.get(p.id);
+        if (!oldP || JSON.stringify(oldP) !== JSON.stringify(p)) {
+          rowsToUpsert.push(makeRow(`p_${p.id}`, p));
+        }
       }
     });
 
     (lastSyncState.products || []).forEach(p => {
-      if (!localProductsMap.has(p.id)) {
+      if (p && p.id && !localProductsMap.has(p.id)) {
         idsToDelete.push(`p_${p.id}`);
       }
     });
 
     // 3. Partners
     const localPartners = state.partners || [];
-    const lastPartnersMap = new Map((lastSyncState.partners || []).map(part => [part.id, part]));
-    const localPartnersMap = new Map(localPartners.map(part => [part.id, part]));
+    const lastPartnersMap = new Map((lastSyncState.partners || []).filter(part => part && part.id).map(part => [part.id, part]));
+    const localPartnersMap = new Map(localPartners.filter(part => part && part.id).map(part => [part.id, part]));
 
     localPartners.forEach(part => {
-      const oldPart = lastPartnersMap.get(part.id);
-      if (!oldPart || JSON.stringify(oldPart) !== JSON.stringify(part)) {
-        rowsToUpsert.push(makeRow(`part_${part.id}`, part));
+      if (part && part.id) {
+        const oldPart = lastPartnersMap.get(part.id);
+        if (!oldPart || JSON.stringify(oldPart) !== JSON.stringify(part)) {
+          rowsToUpsert.push(makeRow(`part_${part.id}`, part));
+        }
       }
     });
 
     (lastSyncState.partners || []).forEach(part => {
-      if (!localPartnersMap.has(part.id)) {
+      if (part && part.id && !localPartnersMap.has(part.id)) {
         idsToDelete.push(`part_${part.id}`);
       }
     });
@@ -10256,7 +10268,20 @@ async function pushToCloud() {
       });
 
     // 2. Tính toán Delta
-    const { rowsToUpsert, idsToDelete } = computeDelta();
+    const { rowsToUpsert: rawRowsToUpsert, idsToDelete: rawIdsToDelete } = computeDelta();
+    
+    // Khử trùng lặp ID để tránh lỗi: ON CONFLICT DO UPDATE command cannot affect row a second time
+    const rowsToUpsert = [];
+    const seenUpsertIds = new Set();
+    for (const r of rawRowsToUpsert) {
+      if (r && r.id && !seenUpsertIds.has(r.id)) {
+        seenUpsertIds.add(r.id);
+        rowsToUpsert.push(r);
+      }
+    }
+    
+    const idsToDelete = Array.from(new Set(rawIdsToDelete));
+
     console.log(`[pushToCloud] Delta: Cần upsert ${rowsToUpsert.length} dòng, delete ${idsToDelete.length} dòng.`);
 
     // 3. Upsert các dòng mới/thay đổi theo lô 1000 dòng
