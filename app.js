@@ -9461,17 +9461,16 @@ async function fetchCloudData() {
   if (listError) throw listError;
   if (!list || list.length === 0) return null;
 
-  const promises = list.map(async (item) => {
+  const rows = [];
+  for (const item of list) {
     const { data, error } = await supabaseClient
       .from("rd_accounting_data")
       .select("id, data, last_modified")
       .eq("id", item.id)
       .single();
     if (error) throw error;
-    return data;
-  });
-
-  const rows = await Promise.all(promises);
+    rows.push(data);
+  }
 
   let reconstructedState = {
     companyName: "",
@@ -9823,15 +9822,13 @@ async function pushToCloud() {
       .delete()
       .not("id", "in", currentIds);
 
-    // 4. Đẩy tất cả các chunk mới lên (Tách thành các request độc lập chạy song song)
-    const promises = chunks.map(async (chunk) => {
+    // 4. Đẩy tất cả các chunk mới lên (Chạy tuần tự để tránh quá tải kết nối và gây timeout database)
+    for (const chunk of chunks) {
       const { error } = await supabaseClient
         .from("rd_accounting_data")
         .upsert(chunk);
       if (error) throw error;
-    });
-
-    await Promise.all(promises);
+    }
 
     // 5. Cập nhật cờ is_syncing = false lên metadata cuối cùng
     const { error: finalError } = await supabaseClient
