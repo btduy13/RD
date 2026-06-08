@@ -3742,6 +3742,7 @@ function handleProductSubmit(e) {
     avgCost: initialCost,
     totalValue: initialStock * initialCost,
     initialStock, // Lưu giữ đầu kỳ để tính thẻ kho
+    actualStock: initialStock,
     initialCost,
     salePrice1,
     minStock,
@@ -9232,6 +9233,7 @@ function handleQuickImportSubmit(e) {
       totalAmount: amount,
       taxRate: 0,
       taxAmount: 0,
+      isManual: true,
       items: [
         {
           productId: p.id,
@@ -9346,6 +9348,7 @@ function handleEditProductPriceSubmit(e) {
     p.unit = unit;
     p.initialCost = initialCost;
     p.initialStock = initialStock;
+    p.actualStock = initialStock;
     p.avgCost = avgCost;
     p.minStock = minStock;
     p.salePrice1 = salePrice1;
@@ -11017,6 +11020,7 @@ function handleQuickAddProductSubmit(e) {
       avgCost: initCost,
       totalValue: initStock * initCost,
       initialStock: initStock,
+      actualStock: initStock,
       initialCost: initCost,
       minStock: 5,
       _updatedAt: Date.now()
