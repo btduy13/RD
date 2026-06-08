@@ -2190,12 +2190,12 @@ function renderLedgerProductList() {
   }
 
   // Đảm bảo selectedLedgerProductId luôn hợp lệ
-  if (!selectedLedgerProductId || !state.products.some(p => p.id === selectedLedgerProductId)) {
+  if (!selectedLedgerProductId || !state.products.some(p => String(p.id) === String(selectedLedgerProductId))) {
     selectedLedgerProductId = products[0].id;
   }
 
   const html = products.map(p => {
-    const isActive = p.id === selectedLedgerProductId;
+    const isActive = String(p.id) === String(selectedLedgerProductId);
     return `
       <div class="ledger-product-item ${isActive ? 'active' : ''}" onclick="selectLedgerProduct('${escapeHtmlAttr(p.id)}')">
         <div style="font-weight: 700; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
@@ -2243,7 +2243,7 @@ function renderStockLedger() {
     return;
   }
 
-  const prod = state.products.find(p => p.id === prodId);
+  const prod = state.products.find(p => String(p.id) === String(prodId));
   if (!prod) {
     tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color:var(--text-muted); padding: 20px;">Không tìm thấy sản phẩm được chọn</td></tr>`;
     return;
@@ -2338,7 +2338,7 @@ function exportStockLedgerToExcel() {
       showToast("Chưa chọn sản phẩm để xuất thẻ kho!", "warning");
       return;
     }
-    const prod = state.products.find(p => p.id === prodId);
+    const prod = state.products.find(p => String(p.id) === String(prodId));
     if (!prod) return;
 
     const fromDate = document.getElementById("search-ledger-from") ? document.getElementById("search-ledger-from").value : "";
@@ -3466,7 +3466,7 @@ function handleSalesSubmit(e) {
     if (editingSalesId) {
       const oldVoucher = state.vouchers.find(v => v.id === editingSalesId);
       if (oldVoucher) {
-        const oldItem = oldVoucher.items.find(item => item.productId === productId);
+        const oldItem = oldVoucher.items.find(item => String(item.productId) === String(productId));
         if (oldItem) oldQty = oldItem.qty || 0;
       }
     }
@@ -3539,7 +3539,7 @@ function editSalesVoucher(id) {
   if (tbody) tbody.innerHTML = "";
 
   v.items.forEach(item => {
-    const prod = state.products.find(p => p.id === item.productId);
+    const prod = state.products.find(p => String(p.id) === String(item.productId));
     const prodVal = prod ? `${prod.name} (${prod.id})` : item.productId;
     addSalesFormRow(prodVal, item.qty, item.price, item.discount);
   });
@@ -3568,7 +3568,7 @@ function editPurchaseVoucher(id) {
   if (tbody) tbody.innerHTML = "";
 
   v.items.forEach(item => {
-    const prod = state.products.find(p => p.id === item.productId);
+    const prod = state.products.find(p => String(p.id) === String(item.productId));
     const prodVal = prod ? `${prod.name} (${prod.id})` : item.productId;
     addPurchaseFormRow(prodVal, item.qty, item.price, item.discount || 0);
   });
@@ -3677,7 +3677,7 @@ function handleProductSubmit(e) {
   const inactive = document.getElementById("prod-inactive").checked;
 
   // Kiểm tra trùng mã
-  if (state.products.some(p => p.id === id)) {
+  if (state.products.some(p => String(p.id) === String(id))) {
     showToast(`Mã sản phẩm "${id}" đã tồn tại!`, "danger");
     return;
   }
@@ -3914,7 +3914,7 @@ function findRelatedSalesVoucher(voucherId, description, partnerId, amount) {
   // 3. Tìm hóa đơn bán hàng gần nhất của đối tác này có cùng số tiền
   const amt = amount || v.amount || 0;
   if (amt > 0) {
-    const relatedSales = state.vouchers.find(x => x.type === "sales" && x.partnerId === partnerId && Math.abs(x.totalAmount - amt) < 100);
+    const relatedSales = state.vouchers.find(x => x.type === "sales" && String(x.partnerId) === String(partnerId) && Math.abs(x.totalAmount - amt) < 100);
     if (relatedSales) return relatedSales;
   }
 
@@ -4008,7 +4008,7 @@ function viewVoucher(id) {
           </thead>
           <tbody>
             ${v.items.map((item, idx) => {
-              const prod = state.products.find(p => p.id === item.productId) || { name: "Sản phẩm" };
+              const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: "Sản phẩm" };
               return `
                 <tr>
                   <td style="text-align:center;">${idx + 1}</td>
@@ -4121,7 +4121,7 @@ function viewVoucher(id) {
           </thead>
           <tbody>
             ${v.items.map((item, idx) => {
-      const prod = state.products.find(p => p.id === item.productId) || { name: "Sản phẩm" };
+      const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: "Sản phẩm" };
       return `
                 <tr>
                   <td style="text-align:center;">${idx + 1}</td>
@@ -4253,7 +4253,7 @@ function viewVoucher(id) {
           </thead>
           <tbody>
             ${v.items.map((item, idx) => {
-      const prod = state.products.find(p => p.id === item.productId) || { name: item.productId };
+      const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: item.productId };
       const qtyFormatted = Number.isInteger(item.qty) ? `${item.qty},0` : item.qty.toString().replace(".", ",");
       const gcVal = (item.discount !== undefined && item.discount !== null) ? item.discount : "0";
       return `
@@ -4467,20 +4467,23 @@ function getPartnerForVoucher(v) {
   if (!v) return null;
   let p = null;
 
+  const partnerIdStr = v.partnerId !== undefined && v.partnerId !== null ? String(v.partnerId).trim() : "";
+  const partnerNameStr = v.partnerName !== undefined && v.partnerName !== null ? String(v.partnerName).trim() : "";
+
   // 1. Tìm theo ID trước
-  if (v.partnerId) {
-    p = state.partners.find(x => x.id === v.partnerId);
+  if (partnerIdStr) {
+    p = state.partners.find(x => String(x.id).trim() === partnerIdStr);
   }
 
   // 2. Tìm theo tên nếu tìm theo ID thất bại hoặc nếu partnerId chính là tên đối tác
-  if (!p && v.partnerName) {
-    const nameLower = v.partnerName.trim().toLowerCase();
-    p = state.partners.find(x => x.name.trim().toLowerCase() === nameLower);
+  if (!p && partnerNameStr) {
+    const nameLower = partnerNameStr.toLowerCase();
+    p = state.partners.find(x => String(x.name).trim().toLowerCase() === nameLower);
   }
 
-  if (!p && v.partnerId) {
-    const idLower = v.partnerId.trim().toLowerCase();
-    p = state.partners.find(x => x.name.trim().toLowerCase() === idLower);
+  if (!p && partnerIdStr) {
+    const idLower = partnerIdStr.toLowerCase();
+    p = state.partners.find(x => String(x.name).trim().toLowerCase() === idLower);
   }
 
   return p;
@@ -5015,10 +5018,10 @@ function handlePartnerSubmit(e) {
   const inactive = document.getElementById("partner-inactive").checked;
 
   if (editIndex !== "-1") {
-    const idx = state.partners.findIndex(p => p.id === editIndex);
+    const idx = state.partners.findIndex(p => String(p.id) === String(editIndex));
     if (idx !== -1) {
       const newId = idVal.toUpperCase();
-      if (newId !== editIndex && state.partners.some(p => p.id === newId)) {
+      if (String(newId) !== String(editIndex) && state.partners.some(p => String(p.id) === String(newId))) {
         showToast(`Mã đối tác "${newId}" đã tồn tại!`, "danger");
         return;
       }
@@ -5026,7 +5029,7 @@ function handlePartnerSubmit(e) {
       // Cập nhật tất cả các tham chiếu liên quan nếu Mã đối tác bị thay đổi
       if (newId !== editIndex) {
         state.vouchers.forEach(v => {
-          if (v.partnerId === editIndex) {
+          if (String(v.partnerId) === String(editIndex)) {
             v.partnerId = newId;
             v.partnerName = name;
           }
@@ -5048,7 +5051,7 @@ function handlePartnerSubmit(e) {
       id = `${prefix}${nextNum}`;
     }
 
-    if (state.partners.some(p => p.id === id)) {
+    if (state.partners.some(p => String(p.id) === String(id))) {
       showToast(`Mã đối tác "${id}" đã tồn tại!`, "danger");
       return;
     }
@@ -5332,7 +5335,7 @@ function createDefaultPartnerExcelRow(p) {
 
 function createDefaultDebtExcelRow(id, d) {
   const r = new Array(18).fill("");
-  const p = state.partners.find(x => x.id === id) || {};
+  const p = state.partners.find(x => String(x.id) === String(id)) || {};
   r[0] = id;
   r[1] = p.name || d.name || "";
   r[2] = d.debit || 0;
@@ -6913,7 +6916,7 @@ function renderPartnerLedgerOrders() {
   tbody.innerHTML = "";
 
   const pId = activePartnerIdForLedger;
-  const orders = state.vouchers.filter(v => v.partnerId === pId && (v.type === "sales" || v.type === "purchase"));
+  const orders = state.vouchers.filter(v => String(v.partnerId) === String(pId) && (v.type === "sales" || v.type === "purchase"));
 
   if (orders.length === 0) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy hóa đơn mua/bán nào của đối tác này</td></tr>`;
@@ -6997,7 +7000,7 @@ function promptEditOrderDebt(voucherId) {
 function promptEditPartnerOpeningDebt(partnerId) {
   try {
     console.log("promptEditPartnerOpeningDebt custom modal called with:", partnerId);
-    const p = state.partners.find(x => x.id === partnerId);
+    const p = state.partners.find(x => String(x.id) === String(partnerId));
     if (!p) {
       console.error("Partner not found for ID:", partnerId);
       if (typeof addErrorLog === "function") {
@@ -7854,7 +7857,7 @@ function resolvePartner(value) {
   if (!val) return { id: "DT_VANGLAI", name: "Khách hàng vãng lai" };
 
   // 1. Tìm chính xác theo ID
-  let p = state.partners.find(item => item.id.toLowerCase() === val.toLowerCase());
+  let p = state.partners.find(item => String(item.id).toLowerCase() === val.toLowerCase());
   if (p) return p;
 
   // 2. Tìm chính xác theo Tên
@@ -7862,7 +7865,7 @@ function resolvePartner(value) {
   if (p) return p;
 
   // 3. Tìm tương đối theo Tên hoặc ID
-  p = state.partners.find(item => item.name.toLowerCase().includes(val.toLowerCase()) || item.id.toLowerCase().includes(val.toLowerCase()));
+  p = state.partners.find(item => item.name.toLowerCase().includes(val.toLowerCase()) || String(item.id).toLowerCase().includes(val.toLowerCase()));
   if (p) return p;
 
   // 4. Tạo đối tác mới tự động nếu không tồn tại
@@ -7878,12 +7881,12 @@ function resolveProduct(value) {
   const match = val.match(/\(([^)]+)\)$/);
   if (match) {
     const idInParens = match[1].trim();
-    let p = state.products.find(item => item.id.toLowerCase() === idInParens.toLowerCase());
+    let p = state.products.find(item => String(item.id).toLowerCase() === idInParens.toLowerCase());
     if (p) return p;
   }
 
   // 1. Tìm chính xác theo ID
-  let p = state.products.find(item => item.id.toLowerCase() === val.toLowerCase());
+  let p = state.products.find(item => String(item.id).toLowerCase() === val.toLowerCase());
   if (p) return p;
 
   // 2. Tìm chính xác theo Tên
@@ -7891,7 +7894,7 @@ function resolveProduct(value) {
   if (p) return p;
 
   // 3. Tìm tương đối theo Tên hoặc ID
-  p = state.products.find(item => item.name.toLowerCase().includes(val.toLowerCase()) || item.id.toLowerCase().includes(val.toLowerCase()));
+  p = state.products.find(item => item.name.toLowerCase().includes(val.toLowerCase()) || String(item.id).toLowerCase().includes(val.toLowerCase()));
   return p || null;
 }
 
@@ -8027,7 +8030,7 @@ function parseExcelFile(file, type) {
             inactive = inactiveVal === "1" || inactiveVal === "Có" || inactiveVal === "True" || inactiveVal === "true";
           }
 
-          const idx = state.products.findIndex(p => p.id === id);
+          const idx = state.products.findIndex(p => String(p.id) === String(id));
           const pObj = {
             id,
             name,
@@ -8079,7 +8082,7 @@ function parseExcelFile(file, type) {
           const inactive = inactiveVal === true || (inactiveVal || "").toString().toLowerCase() === "true"
             || (inactiveVal || "").toString().trim() === "Có";
 
-          const idx = state.partners.findIndex(p => p.id === id);
+          const idx = state.partners.findIndex(p => String(p.id) === String(id));
           const pObj = { id, name, type, phone, email: "", address, taxCode, group, inactive };
           if (idx !== -1) {
             state.partners[idx] = pObj;
@@ -8147,7 +8150,7 @@ function parseExcelFile(file, type) {
 
           state.partnerOpeningBalances[id] = { debit, credit };
 
-          const idx = state.partners.findIndex(p => p.id === id);
+          const idx = state.partners.findIndex(p => String(p.id) === String(id));
           if (idx === -1) {
             const addrCol = isNewDebtFormat ? 7 : 5;
             const taxCol = isNewDebtFormat ? 8 : 6;
@@ -9094,7 +9097,7 @@ window.handleEditProductPriceSubmit = handleEditProductPriceSubmit;
 function promptQuickImport(productId) {
   try {
     console.log("promptQuickImport called with:", productId);
-    const p = state.products.find(x => x.id === productId);
+    const p = state.products.find(x => String(x.id) === String(productId));
     if (!p) {
       if (typeof addErrorLog === "function") {
         addErrorLog("promptQuickImport", `Không tìm thấy sản phẩm với mã: ${productId}`);
@@ -9135,7 +9138,7 @@ function handleQuickImportSubmit(e) {
       return;
     }
 
-    const p = state.products.find(x => x.id === prodId);
+    const p = state.products.find(x => String(x.id) === String(prodId));
     if (!p) return;
 
     // Tìm nhà cung cấp đầu tiên hoặc dùng mặc định
@@ -9197,7 +9200,7 @@ function handleQuickImportSubmit(e) {
 function promptEditProductPrice(productId) {
   try {
     console.log("promptEditProductPrice called with:", productId);
-    const p = state.products.find(x => x.id === productId);
+    const p = state.products.find(x => String(x.id) === String(productId));
     if (!p) {
       if (typeof addErrorLog === "function") {
         addErrorLog("promptEditProductPrice", `Không tìm thấy sản phẩm với mã: ${productId}`);
@@ -9265,7 +9268,7 @@ function handleEditProductPriceSubmit(e) {
       return;
     }
 
-    const p = state.products.find(x => x.id === prodId);
+    const p = state.products.find(x => String(x.id) === String(prodId));
     if (!p) return;
 
     p.name = name;
@@ -10213,7 +10216,7 @@ function exportPurchasesToExcel() {
 
       if (v.items && v.items.length > 0) {
         v.items.forEach(item => {
-          const prod = state.products ? state.products.find(p => p.id === item.productId) : null;
+          const prod = state.products ? state.products.find(p => String(p.id) === String(item.productId)) : null;
           const itemGross = (item.qty || 0) * (item.price || 0);
           const discVal = itemGross * ((item.discount || 0) / 100);
 
@@ -10948,7 +10951,7 @@ function handleQuickAddProductSubmit(e) {
     const newId = rawId || `SP${(state.products.length + 1).toString().padStart(3, '0')}`;
 
     // Kiểm tra trùng mã
-    if (state.products.some(p => p.id === newId)) {
+    if (state.products.some(p => String(p.id) === String(newId))) {
       showToast(`Mã mặt hàng “${newId}” đã tồn tại! Vui lòng dùng mã khác.`, "danger");
       document.getElementById("qap-prod-id").focus();
       return;
@@ -12311,7 +12314,7 @@ function editPurchaseOrderVoucher(id) {
   if (tbody) tbody.innerHTML = "";
 
   v.items.forEach(item => {
-    const prod = state.products.find(p => p.id === item.productId);
+    const prod = state.products.find(p => String(p.id) === String(item.productId));
     const prodVal = prod ? `${prod.name} (${prod.id})` : item.productId;
     addPurchaseOrderFormRow(prodVal, item.qty, item.price, item.discount || 0);
   });
@@ -12612,7 +12615,7 @@ function exportPurchaseOrdersToExcel() {
 
       if (v.items && v.items.length > 0) {
         v.items.forEach(item => {
-          const prod = state.products ? state.products.find(p => p.id === item.productId) : null;
+          const prod = state.products ? state.products.find(p => String(p.id) === String(item.productId)) : null;
           const itemGross = (item.qty || 0) * (item.price || 0);
           const discVal = itemGross * ((item.discount || 0) / 100);
 
