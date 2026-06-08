@@ -9448,68 +9448,85 @@ async function startSupabaseClient() {
   }
 }
 
+async function fetchCloudData() {
+  const { data: list, error: listError } = await supabaseClient
+    .from("rd_accounting_data")
+    .select("id, last_modified");
+
+  if (listError) throw listError;
+  if (!list || list.length === 0) return null;
+
+  const promises = list.map(async (item) => {
+    const { data, error } = await supabaseClient
+      .from("rd_accounting_data")
+      .select("id, data, last_modified")
+      .eq("id", item.id)
+      .single();
+    if (error) throw error;
+    return data;
+  });
+
+  const rows = await Promise.all(promises);
+
+  let reconstructedState = {
+    companyName: "",
+    address: "",
+    taxCode: "",
+    accountingStandard: "TT200",
+    products: [],
+    partners: [],
+    initialBalances: {},
+    vouchers: []
+  };
+
+  const vouchersChunks = [];
+  const partnersChunks = [];
+  let maxLastModified = 0;
+
+  rows.forEach(row => {
+    if (!row) return;
+    const lm = row.last_modified || 0;
+    if (lm > maxLastModified) maxLastModified = lm;
+
+    if (row.id === "metadata") {
+      Object.assign(reconstructedState, row.data);
+    } else if (row.id === "products") {
+      reconstructedState.products = row.data || [];
+    } else if (row.id.startsWith("partners_")) {
+      const idx = parseInt(row.id.split("_")[1]) || 0;
+      partnersChunks[idx] = row.data || [];
+    } else if (row.id.startsWith("vouchers_")) {
+      const idx = parseInt(row.id.split("_")[1]) || 0;
+      vouchersChunks[idx] = row.data || [];
+    }
+  });
+
+  // Flatten partners
+  reconstructedState.partners = [];
+  for (let i = 0; i < partnersChunks.length; i++) {
+    if (partnersChunks[i]) {
+      reconstructedState.partners = reconstructedState.partners.concat(partnersChunks[i]);
+    }
+  }
+
+  // Flatten vouchers
+  reconstructedState.vouchers = [];
+  for (let i = 0; i < vouchersChunks.length; i++) {
+    if (vouchersChunks[i]) {
+      reconstructedState.vouchers = reconstructedState.vouchers.concat(vouchersChunks[i]);
+    }
+  }
+
+  reconstructedState._lastModified = maxLastModified || reconstructedState._lastModified || 0;
+  return reconstructedState;
+}
+
 async function pullFromCloudOnStartup() {
   if (!cloudSyncActive || !supabaseClient) return;
 
   try {
-    const { data: rows, error } = await supabaseClient
-      .from("rd_accounting_data")
-      .select("id, data, last_modified");
-
-    if (error) throw error;
-
-    if (rows && rows.length > 0) {
-      let reconstructedState = {
-        companyName: "",
-        address: "",
-        taxCode: "",
-        accountingStandard: "TT200",
-        products: [],
-        partners: [],
-        initialBalances: {},
-        vouchers: []
-      };
-
-      const vouchersChunks = [];
-      const partnersChunks = [];
-      let maxLastModified = 0;
-
-      rows.forEach(row => {
-        const lm = row.last_modified || 0;
-        if (lm > maxLastModified) maxLastModified = lm;
-
-        if (row.id === "metadata") {
-          Object.assign(reconstructedState, row.data);
-        } else if (row.id === "products") {
-          reconstructedState.products = row.data || [];
-        } else if (row.id.startsWith("partners_")) {
-          const idx = parseInt(row.id.split("_")[1]) || 0;
-          partnersChunks[idx] = row.data || [];
-        } else if (row.id.startsWith("vouchers_")) {
-          const idx = parseInt(row.id.split("_")[1]) || 0;
-          vouchersChunks[idx] = row.data || [];
-        }
-      });
-
-      // Flatten partners
-      reconstructedState.partners = [];
-      for (let i = 0; i < partnersChunks.length; i++) {
-        if (partnersChunks[i]) {
-          reconstructedState.partners = reconstructedState.partners.concat(partnersChunks[i]);
-        }
-      }
-
-      // Flatten vouchers
-      reconstructedState.vouchers = [];
-      for (let i = 0; i < vouchersChunks.length; i++) {
-        if (vouchersChunks[i]) {
-          reconstructedState.vouchers = reconstructedState.vouchers.concat(vouchersChunks[i]);
-        }
-      }
-
-      reconstructedState._lastModified = maxLastModified || reconstructedState._lastModified || 0;
-      const cloudData = reconstructedState;
-
+    const cloudData = await fetchCloudData();
+    if (cloudData) {
       // Smart Merge khi khởi động: gộp dữ liệu cục bộ + cloud
       // Tránh mất dữ liệu nhập khi offline trước đó
       let localData = null;
@@ -9589,64 +9606,10 @@ function forcePullFromCloud() {
 
   updateCloudSyncBadge(false, "Mây: Đang tải...", "#f59e0b");
 
-  supabaseClient
-    .from("rd_accounting_data")
-    .select("id, data, last_modified")
-    .then(({ data: rows, error }) => {
-      if (error) throw error;
-
-      if (rows && rows.length > 0) {
-        let reconstructedState = {
-          companyName: "",
-          address: "",
-          taxCode: "",
-          accountingStandard: "TT200",
-          products: [],
-          partners: [],
-          initialBalances: {},
-          vouchers: []
-        };
-
-        const vouchersChunks = [];
-        const partnersChunks = [];
-        let maxLastModified = 0;
-
-        rows.forEach(row => {
-          const lm = row.last_modified || 0;
-          if (lm > maxLastModified) maxLastModified = lm;
-
-          if (row.id === "metadata") {
-            Object.assign(reconstructedState, row.data);
-          } else if (row.id === "products") {
-            reconstructedState.products = row.data || [];
-          } else if (row.id.startsWith("partners_")) {
-            const idx = parseInt(row.id.split("_")[1]) || 0;
-            partnersChunks[idx] = row.data || [];
-          } else if (row.id.startsWith("vouchers_")) {
-            const idx = parseInt(row.id.split("_")[1]) || 0;
-            vouchersChunks[idx] = row.data || [];
-          }
-        });
-
-        // Flatten partners
-        reconstructedState.partners = [];
-        for (let i = 0; i < partnersChunks.length; i++) {
-          if (partnersChunks[i]) {
-            reconstructedState.partners = reconstructedState.partners.concat(partnersChunks[i]);
-          }
-        }
-
-        // Flatten vouchers
-        reconstructedState.vouchers = [];
-        for (let i = 0; i < vouchersChunks.length; i++) {
-          if (vouchersChunks[i]) {
-            reconstructedState.vouchers = reconstructedState.vouchers.concat(vouchersChunks[i]);
-          }
-        }
-
-        reconstructedState._lastModified = maxLastModified || reconstructedState._lastModified || 0;
-
-        state = reconstructedState;
+  fetchCloudData()
+    .then((cloudData) => {
+      if (cloudData) {
+        state = cloudData;
         localStorage.setItem("rd_accounting_db", JSON.stringify(state));
         recalculateAccounting();
         renderDashboard();
@@ -9914,64 +9877,8 @@ async function pullAndMergeFromCloud() {
   if (!cloudSyncActive || !supabaseClient) return;
 
   try {
-    const { data: rows, error } = await supabaseClient
-      .from("rd_accounting_data")
-      .select("id, data, last_modified");
-
-    if (error) throw error;
-
-    if (rows && rows.length > 0) {
-      let reconstructedState = {
-        companyName: "",
-        address: "",
-        taxCode: "",
-        accountingStandard: "TT200",
-        products: [],
-        partners: [],
-        initialBalances: {},
-        vouchers: []
-      };
-
-      const vouchersChunks = [];
-      const partnersChunks = [];
-      let maxLastModified = 0;
-
-      rows.forEach(row => {
-        const lm = row.last_modified || 0;
-        if (lm > maxLastModified) maxLastModified = lm;
-
-        if (row.id === "metadata") {
-          Object.assign(reconstructedState, row.data);
-        } else if (row.id === "products") {
-          reconstructedState.products = row.data || [];
-        } else if (row.id.startsWith("partners_")) {
-          const idx = parseInt(row.id.split("_")[1]) || 0;
-          partnersChunks[idx] = row.data || [];
-        } else if (row.id.startsWith("vouchers_")) {
-          const idx = parseInt(row.id.split("_")[1]) || 0;
-          vouchersChunks[idx] = row.data || [];
-        }
-      });
-
-      // Flatten partners
-      reconstructedState.partners = [];
-      for (let i = 0; i < partnersChunks.length; i++) {
-        if (partnersChunks[i]) {
-          reconstructedState.partners = reconstructedState.partners.concat(partnersChunks[i]);
-        }
-      }
-
-      // Flatten vouchers
-      reconstructedState.vouchers = [];
-      for (let i = 0; i < vouchersChunks.length; i++) {
-        if (vouchersChunks[i]) {
-          reconstructedState.vouchers = reconstructedState.vouchers.concat(vouchersChunks[i]);
-        }
-      }
-
-      reconstructedState._lastModified = maxLastModified || reconstructedState._lastModified || 0;
-      const cloudData = reconstructedState;
-
+    const cloudData = await fetchCloudData();
+    if (cloudData) {
       // [TỐI ƯU HÓA BỘ NHỚ] Kiểm tra timestamp trước để tránh xử lý chuỗi 34MB không cần thiết
       const cloudTs = cloudData._lastModified || 0;
       const localTs = state._lastModified || 0;
