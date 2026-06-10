@@ -9791,14 +9791,17 @@ async function fetchCloudDelta(localTs) {
     return null; // Không cần tải thêm
   }
 
-  // 2. Tải danh sách ID và last_modified (rất nhẹ, không bao giờ timeout)
+  // 2. Tải danh sách ID và last_modified theo từng trang nhỏ 500 dòng
+  //    (giảm từ 1000 → 500 để tránh timeout trên Supabase free tier)
   let allItems = [];
   let from = 0;
-  const step = 1000;
-  while (true) {
+  const step = 500;
+  const MAX_PAGES = 40; // Giới hạn an toàn: tối đa 40 trang × 500 = 20.000 rows
+  let page = 0;
+
+  while (page < MAX_PAGES) {
     if (typeof updateCloudSyncBadge === "function") {
-      const pageNum = Math.floor(from / step) + 1;
-      updateCloudSyncBadge(false, `Mây: Quét danh sách (${pageNum})...`, "#f59e0b");
+      updateCloudSyncBadge(false, `Mây: Quét danh sách (${page + 1})...`, "#f59e0b");
     }
     
     let query = supabaseClient
@@ -9808,16 +9811,29 @@ async function fetchCloudDelta(localTs) {
     if (localTs > 0) {
       query = query.gt("last_modified", localTs);
     }
-    
-    const { data, error } = await query
-      .order("id")
-      .range(from, from + step - 1);
-      
+
+    // Thử tải trang hiện tại, tự thử lại 1 lần nếu bị timeout
+    let data = null, error = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) {
+        // Chờ 2 giây trước khi thử lại
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.warn(`[fetchCloudDelta] Thử lại trang ${page + 1} (lần ${attempt + 1})...`);
+      }
+      const res = await query.order("id").range(from, from + step - 1);
+      data = res.data;
+      error = res.error;
+      if (!error) break; // Thành công → thoát retry loop
+      if (!error.message || !error.message.includes("timeout")) break; // Lỗi khác → không retry
+      console.error(`[fetchCloudDelta] Timeout tại trang ${page + 1}, thử lại...`, error.message);
+    }
+
     if (error) throw error;
     if (!data || data.length === 0) break;
     allItems = allItems.concat(data);
     if (data.length < step) break;
     from += step;
+    page++;
   }
 
   if (allItems.length === 0) {
@@ -9831,17 +9847,19 @@ async function fetchCloudDelta(localTs) {
     };
   }
 
-  // 3. Phân chia danh sách ID thành các lô 300 ID để tải dữ liệu chi tiết
+  // 3. Phân chia danh sách ID thành các lô 200 ID để tải dữ liệu chi tiết
+  //    (giảm từ 300 → 200 để mỗi request nhẹ hơn, tránh timeout khi row lớn)
   const ids = allItems.map(item => item.id);
   const batches = [];
-  const BATCH_SIZE = 300;
+  const BATCH_SIZE = 200;
   for (let i = 0; i < ids.length; i += BATCH_SIZE) {
     batches.push(ids.slice(i, i + BATCH_SIZE));
   }
 
-  // 4. Tải song song với mức độ đồng thời (concurrency) kiểm soát = 6
+  // 4. Tải song song với mức độ đồng thời (concurrency) = 4
+  //    (giảm từ 6 → 4 để tránh quá tải server)
   let changedRows = [];
-  const CONCURRENCY = 6;
+  const CONCURRENCY = 4;
   for (let i = 0; i < batches.length; i += CONCURRENCY) {
     if (typeof updateCloudSyncBadge === "function") {
       const batchNum = Math.floor(i / CONCURRENCY) + 1;
