@@ -260,15 +260,47 @@ function initApp() {
   }
 }
 
-// Hàm dọn dẹp các đơn hàng tự sinh (ID là số thứ tự)
+// Hàm dọn dẹp các đơn hàng tự sinh (ID là số thứ tự) và chứng từ rác/test cũ
 function cleanNumericVouchers() {
   if (!state || !Array.isArray(state.vouchers)) return;
+  
+  // 1. Dọn dẹp đơn hàng tự sinh có ID là số thứ tự
   const numericVouchers = state.vouchers.filter(v => v && v.id && /^\d+$/.test(String(v.id).trim()));
+  let hasChanges = false;
   if (numericVouchers.length > 0) {
     console.log(`[Cleanup] Phát hiện và xóa ${numericVouchers.length} đơn hàng tự sinh có ID là số thứ tự.`);
     const idsToDelete = numericVouchers.map(v => v.id);
     trackDeletedIds(idsToDelete);
     state.vouchers = state.vouchers.filter(v => v && v.id && !/^\d+$/.test(String(v.id).trim()));
+    hasChanges = true;
+  }
+
+  // 2. Dọn dẹp dòng summary lỗi từ Excel (Tổng thu/Tổng chi) và các voucher test cũ
+  const trashVouchers = state.vouchers.filter(v => {
+    if (!v || !v.id) return false;
+    const idStr = String(v.id).trim().toLowerCase();
+    const descStr = (v.description || "").trim().toLowerCase();
+    
+    // Check dòng tổng kết lỗi của Excel
+    if (idStr.includes("tổng thu") || idStr.includes("tổng chi") || descStr.includes("tổng thu") || descStr.includes("tổng chi")) {
+      return true;
+    }
+    // Check các dòng test nháp dữ liệu cũ
+    if (idStr.includes("test") || descStr === "test" || descStr === "testtt" || descStr === "tesett" || descStr === "testt" || descStr.startsWith("test ")) {
+      return true;
+    }
+    return false;
+  });
+
+  if (trashVouchers.length > 0) {
+    console.log(`[Cleanup] Phát hiện và xóa ${trashVouchers.length} chứng từ rác/test dữ liệu cũ.`);
+    const trashIds = trashVouchers.map(v => v.id);
+    trackDeletedIds(trashIds);
+    state.vouchers = state.vouchers.filter(v => v && v.id && !trashIds.includes(v.id));
+    hasChanges = true;
+  }
+
+  if (hasChanges) {
     saveState();
   }
 }
