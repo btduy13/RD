@@ -5761,6 +5761,18 @@ async function restoreAndApplyS06Prices(force = false) {
   if (!force && localStorage.getItem("db_restore_v6") === "true") {
     return;
   }
+  
+  // Kiểm tra an toàn trước khi khôi phục tự động lúc khởi động
+  if (!force) {
+    const hasVouchers = state.vouchers && state.vouchers.length > 0;
+    const hasProducts = state.products && state.products.length > 5;
+    if (hasVouchers || hasProducts) {
+      console.log("[Database Restore] Bỏ qua khôi phục tự động v6 vì đã có dữ liệu hiện hữu.");
+      localStorage.setItem("db_restore_v6", "true");
+      return;
+    }
+  }
+
   try {
     // Nếu chạy tự động lần đầu (startup), xóa sạch database cũ về trạng thái gốc sạch
     if (!force) {
