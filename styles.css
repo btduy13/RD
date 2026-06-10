@@ -1134,11 +1134,12 @@ body {
 
 /* 12. CSS IN ẤN CHỨNG TỪ (MEDIA PRINT) */
 @media print {
-  body {
+  html, body {
     background-color: #ffffff !important;
     color: #000000 !important;
     overflow: visible !important;
     height: auto !important;
+    display: block !important; /* Hủy bỏ flexbox của body khi in để tránh vỡ trang hoặc bị trắng trang */
   }
   
   .app-container,
@@ -1152,7 +1153,11 @@ body {
     display: none !important;
   }
 
-  .modal-overlay {
+  /* Chỉ hiển thị modal-overlay nào đang thực sự mở (có inline style display: flex hoặc display: block) */
+  .modal-overlay[style*="display: flex" i],
+  .modal-overlay[style*="display:flex" i],
+  .modal-overlay[style*="display: block" i],
+  .modal-overlay[style*="display:block" i] {
     position: relative !important;
     background-color: transparent !important;
     backdrop-filter: none !important;

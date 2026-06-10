@@ -20,4 +20,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getBackupDir: () => ipcRenderer.invoke('get-backup-dir'),
   // Ghi log gỡ lỗi đồng bộ
   writeLog: (content) => ipcRenderer.invoke('write-log', content),
+  // Kích hoạt tiến trình in ấn hệ thống
+  printWindow: () => ipcRenderer.invoke('print-window'),
 });

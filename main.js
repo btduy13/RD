@@ -386,6 +386,30 @@ ipcMain.handle('download-and-install-update', async (event, downloadUrl) => {
   }
 });
 
+// IPC Handler: Kích hoạt in ấn thông qua webContents.print của Electron
+ipcMain.handle('print-window', async (event) => {
+  try {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return { ok: false, error: 'Không tìm thấy cửa sổ ứng dụng' };
+    
+    win.webContents.print({
+      silent: false,           // Hiển thị hộp thoại chọn máy in hệ thống
+      printBackground: true,   // In hình nền và màu sắc (quan trọng để giữ giao diện thiết kế)
+      color: true              // In màu sắc
+    }, (success, failureReason) => {
+      if (!success) {
+        console.error('[Print] In thất bại hoặc bị hủy:', failureReason);
+      } else {
+        console.log('[Print] Tiến trình in ấn hoàn tất thành công!');
+      }
+    });
+    return { ok: true };
+  } catch (err) {
+    console.error('[Print] Lỗi khi xử lý in ấn IPC:', err);
+    return { ok: false, error: err.message };
+  }
+});
+
 // ===========================================================================
 // VÒNG ĐỜI ỨNG DỤNG
 // ===========================================================================

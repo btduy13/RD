@@ -3287,9 +3287,21 @@ function getReportSignaturesHTML() {
 }
 
 // Hàm in báo cáo
+function triggerPrint() {
+  if (window.electronAPI && typeof window.electronAPI.printWindow === "function") {
+    window.electronAPI.printWindow().catch(err => {
+      console.error("[Print] Lỗi khi gọi API in Electron, chuyển sang window.print():", err);
+      window.print();
+    });
+  } else {
+    window.print();
+  }
+}
+window.triggerPrint = triggerPrint;
+
 function printReport() {
   document.body.classList.add("printing-report");
-  window.print();
+  triggerPrint();
   setTimeout(() => {
     document.body.classList.remove("printing-report");
   }, 500);
