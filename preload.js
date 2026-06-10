@@ -18,4 +18,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveBackupOnExit: (jsonData) => ipcRenderer.invoke('save-backup-on-exit', jsonData),
   // Lấy đường dẫn thư mục backup
   getBackupDir: () => ipcRenderer.invoke('get-backup-dir'),
+  // Ghi log gỡ lỗi đồng bộ
+  writeLog: (content) => ipcRenderer.invoke('write-log', content),
 });

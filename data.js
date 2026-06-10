@@ -8,11 +8,11 @@ const DEFAULT_DATA = {
 
   // Danh mục sản phẩm (Kho hàng)
   products: [
-    { id: "SP001", name: "Bóng đèn LED Bulb 9W Rạng Đông", unit: "Cái", stock: 150, avgCost: 35000, totalValue: 5250000, minStock: 20 },
-    { id: "SP002", name: "Bóng đèn LED Tuýp 1.2m 20W", unit: "Cái", stock: 80, avgCost: 85000, totalValue: 6800000, minStock: 15 },
-    { id: "SP003", name: "Phích nước nóng Rạng Đông 2L", unit: "Cái", stock: 50, avgCost: 120000, totalValue: 6000000, minStock: 10 },
-    { id: "SP004", name: "Đèn bàn học chống cận thị LED", unit: "Cái", stock: 30, avgCost: 210000, totalValue: 6300000, minStock: 5 },
-    { id: "SP005", name: "Công tắc thông minh Rạng Đông Rallismart", unit: "Cái", stock: 40, avgCost: 320000, totalValue: 12800000, minStock: 5 }
+    { id: "SP001", name: "Co ren trong PVC", unit: "Cái", stock: 150, avgCost: 35000, totalValue: 5250000, minStock: 20 },
+    { id: "SP002", name: "Ống nhựa PVC 1.2m", unit: "Cái", stock: 80, avgCost: 85000, totalValue: 6800000, minStock: 15 },
+    { id: "SP003", name: "Van bi đồng", unit: "Cái", stock: 50, avgCost: 120000, totalValue: 6000000, minStock: 10 },
+    { id: "SP004", name: "Vòi sen tắm cao cấp", unit: "Cái", stock: 30, avgCost: 210000, totalValue: 6300000, minStock: 5 },
+    { id: "SP005", name: "Công tắc nước thông minh", unit: "Cái", stock: 40, avgCost: 320000, totalValue: 12800000, minStock: 5 }
   ],
 
   // Danh mục đối tác (Khách hàng & Nhà cung cấp)
@@ -56,7 +56,7 @@ const DEFAULT_DATA = {
       partnerId: "NCC001",
       partnerName: "Công ty Cổ phần Nhựa Tiền Phong",
       paymentMethod: "331", // Chưa thanh toán (Công nợ)
-      description: "Mua vật tư thân phích nước nhập kho",
+      description: "Mua van bi đồng nhập kho",
       items: [
         { productId: "SP003", qty: 50, price: 100000, amount: 5000000 }
       ],
@@ -75,7 +75,7 @@ const DEFAULT_DATA = {
       partnerId: "KH001",
       partnerName: "Đại lý Thiết bị Điện Ánh Dương",
       paymentMethod: "112", // Thu tiền gửi ngân hàng
-      description: "Xuất bán bóng đèn LED và phích nước cho Đại lý Ánh Dương",
+      description: "Xuất bán co ren trong PVC và van bi đồng cho Đại lý Ánh Dương",
       items: [
         { productId: "SP001", qty: 50, price: 55000, amount: 2750000 },
         { productId: "SP003", qty: 20, price: 180000, amount: 3600000 }
@@ -83,13 +83,13 @@ const DEFAULT_DATA = {
       taxRate: 10,
       taxAmount: 635000,
       totalAmount: 6985000,
-      cogsAmount: 3950000, // Giá vốn xuất kho: 50 x 35.000 (Bulb) + 20 x 110.000 (Phích nước - giá vốn bình quân mới)
-      // Giải thích giá vốn phích nước:
+      cogsAmount: 3950000, // Giá vốn xuất kho: 50 x 35.000 (Co ren) + 20 x 110.000 (Van bi - giá vốn bình quân mới)
+      // Giải thích giá vốn van bi đồng:
       // Tồn đầu kỳ: 50 cái, đơn giá 120.000. Tổng = 6.000.000
       // Nhập ngày 5/1: 50 cái, đơn giá 100.000. Tổng = 5.000.000
       // Đơn giá bình quân sau nhập: (6.000.000 + 5.000.000) / (50 + 50) = 110.000 đ/cái.
       // Xuất ngày 10/1: 20 cái * 110.000 = 2.200.000
-      // Giá vốn bóng LED: 50 cái * 35.000 = 1.750.000
+      // Giá vốn Co ren: 50 cái * 35.000 = 1.750.000
       // Tổng Giá vốn = 1.750.000 + 2.200.000 = 3.950.000
       entries: [
         { debit: "112", credit: "511", amount: 6350000, desc: "Doanh thu bán hàng" },

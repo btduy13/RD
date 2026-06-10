@@ -212,6 +212,18 @@ ipcMain.handle('get-backup-dir', () => {
   return BACKUP_DIR;
 });
 
+ipcMain.handle('write-log', async (event, content) => {
+  try {
+    const logPath = path.join(__dirname, 'sync_debug.log');
+    fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${content}\n`, 'utf8');
+    return { ok: true };
+  } catch (err) {
+    console.error('Lỗi ghi log:', err);
+    return { ok: false, error: err.message };
+  }
+});
+
+
 ipcMain.handle('get-local-version', () => {
   try {
     const pkgPath = path.join(__dirname, 'package.json');

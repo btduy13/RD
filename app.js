@@ -107,7 +107,9 @@ function initApp() {
         state = parsed;
         lastSyncState = JSON.parse(JSON.stringify(parsed));
         hasCache = true;
+        lastSyncedCloudTs = state._lastModified || 0;
         console.log(`[Cache] Khởi tạo dữ liệu từ cache cục bộ thành công! (${(state.vouchers || []).length} chứng từ, ${(state.partners || []).length} đối tác)`);
+        cleanNumericVouchers();
       }
     }
   } catch (err) {
@@ -247,13 +249,19 @@ function initApp() {
   if (typeof initOrderFormKeyboardNavigation === "function") {
     initOrderFormKeyboardNavigation();
   }
+}
 
-  // Tự động khôi phục danh mục gốc và cập nhật đơn giá xuất S06 khi khởi động
-  setTimeout(() => {
-    if (typeof restoreAndApplyS06Prices === "function") {
-      restoreAndApplyS06Prices();
-    }
-  }, 1000);
+// Hàm dọn dẹp các đơn hàng tự sinh (ID là số thứ tự)
+function cleanNumericVouchers() {
+  if (!state || !Array.isArray(state.vouchers)) return;
+  const numericVouchers = state.vouchers.filter(v => v && v.id && /^\d+$/.test(String(v.id).trim()));
+  if (numericVouchers.length > 0) {
+    console.log(`[Cleanup] Phát hiện và xóa ${numericVouchers.length} đơn hàng tự sinh có ID là số thứ tự.`);
+    const idsToDelete = numericVouchers.map(v => v.id);
+    trackDeletedIds(idsToDelete);
+    state.vouchers = state.vouchers.filter(v => v && v.id && !/^\d+$/.test(String(v.id).trim()));
+    saveState();
+  }
 }
 
 async function autoIntegrateProductsExcel() {
@@ -1043,47 +1051,59 @@ function saveState() {
   }
   // Trì hoãn lưu trữ 200ms để gộp các yêu cầu lưu và chạy bất đồng bộ
   saveStateTimeout = setTimeout(() => {
-    executeSaveState();
+    executeSaveState(false);
   }, 200);
 }
 
-function executeSaveState() {
+function executeSaveState(sync = false) {
   if (!saveStateIsDirty) return;
-  try {
-    // [FIX 1] Luôn cập nhật timestamp trước khi lưu và push
-    // để máy nhận có thể nhận biết đây là bản mới nhất
-    state._lastModified = Date.now();
 
-    // Dọn dẹp deletedIds: Loại bỏ bất kỳ ID nào hiện đang hoạt động trong vouchers
-    if (Array.isArray(state.deletedIds) && Array.isArray(state.vouchers)) {
-      const activeIds = new Set(state.vouchers.map(v => v.id));
-      state.deletedIds = state.deletedIds.filter(id => !activeIds.has(id));
-    }
-    
-    // Ghi cache cục bộ tức thời
+  const doSave = () => {
     try {
-      localStorage.setItem("rd_accounting_online_cache", JSON.stringify(state));
-    } catch (cacheErr) {
-      console.error("[Cache] Lỗi ghi cache cục bộ:", cacheErr);
-    }
+      // Luôn cập nhật timestamp trước khi lưu và push
+      state._lastModified = Date.now();
 
-    if (typeof pushToCloud === "function") {
-      pushToCloud();
+      // Dọn dẹp deletedIds: Loại bỏ bất kỳ ID nào hiện đang hoạt động trong vouchers
+      if (Array.isArray(state.deletedIds) && Array.isArray(state.vouchers)) {
+        const activeIds = new Set(state.vouchers.map(v => v.id));
+        state.deletedIds = state.deletedIds.filter(id => !activeIds.has(id));
+      }
+      
+      // Ghi cache cục bộ tức thời
+      try {
+        localStorage.setItem("rd_accounting_online_cache", JSON.stringify(state));
+      } catch (cacheErr) {
+        console.error("[Cache] Lỗi ghi cache cục bộ:", cacheErr);
+      }
+
+      if (typeof pushToCloud === "function") {
+        pushToCloud();
+      }
+      saveStateIsDirty = false;
+    } catch (err) {
+      console.error("Lỗi khi lưu trạng thái dữ liệu:", err);
+    } finally {
+      if (saveStateTimeout) {
+        clearTimeout(saveStateTimeout);
+        saveStateTimeout = null;
+      }
     }
-    saveStateIsDirty = false;
-  } catch (err) {
-    console.error("Lỗi khi lưu trạng thái dữ liệu:", err);
-  } finally {
-    if (saveStateTimeout) {
-      clearTimeout(saveStateTimeout);
-      saveStateTimeout = null;
+  };
+
+  if (sync) {
+    doSave();
+  } else {
+    if (window.requestIdleCallback) {
+      window.requestIdleCallback(() => doSave(), { timeout: 1000 });
+    } else {
+      setTimeout(doSave, 50);
     }
   }
 }
 
 // Đảm bảo dữ liệu được lưu ngay lập tức trước khi tắt hoặc tải lại ứng dụng
 window.addEventListener("beforeunload", () => {
-  executeSaveState();
+  executeSaveState(true);
 });
 
 // Cập nhật các thông tin công ty lên giao diện
@@ -1388,49 +1408,69 @@ function recalculateAccounting(shouldSave = true) {
   refreshUI();
 }
 
+// Quản lý trạng thái vẽ lại (Lazy Rendering)
+let tabDirtyStates = {
+  dashboard: true,
+  purchase: true,
+  sales: true,
+  inventory: true,
+  escrow: true,
+  reports: true,
+  partners: true,
+  debts: true,
+  cash: true,
+  settings: true
+};
+
+function markAllTabsDirty() {
+  for (const key in tabDirtyStates) {
+    tabDirtyStates[key] = true;
+  }
+}
+
+function renderTabIfNeeded(tabId) {
+  if (!tabDirtyStates[tabId]) return;
+
+  try {
+    if (tabId === "dashboard") {
+      renderDashboard();
+    } else if (tabId === "purchase") {
+      renderPurchaseTable();
+    } else if (tabId === "sales") {
+      renderSalesTable();
+    } else if (tabId === "inventory") {
+      populateProductLedgerDropdown();
+      renderInventoryTable();
+      renderStockLedger();
+    } else if (tabId === "escrow") {
+      renderEscrowTable();
+    } else if (tabId === "reports") {
+      populateReportAccountDropdown();
+      generateReport();
+    } else if (tabId === "partners") {
+      filterPartners();
+    } else if (tabId === "debts") {
+      filterDebts();
+    } else if (tabId === "cash") {
+      filterCash();
+      recalculateCashKpis();
+    } else if (tabId === "settings") {
+      if (typeof updateErrorLogsUI === "function") {
+        updateErrorLogsUI();
+      }
+    }
+    tabDirtyStates[tabId] = false;
+  } catch (e) {
+    console.error(`Lỗi render tab ${tabId}:`, e);
+  }
+}
+
 // Cập nhật toàn bộ giao diện dựa trên tab đang hiển thị
 function refreshUI() {
-  // Render lại các bảng dữ liệu bằng các khối try/catch cô lập để tránh lỗi dây chuyền
-  try {
-    renderDashboard();
-  } catch (e) {
-    console.error("Lỗi vẽ bảng Dashboard:", e);
-  }
-
-  try {
-    renderPurchaseTable();
-  } catch (e) {
-    console.error("Lỗi vẽ bảng mua hàng:", e);
-  }
-
-  try {
-    renderSalesTable();
-  } catch (e) {
-    console.error("Lỗi vẽ bảng bán hàng:", e);
-  }
-
-  try {
-    renderInventoryTable();
-  } catch (e) {
-    console.error("Lỗi vẽ bảng tồn kho:", e);
-  }
-
-  try {
-    renderEscrowTable();
-  } catch (e) {
-    console.error("Lỗi vẽ bảng ký quỹ:", e);
-  }
-
-  try {
-    // Chỉ tái tạo báo cáo khi tab Báo cáo đang hiển thị
-    // → Tránh tính toán nặng (7000+ chứng từ) trong các vòng lặp đồng bộ hóa đám mây
-    const reportsView = document.getElementById("view-reports");
-    if (reportsView && reportsView.classList.contains("active-tab")) {
-      generateReport();
-    }
-  } catch (e) {
-    console.error("Lỗi tạo báo cáo kế toán:", e);
-  }
+  markAllTabsDirty();
+  const activeMenuItem = document.querySelector(".sidebar-menu .menu-item.active");
+  const tabId = activeMenuItem ? activeMenuItem.getAttribute("data-tab") : "dashboard";
+  renderTabIfNeeded(tabId);
 }
 
 // Biến toàn cục lưu trữ trạng thái các modal đang mở theo từng tab
@@ -1476,7 +1516,7 @@ function switchTab(tabId) {
   const titles = {
     dashboard: { title: "Tổng quan", sub: "Tổng quan tình hình tài chính công ty Rạng Đông" },
     purchase: { title: "Quản lý mua hàng", sub: "Hóa đơn mua hàng hóa, nguyên vật liệu nhập kho" },
-    sales: { title: "Quản lý bán hàng", sub: "Hóa đơn bán sản phẩm bóng đèn, phích nước và công nợ khách hàng" },
+    sales: { title: "Quản lý bán hàng", sub: "Hóa đơn bán hàng và công nợ khách hàng" },
     inventory: { title: "Quản lý kho hàng", sub: "Theo dõi thẻ kho và giá trị tồn kho theo phương pháp bình quân liên hoàn" },
     escrow: { title: "Ký quỹ & Ký cược", sub: "Theo dõi các khoản đặt cọc mang đi và nhận bảo lãnh từ đại lý" },
     reports: { title: "Hệ thống báo cáo kế toán", sub: "Nhật ký chung, Sổ cái tài khoản và Bảng cân đối phát sinh" },
@@ -1493,33 +1533,7 @@ function switchTab(tabId) {
   }
 
   // Khởi tạo các combo-box hoặc nạp dữ liệu chuyên biệt cho từng màn hình
-  if (tabId === "purchase") {
-    // Không reset form khi chuyển tab để bảo toàn dữ liệu nhập dở
-  } else if (tabId === "sales") {
-    // Không reset form khi chuyển tab để bảo toàn dữ liệu nhập dở
-  } else if (tabId === "escrow") {
-    // Không reset form khi chuyển tab để bảo toàn dữ liệu nhập dở
-  } else if (tabId === "inventory") {
-    populateProductLedgerDropdown();
-    renderInventoryTable(); // Đảm bảo bảng tồn kho luôn được vẽ lại khi vào tab
-    renderStockLedger();
-  } else if (tabId === "reports") {
-    populateReportAccountDropdown();
-    try { generateReport(); } catch (e) { console.error("Lỗi tạo báo cáo:", e); }
-  } else if (tabId === "partners") {
-    filterPartners();
-  } else if (tabId === "debts") {
-    filterDebts();
-  } else if (tabId === "cash") {
-    filterCash();
-    recalculateCashKpis();
-  } else if (tabId === "dashboard") {
-    renderDashboard();
-  } else if (tabId === "settings") {
-    if (typeof updateErrorLogsUI === "function") {
-      updateErrorLogsUI();
-    }
-  }
+  renderTabIfNeeded(tabId);
 
   // Khôi phục các modal đang mở trước đó của tab mới
   const restoreModals = activeModalsByTab[tabId];
@@ -3615,7 +3629,7 @@ function resetSalesForm() {
 
   const tbody = document.getElementById("sales-form-items-body");
   if (tbody) tbody.innerHTML = "";
-  document.getElementById("sale-desc").value = "Bán sản phẩm Rạng Đông xuất kho";
+  document.getElementById("sale-desc").value = "Bán hàng xuất kho";
   document.getElementById("sale-date").value = new Date().toISOString().split("T")[0];
   addSalesFormRow();
   // Auto-focus vào ô “Khách hàng mua” — trường quan trọng nhất khi mở form
@@ -5757,181 +5771,7 @@ function cleanNumericUnitProducts() {
   }
 }
 
-async function restoreAndApplyS06Prices(force = false) {
-  if (!force && localStorage.getItem("db_restore_v6") === "true") {
-    return;
-  }
-  
-  // Kiểm tra an toàn trước khi khôi phục tự động lúc khởi động
-  if (!force) {
-    const hasVouchers = state.vouchers && state.vouchers.length > 0;
-    const hasProducts = state.products && state.products.length > 5;
-    if (hasVouchers || hasProducts) {
-      console.log("[Database Restore] Bỏ qua khôi phục tự động v6 vì đã có dữ liệu hiện hữu.");
-      localStorage.setItem("db_restore_v6", "true");
-      return;
-    }
-  }
-
-  try {
-    // Nếu chạy tự động lần đầu (startup), xóa sạch database cũ về trạng thái gốc sạch
-    if (!force) {
-      console.log("Forcing database clean reset for version 6...");
-      if (typeof PREPOPULATED_DATABASE !== "undefined") {
-        state = JSON.parse(JSON.stringify(PREPOPULATED_DATABASE));
-      } else {
-        state = JSON.parse(JSON.stringify(DEFAULT_DATA));
-      }
-      // Khởi tạo các tài khoản số dư đầu kỳ
-      if (!state.initialBalances || Object.keys(state.initialBalances).length === 0) {
-        state.initialBalances = JSON.parse(JSON.stringify(DEFAULT_DATA.initialBalances));
-      }
-      if (!state.partnerOpeningBalances || Object.keys(state.partnerOpeningBalances).length === 0) {
-        state.partnerOpeningBalances = {};
-      }
-      state.vouchers = []; // Xóa sạch toàn bộ chứng từ cũ
-    }
-
-    // 1. Đọc và khôi phục danh mục từ Vat_tu__hang_hoa__dich_vu.xlsx
-    const vtBytes = await readExcelViaIPC("Vat_tu__hang_hoa__dich_vu.xlsx");
-    if (!vtBytes) return;
-
-    if (typeof XLSX === "undefined") {
-      console.warn("Chưa nạp thư viện XLSX");
-      return;
-    }
-    const wb = XLSX.read(vtBytes, { type: "array" });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
-    if (rows.length < 3) return;
-
-    const restoredProducts = [];
-    for (let i = 2; i < rows.length; i++) {
-      const row = rows[i];
-      const id = String(row[0] || "").trim().toUpperCase();
-      const name = String(row[1] || "").trim();
-      if (!id || !name || id === "MÃ" || id === "TỔNG CỘNG") continue;
-
-      const unit = String(row[7] || "").trim();
-      const minStock = safeParseFloat(row[9]);
-      const stock = safeParseFloat(row[31]);
-      const totalValue = safeParseFloat(row[33]);
-      const avgCost = stock > 0 ? Math.round(totalValue / stock) : (safeParseFloat(row[20]) || safeParseFloat(row[19]) || 0);
-      const group = String(row[3] || "").trim();
-      const inactiveVal = String(row[30] || "").trim();
-      const inactive = inactiveVal === "1" || inactiveVal === "Có" || inactiveVal === "True" || inactiveVal === "true";
-      const salePrice1 = safeParseFloat(row[21]);
-      const initialCost = safeParseFloat(row[19]) || avgCost || 0;
-
-      restoredProducts.push({
-        id,
-        name,
-        unit,
-        stock,
-        avgCost,
-        totalValue,
-        initialStock: stock,
-        actualStock: stock,
-        initialCost: initialCost,
-        salePrice1,
-        lastPurchasePrice: avgCost,
-        minStock,
-        group,
-        inactive,
-        nature: String(row[2] || "Vật tư hàng hóa").trim(),
-        defaultWarehouse: String(row[11] || "").trim(),
-        warehouseAccount: String(row[12] || "1561").trim(),
-        cogsAccount: String(row[13] || "632").trim(),
-        revenueAccount: String(row[14] || "51111").trim(),
-        excelRow: row
-      });
-    }
-
-    if (restoredProducts.length === 0) return;
-
-    // Thay thế danh mục sản phẩm hiện tại bằng danh mục sạch
-    state.products = restoredProducts;
-    console.log(`[Database Restore] Đã khôi phục ${state.products.length} sản phẩm từ file gốc.`);
-
-    // 2. Đọc và áp dụng đơn giá mới nhất từ S06 (gia_moi_tong_hop.csv)
-    const csvBytes = await readExcelViaIPC("gia_moi_tong_hop.csv");
-    let matchedCount = 0;
-    if (csvBytes) {
-      const text = new TextDecoder("utf-8").decode(csvBytes);
-      const lines = text.split(/\r?\n/).filter(l => l.trim());
-      if (lines.length >= 2) {
-        const header = lines[0].split(",");
-        // Sửa lỗi Byte Order Mark (BOM) bằng cách replace /^\ufeff/
-        const cleanHeader = header.map(h => h.replace(/^\ufeff/, "").trim().toLowerCase());
-        const colMa = cleanHeader.indexOf("ma");
-        const colDg = cleanHeader.indexOf("don_gia_moi");
-
-        if (colMa !== -1 && colDg !== -1) {
-          const priceMap = {};
-          for (let i = 1; i < lines.length; i++) {
-            const cols = lines[i].split(",");
-            const ma = (cols[colMa] || "").trim().toUpperCase();
-            const dg = parseInt((cols[colDg] || "0").trim()) || 0;
-            if (ma && dg > 0) priceMap[ma] = dg;
-          }
-
-          state.products.forEach(p => {
-            const key = p.id.toUpperCase();
-            if (priceMap.hasOwnProperty(key)) {
-              const newPrice = priceMap[key];
-              p.avgCost = newPrice;
-              p.initialCost = newPrice;
-              p.totalValue = (p.stock || 0) * newPrice;
-              matchedCount++;
-            }
-          });
-        } else {
-          console.warn("[Database Restore] Không tìm thấy cột ma hoặc don_gia_moi trong csv:", cleanHeader);
-        }
-      }
-    }
-
-    // 3. Cập nhật số dư đầu kỳ TK 156
-    let newInvOpBal = 0;
-    state.products.forEach(p => {
-      newInvOpBal += (p.initialStock || 0) * (p.initialCost || 0);
-    });
-    if (state.initialBalances && state.initialBalances["156"]) {
-      state.initialBalances["156"].balance = newInvOpBal;
-    }
-    if (typeof rebalanceEquity === "function") rebalanceEquity();
-
-    // 4. Lưu CSDL và tính toán lại sổ sách kế toán
-    saveState();
-    recalculateAccounting();
-
-    // 5. Cập nhật giao diện
-    if (typeof renderInventoryTable === "function") renderInventoryTable();
-    if (typeof renderDashboard === "function") renderDashboard();
-    if (typeof populateProductLedgerDropdown === "function") populateProductLedgerDropdown();
-
-    // Hiển thị thông báo
-    setTimeout(() => {
-      showToast(`⚡ Đã khôi phục danh mục gốc (${state.products.length} hàng) và cập nhật đơn giá xuất S06 (${matchedCount} hàng) thành công!`, "success");
-    }, 1500);
-
-    localStorage.setItem("db_restore_v6", "true");
-  } catch (err) {
-    console.warn("Lỗi khôi phục danh mục và cập nhật giá S06:", err);
-  }
-}
-
-async function manuallyRestoreDatabaseFromExcel() {
-  if (confirm("Bạn có chắc chắn muốn nhập lại toàn bộ danh mục sản phẩm từ file gốc 'Vat_tu__hang_hoa__dich_vu.xlsx' và cập nhật đơn giá xuất từ 'gia_moi_tong_hop.csv'? Thao tác này sẽ khôi phục danh mục kho hàng về trạng thái sạch ban đầu của Rạng Đông.")) {
-    try {
-      showToast("Đang đọc file gốc và cập nhật đơn giá... Vui lòng đợi.", "info");
-      await restoreAndApplyS06Prices(true);
-    } catch (err) {
-      showToast(`Lỗi khôi phục: ${err.message}`, "danger");
-    }
-  }
-}
-window.manuallyRestoreDatabaseFromExcel = manuallyRestoreDatabaseFromExcel;
+// Chức năng khôi phục danh mục gốc và giá S06 đã bị loại bỏ vì là module lỗi
 
 function getVNAccountingAccounts(nature) {
   const nat = (nature || "").trim();
@@ -7737,6 +7577,66 @@ function openAddPaymentModal() {
   openModal("modal-add-payment");
 }
 
+function generateNextReceiptVoucherId() {
+  const prefix = "PT";
+  const regex = /^PT(\d+)$/;
+  let maxNum = 0;
+
+  state.vouchers.forEach(v => {
+    if (v && v.id) {
+      const match = v.id.match(regex);
+      if (match) {
+        const num = parseInt(match[1]);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+  });
+
+  if (maxNum === 0) {
+    maxNum = 13122; // default safe fallback based on DB state
+  }
+
+  let nextId = `${prefix}${maxNum + 1}`;
+  if (Array.isArray(state.deletedIds)) {
+    let checkNum = maxNum + 1;
+    while (state.deletedIds.includes(nextId)) {
+      checkNum++;
+      nextId = `${prefix}${checkNum}`;
+    }
+  }
+  return nextId;
+}
+
+function generateNextPaymentVoucherId() {
+  const prefix = "PC";
+  const regex = /^PC(\d+)$/;
+  let maxNum = 0;
+
+  state.vouchers.forEach(v => {
+    if (v && v.id) {
+      const match = v.id.match(regex);
+      if (match) {
+        const num = parseInt(match[1]);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+  });
+
+  if (maxNum === 0) {
+    maxNum = 7194; // default safe fallback based on DB state
+  }
+
+  let nextId = `${prefix}${maxNum + 1}`;
+  if (Array.isArray(state.deletedIds)) {
+    let checkNum = maxNum + 1;
+    while (state.deletedIds.includes(nextId)) {
+      checkNum++;
+      nextId = `${prefix}${checkNum}`;
+    }
+  }
+  return nextId;
+}
+
 function handleReceiptSubmit(e) {
   e.preventDefault();
 
@@ -7749,8 +7649,7 @@ function handleReceiptSubmit(e) {
 
   const partnerObj = resolvePartner(partnerVal);
 
-  const nextNum = (state.vouchers.filter(v => v.type === 'receipt').length + 1).toString().padStart(4, '0');
-  const id = `PT-${new Date().getFullYear().toString().substring(2)}-${nextNum}`;
+  const id = generateNextReceiptVoucherId();
 
   const newVoucher = {
     id,
@@ -7792,8 +7691,7 @@ function handlePaymentSubmit(e) {
 
   const partnerObj = resolvePartner(partnerVal);
 
-  const nextNum = (state.vouchers.filter(v => v.type === 'payment').length + 1).toString().padStart(4, '0');
-  const id = `PC-${new Date().getFullYear().toString().substring(2)}-${nextNum}`;
+  const id = generateNextPaymentVoucherId();
 
   const newVoucher = {
     id,
@@ -9786,7 +9684,16 @@ async function startSupabaseClient() {
   }
 }
 
+function logToDebugFile(msg) {
+  console.log(msg);
+  if (window.electronAPI && typeof window.electronAPI.writeLog === "function") {
+    window.electronAPI.writeLog(msg).catch(err => console.error("logToDebugFile error:", err));
+  }
+}
+
 async function fetchCloudDelta(localTs) {
+  logToDebugFile(`[fetchCloudDelta] Bắt đầu. localTs = ${localTs}`);
+  
   // 1. Tải dòng metadata trước để lấy last_modified mới nhất trên đám mây
   const { data: metadataRow, error: metaError } = await supabaseClient
     .from("rd_accounting_data")
@@ -9794,19 +9701,97 @@ async function fetchCloudDelta(localTs) {
     .eq("id", "metadata")
     .single();
     
-  if (metaError) throw metaError;
-  if (!metadataRow) return null;
+  if (metaError) {
+    logToDebugFile(`[fetchCloudDelta] LỖI khi tải metadata: ${JSON.stringify(metaError)}`);
+    throw metaError;
+  }
+  if (!metadataRow) {
+    logToDebugFile(`[fetchCloudDelta] Không tìm thấy dòng metadata trên Cloud.`);
+    return null;
+  }
 
   const cloudTs = metadataRow.last_modified || 0;
+  logToDebugFile(`[fetchCloudDelta] Tải metadata thành công. cloudTs = ${cloudTs}, localTs = ${localTs}`);
+  
   if (localTs > 0 && cloudTs <= localTs) {
     console.log(`[Supabase] Dữ liệu cục bộ đã mới nhất hoặc trùng khớp. (Cloud: ${cloudTs}, Local: ${localTs})`);
+    logToDebugFile(`[fetchCloudDelta] Kết thúc sớm: Dữ liệu đã mới nhất.`);
     return null; // Không cần tải thêm
   }
 
-  // 2. Tải danh sách ID và last_modified theo từng trang nhỏ 500 dòng
-  //    (giảm từ 1000 → 500 để tránh timeout trên Supabase free tier)
+  // 2. TỐI ƯU HÓA TẢI MỚI TOÀN BỘ (localTs === 0): Tải dữ liệu trực tiếp theo trang dùng Keyset Pagination
+  if (localTs === 0) {
+    logToDebugFile(`[fetchCloudDelta] Chế độ TẢI MỚI TOÀN BỘ (localTs === 0)`);
+    let changedRows = [];
+    let lastSeenId = "";
+    const step = 500;
+    const MAX_PAGES = 100; // Cho phép tải tối đa 50.000 dòng dữ liệu
+    let page = 0;
+    
+    while (page < MAX_PAGES) {
+      if (typeof updateCloudSyncBadge === "function") {
+        updateCloudSyncBadge(false, `Mây: Tải dữ liệu trang (${page + 1})...`, "#f59e0b");
+      }
+      
+      logToDebugFile(`[fetchCloudDelta] Tải mới toàn bộ: Bắt đầu tải trang ${page + 1}, lastSeenId = ${lastSeenId}`);
+      let data = null, error = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (attempt > 0) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          console.warn(`[fetchCloudDelta] Thử lại trang ${page + 1} (lần ${attempt + 1})...`);
+          logToDebugFile(`[fetchCloudDelta] Thử lại trang ${page + 1} (lần ${attempt + 1})...`);
+        }
+        let query = supabaseClient
+          .from("rd_accounting_data")
+          .select("id, data, last_modified")
+          .order("id")
+          .limit(step);
+        if (lastSeenId) {
+          query = query.gt("id", lastSeenId);
+        }
+        const res = await query;
+        data = res.data;
+        error = res.error;
+        if (!error) break;
+      }
+      
+      if (error) {
+        logToDebugFile(`[fetchCloudDelta] LỖI khi tải trang ${page + 1}: ${JSON.stringify(error)}`);
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        logToDebugFile(`[fetchCloudDelta] Tải mới toàn bộ: Trang ${page + 1} không có dữ liệu (kết thúc danh sách).`);
+        break;
+      }
+      
+      logToDebugFile(`[fetchCloudDelta] Tải mới toàn bộ: Trang ${page + 1} thành công. Lấy được ${data.length} dòng.`);
+      changedRows = changedRows.concat(data);
+      if (data.length < step) {
+        logToDebugFile(`[fetchCloudDelta] Tải mới toàn bộ: Đã chạm trang cuối cùng (dữ liệu tải về < ${step}).`);
+        break;
+      }
+      lastSeenId = data[data.length - 1].id;
+      page++;
+    }
+    
+    // Luôn đảm bảo có hàng metadata trong changedRows để cập nhật deletedIds
+    if (!changedRows.some(r => r.id === "metadata")) {
+      changedRows.push({
+        id: "metadata",
+        data: metadataRow.data,
+        last_modified: cloudTs
+      });
+    }
+    
+    logToDebugFile(`[fetchCloudDelta] Kết thúc tải mới toàn bộ. Tổng số dòng thay đổi: ${changedRows.length}`);
+    return { changedRows, cloudTs };
+  }
+
+  // 3. TẢI INCREMENTAL DELTA (localTs > 0): Dùng Keyset Pagination để quét danh sách thay đổi
+  logToDebugFile(`[fetchCloudDelta] Chế độ TẢI INCREMENTAL (localTs = ${localTs})`);
   let allItems = [];
-  let from = 0;
+  let lastSeenId = "";
   const step = 500;
   const MAX_PAGES = 40; // Giới hạn an toàn: tối đa 40 trang × 500 = 20.000 rows
   let page = 0;
@@ -9816,12 +9801,16 @@ async function fetchCloudDelta(localTs) {
       updateCloudSyncBadge(false, `Mây: Quét danh sách (${page + 1})...`, "#f59e0b");
     }
     
+    logToDebugFile(`[fetchCloudDelta] Quét danh sách incremental: Trang ${page + 1}, lastSeenId = ${lastSeenId}`);
     let query = supabaseClient
       .from("rd_accounting_data")
       .select("id, last_modified");
       
     if (localTs > 0) {
       query = query.gt("last_modified", localTs);
+    }
+    if (lastSeenId) {
+      query = query.gt("id", lastSeenId);
     }
 
     // Thử tải trang hiện tại, tự thử lại 1 lần nếu bị timeout
@@ -9831,22 +9820,34 @@ async function fetchCloudDelta(localTs) {
         // Chờ 2 giây trước khi thử lại
         await new Promise(resolve => setTimeout(resolve, 2000));
         console.warn(`[fetchCloudDelta] Thử lại trang ${page + 1} (lần ${attempt + 1})...`);
+        logToDebugFile(`[fetchCloudDelta] Thử lại trang ${page + 1} (lần ${attempt + 1})...`);
       }
-      const res = await query.order("id").range(from, from + step - 1);
+      const res = await query.order("id").limit(step);
       data = res.data;
       error = res.error;
       if (!error) break; // Thành công → thoát retry loop
       if (!error.message || !error.message.includes("timeout")) break; // Lỗi khác → không retry
       console.error(`[fetchCloudDelta] Timeout tại trang ${page + 1}, thử lại...`, error.message);
+      logToDebugFile(`[fetchCloudDelta] Timeout tại trang ${page + 1}, thử lại... ${error.message}`);
     }
 
-    if (error) throw error;
-    if (!data || data.length === 0) break;
+    if (error) {
+      logToDebugFile(`[fetchCloudDelta] LỖI khi quét trang ${page + 1}: ${JSON.stringify(error)}`);
+      throw error;
+    }
+    if (!data || data.length === 0) {
+      logToDebugFile(`[fetchCloudDelta] Quét danh sách incremental: Trang ${page + 1} không có dữ liệu mới.`);
+      break;
+    }
+    
+    logToDebugFile(`[fetchCloudDelta] Quét danh sách incremental: Trang ${page + 1} lấy được ${data.length} dòng.`);
     allItems = allItems.concat(data);
     if (data.length < step) break;
-    from += step;
+    lastSeenId = data[data.length - 1].id;
     page++;
   }
+
+  logToDebugFile(`[fetchCloudDelta] Kết thúc quét danh sách. Tổng số dòng có thay đổi (allItems): ${allItems.length}`);
 
   if (allItems.length === 0) {
     return {
@@ -9859,8 +9860,7 @@ async function fetchCloudDelta(localTs) {
     };
   }
 
-  // 3. Phân chia danh sách ID thành các lô 200 ID để tải dữ liệu chi tiết
-  //    (giảm từ 300 → 200 để mỗi request nhẹ hơn, tránh timeout khi row lớn)
+  // Phân chia danh sách ID thành các lô 200 ID để tải dữ liệu chi tiết
   const ids = allItems.map(item => item.id);
   const batches = [];
   const BATCH_SIZE = 200;
@@ -9868,31 +9868,43 @@ async function fetchCloudDelta(localTs) {
     batches.push(ids.slice(i, i + BATCH_SIZE));
   }
 
-  // 4. Tải song song với mức độ đồng thời (concurrency) = 4
-  //    (giảm từ 6 → 4 để tránh quá tải server)
+  // Tải song song với mức độ đồng thời (concurrency) = 4
   let changedRows = [];
   const CONCURRENCY = 4;
   for (let i = 0; i < batches.length; i += CONCURRENCY) {
+    const batchNum = Math.floor(i / CONCURRENCY) + 1;
+    const totalBatches = Math.ceil(batches.length / CONCURRENCY);
     if (typeof updateCloudSyncBadge === "function") {
-      const batchNum = Math.floor(i / CONCURRENCY) + 1;
-      const totalBatches = Math.ceil(batches.length / CONCURRENCY);
       updateCloudSyncBadge(false, `Mây: Tải dữ liệu (${batchNum}/${totalBatches})...`, "#f59e0b");
     }
 
+    logToDebugFile(`[fetchCloudDelta] Bắt đầu tải lô chi tiết ${batchNum}/${totalBatches}`);
     const slice = batches.slice(i, i + CONCURRENCY);
+    slice.forEach((b, idx) => {
+      logToDebugFile(`[fetchCloudDelta]   - Lô con ${idx + 1}: gồm ${b.length} phần tử (từ ${b[0]} đến ${b[b.length-1]})`);
+    });
+
     const promises = slice.map(batch =>
       supabaseClient
         .from("rd_accounting_data")
         .select("id, data, last_modified")
         .in("id", batch)
     );
+    
+    logToDebugFile(`[fetchCloudDelta] Gửi truy vấn Promise.all cho lô chi tiết ${batchNum}/${totalBatches}...`);
     const responses = await Promise.all(promises);
+    logToDebugFile(`[fetchCloudDelta] Đã nhận phản hồi từ Supabase cho lô chi tiết ${batchNum}/${totalBatches}`);
+    
     for (const res of responses) {
-      if (res.error) throw res.error;
+      if (res.error) {
+        logToDebugFile(`[fetchCloudDelta] LỖI khi tải chi tiết cho lô ${batchNum}/${totalBatches}: ${JSON.stringify(res.error)}`);
+        throw res.error;
+      }
       if (res.data) {
         changedRows = changedRows.concat(res.data);
       }
     }
+    logToDebugFile(`[fetchCloudDelta] Lô chi tiết ${batchNum}/${totalBatches} xử lý xong. Lũy kế changedRows: ${changedRows.length} dòng.`);
   }
 
   // Luôn đảm bảo có hàng metadata trong changedRows để cập nhật deletedIds
@@ -9904,6 +9916,7 @@ async function fetchCloudDelta(localTs) {
     });
   }
 
+  logToDebugFile(`[fetchCloudDelta] Kết thúc tải incremental. Tổng số dòng dữ liệu trả về: ${changedRows.length}`);
   return { changedRows, cloudTs };
 }
 
@@ -9932,6 +9945,22 @@ function applyDeltaToState(changedRows, cloudTs) {
   const partnersChunks = [];
   foundOldChunkIds = [];
 
+  // Khởi tạo các Map để tra cứu nhanh (Tránh độ phức tạp O(N^2))
+  const partnerIndexMap = new Map();
+  (baseState.partners || []).forEach((p, index) => {
+    if (p && p.id) partnerIndexMap.set(p.id, index);
+  });
+
+  const voucherIndexMap = new Map();
+  (baseState.vouchers || []).forEach((v, index) => {
+    if (v && v.id) voucherIndexMap.set(v.id, index);
+  });
+
+  const productIndexMap = new Map();
+  (baseState.products || []).forEach((p, index) => {
+    if (p && p.id) productIndexMap.set(p.id, index);
+  });
+
   // 1. Hợp nhất các dòng thay đổi
   changedRows.forEach(row => {
     if (!row) return;
@@ -9941,6 +9970,10 @@ function applyDeltaToState(changedRows, cloudTs) {
     } else if (row.id === "products") {
       baseState.products = row.data || [];
       foundOldChunkIds.push(row.id);
+      productIndexMap.clear();
+      baseState.products.forEach((p, index) => {
+        if (p && p.id) productIndexMap.set(p.id, index);
+      });
     } else if (row.id.startsWith("partners_")) {
       const idx = parseInt(row.id.split("_")[1]) || 0;
       partnersChunks[idx] = row.data || [];
@@ -9958,12 +9991,13 @@ function applyDeltaToState(changedRows, cloudTs) {
           baseState.deletedIds = baseState.deletedIds.filter(id => id !== cloudVoucher.id);
           console.log(`[applyDelta] Voucher ${cloudVoucher.id} được khôi phục: xóa khỏi deletedIds vì có trên cloud.`);
         }
-        const idx = baseState.vouchers.findIndex(v => v.id === cloudVoucher.id);
+        const idx = voucherIndexMap.has(cloudVoucher.id) ? voucherIndexMap.get(cloudVoucher.id) : -1;
         if (idx !== -1) {
           const localVoucher = baseState.vouchers[idx];
           // === PHÁT HIỆN XUNG ĐỘT ID SONG SONG ===
           // Cả hai bên đều có _sessionId, khác nhau, và bản cục bộ là của máy này
           if (
+            localVoucher &&
             localVoucher._sessionId &&
             cloudVoucher._sessionId &&
             localVoucher._sessionId !== cloudVoucher._sessionId &&
@@ -9975,26 +10009,29 @@ function applyDeltaToState(changedRows, cloudTs) {
           baseState.vouchers[idx] = cloudVoucher; // cloud thắng
         } else {
           baseState.vouchers.push(cloudVoucher);
+          voucherIndexMap.set(cloudVoucher.id, baseState.vouchers.length - 1);
         }
       }
     } else if (row.id.startsWith("p_")) {
       const product = row.data;
       if (product && product.id) {
-        const idx = baseState.products.findIndex(p => p.id === product.id);
+        const idx = productIndexMap.has(product.id) ? productIndexMap.get(product.id) : -1;
         if (idx !== -1) {
           baseState.products[idx] = product;
         } else {
           baseState.products.push(product);
+          productIndexMap.set(product.id, baseState.products.length - 1);
         }
       }
     } else if (row.id.startsWith("part_")) {
       const partner = row.data;
       if (partner && partner.id) {
-        const idx = baseState.partners.findIndex(p => p.id === partner.id);
+        const idx = partnerIndexMap.has(partner.id) ? partnerIndexMap.get(partner.id) : -1;
         if (idx !== -1) {
           baseState.partners[idx] = partner;
         } else {
           baseState.partners.push(partner);
+          partnerIndexMap.set(partner.id, baseState.partners.length - 1);
         }
       }
     }
@@ -10007,8 +10044,9 @@ function applyDeltaToState(changedRows, cloudTs) {
       if (chunk) tempPartners.push(...chunk);
     });
     tempPartners.forEach(part => {
-      if (part && part.id && !baseState.partners.some(p => p.id === part.id)) {
+      if (part && part.id && !partnerIndexMap.has(part.id)) {
         baseState.partners.push(part);
+        partnerIndexMap.set(part.id, baseState.partners.length - 1);
       }
     });
   }
@@ -10019,8 +10057,9 @@ function applyDeltaToState(changedRows, cloudTs) {
       if (chunk) tempVouchers.push(...chunk);
     });
     tempVouchers.forEach(v => {
-      if (v && v.id && !baseState.vouchers.some(item => item.id === v.id)) {
+      if (v && v.id && !voucherIndexMap.has(v.id)) {
         baseState.vouchers.push(v);
+        voucherIndexMap.set(v.id, baseState.vouchers.length - 1);
       }
     });
   }
@@ -10141,6 +10180,9 @@ async function pullFromCloudOnStartup() {
         console.error("[Cache] Lỗi ghi cache cục bộ:", cacheErr);
       }
 
+      // Thực hiện dọn dẹp các đơn hàng có ID dạng số tự sinh
+      cleanNumericVouchers();
+
       // Nếu deduplication đã loại bỏ voucher trùng lặp → đẩy ngay lên cloud để sửa dữ liệu
       const stateVoucherCount = (state.vouchers || []).length;
       if (stateVoucherCount < cloudVoucherCount) {
@@ -10171,8 +10213,9 @@ async function pullFromCloudOnStartup() {
       filterPartners();
       filterCash();
       if (typeof initExcelIntegration === "function") initExcelIntegration();
+      updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
     } else {
-      console.log("Cơ sở dữ liệu đám mây trống hoặc chưa có sản phẩm. Nạp dữ liệu từ Excel cục bộ...");
+      console.log("Cơ sở dữ liệu đám mây trống hoặc chưa có sản phẩm. Khởi tạo dữ liệu trắng ban đầu.");
       if (cloudData) {
         state = cloudData;
       } else {
@@ -10190,15 +10233,14 @@ async function pullFromCloudOnStartup() {
       lastSyncState = JSON.parse(JSON.stringify(state));
       lastSyncedCloudTs = state._lastModified || 0;
       recalculateAccounting(false);
-
-      // Chạy tích hợp tự động một lần duy nhất để đẩy lên cloud
-      await runAutoIntegrations();
+      updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
     }
   } catch (err) {
     if (typeof addErrorLog === "function") {
       addErrorLog("pullFromCloudOnStartup", err.message, err);
     }
     showToast("Không thể tải dữ liệu đám mây khi khởi động. Hãy kiểm tra Internet hoặc máy chủ.", "danger");
+    updateCloudSyncBadge(false, "Mây: Lỗi kết nối", "#ef4444");
   }
 }
 
@@ -10283,6 +10325,27 @@ function forcePullFromCloud() {
       updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
     });
 }
+
+function manualIncrementalSync() {
+  if (!cloudSyncActive || !supabaseClient) {
+    showToast("Ứng dụng chưa kết nối Đám mây!", "danger");
+    return;
+  }
+
+  updateCloudSyncBadge(false, "Mây: Đang tải...", "#f59e0b");
+
+  pullAndMergeFromCloud()
+    .then(() => {
+      showToast("Đồng bộ dữ liệu mới thành công!", "success");
+    })
+    .catch((err) => {
+      if (typeof addErrorLog === "function") {
+        addErrorLog("manualIncrementalSync", err.message, err);
+      }
+      showToast("Lỗi đồng bộ: " + err.message, "danger");
+    });
+}
+
 
 // ==========================================================================
 // SMART MERGE — Gộp dữ liệu từ 2 máy, tránh mất dữ liệu khi ghi đồng thời
@@ -10393,6 +10456,77 @@ let pushPending = false;
 let _isMergePushing = false;
 let pushRetryTimeout = null;
 
+function areVouchersEqual(v1, v2) {
+  if (v1 === v2) return true;
+  if (!v1 || !v2) return false;
+  if (v1.id !== v2.id) return false;
+  if (v1.date !== v2.date) return false;
+  if (v1.partnerId !== v2.partnerId) return false;
+  if (v1.amount !== v2.amount) return false;
+  if (v1.totalAmount !== v2.totalAmount) return false;
+  if (v1.type !== v2.type) return false;
+  if (v1.description !== v2.description) return false;
+  if (v1.paymentMethod !== v2.paymentMethod) return false;
+  if (v1.isManual !== v2.isManual) return false;
+  if (v1.isImported !== v2.isImported) return false;
+  if (v1.escrowRefId !== v2.escrowRefId) return false;
+  
+  const items1 = v1.items || [];
+  const items2 = v2.items || [];
+  if (items1.length !== items2.length) return false;
+  for (let i = 0; i < items1.length; i++) {
+    const it1 = items1[i];
+    const it2 = items2[i];
+    if (it1.productId !== it2.productId) return false;
+    if (it1.qty !== it2.qty) return false;
+    if (it1.price !== it2.price) return false;
+    if (it1.amount !== it2.amount) return false;
+    if (it1.cogsUnit !== it2.cogsUnit) return false;
+    if (it1.cogsAmount !== it2.cogsAmount) return false;
+  }
+
+  const ent1 = v1.entries || [];
+  const ent2 = v2.entries || [];
+  if (ent1.length !== ent2.length) return false;
+  for (let i = 0; i < ent1.length; i++) {
+    const e1 = ent1[i];
+    const e2 = ent2[i];
+    if (e1.debit !== e2.debit) return false;
+    if (e1.credit !== e2.credit) return false;
+    if (e1.amount !== e2.amount) return false;
+    if (e1.desc !== e2.desc) return false;
+  }
+
+  return true;
+}
+
+function areProductsEqual(p1, p2) {
+  if (p1 === p2) return true;
+  if (!p1 || !p2) return false;
+  if (p1.id !== p2.id) return false;
+  if (p1.name !== p2.name) return false;
+  if (p1.unit !== p2.unit) return false;
+  if (p1.stock !== p2.stock) return false;
+  if (p1.avgCost !== p2.avgCost) return false;
+  if (p1.totalValue !== p2.totalValue) return false;
+  if (p1.initialStock !== p2.initialStock) return false;
+  if (p1.initialCost !== p2.initialCost) return false;
+  if (p1.actualStock !== p2.actualStock) return false;
+  if (p1.lastPurchasePrice !== p2.lastPurchasePrice) return false;
+  return true;
+}
+
+function arePartnersEqual(pa1, pa2) {
+  if (pa1 === pa2) return true;
+  if (!pa1 || !pa2) return false;
+  if (pa1.id !== pa2.id) return false;
+  if (pa1.name !== pa2.name) return false;
+  if (pa1.type !== pa2.type) return false;
+  if (pa1.phone !== pa2.phone) return false;
+  if (pa1.address !== pa2.address) return false;
+  return true;
+}
+
 function computeDelta() {
   const rowsToUpsert = [];
   const idsToDelete = [];
@@ -10426,7 +10560,7 @@ function computeDelta() {
     localVouchers.forEach(v => {
       if (v && v.id) {
         const oldV = lastVouchersMap.get(v.id);
-        if (!oldV || JSON.stringify(oldV) !== JSON.stringify(v)) {
+        if (!oldV || !areVouchersEqual(oldV, v)) {
           rowsToUpsert.push(makeRow(`v_${v.id}`, v));
         }
       }
@@ -10446,7 +10580,7 @@ function computeDelta() {
     localProducts.forEach(p => {
       if (p && p.id) {
         const oldP = lastProductsMap.get(p.id);
-        if (!oldP || JSON.stringify(oldP) !== JSON.stringify(p)) {
+        if (!oldP || !areProductsEqual(oldP, p)) {
           rowsToUpsert.push(makeRow(`p_${p.id}`, p));
         }
       }
@@ -10466,7 +10600,7 @@ function computeDelta() {
     localPartners.forEach(part => {
       if (part && part.id) {
         const oldPart = lastPartnersMap.get(part.id);
-        if (!oldPart || JSON.stringify(oldPart) !== JSON.stringify(part)) {
+        if (!oldPart || !arePartnersEqual(oldPart, part)) {
           rowsToUpsert.push(makeRow(`part_${part.id}`, part));
         }
       }
@@ -10628,13 +10762,17 @@ async function pullAndMergeFromCloud() {
 
   try {
     const result = await fetchCloudData(lastSyncedCloudTs);
-    if (!result) return; // không có gì mới
+    if (!result) {
+      updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
+      return; // không có gì mới
+    }
     const { newState: cloudData, rescuedVouchers } = result;
     if (cloudData) {
       const cloudTs = cloudData._lastModified || 0;
       const localTs = state._lastModified || 0;
       if (cloudTs > 0 && localTs > 0 && cloudTs === localTs) {
         console.log("[Supabase] Trùng timestamp, không cần tải lại.");
+        updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
         return;
       }
 
@@ -10660,11 +10798,15 @@ async function pullAndMergeFromCloud() {
       filterPartners();
       filterCash();
       if (typeof initExcelIntegration === "function") initExcelIntegration();
+      updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
+    } else {
+      updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
     }
   } catch (err) {
     if (typeof addErrorLog === "function") {
       addErrorLog("pullAndMergeFromCloud", err.message, err);
     }
+    updateCloudSyncBadge(false, "Mây: Lỗi kết nối", "#ef4444");
   }
 }
 
@@ -10790,6 +10932,15 @@ function updateCloudSyncBadge(connected, text, color = "#64748b") {
     } else {
       indicator.classList.remove("pulse-indicator");
     }
+
+    const refreshIcon = document.getElementById("cloud-sync-refresh-icon");
+    if (refreshIcon) {
+      if (text.includes("Đang tải") || text.includes("Tải dữ liệu") || text.includes("Quét danh sách") || text.includes("Đang đẩy")) {
+        refreshIcon.classList.add("spinning");
+      } else {
+        refreshIcon.classList.remove("spinning");
+      }
+    }
   }
 }
 
@@ -10799,9 +10950,11 @@ window.initCloudSync = initCloudSync;
 window.saveCloudConfig = saveCloudConfig;
 window.toggleCloudSyncInputs = toggleCloudSyncInputs;
 window.forcePullFromCloud = forcePullFromCloud;
+window.manualIncrementalSync = manualIncrementalSync;
 window.updateCloudSyncBadge = updateCloudSyncBadge;
 window.triggerAutoExtractPhones = triggerAutoExtractPhones;
 window.autoExtractPhonesAndCleanAddresses = autoExtractPhonesAndCleanAddresses;
+
 
 // ==========================================================
 // CÁC HÀM XỬ LÝ BATCH SELECTION & BATCH DELETE (VOUCHERS & PRODUCTS)

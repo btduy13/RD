@@ -22,6 +22,7 @@
     "electron-winstaller": "^5.4.0"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.108.1",
     "exceljs": "^4.4.0",
     "xlsx": "^0.18.5",
     "xlsx-js-style": "^1.2.0"

@@ -174,6 +174,16 @@
               style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">Mây: Tắt</span>
           </div>
 
+          <!-- Nút đồng bộ lại dữ liệu (Reset/Sync) -->
+          <button class="icon-btn" onclick="manualIncrementalSync()" title="Đồng bộ nhanh dữ liệu mới từ Đám mây">
+            <svg id="cloud-sync-refresh-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
+              style="width: 20px; height: 20px; transition: transform 0.2s;">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17"></path>
+            </svg>
+          </button>
+
+
           <!-- Nút đổi Theme -->
           <button class="icon-btn" onclick="toggleTheme()" title="Đổi giao diện Tối/Sáng">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
@@ -1847,12 +1857,7 @@
                   </button>
                 </div>
 
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                  <button class="btn btn-primary" onclick="manuallyRestoreDatabaseFromExcel()"
-                    style="flex: 1; background-color: var(--color-success); border-color: var(--color-success); color: white;">
-                    📥 Nhập lại danh mục gốc & Giá S06
-                  </button>
-                </div>
+
               </div>
             </div>
 
@@ -2654,7 +2659,7 @@
           <div class="form-group col-span-full">
             <label class="form-label">Diễn giải</label>
             <input type="text" id="pur-order-desc" class="form-control" required
-              placeholder="Ví dụ: Đặt hàng linh kiện phích nước..." value="Đơn đặt hàng mua vật tư hàng hóa">
+              placeholder="Ví dụ: Đặt hàng vật tư nhập kho..." value="Đơn đặt hàng mua vật tư hàng hóa">
           </div>
 
           <!-- Hàng hóa mua -->
@@ -2762,7 +2767,7 @@
           <div class="form-group col-span-full">
             <label class="form-label">Diễn giải</label>
             <input type="text" id="sale-desc" class="form-control" required
-              placeholder="Ví dụ: Bán bóng đèn LED cho đại lý Ánh Dương..." value="Bán hàng xuất kho">
+              placeholder="Ví dụ: Bán hàng xuất kho cho đại lý..." value="Bán hàng xuất kho">
           </div>
 
           <!-- Hàng hóa bán -->

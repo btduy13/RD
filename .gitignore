@@ -21,3 +21,5 @@ dist-installer/
 # Backups and scratch
 backup/
 scratch/
+sync_debug.log
+
