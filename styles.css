@@ -922,13 +922,13 @@ body {
 .voucher-table {
   width: 100%;
   border-collapse: collapse;
-  margin: 20px 0;
+  margin: 12px 0;
 }
 
 .voucher-table th, .voucher-table td {
   border: 1px solid #000000;
-  padding: 8px 10px;
-  font-size: 13px;
+  padding: 5px 8px;
+  font-size: 11.5px;
 }
 
 .voucher-table th {
@@ -1194,16 +1194,77 @@ body {
   .printable-voucher {
     box-shadow: none !important;
     padding: 0 !important;
-    margin: 0 auto !important;
+    margin: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
     background-color: transparent !important;
+    font-size: 10px !important;
+    line-height: 1.25 !important;
   }
 
   /* Tự động định dạng trang in và tự động scale theo khổ giấy */
   @page {
     size: auto;
-    margin: 10mm 12mm 10mm 12mm; /* Lề chuẩn giúp căn đối và giữ cho nội dung tự động fit vừa vặn */
+    margin: 4mm 6mm 4mm 6mm; /* Lề rất nhỏ giúp tận dụng tối đa khổ giấy, tránh lùi sâu */
+  }
+
+  /* Điều chỉnh kích thước nhỏ lại và tránh lùi sâu khi in chứng từ */
+  .printable-voucher table.voucher-table {
+    margin: 8px 0 !important;
+  }
+  .printable-voucher table.voucher-table th,
+  .printable-voucher table.voucher-table td {
+    padding: 3px 5px !important;
+    font-size: 9.5px !important;
+  }
+  .printable-voucher .voucher-header-top {
+    margin-bottom: 8px !important;
+  }
+  .printable-voucher .voucher-co-name {
+    font-size: 11px !important;
+  }
+  .printable-voucher .voucher-co-addr {
+    font-size: 9px !important;
+  }
+  .printable-voucher .voucher-template-code {
+    font-size: 9px !important;
+  }
+  .printable-voucher .voucher-title-area {
+    margin-bottom: 10px !important;
+  }
+  .printable-voucher .voucher-title {
+    font-size: 16px !important;
+  }
+  .printable-voucher .voucher-subtitle {
+    font-size: 9.5px !important;
+  }
+  .printable-voucher .voucher-entries-note {
+    position: absolute !important;
+    top: 55px !important;
+    right: 10px !important;
+    font-size: 9.5px !important;
+  }
+  .printable-voucher .voucher-info-row {
+    margin-bottom: 3px !important;
+    font-size: 10px !important;
+  }
+  .printable-voucher .voucher-signatures {
+    margin-top: 15px !important;
+  }
+  .printable-voucher .sig-block {
+    width: 23% !important;
+    font-size: 10px !important;
+  }
+  .printable-voucher .sig-subtext {
+    font-size: 9px !important;
+  }
+  .printable-voucher .sig-space {
+    height: 38px !important;
+  }
+  .printable-voucher .voucher-signatures,
+  .printable-voucher .sig-block {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   /* Hỗ trợ in ấn cho báo cáo kế toán */

@@ -395,7 +395,10 @@ ipcMain.handle('print-window', async (event) => {
     win.webContents.print({
       silent: false,           // Hiển thị hộp thoại chọn máy in hệ thống
       printBackground: true,   // In hình nền và màu sắc (quan trọng để giữ giao diện thiết kế)
-      color: true              // In màu sắc
+      color: true,             // In màu sắc
+      margins: {
+        marginType: 'none'     // Hủy lề mặc định của Electron để lề CSS @page tự quyết định, tránh lùi sâu
+      }
     }, (success, failureReason) => {
       if (!success) {
         console.error('[Print] In thất bại hoặc bị hủy:', failureReason);
