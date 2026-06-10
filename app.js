@@ -1129,9 +1129,15 @@ function executeSaveState(sync = false) {
       // Luôn cập nhật timestamp trước khi lưu và push
       state._lastModified = Date.now();
 
-      // Dọn dẹp deletedIds: Loại bỏ bất kỳ ID nào hiện đang hoạt động trong vouchers
-      if (Array.isArray(state.deletedIds) && Array.isArray(state.vouchers)) {
-        const activeIds = new Set(state.vouchers.map(v => v.id));
+      // Dọn dẹp deletedIds: Loại bỏ bất kỳ ID nào hiện đang hoạt động trong hệ thống (vouchers, products, partners, cashEntries, escrowItems)
+      if (Array.isArray(state.deletedIds)) {
+        const activeIds = new Set();
+        if (Array.isArray(state.vouchers)) state.vouchers.forEach(v => v && v.id && activeIds.add(v.id));
+        if (Array.isArray(state.products)) state.products.forEach(p => p && p.id && activeIds.add(p.id));
+        if (Array.isArray(state.partners)) state.partners.forEach(pt => pt && pt.id && activeIds.add(pt.id));
+        if (Array.isArray(state.cashEntries)) state.cashEntries.forEach(c => c && c.id && activeIds.add(c.id));
+        if (Array.isArray(state.escrowItems)) state.escrowItems.forEach(e => e && e.id && activeIds.add(e.id));
+
         state.deletedIds = state.deletedIds.filter(id => !activeIds.has(id));
       }
       
@@ -5110,7 +5116,10 @@ async function autoSaveBeforeClose() {
       saveStateTimeout = null;
     }
 
-    // 2. Nếu Cloud đang kết nối → đẩy trạng thái cuối cùng lên Cloud
+    // 2. Chạy đồng bộ ghi cache cục bộ lập tức
+    executeSaveState(true);
+
+    // 3. Nếu Cloud đang kết nối → đẩy trạng thái cuối cùng lên Cloud
     if (cloudSyncActive && supabaseClient) {
       // LƯU Ý: KHÔNG reset isPushing ở đây!
       // Việc reset isPushing khi đang có push chạy sẽ gây ra CONCURRENT PUSH,
@@ -10096,6 +10105,12 @@ function applyDeltaToState(changedRows, cloudTs) {
     } else if (row.id.startsWith("p_")) {
       const product = row.data;
       if (product && product.id) {
+        // Nếu sản phẩm tồn tại rõ ràng trên cloud (do máy khác tạo lại),
+        // tự động xóa nó khỏi deletedIds để Safety Net không lọc ra nhầm
+        if (Array.isArray(baseState.deletedIds) && baseState.deletedIds.includes(product.id)) {
+          baseState.deletedIds = baseState.deletedIds.filter(id => id !== product.id);
+          console.log(`[applyDelta] Sản phẩm ${product.id} được khôi phục: xóa khỏi deletedIds vì có trên cloud.`);
+        }
         const idx = productIndexMap.has(product.id) ? productIndexMap.get(product.id) : -1;
         if (idx !== -1) {
           baseState.products[idx] = product;
@@ -10107,6 +10122,12 @@ function applyDeltaToState(changedRows, cloudTs) {
     } else if (row.id.startsWith("part_")) {
       const partner = row.data;
       if (partner && partner.id) {
+        // Nếu đối tác tồn tại rõ ràng trên cloud (do máy khác tạo lại),
+        // tự động xóa nó khỏi deletedIds để Safety Net không lọc ra nhầm
+        if (Array.isArray(baseState.deletedIds) && baseState.deletedIds.includes(partner.id)) {
+          baseState.deletedIds = baseState.deletedIds.filter(id => id !== partner.id);
+          console.log(`[applyDelta] Đối tác ${partner.id} được khôi phục: xóa khỏi deletedIds vì có trên cloud.`);
+        }
         const idx = partnerIndexMap.has(partner.id) ? partnerIndexMap.get(partner.id) : -1;
         if (idx !== -1) {
           baseState.partners[idx] = partner;
@@ -10485,6 +10506,17 @@ function mergeArrayById(localArr, cloudArr, deletedIds) {
   return Array.from(map.values());
 }
 
+function getActiveIds(s) {
+  const ids = new Set();
+  if (!s) return ids;
+  if (Array.isArray(s.vouchers)) s.vouchers.forEach(v => v && v.id && ids.add(v.id));
+  if (Array.isArray(s.products)) s.products.forEach(p => p && p.id && ids.add(p.id));
+  if (Array.isArray(s.partners)) s.partners.forEach(pt => pt && pt.id && ids.add(pt.id));
+  if (Array.isArray(s.cashEntries)) s.cashEntries.forEach(c => c && c.id && ids.add(c.id));
+  if (Array.isArray(s.escrowItems)) s.escrowItems.forEach(e => e && e.id && ids.add(e.id));
+  return ids;
+}
+
 /**
  * Merge thông minh: gộp localState và cloudState, giữ lại tất cả dữ liệu.
  * Trả về state đã merge sẵn sàng để lưu và push lên cloud.
@@ -10502,13 +10534,21 @@ function mergeStates(localState, cloudState) {
     return { ...localState };
   }
 
+  let localDeleted = Array.isArray(localState.deletedIds) ? [...localState.deletedIds] : [];
+  let cloudDeleted = Array.isArray(cloudState.deletedIds) ? [...cloudState.deletedIds] : [];
+
+  if (localTs > cloudTs) {
+    // Local mới hơn: các item active bên local sẽ thắng các deletion bên cloud
+    const activeLocal = getActiveIds(localState);
+    cloudDeleted = cloudDeleted.filter(id => !activeLocal.has(id));
+  } else if (cloudTs > localTs) {
+    // Cloud mới hơn: các item active bên cloud sẽ thắng các deletion bên local
+    const activeCloud = getActiveIds(cloudState);
+    localDeleted = localDeleted.filter(id => !activeCloud.has(id));
+  }
+
   // Gộp deletedIds từ cả 2 nguồn để không tái xuất hiện dữ liệu đã xóa
-  const mergedDeletedIds = Array.from(
-    new Set([
-      ...(localState.deletedIds || []),
-      ...(cloudState.deletedIds || [])
-    ])
-  );
+  const mergedDeletedIds = Array.from(new Set([...localDeleted, ...cloudDeleted]));
 
   const merged = {
     // Cloud wins cho scalar fields (tên công ty, năm tài chính...)
