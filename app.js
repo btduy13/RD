@@ -5513,6 +5513,31 @@ function autoExtractPhonesFromNamesAndClean() {
   let count = 0;
   if (!state.partners) return 0;
 
+  // 1. Tự động khử trùng lặp các đối tác trùng khớp ID trong bộ nhớ trước
+  const partnerMap = new Map();
+  const originalLength = state.partners.length;
+  state.partners.forEach(p => {
+    if (p && p.id) {
+      if (!partnerMap.has(p.id)) {
+        partnerMap.set(p.id, p);
+      } else {
+        const existing = partnerMap.get(p.id);
+        // Ưu tiên bản ghi có thông tin liên lạc đầy đủ hơn (SĐT, địa chỉ)
+        const score = (p.phone && p.phone !== "-" ? 1 : 0) + (p.address && p.address !== "-" ? 1 : 0);
+        const existingScore = (existing.phone && existing.phone !== "-" ? 1 : 0) + (existing.address && existing.address !== "-" ? 1 : 0);
+        if (score > existingScore) {
+          partnerMap.set(p.id, p);
+        }
+      }
+    }
+  });
+  state.partners = Array.from(partnerMap.values());
+  const dedupCount = originalLength - state.partners.length;
+  if (dedupCount > 0) {
+    console.log(`[Deduplicate] Đã dọn dẹp ${dedupCount} đối tác trùng lặp ID.`);
+    count += dedupCount;
+  }
+
   state.partners.forEach(p => {
     const name = p.name || "";
     const currentPhone = (p.phone || "").trim();
@@ -10271,6 +10296,43 @@ function applyDeltaToState(changedRows, cloudTs) {
     }
   });
   baseState.vouchers = Array.from(voucherMap.values());
+
+  // === SAFETY NET 3: Khử trùng lặp ID đối tác ===
+  const partnerMap = new Map();
+  (baseState.partners || []).forEach(p => {
+    if (p && p.id) {
+      if (!partnerMap.has(p.id)) {
+        partnerMap.set(p.id, p);
+      } else {
+        const existing = partnerMap.get(p.id);
+        // Ưu tiên đối tác có thông tin phong phú hơn (đã điền SĐT hoặc địa chỉ)
+        const score = (p.phone && p.phone !== "-" ? 1 : 0) + (p.address && p.address !== "-" ? 1 : 0);
+        const existingScore = (existing.phone && existing.phone !== "-" ? 1 : 0) + (existing.address && existing.address !== "-" ? 1 : 0);
+        if (score > existingScore) {
+          partnerMap.set(p.id, p);
+        }
+      }
+    }
+  });
+  baseState.partners = Array.from(partnerMap.values());
+
+  // === SAFETY NET 4: Khử trùng lặp ID sản phẩm ===
+  const productMap = new Map();
+  (baseState.products || []).forEach(p => {
+    if (p && p.id) {
+      if (!productMap.has(p.id)) {
+        productMap.set(p.id, p);
+      } else {
+        const existing = productMap.get(p.id);
+        const score = (p.name ? 1 : 0) + (p.unit ? 1 : 0);
+        const existingScore = (existing.name ? 1 : 0) + (existing.unit ? 1 : 0);
+        if (score > existingScore) {
+          productMap.set(p.id, p);
+        }
+      }
+    }
+  });
+  baseState.products = Array.from(productMap.values());
 
   if (foundOldChunkIds.length > 0) {
     console.log(`[Migration] Phát hiện ${foundOldChunkIds.length} chunks cũ. Đặt cờ di chuyển dữ liệu...`);
