@@ -1158,36 +1158,52 @@ body {
   .modal-overlay[style*="display:flex" i],
   .modal-overlay[style*="display: block" i],
   .modal-overlay[style*="display:block" i] {
-    position: relative !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: auto !important;
     background-color: transparent !important;
     backdrop-filter: none !important;
     z-index: auto !important;
     display: block !important;
     padding: 0 !important;
-    width: auto !important;
-    height: auto !important;
+    margin: 0 !important;
   }
 
   .modal-content-container {
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
     border: none !important;
     box-shadow: none !important;
     background-color: transparent !important;
-    max-width: none !important;
     max-height: none !important;
     overflow: visible !important;
   }
 
   .modal-body {
     padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 
   .printable-voucher {
     box-shadow: none !important;
     padding: 0 !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     width: 100% !important;
     max-width: 100% !important;
     background-color: transparent !important;
+  }
+
+  /* Tự động định dạng trang in và tự động scale theo khổ giấy */
+  @page {
+    size: auto;
+    margin: 10mm 12mm 10mm 12mm; /* Lề chuẩn giúp căn đối và giữ cho nội dung tự động fit vừa vặn */
   }
 
   /* Hỗ trợ in ấn cho báo cáo kế toán */
