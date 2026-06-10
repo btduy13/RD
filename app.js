@@ -5509,6 +5509,74 @@ function triggerAutoExtractPhones() {
   }
 }
 
+function autoExtractPhonesFromNamesAndClean() {
+  let count = 0;
+  if (!state.partners) return 0;
+
+  state.partners.forEach(p => {
+    const name = p.name || "";
+    const currentPhone = (p.phone || "").trim();
+
+    // Các biểu thức chính quy để nhận diện số điện thoại ở cuối tên đối tác
+    // Trường hợp 1: Tên chứa (SĐT) ở cuối
+    const parenRegex = /\s*\(((?:\+84|84|0)(?:\d[\s\.-]?){7,9}\d)\)\s*$/;
+    // Trường hợp 2: Tên chứa ký tự phân tách (-, –, —, :) + SĐT ở cuối
+    const dashRegex = /[\s\-\–\—\:]+((?:\+84|84|0)(?:\d[\s\.-]?){7,9}\d)\s*$/;
+    // Trường hợp 3: Tên chứa dấu cách + SĐT ở cuối
+    const spaceRegex = /\s+((?:\+84|84|0)(?:\d[\s\.-]?){7,9}\d)\s*$/;
+
+    let phone = "";
+    let cleanName = "";
+
+    let match = name.match(parenRegex);
+    if (match) {
+      phone = match[1].trim();
+      cleanName = name.replace(parenRegex, "").trim();
+    } else {
+      match = name.match(dashRegex);
+      if (match) {
+        phone = match[1].trim();
+        cleanName = name.replace(dashRegex, "").trim();
+      } else {
+        match = name.match(spaceRegex);
+        if (match) {
+          phone = match[1].trim();
+          cleanName = name.replace(spaceRegex, "").trim();
+        }
+      }
+    }
+
+    if (phone && cleanName) {
+      // Cập nhật tên đã được loại bỏ SĐT
+      p.name = cleanName;
+
+      // Lưu số điện thoại vào đúng trường phone
+      if (!currentPhone || currentPhone === "-" || currentPhone === "null" || currentPhone === "") {
+        p.phone = phone;
+      } else if (!currentPhone.includes(phone)) {
+        p.phone = currentPhone + " / " + phone;
+      }
+
+      count++;
+    }
+  });
+
+  if (count > 0) {
+    saveState();
+    if (typeof filterPartners === "function") filterPartners();
+  }
+  return count;
+}
+
+function triggerAutoExtractPhonesFromNames() {
+  const count = autoExtractPhonesFromNamesAndClean();
+  if (count > 0) {
+    showToast(`Đã tự động tách thành công số điện thoại cho ${count} đối tác từ tên!`, "success");
+  } else {
+    showToast("Không tìm thấy đối tác nào có số điện thoại đi kèm trong tên.", "info");
+  }
+}
+
 function convertStyle(s) {
   if (!s) return undefined;
   const out = {};

@@ -1415,6 +1415,19 @@
                 Xuất Excel
               </button>
 
+              <button class="btn btn-secondary" onclick="triggerAutoExtractPhonesFromNames()"
+                style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
+                onmouseover="this.style.borderColor='var(--color-warning)'; this.style.color='var(--color-warning)'"
+                onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'"
+                title="Tách số điện thoại từ tên đối tác và cập nhật vào cột SĐT">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M9.813 15.904L9 21l-1.813-5.096L2.091 14.1 7.187 12.3 9 7.2l1.813 5.1 5.096 1.8-5.096 1.804zM19.006 5.006L18.5 6.5l-.506-1.494L16.5 14.5l1.494.506.506 1.494.506-1.494 1.494-.506-1.494-.506z"></path>
+                </svg>
+                Tách SĐT từ Tên
+              </button>
+
               <button class="btn btn-primary" onclick="openAddPartnerModal()"
                 style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25); cursor: pointer; transition: all 0.2s;">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
