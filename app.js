@@ -105,7 +105,16 @@ function initApp() {
       const parsed = JSON.parse(cache);
       if (parsed && Array.isArray(parsed.products) && Array.isArray(parsed.vouchers)) {
         state = parsed;
-        lastSyncState = JSON.parse(JSON.stringify(parsed));
+        let loadedLastSyncState = null;
+        try {
+          const syncCache = localStorage.getItem("rd_accounting_last_sync_cache");
+          if (syncCache) {
+            loadedLastSyncState = JSON.parse(syncCache);
+          }
+        } catch (e) {
+          console.error("[Cache] Lỗi đọc cache đồng bộ cũ:", e);
+        }
+        lastSyncState = loadedLastSyncState || JSON.parse(JSON.stringify(parsed));
         hasCache = true;
         lastSyncedCloudTs = state._lastModified || 0;
         console.log(`[Cache] Khởi tạo dữ liệu từ cache cục bộ thành công! (${(state.vouchers || []).length} chứng từ, ${(state.partners || []).length} đối tác)`);
@@ -9549,6 +9558,21 @@ let supabaseClient = null;
 let cloudSyncActive = false;
 let realtimeChannel = null;
 let lastSyncState = null;
+function updateLastSyncState(newState) {
+  if (!newState) {
+    lastSyncState = null;
+    try {
+      localStorage.removeItem("rd_accounting_last_sync_cache");
+    } catch (e) {}
+    return;
+  }
+  lastSyncState = JSON.parse(JSON.stringify(newState));
+  try {
+    localStorage.setItem("rd_accounting_last_sync_cache", JSON.stringify(lastSyncState));
+  } catch (err) {
+    console.error("[Cache] Lỗi ghi cache đồng bộ:", err);
+  }
+}
 let lastSyncedCloudTs = 0; // Timestamp cloud đã đồng bộ thành công lần cuối (tách biệt khỏi state._lastModified)
 let foundOldChunkIds = [];
 let migrationPending = false;
@@ -10169,7 +10193,7 @@ async function pullFromCloudOnStartup() {
     if (cloudData && hasCloudProducts) {
       const cloudVoucherCount = (cloudData.vouchers || []).length;
       state = cloudData;
-      lastSyncState = JSON.parse(JSON.stringify(state));
+      updateLastSyncState(state);
       lastSyncedCloudTs = state._lastModified || 0;
       console.log(`[Supabase] Tải dữ liệu đám mây thành công! (${cloudVoucherCount} chứng từ)`);
 
@@ -10230,7 +10254,7 @@ async function pullFromCloudOnStartup() {
           vouchers: []
         };
       }
-      lastSyncState = JSON.parse(JSON.stringify(state));
+      updateLastSyncState(state);
       lastSyncedCloudTs = state._lastModified || 0;
       recalculateAccounting(false);
       updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
@@ -10290,7 +10314,7 @@ function forcePullFromCloud() {
       const { newState: cloudData, rescuedVouchers } = result;
       if (cloudData) {
         state = cloudData;
-        lastSyncState = JSON.parse(JSON.stringify(state));
+        updateLastSyncState(state);
         lastSyncedCloudTs = state._lastModified || 0;
         
         // Ghi cache cục bộ
@@ -10719,7 +10743,7 @@ async function pushToCloud() {
     // Cập nhật mốc so sánh (KHÔNG cập nhật lastSyncedCloudTs ở đây vì push không có nghĩa là
     // ta đã nhận dữ liệu từ cloud — các máy khác có thể có rows với timestamp CŨ HƠN push của ta
     // mà ta chưa từng pull về. lastSyncedCloudTs chỉ tăng khi ta PULL thành công.)
-    lastSyncState = JSON.parse(JSON.stringify(state));
+    updateLastSyncState(state);
 
     console.log("Đã đồng bộ hóa state lên Supabase thành công theo dòng delta!");
     if (pushRetryTimeout) {
@@ -10778,7 +10802,7 @@ async function pullAndMergeFromCloud() {
 
       console.log("[Supabase] Nhận được thay đổi mới từ cloud, đang tải về...");
       state = cloudData;
-      lastSyncState = JSON.parse(JSON.stringify(state));
+      updateLastSyncState(state);
       lastSyncedCloudTs = state._lastModified || 0;
 
       // Ghi cache cục bộ
