@@ -3491,7 +3491,8 @@ function handlePurchaseSubmit(e) {
     items: voucherItems,
     taxRate: 0,
     taxAmount: 0,
-    isManual: true
+    isManual: true,
+    _sessionId: clientSessionId
   };
 
   if (editingPurchaseId) {
@@ -3761,7 +3762,8 @@ function handleSalesSubmit(e) {
     description: document.getElementById("sale-desc").value,
     items: voucherItems,
     taxRate: parseInt(document.getElementById("sale-tax-rate").value),
-    isManual: true
+    isManual: true,
+    _sessionId: clientSessionId
   };
 
   if (editingSalesId) {
@@ -4110,7 +4112,8 @@ function handleEscrowSubmit(e) {
     description: document.getElementById("esc-desc").value,
     expectedReturnDate: document.getElementById("esc-return-date") ? document.getElementById("esc-return-date").value : "",
     escrowRefId: type.includes("refund") ? refId : null, // Liên kết đến chứng từ ký quỹ gốc
-    isManual: true
+    isManual: true,
+    _sessionId: clientSessionId
   };
 
   state.vouchers.push(newVoucher);
@@ -7747,6 +7750,7 @@ function handleReceiptSubmit(e) {
     description: desc,
     amount,
     isManual: true,
+    _sessionId: clientSessionId,
     entries: [
       { debit, credit, amount, desc }
     ]
@@ -7789,6 +7793,7 @@ function handlePaymentSubmit(e) {
     description: desc,
     amount,
     isManual: true,
+    _sessionId: clientSessionId,
     entries: [
       { debit, credit, amount, desc }
     ]
@@ -9470,6 +9475,7 @@ function handleQuickImportSubmit(e) {
       taxRate: 0,
       taxAmount: 0,
       isManual: true,
+      _sessionId: clientSessionId,
       items: [
         {
           productId: p.id,
@@ -9633,6 +9639,7 @@ let supabaseClient = null;
 let cloudSyncActive = false;
 let realtimeChannel = null;
 let lastSyncState = null;
+let lastSyncedCloudTs = 0; // Timestamp cloud đã đồng bộ thành công lần cuối (tách biệt khỏi state._lastModified)
 let foundOldChunkIds = [];
 let migrationPending = false;
 const clientSessionId = "client_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
@@ -9784,43 +9791,77 @@ async function fetchCloudDelta(localTs) {
     return null; // Không cần tải thêm
   }
 
-  // 2. Tải các dòng thay đổi
-  let changedRows = [];
-  if (localTs === 0) {
-    // Tải mới hoàn toàn, dùng phân trang tuần tự với kích thước trang 400 để an toàn tuyệt đối
-    let from = 0;
-    const step = 400;
-    while (true) {
-      if (typeof updateCloudSyncBadge === "function") {
-        updateCloudSyncBadge(false, `Mây: Tải mới (${Math.floor(from / step) + 1})...`, "#f59e0b");
-      }
-      const { data, error } = await supabaseClient
-        .from("rd_accounting_data")
-        .select("id, data, last_modified")
-        .range(from, from + step - 1);
-        
-      if (error) throw error;
-      if (!data || data.length === 0) break;
-      changedRows = changedRows.concat(data);
-      if (data.length < step) break;
-      from += step;
+  // 2. Tải danh sách ID và last_modified (rất nhẹ, không bao giờ timeout)
+  let allItems = [];
+  let from = 0;
+  const step = 1000;
+  while (true) {
+    if (typeof updateCloudSyncBadge === "function") {
+      const pageNum = Math.floor(from / step) + 1;
+      updateCloudSyncBadge(false, `Mây: Quét danh sách (${pageNum})...`, "#f59e0b");
     }
-  } else {
-    // Chỉ tải các dòng thay đổi từ mốc localTs
-    let from = 0;
-    const step = 400;
-    while (true) {
-      const { data, error } = await supabaseClient
+    
+    let query = supabaseClient
+      .from("rd_accounting_data")
+      .select("id, last_modified");
+      
+    if (localTs > 0) {
+      query = query.gt("last_modified", localTs);
+    }
+    
+    const { data, error } = await query
+      .order("id")
+      .range(from, from + step - 1);
+      
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    allItems = allItems.concat(data);
+    if (data.length < step) break;
+    from += step;
+  }
+
+  if (allItems.length === 0) {
+    return {
+      changedRows: [{
+        id: "metadata",
+        data: metadataRow.data,
+        last_modified: cloudTs
+      }],
+      cloudTs
+    };
+  }
+
+  // 3. Phân chia danh sách ID thành các lô 300 ID để tải dữ liệu chi tiết
+  const ids = allItems.map(item => item.id);
+  const batches = [];
+  const BATCH_SIZE = 300;
+  for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+    batches.push(ids.slice(i, i + BATCH_SIZE));
+  }
+
+  // 4. Tải song song với mức độ đồng thời (concurrency) kiểm soát = 6
+  let changedRows = [];
+  const CONCURRENCY = 6;
+  for (let i = 0; i < batches.length; i += CONCURRENCY) {
+    if (typeof updateCloudSyncBadge === "function") {
+      const batchNum = Math.floor(i / CONCURRENCY) + 1;
+      const totalBatches = Math.ceil(batches.length / CONCURRENCY);
+      updateCloudSyncBadge(false, `Mây: Tải dữ liệu (${batchNum}/${totalBatches})...`, "#f59e0b");
+    }
+
+    const slice = batches.slice(i, i + CONCURRENCY);
+    const promises = slice.map(batch =>
+      supabaseClient
         .from("rd_accounting_data")
         .select("id, data, last_modified")
-        .gt("last_modified", localTs)
-        .range(from, from + step - 1);
-        
-      if (error) throw error;
-      if (!data || data.length === 0) break;
-      changedRows = changedRows.concat(data);
-      if (data.length < step) break;
-      from += step;
+        .in("id", batch)
+    );
+    const responses = await Promise.all(promises);
+    for (const res of responses) {
+      if (res.error) throw res.error;
+      if (res.data) {
+        changedRows = changedRows.concat(res.data);
+      }
     }
   }
 
@@ -9838,6 +9879,7 @@ async function fetchCloudDelta(localTs) {
 
 function applyDeltaToState(changedRows, cloudTs) {
   let baseState;
+  const rescuedVouchers = []; // Các voucher cục bộ bị cloud ghi đè do trùng ID
   
   if (lastSyncState) {
     // Nhân bản local state làm gốc để hợp nhất delta
@@ -9878,13 +9920,31 @@ function applyDeltaToState(changedRows, cloudTs) {
       vouchersChunks[idx] = row.data || [];
       foundOldChunkIds.push(row.id);
     } else if (row.id.startsWith("v_")) {
-      const voucher = row.data;
-      if (voucher && voucher.id) {
-        const idx = baseState.vouchers.findIndex(v => v.id === voucher.id);
+      const cloudVoucher = row.data;
+      if (cloudVoucher && cloudVoucher.id) {
+        // Nếu voucher tồn tại rõ ràng trên cloud (do máy khác tạo lại),
+        // tự động xóa nó khỏi deletedIds để Safety Net không lọc ra nhầm
+        if (Array.isArray(baseState.deletedIds) && baseState.deletedIds.includes(cloudVoucher.id)) {
+          baseState.deletedIds = baseState.deletedIds.filter(id => id !== cloudVoucher.id);
+          console.log(`[applyDelta] Voucher ${cloudVoucher.id} được khôi phục: xóa khỏi deletedIds vì có trên cloud.`);
+        }
+        const idx = baseState.vouchers.findIndex(v => v.id === cloudVoucher.id);
         if (idx !== -1) {
-          baseState.vouchers[idx] = voucher;
+          const localVoucher = baseState.vouchers[idx];
+          // === PHÁT HIỆN XUNG ĐỘT ID SONG SONG ===
+          // Cả hai bên đều có _sessionId, khác nhau, và bản cục bộ là của máy này
+          if (
+            localVoucher._sessionId &&
+            cloudVoucher._sessionId &&
+            localVoucher._sessionId !== cloudVoucher._sessionId &&
+            localVoucher._sessionId === clientSessionId
+          ) {
+            console.warn(`[ConflictDetect] Xung đột ID "${cloudVoucher.id}": máy này và máy khác cùng tạo. Đang cứu bản cục bộ...`);
+            rescuedVouchers.push({ ...localVoucher }); // lưu bản cục bộ bị đẩy ra
+          }
+          baseState.vouchers[idx] = cloudVoucher; // cloud thắng
         } else {
-          baseState.vouchers.push(voucher);
+          baseState.vouchers.push(cloudVoucher);
         }
       }
     } else if (row.id.startsWith("p_")) {
@@ -9972,13 +10032,58 @@ function applyDeltaToState(changedRows, cloudTs) {
     migrationPending = true;
   }
 
-  return baseState;
+  return { newState: baseState, rescuedVouchers };
+}
+
+/**
+ * Giải quyết xung đột ID: đổi tên các voucher bị đẩy ra bởởi cloud đang có cùng ID tạo bởi máy khác.
+ * Mỗi voucher được gán ID mới tiếp theo rồi push lên cloud và thông báo người dùng.
+ */
+async function resolveConflictedVouchers(rescuedVouchers) {
+  if (!rescuedVouchers || rescuedVouchers.length === 0) return;
+
+  for (const rescued of rescuedVouchers) {
+    const oldId = rescued.id;
+    // Sinh ID mới dựa trên type của voucher
+    let newId;
+    if (rescued.type === "sales") {
+      newId = generateNextSalesVoucherId(rescued.paymentMethod);
+    } else if (rescued.type === "purchase" || rescued.type === "purchase_order") {
+      newId = typeof generateNextPurchaseVoucherId === "function"
+        ? generateNextPurchaseVoucherId(rescued.paymentMethod)
+        : `NK${Date.now()}`;
+    } else {
+      // receipt, payment, escrow — dùng timestamp để tránh trùng
+      const prefix = rescued.type === "receipt" ? "PT" : rescued.type === "payment" ? "PC" : "KQ";
+      newId = `${prefix}-CONFLICT-${Date.now()}`;
+    }
+
+    rescued.id = newId;
+    rescued._sessionId = clientSessionId; // Cập nhật lại session của máy này
+
+    // Cập nhật vào state hiện tại (nếu vẫn còn bản cũ thì xóa đi)
+    state.vouchers = state.vouchers.filter(v => v.id !== oldId);
+    state.vouchers.push(rescued);
+
+    console.warn(`[ConflictResolve] Đã đổi "${oldId}" → "${newId}" do xung đột với máy khác.`);
+    showToast(`⚠️ Đơn ${oldId} bị trùng với máy khác — đã tự động đổi thành ${newId}`, "warning");
+  }
+
+  // Push tất cả các voucher được đổi tên lên cloud
+  state._lastModified = Date.now();
+  saveState();
+  try {
+    await pushToCloud();
+    console.log(`[ConflictResolve] Đã push ${rescuedVouchers.length} voucher xung đột lên cloud với ID mới.`);
+  } catch (err) {
+    console.error("[ConflictResolve] Lỗi push sau conflict:", err);
+  }
 }
 
 async function fetchCloudData(localTs = 0) {
   const delta = await fetchCloudDelta(localTs);
   if (!delta) {
-    return state;
+    return null; // null = không có gì mới
   }
   return applyDeltaToState(delta.changedRows, delta.cloudTs);
 }
@@ -9987,13 +10092,16 @@ async function pullFromCloudOnStartup() {
   if (!cloudSyncActive || !supabaseClient) return;
 
   try {
-    const cloudData = await fetchCloudData(state._lastModified || 0);
+    const result = await fetchCloudData(lastSyncedCloudTs);
+    if (!result) return;
+    const { newState: cloudData, rescuedVouchers } = result;
     const hasCloudProducts = cloudData && cloudData.products && cloudData.products.length > 0;
 
     if (cloudData && hasCloudProducts) {
       const cloudVoucherCount = (cloudData.vouchers || []).length;
       state = cloudData;
       lastSyncState = JSON.parse(JSON.stringify(state));
+      lastSyncedCloudTs = state._lastModified || 0;
       console.log(`[Supabase] Tải dữ liệu đám mây thành công! (${cloudVoucherCount} chứng từ)`);
 
       // Ghi cache cục bộ
@@ -10022,6 +10130,11 @@ async function pullFromCloudOnStartup() {
         }, 5000);
       }
 
+      // Giải quyết xung đột ID nếu có
+      if (rescuedVouchers.length > 0) {
+        setTimeout(() => resolveConflictedVouchers(rescuedVouchers), 2000);
+      }
+
       // Cập nhật giao diện
       recalculateAccounting(false);
       filterDebts();
@@ -10045,6 +10158,7 @@ async function pullFromCloudOnStartup() {
         };
       }
       lastSyncState = JSON.parse(JSON.stringify(state));
+      lastSyncedCloudTs = state._lastModified || 0;
       recalculateAccounting(false);
 
       // Chạy tích hợp tự động một lần duy nhất để đẩy lên cloud
@@ -10095,10 +10209,17 @@ function forcePullFromCloud() {
   updateCloudSyncBadge(false, "Mây: Đang tải...", "#f59e0b");
 
   fetchCloudData(0)
-    .then((cloudData) => {
+    .then((result) => {
+      if (!result) {
+        showToast("Không tìm thấy dữ liệu trên Đám mây để tải về!", "warning");
+        updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
+        return;
+      }
+      const { newState: cloudData, rescuedVouchers } = result;
       if (cloudData) {
         state = cloudData;
         lastSyncState = JSON.parse(JSON.stringify(state));
+        lastSyncedCloudTs = state._lastModified || 0;
         
         // Ghi cache cục bộ
         try {
@@ -10107,7 +10228,11 @@ function forcePullFromCloud() {
           console.error("[Cache] Lỗi ghi cache cục bộ:", cacheErr);
         }
 
-        // LƯU Ý: recalculateAccounting đã gọi refreshUI() bên trong nên không cần render lại lần 2
+        // Giải quyết xung đột ID nếu có
+        if (rescuedVouchers.length > 0) {
+          setTimeout(() => resolveConflictedVouchers(rescuedVouchers), 1000);
+        }
+
         recalculateAccounting();
         filterDebts();
         filterPartners();
@@ -10427,7 +10552,9 @@ async function pushToCloud() {
 
     if (finalError) throw finalError;
 
-    // Cập nhật mốc so sánh
+    // Cập nhật mốc so sánh (KHÔNG cập nhật lastSyncedCloudTs ở đây vì push không có nghĩa là
+    // ta đã nhận dữ liệu từ cloud — các máy khác có thể có rows với timestamp CŨ HƠN push của ta
+    // mà ta chưa từng pull về. lastSyncedCloudTs chỉ tăng khi ta PULL thành công.)
     lastSyncState = JSON.parse(JSON.stringify(state));
 
     console.log("Đã đồng bộ hóa state lên Supabase thành công theo dòng delta!");
@@ -10470,7 +10597,9 @@ async function pullAndMergeFromCloud() {
   if (!cloudSyncActive || !supabaseClient) return;
 
   try {
-    const cloudData = await fetchCloudData(state._lastModified || 0);
+    const result = await fetchCloudData(lastSyncedCloudTs);
+    if (!result) return; // không có gì mới
+    const { newState: cloudData, rescuedVouchers } = result;
     if (cloudData) {
       const cloudTs = cloudData._lastModified || 0;
       const localTs = state._lastModified || 0;
@@ -10482,6 +10611,7 @@ async function pullAndMergeFromCloud() {
       console.log("[Supabase] Nhận được thay đổi mới từ cloud, đang tải về...");
       state = cloudData;
       lastSyncState = JSON.parse(JSON.stringify(state));
+      lastSyncedCloudTs = state._lastModified || 0;
 
       // Ghi cache cục bộ
       try {
@@ -10490,7 +10620,11 @@ async function pullAndMergeFromCloud() {
         console.error("[Cache] Lỗi ghi cache cục bộ:", cacheErr);
       }
 
-      // LƯU Ý: recalculateAccounting đã gọi refreshUI() bên trong nên không cần render lại lần 2
+      // Giải quyết xung đột ID nếu có
+      if (rescuedVouchers.length > 0) {
+        setTimeout(() => resolveConflictedVouchers(rescuedVouchers), 500);
+      }
+
       recalculateAccounting(false);
       filterDebts();
       filterPartners();
@@ -12863,7 +12997,8 @@ function handlePurchaseOrderSubmit(e) {
     items: voucherItems,
     taxRate: 0,
     taxAmount: 0,
-    isManual: true
+    isManual: true,
+    _sessionId: clientSessionId
   };
 
   if (editingPurchaseOrderId) {
