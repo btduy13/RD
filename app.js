@@ -4559,22 +4559,19 @@ function viewVoucher(id) {
       <div class="printable-voucher" style="max-width: 800px; padding: 30px; font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #000; line-height: 1.4;">
         
         <!-- Header: Logo Rạng Đông bên trái & Thông tin công ty ở giữa (Cân đối hoàn hảo) -->
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 15px;">
+        <div style="position: relative; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 15px; text-align: center; min-height: 55px;">
           <!-- Logo Rạng Đông thực tế từ file logo.jpg -->
-          <div style="display: flex; align-items: center; justify-content: center; width: 140px; flex-shrink: 0;">
-            <img src="logo.jpg" style="max-height: 55px; max-width: 130px; object-fit: contain;" alt="Logo Rạng Đông" />
+          <div style="position: absolute; left: 0; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content: center; width: 130px;">
+            <img src="logo.jpg" style="max-height: 55px; max-width: 120px; object-fit: contain;" alt="Logo Rạng Đông" />
           </div>
 
           <!-- Thông tin công ty chính xác theo mẫu giấy -->
-          <div style="text-align: center; flex-grow: 1; color: #000; padding: 0 10px;">
+          <div style="color: #000; padding: 0 130px;">
             <div style="font-weight: bold; font-size: 14px; text-transform: uppercase; letter-spacing: 0.2px;">CÔNG TY CỔ PHẦN RẠNG ĐÔNG</div>
             <div style="font-weight: bold; font-size: 11px; text-transform: uppercase; margin-top: 2px;">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY</div>
             <div style="font-size: 11px; margin-top: 3px;">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh</div>
             <div style="font-size: 11px; margin-top: 1px; font-weight: 500;">Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074</div>
           </div>
-
-          <!-- Khoảng trống đối trọng bên phải để căn giữa tuyệt đối -->
-          <div style="width: 140px; flex-shrink: 0;"></div>
         </div>
 
         <!-- Tiêu đề Phiếu giao hàng -->
@@ -7008,22 +7005,19 @@ function previewPartnerDebtNotice(partnerId) {
       </style>
 
       <!-- Header -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 12px;">
+      <div style="position: relative; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 20px; text-align: center; min-height: 55px;">
         <!-- Logo Rạng Đông thực tế từ file logo.jpg -->
-        <div style="display: flex; align-items: center; justify-content: center; width: 140px; flex-shrink: 0;">
-          <img src="logo.jpg" style="max-height: 55px; max-width: 130px; object-fit: contain;" alt="Logo" onerror="this.style.display='none'" />
+        <div style="position: absolute; left: 0; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content: center; width: 130px;">
+          <img src="logo.jpg" style="max-height: 55px; max-width: 120px; object-fit: contain;" alt="Logo" onerror="this.style.display='none'" />
         </div>
 
         <!-- Thông tin công ty chính xác theo mẫu giấy -->
-        <div style="text-align: center; flex-grow: 1; color: #000; padding: 0 10px;">
+        <div style="color: #000; padding: 0 130px;">
           <div style="font-weight: bold; font-size: 14px; text-transform: uppercase; letter-spacing: 0.2px;">CÔNG TY CỔ PHẦN RẠNG ĐÔNG</div>
           <div style="font-weight: bold; font-size: 11px; text-transform: uppercase; margin-top: 2px;">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY</div>
           <div style="font-size: 11px; margin-top: 3px;">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh</div>
           <div style="font-size: 11px; margin-top: 1px; font-weight: 500;">Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074</div>
         </div>
-
-        <!-- Khoảng trống đối trọng bên phải để căn giữa tuyệt đối -->
-        <div style="width: 140px; flex-shrink: 0;"></div>
       </div>
 
       <!-- Title -->
