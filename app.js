@@ -83,12 +83,37 @@ async function readExcelViaIPC(filename) {
 function setupNumberFormattingEventListeners() {
   document.addEventListener("input", function (e) {
     if (e.target && e.target.classList.contains("number-format")) {
-      const rawVal = e.target.value.replace(/\D/g, "");
-      if (rawVal) {
-        e.target.value = Number(rawVal).toLocaleString("vi-VN");
-      } else {
-        e.target.value = "";
+      const input = e.target;
+      const selectionStart = input.selectionStart;
+      const valBefore = input.value;
+      
+      // Đếm số lượng chữ số đứng trước con trỏ trước khi format lại
+      let digitsBeforeCursor = 0;
+      for (let i = 0; i < selectionStart; i++) {
+        if (/\d/.test(valBefore[i])) {
+          digitsBeforeCursor++;
+        }
       }
+      
+      const rawVal = valBefore.replace(/\D/g, "");
+      let formattedVal = "";
+      if (rawVal) {
+        formattedVal = Number(rawVal).toLocaleString("vi-VN");
+      }
+      
+      input.value = formattedVal;
+      
+      // Tìm vị trí mới của con trỏ dựa trên số lượng chữ số digitsBeforeCursor
+      let newCursorPos = 0;
+      let digitsCount = 0;
+      while (newCursorPos < formattedVal.length && digitsCount < digitsBeforeCursor) {
+        if (/\d/.test(formattedVal[newCursorPos])) {
+          digitsCount++;
+        }
+        newCursorPos++;
+      }
+      
+      input.setSelectionRange(newCursorPos, newCursorPos);
     }
   });
 }

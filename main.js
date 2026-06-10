@@ -91,8 +91,26 @@ function createWindow() {
   // 2. Tải trang giao diện chính
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
-  // 3. Ẩn thanh menu trình duyệt mặc định (File, Edit, View...) để giống app Desktop chuyên nghiệp
-  Menu.setApplicationMenu(null);
+  // 3. Thiết lập menu ứng dụng tối giản để các phím tắt soạn thảo hoạt động bình thường
+  const template = [
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo', label: 'Hoàn tác' },
+        { role: 'redo', label: 'Làm lại' },
+        { type: 'separator' },
+        { role: 'cut', label: 'Cắt' },
+        { role: 'copy', label: 'Sao chép' },
+        { role: 'paste', label: 'Dán' },
+        { role: 'selectAll', label: 'Chọn tất cả' }
+      ]
+    }
+  ];
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+
+  // Ẩn thanh menu trình duyệt mặc định trên Windows/Linux nhưng vẫn giữ phím tắt hoạt động
+  mainWindow.setMenuBarVisibility(false);
 
   // 4. Hiển thị cửa sổ khi đã nạp xong toàn bộ tài nguyên
   mainWindow.once('ready-to-show', () => {
