@@ -4960,6 +4960,7 @@ function formatVND(value) {
 
 // Thuật toán chuyển đổi Số thành Chữ tiếng Việt cực chuẩn và chuyên nghiệp
 function numberToVietnameseWords(number) {
+  number = Math.round(number); // Làm tròn số tiền thành số nguyên trước khi đọc chữ
   if (number === 0) return "Không đồng.";
 
   const units = ["", "nghìn", "triệu", "tỷ", "nghìn tỷ", "triệu tỷ"];
