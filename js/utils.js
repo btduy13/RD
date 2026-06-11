@@ -105,28 +105,66 @@ function escapeHtmlAttr(str) {
     .replace(/>/g, "&gt;");
 }
 
+let partnerCacheById = null;
+let partnerCacheByName = null;
+let cachedPartnersRef = null;
+let cachedPartnersLength = 0;
+
+function invalidatePartnerCache() {
+  partnerCacheById = null;
+  partnerCacheByName = null;
+  cachedPartnersRef = null;
+  cachedPartnersLength = 0;
+}
+window.invalidatePartnerCache = invalidatePartnerCache;
+
 // Tìm đối tác an toàn từ chứng từ để lấy thông tin liên hệ sđt, địa chỉ
 function getPartnerForVoucher(v) {
   if (!v) return null;
-  let p = null;
+
+  if (state.partners !== cachedPartnersRef || (state.partners && state.partners.length !== cachedPartnersLength)) {
+    partnerCacheById = null;
+    partnerCacheByName = null;
+    cachedPartnersRef = state.partners;
+    cachedPartnersLength = state.partners ? state.partners.length : 0;
+  }
+
+  if (!partnerCacheById || !partnerCacheByName) {
+    partnerCacheById = {};
+    partnerCacheByName = {};
+    if (Array.isArray(state.partners)) {
+      state.partners.forEach(x => {
+        const idKey = x.id !== undefined && x.id !== null ? String(x.id).trim() : "";
+        const nameKey = x.name !== undefined && x.name !== null ? String(x.name).trim().toLowerCase() : "";
+        if (idKey && !partnerCacheById[idKey]) {
+          partnerCacheById[idKey] = x;
+        }
+        if (nameKey && !partnerCacheByName[nameKey]) {
+          partnerCacheByName[nameKey] = x;
+        }
+      });
+    }
+  }
 
   const partnerIdStr = v.partnerId !== undefined && v.partnerId !== null ? String(v.partnerId).trim() : "";
   const partnerNameStr = v.partnerName !== undefined && v.partnerName !== null ? String(v.partnerName).trim() : "";
 
+  let p = null;
+
   // 1. Tìm theo ID trước
   if (partnerIdStr) {
-    p = state.partners.find(x => String(x.id).trim() === partnerIdStr);
+    p = partnerCacheById[partnerIdStr];
   }
 
   // 2. Tìm theo tên nếu tìm theo ID thất bại hoặc nếu partnerId chính là tên đối tác
   if (!p && partnerNameStr) {
     const nameLower = partnerNameStr.toLowerCase();
-    p = state.partners.find(x => String(x.name).trim().toLowerCase() === nameLower);
+    p = partnerCacheByName[nameLower];
   }
 
   if (!p && partnerIdStr) {
     const idLower = partnerIdStr.toLowerCase();
-    p = state.partners.find(x => String(x.name).trim().toLowerCase() === idLower);
+    p = partnerCacheByName[idLower] || partnerCacheById[idLower];
   }
 
   return p;

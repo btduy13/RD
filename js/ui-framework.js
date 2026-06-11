@@ -159,32 +159,44 @@ function getInventoryValueAt(toDate) {
     return totalInventoryVal;
   }
 
-  let totalVal = 0;
+  const productStocks = {};
+  const productValues = {};
   state.products.forEach(p => {
-    let stock = p.initialStock || 0;
-    let value = (p.initialStock || 0) * (p.initialCost || 0);
+    productStocks[p.id] = p.initialStock || 0;
+    productValues[p.id] = (p.initialStock || 0) * (p.initialCost || 0);
+  });
 
-    const chronologicalVouchers = [...state.vouchers];
-    chronologicalVouchers.sort((a, b) => a.date.localeCompare(b.date));
+  const chronologicalVouchers = [...state.vouchers];
+  chronologicalVouchers.sort((a, b) => a.date.localeCompare(b.date));
 
-    chronologicalVouchers.forEach(v => {
-      if (v.date > toDate) return;
-      if (v.type === "purchase") {
-        const item = v.items.find(i => i.productId === p.id);
-        if (item) {
-          stock += item.qty;
-          value += item.amount;
-        }
-      } else if (v.type === "sales") {
-        const item = v.items.find(i => i.productId === p.id);
-        if (item) {
-          stock -= item.qty;
-          value -= (item.cogsAmount || 0);
+  chronologicalVouchers.forEach(v => {
+    if (v.date > toDate) return;
+    if (!v.items) return;
+
+    const seenInVoucher = new Set();
+
+    v.items.forEach(item => {
+      const pId = item.productId;
+      if (productStocks[pId] !== undefined) {
+        if (seenInVoucher.has(pId)) return;
+        seenInVoucher.add(pId);
+
+        if (v.type === "purchase") {
+          productStocks[pId] += item.qty;
+          productValues[pId] += item.amount;
+        } else if (v.type === "sales") {
+          productStocks[pId] -= item.qty;
+          productValues[pId] -= (item.cogsAmount || 0);
         }
       }
     });
-    totalVal += value;
   });
+
+  let totalVal = 0;
+  state.products.forEach(p => {
+    totalVal += productValues[p.id] || 0;
+  });
+
   return totalVal;
 }
 

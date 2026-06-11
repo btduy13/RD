@@ -129,10 +129,13 @@ function renderDashboardDebts() {
     // Sắp xếp đơn hàng nợ lâu nhất lên đầu
     unsettled.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    if (unsettled.length === 0) {
+    // Giới hạn hiển thị tối đa 30 đơn hàng nợ lâu nhất để tránh quá tải DOM
+    const displayedUnsettled = unsettled.slice(0, 30);
+
+    if (displayedUnsettled.length === 0) {
       unsettledTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:15px;">Không có đơn hàng nào đang nợ</td></tr>`;
     } else {
-      unsettled.forEach(item => {
+      displayedUnsettled.forEach(item => {
         const tr = document.createElement("tr");
         const isOp = item.isOpening;
         const escapedId = escapeHtmlAttr(item.id);
@@ -215,10 +218,13 @@ function renderDashboardDebts() {
     // Ưu tiên nợ trễ nhiều ngày nhất lên đầu
     agedDebts.sort((a, b) => b.days - a.days);
 
-    if (agedDebts.length === 0) {
+    // Giới hạn hiển thị tối đa 30 công nợ trễ hạn lâu nhất để tránh quá tải DOM
+    const displayedAged = agedDebts.slice(0, 30);
+
+    if (displayedAged.length === 0) {
       agedTbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:15px;">Không có công nợ quá hạn</td></tr>`;
     } else {
-      agedDebts.forEach(item => {
+      displayedAged.forEach(item => {
         const tr = document.createElement("tr");
 
         let dayClass = "badge-info";

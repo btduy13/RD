@@ -227,8 +227,10 @@ function filterCash() {
   });
 
   filteredCashList.sort((a, b) => {
-    const dateDiff = new Date(b.date) - new Date(a.date);
-    if (dateDiff !== 0) return dateDiff;
+    const da = a.date || "";
+    const db = b.date || "";
+    if (da < db) return 1;
+    if (da > db) return -1;
     return b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' });
   });
 
@@ -440,8 +442,10 @@ function exportCashToExcel() {
   });
 
   filteredCash.sort((a, b) => {
-    const dateDiff = new Date(b.date) - new Date(a.date);
-    if (dateDiff !== 0) return dateDiff;
+    const da = a.date || "";
+    const db = b.date || "";
+    if (da < db) return 1;
+    if (da > db) return -1;
     return b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' });
   });
 

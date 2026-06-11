@@ -247,10 +247,10 @@ function saveState() {
   if (saveStateTimeout) {
     clearTimeout(saveStateTimeout);
   }
-  // Trì hoãn lưu trữ 200ms để gộp các yêu cầu lưu và chạy bất đồng bộ
+  // Trì hoãn lưu trữ 2000ms để gộp các yêu cầu lưu và chạy bất đồng bộ (tránh lag UI khi dữ liệu lớn)
   saveStateTimeout = setTimeout(() => {
     executeSaveState(false);
-  }, 200);
+  }, 2000);
 }
 
 function executeSaveState(sync = false) {
