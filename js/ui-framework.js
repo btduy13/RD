@@ -627,22 +627,19 @@ function viewVoucher(id) {
           <div style="width: 30%; page-break-inside: avoid; break-inside: avoid;">
             <strong>Người nhận hàng</strong><br>
             <span style="font-style: italic; font-size: 9.5px; color: #555;">(Ký, họ tên)</span>
-            <div style="height: 38px;"></div>
-            <div style="border-top: 1px dotted #888; width: 80%; margin: 0 auto; padding-top: 4px; color: #555; font-size: 9.5px;">Họ tên khách nhận</div>
+            <div style="height: 50px;"></div>
           </div>
           
           <div style="width: 30%; page-break-inside: avoid; break-inside: avoid;">
             <strong>Người giao hàng</strong><br>
             <span style="font-style: italic; font-size: 9.5px; color: #555;">(Ký, họ tên)</span>
-            <div style="height: 38px;"></div>
-            <div style="border-top: 1px dotted #888; width: 80%; margin: 0 auto; padding-top: 4px; color: #555; font-size: 9.5px;">Nhân viên giao nhận</div>
+            <div style="height: 50px;"></div>
           </div>
           
           <div style="width: 30%; page-break-inside: avoid; break-inside: avoid;">
             <strong>Người lập phiếu</strong><br>
             <span style="font-style: italic; font-size: 9.5px; color: #555;">(Ký, họ tên)</span>
-            <div style="height: 38px;"></div>
-            <div style="border-top: 1px dotted #888; width: 80%; margin: 0 auto; padding-top: 4px; color: #555; font-size: 9.5px;">Nhân viên lập phiếu</div>
+            <div style="height: 50px;"></div>
           </div>
         </div>
 
