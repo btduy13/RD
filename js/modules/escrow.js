@@ -233,6 +233,11 @@ function autoFillEscrowRefundData() {
 function handleEscrowSubmit(e) {
   e.preventDefault();
 
+  const modal = document.getElementById("modal-add-escrow");
+  if (modal && (modal.style.display === "none" || window.getComputedStyle(modal).display === "none")) {
+    return;
+  }
+
   const type = document.getElementById("esc-type").value;
   const partnerInputVal = document.getElementById("esc-partner").value;
   const resolvedPartner = resolvePartner(partnerInputVal);

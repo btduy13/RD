@@ -1071,6 +1071,11 @@ function handleEditDebtSubmit(e) {
   try {
     e.preventDefault();
 
+    const modal = document.getElementById("modal-edit-debt");
+    if (modal && (modal.style.display === "none" || window.getComputedStyle(modal).display === "none")) {
+      return;
+    }
+
     const targetId = document.getElementById("edit-debt-target-id").value;
     const editType = document.getElementById("edit-debt-type").value;
 

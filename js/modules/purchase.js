@@ -306,6 +306,11 @@ function resetPurchaseForm() {
 function handlePurchaseSubmit(e) {
   e.preventDefault();
 
+  const modal = document.getElementById("modal-add-purchase");
+  if (modal && (modal.style.display === "none" || window.getComputedStyle(modal).display === "none")) {
+    return;
+  }
+
   const inputIdEl = document.getElementById("pur-id");
   let voucherId = inputIdEl ? inputIdEl.value.trim() : "";
 
@@ -318,6 +323,7 @@ function handlePurchaseSubmit(e) {
     if (!voucherId) {
       const paymentMethod = document.getElementById("pur-payment").value;
       voucherId = generateNextPurchaseVoucherId(paymentMethod);
+      if (inputIdEl) inputIdEl.value = voucherId;
     }
   }
 
@@ -947,6 +953,11 @@ function resetPurchaseOrderForm() {
 function handlePurchaseOrderSubmit(e) {
   e.preventDefault();
 
+  const modal = document.getElementById("modal-add-purchase-order");
+  if (modal && (modal.style.display === "none" || window.getComputedStyle(modal).display === "none")) {
+    return;
+  }
+
   const inputIdEl = document.getElementById("pur-order-id");
   let voucherId = inputIdEl ? inputIdEl.value.trim() : "";
 
@@ -958,6 +969,7 @@ function handlePurchaseOrderSubmit(e) {
   } else {
     if (!voucherId) {
       voucherId = generateNextPurchaseOrderVoucherId();
+      if (inputIdEl) inputIdEl.value = voucherId;
     }
   }
 
@@ -1784,6 +1796,11 @@ let editingPurchaseReturnId = null;
 function handlePurchaseReturnSubmit(e) {
   e.preventDefault();
 
+  const modal = document.getElementById("modal-add-purchase-return");
+  if (modal && (modal.style.display === "none" || window.getComputedStyle(modal).display === "none")) {
+    return;
+  }
+
   const inputIdEl = document.getElementById("pur-return-id");
   let voucherId = inputIdEl ? inputIdEl.value.trim() : "";
 
@@ -1795,6 +1812,7 @@ function handlePurchaseReturnSubmit(e) {
   } else {
     if (!voucherId) {
       voucherId = generateNextPurchaseReturnVoucherId();
+      if (inputIdEl) inputIdEl.value = voucherId;
     }
   }
 

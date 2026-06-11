@@ -29,6 +29,11 @@ function openQuickAddPartnerModal(type = "customer") {
 function handleQuickAddPartnerSubmit(e) {
   e.preventDefault();
 
+  const modal = document.getElementById("modal-quick-add-partner");
+  if (modal && (modal.style.display === "none" || window.getComputedStyle(modal).display === "none")) {
+    return;
+  }
+
   const name = document.getElementById("quick-partner-name").value.trim();
   const phone = document.getElementById("quick-partner-phone").value.trim();
   const address = document.getElementById("quick-partner-address").value.trim();
@@ -255,8 +260,14 @@ function openEditPartnerModal(id) {
 function handlePartnerSubmit(e) {
   e.preventDefault();
 
+  const modal = document.getElementById("modal-add-partner");
+  if (modal && (modal.style.display === "none" || window.getComputedStyle(modal).display === "none")) {
+    return;
+  }
+
   const editIndex = document.getElementById("edit-partner-index").value;
-  const idVal = document.getElementById("partner-id").value.trim();
+  const idEl = document.getElementById("partner-id");
+  const idVal = idEl ? idEl.value.trim() : "";
   const name = document.getElementById("partner-name").value.trim();
   const type = document.getElementById("partner-type").value;
   const phone = document.getElementById("partner-phone").value.trim();
@@ -296,6 +307,7 @@ function handlePartnerSubmit(e) {
       const prefix = type === "supplier" ? "NCC" : "KH";
       const nextNum = (state.partners.filter(p => p.type === type).length + 1).toString().padStart(3, '0');
       id = `${prefix}${nextNum}`;
+      if (idEl) idEl.value = id;
     }
 
     if (state.partners.some(p => String(p.id) === String(id))) {

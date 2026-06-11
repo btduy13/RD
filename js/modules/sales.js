@@ -328,6 +328,11 @@ function generateNextSalesVoucherId(paymentMethod) {
 function handleSalesSubmit(e) {
   e.preventDefault();
 
+  const modal = document.getElementById("modal-add-sales");
+  if (modal && (modal.style.display === "none" || window.getComputedStyle(modal).display === "none")) {
+    return;
+  }
+
   const inputIdEl = document.getElementById("sale-id");
   let voucherId = inputIdEl ? inputIdEl.value.trim() : "";
 
@@ -339,6 +344,7 @@ function handleSalesSubmit(e) {
   } else {
     if (!voucherId) {
       voucherId = generateNextSalesVoucherId(document.getElementById("sale-payment").value);
+      if (inputIdEl) inputIdEl.value = voucherId;
     }
   }
 

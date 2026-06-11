@@ -321,6 +321,11 @@ function generateNextPaymentVoucherId() {
 function handleReceiptSubmit(e) {
   e.preventDefault();
 
+  const modal = document.getElementById("modal-add-receipt");
+  if (modal && (modal.style.display === "none" || window.getComputedStyle(modal).display === "none")) {
+    return;
+  }
+
   const date = document.getElementById("receipt-date").value;
   const partnerVal = document.getElementById("receipt-partner").value;
   const debit = document.getElementById("receipt-debit").value;
@@ -362,6 +367,11 @@ function handleReceiptSubmit(e) {
 
 function handlePaymentSubmit(e) {
   e.preventDefault();
+
+  const modal = document.getElementById("modal-add-payment");
+  if (modal && (modal.style.display === "none" || window.getComputedStyle(modal).display === "none")) {
+    return;
+  }
 
   const date = document.getElementById("payment-date").value;
   const partnerVal = document.getElementById("payment-partner").value;

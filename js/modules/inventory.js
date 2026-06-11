@@ -488,7 +488,17 @@ function exportStockLedgerToExcel() {
 function handleProductSubmit(e) {
   e.preventDefault();
 
-  const id = document.getElementById("prod-id").value.trim().toUpperCase() || `SP${(state.products.length + 1).toString().padStart(3, '0')}`;
+  const modal = document.getElementById("modal-add-product");
+  if (modal && (modal.style.display === "none" || window.getComputedStyle(modal).display === "none")) {
+    return;
+  }
+
+  const idEl = document.getElementById("prod-id");
+  let id = idEl ? idEl.value.trim().toUpperCase() : "";
+  if (!id) {
+    id = `SP${(state.products.length + 1).toString().padStart(3, '0')}`;
+    if (idEl) idEl.value = id;
+  }
   const name = document.getElementById("prod-name").value.trim();
   const unit = document.getElementById("prod-unit").value.trim();
   const initialStock = parseInt(document.getElementById("prod-stock").value.replace(/\D/g, "")) || 0;
@@ -1006,7 +1016,13 @@ function handleQuickAddProductSubmit(e) {
   try {
     e.preventDefault();
 
-    const rawId = document.getElementById("qap-prod-id").value.trim().toUpperCase();
+    const modal = document.getElementById("modal-quick-add-product");
+    if (modal && (modal.style.display === "none" || window.getComputedStyle(modal).display === "none")) {
+      return;
+    }
+
+    const idEl = document.getElementById("qap-prod-id");
+    let rawId = idEl ? idEl.value.trim().toUpperCase() : "";
     const name = document.getElementById("qap-prod-name").value.trim();
     const unit = document.getElementById("qap-prod-unit").value.trim();
     const initStock = parseInt(document.getElementById("qap-prod-stock").value.replace(/\D/g, "")) || 0;
@@ -1022,7 +1038,11 @@ function handleQuickAddProductSubmit(e) {
     }
 
     // Sinh mã tự động nếu để trống
-    const newId = rawId || `SP${(state.products.length + 1).toString().padStart(3, '0')}`;
+    if (!rawId) {
+      rawId = `SP${(state.products.length + 1).toString().padStart(3, '0')}`;
+      if (idEl) idEl.value = rawId;
+    }
+    const newId = rawId;
 
     // Kiểm tra trùng mã
     if (state.products.some(p => String(p.id) === String(newId))) {
