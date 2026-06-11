@@ -298,13 +298,13 @@ function renderStockLedger() {
         </tr>
       `;
     } else if (v.type === "purchase_return") {
-      runningStock -= item.qty;
+      runningStock += item.qty;
       html += `
         <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
           <td>${v.date}</td>
-          <td class="font-numeric" style="color:var(--color-danger); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${v.id}</td>
+          <td class="font-numeric" style="color:var(--color-success); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${v.id}</td>
+          <td class="text-right font-numeric" style="color: var(--color-success); font-weight:700;">+${item.qty}</td>
           <td class="text-right font-numeric">-</td>
-          <td class="text-right font-numeric" style="color: var(--color-danger); font-weight:700;">-${item.qty}</td>
           <td class="text-right font-numeric">${formatVND(item.price)} (Tồn: ${runningStock})</td>
         </tr>
       `;
@@ -435,7 +435,7 @@ function exportStockLedgerToExcel() {
 
       sc(rowIdx, 0, v.date, 's', bs(cC, bg));
       sc(rowIdx, 1, v.id, 's', bs(cC, bg));
-      sc(rowIdx, 2, v.description || (v.type === 'purchase' ? 'Nhập kho mua hàng' : v.type === 'purchase_return' ? 'Xuất trả lại hàng' : 'Xuất kho bán hàng'), 's', bs(cL, bg));
+      sc(rowIdx, 2, v.description || (v.type === 'purchase' ? 'Nhập kho mua hàng' : v.type === 'purchase_return' ? 'Nhập hàng trả lại' : 'Xuất kho bán hàng'), 's', bs(cL, bg));
 
       if (v.type === "purchase") {
         runningStock += item.qty;
@@ -444,10 +444,10 @@ function exportStockLedgerToExcel() {
         sc(rowIdx, 4, "-", 's', bs(cR, bg));
         sc(rowIdx, 5, item.price, 'n', bs(cR, bg), numFmt);
       } else if (v.type === "purchase_return") {
-        runningStock -= item.qty;
-        totalExport += item.qty;
-        sc(rowIdx, 3, "-", 's', bs(cR, bg));
-        sc(rowIdx, 4, item.qty, 'n', bs(cR, bg), "#,##0.##");
+        runningStock += item.qty;
+        totalImport += item.qty;
+        sc(rowIdx, 3, item.qty, 'n', bs(cR, bg), "#,##0.##");
+        sc(rowIdx, 4, "-", 's', bs(cR, bg));
         sc(rowIdx, 5, item.price, 'n', bs(cR, bg), numFmt);
       } else {
         runningStock -= item.qty;

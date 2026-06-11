@@ -1501,7 +1501,7 @@ function renderPurchaseReturnTable() {
         <td class="font-numeric" style="color: var(--color-primary); font-weight:700;">${v.id}</td>
         <td>${formattedDate}</td>
         <td>${v.description}</td>
-        <td><span class="badge ${v.paymentMethod === '331' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '331' ? 'Công nợ (331)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
+        <td><span class="badge ${v.paymentMethod === '131' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '131' ? 'Công nợ (131)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
         <td class="text-right font-numeric" style="font-weight:700; color:var(--color-primary);">${formatVND(v.totalAmount)}</td>
         <td>
           <div class="accounting-detail-box">
@@ -1643,11 +1643,11 @@ function recalculatePurchaseReturnTotals() {
 function resetPurchaseReturnForm() {
   editingPurchaseReturnId = null;
   const modalTitle = document.querySelector("#modal-add-purchase-return .card-title");
-  if (modalTitle) modalTitle.innerText = "Chứng từ Hàng trả lại mua";
+  if (modalTitle) modalTitle.innerText = "Chứng từ Nhập hàng trả lại từ khách hàng";
 
   const tbody = document.getElementById("purchase-return-form-items-body");
   if (tbody) tbody.innerHTML = "";
-  document.getElementById("ret-desc").value = "Xuất trả lại hàng cho NCC";
+  document.getElementById("ret-desc").value = "Nhập hàng trả lại từ khách hàng";
   document.getElementById("ret-date").value = new Date().toISOString().split("T")[0];
 
   addPurchaseReturnFormRow();

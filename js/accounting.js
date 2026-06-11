@@ -49,7 +49,7 @@ function recalculateAccounting(shouldSave = true) {
           if (v.type === "purchase") {
             voucherChanges[item.productId].purchases += (item.qty || 0);
           } else if (v.type === "purchase_return") {
-            voucherChanges[item.productId].purchases -= (item.qty || 0);
+            voucherChanges[item.productId].sales -= (item.qty || 0);
           } else if (v.type === "sales") {
             voucherChanges[item.productId].sales += (item.qty || 0);
           }
@@ -149,22 +149,28 @@ function recalculateAccounting(shouldSave = true) {
       }
 
     } else if (v.type === "purchase_return") {
-      // Hàng trả lại mua: Giảm số lượng và giảm giá trị tồn
+      // Hàng trả lại: Cộng vào stock trong kho và giảm trừ doanh thu
+      let totalCogs = 0;
       let itemSubtotal = 0;
+
       v.items.forEach(item => {
         const p = productBalanceMap[item.productId];
         if (p) {
-          p.stock = Number((p.stock - item.qty).toFixed(3));
-          p.totalValue -= item.amount; // Thành tiền trả lại chưa thuế
-          if (p.stock > 0) {
-            p.avgCost = Math.round(p.totalValue / p.stock);
-          } else {
-            p.totalValue = 0;
+          if (!p.avgCost || p.avgCost <= 0) {
+            p.avgCost = p.lastPurchasePrice || p.initialCost || 0;
           }
+          item.cogsUnit = p.avgCost;
+          item.cogsAmount = Math.round(item.qty * p.avgCost);
+
+          p.stock = Number((p.stock + item.qty).toFixed(3));
+          p.totalValue += item.cogsAmount;
+
+          totalCogs += item.cogsAmount;
         }
         itemSubtotal += item.amount;
       });
 
+      v.cogsAmount = totalCogs;
       const taxRate = v.taxRate || 0;
       const taxAmount = Math.round(itemSubtotal * (taxRate / 100));
       const totalAmount = itemSubtotal + taxAmount;
@@ -172,14 +178,20 @@ function recalculateAccounting(shouldSave = true) {
       v.taxAmount = taxAmount;
       v.totalAmount = totalAmount;
       if (v.remainingDebt === undefined) {
-        v.remainingDebt = (v.paymentMethod === "331") ? totalAmount : 0;
+        v.remainingDebt = (v.paymentMethod === "131" || v.paymentMethod === "331") ? totalAmount : 0;
       }
 
+      // Giảm trừ doanh thu: Nợ TK 511 / Có TK đối ứng (131, 331, 111, 112)
       v.entries = [
-        { debit: v.paymentMethod, credit: "156", amount: itemSubtotal, desc: `Trả lại hàng ${v.description}` },
+        { debit: "511", credit: v.paymentMethod, amount: itemSubtotal, desc: `Giảm trừ doanh thu hàng trả lại ${v.description}` }
       ];
       if (taxAmount > 0) {
-        v.entries.push({ debit: v.paymentMethod, credit: "1331", amount: taxAmount, desc: "Giảm thuế GTGT đầu vào được khấu trừ" });
+        v.entries.push({ debit: "3331", credit: v.paymentMethod, amount: taxAmount, desc: "Giảm thuế GTGT đầu ra phải nộp" });
+      }
+
+      // Nhập lại kho: Nợ TK 156 / Có TK 632
+      if (totalCogs > 0) {
+        v.entries.push({ debit: "156", credit: "632", amount: totalCogs, desc: `Nhập lại kho hàng trả lại ${v.description}` });
       }
 
     } else if (v.type === "sales") {

@@ -448,7 +448,7 @@ function viewVoucher(id) {
       </div>
     `;
   } else if (v.type === "purchase_return") {
-    // Trả lại hàng mua -> Phiếu Xuất Kho (Mẫu số 02 - VT)
+    // Trả lại hàng -> Phiếu Nhập Kho (Mẫu số 01 - VT)
     content = `
       <div class="printable-voucher">
         <div class="voucher-header-top">
@@ -463,34 +463,34 @@ function viewVoucher(id) {
             </div>
           </div>
           <div class="voucher-template-code">
-            <span class="template-bold">Mẫu số 02 - VT</span><br>
+            <span class="template-bold">Mẫu số 01 - VT</span><br>
             <span>(Ban hành theo Thông tư số 200/2014/TT-BTC)</span>
           </div>
         </div>
         
         <div class="voucher-title-area">
-          <span class="voucher-title">PHIẾU XUẤT KHO HÀNG TRẢ LẠI</span><br>
+          <span class="voucher-title">PHIẾU NHẬP KHO HÀNG TRẢ LẠI</span><br>
           <span class="voucher-subtitle">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</span>
         </div>
         
         <div class="voucher-entries-note">
           <span>Số: <span class="template-bold">${v.id}</span></span><br>
-          <span>Nợ TK: <span class="template-bold">${v.paymentMethod}</span></span><br>
-          <span>Có TK: <span class="template-bold">156</span></span><br>
-          ${v.taxAmount > 0 ? `<span>Có TK: <span class="template-bold">1331</span></span><br>` : ""}
+          <span>Nợ TK: <span class="template-bold">511, 156</span></span><br>
+          ${v.taxAmount > 0 ? `<span>Nợ TK: <span class="template-bold">3331</span></span><br>` : ""}
+          <span>Có TK: <span class="template-bold">${v.paymentMethod}, 632</span></span><br>
         </div>
         
         <div style="margin-top:20px;">
           <div class="voucher-info-row">
-            <span class="info-label">- Họ và tên người nhận hàng:</span>
+            <span class="info-label">- Họ và tên người giao hàng:</span>
             <span class="info-dotted">${partnerName}</span>
           </div>
           <div class="voucher-info-row">
-            <span class="info-label">- Lý do xuất trả:</span>
+            <span class="info-label">- Lý do nhập trả:</span>
             <span class="info-dotted">${v.description}</span>
           </div>
           <div class="voucher-info-row">
-            <span class="info-label">- Xuất tại kho:</span>
+            <span class="info-label">- Nhập tại kho:</span>
             <span class="info-dotted">Kho thành phẩm Rạng Đông</span>
           </div>
         </div>
@@ -522,7 +522,7 @@ function viewVoucher(id) {
             }).join("")}
             
             <tr style="background-color:#e5e7eb;">
-              <td colspan="5" style="text-align:right; font-weight:bold; text-transform:uppercase;">Tổng cộng tiền trả lại:</td>
+              <td colspan="5" style="text-align:right; font-weight:bold; text-transform:uppercase;">Tổng cộng tiền nhận trả lại:</td>
               <td style="text-align:right; font-weight:bold; color:var(--color-primary);">${formatVND(v.totalAmount).replace("đ", "")}</td>
             </tr>
           </tbody>
@@ -540,7 +540,7 @@ function viewVoucher(id) {
             <span class="sig-name">Kế toán viên</span>
           </div>
           <div class="sig-block">
-            <span class="sig-title">Người nhận hàng</span><br>
+            <span class="sig-title">Người giao hàng</span><br>
             <span class="sig-subtext">(Ký, họ tên)</span>
             <div class="sig-space"></div>
             <span class="sig-name">${partnerName.split(" ").slice(-2).join(" ")}</span>
