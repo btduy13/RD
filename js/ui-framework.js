@@ -605,13 +605,20 @@ function viewVoucher(id) {
           </tbody>
         </table>
 
-        <!-- Chữ số tiền viết bằng chữ & ghi chú -->
-        <div style="margin-bottom: 12px; font-size: 11px; line-height: 1.3;">
-          <div style="margin-bottom: 3px;">
-            <strong>Số tiền viết bằng chữ:</strong> <span style="font-style: italic;">${numberToVietnameseWords(v.totalAmount)}</span>
+        <!-- Chữ số tiền viết bằng chữ, ghi chú & Mã QR thanh toán -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; font-size: 11px; line-height: 1.3; page-break-inside: avoid; break-inside: avoid;">
+          <div style="flex: 1; padding-right: 15px;">
+            <div style="margin-bottom: 3px;">
+              <strong>Số tiền viết bằng chữ:</strong> <span style="font-style: italic;">${numberToVietnameseWords(v.totalAmount)}</span>
+            </div>
+            <div>
+              <strong>Ghi chú:</strong> <span style="font-style: italic; color: #374151;">${v.notes || "hàng thừa trả lại dơ bẩn không thu lại. Không thu lại nút bịt"}</span>
+            </div>
           </div>
-          <div>
-            <strong>Ghi chú:</strong> <span style="font-style: italic; color: #374151;">${v.notes || "hàng thừa trả lại dơ bẩn không thu lại. Không thu lại nút bịt"}</span>
+          <div style="width: 125px; text-align: center; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #000; padding: 4px; border-radius: 4px; background: #fff; page-break-inside: avoid; break-inside: avoid;">
+            <span style="font-size: 8px; font-weight: bold; text-transform: uppercase; color: #000; margin-bottom: 3px; letter-spacing: 0.2px;">Quét Mã QR Thanh Toán</span>
+            <img src="https://img.vietqr.io/image/sacombank-050033493999-qr_only.png?amount=${v.totalAmount}&addInfo=${encodeURIComponent('Thanh toan ' + v.id)}&accountName=${encodeURIComponent('CTY CP SX DT PHAT TRIEN RANG DONG')}" style="width: 90px; height: 90px; display: block;" alt="VietQR" />
+            <span style="font-size: 8px; color: #000; margin-top: 3px; font-family: monospace; font-weight: bold;">STK: 050033493999</span>
           </div>
         </div>
 
