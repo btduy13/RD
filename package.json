@@ -48,7 +48,7 @@
     },
     "files": [
       "index.html",
-      "app.js",
+      "js/**/*.js",
       "data.js",
       "styles.css",
       "main.js",

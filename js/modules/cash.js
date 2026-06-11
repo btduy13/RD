@@ -1,0 +1,679 @@
+
+// Tìm hóa đơn bán hàng liên quan cho chứng từ phiếu thu/chi
+function findRelatedSalesVoucher(voucherId, description, partnerId, amount) {
+  const v = state.vouchers.find(x => x.id === voucherId);
+  if (!v) return null;
+
+  // 1. Tìm theo số chứng từ bán hàng trong diễn giải (ví dụ: BH39244, BH-25-0001, v.v.)
+  const descStr = (description || v.description || "").toString();
+  const bhMatch = descStr.match(/BH-?\d+/i);
+  if (bhMatch) {
+    const matchedId = bhMatch[0].toUpperCase().replace("-", ""); // Chuẩn hóa mã
+    const relatedSales = state.vouchers.find(x => x.type === "sales" && x.id.toUpperCase().replace("-", "") === matchedId);
+    if (relatedSales) return relatedSales;
+  }
+
+  // 2. Thử tìm bằng các số dài >= 3 trong diễn giải khớp với mã hóa đơn bán hàng
+  const numMatches = descStr.match(/\d+/g);
+  if (numMatches) {
+    for (const num of numMatches) {
+      if (num.length >= 3) {
+        const relatedSales = state.vouchers.find(x => x.type === "sales" && x.id.includes(num));
+        if (relatedSales) return relatedSales;
+      }
+    }
+  }
+
+  // 3. Tìm hóa đơn bán hàng gần nhất của đối tác này có cùng số tiền
+  const amt = amount || v.amount || 0;
+  if (amt > 0) {
+    const relatedSales = state.vouchers.find(x => x.type === "sales" && String(x.partnerId) === String(partnerId) && Math.abs(x.totalAmount - amt) < 100);
+    if (relatedSales) return relatedSales;
+  }
+
+  return null;
+}
+let filteredCashList = [];
+
+// --- Phân hệ Thu/Chi ---
+function recalculateCashKpis() {
+  const balance111 = getAccountBalance("111");
+  const balance112 = getAccountBalance("112");
+
+  let totalReceipts = 0;
+  let totalPayments = 0;
+
+  state.vouchers.forEach(v => {
+    const isCashVoucher = v.type === "receipt" || v.type === "payment" || v.type.startsWith("escrow_");
+    if (!isCashVoucher) return;
+
+    if (v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay") {
+      totalReceipts += v.amount;
+    } else if (v.type === "payment" || v.type === "escrow_pay" || v.type === "escrow_refund_receive") {
+      totalPayments += v.amount;
+    }
+  });
+
+  const cashEl = document.getElementById("cash-kpi-cash");
+  const bankEl = document.getElementById("cash-kpi-bank");
+  const recEl = document.getElementById("cash-kpi-receipts");
+  const payEl = document.getElementById("cash-kpi-payments");
+
+  if (cashEl) cashEl.innerText = formatVND(balance111);
+  if (bankEl) bankEl.innerText = formatVND(balance112);
+  if (recEl) recEl.innerText = formatVND(totalReceipts);
+  if (payEl) payEl.innerText = formatVND(totalPayments);
+}
+
+function renderCashTable() {
+  const tbody = document.getElementById("cash-table-body");
+  if (!tbody) return;
+
+  const totalCount = filteredCashList.length;
+  const totalPages = Math.ceil(totalCount / itemsPerPage) || 1;
+
+  if (cashPage > totalPages) cashPage = totalPages;
+  if (cashPage < 1) cashPage = 1;
+
+  const startIdx = (cashPage - 1) * itemsPerPage;
+  const endIdx = startIdx + itemsPerPage;
+  const pageItems = filteredCashList.slice(startIdx, endIdx);
+
+  tbody.innerHTML = "";
+  if (pageItems.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy chứng từ nào</td></tr>`;
+  } else {
+    pageItems.forEach(v => {
+      const typeLabel = (v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay") ? "Phiếu Thu" : "Phiếu Chi";
+      const isReceipt = v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay";
+      const methodLabel = v.paymentMethod === "111" ? "Tiền mặt (111)" : "Ngân hàng (112)";
+
+      const tr = document.createElement("tr");
+      const escapedPartnerId = escapeHtmlAttr(v.partnerId);
+      const escapedVoucherId = escapeHtmlAttr(v.id);
+      const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
+      tr.className = "clickable-row";
+      tr.setAttribute("data-type", "voucher");
+      tr.setAttribute("data-subtype", v.type);
+      tr.setAttribute("data-id", escapedVoucherId);
+      tr.innerHTML = `
+        <td style="text-align: center;">
+          <input type="checkbox" class="cash-checkbox" value="${escapedVoucherId}" onchange="updateBatchCashUI()">
+        </td>
+        <td>${formattedDate}</td>
+        <td>${formattedDate}</td>
+        <td style="font-weight:bold; color:var(--color-primary);">${v.id}</td>
+        <td><a href="#" onclick="viewPartnerLedger('${escapedPartnerId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${getPartnerNameForVoucher(v)}</a></td>
+        <td>${v.description}</td>
+        <td style="text-align:right; font-weight:700;" class="font-numeric">${formatVND(v.amount).replace("đ", "")}</td>
+        <td>
+          <span class="badge ${isReceipt ? 'badge-success' : 'badge-danger'}">
+            ${typeLabel}
+          </span>
+        </td>
+        <td>${methodLabel}</td>
+        <td style="text-align:center;">
+          <div style="display:flex; justify-content:center; gap:6px;">
+            <button class="print-btn" onclick="viewVoucher('${escapedVoucherId}')" title="Xem và In mẫu chứng từ" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-success); cursor: pointer; transition: all 0.2s;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            </button>
+            <button class="trash-btn" onclick="deleteVoucher('${escapedVoucherId}')" title="Xóa và Hủy ghi sổ chứng từ" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-danger); cursor: pointer; transition: all 0.2s;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  const paginationInfo = document.getElementById("cash-pagination-info");
+  if (paginationInfo) {
+    paginationInfo.innerText = totalCount > 0
+      ? `Hiển thị ${startIdx + 1} - ${Math.min(endIdx, totalCount)} trong số ${totalCount} chứng từ (Trang ${cashPage}/${totalPages})`
+      : `Hiển thị 0 - 0 trong số 0 chứng từ`;
+  }
+
+  // Reset check-all-cash checkbox
+  const checkAll = document.getElementById("check-all-cash");
+  if (checkAll) checkAll.checked = false;
+  if (typeof updateBatchCashUI === "function") updateBatchCashUI();
+
+  // Render pagination controls
+  const paginationControls = document.getElementById("cash-pagination-controls");
+  if (paginationControls) {
+    if (totalPages <= 1) {
+      paginationControls.style.display = "none";
+    } else {
+      paginationControls.style.display = "flex";
+
+      let buttonsHTML = "";
+      buttonsHTML += `
+        <button class="btn btn-secondary btn-sm" onclick="changeCashPage(1)" ${cashPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">« Đầu</button>
+        <button class="btn btn-secondary btn-sm" onclick="changeCashPage(${cashPage - 1})" ${cashPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">‹ Trước</button>
+      `;
+
+      let startPage = Math.max(1, cashPage - 2);
+      let endPage = Math.min(totalPages, cashPage + 2);
+
+      if (startPage > 1) {
+        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
+      }
+
+      for (let p = startPage; p <= endPage; p++) {
+        buttonsHTML += `
+          <button class="btn ${p === cashPage ? 'btn-success' : 'btn-secondary'} btn-sm" onclick="changeCashPage(${p})" style="padding: 4px 10px; font-size: 12px; font-weight: ${p === cashPage ? '800' : 'normal'};">${p}</button>
+        `;
+      }
+
+      if (endPage < totalPages) {
+        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
+      }
+
+      buttonsHTML += `
+        <button class="btn btn-secondary btn-sm" onclick="changeCashPage(${cashPage + 1})" ${cashPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Sau ›</button>
+        <button class="btn btn-secondary btn-sm" onclick="changeCashPage(${totalPages})" ${cashPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Cuối »</button>
+      `;
+
+      paginationControls.innerHTML = `
+        <span style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">
+          Hiển thị ${startIdx + 1} - ${Math.min(endIdx, totalCount)} của ${totalCount} chứng từ
+        </span>
+        <div style="display: flex; gap: 4px; align-items: center;">
+          ${buttonsHTML}
+        </div>
+      `;
+    }
+  }
+}
+
+function changeCashPage(p) {
+  cashPage = p;
+  renderCashTable();
+}
+
+function filterCash() {
+  const query = document.getElementById("cash-search-input") ? document.getElementById("cash-search-input").value : "";
+  const filterType = document.getElementById("cash-type-filter") ? document.getElementById("cash-type-filter").value : "all";
+  const filterMethod = document.getElementById("cash-method-filter") ? document.getElementById("cash-method-filter").value : "all";
+  const fromDate = document.getElementById("search-cash-from") ? document.getElementById("search-cash-from").value : "";
+  const toDate = document.getElementById("search-cash-to") ? document.getElementById("search-cash-to").value : "";
+
+  filteredCashList = state.vouchers.filter(v => {
+    const isCash = v.type === "receipt" || v.type === "payment" || v.type.startsWith("escrow_");
+    if (!isCash) return false;
+
+    const partnerName = getPartnerNameForVoucher(v);
+    const combined = `${v.id || ""} ${partnerName} ${v.description || ""}`;
+    const matchesQuery = matchAdvancedQuery(combined, query, v.amount);
+
+    let matchesType = true;
+    if (filterType === "receipt") {
+      matchesType = v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay";
+    } else if (filterType === "payment") {
+      matchesType = v.type === "payment" || v.type === "escrow_pay" || v.type === "escrow_refund_receive";
+    }
+
+    let matchesMethod = true;
+    if (filterMethod !== "all") {
+      matchesMethod = v.paymentMethod === filterMethod;
+    }
+
+    let matchesDate = true;
+    if (fromDate && v.date < fromDate) matchesDate = false;
+    if (toDate && v.date > toDate) matchesDate = false;
+
+    return matchesQuery && matchesType && matchesMethod && matchesDate;
+  });
+
+  filteredCashList.sort((a, b) => {
+    const dateDiff = new Date(b.date) - new Date(a.date);
+    if (dateDiff !== 0) return dateDiff;
+    return b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' });
+  });
+
+  cashPage = 1;
+  renderCashTable();
+}
+
+function clearCashDateFilter() {
+  const fromEl = document.getElementById("search-cash-from");
+  const toEl = document.getElementById("search-cash-to");
+  if (fromEl) fromEl.value = "";
+  if (toEl) toEl.value = "";
+  filterCash();
+}
+
+function openAddReceiptModal() {
+  document.getElementById("form-receipt").reset();
+  document.getElementById("receipt-date").value = new Date().toISOString().split("T")[0];
+  openModal("modal-add-receipt");
+}
+
+function openAddPaymentModal() {
+  document.getElementById("form-payment").reset();
+  document.getElementById("payment-date").value = new Date().toISOString().split("T")[0];
+  openModal("modal-add-payment");
+}
+
+function generateNextReceiptVoucherId() {
+  const prefix = "PT";
+  const regex = /^PT(\d+)$/;
+  let maxNum = 0;
+
+  state.vouchers.forEach(v => {
+    if (v && v.id) {
+      const match = v.id.match(regex);
+      if (match) {
+        const num = parseInt(match[1]);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+  });
+
+  if (maxNum === 0) {
+    maxNum = 13122; // default safe fallback based on DB state
+  }
+
+  let nextId = `${prefix}${maxNum + 1}`;
+  if (Array.isArray(state.deletedIds)) {
+    let checkNum = maxNum + 1;
+    while (state.deletedIds.includes(nextId)) {
+      checkNum++;
+      nextId = `${prefix}${checkNum}`;
+    }
+  }
+  return nextId;
+}
+
+function generateNextPaymentVoucherId() {
+  const prefix = "PC";
+  const regex = /^PC(\d+)$/;
+  let maxNum = 0;
+
+  state.vouchers.forEach(v => {
+    if (v && v.id) {
+      const match = v.id.match(regex);
+      if (match) {
+        const num = parseInt(match[1]);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+  });
+
+  if (maxNum === 0) {
+    maxNum = 7194; // default safe fallback based on DB state
+  }
+
+  let nextId = `${prefix}${maxNum + 1}`;
+  if (Array.isArray(state.deletedIds)) {
+    let checkNum = maxNum + 1;
+    while (state.deletedIds.includes(nextId)) {
+      checkNum++;
+      nextId = `${prefix}${checkNum}`;
+    }
+  }
+  return nextId;
+}
+
+function handleReceiptSubmit(e) {
+  e.preventDefault();
+
+  const date = document.getElementById("receipt-date").value;
+  const partnerVal = document.getElementById("receipt-partner").value;
+  const debit = document.getElementById("receipt-debit").value;
+  const credit = document.getElementById("receipt-credit").value;
+  const amount = parseInt(document.getElementById("receipt-amount").value.replace(/\D/g, "")) || 0;
+  const desc = document.getElementById("receipt-desc").value.trim();
+
+  const partnerObj = resolvePartner(partnerVal);
+
+  const id = generateNextReceiptVoucherId();
+
+  const newVoucher = {
+    id,
+    type: "receipt",
+    date,
+    partnerId: partnerObj.id,
+    partnerName: partnerObj.name,
+    paymentMethod: debit,
+    description: desc,
+    amount,
+    isManual: true,
+    _sessionId: clientSessionId,
+    entries: [
+      { debit, credit, amount, desc }
+    ]
+  };
+
+  state.vouchers.push(newVoucher);
+  saveState();
+  recalculateAccounting();
+
+  closeModal("modal-add-receipt");
+  document.getElementById("form-receipt").reset();
+  showToast("Lập phiếu thu thành công!", "success");
+
+  filterCash();
+  recalculateCashKpis();
+}
+
+function handlePaymentSubmit(e) {
+  e.preventDefault();
+
+  const date = document.getElementById("payment-date").value;
+  const partnerVal = document.getElementById("payment-partner").value;
+  const debit = document.getElementById("payment-debit").value;
+  const credit = document.getElementById("payment-credit").value;
+  const amount = parseInt(document.getElementById("payment-amount").value.replace(/\D/g, "")) || 0;
+  const desc = document.getElementById("payment-desc").value.trim();
+
+  const partnerObj = resolvePartner(partnerVal);
+
+  const id = generateNextPaymentVoucherId();
+
+  const newVoucher = {
+    id,
+    type: "payment",
+    date,
+    partnerId: partnerObj.id,
+    partnerName: partnerObj.name,
+    paymentMethod: credit,
+    description: desc,
+    amount,
+    isManual: true,
+    _sessionId: clientSessionId,
+    entries: [
+      { debit, credit, amount, desc }
+    ]
+  };
+
+  state.vouchers.push(newVoucher);
+  saveState();
+  recalculateAccounting();
+
+  closeModal("modal-add-payment");
+  document.getElementById("form-payment").reset();
+  showToast("Lập phiếu chi thành công!", "success");
+
+  filterCash();
+  recalculateCashKpis();
+}
+
+function exportCashToExcel() {
+  const fallbackHeaders = [
+    ["DANH SÁCH THU, CHI TIỀN"],
+    ["Ngày hạch toán", "Ngày chứng từ", "Số chứng từ", "Diễn giải", "Số tiền", "Đối tượng", "Lý do thu/chi", "Ngày ghi sổ quỹ", "Loại chứng từ", "Số chứng từ CUKCUK"]
+  ];
+
+  const query = document.getElementById("cash-search-input") ? document.getElementById("cash-search-input").value.toLowerCase() : "";
+  const filterType = document.getElementById("cash-type-filter") ? document.getElementById("cash-type-filter").value : "all";
+  const filterMethod = document.getElementById("cash-method-filter") ? document.getElementById("cash-method-filter").value : "all";
+  const fromDate = document.getElementById("search-cash-from") ? document.getElementById("search-cash-from").value : "";
+  const toDate = document.getElementById("search-cash-to") ? document.getElementById("search-cash-to").value : "";
+
+  let filteredCash = state.vouchers.filter(v => {
+    const isCash = v.type === "receipt" || v.type === "payment" || v.type.startsWith("escrow_");
+    if (!isCash) return false;
+
+    const partnerName = getPartnerNameForVoucher(v);
+    const combined = `${v.id || ""} ${partnerName} ${v.description || ""}`;
+    const matchesQuery = matchAdvancedQuery(combined, query, v.amount);
+
+    let matchesType = true;
+    if (filterType === "receipt") {
+      matchesType = v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay";
+    } else if (filterType === "payment") {
+      matchesType = v.type === "payment" || v.type === "escrow_pay" || v.type === "escrow_refund_receive";
+    }
+
+    let matchesMethod = true;
+    if (filterMethod !== "all") {
+      matchesMethod = v.paymentMethod === filterMethod;
+    }
+
+    let matchesDate = true;
+    if (fromDate && v.date < fromDate) matchesDate = false;
+    if (toDate && v.date > toDate) matchesDate = false;
+
+    return matchesQuery && matchesType && matchesMethod && matchesDate;
+  });
+
+  filteredCash.sort((a, b) => {
+    const dateDiff = new Date(b.date) - new Date(a.date);
+    if (dateDiff !== 0) return dateDiff;
+    return b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' });
+  });
+
+  const cashMapper = (v, r) => {
+    if (!v.excelRow) {
+      v.excelRow = createDefaultVoucherExcelRow(v);
+    }
+    for (let i = 0; i < 10; i++) {
+      r[i] = v.excelRow[i] !== undefined ? v.excelRow[i] : "";
+    }
+    const typeLabel = (v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay") ? "Phiếu thu" : "Phiếu chi";
+    r[0] = v.date;   // Ngày hạch toán (sẽ được convert sang serial bởi exportExcelWithTemplate)
+    r[1] = v.date;   // Ngày chứng từ
+    r[2] = v.id;     // Số chứng từ
+    r[3] = v.description;  // Diễn giải
+    r[4] = v.amount || v.totalAmount || 0;  // Số tiền
+    r[5] = v.partnerName || getPartnerNameForVoucher(v);  // Đối tượng
+    r[6] = v.description;  // Lý do thu/chi
+    r[7] = v.date;   // Ngày ghi sổ quỹ
+    r[8] = typeLabel;  // Loại chứng từ
+    r[9] = v.id;     // Số chứng từ gốc
+  };
+
+  let dateRangeSuffix = "";
+  if (fromDate || toDate) {
+    dateRangeSuffix = `_tu_${fromDate || "truoc"}_den_${toDate || "sau"}`;
+  }
+
+  exportExcelWithTemplate(
+    'excel/Thu__chi_tien.xlsx',
+    `Thu__chi_tien_${new Date().toISOString().split("T")[0]}${dateRangeSuffix}.xlsx`,
+    filteredCash,
+    cashMapper,
+    fallbackHeaders,
+    cashMapper
+  );
+}
+
+function exportSalesToExcel() {
+  if (typeof XLSX === "undefined") {
+    showToast("Thư viện SheetJS chưa được nạp!", "danger");
+    return;
+  }
+  let filteredSales = state.vouchers.filter(v => v.type === "sales");
+
+  const query = document.getElementById("search-sales") ? document.getElementById("search-sales").value.toLowerCase() : "";
+  const fromDate = document.getElementById("search-sales-from") ? document.getElementById("search-sales-from").value : "";
+  const toDate = document.getElementById("search-sales-to") ? document.getElementById("search-sales-to").value : "";
+
+  if (query) filteredSales = filteredSales.filter(v =>
+    (v.id || "").toLowerCase().includes(query) ||
+    (v.partnerName || "").toLowerCase().includes(query) ||
+    (v.description || "").toLowerCase().includes(query)
+  );
+  if (fromDate) filteredSales = filteredSales.filter(v => v.date >= fromDate);
+  if (toDate) filteredSales = filteredSales.filter(v => v.date <= toDate);
+  filteredSales.sort((a, b) => new Date(a.date) - new Date(b.date) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+
+  try {
+    const wb = XLSX.utils.book_new();
+    const ws = {};
+    const merges = [];
+
+    const thin = { style: "thin", color: { rgb: "AAAAAA" } };
+    const border4 = { top: thin, bottom: thin, left: thin, right: thin };
+    const hdrBg = { patternType: "solid", fgColor: { rgb: "1F497D" } };
+    const altBg = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
+    const totBg = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
+    const fntT = { name: "Times New Roman", sz: 13, bold: true };
+    const fntSub = { name: "Times New Roman", sz: 11, italic: true };
+    const fntH = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
+    const fntB = { name: "Times New Roman", sz: 11, bold: true };
+    const fntN = { name: "Times New Roman", sz: 11 };
+    const cC = { horizontal: "center", vertical: "center" };
+    const cL = { horizontal: "left", vertical: "center", wrapText: true };
+    const cR = { horizontal: "right", vertical: "center" };
+    const numFmt = "#,##0 ;[Red](#,##0)";
+    const dateFmt = "dd/mm/yyyy";
+
+    const sc = (r, c, v, t, s, z) => {
+      const key = XLSX.utils.encode_cell({ r, c });
+      const cell = { v, t: t || (typeof v === 'number' ? 'n' : 's') };
+      if (s) cell.s = s;
+      if (z) cell.z = z;
+      ws[key] = cell;
+    };
+
+    // ROW 0: Tiêu đề
+    const today = new Date().toLocaleDateString('vi-VN');
+    sc(0, 0, (state.companyName || "Công Ty Cổ Phần Rạng Đông") + " — DANH SÁCH BÁN HÀNG", 's', { font: fntT, alignment: cC });
+    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 14 } });
+
+    // ROW 1: Phạm vi
+    sc(1, 0, `Từ ngày: ${fromDate || 'đầu kỳ'}   Đến ngày: ${toDate || today}`, 's', { font: fntSub, alignment: cC });
+    merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 14 } });
+
+    // ROW 2: Headers
+    //  0=Ngày HT  1=Ngày CT  2=Số CT  3=Số HĐ  4=Mẫu số  5=Ký hiệu  6=Khách hàng  7=Diễn giải  8=Tổng tiền hàng  9=Chiết khấu  10=Thuế  11=Thanh toán  12=Đã lập  13=Đã xuất  14=Loại CT
+    const headers = ["Ngày hạch toán", "Ngày chứng từ", "Số chứng từ", "Số hóa đơn", "Mẫu số HĐ", "Ký hiệu HĐ", "Khách hàng", "Diễn giải", "Tổng tiền hàng", "Tiền chiết khấu", "Tiền thuế GTGT", "Tổng tiền thanh toán", "Đã lập hóa đơn", "Đã xuất hàng", "Loại chứng từ"];
+    headers.forEach((h, c) => sc(2, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: border4 }));
+
+    // DATA ROWS
+    let rowIdx = 3;
+    let totalGross = 0, totalDiscount = 0, totalTax = 0, totalAmt = 0;
+
+    filteredSales.forEach((v, idx) => {
+      const bg = idx % 2 === 0 ? null : altBg;
+      const bs = (al) => ({ font: fntN, fill: bg, alignment: al, border: border4 });
+      const ns = (al) => ({ font: fntN, fill: bg, alignment: al || cR, border: border4 });
+
+      let grossTotal = 0, discountTotal = 0;
+      if (v.items && v.items.length > 0) {
+        v.items.forEach(item => {
+          const itemGross = (item.qty || 0) * (item.price || 0);
+          const discVal = itemGross * ((item.discount || 0) / 100);
+          grossTotal += itemGross;
+          discountTotal += discVal;
+        });
+      } else {
+        grossTotal = (v.totalAmount || 0) - (v.taxAmount || 0);
+      }
+
+      const er = v.excelRow || [];
+      sc(rowIdx, 0, dateStrToSerial(v.date), 'n', bs(cC), dateFmt);
+      sc(rowIdx, 1, dateStrToSerial(v.date), 'n', bs(cC), dateFmt);
+      sc(rowIdx, 2, v.id, 's', bs(cC));
+      sc(rowIdx, 3, er[3] || v.invoiceNo || "", 's', bs(cC));
+      sc(rowIdx, 4, er[4] || "", 's', bs(cC));
+      sc(rowIdx, 5, er[5] || "", 's', bs(cC));
+      sc(rowIdx, 6, v.partnerName || "", 's', bs(cL));
+      sc(rowIdx, 7, v.description || "", 's', bs(cL));
+      sc(rowIdx, 8, grossTotal, 'n', ns(cR), numFmt);
+      sc(rowIdx, 9, discountTotal, 'n', ns(cR), numFmt);
+      sc(rowIdx, 10, v.taxAmount || 0, 'n', ns(cR), numFmt);
+      sc(rowIdx, 11, v.totalAmount || 0, 'n', ns(cR), numFmt);
+      sc(rowIdx, 12, er[12] || "Đã lập", 's', bs(cC));
+      sc(rowIdx, 13, er[13] || "Đã xuất", 's', bs(cC));
+      sc(rowIdx, 14, v.paymentMethod === "111" ? "Bán hàng - Tiền mặt" : "Bán hàng - Chưa thu", 's', bs(cL));
+
+      totalGross += grossTotal;
+      totalDiscount += discountTotal;
+      totalTax += v.taxAmount || 0;
+      totalAmt += v.totalAmount || 0;
+      rowIdx++;
+    });
+
+    // DÒNG TỔNG
+    const ts = (al) => ({ font: fntB, fill: totBg, alignment: al, border: border4 });
+    sc(rowIdx, 0, "TỔNG CỘNG", 's', ts(cL)); merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 7 } });
+    sc(rowIdx, 8, totalGross, 'n', ts(cR), numFmt);
+    sc(rowIdx, 9, totalDiscount, 'n', ts(cR), numFmt);
+    sc(rowIdx, 10, totalTax, 'n', ts(cR), numFmt);
+    sc(rowIdx, 11, totalAmt, 'n', ts(cR), numFmt);
+    sc(rowIdx, 12, "", 's', ts(cC)); sc(rowIdx, 13, "", 's', ts(cC)); sc(rowIdx, 14, "", 's', ts(cC));
+
+    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: 14 } });
+    ws['!merges'] = merges;
+    ws['!cols'] = [{ wch: 13 }, { wch: 13 }, { wch: 14 }, { wch: 13 }, { wch: 11 }, { wch: 11 }, { wch: 28 }, { wch: 28 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 11 }, { wch: 28 }];
+    ws['!rows'] = [{ hpt: 22 }, { hpt: 16 }, { hpt: 22 }];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Ban hang");
+    let dateRangeSuffix = fromDate || toDate ? `_${fromDate || ""}_${toDate || ""}` : "";
+    const outName = `Ban_hang_${new Date().toISOString().split('T')[0]}${dateRangeSuffix}.xlsx`;
+    XLSX.writeFile(wb, outName);
+    showToast(`Đã xuất Excel: ${outName}`, "success");
+  } catch (err) {
+    console.error(err);
+    showToast(`Lỗi xuất Excel bán hàng: ${err.message}`, "danger");
+  }
+}
+
+function toggleSelectAllCash(masterCheckbox) {
+  const checkboxes = document.querySelectorAll(".cash-checkbox");
+  checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+  updateBatchCashUI();
+}
+
+function updateBatchCashUI() {
+  const checkboxes = document.querySelectorAll(".cash-checkbox");
+  const checked = Array.from(checkboxes).filter(cb => cb.checked);
+  const btn = document.getElementById("btn-batch-delete-cash");
+  const count = document.getElementById("selected-cash-count");
+
+  if (btn && count) {
+    if (checked.length > 0) {
+      btn.style.display = "inline-flex";
+      count.innerText = checked.length;
+    } else {
+      btn.style.display = "none";
+      count.innerText = "0";
+    }
+  }
+
+  const master = document.getElementById("check-all-cash");
+  if (master) {
+    master.checked = checked.length === checkboxes.length && checkboxes.length > 0;
+  }
+}
+
+function batchDeleteCash() {
+  const checked = Array.from(document.querySelectorAll(".cash-checkbox")).filter(cb => cb.checked);
+  if (checked.length === 0) return;
+
+  if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} chứng từ thu chi đã chọn?`)) {
+    const idsToDelete = checked.map(cb => cb.value);
+    trackDeletedIds(idsToDelete);
+    state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+
+    saveState();
+    recalculateAccounting();
+
+    const master = document.getElementById("check-all-cash");
+    if (master) master.checked = false;
+
+    updateBatchCashUI();
+
+    filterCash();
+    if (typeof recalculateCashKpis === "function") recalculateCashKpis();
+    if (typeof renderDashboard === "function") renderDashboard();
+    if (typeof filterSales === "function") filterSales();
+    if (typeof filterPurchases === "function") filterPurchases();
+    if (typeof filterDebts === "function") filterDebts();
+    if (typeof filterPartners === "function") filterPartners();
+    if (typeof renderInventoryTable === "function") renderInventoryTable();
+
+    showToast(`Đã xóa thành công ${checked.length} chứng từ thu chi!`, "success");
+  }
+}
+// Cash
+window.changeCashPage = changeCashPage;
+window.clearCashDateFilter = clearCashDateFilter;
+window.toggleSelectAllCash = toggleSelectAllCash;
+window.updateBatchCashUI = updateBatchCashUI;
+window.batchDeleteCash = batchDeleteCash;
+window.exportCashToExcel = exportCashToExcel;
