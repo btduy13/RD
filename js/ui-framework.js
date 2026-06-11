@@ -26,7 +26,15 @@ function renderTabIfNeeded(tabId) {
     if (tabId === "dashboard") {
       renderDashboard();
     } else if (tabId === "purchase") {
-      renderPurchaseTable();
+      const btnOrder = document.getElementById("tab-btn-purchase-order");
+      const btnReturn = document.getElementById("tab-btn-purchase-return");
+      if (btnOrder && btnOrder.classList.contains("active")) {
+        if (typeof renderPurchaseOrderTable === "function") renderPurchaseOrderTable();
+      } else if (btnReturn && btnReturn.classList.contains("active")) {
+        if (typeof renderPurchaseReturnTable === "function") renderPurchaseReturnTable();
+      } else {
+        if (typeof renderPurchaseTable === "function") renderPurchaseTable();
+      }
     } else if (tabId === "sales") {
       renderSalesTable();
     } else if (tabId === "inventory") {
