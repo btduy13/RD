@@ -454,18 +454,7 @@ function generateNextPurchaseVoucherId(paymentMethod) {
     maxNum = 8459; // Vì số trong ảnh là NK08459
   }
 
-  let nextId = `${prefix}${(maxNum + 1).toString().padStart(5, '0')}`;
-  
-  // Tấm lưới bảo vệ: Nếu ID tiếp theo nằm trong deletedIds, tiếp tục tăng cho đến khi tìm được mã chưa dùng
-  if (Array.isArray(state.deletedIds)) {
-    let checkNum = maxNum + 1;
-    while (state.deletedIds.includes(nextId)) {
-      checkNum++;
-      nextId = `${prefix}${checkNum.toString().padStart(5, '0')}`;
-    }
-  }
-
-  return nextId;
+  return `${prefix}${(maxNum + 1).toString().padStart(5, '0')}`;
 }
 
 function editPurchaseVoucher(id) {
@@ -824,17 +813,7 @@ function generateNextPurchaseOrderVoucherId() {
     }
   });
 
-  let nextId = `${prefix}${(maxNum + 1).toString().padStart(4, '0')}`;
-  
-  if (Array.isArray(state.deletedIds)) {
-    let checkNum = maxNum + 1;
-    while (state.deletedIds.includes(nextId)) {
-      checkNum++;
-      nextId = `${prefix}${checkNum.toString().padStart(4, '0')}`;
-    }
-  }
-
-  return nextId;
+  return `${prefix}${(maxNum + 1).toString().padStart(4, '0')}`;
 }
 
 function addPurchaseOrderFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
@@ -1938,17 +1917,7 @@ function generateNextPurchaseReturnVoucherId() {
     maxNum = 8459; // Để đồng bộ với các số NK08459, trả lại bắt đầu từ BTL08460
   }
 
-  let nextId = `${prefix}${(maxNum + 1).toString().padStart(5, '0')}`;
-
-  if (Array.isArray(state.deletedIds)) {
-    let checkNum = maxNum + 1;
-    while (state.deletedIds.includes(nextId)) {
-      checkNum++;
-      nextId = `${prefix}${checkNum.toString().padStart(5, '0')}`;
-    }
-  }
-
-  return nextId;
+  return `${prefix}${(maxNum + 1).toString().padStart(5, '0')}`;
 }
 
 function editPurchaseReturnVoucher(id) {

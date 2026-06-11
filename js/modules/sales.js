@@ -311,17 +311,7 @@ function generateNextSalesVoucherId(paymentMethod) {
     maxNum = isCredit ? 44340 : 13122;
   }
 
-  let nextId = `${prefix}${maxNum + 1}`;
-  
-  if (Array.isArray(state.deletedIds)) {
-    let checkNum = maxNum + 1;
-    while (state.deletedIds.includes(nextId)) {
-      checkNum++;
-      nextId = `${prefix}${checkNum}`;
-    }
-  }
-
-  return nextId;
+  return `${prefix}${maxNum + 1}`;
 }
 
 // Xử lý nộp form Bán hàng (Có xác thực kiểm kho hàng tồn)

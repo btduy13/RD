@@ -277,15 +277,7 @@ function generateNextReceiptVoucherId() {
     maxNum = 13122; // default safe fallback based on DB state
   }
 
-  let nextId = `${prefix}${maxNum + 1}`;
-  if (Array.isArray(state.deletedIds)) {
-    let checkNum = maxNum + 1;
-    while (state.deletedIds.includes(nextId)) {
-      checkNum++;
-      nextId = `${prefix}${checkNum}`;
-    }
-  }
-  return nextId;
+  return `${prefix}${maxNum + 1}`;
 }
 
 function generateNextPaymentVoucherId() {
@@ -307,15 +299,7 @@ function generateNextPaymentVoucherId() {
     maxNum = 7194; // default safe fallback based on DB state
   }
 
-  let nextId = `${prefix}${maxNum + 1}`;
-  if (Array.isArray(state.deletedIds)) {
-    let checkNum = maxNum + 1;
-    while (state.deletedIds.includes(nextId)) {
-      checkNum++;
-      nextId = `${prefix}${checkNum}`;
-    }
-  }
-  return nextId;
+  return `${prefix}${maxNum + 1}`;
 }
 
 function handleReceiptSubmit(e) {
