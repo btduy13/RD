@@ -2217,7 +2217,7 @@ function parseExcelFile(file, type) {
         }
       }
       
-      else if (type === 'purchase') {
+      else if (type === 'purchase' || type === 'purchase_return') {
         let count = 0;
         const groupMap = new Map();
         
@@ -2244,9 +2244,9 @@ function parseExcelFile(file, type) {
 
         if (headerIdx !== -1) {
           const header = rows[headerIdx];
-          const qIdx = header.indexOf("Số lượng mua");
+          const qIdx = header.indexOf("Số lượng mua") !== -1 ? header.indexOf("Số lượng mua") : header.indexOf("Số lượng");
           const pIdx = header.indexOf("Đơn giá");
-          const aIdx = header.indexOf("Giá trị mua");
+          const aIdx = header.indexOf("Giá trị mua") !== -1 ? header.indexOf("Giá trị mua") : header.indexOf("Thành tiền");
           if (qIdx !== -1) colQty = qIdx;
           if (pIdx !== -1) colPrice = pIdx;
           if (aIdx !== -1) colAmount = aIdx;
@@ -2272,8 +2272,8 @@ function parseExcelFile(file, type) {
         const voucherMap = new Map();
         state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
 
-        const partnerId = "NCC_EXCEL";
-        const partnerName = "Nhà cung cấp Sổ chi tiết";
+        const partnerId = type === 'purchase' ? "NCC_EXCEL" : "NCC_RETURN_EXCEL";
+        const partnerName = type === 'purchase' ? "Nhà cung cấp Sổ chi tiết" : "Nhà cung cấp Trả lại";
         if (!partnerMap.has(partnerId)) {
           const pObj = {
             id: partnerId,
@@ -2291,7 +2291,9 @@ function parseExcelFile(file, type) {
           const firstRow = voucherRows[0];
           const dateStr = excelDateToISOString(firstRow[1] || firstRow[0]);
           const invoiceNo = firstRow[4] || "";
-          const description = `Nhập kho mua hàng theo số hóa đơn ${invoiceNo || voucherId}`;
+          const description = type === 'purchase'
+            ? `Nhập kho mua hàng theo số hóa đơn ${invoiceNo || voucherId}`
+            : `Xuất kho trả lại hàng theo số hóa đơn ${invoiceNo || voucherId}`;
 
           const itemsArray = [];
           let totalVoucherAmount = 0;
@@ -2329,7 +2331,7 @@ function parseExcelFile(file, type) {
 
           const vObj = {
             id: voucherId,
-            type: "purchase",
+            type: type,
             date: dateStr,
             partnerId: partnerId,
             partnerName: partnerName,
@@ -2355,9 +2357,14 @@ function parseExcelFile(file, type) {
 
         saveState();
         recalculateAccounting();
-        showToast(`Đã nạp thành công ${count} chứng từ mua hàng từ file Excel!`, "success");
-        if (typeof filterPurchaseTable === "function") filterPurchaseTable();
-        if (typeof renderPurchaseTable === "function") renderPurchaseTable();
+        showToast(`Đã nạp thành công ${count} chứng từ ${type === 'purchase' ? 'mua hàng' : 'trả lại hàng'} từ file Excel!`, "success");
+        if (type === 'purchase') {
+          if (typeof filterPurchaseTable === "function") filterPurchaseTable();
+          if (typeof renderPurchaseTable === "function") renderPurchaseTable();
+        } else {
+          if (typeof filterPurchaseReturnTable === "function") filterPurchaseReturnTable();
+          if (typeof renderPurchaseReturnTable === "function") renderPurchaseReturnTable();
+        }
       } else if (type === 'purchase_order') {
         let count = 0;
         

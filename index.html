@@ -446,6 +446,9 @@
             <button id="tab-btn-purchase-order" class="sub-tab-btn" onclick="switchPurchaseSubTab('order')">
               Đơn đặt hàng
             </button>
+            <button id="tab-btn-purchase-return" class="sub-tab-btn" onclick="switchPurchaseSubTab('return')">
+              Hàng trả lại
+            </button>
           </div>
 
           <!-- Tab Panel 1: Hóa đơn mua hàng -->
@@ -694,6 +697,130 @@
 
               <!-- Phân trang thông minh -->
               <div id="purchase-order-pagination-controls"
+                style="padding: 12px 20px; border-top: 1px solid var(--border-color); background-color: var(--bg-tertiary); display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                <!-- Render động bằng Javascript -->
+            </div>
+          </div>
+
+          <!-- Tab Panel 3: Hàng trả lại -->
+          <div id="purchase-subtab-return" class="purchase-subtab-content" style="display: none;">
+            <div class="actions-bar" style="margin-bottom: 20px;">
+              <!-- Cụm bên trái: Tìm kiếm và bộ lọc ngày -->
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <div class="search-input-wrapper" style="min-width: 260px;">
+                  <svg class="search-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                  </svg>
+                  <input type="text" id="search-purchase-return" class="search-input"
+                    style="height: 36px; padding-top: 0; padding-bottom: 0; font-size: 13px;"
+                    placeholder="Tìm số chứng từ, nhà cung cấp..." oninput="filterPurchaseReturnTable()">
+                </div>
+
+                <div
+                  style="display: flex; align-items: center; gap: 8px; font-size: 13px; background: var(--bg-secondary); padding: 4px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color); height: 36px;">
+                  <span style="color: var(--text-secondary); font-weight: 500;">Từ:</span>
+                  <input type="date" id="search-purchase-return-from" class="form-control-date"
+                    style="border: none; background: transparent; color: var(--text-primary); font-size: 13px; padding: 0; outline: none; width: 115px;"
+                    onchange="filterPurchaseReturnTable()">
+                  <span style="color: var(--text-muted); padding: 0 2px;">|</span>
+                  <span style="color: var(--text-secondary); font-weight: 500;">Đến:</span>
+                  <input type="date" id="search-purchase-return-to" class="form-control-date"
+                    style="border: none; background: transparent; color: var(--text-primary); font-size: 13px; padding: 0; outline: none; width: 115px;"
+                    onchange="filterPurchaseReturnTable()">
+
+                  <button onclick="clearPurchaseReturnDateFilter()"
+                    style="background: none; border: none; padding: 2px; color: var(--text-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: color var(--transition-fast);"
+                    title="Xóa bộ lọc ngày" onmouseover="this.style.color='var(--color-danger)'"
+                    onmouseout="this.style.color='var(--text-muted)'">
+                    <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg" style="width: 14px; height: 14px;">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Cụm bên phải: Các nút hành động -->
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <button id="btn-batch-delete-purchase-return" class="btn btn-danger" onclick="batchDeletePurchaseReturns()"
+                  style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                    </path>
+                  </svg>
+                  Xóa đã chọn (<span id="selected-purchase-returns-count">0</span>)
+                </button>
+
+                <button class="btn btn-secondary" onclick="triggerFileInput('excel-file-purchase-return-view')"
+                  style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
+                  onmouseover="this.style.borderColor='var(--color-success)'; this.style.color='var(--color-success)'"
+                  onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                  </svg>
+                  Nhập Excel
+                </button>
+                <input type="file" id="excel-file-purchase-return-view" accept=".xlsx, .xls" style="display: none;"
+                  onchange="handleExcelImport(event, 'purchase_return')">
+
+                <button class="btn btn-secondary" onclick="exportPurchaseReturnsToExcel()"
+                  style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
+                  onmouseover="this.style.borderColor='var(--color-primary)'; this.style.color='var(--color-primary)'"
+                  onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                  </svg>
+                  Xuất Excel
+                </button>
+
+                <button class="btn btn-primary" onclick="resetPurchaseReturnForm(); openModal('modal-add-purchase-return')"
+                  style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25); cursor: pointer; transition: all 0.2s;">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
+                    style="width: 16px; height: 16px; stroke-width: 2.5;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+                  </svg>
+                  Lập trả lại hàng
+                </button>
+              </div>
+            </div>
+
+            <div class="table-card">
+              <div class="card-header-bar"
+                style="padding: 10px 20px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-tertiary); justify-content: space-between; display: flex; align-items: center;">
+                <span class="card-title" id="purchase-return-pagination-info"
+                  style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Hiển thị tối đa 30 đơn trả lại hàng mới nhất</span>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 30px; text-align: center;"><input type="checkbox" id="check-all-purchase-return"
+                          onchange="toggleSelectAllPurchaseReturns(this)"></th>
+                      <th>Số chứng từ</th>
+                      <th>Ngày lập</th>
+                      <th>Diễn giải</th>
+                      <th>Phương thức</th>
+                      <th class="text-right">Tổng cộng</th>
+                      <th>Định khoản</th>
+                      <th style="text-align: center;">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody id="purchase-return-table-body">
+                    <!-- Dữ liệu bảng trả lại hàng -->
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Phân trang thông minh -->
+              <div id="purchase-return-pagination-controls"
                 style="padding: 12px 20px; border-top: 1px solid var(--border-color); background-color: var(--bg-tertiary); display: flex; justify-content: space-between; align-items: center; gap: 10px;">
                 <!-- Render động bằng Javascript -->
               </div>
@@ -2636,6 +2763,103 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal('modal-add-purchase')">Hủy bỏ</button>
         <button type="submit" form="form-purchase" class="btn btn-primary">Ghi sổ chứng từ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- B1.5. MODAL: LẬP TRẢ LẠI HÀNG -->
+  <div id="modal-add-purchase-return" class="modal-overlay">
+    <div class="modal-content-container">
+      <div class="modal-header">
+        <h3 class="card-title">Chứng từ Hàng trả lại mua</h3>
+        <button class="icon-btn" onclick="closeModal('modal-add-purchase-return')"
+          style="width: 32px; height: 32px;">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-purchase-return" class="form-grid" onsubmit="handlePurchaseReturnSubmit(event)">
+          <div class="form-group" style="display: none;">
+            <label class="form-label">Nhà cung cấp</label>
+            <input type="text" id="ret-partner" class="form-control" value="Nhà cung cấp" list="datalist-partners">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Ngày hạch toán</label>
+            <input type="date" id="ret-date" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Phương thức thanh toán</label>
+            <select id="ret-payment" class="form-control" required>
+              <option value="331">Giảm trừ công nợ (TK 331)</option>
+              <option value="111">Thu tiền mặt (TK 111)</option>
+              <option value="112">Thu tiền gửi ngân hàng (TK 112)</option>
+            </select>
+          </div>
+
+          <div class="form-group col-span-full">
+            <label class="form-label">Diễn giải</label>
+            <input type="text" id="ret-desc" class="form-control" required
+              placeholder="Ví dụ: Xuất trả lại hàng do lỗi nhà sản xuất..." value="Xuất trả lại hàng cho NCC">
+          </div>
+
+          <!-- Hàng hóa trả lại -->
+          <div class="form-group col-span-full">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label class="form-label">Danh mục sản phẩm trả lại</label>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="addPurchaseReturnFormRow()">+ Thêm dòng</button>
+            </div>
+
+            <table class="dynamic-items-table">
+              <thead>
+                <tr>
+                  <th style="width: 35%;">Tên sản phẩm</th>
+                  <th style="width: 12%; text-align: right;">Số lượng</th>
+                  <th style="width: 18%; text-align: right;">Đơn giá trả lại (đ)</th>
+                  <th style="width: 15%; text-align: right;">Chiết khấu (%)</th>
+                  <th style="width: 15%; text-align: right;">Thành tiền</th>
+                  <th style="width: 5%;"></th>
+                </tr>
+              </thead>
+              <tbody id="purchase-return-form-items-body">
+                <!-- Các dòng sản phẩm trả lại -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Thuế suất và tổng cộng -->
+          <div class="form-group col-span-full"
+            style="background-color: var(--bg-tertiary); padding: 16px; border-radius: var(--radius-md); margin-top: 10px;">
+            <div class="form-grid">
+              <div class="form-group" style="display: none;">
+                <label class="form-label">Thuế suất GTGT đầu vào</label>
+                <select id="ret-tax-rate" class="form-control" onchange="recalculatePurchaseReturnTotals()">
+                  <option value="10">10%</option>
+                  <option value="5">5%</option>
+                  <option value="0" selected>0%</option>
+                </select>
+              </div>
+              <div class="form-group" style="display: none;">
+                <label class="form-label">Tiền hàng chưa VAT</label>
+                <input type="text" id="ret-subtotal-display" class="form-control text-right font-numeric" disabled
+                  value="0đ">
+              </div>
+              <div class="form-group" style="display: none;">
+                <label class="form-label">Tiền thuế GTGT (Nợ 1331)</label>
+                <input type="text" id="ret-tax-display" class="form-control text-right font-numeric" disabled
+                  value="0đ">
+              </div>
+              <div class="form-group col-span-full">
+                <label class="form-label">Tổng cộng thanh toán</label>
+                <input type="text" id="ret-total-display" class="form-control text-right font-numeric" disabled
+                  style="color: var(--color-primary); font-weight: 800;" value="0đ">
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-add-purchase-return')">Hủy bỏ</button>
+        <button type="submit" form="form-purchase-return" class="btn btn-primary">Ghi sổ chứng từ</button>
       </div>
     </div>
   </div>

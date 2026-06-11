@@ -48,6 +48,8 @@ function recalculateAccounting(shouldSave = true) {
           }
           if (v.type === "purchase") {
             voucherChanges[item.productId].purchases += (item.qty || 0);
+          } else if (v.type === "purchase_return") {
+            voucherChanges[item.productId].purchases -= (item.qty || 0);
           } else if (v.type === "sales") {
             voucherChanges[item.productId].sales += (item.qty || 0);
           }
@@ -144,6 +146,40 @@ function recalculateAccounting(shouldSave = true) {
       ];
       if (taxAmount > 0) {
         v.entries.push({ debit: "1331", credit: v.paymentMethod, amount: taxAmount, desc: "Thuế GTGT đầu vào được khấu trừ" });
+      }
+
+    } else if (v.type === "purchase_return") {
+      // Hàng trả lại mua: Giảm số lượng và giảm giá trị tồn
+      let itemSubtotal = 0;
+      v.items.forEach(item => {
+        const p = productBalanceMap[item.productId];
+        if (p) {
+          p.stock = Number((p.stock - item.qty).toFixed(3));
+          p.totalValue -= item.amount; // Thành tiền trả lại chưa thuế
+          if (p.stock > 0) {
+            p.avgCost = Math.round(p.totalValue / p.stock);
+          } else {
+            p.totalValue = 0;
+          }
+        }
+        itemSubtotal += item.amount;
+      });
+
+      const taxRate = v.taxRate || 0;
+      const taxAmount = Math.round(itemSubtotal * (taxRate / 100));
+      const totalAmount = itemSubtotal + taxAmount;
+
+      v.taxAmount = taxAmount;
+      v.totalAmount = totalAmount;
+      if (v.remainingDebt === undefined) {
+        v.remainingDebt = (v.paymentMethod === "331") ? totalAmount : 0;
+      }
+
+      v.entries = [
+        { debit: v.paymentMethod, credit: "156", amount: itemSubtotal, desc: `Trả lại hàng ${v.description}` },
+      ];
+      if (taxAmount > 0) {
+        v.entries.push({ debit: v.paymentMethod, credit: "1331", amount: taxAmount, desc: "Giảm thuế GTGT đầu vào được khấu trừ" });
       }
 
     } else if (v.type === "sales") {

@@ -447,6 +447,119 @@ function viewVoucher(id) {
         </div>
       </div>
     `;
+  } else if (v.type === "purchase_return") {
+    // Trả lại hàng mua -> Phiếu Xuất Kho (Mẫu số 02 - VT)
+    content = `
+      <div class="printable-voucher">
+        <div class="voucher-header-top">
+          <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="display: flex; align-items: center; justify-content: center; width: 120px; height: 50px; flex-shrink: 0;">
+              <img src="logo.jpg" style="max-height: 48px; max-width: 120px; object-fit: contain;" alt="Logo Rạng Đông" />
+            </div>
+            <div class="voucher-co-info" style="width: auto;">
+              <span class="voucher-co-name">${companyName}</span><br>
+              <span class="voucher-co-addr">Địa chỉ: ${companyAddr}</span><br>
+              <span class="voucher-co-addr">MST: ${companyTax}</span>
+            </div>
+          </div>
+          <div class="voucher-template-code">
+            <span class="template-bold">Mẫu số 02 - VT</span><br>
+            <span>(Ban hành theo Thông tư số 200/2014/TT-BTC)</span>
+          </div>
+        </div>
+        
+        <div class="voucher-title-area">
+          <span class="voucher-title">PHIẾU XUẤT KHO HÀNG TRẢ LẠI</span><br>
+          <span class="voucher-subtitle">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</span>
+        </div>
+        
+        <div class="voucher-entries-note">
+          <span>Số: <span class="template-bold">${v.id}</span></span><br>
+          <span>Nợ TK: <span class="template-bold">${v.paymentMethod}</span></span><br>
+          <span>Có TK: <span class="template-bold">156</span></span><br>
+          ${v.taxAmount > 0 ? `<span>Có TK: <span class="template-bold">1331</span></span><br>` : ""}
+        </div>
+        
+        <div style="margin-top:20px;">
+          <div class="voucher-info-row">
+            <span class="info-label">- Họ và tên người nhận hàng:</span>
+            <span class="info-dotted">${partnerName}</span>
+          </div>
+          <div class="voucher-info-row">
+            <span class="info-label">- Lý do xuất trả:</span>
+            <span class="info-dotted">${v.description}</span>
+          </div>
+          <div class="voucher-info-row">
+            <span class="info-label">- Xuất tại kho:</span>
+            <span class="info-dotted">Kho thành phẩm Rạng Đông</span>
+          </div>
+        </div>
+        
+        <table class="voucher-table">
+          <thead>
+            <tr>
+              <th style="width:5%;">STT</th>
+              <th style="width:50%;">Tên, nhãn hiệu quy cách sản phẩm vật tư</th>
+              <th style="width:10%;">ĐVT</th>
+              <th style="width:10%;">Số lượng</th>
+              <th style="width:10%;">Đơn giá (đ)</th>
+              <th style="width:15%;">Thành tiền (đ)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${v.items.map((item, idx) => {
+              const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: "Sản phẩm" };
+              return `
+                <tr>
+                  <td style="text-align:center;">${idx + 1}</td>
+                  <td>${prod.name}</td>
+                  <td style="text-align:center;">${prod.unit || "Cái"}</td>
+                  <td style="text-align:right;">${item.qty}</td>
+                  <td style="text-align:right;">${formatVND(item.price).replace("đ", "")}</td>
+                  <td style="text-align:right; font-weight:bold;">${formatVND(item.amount).replace("đ", "")}</td>
+                </tr>
+              `;
+            }).join("")}
+            
+            <tr style="background-color:#e5e7eb;">
+              <td colspan="5" style="text-align:right; font-weight:bold; text-transform:uppercase;">Tổng cộng tiền trả lại:</td>
+              <td style="text-align:right; font-weight:bold; color:var(--color-primary);">${formatVND(v.totalAmount).replace("đ", "")}</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <div class="voucher-amount-word">
+          Tổng số tiền (viết bằng chữ): <span style="font-weight:bold; font-style:italic;">${numberToVietnameseWords(v.totalAmount)}</span>
+        </div>
+        
+        <div class="voucher-signatures">
+          <div class="sig-block">
+            <span class="sig-title">Người lập phiếu</span><br>
+            <span class="sig-subtext">(Ký, họ tên)</span>
+            <div class="sig-space"></div>
+            <span class="sig-name">Kế toán viên</span>
+          </div>
+          <div class="sig-block">
+            <span class="sig-title">Người nhận hàng</span><br>
+            <span class="sig-subtext">(Ký, họ tên)</span>
+            <div class="sig-space"></div>
+            <span class="sig-name">${partnerName.split(" ").slice(-2).join(" ")}</span>
+          </div>
+          <div class="sig-block">
+            <span class="sig-title">Thủ kho</span><br>
+            <span class="sig-subtext">(Ký, họ tên)</span>
+            <div class="sig-space"></div>
+            <span class="sig-name">Trần Văn Kho</span>
+          </div>
+          <div class="sig-block">
+            <span class="sig-title">Giám đốc</span><br>
+            <span class="sig-subtext">(Ký, đóng dấu)</span>
+            <div class="sig-space"></div>
+            <span class="sig-name">Lê Hoàng Đông</span>
+          </div>
+        </div>
+      </div>
+    `;
   } else if (v.type === "sales") {
     // Bán hàng -> Phiếu giao hàng / hóa đơn bán hàng theo chuẩn mẫu thực tế của Rạng Đông
     let grossTotal = 0;

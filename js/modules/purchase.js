@@ -712,27 +712,33 @@ window.exportPurchasesToExcel = exportPurchasesToExcel;
 function switchPurchaseSubTab(subTabId) {
   const btnInvoice = document.getElementById("tab-btn-purchase-invoice");
   const btnOrder = document.getElementById("tab-btn-purchase-order");
-  if (btnInvoice && btnOrder) {
-    if (subTabId === "invoice") {
-      btnInvoice.classList.add("active");
-      btnOrder.classList.remove("active");
-    } else {
-      btnInvoice.classList.remove("active");
-      btnOrder.classList.add("active");
-    }
-  }
+  const btnReturn = document.getElementById("tab-btn-purchase-return");
+
+  if (btnInvoice) btnInvoice.classList.remove("active");
+  if (btnOrder) btnOrder.classList.remove("active");
+  if (btnReturn) btnReturn.classList.remove("active");
+
+  if (subTabId === "invoice" && btnInvoice) btnInvoice.classList.add("active");
+  if (subTabId === "order" && btnOrder) btnOrder.classList.add("active");
+  if (subTabId === "return" && btnReturn) btnReturn.classList.add("active");
 
   const panelInvoice = document.getElementById("purchase-subtab-invoice");
   const panelOrder = document.getElementById("purchase-subtab-order");
-  if (panelInvoice && panelOrder) {
-    if (subTabId === "invoice") {
-      panelInvoice.style.display = "block";
-      panelOrder.style.display = "none";
-    } else {
-      panelInvoice.style.display = "none";
-      panelOrder.style.display = "block";
-      renderPurchaseOrderTable();
-    }
+  const panelReturn = document.getElementById("purchase-subtab-return");
+
+  if (panelInvoice) panelInvoice.style.display = "none";
+  if (panelOrder) panelOrder.style.display = "none";
+  if (panelReturn) panelReturn.style.display = "none";
+
+  if (subTabId === "invoice" && panelInvoice) {
+    panelInvoice.style.display = "block";
+    renderPurchaseTable();
+  } else if (subTabId === "order" && panelOrder) {
+    panelOrder.style.display = "block";
+    renderPurchaseOrderTable();
+  } else if (subTabId === "return" && panelReturn) {
+    panelReturn.style.display = "block";
+    renderPurchaseReturnTable();
   }
 }
 
@@ -1375,6 +1381,662 @@ function exportPurchaseOrdersToExcel() {
   }
 }
 
+// ==========================================================================
+// PHÂN HỆ HÀNG TRẢ LẠI (PURCHASE RETURNS)
+// ==========================================================================
+let purchaseReturnCurrentPage = 1;
+
+function renderPurchaseReturnTable() {
+  const tbody = document.getElementById("purchase-return-table-body");
+  if (!tbody) return;
+
+  let returns = state.vouchers.filter(v => v.type === "purchase_return");
+
+  const query = document.getElementById("search-purchase-return") ? document.getElementById("search-purchase-return").value : "";
+  const fromDate = document.getElementById("search-purchase-return-from") ? document.getElementById("search-purchase-return-from").value : "";
+  const toDate = document.getElementById("search-purchase-return-to") ? document.getElementById("search-purchase-return-to").value : "";
+
+  if (query) {
+    returns = returns.filter(v => {
+      const partnerName = getPartnerNameForVoucher(v);
+      const combined = `${v.id || ""} ${partnerName} ${v.description || ""}`;
+      return matchAdvancedQuery(combined, query, v.totalAmount);
+    });
+  }
+
+  if (fromDate) {
+    returns = returns.filter(v => v.date >= fromDate);
+  }
+  if (toDate) {
+    returns = returns.filter(v => v.date <= toDate);
+  }
+
+  // Sắp xếp số chứng từ giảm dần (mới nhất lên trước)
+  returns.sort((a, b) => {
+    if (b.date !== a.date) {
+      return b.date.localeCompare(a.date);
+    }
+    return b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' });
+  });
+
+  const totalCount = returns.length;
+  const totalPages = Math.ceil(totalCount / 30) || 1;
+
+  if (purchaseReturnCurrentPage > totalPages) purchaseReturnCurrentPage = totalPages;
+  if (purchaseReturnCurrentPage < 1) purchaseReturnCurrentPage = 1;
+
+  const startIdx = (purchaseReturnCurrentPage - 1) * 30;
+  const displayedReturns = returns.slice(startIdx, startIdx + 30);
+
+  // Cập nhật thông tin phân trang trên tiêu đề bảng
+  const countEl = document.getElementById("purchase-return-pagination-info");
+  if (countEl) {
+    countEl.innerText = `Hiển thị đơn hàng từ ${totalCount > 0 ? startIdx + 1 : 0} - ${Math.min(startIdx + 30, totalCount)} trong số ${totalCount} đơn hàng (Trang ${purchaseReturnCurrentPage}/${totalPages})`;
+  }
+
+  // Reset check-all-purchase-return checkbox
+  const checkAll = document.getElementById("check-all-purchase-return");
+  if (checkAll) checkAll.checked = false;
+  updateBatchPurchaseReturnsUI();
+
+  // Render các nút chuyển trang động
+  const paginationControls = document.getElementById("purchase-return-pagination-controls");
+  if (paginationControls) {
+    if (totalPages <= 1) {
+      paginationControls.style.display = "none";
+    } else {
+      paginationControls.style.display = "flex";
+
+      let buttonsHTML = "";
+      buttonsHTML += `
+        <button class="btn btn-secondary btn-sm" onclick="changePurchaseReturnPage(1)" ${purchaseReturnCurrentPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">« Đầu</button>
+        <button class="btn btn-secondary btn-sm" onclick="changePurchaseReturnPage(${purchaseReturnCurrentPage - 1})" ${purchaseReturnCurrentPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">‹ Trước</button>
+      `;
+
+      let startPage = Math.max(1, purchaseReturnCurrentPage - 2);
+      let endPage = Math.min(totalPages, purchaseReturnCurrentPage + 2);
+
+      if (startPage > 1) {
+        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
+      }
+
+      for (let p = startPage; p <= endPage; p++) {
+        buttonsHTML += `
+          <button class="btn ${p === purchaseReturnCurrentPage ? 'btn-success' : 'btn-secondary'} btn-sm" onclick="changePurchaseReturnPage(${p})" style="padding: 4px 10px; font-size: 12px; font-weight: ${p === purchaseReturnCurrentPage ? '800' : 'normal'};">${p}</button>
+        `;
+      }
+
+      if (endPage < totalPages) {
+        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
+      }
+
+      buttonsHTML += `
+        <button class="btn btn-secondary btn-sm" onclick="changePurchaseReturnPage(${purchaseReturnCurrentPage + 1})" ${purchaseReturnCurrentPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Sau ›</button>
+        <button class="btn btn-secondary btn-sm" onclick="changePurchaseReturnPage(${totalPages})" ${purchaseReturnCurrentPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Cuối »</button>
+      `;
+
+      paginationControls.innerHTML = `
+        <span style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">
+          Hiển thị ${startIdx + 1} - ${Math.min(startIdx + 30, totalCount)} của ${totalCount} đơn trả lại hàng
+        </span>
+        <div style="display: flex; gap: 4px; align-items: center;">
+          ${buttonsHTML}
+        </div>
+      `;
+    }
+  }
+
+  if (displayedReturns.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy chứng từ trả lại hàng nào phù hợp.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = displayedReturns.map(v => {
+    const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
+    return `
+      <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
+        <td style="text-align: center;">
+          <input type="checkbox" class="purchase-return-checkbox" value="${escapeHtmlAttr(v.id)}" onchange="updateBatchPurchaseReturnsUI()">
+        </td>
+        <td class="font-numeric" style="color: var(--color-primary); font-weight:700;">${v.id}</td>
+        <td>${formattedDate}</td>
+        <td>${v.description}</td>
+        <td><span class="badge ${v.paymentMethod === '331' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '331' ? 'Công nợ (331)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
+        <td class="text-right font-numeric" style="font-weight:700; color:var(--color-primary);">${formatVND(v.totalAmount)}</td>
+        <td>
+          <div class="accounting-detail-box">
+            ${v.entries.map(e => `
+              <div class="accounting-entry-row">
+                <span>Nợ <span class="acct-debit">${e.debit}</span> / Có <span class="acct-credit">${e.credit}</span></span>
+                <span class="font-numeric">${formatVND(e.amount)}</span>
+              </div>
+            `).join("")}
+          </div>
+        </td>
+        <td style="text-align: center;">
+          <div style="display:flex; justify-content:center; gap:6px;">
+            <button class="print-btn" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')" title="Xem và In mẫu chứng từ" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-success); cursor: pointer; transition: all 0.2s;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            </button>
+            <button class="edit-btn" onclick="editPurchaseReturnVoucher('${escapeHtmlAttr(v.id)}')" title="Chỉnh sửa hóa đơn" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-primary); cursor: pointer; transition: all 0.2s;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            </button>
+            <button class="trash-btn" onclick="deleteVoucher('${escapeHtmlAttr(v.id)}')" title="Xóa chứng từ" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-danger); cursor: pointer; transition: all 0.2s;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function filterPurchaseReturnTable() {
+  purchaseReturnCurrentPage = 1;
+  renderPurchaseReturnTable();
+}
+
+function clearPurchaseReturnDateFilter() {
+  const fromEl = document.getElementById("search-purchase-return-from");
+  const toEl = document.getElementById("search-purchase-return-to");
+  if (fromEl) fromEl.value = "";
+  if (toEl) toEl.value = "";
+  filterPurchaseReturnTable();
+}
+
+function changePurchaseReturnPage(p) {
+  purchaseReturnCurrentPage = p;
+  renderPurchaseReturnTable();
+}
+
+function addPurchaseReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
+  const tbody = document.getElementById("purchase-return-form-items-body");
+  if (!tbody) return;
+
+  const rowId = `ret-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+  const tr = document.createElement("tr");
+  tr.id = rowId;
+  tr.innerHTML = `
+    <td>
+      <input type="text" class="form-control item-productId" placeholder="Gõ mã hoặc tên sản phẩm..." required list="datalist-purchase-products" oninput="autoFillPurchaseReturnPrice(this)" onblur="autoFillPurchaseReturnPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
+    </td>
+    <td>
+      <input type="text" class="form-control item-qty text-right number-format" required value="${qtyVal}" oninput="recalculatePurchaseReturnTotals()">
+    </td>
+    <td>
+      <input type="text" class="form-control item-price text-right number-format" required value="${Number(priceVal).toLocaleString("vi-VN")}" oninput="recalculatePurchaseReturnTotals()">
+    </td>
+    <td>
+      <input type="text" class="form-control item-discount text-right number-format" required value="${discountVal}" oninput="recalculatePurchaseReturnTotals()" placeholder="0">
+    </td>
+    <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
+    <td style="text-align: center;">
+      <button type="button" class="trash-btn" onclick="document.getElementById('${rowId}').remove(); recalculatePurchaseReturnTotals();">×</button>
+    </td>
+  `;
+
+  tbody.appendChild(tr);
+
+  const allRows = tbody.querySelectorAll("tr");
+  const newRow = allRows[allRows.length - 1];
+  if (newRow) {
+    const firstInput = newRow.querySelector(".item-productId");
+    if (firstInput) {
+      setTimeout(() => { firstInput.focus(); }, 30);
+    }
+  }
+
+  recalculatePurchaseReturnTotals();
+}
+
+function autoFillPurchaseReturnPrice(selectEl) {
+  const prodVal = selectEl.value;
+  const prod = resolveProduct(prodVal);
+  const row = selectEl.closest("tr");
+
+  if (prod && row) {
+    if (document.activeElement !== selectEl) {
+      selectEl.value = `${prod.name} (${prod.id})`;
+    }
+    ensureProductExcelRow(prod);
+    const purchasePriceVal = prod.lastPurchasePrice !== undefined && prod.lastPurchasePrice > 0
+      ? prod.lastPurchasePrice
+      : (prod.excelRow && prod.excelRow[20] !== undefined && Number(prod.excelRow[20]) > 0
+        ? Number(prod.excelRow[20])
+        : (prod.avgCost || prod.initialCost || 10000));
+
+    row.querySelector(".item-price").value = Number(purchasePriceVal).toLocaleString("vi-VN");
+    recalculatePurchaseReturnTotals();
+  }
+}
+
+function recalculatePurchaseReturnTotals() {
+  const rows = document.querySelectorAll("#purchase-return-form-items-body tr");
+  let subtotal = 0;
+
+  rows.forEach(row => {
+    const qty = parseInt(row.querySelector(".item-qty").value.replace(/\D/g, "")) || 0;
+    const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/\D/g, "")) || 0;
+    const amount = Math.round(qty * price * (1 - discount / 100));
+    subtotal += amount;
+
+    row.querySelector(".item-total-display").innerText = formatVND(amount);
+  });
+
+  const taxRate = 0;
+  const taxAmount = 0;
+  const total = subtotal;
+
+  if (document.getElementById("ret-subtotal-display")) {
+    document.getElementById("ret-subtotal-display").value = formatVND(subtotal);
+  }
+  if (document.getElementById("ret-tax-display")) {
+    document.getElementById("ret-tax-display").value = formatVND(taxAmount);
+  }
+  if (document.getElementById("ret-total-display")) {
+    document.getElementById("ret-total-display").value = formatVND(total);
+  }
+}
+
+function resetPurchaseReturnForm() {
+  editingPurchaseReturnId = null;
+  const modalTitle = document.querySelector("#modal-add-purchase-return .card-title");
+  if (modalTitle) modalTitle.innerText = "Chứng từ Hàng trả lại mua";
+
+  const tbody = document.getElementById("purchase-return-form-items-body");
+  if (tbody) tbody.innerHTML = "";
+  document.getElementById("ret-desc").value = "Xuất trả lại hàng cho NCC";
+  document.getElementById("ret-date").value = new Date().toISOString().split("T")[0];
+
+  addPurchaseReturnFormRow();
+  setTimeout(() => {
+    const el = document.getElementById("ret-date");
+    if (el) el.focus();
+  }, 60);
+}
+
+let editingPurchaseReturnId = null;
+
+function handlePurchaseReturnSubmit(e) {
+  e.preventDefault();
+
+  const rows = document.querySelectorAll("#purchase-return-form-items-body tr");
+  if (rows.length === 0) {
+    showToast("Vui lòng thêm ít nhất một sản phẩm trả lại!", "danger");
+    return;
+  }
+
+  const partnerInputVal = document.getElementById("ret-partner").value;
+  const resolvedPartner = resolvePartner(partnerInputVal);
+  const partnerId = resolvedPartner.id;
+  const partnerName = resolvedPartner.name;
+
+  const voucherItems = [];
+  let hasError = false;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const productInputVal = row.querySelector(".item-productId").value;
+    const resolvedProduct = resolveProduct(productInputVal);
+
+    if (!resolvedProduct) {
+      showToast(`Không tìm thấy sản phẩm nào khớp với từ khóa "${productInputVal}"!`, "danger");
+      hasError = true;
+      break;
+    }
+
+    const productId = resolvedProduct.id;
+    const qty = parseInt(row.querySelector(".item-qty").value.replace(/\D/g, "")) || 0;
+    const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/\D/g, "")) || 0;
+    const amount = Math.round(qty * price * (1 - discount / 100));
+
+    voucherItems.push({
+      productId,
+      qty,
+      price,
+      discount,
+      amount
+    });
+  }
+
+  if (hasError) return;
+
+  const paymentMethod = document.getElementById("ret-payment").value;
+  const newVoucher = {
+    id: editingPurchaseReturnId || generateNextPurchaseReturnVoucherId(),
+    type: "purchase_return",
+    date: document.getElementById("ret-date").value,
+    partnerId,
+    partnerName,
+    paymentMethod,
+    description: document.getElementById("ret-desc").value,
+    items: voucherItems,
+    taxRate: 0,
+    taxAmount: 0,
+    isManual: true,
+    _sessionId: clientSessionId
+  };
+
+  if (editingPurchaseReturnId) {
+    const idx = state.vouchers.findIndex(v => v.id === editingPurchaseReturnId);
+    if (idx !== -1) {
+      if (state.vouchers[idx].excelRow) {
+        newVoucher.excelRow = state.vouchers[idx].excelRow;
+      }
+      state.vouchers[idx] = newVoucher;
+    }
+    editingPurchaseReturnId = null;
+  } else {
+    state.vouchers.push(newVoucher);
+  }
+
+  saveState();
+  recalculateAccounting();
+
+  closeModal("modal-add-purchase-return");
+  showToast(editingPurchaseReturnId ? "Cập nhật chứng từ trả lại thành công!" : "Lập chứng từ trả lại thành công!", "success");
+}
+
+function generateNextPurchaseReturnVoucherId() {
+  const prefix = "BTL";
+  const regex = /^BTL(\d+)$/;
+  let maxNum = 0;
+
+  state.vouchers.forEach(v => {
+    if (v.type === 'purchase_return') {
+      const match = v.id.match(regex);
+      if (match) {
+        const num = parseInt(match[1]);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+  });
+
+  if (maxNum === 0) {
+    maxNum = 8459; // Để đồng bộ với các số NK08459, trả lại bắt đầu từ BTL08460
+  }
+
+  let nextId = `${prefix}${(maxNum + 1).toString().padStart(5, '0')}`;
+
+  if (Array.isArray(state.deletedIds)) {
+    let checkNum = maxNum + 1;
+    while (state.deletedIds.includes(nextId)) {
+      checkNum++;
+      nextId = `${prefix}${checkNum.toString().padStart(5, '0')}`;
+    }
+  }
+
+  return nextId;
+}
+
+function editPurchaseReturnVoucher(id) {
+  const v = state.vouchers.find(v => v.id === id);
+  if (!v) return;
+
+  editingPurchaseReturnId = id;
+
+  const modalTitle = document.querySelector("#modal-add-purchase-return .card-title");
+  if (modalTitle) modalTitle.innerText = `Chỉnh sửa chứng từ trả lại hàng: ${id}`;
+
+  document.getElementById("ret-date").value = v.date;
+  document.getElementById("ret-partner").value = getPartnerNameForVoucher(v);
+  document.getElementById("ret-desc").value = v.description;
+  document.getElementById("ret-payment").value = v.paymentMethod;
+
+  const tbody = document.getElementById("purchase-return-form-items-body");
+  if (tbody) tbody.innerHTML = "";
+
+  v.items.forEach(item => {
+    const prod = state.products.find(p => String(p.id) === String(item.productId));
+    const prodVal = prod ? `${prod.name} (${prod.id})` : item.productId;
+    addPurchaseReturnFormRow(prodVal, item.qty, item.price, item.discount || 0);
+  });
+
+  openModal("modal-add-purchase-return");
+}
+
+function toggleSelectAllPurchaseReturns(masterCheckbox) {
+  const checkboxes = document.querySelectorAll(".purchase-return-checkbox");
+  checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+  updateBatchPurchaseReturnsUI();
+}
+
+function updateBatchPurchaseReturnsUI() {
+  const checkboxes = document.querySelectorAll(".purchase-return-checkbox");
+  const checked = Array.from(checkboxes).filter(cb => cb.checked);
+  const btn = document.getElementById("btn-batch-delete-purchase-return");
+  const count = document.getElementById("selected-purchase-returns-count");
+
+  if (btn && count) {
+    if (checked.length > 0) {
+      btn.style.display = "inline-flex";
+      count.innerText = checked.length;
+    } else {
+      btn.style.display = "none";
+      count.innerText = "0";
+    }
+  }
+
+  const master = document.getElementById("check-all-purchase-return");
+  if (master) {
+    master.checked = checked.length === checkboxes.length && checkboxes.length > 0;
+  }
+}
+
+function batchDeletePurchaseReturns() {
+  const checked = Array.from(document.querySelectorAll(".purchase-return-checkbox")).filter(cb => cb.checked);
+  if (checked.length === 0) return;
+
+  if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} chứng từ trả lại hàng đã chọn?`)) {
+    const idsToDelete = checked.map(cb => cb.value);
+    trackDeletedIds(idsToDelete);
+    state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+
+    saveState();
+    recalculateAccounting();
+
+    const master = document.getElementById("check-all-purchase-return");
+    if (master) master.checked = false;
+
+    updateBatchPurchaseReturnsUI();
+
+    renderPurchaseReturnTable();
+    if (typeof filterSales === "function") filterSales();
+    if (typeof filterCash === "function") {
+      filterCash();
+      if (typeof recalculateCashKpis === "function") recalculateCashKpis();
+    }
+    if (typeof renderDashboard === "function") renderDashboard();
+    if (typeof filterDebts === "function") filterDebts();
+    if (typeof filterPartners === "function") filterPartners();
+    if (typeof renderInventoryTable === "function") renderInventoryTable();
+
+    showToast(`Đã xóa thành công ${checked.length} chứng từ trả lại hàng!`, "success");
+  }
+}
+
+function exportPurchaseReturnsToExcel() {
+  if (typeof XLSX === "undefined") {
+    showToast("Thư viện SheetJS chưa được nạp!", "danger");
+    return;
+  }
+
+  let filteredReturns = state.vouchers.filter(v => v.type === "purchase_return");
+
+  const query = document.getElementById("search-purchase-return") ? document.getElementById("search-purchase-return").value.toLowerCase() : "";
+  const fromDate = document.getElementById("search-purchase-return-from") ? document.getElementById("search-purchase-return-from").value : "";
+  const toDate = document.getElementById("search-purchase-return-to") ? document.getElementById("search-purchase-return-to").value : "";
+
+  if (query) {
+    filteredReturns = filteredReturns.filter(v =>
+      (v.id || "").toLowerCase().includes(query) ||
+      (v.partnerName || "").toLowerCase().includes(query) ||
+      (v.description || "").toLowerCase().includes(query)
+    );
+  }
+  if (fromDate) filteredReturns = filteredReturns.filter(v => v.date >= fromDate);
+  if (toDate) filteredReturns = filteredReturns.filter(v => v.date <= toDate);
+  filteredReturns.sort((a, b) => new Date(a.date) - new Date(b.date) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+
+  try {
+    const wb = XLSX.utils.book_new();
+    const ws = {};
+    const merges = [];
+
+    const thin = { style: "thin", color: { rgb: "AAAAAA" } };
+    const border4 = { top: thin, bottom: thin, left: thin, right: thin };
+    const headerBg = { patternType: "solid", fgColor: { rgb: "1F497D" } };
+    const altBg = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
+    const fntTitle = { name: "Times New Roman", sz: 13, bold: true };
+    const fntSub = { name: "Times New Roman", sz: 11, italic: true };
+    const fntHdr = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
+    const fntBold = { name: "Times New Roman", sz: 11, bold: true };
+    const fntNorm = { name: "Times New Roman", sz: 11 };
+    const cCenter = { horizontal: "center", vertical: "center" };
+    const cLeft = { horizontal: "left", vertical: "center" };
+    const cRight = { horizontal: "right", vertical: "center" };
+    const numFmt = "#,##0 ;[Red](#,##0)";
+    const dateFmt = "dd/mm/yyyy";
+
+    const setCell = (ws, r, c, v, t, s, z) => {
+      const key = XLSX.utils.encode_cell({ r, c });
+      const cell = { v, t: t || (typeof v === 'number' ? 'n' : 's') };
+      if (s) cell.s = s;
+      if (z) cell.z = z;
+      ws[key] = cell;
+    };
+
+    const today = new Date().toLocaleDateString('vi-VN');
+    let dateRangeText = `Từ ngày: ${fromDate || 'đầu kỳ'}   Đến ngày: ${toDate || today}`;
+
+    const compName = state.companyName || "Công Ty Cổ Phần Rạng Đông";
+    setCell(ws, 0, 0, compName, 's', { font: fntTitle, alignment: cCenter }, null);
+    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 21 } });
+
+    setCell(ws, 1, 0, "SỔ CHI TIẾT HÀNG TRẢ LẠI MUA THEO MÃ QUY CÁCH", 's', { font: fntTitle, alignment: cCenter }, null);
+    merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 21 } });
+
+    setCell(ws, 2, 0, dateRangeText, 's', { font: fntSub, alignment: cCenter }, null);
+    merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: 21 } });
+
+    const headers = ["Ngày hạch toán", "Ngày chứng từ", "Số chứng từ", "Ngày hóa đơn", "Số hóa đơn", "Mã hàng", "Tên hàng", "ĐVT", "Mã quy cách 1", "Mã quy cách 2", "Mã quy cách 3", "Mã quy cách 4", "Mã quy cách 5", "Số lượng trả lại", "Đơn giá", "Phí trước hải quan", "Phí hàng về kho", "Giá trị trả lại", "Chiết khấu", "Số lượng mua", "Giá trị mua", "Giá trị giảm giá"];
+    headers.forEach((h, c) => {
+      setCell(ws, 3, c, h, 's', { font: fntHdr, fill: headerBg, alignment: cCenter, border: border4 }, null);
+    });
+
+    let rowIdx = 4;
+    let totalGross = 0;
+    let totalTax = 0;
+    let totalAmt = 0;
+
+    filteredReturns.forEach((v, vIdx) => {
+      const rowBg = vIdx % 2 === 0 ? null : altBg;
+      const baseStyle = (align) => ({ font: fntNorm, fill: rowBg, alignment: align, border: border4 });
+      const numStyle = (align) => ({ font: fntNorm, fill: rowBg, alignment: align || cRight, border: border4 });
+
+      if (v.items && v.items.length > 0) {
+        v.items.forEach(item => {
+          const prod = state.products ? state.products.find(p => String(p.id) === String(item.productId)) : null;
+          const itemGross = (item.qty || 0) * (item.price || 0);
+          const discVal = itemGross * ((item.discount || 0) / 100);
+
+          setCell(ws, rowIdx, 0, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+          setCell(ws, rowIdx, 1, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+          setCell(ws, rowIdx, 2, v.id, 's', baseStyle(cCenter), null);
+          setCell(ws, rowIdx, 3, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+          setCell(ws, rowIdx, 4, v.invoiceNo || "", 's', baseStyle(cCenter), null);
+          setCell(ws, rowIdx, 5, item.productId || "", 's', baseStyle(cLeft), null);
+          setCell(ws, rowIdx, 6, prod ? prod.name : (item.productName || item.productId || ""), 's', baseStyle(cLeft), null);
+          setCell(ws, rowIdx, 7, prod ? (prod.unit || "Cái") : (item.unit || "Cái"), 's', baseStyle(cCenter), null);
+          setCell(ws, rowIdx, 8, "", 's', baseStyle(cLeft), null);
+          setCell(ws, rowIdx, 9, "", 's', baseStyle(cLeft), null);
+          setCell(ws, rowIdx, 10, "", 's', baseStyle(cLeft), null);
+          setCell(ws, rowIdx, 11, "", 's', baseStyle(cLeft), null);
+          setCell(ws, rowIdx, 12, "", 's', baseStyle(cLeft), null);
+          setCell(ws, rowIdx, 13, item.qty || 0, 'n', numStyle(cRight), "#,##0.##");
+          setCell(ws, rowIdx, 14, item.price || 0, 'n', numStyle(cRight), numFmt);
+          setCell(ws, rowIdx, 15, 0, 'n', numStyle(cRight), numFmt);
+          setCell(ws, rowIdx, 16, 0, 'n', numStyle(cRight), numFmt);
+          setCell(ws, rowIdx, 17, itemGross - discVal, 'n', numStyle(cRight), numFmt);
+          setCell(ws, rowIdx, 18, discVal, 'n', numStyle(cRight), numFmt);
+          setCell(ws, rowIdx, 19, 0, 'n', numStyle(cRight), "#,##0.##");
+          setCell(ws, rowIdx, 20, 0, 'n', numStyle(cRight), numFmt);
+          setCell(ws, rowIdx, 21, 0, 'n', numStyle(cRight), numFmt);
+
+          totalGross += itemGross - discVal;
+          rowIdx++;
+        });
+      } else {
+        const gross = v.totalAmount - (v.taxAmount || 0);
+        setCell(ws, rowIdx, 0, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+        setCell(ws, rowIdx, 1, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+        setCell(ws, rowIdx, 2, v.id, 's', baseStyle(cCenter), null);
+        setCell(ws, rowIdx, 3, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
+        setCell(ws, rowIdx, 4, v.invoiceNo || "", 's', baseStyle(cCenter), null);
+        setCell(ws, rowIdx, 5, "", 's', baseStyle(cLeft), null);
+        setCell(ws, rowIdx, 6, v.description, 's', baseStyle(cLeft), null);
+        setCell(ws, rowIdx, 7, "", 's', baseStyle(cCenter), null);
+        for (let ci = 8; ci <= 12; ci++) setCell(ws, rowIdx, ci, "", 's', baseStyle(cLeft), null);
+        setCell(ws, rowIdx, 13, 0, 'n', numStyle(cRight), "#,##0.##");
+        setCell(ws, rowIdx, 14, 0, 'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 15, 0, 'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 16, 0, 'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 17, gross, 'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 18, 0, 'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 19, 0, 'n', numStyle(cRight), "#,##0.##");
+        setCell(ws, rowIdx, 20, 0, 'n', numStyle(cRight), numFmt);
+        setCell(ws, rowIdx, 21, 0, 'n', numStyle(cRight), numFmt);
+        totalGross += gross;
+        rowIdx++;
+      }
+
+      totalTax += v.taxAmount || 0;
+      totalAmt += v.totalAmount || 0;
+    });
+
+    const totalBg = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
+    const totalStyle = (al) => ({ font: fntBold, fill: totalBg, alignment: al, border: border4 });
+    setCell(ws, rowIdx, 0, "TỔNG CỘNG", 's', { font: fntBold, fill: totalBg, alignment: cLeft, border: border4 }, null);
+    merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 12 } });
+    setCell(ws, rowIdx, 13, 0, 'n', totalStyle(cRight), "#,##0.##");
+    setCell(ws, rowIdx, 14, 0, 'n', totalStyle(cRight), numFmt);
+    setCell(ws, rowIdx, 15, 0, 'n', totalStyle(cRight), numFmt);
+    setCell(ws, rowIdx, 16, 0, 'n', totalStyle(cRight), numFmt);
+    setCell(ws, rowIdx, 17, totalGross, 'n', totalStyle(cRight), numFmt);
+    setCell(ws, rowIdx, 18, 0, 'n', totalStyle(cRight), numFmt);
+    setCell(ws, rowIdx, 19, 0, 'n', totalStyle(cRight), "#,##0.##");
+    setCell(ws, rowIdx, 20, 0, 'n', totalStyle(cRight), numFmt);
+    setCell(ws, rowIdx, 21, 0, 'n', totalStyle(cRight), numFmt);
+
+    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: 21 } });
+    ws['!merges'] = merges;
+    ws['!cols'] = [
+      { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 13 },
+      { wch: 14 }, { wch: 28 }, { wch: 8 }, { wch: 13 }, { wch: 13 },
+      { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 12 }, { wch: 16 },
+      { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 14 },
+      { wch: 14 }, { wch: 14 }
+    ];
+    ws['!rows'] = [
+      { hpt: 22 }, { hpt: 20 }, { hpt: 16 }, { hpt: 22 }
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Hang tra lai");
+
+    let dateRangeSuffix = "";
+    if (fromDate || toDate) dateRangeSuffix = `_${fromDate || ""}_${toDate || ""}`;
+    const outName = `Hang_tra_lai_chi_tiet_${new Date().toISOString().split('T')[0]}${dateRangeSuffix}.xlsx`;
+    XLSX.writeFile(wb, outName);
+    showToast(`Đã xuất Excel: ${outName}`, "success");
+  } catch (err) {
+    console.error(err);
+    showToast(`Lỗi xuất Excel hàng trả lại: ${err.message}`, "danger");
+  }
+}
+
 // REGISTER GLOBALS TO WINDOW
 window.switchPurchaseSubTab = switchPurchaseSubTab;
 window.addPurchaseOrderFormRow = addPurchaseOrderFormRow;
@@ -1391,4 +2053,20 @@ window.toggleSelectAllPurchaseOrders = toggleSelectAllPurchaseOrders;
 window.updateBatchPurchaseOrdersUI = updateBatchPurchaseOrdersUI;
 window.batchDeletePurchaseOrders = batchDeletePurchaseOrders;
 window.exportPurchaseOrdersToExcel = exportPurchaseOrdersToExcel;
+
+window.renderPurchaseReturnTable = renderPurchaseReturnTable;
+window.filterPurchaseReturnTable = filterPurchaseReturnTable;
+window.clearPurchaseReturnDateFilter = clearPurchaseReturnDateFilter;
+window.changePurchaseReturnPage = changePurchaseReturnPage;
+window.addPurchaseReturnFormRow = addPurchaseReturnFormRow;
+window.autoFillPurchaseReturnPrice = autoFillPurchaseReturnPrice;
+window.recalculatePurchaseReturnTotals = recalculatePurchaseReturnTotals;
+window.resetPurchaseReturnForm = resetPurchaseReturnForm;
+window.handlePurchaseReturnSubmit = handlePurchaseReturnSubmit;
+window.generateNextPurchaseReturnVoucherId = generateNextPurchaseReturnVoucherId;
+window.editPurchaseReturnVoucher = editPurchaseReturnVoucher;
+window.toggleSelectAllPurchaseReturns = toggleSelectAllPurchaseReturns;
+window.updateBatchPurchaseReturnsUI = updateBatchPurchaseReturnsUI;
+window.batchDeletePurchaseReturns = batchDeletePurchaseReturns;
+window.exportPurchaseReturnsToExcel = exportPurchaseReturnsToExcel;
 

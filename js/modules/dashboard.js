@@ -307,6 +307,7 @@ function renderRecentActivities() {
   const badgeLabels = {
     purchase: "Mua hàng",
     purchase_order: "Đơn đặt hàng",
+    purchase_return: "Hàng trả lại",
     sales: "Bán hàng",
     escrow_pay: "Ký quỹ đi",
     escrow_receive: "Nhận ký quỹ",
@@ -324,7 +325,7 @@ function renderRecentActivities() {
         </div>
         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
           <span class="activity-price font-numeric">${formatVND(amount)}</span>
-          <span class="badge ${v.type === 'sales' ? 'badge-success' : v.type === 'purchase' ? 'badge-info' : v.type === 'purchase_order' ? 'badge-warning' : 'badge-secondary'}" style="font-size:9px; padding:2px 6px;">
+          <span class="badge ${v.type === 'sales' ? 'badge-success' : v.type === 'purchase' ? 'badge-info' : v.type === 'purchase_order' ? 'badge-warning' : v.type === 'purchase_return' ? 'badge-danger' : 'badge-secondary'}" style="font-size:9px; padding:2px 6px;">
             ${badgeLabels[v.type] || "Chứng từ"}
           </span>
         </div>

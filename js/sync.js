@@ -594,10 +594,12 @@ async function resolveConflictedVouchers(rescuedVouchers) {
     let newId;
     if (rescued.type === "sales") {
       newId = generateNextSalesVoucherId(rescued.paymentMethod);
-    } else if (rescued.type === "purchase" || rescued.type === "purchase_order") {
-      newId = typeof generateNextPurchaseVoucherId === "function"
-        ? generateNextPurchaseVoucherId(rescued.paymentMethod)
-        : `NK${Date.now()}`;
+    } else if (rescued.type === "purchase" || rescued.type === "purchase_order" || rescued.type === "purchase_return") {
+      newId = rescued.type === "purchase"
+        ? (typeof generateNextPurchaseVoucherId === "function" ? generateNextPurchaseVoucherId(rescued.paymentMethod) : `NK${Date.now()}`)
+        : rescued.type === "purchase_order"
+          ? (typeof generateNextPurchaseOrderVoucherId === "function" ? generateNextPurchaseOrderVoucherId() : `ĐMH${Date.now()}`)
+          : (typeof generateNextPurchaseReturnVoucherId === "function" ? generateNextPurchaseReturnVoucherId() : `BTL${Date.now()}`);
     } else {
       // receipt, payment, escrow — dùng timestamp để tránh trùng
       const prefix = rescued.type === "receipt" ? "PT" : rescued.type === "payment" ? "PC" : "KQ";
