@@ -314,6 +314,32 @@ function viewVoucher(id) {
           Tổng số tiền (viết bằng chữ): <span style="font-weight:bold; font-style:italic;">${numberToVietnameseWords(v.totalAmount)}</span>
         </div>
         
+        <!-- Chữ ký và dấu (Đơn đặt hàng) -->
+        <div style="display: flex; justify-content: space-between; text-align: center; margin-top: 30px; font-size: 11px; page-break-inside: avoid; break-inside: avoid;">
+          <div style="width: 23%; page-break-inside: avoid; break-inside: avoid;">
+            <strong>Người lập phiếu</strong><br>
+            <span style="font-style: italic; font-size: 10px; color: #555;">(Ký, họ tên)</span>
+            <div style="height: 60px;"></div>
+          </div>
+          
+          <div style="width: 23%; page-break-inside: avoid; break-inside: avoid;">
+            <strong>Kế toán trưởng</strong><br>
+            <span style="font-style: italic; font-size: 10px; color: #555;">(Ký, họ tên)</span>
+            <div style="height: 60px;"></div>
+          </div>
+          
+          <div style="width: 23%; page-break-inside: avoid; break-inside: avoid;">
+            <strong>Đại diện nhà cung cấp</strong><br>
+            <span style="font-style: italic; font-size: 10px; color: #555;">(Ký, họ tên)</span>
+            <div style="height: 60px;"></div>
+          </div>
+          
+          <div style="width: 23%; page-break-inside: avoid; break-inside: avoid;">
+            <strong>Giám đốc</strong><br>
+            <span style="font-style: italic; font-size: 10px; color: #555;">(Ký, họ tên, đóng dấu)</span>
+            <div style="height: 60px;"></div>
+          </div>
+        </div>
         
       </div>
     `;
@@ -402,6 +428,38 @@ function viewVoucher(id) {
           Tổng số tiền (viết bằng chữ): <span style="font-weight:bold; font-style:italic;">${numberToVietnameseWords(v.totalAmount)}</span>
         </div>
         
+        <!-- Chữ ký và dấu theo chuẩn Thông tư 200 (Phiếu nhập kho) -->
+        <div style="display: flex; justify-content: space-between; text-align: center; margin-top: 30px; font-size: 11px; page-break-inside: avoid; break-inside: avoid;">
+          <div style="width: 18%; page-break-inside: avoid; break-inside: avoid;">
+            <strong>Người lập phiếu</strong><br>
+            <span style="font-style: italic; font-size: 10px; color: #555;">(Ký, họ tên)</span>
+            <div style="height: 60px;"></div>
+          </div>
+          
+          <div style="width: 18%; page-break-inside: avoid; break-inside: avoid;">
+            <strong>Người giao hàng</strong><br>
+            <span style="font-style: italic; font-size: 10px; color: #555;">(Ký, họ tên)</span>
+            <div style="height: 60px;"></div>
+          </div>
+          
+          <div style="width: 18%; page-break-inside: avoid; break-inside: avoid;">
+            <strong>Thủ kho</strong><br>
+            <span style="font-style: italic; font-size: 10px; color: #555;">(Ký, họ tên)</span>
+            <div style="height: 60px;"></div>
+          </div>
+          
+          <div style="width: 18%; page-break-inside: avoid; break-inside: avoid;">
+            <strong>Kế toán trưởng</strong><br>
+            <span style="font-style: italic; font-size: 10px; color: #555;">(Ký, họ tên)</span>
+            <div style="height: 60px;"></div>
+          </div>
+          
+          <div style="width: 18%; page-break-inside: avoid; break-inside: avoid;">
+            <strong>Giám đốc</strong><br>
+            <span style="font-style: italic; font-size: 10px; color: #555;">(Ký, họ tên, đóng dấu)</span>
+            <div style="height: 60px;"></div>
+          </div>
+        </div>
         
       </div>
     `;
@@ -490,6 +548,38 @@ function viewVoucher(id) {
           Tổng số tiền (viết bằng chữ): <span style="font-weight:bold; font-style:italic;">${numberToVietnameseWords(v.totalAmount)}</span>
         </div>
         
+        <!-- Chữ ký và dấu theo chuẩn Thông tư 200 (Phiếu nhập kho hàng trả lại) -->
+        <div style="display: flex; justify-content: space-between; text-align: center; margin-top: 30px; font-size: 11px; page-break-inside: avoid; break-inside: avoid;">
+          <div style="width: 18%; page-break-inside: avoid; break-inside: avoid;">
+            <strong>Người lập phiếu</strong><br>
+            <span style="font-style: italic; font-size: 10px; color: #555;">(Ký, họ tên)</span>
+            <div style="height: 60px;"></div>
+          </div>
+          
+          <div style="width: 18%; page-break-inside: avoid; break-inside: avoid;">
+            <strong>Người giao hàng</strong><br>
+            <span style="font-style: italic; font-size: 10px; color: #555;">(Ký, họ tên)</span>
+            <div style="height: 60px;"></div>
+          </div>
+          
+          <div style="width: 18%; page-break-inside: avoid; break-inside: avoid;">
+            <strong>Thủ kho</strong><br>
+            <span style="font-style: italic; font-size: 10px; color: #555;">(Ký, họ tên)</span>
+            <div style="height: 60px;"></div>
+          </div>
+          
+          <div style="width: 18%; page-break-inside: avoid; break-inside: avoid;">
+            <strong>Kế toán trưởng</strong><br>
+            <span style="font-style: italic; font-size: 10px; color: #555;">(Ký, họ tên)</span>
+            <div style="height: 60px;"></div>
+          </div>
+          
+          <div style="width: 18%; page-break-inside: avoid; break-inside: avoid;">
+            <strong>Giám đốc</strong><br>
+            <span style="font-style: italic; font-size: 10px; color: #555;">(Ký, họ tên, đóng dấu)</span>
+            <div style="height: 60px;"></div>
+          </div>
+        </div>
         
       </div>
     `;

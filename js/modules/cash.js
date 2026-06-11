@@ -658,19 +658,23 @@ function batchDeleteCash() {
 
     updateBatchCashUI();
 
-    filterCash();
-    if (typeof recalculateCashKpis === "function") recalculateCashKpis();
-    if (typeof renderDashboard === "function") renderDashboard();
-    if (typeof filterSales === "function") filterSales();
-    if (typeof filterPurchases === "function") filterPurchases();
-    if (typeof filterDebts === "function") filterDebts();
-    if (typeof filterPartners === "function") filterPartners();
-    if (typeof renderInventoryTable === "function") renderInventoryTable();
+    if (typeof safeRefreshAllModules === "function") {
+      safeRefreshAllModules();
+    } else {
+      filterCash();
+      if (typeof recalculateCashKpis === "function") recalculateCashKpis();
+      if (typeof renderDashboard === "function") renderDashboard();
+      if (typeof filterDebts === "function") filterDebts();
+      if (typeof filterPartners === "function") filterPartners();
+      if (typeof renderInventoryTable === "function") renderInventoryTable();
+    }
 
     showToast(`Đã xóa thành công ${checked.length} chứng từ thu chi!`, "success");
   }
 }
 // Cash
+window.filterCash = filterCash;
+window.recalculateCashKpis = recalculateCashKpis;
 window.changeCashPage = changeCashPage;
 window.clearCashDateFilter = clearCashDateFilter;
 window.toggleSelectAllCash = toggleSelectAllCash;

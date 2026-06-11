@@ -13,6 +13,9 @@ function renderSalesTable() {
   const fromDate = document.getElementById("search-sales-from") ? document.getElementById("search-sales-from").value : "";
   const toDate = document.getElementById("search-sales-to") ? document.getElementById("search-sales-to").value : "";
 
+  // Lọc nâng cao
+  const advPayment = document.getElementById("adv-filter-sales-payment") ? document.getElementById("adv-filter-sales-payment").value : "";
+
   if (query) {
     sales = sales.filter(v => {
       const partnerName = getPartnerNameForVoucher(v);
@@ -26,6 +29,10 @@ function renderSalesTable() {
   }
   if (toDate) {
     sales = sales.filter(v => v.date <= toDate);
+  }
+
+  if (advPayment) {
+    sales = sales.filter(v => v.paymentMethod === advPayment);
   }
 
   // Sắp xếp GIẢM DẦN theo ngày chứng từ (mới nhất lên trước), nếu cùng ngày thì sắp xếp theo số chứng từ giảm dần
@@ -268,6 +275,9 @@ function resetSalesForm() {
   const modalTitle = document.querySelector("#modal-add-sales .card-title");
   if (modalTitle) modalTitle.innerText = "Lập hóa đơn bán hàng xuất kho";
 
+  const idEl = document.getElementById("sale-id");
+  if (idEl) idEl.value = "";
+
   const tbody = document.getElementById("sales-form-items-body");
   if (tbody) tbody.innerHTML = "";
   document.getElementById("sale-desc").value = "Bán hàng xuất kho";
@@ -317,6 +327,31 @@ function generateNextSalesVoucherId(paymentMethod) {
 // Xử lý nộp form Bán hàng (Có xác thực kiểm kho hàng tồn)
 function handleSalesSubmit(e) {
   e.preventDefault();
+
+  const inputIdEl = document.getElementById("sale-id");
+  let voucherId = inputIdEl ? inputIdEl.value.trim() : "";
+
+  if (editingSalesId) {
+    if (!voucherId) {
+      showToast("Số chứng từ không được để trống!", "danger");
+      return;
+    }
+  } else {
+    if (!voucherId) {
+      voucherId = generateNextSalesVoucherId(document.getElementById("sale-payment").value);
+    }
+  }
+
+  // Kiểm tra trùng số chứng từ
+  const isDuplicate = state.vouchers.some(v => {
+    if (editingSalesId && v.id.toLowerCase() === editingSalesId.toLowerCase()) return false;
+    return v.id.toLowerCase() === voucherId.toLowerCase();
+  });
+
+  if (isDuplicate) {
+    showToast("Số chứng từ đã tồn tại, vui lòng nhập số khác!", "danger");
+    return;
+  }
 
   const rows = document.querySelectorAll("#sales-form-items-body tr");
   if (rows.length === 0) {
@@ -374,7 +409,7 @@ function handleSalesSubmit(e) {
   if (isStockInsufficient) return;
 
   const newVoucher = {
-    id: editingSalesId || generateNextSalesVoucherId(document.getElementById("sale-payment").value),
+    id: voucherId,
     type: "sales",
     date: document.getElementById("sale-date").value,
     partnerId,
@@ -395,6 +430,19 @@ function handleSalesSubmit(e) {
       }
       state.vouchers[idx] = newVoucher;
     }
+    
+    // Nếu đổi mã chứng từ: lưu lại vết xóa mã cũ và cập nhật liên kết ký quỹ
+    if (voucherId !== editingSalesId) {
+      if (typeof trackDeletedIds === "function") {
+        trackDeletedIds([editingSalesId]);
+      }
+      state.vouchers.forEach(v => {
+        if (v.escrowRefId === editingSalesId) {
+          v.escrowRefId = voucherId;
+        }
+      });
+    }
+
     editingSalesId = null;
   } else {
     state.vouchers.push(newVoucher);
@@ -415,6 +463,9 @@ function editSalesVoucher(id) {
 
   const modalTitle = document.querySelector("#modal-add-sales .card-title");
   if (modalTitle) modalTitle.innerText = `Chỉnh sửa hóa đơn bán hàng: ${id}`;
+
+  const idEl = document.getElementById("sale-id");
+  if (idEl) idEl.value = v.id;
 
   document.getElementById("sale-date").value = v.date;
   document.getElementById("sale-partner").value = getPartnerNameForVoucher(v);
@@ -488,20 +539,30 @@ function batchDeleteSales() {
 
     updateBatchSalesUI();
 
-    if (typeof filterSales === "function") filterSales();
-    if (typeof filterPurchases === "function") filterPurchases();
-    if (typeof filterCash === "function") {
-      filterCash();
-      if (typeof recalculateCashKpis === "function") recalculateCashKpis();
+    if (typeof safeRefreshAllModules === "function") {
+      safeRefreshAllModules();
+    } else {
+      if (typeof filterSalesTable === "function") filterSalesTable();
+      if (typeof filterCash === "function") {
+        filterCash();
+        if (typeof recalculateCashKpis === "function") recalculateCashKpis();
+      }
+      if (typeof renderDashboard === "function") renderDashboard();
+      if (typeof filterDebts === "function") filterDebts();
+      if (typeof filterPartners === "function") filterPartners();
+      if (typeof renderInventoryTable === "function") renderInventoryTable();
     }
-    if (typeof renderDashboard === "function") renderDashboard();
-    if (typeof filterDebts === "function") filterDebts();
-    if (typeof filterPartners === "function") filterPartners();
-    if (typeof renderInventoryTable === "function") renderInventoryTable();
 
     showToast(`Đã xóa thành công ${checked.length} chứng từ bán hàng!`, "success");
   }
 }
+
+function resetEditingSalesId() {
+  editingSalesId = null;
+}
+window.resetEditingSalesId = resetEditingSalesId;
+window.renderSalesTable = renderSalesTable;
+window.filterSalesTable = filterSalesTable;
 window.toggleSelectAllSales = toggleSelectAllSales;
 window.updateBatchSalesUI = updateBatchSalesUI;
 window.batchDeleteSales = batchDeleteSales;

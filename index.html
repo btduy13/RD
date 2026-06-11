@@ -184,6 +184,65 @@
           </button>
 
 
+          <!-- Nút xem phím tắt dưới dạng Dropdown Menu -->
+          <div class="dropdown" style="position: relative; display: inline-block;">
+            <button class="icon-btn" onclick="toggleShortcutDropdown(event)" title="Danh sách phím tắt">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+              </svg>
+            </button>
+            <div id="shortcut-dropdown-menu" class="dropdown-content" style="display: none; position: absolute; right: 0; top: 46px; background-color: var(--bg-secondary); min-width: 320px; box-shadow: 0px 8px 24px rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; z-index: 1000; font-size: 13px; color: var(--text-primary);">
+              <h4 style="margin: 0 0 12px 0; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+                <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                </svg>
+                Phím tắt hệ thống
+              </h4>
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-tertiary); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">Ctrl + F</span>
+                  <span style="color: var(--text-secondary); font-weight: 500;">Tìm kiếm nhanh</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-tertiary); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">ESC</span>
+                  <span style="color: var(--text-secondary); font-weight: 500;">Đóng cửa sổ (Modal)</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-tertiary); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F1</span>
+                  <span style="color: var(--text-secondary); font-weight: 500;">Ô tiếp theo trong modal</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-tertiary); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F2</span>
+                  <span style="color: var(--text-secondary); font-weight: 500;">Ô trước đó trong modal</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-tertiary); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F4</span>
+                  <span style="color: var(--text-secondary); font-weight: 500;">Thêm dòng hàng mới</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-tertiary); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F5</span>
+                  <span style="color: var(--text-secondary); font-weight: 500;">Khôi phục đơn giá gốc</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-tertiary); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F6</span>
+                  <span style="color: var(--text-secondary); font-weight: 500;">Di chuyển xuống dòng dưới</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-tertiary); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F7</span>
+                  <span style="color: var(--text-secondary); font-weight: 500;">Di chuyển lên dòng trên</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-tertiary); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F8</span>
+                  <span style="color: var(--text-secondary); font-weight: 500;">Xóa dòng mặt hàng</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-tertiary); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">Tab / Shift+Tab</span>
+                  <span style="color: var(--text-secondary); font-weight: 500;">Di chuyển ngang ô trong dòng</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Nút đổi Theme -->
           <button class="icon-btn" onclick="toggleTheme()" title="Đổi giao diện Tối/Sáng">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
@@ -489,6 +548,17 @@
                     </svg>
                   </button>
                 </div>
+
+                <select id="adv-filter-purchase-payment" class="form-control" 
+                  style="height: 36px; padding: 0 12px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; min-width: 170px;"
+                  onmouseover="this.style.borderColor='var(--color-primary)'"
+                  onmouseout="this.style.borderColor='var(--border-color)'"
+                  onchange="filterPurchaseTable()">
+                  <option value="">-- Tất cả PTTT --</option>
+                  <option value="111">Tiền mặt (111)</option>
+                  <option value="112">Ngân hàng (112)</option>
+                  <option value="331">Công nợ (331)</option>
+                </select>
               </div>
 
               <!-- Cụm bên phải: Các nút hành động -->
@@ -540,6 +610,8 @@
                 </button>
               </div>
             </div>
+
+
 
             <div class="table-card">
               <div class="card-header-bar"
@@ -615,6 +687,17 @@
                     </svg>
                   </button>
                 </div>
+
+                <select id="adv-filter-purchase-order-payment" class="form-control" 
+                  style="height: 36px; padding: 0 12px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; min-width: 170px;"
+                  onmouseover="this.style.borderColor='var(--color-primary)'"
+                  onmouseout="this.style.borderColor='var(--border-color)'"
+                  onchange="filterPurchaseOrderTable()">
+                  <option value="">-- Tất cả PTTT --</option>
+                  <option value="111">Tiền mặt (111)</option>
+                  <option value="112">Ngân hàng (112)</option>
+                  <option value="331">Công nợ (331)</option>
+                </select>
               </div>
 
               <!-- Cụm bên phải: Các nút hành động -->
@@ -666,6 +749,8 @@
                 </button>
               </div>
             </div>
+
+
 
             <div class="table-card">
               <div class="card-header-bar"
@@ -741,6 +826,17 @@
                     </svg>
                   </button>
                 </div>
+
+                <select id="adv-filter-purchase-return-payment" class="form-control" 
+                  style="height: 36px; padding: 0 12px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; min-width: 170px;"
+                  onmouseover="this.style.borderColor='var(--color-primary)'"
+                  onmouseout="this.style.borderColor='var(--border-color)'"
+                  onchange="filterPurchaseReturnTable()">
+                  <option value="">-- Tất cả PTTT --</option>
+                  <option value="111">Tiền mặt (111)</option>
+                  <option value="112">Ngân hàng (112)</option>
+                  <option value="131">Công nợ (131)</option>
+                </select>
               </div>
 
               <!-- Cụm bên phải: Các nút hành động -->
@@ -792,6 +888,8 @@
                 </button>
               </div>
             </div>
+
+
 
             <div class="table-card">
               <div class="card-header-bar"
@@ -869,6 +967,17 @@
                   </svg>
                 </button>
               </div>
+
+              <select id="adv-filter-sales-payment" class="form-control" 
+                style="height: 36px; padding: 0 12px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; min-width: 170px;"
+                onmouseover="this.style.borderColor='var(--color-primary)'"
+                onmouseout="this.style.borderColor='var(--border-color)'"
+                onchange="filterSalesTable()">
+                <option value="">-- Tất cả PTTT --</option>
+                <option value="111">Tiền mặt (111)</option>
+                <option value="112">Ngân hàng (112)</option>
+                <option value="131">Công nợ (131)</option>
+              </select>
             </div>
 
             <!-- Cụm bên phải: Các nút hành động -->
@@ -920,6 +1029,8 @@
               </button>
             </div>
           </div>
+
+
 
           <div class="table-card">
             <div class="card-header-bar"
@@ -2687,6 +2798,11 @@
           </div>
 
           <div class="form-group">
+            <label class="form-label">Số chứng từ</label>
+            <input type="text" id="pur-id" class="form-control" placeholder="Tự sinh nếu để trống">
+          </div>
+
+          <div class="form-group">
             <label class="form-label">Ngày hạch toán</label>
             <input type="date" id="pur-date" class="form-control" required>
           </div>
@@ -2781,6 +2897,11 @@
           <div class="form-group" style="display: none;">
             <label class="form-label">Nhà cung cấp</label>
             <input type="text" id="ret-partner" class="form-control" value="Nhà cung cấp" list="datalist-partners">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Số chứng từ</label>
+            <input type="text" id="pur-return-id" class="form-control" placeholder="Tự sinh nếu để trống">
           </div>
 
           <div class="form-group">
@@ -2881,6 +3002,11 @@
           </div>
 
           <div class="form-group">
+            <label class="form-label">Số chứng từ</label>
+            <input type="text" id="pur-order-id" class="form-control" placeholder="Tự sinh nếu để trống">
+          </div>
+
+          <div class="form-group">
             <label class="form-label">Ngày hạch toán</label>
             <input type="date" id="pur-order-date" class="form-control" required>
           </div>
@@ -2971,6 +3097,11 @@
       </div>
       <div class="modal-body">
         <form id="form-sales" class="form-grid" onsubmit="handleSalesSubmit(event)">
+          <div class="form-group">
+            <label class="form-label">Số chứng từ</label>
+            <input type="text" id="sale-id" class="form-control" placeholder="Tự sinh nếu để trống">
+          </div>
+
           <div class="form-group">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <label class="form-label" style="margin: 0;">Khách hàng mua</label>

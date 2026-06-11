@@ -1463,6 +1463,7 @@ async function triggerUpdateFlow(auto = false) {
   }
 }
 // Đăng ký toàn cục các hàm phục vụ cập nhật
+window.renderInventoryTable = renderInventoryTable;
 window.initLocalVersionDisplay = initLocalVersionDisplay;
 window.checkForUpdates = checkForUpdates;
 window.triggerUpdateFlow = triggerUpdateFlow;

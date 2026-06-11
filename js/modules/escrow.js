@@ -314,16 +314,19 @@ function batchDeleteEscrows() {
 
     updateBatchEscrowsUI();
 
-    renderEscrowTable();
-    if (typeof filterSales === "function") filterSales();
-    if (typeof filterCash === "function") {
-      filterCash();
-      if (typeof recalculateCashKpis === "function") recalculateCashKpis();
+    if (typeof safeRefreshAllModules === "function") {
+      safeRefreshAllModules();
+    } else {
+      renderEscrowTable();
+      if (typeof filterCash === "function") {
+        filterCash();
+        if (typeof recalculateCashKpis === "function") recalculateCashKpis();
+      }
+      if (typeof renderDashboard === "function") renderDashboard();
+      if (typeof filterDebts === "function") filterDebts();
+      if (typeof filterPartners === "function") filterPartners();
+      if (typeof renderInventoryTable === "function") renderInventoryTable();
     }
-    if (typeof renderDashboard === "function") renderDashboard();
-    if (typeof filterDebts === "function") filterDebts();
-    if (typeof filterPartners === "function") filterPartners();
-    if (typeof renderInventoryTable === "function") renderInventoryTable();
 
     showToast(`Đã xóa thành công ${checked.length} chứng từ ký quỹ!`, "success");
   }
@@ -454,6 +457,7 @@ function exportEscrowsToExcel() {
   }
 }
 // Escrows
+window.filterEscrowTable = filterEscrowTable;
 window.changeEscrowPage = changeEscrowPage;
 window.clearEscrowDateFilter = clearEscrowDateFilter;
 window.toggleSelectAllEscrows = toggleSelectAllEscrows;

@@ -334,5 +334,6 @@ function renderRecentActivities() {
   }).join("");
 }
 // Dashboard
+window.renderDashboard = renderDashboard;
 window.filterDashboard = filterDashboard;
 window.clearDashboardDateFilter = clearDashboardDateFilter;

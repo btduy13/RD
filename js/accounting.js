@@ -334,35 +334,84 @@ function rebalanceEquity() {
 // Xóa chứng từ khỏi sổ cái
 function deleteVoucher(id) {
   if (confirm(`Bạn có chắc chắn muốn xóa và hủy ghi sổ chứng từ "${id}"? Việc này sẽ tính toán lại toàn bộ giá trị tồn kho và công nợ.`)) {
-    trackDeletedIds([id]);
-    state.vouchers = state.vouchers.filter(v => v.id !== id);
+    try {
+      trackDeletedIds([id]);
+      state.vouchers = state.vouchers.filter(v => v.id !== id);
 
-    // Nếu có các khoản tất toán gắn liền với nó, xóa liên kết hoặc cảnh báo
-    // Để an toàn, xóa các khoản tham chiếu
-    state.vouchers.forEach(v => {
-      if (v.escrowRefId === id) {
-        v.escrowRefId = null;
+      // Nếu có các khoản tất toán gắn liền với nó, xóa liên kết hoặc cảnh báo
+      // Để an toàn, xóa các khoản tham chiếu
+      state.vouchers.forEach(v => {
+        if (v.escrowRefId === id) {
+          v.escrowRefId = null;
+        }
+      });
+
+      // Reset any active editing voucher IDs if they match the deleted voucher
+      if (typeof window.resetEditingSalesId === "function") {
+        try {
+          window.resetEditingSalesId();
+        } catch (e) {
+          console.error("Lỗi resetEditingSalesId khi xóa:", e);
+        }
       }
-    });
+      if (typeof window.resetEditingPurchaseIds === "function") {
+        try {
+          window.resetEditingPurchaseIds();
+        } catch (e) {
+          console.error("Lỗi resetEditingPurchaseIds khi xóa:", e);
+        }
+      }
 
-    saveState();
-    recalculateAccounting();
+      saveState();
+      recalculateAccounting();
 
-    // Tự động làm tươi tất cả các bảng và KPIs trên mọi tab
-    if (typeof filterSales === "function") filterSales();
-    if (typeof filterPurchases === "function") filterPurchases();
-    if (typeof filterCash === "function") {
-      filterCash();
-      if (typeof recalculateCashKpis === "function") recalculateCashKpis();
+      // Tự động làm tươi tất cả các bảng và KPIs trên mọi tab
+      if (typeof safeRefreshAllModules === "function") {
+        safeRefreshAllModules();
+      }
+
+      showToast(`Đã xóa thành công chứng từ ${id}!`, "success");
+    } catch (err) {
+      console.error("Lỗi nghiêm trọng trong quá trình xóa chứng từ:", err);
+      showToast(`Có lỗi xảy ra khi xóa chứng từ: ${err.message}`, "danger");
     }
-    if (typeof renderDashboard === "function") renderDashboard();
-    if (typeof filterDebts === "function") filterDebts();
-    if (typeof filterPartners === "function") filterPartners();
-    if (typeof renderInventoryTable === "function") renderInventoryTable();
-
-    showToast(`Đã xóa thành công chứng từ ${id}!`, "success");
   }
 }
+
+// Hàm làm tươi an toàn toàn cục
+function safeRefreshAllModules() {
+  const refreshTasks = [
+    { name: "filterSalesTable", fn: typeof window.filterSalesTable === "function" ? window.filterSalesTable : null },
+    { name: "filterPurchaseTable", fn: typeof window.filterPurchaseTable === "function" ? window.filterPurchaseTable : null },
+    { name: "filterPurchaseOrderTable", fn: typeof window.filterPurchaseOrderTable === "function" ? window.filterPurchaseOrderTable : null },
+    { name: "filterPurchaseReturnTable", fn: typeof window.filterPurchaseReturnTable === "function" ? window.filterPurchaseReturnTable : null },
+    { name: "filterCash", fn: typeof window.filterCash === "function" ? window.filterCash : null },
+    { name: "renderDashboard", fn: typeof window.renderDashboard === "function" ? window.renderDashboard : null },
+    { name: "filterDebts", fn: typeof window.filterDebts === "function" ? window.filterDebts : null },
+    { name: "filterPartners", fn: typeof window.filterPartners === "function" ? window.filterPartners : null },
+    { name: "renderInventoryTable", fn: typeof window.renderInventoryTable === "function" ? window.renderInventoryTable : null },
+    { name: "filterEscrowTable", fn: typeof window.filterEscrowTable === "function" ? window.filterEscrowTable : null }
+  ];
+
+  if (typeof window.recalculateCashKpis === "function") {
+    try {
+      window.recalculateCashKpis();
+    } catch (e) {
+      console.error("Lỗi recalculateCashKpis khi làm tươi:", e);
+    }
+  }
+
+  refreshTasks.forEach(task => {
+    if (task.fn) {
+      try {
+        task.fn();
+      } catch (e) {
+        console.error(`Lỗi chạy ${task.name} khi làm tươi:`, e);
+      }
+    }
+  });
+}
+window.safeRefreshAllModules = safeRefreshAllModules;
 
 // 13. CÁC HÀM TIỆN ÍCH DỮ LIỆU & QUỸ (UTILITIES)
 

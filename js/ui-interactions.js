@@ -629,6 +629,60 @@ function initOrderFormKeyboardNavigation() {
       return;
     }
 
+    // ── F6: di chuyển tới ô cùng cột ở dòng dưới ──────────────────────
+    if (e.key === 'F6') {
+      const info = getOrderTableRows(el);
+      if (info) {
+        const { rows } = info;
+        const currentRow = el.closest('tr');
+        if (currentRow) {
+          const rowIdx = rows.indexOf(currentRow);
+          if (rowIdx < rows.length - 1) {
+            const cells = getEditableCellsInRow(currentRow);
+            const cellIdx = cells.indexOf(el);
+            if (cellIdx !== -1) {
+              e.preventDefault();
+              const nextRow = rows[rowIdx + 1];
+              const nextCells = getEditableCellsInRow(nextRow);
+              const targetEl = nextCells[Math.min(cellIdx, nextCells.length - 1)];
+              if (targetEl) {
+                targetEl.focus();
+                targetEl.select && targetEl.select();
+              }
+            }
+          }
+        }
+      }
+      return;
+    }
+
+    // ── F7: di chuyển tới ô cùng cột ở dòng trên ──────────────────────
+    if (e.key === 'F7') {
+      const info = getOrderTableRows(el);
+      if (info) {
+        const { rows } = info;
+        const currentRow = el.closest('tr');
+        if (currentRow) {
+          const rowIdx = rows.indexOf(currentRow);
+          if (rowIdx > 0) {
+            const cells = getEditableCellsInRow(currentRow);
+            const cellIdx = cells.indexOf(el);
+            if (cellIdx !== -1) {
+              e.preventDefault();
+              const prevRow = rows[rowIdx - 1];
+              const prevCells = getEditableCellsInRow(prevRow);
+              const targetEl = prevCells[Math.min(cellIdx, prevCells.length - 1)];
+              if (targetEl) {
+                targetEl.focus();
+                targetEl.select && targetEl.select();
+              }
+            }
+          }
+        }
+      }
+      return;
+    }
+
     // ── Tab: chuyển dòng trong bảng đơn hàng ─────────────────────────────
     const info = getOrderTableRows(el);
     if (!info) return;
@@ -679,4 +733,66 @@ window.getFocusableFieldsInModal = getFocusableFieldsInModal;
 window.getEditableCellsInRow = getEditableCellsInRow;
 window.getOrderTableRows = getOrderTableRows;
 window.focusRowFirstCell = focusRowFirstCell;
-window.initOrderFormKeyboardNavigation = initOrderFormKeyboardNavigation;
+window.initOrderFormKeyboardNavigation = initOrderFormKeyboardNavigation;
+
+// ── Dropdown phím tắt và lọc nâng cao ───────────────────────────────────────
+function toggleShortcutDropdown(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById("shortcut-dropdown-menu");
+  if (!menu) return;
+  if (menu.style.display === "none" || menu.style.display === "") {
+    menu.style.display = "block";
+  } else {
+    menu.style.display = "none";
+  }
+}
+
+document.addEventListener("click", function (e) {
+  const menu = document.getElementById("shortcut-dropdown-menu");
+  if (menu && menu.style.display === "block") {
+    if (!e.target.closest(".dropdown")) {
+      menu.style.display = "none";
+    }
+  }
+});
+
+function toggleAdvancedFilter(panelId) {
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+  if (panel.style.display === "none" || panel.style.display === "") {
+    panel.style.display = "block";
+  } else {
+    panel.style.display = "none";
+  }
+}
+
+function clearAdvancedSalesFilters() {
+  const el = document.getElementById("adv-filter-sales-payment");
+  if (el) el.value = "";
+  if (typeof filterSalesTable === "function") filterSalesTable();
+}
+
+function clearAdvancedPurchaseFilters() {
+  const el = document.getElementById("adv-filter-purchase-payment");
+  if (el) el.value = "";
+  if (typeof filterPurchaseTable === "function") filterPurchaseTable();
+}
+
+function clearAdvancedPurchaseOrderFilters() {
+  const el = document.getElementById("adv-filter-purchase-order-payment");
+  if (el) el.value = "";
+  if (typeof filterPurchaseOrderTable === "function") filterPurchaseOrderTable();
+}
+
+function clearAdvancedPurchaseReturnFilters() {
+  const el = document.getElementById("adv-filter-purchase-return-payment");
+  if (el) el.value = "";
+  if (typeof filterPurchaseReturnTable === "function") filterPurchaseReturnTable();
+}
+
+window.toggleShortcutDropdown = toggleShortcutDropdown;
+window.toggleAdvancedFilter = toggleAdvancedFilter;
+window.clearAdvancedSalesFilters = clearAdvancedSalesFilters;
+window.clearAdvancedPurchaseFilters = clearAdvancedPurchaseFilters;
+window.clearAdvancedPurchaseOrderFilters = clearAdvancedPurchaseOrderFilters;
+window.clearAdvancedPurchaseReturnFilters = clearAdvancedPurchaseReturnFilters;

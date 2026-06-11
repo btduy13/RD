@@ -1310,6 +1310,7 @@ function batchDeleteDebts() {
 window.exportCurrentPartnerDebtExcel = exportCurrentPartnerDebtExcel;
 window.previewCurrentPartnerDebtNotice = previewCurrentPartnerDebtNotice;
 // Debts
+window.filterDebts = filterDebts;
 window.changeDebtsPage = changeDebtsPage;
 window.toggleSelectAllDebts = toggleSelectAllDebts;
 window.updateBatchDebtsUI = updateBatchDebtsUI;

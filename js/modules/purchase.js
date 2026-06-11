@@ -11,6 +11,9 @@ function renderPurchaseTable() {
   const fromDate = document.getElementById("search-purchase-from") ? document.getElementById("search-purchase-from").value : "";
   const toDate = document.getElementById("search-purchase-to") ? document.getElementById("search-purchase-to").value : "";
 
+  // Lọc nâng cao
+  const advPayment = document.getElementById("adv-filter-purchase-payment") ? document.getElementById("adv-filter-purchase-payment").value : "";
+
   if (query) {
     purchases = purchases.filter(v => {
       const partnerName = getPartnerNameForVoucher(v);
@@ -24,6 +27,10 @@ function renderPurchaseTable() {
   }
   if (toDate) {
     purchases = purchases.filter(v => v.date <= toDate);
+  }
+
+  if (advPayment) {
+    purchases = purchases.filter(v => v.paymentMethod === advPayment);
   }
 
   // Sắp xếp số chứng từ giảm dần (to nhất lên trước)
@@ -279,6 +286,9 @@ function resetPurchaseForm() {
   const modalTitle = document.querySelector("#modal-add-purchase .card-title");
   if (modalTitle) modalTitle.innerText = "Chứng từ Mua hàng nhập kho";
 
+  const idEl = document.getElementById("pur-id");
+  if (idEl) idEl.value = "";
+
   const tbody = document.getElementById("purchase-form-items-body");
   if (tbody) tbody.innerHTML = "";
   document.getElementById("pur-desc").value = "Mua vật tư hàng hóa nhập kho";
@@ -295,6 +305,32 @@ function resetPurchaseForm() {
 // Xử lý nộp form Mua hàng
 function handlePurchaseSubmit(e) {
   e.preventDefault();
+
+  const inputIdEl = document.getElementById("pur-id");
+  let voucherId = inputIdEl ? inputIdEl.value.trim() : "";
+
+  if (editingPurchaseId) {
+    if (!voucherId) {
+      showToast("Số chứng từ không được để trống!", "danger");
+      return;
+    }
+  } else {
+    if (!voucherId) {
+      const paymentMethod = document.getElementById("pur-payment").value;
+      voucherId = generateNextPurchaseVoucherId(paymentMethod);
+    }
+  }
+
+  // Kiểm tra trùng số chứng từ
+  const isDuplicate = state.vouchers.some(v => {
+    if (editingPurchaseId && v.id.toLowerCase() === editingPurchaseId.toLowerCase()) return false;
+    return v.id.toLowerCase() === voucherId.toLowerCase();
+  });
+
+  if (isDuplicate) {
+    showToast("Số chứng từ đã tồn tại, vui lòng nhập số khác!", "danger");
+    return;
+  }
 
   const rows = document.querySelectorAll("#purchase-form-items-body tr");
   if (rows.length === 0) {
@@ -340,7 +376,7 @@ function handlePurchaseSubmit(e) {
 
   const paymentMethod = document.getElementById("pur-payment").value;
   const newVoucher = {
-    id: editingPurchaseId || generateNextPurchaseVoucherId(paymentMethod),
+    id: voucherId,
     type: "purchase",
     date: document.getElementById("pur-date").value,
     partnerId,
@@ -354,6 +390,9 @@ function handlePurchaseSubmit(e) {
     _sessionId: clientSessionId
   };
 
+  const isEdit = !!editingPurchaseId;
+  const oldId = editingPurchaseId;
+
   if (editingPurchaseId) {
     const idx = state.vouchers.findIndex(v => v.id === editingPurchaseId);
     if (idx !== -1) {
@@ -362,6 +401,19 @@ function handlePurchaseSubmit(e) {
       }
       state.vouchers[idx] = newVoucher;
     }
+    
+    // Nếu đổi mã chứng từ: lưu lại vết xóa mã cũ và cập nhật liên kết ký quỹ
+    if (voucherId !== editingPurchaseId) {
+      if (typeof trackDeletedIds === "function") {
+        trackDeletedIds([editingPurchaseId]);
+      }
+      state.vouchers.forEach(v => {
+        if (v.escrowRefId === editingPurchaseId) {
+          v.escrowRefId = voucherId;
+        }
+      });
+    }
+
     editingPurchaseId = null;
   } else {
     state.vouchers.push(newVoucher);
@@ -371,7 +423,7 @@ function handlePurchaseSubmit(e) {
   recalculateAccounting();
 
   closeModal("modal-add-purchase");
-  showToast(editingPurchaseId ? "Cập nhật chứng từ mua hàng thành công!" : "Lập chứng từ mua hàng thành công!", "success");
+  showToast(isEdit ? "Cập nhật chứng từ mua hàng thành công!" : "Lập chứng từ mua hàng thành công!", "success");
 }
 let editingPurchaseId = null;
 let editingPurchaseOrderId = null;
@@ -418,6 +470,9 @@ function editPurchaseVoucher(id) {
 
   const modalTitle = document.querySelector("#modal-add-purchase .card-title");
   if (modalTitle) modalTitle.innerText = `Chỉnh sửa chứng từ mua hàng: ${id}`;
+
+  const idEl = document.getElementById("pur-id");
+  if (idEl) idEl.value = v.id;
 
   document.getElementById("pur-date").value = v.date;
   document.getElementById("pur-partner").value = getPartnerNameForVoucher(v);
@@ -491,16 +546,19 @@ function batchDeletePurchases() {
 
     updateBatchPurchasesUI();
 
-    renderPurchaseTable();
-    if (typeof filterSales === "function") filterSales();
-    if (typeof filterCash === "function") {
-      filterCash();
-      if (typeof recalculateCashKpis === "function") recalculateCashKpis();
+    if (typeof safeRefreshAllModules === "function") {
+      safeRefreshAllModules();
+    } else {
+      renderPurchaseTable();
+      if (typeof filterCash === "function") {
+        filterCash();
+        if (typeof recalculateCashKpis === "function") recalculateCashKpis();
+      }
+      if (typeof renderDashboard === "function") renderDashboard();
+      if (typeof filterDebts === "function") filterDebts();
+      if (typeof filterPartners === "function") filterPartners();
+      if (typeof renderInventoryTable === "function") renderInventoryTable();
     }
-    if (typeof renderDashboard === "function") renderDashboard();
-    if (typeof filterDebts === "function") filterDebts();
-    if (typeof filterPartners === "function") filterPartners();
-    if (typeof renderInventoryTable === "function") renderInventoryTable();
 
     showToast(`Đã xóa thành công ${checked.length} chứng từ mua hàng!`, "success");
   }
@@ -702,6 +760,8 @@ window.toggleSelectAllPurchases = toggleSelectAllPurchases;
 window.updateBatchPurchasesUI = updateBatchPurchasesUI;
 window.batchDeletePurchases = batchDeletePurchases;
 window.exportPurchasesToExcel = exportPurchasesToExcel;
+window.renderPurchaseTable = renderPurchaseTable;
+window.filterPurchaseTable = filterPurchaseTable;
 
 
 
@@ -868,6 +928,9 @@ function resetPurchaseOrderForm() {
   const modalTitle = document.querySelector("#modal-add-purchase-order .card-title");
   if (modalTitle) modalTitle.innerText = "Chứng từ Đơn đặt hàng";
 
+  const idEl = document.getElementById("pur-order-id");
+  if (idEl) idEl.value = "";
+
   const tbody = document.getElementById("purchase-order-form-items-body");
   if (tbody) tbody.innerHTML = "";
   document.getElementById("pur-order-desc").value = "Đơn đặt hàng mua vật tư hàng hóa";
@@ -883,6 +946,31 @@ function resetPurchaseOrderForm() {
 
 function handlePurchaseOrderSubmit(e) {
   e.preventDefault();
+
+  const inputIdEl = document.getElementById("pur-order-id");
+  let voucherId = inputIdEl ? inputIdEl.value.trim() : "";
+
+  if (editingPurchaseOrderId) {
+    if (!voucherId) {
+      showToast("Số chứng từ không được để trống!", "danger");
+      return;
+    }
+  } else {
+    if (!voucherId) {
+      voucherId = generateNextPurchaseOrderVoucherId();
+    }
+  }
+
+  // Kiểm tra trùng số chứng từ
+  const isDuplicate = state.vouchers.some(v => {
+    if (editingPurchaseOrderId && v.id.toLowerCase() === editingPurchaseOrderId.toLowerCase()) return false;
+    return v.id.toLowerCase() === voucherId.toLowerCase();
+  });
+
+  if (isDuplicate) {
+    showToast("Số chứng từ đã tồn tại, vui lòng nhập số khác!", "danger");
+    return;
+  }
 
   const rows = document.querySelectorAll("#purchase-order-form-items-body tr");
   if (rows.length === 0) {
@@ -928,7 +1016,7 @@ function handlePurchaseOrderSubmit(e) {
 
   const paymentMethod = document.getElementById("pur-order-payment").value;
   const newVoucher = {
-    id: editingPurchaseOrderId || generateNextPurchaseOrderVoucherId(),
+    id: voucherId,
     type: "purchase_order",
     date: document.getElementById("pur-order-date").value,
     partnerId,
@@ -942,6 +1030,7 @@ function handlePurchaseOrderSubmit(e) {
     _sessionId: clientSessionId
   };
 
+  const isEdit = !!editingPurchaseOrderId;
   if (editingPurchaseOrderId) {
     const idx = state.vouchers.findIndex(v => v.id === editingPurchaseOrderId);
     if (idx !== -1) {
@@ -950,6 +1039,19 @@ function handlePurchaseOrderSubmit(e) {
       }
       state.vouchers[idx] = newVoucher;
     }
+    
+    // Nếu đổi mã chứng từ: lưu lại vết xóa mã cũ và cập nhật liên kết ký quỹ
+    if (voucherId !== editingPurchaseOrderId) {
+      if (typeof trackDeletedIds === "function") {
+        trackDeletedIds([editingPurchaseOrderId]);
+      }
+      state.vouchers.forEach(v => {
+        if (v.escrowRefId === editingPurchaseOrderId) {
+          v.escrowRefId = voucherId;
+        }
+      });
+    }
+
     editingPurchaseOrderId = null;
   } else {
     state.vouchers.push(newVoucher);
@@ -959,7 +1061,7 @@ function handlePurchaseOrderSubmit(e) {
   recalculateAccounting();
 
   closeModal("modal-add-purchase-order");
-  showToast(editingPurchaseOrderId ? "Cập nhật đơn đặt hàng thành công!" : "Lập đơn đặt hàng thành công!", "success");
+  showToast(isEdit ? "Cập nhật đơn đặt hàng thành công!" : "Lập đơn đặt hàng thành công!", "success");
 }
 
 function editPurchaseOrderVoucher(id) {
@@ -970,6 +1072,9 @@ function editPurchaseOrderVoucher(id) {
 
   const modalTitle = document.querySelector("#modal-add-purchase-order .card-title");
   if (modalTitle) modalTitle.innerText = `Chỉnh sửa đơn đặt hàng: ${id}`;
+
+  const idEl = document.getElementById("pur-order-id");
+  if (idEl) idEl.value = v.id;
 
   document.getElementById("pur-order-date").value = v.date;
   document.getElementById("pur-order-partner").value = getPartnerNameForVoucher(v);
@@ -1002,6 +1107,9 @@ function renderPurchaseOrderTable() {
   const fromDate = document.getElementById("search-purchase-order-from") ? document.getElementById("search-purchase-order-from").value : "";
   const toDate = document.getElementById("search-purchase-order-to") ? document.getElementById("search-purchase-order-to").value : "";
 
+  // Lọc nâng cao
+  const advPayment = document.getElementById("adv-filter-purchase-order-payment") ? document.getElementById("adv-filter-purchase-order-payment").value : "";
+
   if (query) {
     orders = orders.filter(v => {
       const partnerName = getPartnerNameForVoucher(v);
@@ -1015,6 +1123,10 @@ function renderPurchaseOrderTable() {
   }
   if (toDate) {
     orders = orders.filter(v => v.date <= toDate);
+  }
+
+  if (advPayment) {
+    orders = orders.filter(v => v.paymentMethod === advPayment);
   }
 
   // Sắp xếp số đơn hàng giảm dần
@@ -1396,6 +1508,9 @@ function renderPurchaseReturnTable() {
   const fromDate = document.getElementById("search-purchase-return-from") ? document.getElementById("search-purchase-return-from").value : "";
   const toDate = document.getElementById("search-purchase-return-to") ? document.getElementById("search-purchase-return-to").value : "";
 
+  // Lọc nâng cao
+  const advPayment = document.getElementById("adv-filter-purchase-return-payment") ? document.getElementById("adv-filter-purchase-return-payment").value : "";
+
   if (query) {
     returns = returns.filter(v => {
       const partnerName = getPartnerNameForVoucher(v);
@@ -1409,6 +1524,10 @@ function renderPurchaseReturnTable() {
   }
   if (toDate) {
     returns = returns.filter(v => v.date <= toDate);
+  }
+
+  if (advPayment) {
+    returns = returns.filter(v => v.paymentMethod === advPayment);
   }
 
   // Sắp xếp số chứng từ giảm dần (mới nhất lên trước)
@@ -1645,6 +1764,9 @@ function resetPurchaseReturnForm() {
   const modalTitle = document.querySelector("#modal-add-purchase-return .card-title");
   if (modalTitle) modalTitle.innerText = "Chứng từ Nhập hàng trả lại từ khách hàng";
 
+  const idEl = document.getElementById("pur-return-id");
+  if (idEl) idEl.value = "";
+
   const tbody = document.getElementById("purchase-return-form-items-body");
   if (tbody) tbody.innerHTML = "";
   document.getElementById("ret-desc").value = "Nhập hàng trả lại từ khách hàng";
@@ -1661,6 +1783,31 @@ let editingPurchaseReturnId = null;
 
 function handlePurchaseReturnSubmit(e) {
   e.preventDefault();
+
+  const inputIdEl = document.getElementById("pur-return-id");
+  let voucherId = inputIdEl ? inputIdEl.value.trim() : "";
+
+  if (editingPurchaseReturnId) {
+    if (!voucherId) {
+      showToast("Số chứng từ không được để trống!", "danger");
+      return;
+    }
+  } else {
+    if (!voucherId) {
+      voucherId = generateNextPurchaseReturnVoucherId();
+    }
+  }
+
+  // Kiểm tra trùng số chứng từ
+  const isDuplicate = state.vouchers.some(v => {
+    if (editingPurchaseReturnId && v.id.toLowerCase() === editingPurchaseReturnId.toLowerCase()) return false;
+    return v.id.toLowerCase() === voucherId.toLowerCase();
+  });
+
+  if (isDuplicate) {
+    showToast("Số chứng từ đã tồn tại, vui lòng nhập số khác!", "danger");
+    return;
+  }
 
   const rows = document.querySelectorAll("#purchase-return-form-items-body tr");
   if (rows.length === 0) {
@@ -1706,7 +1853,7 @@ function handlePurchaseReturnSubmit(e) {
 
   const paymentMethod = document.getElementById("ret-payment").value;
   const newVoucher = {
-    id: editingPurchaseReturnId || generateNextPurchaseReturnVoucherId(),
+    id: voucherId,
     type: "purchase_return",
     date: document.getElementById("ret-date").value,
     partnerId,
@@ -1720,6 +1867,7 @@ function handlePurchaseReturnSubmit(e) {
     _sessionId: clientSessionId
   };
 
+  const isEdit = !!editingPurchaseReturnId;
   if (editingPurchaseReturnId) {
     const idx = state.vouchers.findIndex(v => v.id === editingPurchaseReturnId);
     if (idx !== -1) {
@@ -1728,6 +1876,19 @@ function handlePurchaseReturnSubmit(e) {
       }
       state.vouchers[idx] = newVoucher;
     }
+    
+    // Nếu đổi mã chứng từ: lưu lại vết xóa mã cũ và cập nhật liên kết ký quỹ
+    if (voucherId !== editingPurchaseReturnId) {
+      if (typeof trackDeletedIds === "function") {
+        trackDeletedIds([editingPurchaseReturnId]);
+      }
+      state.vouchers.forEach(v => {
+        if (v.escrowRefId === editingPurchaseReturnId) {
+          v.escrowRefId = voucherId;
+        }
+      });
+    }
+
     editingPurchaseReturnId = null;
   } else {
     state.vouchers.push(newVoucher);
@@ -1737,7 +1898,7 @@ function handlePurchaseReturnSubmit(e) {
   recalculateAccounting();
 
   closeModal("modal-add-purchase-return");
-  showToast(editingPurchaseReturnId ? "Cập nhật chứng từ trả lại thành công!" : "Lập chứng từ trả lại thành công!", "success");
+  showToast(isEdit ? "Cập nhật chứng từ trả lại thành công!" : "Lập chứng từ trả lại thành công!", "success");
 }
 
 function generateNextPurchaseReturnVoucherId() {
@@ -1780,6 +1941,9 @@ function editPurchaseReturnVoucher(id) {
 
   const modalTitle = document.querySelector("#modal-add-purchase-return .card-title");
   if (modalTitle) modalTitle.innerText = `Chỉnh sửa chứng từ trả lại hàng: ${id}`;
+
+  const idEl = document.getElementById("pur-return-id");
+  if (idEl) idEl.value = v.id;
 
   document.getElementById("ret-date").value = v.date;
   document.getElementById("ret-partner").value = getPartnerNameForVoucher(v);
@@ -1843,16 +2007,19 @@ function batchDeletePurchaseReturns() {
 
     updateBatchPurchaseReturnsUI();
 
-    renderPurchaseReturnTable();
-    if (typeof filterSales === "function") filterSales();
-    if (typeof filterCash === "function") {
-      filterCash();
-      if (typeof recalculateCashKpis === "function") recalculateCashKpis();
+    if (typeof safeRefreshAllModules === "function") {
+      safeRefreshAllModules();
+    } else {
+      renderPurchaseReturnTable();
+      if (typeof filterCash === "function") {
+        filterCash();
+        if (typeof recalculateCashKpis === "function") recalculateCashKpis();
+      }
+      if (typeof renderDashboard === "function") renderDashboard();
+      if (typeof filterDebts === "function") filterDebts();
+      if (typeof filterPartners === "function") filterPartners();
+      if (typeof renderInventoryTable === "function") renderInventoryTable();
     }
-    if (typeof renderDashboard === "function") renderDashboard();
-    if (typeof filterDebts === "function") filterDebts();
-    if (typeof filterPartners === "function") filterPartners();
-    if (typeof renderInventoryTable === "function") renderInventoryTable();
 
     showToast(`Đã xóa thành công ${checked.length} chứng từ trả lại hàng!`, "success");
   }
@@ -2069,4 +2236,13 @@ window.toggleSelectAllPurchaseReturns = toggleSelectAllPurchaseReturns;
 window.updateBatchPurchaseReturnsUI = updateBatchPurchaseReturnsUI;
 window.batchDeletePurchaseReturns = batchDeletePurchaseReturns;
 window.exportPurchaseReturnsToExcel = exportPurchaseReturnsToExcel;
+
+function resetEditingPurchaseIds() {
+  editingPurchaseId = null;
+  editingPurchaseOrderId = null;
+  editingPurchaseReturnId = null;
+}
+window.resetEditingPurchaseIds = resetEditingPurchaseIds;
+window.renderPurchaseTable = renderPurchaseTable;
+window.filterPurchaseTable = filterPurchaseTable;
 

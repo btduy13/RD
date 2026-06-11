@@ -530,6 +530,7 @@ function batchDeletePartners() {
 window.openQuickAddPartnerModal = openQuickAddPartnerModal;
 window.handleQuickAddPartnerSubmit = handleQuickAddPartnerSubmit;
 // Partners
+window.filterPartners = filterPartners;
 window.changePartnersPage = changePartnersPage;
 window.toggleSelectAllPartners = toggleSelectAllPartners;
 window.updateBatchPartnersUI = updateBatchPartnersUI;
