@@ -306,32 +306,7 @@ function viewVoucher(id) {
           Tổng số tiền (viết bằng chữ): <span style="font-weight:bold; font-style:italic;">${numberToVietnameseWords(v.totalAmount)}</span>
         </div>
         
-        <div class="voucher-signatures">
-          <div class="sig-block">
-            <span class="sig-title">Người lập đơn</span><br>
-            <span class="sig-subtext">(Ký, họ tên)</span>
-            <div class="sig-space"></div>
-            <span class="sig-name">Kế toán viên</span>
-          </div>
-          <div class="sig-block">
-            <span class="sig-title">Đại diện bộ phận nhận</span><br>
-            <span class="sig-subtext">(Ký, họ tên)</span>
-            <div class="sig-space"></div>
-            <span class="sig-name">Người duyệt đơn</span>
-          </div>
-          <div class="sig-block">
-            <span class="sig-title">Đại diện NCC</span><br>
-            <span class="sig-subtext">(Ký, họ tên)</span>
-            <div class="sig-space"></div>
-            <span class="sig-name">${partnerName.split(" ").slice(-2).join(" ")}</span>
-          </div>
-          <div class="sig-block">
-            <span class="sig-title">Giám đốc</span><br>
-            <span class="sig-subtext">(Ký, đóng dấu)</span>
-            <div class="sig-space"></div>
-            <span class="sig-name">Lê Hoàng Đông</span>
-          </div>
-        </div>
+        
       </div>
     `;
   } else if (v.type === "purchase") {
@@ -419,32 +394,7 @@ function viewVoucher(id) {
           Tổng số tiền (viết bằng chữ): <span style="font-weight:bold; font-style:italic;">${numberToVietnameseWords(v.totalAmount)}</span>
         </div>
         
-        <div class="voucher-signatures">
-          <div class="sig-block">
-            <span class="sig-title">Người lập phiếu</span><br>
-            <span class="sig-subtext">(Ký, họ tên)</span>
-            <div class="sig-space"></div>
-            <span class="sig-name">Kế toán viên</span>
-          </div>
-          <div class="sig-block">
-            <span class="sig-title">Người giao hàng</span><br>
-            <span class="sig-subtext">(Ký, họ tên)</span>
-            <div class="sig-space"></div>
-            <span class="sig-name">${partnerName.split(" ").slice(-2).join(" ")}</span>
-          </div>
-          <div class="sig-block">
-            <span class="sig-title">Thủ kho</span><br>
-            <span class="sig-subtext">(Ký, họ tên)</span>
-            <div class="sig-space"></div>
-            <span class="sig-name">Trần Văn Kho</span>
-          </div>
-          <div class="sig-block">
-            <span class="sig-title">Giám đốc</span><br>
-            <span class="sig-subtext">(Ký, đóng dấu)</span>
-            <div class="sig-space"></div>
-            <span class="sig-name">Lê Hoàng Đông</span>
-          </div>
-        </div>
+        
       </div>
     `;
   } else if (v.type === "purchase_return") {
@@ -532,32 +482,7 @@ function viewVoucher(id) {
           Tổng số tiền (viết bằng chữ): <span style="font-weight:bold; font-style:italic;">${numberToVietnameseWords(v.totalAmount)}</span>
         </div>
         
-        <div class="voucher-signatures">
-          <div class="sig-block">
-            <span class="sig-title">Người lập phiếu</span><br>
-            <span class="sig-subtext">(Ký, họ tên)</span>
-            <div class="sig-space"></div>
-            <span class="sig-name">Kế toán viên</span>
-          </div>
-          <div class="sig-block">
-            <span class="sig-title">Người giao hàng</span><br>
-            <span class="sig-subtext">(Ký, họ tên)</span>
-            <div class="sig-space"></div>
-            <span class="sig-name">${partnerName.split(" ").slice(-2).join(" ")}</span>
-          </div>
-          <div class="sig-block">
-            <span class="sig-title">Thủ kho</span><br>
-            <span class="sig-subtext">(Ký, họ tên)</span>
-            <div class="sig-space"></div>
-            <span class="sig-name">Trần Văn Kho</span>
-          </div>
-          <div class="sig-block">
-            <span class="sig-title">Giám đốc</span><br>
-            <span class="sig-subtext">(Ký, đóng dấu)</span>
-            <div class="sig-space"></div>
-            <span class="sig-name">Lê Hoàng Đông</span>
-          </div>
-        </div>
+        
       </div>
     `;
   } else if (v.type === "sales") {
@@ -771,32 +696,7 @@ function viewVoucher(id) {
           </div>
         </div>
         
-        <div class="voucher-signatures" style="margin-top:40px;">
-          <div class="sig-block">
-            <span class="sig-title">Giám đốc</span><br>
-            <span class="sig-subtext">(Ký, đóng dấu)</span>
-            <div class="sig-space"></div>
-            <span class="sig-name">Lê Hoàng Đông</span>
-          </div>
-          <div class="sig-block">
-            <span class="sig-title">Kế toán trưởng</span><br>
-            <span class="sig-subtext">(Ký, họ tên)</span>
-            <div class="sig-space"></div>
-            <span class="sig-name">Nguyễn Văn Minh</span>
-          </div>
-          <div class="sig-block">
-            <span class="sig-title">Thủ quỹ</span><br>
-            <span class="sig-subtext">(Ký, họ tên)</span>
-            <div class="sig-space"></div>
-            <span class="sig-name">Phạm Thị Quỹ</span>
-          </div>
-          <div class="sig-block">
-            <span class="sig-title">${isReceipt ? "Người nộp tiền" : "Người nhận tiền"}</span><br>
-            <span class="sig-subtext">(Ký, họ tên)</span>
-            <div class="sig-space"></div>
-            <span class="sig-name">${partnerName.split(" ").slice(-2).join(" ")}</span>
-          </div>
-        </div>
+        
       </div>
     `;
   }
