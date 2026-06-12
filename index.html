@@ -931,142 +931,291 @@
              3. TAB: BÁN HÀNG (SALES)
              ========================================================== -->
         <section id="view-sales" class="tab-view">
-          <div class="actions-bar" style="margin-bottom: 20px;">
-            <!-- Cụm bên trái: Tìm kiếm và bộ lọc ngày -->
-            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-              <div class="search-input-wrapper" style="min-width: 260px;">
-                <svg class="search-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                </svg>
-                <input type="text" id="search-sales" class="search-input"
-                  style="height: 36px; padding-top: 0; padding-bottom: 0; font-size: 13px;"
-                  placeholder="Tìm số chứng từ, khách hàng..." oninput="filterSalesTable()">
+          <!-- Thanh điều hướng tab con cho Bán hàng -->
+          <div class="sub-tabs-bar">
+            <button id="tab-btn-sales-invoice" class="sub-tab-btn active"
+              onclick="switchSalesSubTab('invoice')">
+              Hóa đơn bán hàng
+            </button>
+            <button id="tab-btn-sales-return" class="sub-tab-btn" onclick="switchSalesSubTab('return')">
+              Hàng trả lại
+            </button>
+          </div>
+
+          <!-- Tab Panel 1: Hóa đơn bán hàng -->
+          <div id="sales-subtab-invoice" class="sales-subtab-content">
+            <div class="actions-bar" style="margin-bottom: 20px;">
+              <!-- Cụm bên trái: Tìm kiếm và bộ lọc ngày -->
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <div class="search-input-wrapper" style="min-width: 260px;">
+                  <svg class="search-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                  </svg>
+                  <input type="text" id="search-sales" class="search-input"
+                    style="height: 36px; padding-top: 0; padding-bottom: 0; font-size: 13px;"
+                    placeholder="Tìm số chứng từ, khách hàng..." oninput="filterSalesTable()">
+                </div>
+
+                <div
+                  style="display: flex; align-items: center; gap: 8px; font-size: 13px; background: var(--bg-secondary); padding: 4px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color); height: 36px;">
+                  <span style="color: var(--text-secondary); font-weight: 500;">Từ:</span>
+                  <input type="date" id="search-sales-from" class="form-control-date"
+                    style="border: none; background: transparent; color: var(--text-primary); font-size: 13px; padding: 0; outline: none; width: 115px;"
+                    onchange="filterSalesTable()">
+                  <span style="color: var(--text-muted); padding: 0 2px;">|</span>
+                  <span style="color: var(--text-secondary); font-weight: 500;">Đến:</span>
+                  <input type="date" id="search-sales-to" class="form-control-date"
+                    style="border: none; background: transparent; color: var(--text-primary); font-size: 13px; padding: 0; outline: none; width: 115px;"
+                    onchange="filterSalesTable()">
+
+                  <button onclick="clearSalesDateFilter()"
+                    style="background: none; border: none; padding: 2px; color: var(--text-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: color var(--transition-fast);"
+                    title="Xóa bộ lọc ngày" onmouseover="this.style.color='var(--color-danger)'"
+                    onmouseout="this.style.color='var(--text-muted)'">
+                    <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg" style="width: 14px; height: 14px;">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                  </button>
+                </div>
+
+                <select id="adv-filter-sales-payment" class="form-control" 
+                  style="height: 36px; padding: 0 12px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; min-width: 170px;"
+                  onmouseover="this.style.borderColor='var(--color-primary)'"
+                  onmouseout="this.style.borderColor='var(--border-color)'"
+                  onchange="filterSalesTable()">
+                  <option value="">-- Tất cả PTTT --</option>
+                  <option value="111">Tiền mặt (111)</option>
+                  <option value="112">Ngân hàng (112)</option>
+                  <option value="131">Công nợ (131)</option>
+                </select>
               </div>
 
-              <div
-                style="display: flex; align-items: center; gap: 8px; font-size: 13px; background: var(--bg-secondary); padding: 4px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color); height: 36px;">
-                <span style="color: var(--text-secondary); font-weight: 500;">Từ:</span>
-                <input type="date" id="search-sales-from" class="form-control-date"
-                  style="border: none; background: transparent; color: var(--text-primary); font-size: 13px; padding: 0; outline: none; width: 115px;"
-                  onchange="filterSalesTable()">
-                <span style="color: var(--text-muted); padding: 0 2px;">|</span>
-                <span style="color: var(--text-secondary); font-weight: 500;">Đến:</span>
-                <input type="date" id="search-sales-to" class="form-control-date"
-                  style="border: none; background: transparent; color: var(--text-primary); font-size: 13px; padding: 0; outline: none; width: 115px;"
-                  onchange="filterSalesTable()">
-
-                <button onclick="clearSalesDateFilter()"
-                  style="background: none; border: none; padding: 2px; color: var(--text-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: color var(--transition-fast);"
-                  title="Xóa bộ lọc ngày" onmouseover="this.style.color='var(--color-danger)'"
-                  onmouseout="this.style.color='var(--text-muted)'">
-                  <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg" style="width: 14px; height: 14px;">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+              <!-- Cụm bên phải: Các nút hành động -->
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <button id="btn-batch-delete-sales" class="btn btn-danger" onclick="batchDeleteSales()"
+                  style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                    </path>
                   </svg>
+                  Xóa đã chọn (<span id="selected-sales-count">0</span>)
+                </button>
+
+                <button class="btn btn-secondary" onclick="triggerFileInput('excel-file-sales-view')"
+                  style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
+                  onmouseover="this.style.borderColor='var(--color-success)'; this.style.color='var(--color-success)'"
+                  onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                  </svg>
+                  Nhập Excel
+                </button>
+                <input type="file" id="excel-file-sales-view" accept=".xlsx, .xls" style="display: none;"
+                  onchange="handleExcelImport(event, 'sales')">
+
+                <button class="btn btn-secondary" onclick="exportSalesToExcel()"
+                  style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
+                  onmouseover="this.style.borderColor='var(--color-primary)'; this.style.color='var(--color-primary)'"
+                  onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                  </svg>
+                  Xuất Excel
+                </button>
+
+                <button class="btn btn-success" onclick="resetSalesForm(); openModal('modal-add-sales')"
+                  style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25); cursor: pointer; transition: all 0.2s;">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
+                    style="width: 16px; height: 16px; stroke-width: 2.5;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+                  </svg>
+                  Lập hóa đơn bán hàng
                 </button>
               </div>
-
-              <select id="adv-filter-sales-payment" class="form-control" 
-                style="height: 36px; padding: 0 12px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; min-width: 170px;"
-                onmouseover="this.style.borderColor='var(--color-primary)'"
-                onmouseout="this.style.borderColor='var(--border-color)'"
-                onchange="filterSalesTable()">
-                <option value="">-- Tất cả PTTT --</option>
-                <option value="111">Tiền mặt (111)</option>
-                <option value="112">Ngân hàng (112)</option>
-                <option value="131">Công nợ (131)</option>
-              </select>
             </div>
 
-            <!-- Cụm bên phải: Các nút hành động -->
-            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <button id="btn-batch-delete-sales" class="btn btn-danger" onclick="batchDeleteSales()"
-                style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
-                  <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                  </path>
-                </svg>
-                Xóa đã chọn (<span id="selected-sales-count">0</span>)
-              </button>
+            <div class="table-card">
+              <div class="card-header-bar"
+                style="padding: 10px 20px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-tertiary); justify-content: space-between; display: flex; align-items: center;">
+                <span class="card-title" id="sales-pagination-info"
+                  style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Hiển thị tối đa 30 đơn bán hàng
+                  mới nhất</span>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 30px; text-align: center;"><input type="checkbox" id="check-all-sales"
+                          onchange="toggleSelectAllSales(this)"></th>
+                      <th>Số chứng từ</th>
+                      <th>Ngày lập</th>
+                      <th>Khách hàng</th>
+                      <th>Diễn giải</th>
+                      <th>Phương thức</th>
+                      <th class="text-right">Doanh thu</th>
+                      <th class="text-right">Giá vốn</th>
+                      <th class="text-right">Tổng thanh toán</th>
+                      <th>Định khoản</th>
+                      <th style="text-align: center;">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sales-table-body">
+                    <!-- Dữ liệu bảng bán hàng -->
+                  </tbody>
+                </table>
+              </div>
 
-              <button class="btn btn-secondary" onclick="triggerFileInput('excel-file-sales-view')"
-                style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
-                onmouseover="this.style.borderColor='var(--color-success)'; this.style.color='var(--color-success)'"
-                onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
-                  <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
-                </svg>
-                Nhập Excel
-              </button>
-              <input type="file" id="excel-file-sales-view" accept=".xlsx, .xls" style="display: none;"
-                onchange="handleExcelImport(event, 'sales')">
-
-              <button class="btn btn-secondary" onclick="exportSalesToExcel()"
-                style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
-                onmouseover="this.style.borderColor='var(--color-primary)'; this.style.color='var(--color-primary)'"
-                onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
-                  <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                </svg>
-                Xuất Excel
-              </button>
-
-              <button class="btn btn-success" onclick="resetSalesForm(); openModal('modal-add-sales')"
-                style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25); cursor: pointer; transition: all 0.2s;">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
-                  style="width: 16px; height: 16px; stroke-width: 2.5;">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
-                </svg>
-                Lập hóa đơn bán hàng
-              </button>
+              <!-- Phân trang thông minh -->
+              <div id="sales-pagination-controls"
+                style="padding: 12px 20px; border-top: 1px solid var(--border-color); background-color: var(--bg-tertiary); display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                <!-- Render động bằng Javascript -->
+              </div>
             </div>
           </div>
 
+          <!-- Tab Panel 2: Hàng trả lại -->
+          <div id="sales-subtab-return" class="sales-subtab-content" style="display: none;">
+            <div class="actions-bar" style="margin-bottom: 20px;">
+              <!-- Cụm bên trái: Tìm kiếm và bộ lọc ngày -->
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <div class="search-input-wrapper" style="min-width: 260px;">
+                  <svg class="search-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                  </svg>
+                  <input type="text" id="search-sales-return" class="search-input"
+                    style="height: 36px; padding-top: 0; padding-bottom: 0; font-size: 13px;"
+                    placeholder="Tìm số chứng từ, khách hàng..." oninput="filterSalesReturnTable()">
+                </div>
 
+                <div
+                  style="display: flex; align-items: center; gap: 8px; font-size: 13px; background: var(--bg-secondary); padding: 4px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color); height: 36px;">
+                  <span style="color: var(--text-secondary); font-weight: 500;">Từ:</span>
+                  <input type="date" id="search-sales-return-from" class="form-control-date"
+                    style="border: none; background: transparent; color: var(--text-primary); font-size: 13px; padding: 0; outline: none; width: 115px;"
+                    onchange="filterSalesReturnTable()">
+                  <span style="color: var(--text-muted); padding: 0 2px;">|</span>
+                  <span style="color: var(--text-secondary); font-weight: 500;">Đến:</span>
+                  <input type="date" id="search-sales-return-to" class="form-control-date"
+                    style="border: none; background: transparent; color: var(--text-primary); font-size: 13px; padding: 0; outline: none; width: 115px;"
+                    onchange="filterSalesReturnTable()">
 
-          <div class="table-card">
-            <div class="card-header-bar"
-              style="padding: 10px 20px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-tertiary); justify-content: space-between; display: flex; align-items: center;">
-              <span class="card-title" id="sales-pagination-info"
-                style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Hiển thị tối đa 30 đơn bán hàng
-                mới nhất</span>
+                  <button onclick="clearSalesReturnDateFilter()"
+                    style="background: none; border: none; padding: 2px; color: var(--text-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: color var(--transition-fast);"
+                    title="Xóa bộ lọc ngày" onmouseover="this.style.color='var(--color-danger)'"
+                    onmouseout="this.style.color='var(--text-muted)'">
+                    <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg" style="width: 14px; height: 14px;">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                  </button>
+                </div>
+
+                <select id="adv-filter-sales-return-payment" class="form-control" 
+                  style="height: 36px; padding: 0 12px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; min-width: 170px;"
+                  onmouseover="this.style.borderColor='var(--color-primary)'"
+                  onmouseout="this.style.borderColor='var(--border-color)'"
+                  onchange="filterSalesReturnTable()">
+                  <option value="">-- Tất cả PTTT --</option>
+                  <option value="111">Tiền mặt (111)</option>
+                  <option value="112">Ngân hàng (112)</option>
+                  <option value="131">Công nợ (131)</option>
+                </select>
+              </div>
+
+              <!-- Cụm bên phải: Các nút hành động -->
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <button id="btn-batch-delete-sales-return" class="btn btn-danger" onclick="batchDeleteSalesReturns()"
+                  style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                    </path>
+                  </svg>
+                  Xóa đã chọn (<span id="selected-sales-returns-count">0</span>)
+                </button>
+
+                <button class="btn btn-secondary" onclick="triggerFileInput('excel-file-sales-return-view')"
+                  style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
+                  onmouseover="this.style.borderColor='var(--color-success)'; this.style.color='var(--color-success)'"
+                  onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                  </svg>
+                  Nhập Excel
+                </button>
+                <input type="file" id="excel-file-sales-return-view" accept=".xlsx, .xls" style="display: none;"
+                  onchange="handleExcelImport(event, 'sales_return')">
+
+                <button class="btn btn-secondary" onclick="exportSalesReturnsToExcel()"
+                  style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
+                  onmouseover="this.style.borderColor='var(--color-primary)'; this.style.color='var(--color-primary)'"
+                  onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                  </svg>
+                  Xuất Excel
+                </button>
+
+                <button class="btn btn-primary" onclick="resetSalesReturnForm(); openModal('modal-add-sales-return')"
+                  style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25); cursor: pointer; transition: all 0.2s;">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
+                    style="width: 16px; height: 16px; stroke-width: 2.5;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+                  </svg>
+                  Lập trả lại hàng
+                </button>
+              </div>
             </div>
-            <div class="table-responsive">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th style="width: 30px; text-align: center;"><input type="checkbox" id="check-all-sales"
-                        onchange="toggleSelectAllSales(this)"></th>
-                    <th>Số chứng từ</th>
-                    <th>Ngày lập</th>
-                    <th>Khách hàng</th>
-                    <th>Diễn giải</th>
-                    <th>Phương thức</th>
-                    <th class="text-right">Doanh thu</th>
-                    <th class="text-right">Giá vốn</th>
-                    <th class="text-right">Tổng thanh toán</th>
-                    <th>Định khoản</th>
-                    <th style="text-align: center;">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody id="sales-table-body">
-                  <!-- Dữ liệu bảng bán hàng -->
-                </tbody>
-              </table>
-            </div>
 
-            <!-- Phân trang thông minh -->
-            <div id="sales-pagination-controls"
-              style="padding: 12px 20px; border-top: 1px solid var(--border-color); background-color: var(--bg-tertiary); display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-              <!-- Render động bằng Javascript -->
+            <div class="table-card">
+              <div class="card-header-bar"
+                style="padding: 10px 20px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-tertiary); justify-content: space-between; display: flex; align-items: center;">
+                <span class="card-title" id="sales-return-pagination-info"
+                  style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Hiển thị tối đa 30 đơn trả lại hàng mới nhất</span>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 30px; text-align: center;"><input type="checkbox" id="check-all-sales-return"
+                          onchange="toggleSelectAllSalesReturns(this)"></th>
+                      <th>Số chứng từ</th>
+                      <th>Ngày lập</th>
+                      <th>Khách hàng</th>
+                      <th>Diễn giải</th>
+                      <th>Phương thức</th>
+                      <th class="text-right">Tổng cộng</th>
+                      <th>Định khoản</th>
+                      <th style="text-align: center;">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sales-return-table-body">
+                    <!-- Dữ liệu bảng trả lại hàng -->
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Phân trang thông minh -->
+              <div id="sales-return-pagination-controls"
+                style="padding: 12px 20px; border-top: 1px solid var(--border-color); background-color: var(--bg-tertiary); display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                <!-- Render động bằng Javascript -->
+              </div>
             </div>
           </div>
         </section>
@@ -3211,6 +3360,131 @@
       </div>
     </div>
   </div>
+
+  <!-- D. MODAL: LẬP HÀNG TRẢ LẠI BÊN BÁN HÀNG -->
+  <div id="modal-add-sales-return" class="modal-overlay">
+    <div class="modal-content-container">
+      <div class="modal-header">
+        <h3 class="card-title">Chứng từ Hàng bán trả lại</h3>
+        <button class="icon-btn" onclick="closeModal('modal-add-sales-return')" style="width: 32px; height: 32px;">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-sales-return" class="form-grid" onsubmit="handleSalesReturnSubmit(event)">
+          <div class="form-group">
+            <label class="form-label">Số chứng từ</label>
+            <input type="text" id="sales-ret-id" class="form-control" placeholder="Tự sinh nếu để trống">
+          </div>
+
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label class="form-label" style="margin: 0;">Khách hàng trả lại</label>
+              <button type="button" class="btn-text-link" onclick="openQuickAddPartnerModal()"
+                style="font-size: 11.5px; color: var(--color-primary); background: none; border: none; padding: 0; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 3px;"
+                onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg" style="width: 12px; height: 12px;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Thêm nhanh KH
+              </button>
+            </div>
+            <input type="text" id="sales-ret-partner" class="form-control" placeholder="Gõ để tìm khách hàng..." required
+              list="datalist-partners">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Ngày hạch toán</label>
+            <input type="date" id="sales-ret-date" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Hình thức trả tiền/giảm nợ</label>
+            <select id="sales-ret-payment" class="form-control" required>
+              <option value="131">Giảm trừ công nợ (TK 131)</option>
+              <option value="111">Chi trả tiền mặt (TK 111)</option>
+              <option value="112">Chi trả tiền gửi ngân hàng (TK 112)</option>
+            </select>
+          </div>
+
+          <div class="form-group col-span-full">
+            <label class="form-label">Diễn giải</label>
+            <input type="text" id="sales-ret-desc" class="form-control" required
+              placeholder="Ví dụ: Khách hàng trả lại hàng..." value="Nhập hàng bán trả lại">
+          </div>
+
+          <!-- Hàng hóa trả lại -->
+          <div class="form-group col-span-full">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label class="form-label">Mặt hàng trả lại</label>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <button type="button" class="btn-text-link" onclick="openQuickAddProductModal()"
+                  style="font-size: 11.5px; color: var(--color-success); background: none; border: none; padding: 0; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 3px;"
+                  onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                  <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg" style="width: 12px; height: 12px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+                  </svg>
+                  Thêm nhanh MH
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="addSalesReturnFormRow()">+ Thêm dòng</button>
+              </div>
+            </div>
+
+            <table class="dynamic-items-table">
+              <thead>
+                <tr>
+                  <th style="width: 35%;">Tên sản phẩm</th>
+                  <th style="width: 12%; text-align: right;">Số lượng</th>
+                  <th style="width: 18%; text-align: right;">Đơn giá trả lại (đ)</th>
+                  <th style="width: 15%; text-align: right;">Chiết khấu (%)</th>
+                  <th style="width: 15%; text-align: right;">Thành tiền</th>
+                  <th style="width: 5%;"></th>
+                </tr>
+              </thead>
+              <tbody id="sales-return-form-items-body">
+                <!-- Các dòng sản phẩm trả lại -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Thuế suất và tổng cộng -->
+          <div class="form-group col-span-full"
+            style="background-color: var(--bg-tertiary); padding: 16px; border-radius: var(--radius-md); margin-top: 10px;">
+            <div class="form-grid">
+              <div class="form-group" style="display: none;">
+                <label class="form-label">Thuế suất GTGT</label>
+                <select id="sales-ret-tax-rate" class="form-control" onchange="recalculateSalesReturnTotals()">
+                  <option value="0" selected>0%</option>
+                  <option value="5">5%</option>
+                  <option value="10">10%</option>
+                </select>
+              </div>
+              <div class="form-group" style="display: none;">
+                <label class="form-label">Tiền hàng chưa VAT</label>
+                <input type="text" id="sales-ret-subtotal-display" class="form-control text-right font-numeric" disabled
+                  value="0đ">
+              </div>
+              <div class="form-group" style="display: none;">
+                <label class="form-label">Tiền thuế GTGT</label>
+                <input type="text" id="sales-ret-tax-display" class="form-control text-right font-numeric" disabled
+                  value="0đ">
+              </div>
+              <div class="form-group col-span-full">
+                <label class="form-label">Tổng cộng thanh toán</label>
+                <input type="text" id="sales-ret-total-display" class="form-control text-right font-numeric" disabled
+                  style="color: var(--color-success); font-weight: 800;" value="0đ">
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-add-sales-return')">Hủy bỏ</button>
+        <button type="submit" form="form-sales-return" class="btn btn-success">Ghi sổ chứng từ</button>
+      </div>
+    </div>
+  </div>
+
 
   <!-- A-2. MODAL: THÊM NHANH KHÁCH HÀNG TỪ PHÂN HỆ BÁN HÀNG -->
   <div id="modal-quick-add-partner" class="modal-overlay" style="z-index: 2000; display: none;">

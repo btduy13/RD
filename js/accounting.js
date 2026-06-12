@@ -48,7 +48,7 @@ function recalculateAccounting(shouldSave = true) {
           }
           if (v.type === "purchase") {
             voucherChanges[item.productId].purchases += (item.qty || 0);
-          } else if (v.type === "purchase_return") {
+          } else if (v.type === "purchase_return" || v.type === "sales_return") {
             voucherChanges[item.productId].sales -= (item.qty || 0);
           } else if (v.type === "sales") {
             voucherChanges[item.productId].sales += (item.qty || 0);
@@ -148,7 +148,7 @@ function recalculateAccounting(shouldSave = true) {
         v.entries.push({ debit: "1331", credit: v.paymentMethod, amount: taxAmount, desc: "Thuế GTGT đầu vào được khấu trừ" });
       }
 
-    } else if (v.type === "purchase_return") {
+    } else if (v.type === "purchase_return" || v.type === "sales_return") {
       // Hàng trả lại: Cộng vào stock trong kho và giảm trừ doanh thu
       let totalCogs = 0;
       let itemSubtotal = 0;

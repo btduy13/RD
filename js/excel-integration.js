@@ -2217,7 +2217,7 @@ function parseExcelFile(file, type) {
         }
       }
       
-      else if (type === 'purchase' || type === 'purchase_return') {
+      else if (type === 'purchase' || type === 'purchase_return' || type === 'sales_return') {
         let count = 0;
         const groupMap = new Map();
         
@@ -2272,13 +2272,14 @@ function parseExcelFile(file, type) {
         const voucherMap = new Map();
         state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
 
-        const partnerId = type === 'purchase' ? "NCC_EXCEL" : "NCC_RETURN_EXCEL";
-        const partnerName = type === 'purchase' ? "Nhà cung cấp Sổ chi tiết" : "Nhà cung cấp Trả lại";
+        const partnerId = type === 'purchase' ? "NCC_EXCEL" : (type === 'sales_return' ? "KH_RETURN_EXCEL" : "NCC_RETURN_EXCEL");
+        const partnerName = type === 'purchase' ? "Nhà cung cấp Sổ chi tiết" : (type === 'sales_return' ? "Khách hàng Trả lại" : "Nhà cung cấp Trả lại");
+        const partnerType = type === 'purchase' ? "supplier" : (type === 'sales_return' ? "customer" : "supplier");
         if (!partnerMap.has(partnerId)) {
           const pObj = {
             id: partnerId,
             name: partnerName,
-            type: "supplier",
+            type: partnerType,
             phone: "",
             email: "",
             address: ""
@@ -2293,7 +2294,9 @@ function parseExcelFile(file, type) {
           const invoiceNo = firstRow[4] || "";
           const description = type === 'purchase'
             ? `Nhập kho mua hàng theo số hóa đơn ${invoiceNo || voucherId}`
-            : `Xuất kho trả lại hàng theo số hóa đơn ${invoiceNo || voucherId}`;
+            : (type === 'sales_return'
+               ? `Nhập kho hàng bán trả lại theo số hóa đơn ${invoiceNo || voucherId}`
+               : `Xuất kho trả lại hàng theo số hóa đơn ${invoiceNo || voucherId}`);
 
           const itemsArray = [];
           let totalVoucherAmount = 0;
@@ -2335,7 +2338,7 @@ function parseExcelFile(file, type) {
             date: dateStr,
             partnerId: partnerId,
             partnerName: partnerName,
-            paymentMethod: "331",
+            paymentMethod: type === 'sales_return' ? "131" : "331",
             description: description,
             taxRate: 0,
             taxAmount: 0,
@@ -2357,10 +2360,13 @@ function parseExcelFile(file, type) {
 
         saveState();
         recalculateAccounting();
-        showToast(`Đã nạp thành công ${count} chứng từ ${type === 'purchase' ? 'mua hàng' : 'trả lại hàng'} từ file Excel!`, "success");
+        showToast(`Đã nạp thành công ${count} chứng từ ${type === 'purchase' ? 'mua hàng' : (type === 'sales_return' ? 'hàng bán trả lại' : 'trả lại hàng')} từ file Excel!`, "success");
         if (type === 'purchase') {
           if (typeof filterPurchaseTable === "function") filterPurchaseTable();
           if (typeof renderPurchaseTable === "function") renderPurchaseTable();
+        } else if (type === 'sales_return') {
+          if (typeof filterSalesReturnTable === "function") filterSalesReturnTable();
+          if (typeof renderSalesReturnTable === "function") renderSalesReturnTable();
         } else {
           if (typeof filterPurchaseReturnTable === "function") filterPurchaseReturnTable();
           if (typeof renderPurchaseReturnTable === "function") renderPurchaseReturnTable();

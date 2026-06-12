@@ -943,7 +943,7 @@ function renderPartnerLedgerOrders() {
   tbody.innerHTML = "";
 
   const pId = activePartnerIdForLedger;
-  const orders = state.vouchers.filter(v => String(v.partnerId) === String(pId) && (v.type === "sales" || v.type === "purchase" || v.type === "purchase_return"));
+  const orders = state.vouchers.filter(v => String(v.partnerId) === String(pId) && (v.type === "sales" || v.type === "purchase" || v.type === "purchase_return" || v.type === "sales_return"));
 
   if (orders.length === 0) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy hóa đơn mua/bán nào của đối tác này</td></tr>`;

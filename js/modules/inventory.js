@@ -269,7 +269,7 @@ function renderStockLedger() {
 
   // 2. Lọc chứng từ phát sinh chứa sản phẩm này
   let filteredVouchers = state.vouchers.filter(v => {
-    if (v.type !== "purchase" && v.type !== "sales" && v.type !== "purchase_return") return false;
+    if (v.type !== "purchase" && v.type !== "sales" && v.type !== "purchase_return" && v.type !== "sales_return") return false;
     const item = v.items.find(i => i.productId === prodId);
     if (!item) return false;
     if (fromDate && v.date < fromDate) return false;
@@ -297,7 +297,7 @@ function renderStockLedger() {
           <td class="text-right font-numeric">${formatVND(item.price)} (Tồn: ${runningStock})</td>
         </tr>
       `;
-    } else if (v.type === "purchase_return") {
+    } else if (v.type === "purchase_return" || v.type === "sales_return") {
       runningStock += item.qty;
       html += `
         <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
@@ -414,7 +414,7 @@ function exportStockLedgerToExcel() {
 
     // DATA ROWS
     let filteredVouchers = state.vouchers.filter(v => {
-      if (v.type !== "purchase" && v.type !== "sales" && v.type !== "purchase_return") return false;
+      if (v.type !== "purchase" && v.type !== "sales" && v.type !== "purchase_return" && v.type !== "sales_return") return false;
       const item = v.items.find(i => i.productId === prodId);
       if (!item) return false;
       if (fromDate && v.date < fromDate) return false;
@@ -435,7 +435,7 @@ function exportStockLedgerToExcel() {
 
       sc(rowIdx, 0, v.date, 's', bs(cC, bg));
       sc(rowIdx, 1, v.id, 's', bs(cC, bg));
-      sc(rowIdx, 2, v.description || (v.type === 'purchase' ? 'Nhập kho mua hàng' : v.type === 'purchase_return' ? 'Nhập hàng trả lại' : 'Xuất kho bán hàng'), 's', bs(cL, bg));
+      sc(rowIdx, 2, v.description || (v.type === 'purchase' ? 'Nhập kho mua hàng' : (v.type === 'purchase_return' || v.type === 'sales_return') ? 'Nhập hàng trả lại' : 'Xuất kho bán hàng'), 's', bs(cL, bg));
 
       if (v.type === "purchase") {
         runningStock += item.qty;
@@ -443,7 +443,7 @@ function exportStockLedgerToExcel() {
         sc(rowIdx, 3, item.qty, 'n', bs(cR, bg), "#,##0.##");
         sc(rowIdx, 4, "-", 's', bs(cR, bg));
         sc(rowIdx, 5, item.price, 'n', bs(cR, bg), numFmt);
-      } else if (v.type === "purchase_return") {
+      } else if (v.type === "purchase_return" || v.type === "sales_return") {
         runningStock += item.qty;
         totalImport += item.qty;
         sc(rowIdx, 3, item.qty, 'n', bs(cR, bg), "#,##0.##");
