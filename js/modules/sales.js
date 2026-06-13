@@ -848,8 +848,8 @@ function recalculateSalesReturnTotals() {
 
 // generateNextSalesReturnVoucherId
 function generateNextSalesReturnVoucherId() {
-  const prefix = "TLB";
-  const regex = /^TLB(\d+)$/;
+  const prefix = "BTL";
+  const regex = /^BTL(\d+)$/;
   let maxNum = 0;
 
   state.vouchers.forEach(v => {

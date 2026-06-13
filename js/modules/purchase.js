@@ -1899,8 +1899,8 @@ function handlePurchaseReturnSubmit(e) {
 }
 
 function generateNextPurchaseReturnVoucherId() {
-  const prefix = "BTL";
-  const regex = /^BTL(\d+)$/;
+  const prefix = "MTL";
+  const regex = /^MTL(\d+)$/;
   let maxNum = 0;
 
   state.vouchers.forEach(v => {
@@ -1914,7 +1914,7 @@ function generateNextPurchaseReturnVoucherId() {
   });
 
   if (maxNum === 0) {
-    maxNum = 8459; // Để đồng bộ với các số NK08459, trả lại bắt đầu từ BTL08460
+    maxNum = 8459; // Để đồng bộ với các số NK08459, trả lại bắt đầu từ MTL08460
   }
 
   return `${prefix}${(maxNum + 1).toString().padStart(5, '0')}`;
