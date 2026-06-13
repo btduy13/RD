@@ -1299,17 +1299,17 @@ function batchDeleteDebts() {
       state.partnerOpeningBalances[id] = { debit: 0, credit: 0 };
     });
 
-    saveState();
-    recalculateAccounting();
-
     const master = document.getElementById("check-all-debts");
     if (master) master.checked = false;
 
     updateBatchDebtsUI();
-
-    filterDebts();
-
     showToast(`Đã reset số dư đầu kỳ cho ${checked.length} đối tác!`, "success");
+
+    // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
+    setTimeout(() => {
+      saveState();
+      recalculateAccounting();
+    }, 0);
   }
 }
 window.exportCurrentPartnerDebtExcel = exportCurrentPartnerDebtExcel;

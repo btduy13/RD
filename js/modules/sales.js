@@ -527,29 +527,18 @@ function batchDeleteSales() {
       }
     });
 
-    saveState();
-    recalculateAccounting();
-
     const master = document.getElementById("check-all-sales");
     if (master) master.checked = false;
 
     updateBatchSalesUI();
-
-    if (typeof safeRefreshAllModules === "function") {
-      safeRefreshAllModules();
-    } else {
-      if (typeof filterSalesTable === "function") filterSalesTable();
-      if (typeof filterCash === "function") {
-        filterCash();
-        if (typeof recalculateCashKpis === "function") recalculateCashKpis();
-      }
-      if (typeof renderDashboard === "function") renderDashboard();
-      if (typeof filterDebts === "function") filterDebts();
-      if (typeof filterPartners === "function") filterPartners();
-      if (typeof renderInventoryTable === "function") renderInventoryTable();
-    }
-
     showToast(`Đã xóa thành công ${checked.length} chứng từ bán hàng!`, "success");
+
+    // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
+    setTimeout(() => {
+      saveState();
+      recalculateAccounting();
+      // recalculateAccounting đã gọi refreshUI() bên trong
+    }, 0);
   }
 }
 
@@ -1093,29 +1082,17 @@ function batchDeleteSalesReturns() {
       }
     });
 
-    saveState();
-    recalculateAccounting();
-
     const master = document.getElementById("check-all-sales-return");
     if (master) master.checked = false;
 
     updateBatchSalesReturnsUI();
-
-    if (typeof safeRefreshAllModules === "function") {
-      safeRefreshAllModules();
-    } else {
-      if (typeof filterSalesReturnTable === "function") filterSalesReturnTable();
-      if (typeof filterCash === "function") {
-        filterCash();
-        if (typeof recalculateCashKpis === "function") recalculateCashKpis();
-      }
-      if (typeof renderDashboard === "function") renderDashboard();
-      if (typeof filterDebts === "function") filterDebts();
-      if (typeof filterPartners === "function") filterPartners();
-      if (typeof renderInventoryTable === "function") renderInventoryTable();
-    }
-
     showToast(`Đã xóa thành công ${checked.length} chứng từ trả lại hàng!`, "success");
+
+    // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
+    setTimeout(() => {
+      saveState();
+      recalculateAccounting();
+    }, 0);
   }
 }
 

@@ -36,7 +36,12 @@ function renderTabIfNeeded(tabId) {
         if (typeof renderPurchaseTable === "function") renderPurchaseTable();
       }
     } else if (tabId === "sales") {
-      renderSalesTable();
+      const btnReturn = document.getElementById("tab-btn-sales-return");
+      if (btnReturn && btnReturn.classList.contains("active")) {
+        if (typeof renderSalesReturnTable === "function") renderSalesReturnTable();
+      } else {
+        renderSalesTable();
+      }
     } else if (tabId === "inventory") {
       populateProductLedgerDropdown();
       renderInventoryTable();

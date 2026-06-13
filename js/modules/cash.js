@@ -648,26 +648,17 @@ function batchDeleteCash() {
     trackDeletedIds(idsToDelete);
     state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
 
-    saveState();
-    recalculateAccounting();
-
     const master = document.getElementById("check-all-cash");
     if (master) master.checked = false;
 
     updateBatchCashUI();
-
-    if (typeof safeRefreshAllModules === "function") {
-      safeRefreshAllModules();
-    } else {
-      filterCash();
-      if (typeof recalculateCashKpis === "function") recalculateCashKpis();
-      if (typeof renderDashboard === "function") renderDashboard();
-      if (typeof filterDebts === "function") filterDebts();
-      if (typeof filterPartners === "function") filterPartners();
-      if (typeof renderInventoryTable === "function") renderInventoryTable();
-    }
-
     showToast(`Đã xóa thành công ${checked.length} chứng từ thu chi!`, "success");
+
+    // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
+    setTimeout(() => {
+      saveState();
+      recalculateAccounting();
+    }, 0);
   }
 }
 // Cash

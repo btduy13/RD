@@ -842,19 +842,17 @@ function batchDeleteProducts() {
     const idsToDelete = checked.map(cb => cb.value);
     state.products = state.products.filter(p => !idsToDelete.includes(p.id));
 
-    saveState();
-    recalculateAccounting();
-
     const master = document.getElementById("check-all-products");
     if (master) master.checked = false;
 
     updateBatchProductsUI();
-
-    renderInventoryTable();
-    populateProductLedgerDropdown();
-    cacheProductOptions();
-
     showToast(`Đã xóa thành công ${checked.length} sản phẩm!`, "success");
+
+    // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
+    setTimeout(() => {
+      saveState();
+      recalculateAccounting();
+    }, 0);
   }
 }
 
@@ -869,15 +867,14 @@ function clearAllProducts() {
         state.initialBalances["156"].balance = 0;
       }
       if (typeof rebalanceEquity === "function") rebalanceEquity();
-      saveState();
-      recalculateAccounting();
-
-      renderInventoryTable();
-      populateProductLedgerDropdown();
-      if (typeof renderStockLedger === "function") renderStockLedger();
-      cacheProductOptions();
 
       showToast("Đã xóa sạch toàn bộ sản phẩm trong kho hàng!", "warning");
+
+      // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
+      setTimeout(() => {
+        saveState();
+        recalculateAccounting();
+      }, 0);
     }
   }
 }
@@ -887,12 +884,13 @@ function deleteProduct(prodId) {
   if (confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${prodId}"? Dữ liệu tồn kho liên quan có thể bị ảnh hưởng.`)) {
     trackDeletedIds([prodId]);
     state.products = state.products.filter(p => p.id !== prodId);
-    saveState();
-    recalculateAccounting();
-    renderInventoryTable();
-    populateProductLedgerDropdown();
-    cacheProductOptions();
     showToast(`Đã xóa sản phẩm ${prodId}!`, "success");
+
+    // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
+    setTimeout(() => {
+      saveState();
+      recalculateAccounting();
+    }, 0);
   }
 }
 

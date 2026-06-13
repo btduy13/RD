@@ -311,29 +311,17 @@ function batchDeleteEscrows() {
     trackDeletedIds(idsToDelete);
     state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
 
-    saveState();
-    recalculateAccounting();
-
     const master = document.getElementById("check-all-escrow");
     if (master) master.checked = false;
 
     updateBatchEscrowsUI();
-
-    if (typeof safeRefreshAllModules === "function") {
-      safeRefreshAllModules();
-    } else {
-      renderEscrowTable();
-      if (typeof filterCash === "function") {
-        filterCash();
-        if (typeof recalculateCashKpis === "function") recalculateCashKpis();
-      }
-      if (typeof renderDashboard === "function") renderDashboard();
-      if (typeof filterDebts === "function") filterDebts();
-      if (typeof filterPartners === "function") filterPartners();
-      if (typeof renderInventoryTable === "function") renderInventoryTable();
-    }
-
     showToast(`Đã xóa thành công ${checked.length} chứng từ ký quỹ!`, "success");
+
+    // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
+    setTimeout(() => {
+      saveState();
+      recalculateAccounting();
+    }, 0);
   }
 }
 

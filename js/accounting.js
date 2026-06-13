@@ -362,15 +362,16 @@ function deleteVoucher(id) {
         }
       }
 
-      saveState();
-      recalculateAccounting();
-
-      // Tự động làm tươi tất cả các bảng và KPIs trên mọi tab
-      if (typeof safeRefreshAllModules === "function") {
-        safeRefreshAllModules();
-      }
-
       showToast(`Đã xóa thành công chứng từ ${id}!`, "success");
+
+      // Trì hoãn công việc nặng (recalculate + render) sang frame tiếp theo
+      // để giải phóng main thread, tránh brick UI sau khi xóa
+      setTimeout(() => {
+        saveState();
+        recalculateAccounting();
+        // recalculateAccounting đã gọi refreshUI() bên trong,
+        // KHÔNG cần gọi safeRefreshAllModules() thêm lần nữa
+      }, 0);
     } catch (err) {
       console.error("Lỗi nghiêm trọng trong quá trình xóa chứng từ:", err);
       showToast(`Có lỗi xảy ra khi xóa chứng từ: ${err.message}`, "danger");
@@ -382,6 +383,7 @@ function deleteVoucher(id) {
 function safeRefreshAllModules() {
   const refreshTasks = [
     { name: "filterSalesTable", fn: typeof window.filterSalesTable === "function" ? window.filterSalesTable : null },
+    { name: "filterSalesReturnTable", fn: typeof window.filterSalesReturnTable === "function" ? window.filterSalesReturnTable : null },
     { name: "filterPurchaseTable", fn: typeof window.filterPurchaseTable === "function" ? window.filterPurchaseTable : null },
     { name: "filterPurchaseOrderTable", fn: typeof window.filterPurchaseOrderTable === "function" ? window.filterPurchaseOrderTable : null },
     { name: "filterPurchaseReturnTable", fn: typeof window.filterPurchaseReturnTable === "function" ? window.filterPurchaseReturnTable : null },

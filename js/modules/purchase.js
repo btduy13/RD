@@ -533,29 +533,17 @@ function batchDeletePurchases() {
     trackDeletedIds(idsToDelete);
     state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
 
-    saveState();
-    recalculateAccounting();
-
     const master = document.getElementById("check-all-purchase");
     if (master) master.checked = false;
 
     updateBatchPurchasesUI();
-
-    if (typeof safeRefreshAllModules === "function") {
-      safeRefreshAllModules();
-    } else {
-      renderPurchaseTable();
-      if (typeof filterCash === "function") {
-        filterCash();
-        if (typeof recalculateCashKpis === "function") recalculateCashKpis();
-      }
-      if (typeof renderDashboard === "function") renderDashboard();
-      if (typeof filterDebts === "function") filterDebts();
-      if (typeof filterPartners === "function") filterPartners();
-      if (typeof renderInventoryTable === "function") renderInventoryTable();
-    }
-
     showToast(`Đã xóa thành công ${checked.length} chứng từ mua hàng!`, "success");
+
+    // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
+    setTimeout(() => {
+      saveState();
+      recalculateAccounting();
+    }, 0);
   }
 }
 
@@ -1290,16 +1278,17 @@ function batchDeletePurchaseOrders() {
     trackDeletedIds(idsToDelete);
     state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
 
-    saveState();
-    recalculateAccounting();
-
     const master = document.getElementById("check-all-purchase-order");
     if (master) master.checked = false;
 
     updateBatchPurchaseOrdersUI();
-    renderPurchaseOrderTable();
-
     showToast(`Đã xóa thành công ${checked.length} đơn đặt hàng!`, "success");
+
+    // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
+    setTimeout(() => {
+      saveState();
+      recalculateAccounting();
+    }, 0);
   }
 }
 
@@ -1986,29 +1975,17 @@ function batchDeletePurchaseReturns() {
     trackDeletedIds(idsToDelete);
     state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
 
-    saveState();
-    recalculateAccounting();
-
     const master = document.getElementById("check-all-purchase-return");
     if (master) master.checked = false;
 
     updateBatchPurchaseReturnsUI();
-
-    if (typeof safeRefreshAllModules === "function") {
-      safeRefreshAllModules();
-    } else {
-      renderPurchaseReturnTable();
-      if (typeof filterCash === "function") {
-        filterCash();
-        if (typeof recalculateCashKpis === "function") recalculateCashKpis();
-      }
-      if (typeof renderDashboard === "function") renderDashboard();
-      if (typeof filterDebts === "function") filterDebts();
-      if (typeof filterPartners === "function") filterPartners();
-      if (typeof renderInventoryTable === "function") renderInventoryTable();
-    }
-
     showToast(`Đã xóa thành công ${checked.length} chứng từ trả lại hàng!`, "success");
+
+    // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
+    setTimeout(() => {
+      saveState();
+      recalculateAccounting();
+    }, 0);
   }
 }
 
