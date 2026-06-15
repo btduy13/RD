@@ -89,6 +89,9 @@ function createWindow() {
   });
 
   // 2. Tải trang giao diện chính
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    console.log(`RENDERER CONSOLE [${level}]: ${message} (at ${sourceId}:${line})`);
+  });
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
   // 3. Thiết lập menu ứng dụng tối giản để các phím tắt soạn thảo hoạt động bình thường

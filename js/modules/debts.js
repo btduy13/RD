@@ -91,6 +91,7 @@ function renderDebtsTable() {
   tbody.innerHTML = "";
   if (pageItems.length === 0) {
     tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy công nợ đối tác nào</td></tr>`;
+  } else {
     // Tính tổng cộng cho toàn bộ danh sách đã lọc (filteredDebtsList)
     let totalOpeningDebit = 0;
     let totalOpeningCredit = 0;
