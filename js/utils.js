@@ -247,67 +247,53 @@ function matchAdvancedQuery(targetText, queryText, numericValue = null) {
   if (cleanQuery.includes("|") || cleanQuery.includes(",")) {
     const parts = cleanQuery.split(/[|,]/).map(p => p.trim()).filter(Boolean);
     if (parts.length > 0) {
-      return parts.some(part => {
-        return fields.some(f => removeAccents(f.toLowerCase()).includes(part));
-      });
+      // Mỗi phần OR được xử lý riêng qua matchAdvancedQuery để giữ đúng logic exact word matching
+      return parts.some(part => matchAdvancedQuery(targetText, part, numericValue));
     }
   }
 
   // 3. Tìm kiếm phủ định (Không chứa từ khóa bằng dấu '-') & Tìm kiếm AND đa từ khóa
   const tokens = cleanQuery.split(/\s+/).filter(Boolean);
+  const posTokens = tokens.filter(t => !(t.startsWith("-") && t.length > 1));
+  const negTokens = tokens.filter(t => t.startsWith("-") && t.length > 1).map(t => t.substring(1));
   const cleanFields = fields.map(f => removeAccents(f.toLowerCase()));
-  const commonPronouns = ["anh", "chi", "cty", "cong ty", "an"];
-  
-  let match = true;
-  const tokenMatchFields = {}; // token -> array of field indices where it matched
-  
-  for (const token of tokens) {
-    if (token.startsWith("-") && token.length > 1) {
-      const excludeToken = token.substring(1);
-      if (cleanFields.some(f => f.includes(excludeToken))) {
-        return false;
-      }
-    } else {
-      const matchingFieldIndices = [];
-      cleanFields.forEach((field, idx) => {
-        let isMatch = false;
-        if (isMultiField && idx === 1) {
-          // Trường Tên (Name field) -> Khớp theo tiền tố từ (Word Prefix matching)
-          const words = field.split(/[^a-z0-9]+/).filter(Boolean);
-          isMatch = words.some(w => w.startsWith(token));
-        } else {
-          // Các trường khác -> Khớp substring
-          isMatch = field.includes(token);
-        }
-        if (isMatch) {
-          matchingFieldIndices.push(idx);
-        }
-      });
-      
-      if (matchingFieldIndices.length === 0) {
-        match = false;
-        break;
-      }
-      tokenMatchFields[token] = matchingFieldIndices;
-    }
-  }
-  
-  if (!match) return false;
 
-  // Áp dụng luật pronoun chống nhiễu cross-field (Name & ID/Address)
-  if (isMultiField && tokens.length > 1) {
-    const nameMatchedTokens = Object.keys(tokenMatchFields).filter(t => tokenMatchFields[t].includes(1));
-    const otherMatchedTokens = Object.keys(tokenMatchFields).filter(t => tokenMatchFields[t].some(idx => idx !== 1));
-    
-    if (nameMatchedTokens.length > 0 && otherMatchedTokens.length > 0) {
-      const allNameMatchesArePronouns = nameMatchedTokens.every(t => commonPronouns.includes(t));
-      if (allNameMatchesArePronouns) {
-        return false;
-      }
-    }
+  // Kiểm tra từ khóa phủ định
+  for (const neg of negTokens) {
+    if (cleanFields.some(f => f.includes(neg))) return false;
   }
 
-  return true;
+  if (posTokens.length === 0) return true;
+
+  // Tìm kiếm đơn trường (single field) -> dùng substring matching
+  if (!isMultiField) {
+    return posTokens.every(token => cleanTarget.includes(token));
+  }
+
+  // Tìm kiếm đa trường (multi-field):
+  // - Query NHIỀU TỪ (≥2): Tìm cụm từ liên tiếp trong Tên (phrase matching theo thứ tự)
+  //   "an trung" → Tên phải chứa ["an","trung"] liên tiếp, đúng thứ tự
+  //   Không tìm trong Mã đối tác để tránh false positive
+  // - Query MỘT TỪ: Tìm trong tất cả các trường (Mã: substring, Tên: exact word)
+  const nameField = cleanFields.length > 1 ? cleanFields[1] : cleanFields[0];
+  const nameWords = nameField.split(/[^a-z0-9]+/).filter(Boolean);
+
+  if (posTokens.length > 1) {
+    // Phrase matching: tokens phải xuất hiện liên tiếp, đúng thứ tự trong mảng từ của Tên
+    for (let i = 0; i <= nameWords.length - posTokens.length; i++) {
+      if (posTokens.every((token, j) => nameWords[i + j] === token)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Single-word: kiểm tra tất cả trường
+  const singleToken = posTokens[0];
+  return cleanFields.some((fieldVal, fieldIdx) => {
+    if (fieldIdx === 1) return nameWords.includes(singleToken);
+    return fieldVal.includes(singleToken);
+  });
 }
 
 // Định dạng tiền tệ Việt Nam Đồng VNĐ

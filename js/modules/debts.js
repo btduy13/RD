@@ -119,6 +119,41 @@ function renderDebtsTable() {
       `;
       tbody.appendChild(tr);
     });
+
+    // Tính tổng cộng cho toàn bộ danh sách đã lọc (filteredDebtsList)
+    let totalOpeningDebit = 0;
+    let totalOpeningCredit = 0;
+    let totalDebitTrans = 0;
+    let totalCreditTrans = 0;
+    let totalClosingDebit = 0;
+    let totalClosingCredit = 0;
+
+    filteredDebtsList.forEach(d => {
+      totalOpeningDebit += d.openingDebit || 0;
+      totalOpeningCredit += d.openingCredit || 0;
+      totalDebitTrans += d.debitTrans || 0;
+      totalCreditTrans += d.creditTrans || 0;
+      totalClosingDebit += d.closingDebit || 0;
+      totalClosingCredit += d.closingCredit || 0;
+    });
+
+    const trTotal = document.createElement("tr");
+    trTotal.style.fontWeight = "bold";
+    trTotal.style.backgroundColor = "var(--bg-tertiary)";
+    trTotal.style.borderTop = "2px solid var(--border-color)";
+    trTotal.innerHTML = `
+      <td></td>
+      <td></td>
+      <td style="font-weight:bold; color:var(--text-primary);">TỔNG CỘNG</td>
+      <td style="text-align:right; font-weight:bold;" class="font-numeric">${totalOpeningDebit > 0 ? formatVND(totalOpeningDebit).replace("đ", "") : "-"}</td>
+      <td style="text-align:right; font-weight:bold;" class="font-numeric">${totalOpeningCredit > 0 ? formatVND(totalOpeningCredit).replace("đ", "") : "-"}</td>
+      <td style="text-align:right; color:var(--color-primary); font-weight:bold;" class="font-numeric">${totalDebitTrans > 0 ? formatVND(totalDebitTrans).replace("đ", "") : "-"}</td>
+      <td style="text-align:right; color:var(--color-warning); font-weight:bold;" class="font-numeric">${totalCreditTrans > 0 ? formatVND(totalCreditTrans).replace("đ", "") : "-"}</td>
+      <td style="text-align:right; font-weight:bold; color:var(--color-success);" class="font-numeric">${totalClosingDebit > 0 ? formatVND(totalClosingDebit).replace("đ", "") : "-"}</td>
+      <td style="text-align:right; font-weight:bold; color:var(--color-warning);" class="font-numeric">${totalClosingCredit > 0 ? formatVND(totalClosingCredit).replace("đ", "") : "-"}</td>
+      <td></td>
+    `;
+    tbody.appendChild(trTotal);
   }
 
   const paginationInfo = document.getElementById("debts-pagination-info");
