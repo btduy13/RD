@@ -204,7 +204,7 @@ function filterCash() {
     if (!isCash) return false;
 
     const partnerName = getPartnerNameForVoucher(v);
-    const combined = `${v.id || ""} ${partnerName} ${v.description || ""}`;
+    const combined = `${v.id || ""}\t${partnerName}\t${v.description || ""}`;
     const matchesQuery = matchAdvancedQuery(combined, query, v.amount);
 
     let matchesType = true;
@@ -413,7 +413,7 @@ function exportCashToExcel() {
     if (!isCash) return false;
 
     const partnerName = getPartnerNameForVoucher(v);
-    const combined = `${v.id || ""} ${partnerName} ${v.description || ""}`;
+    const combined = `${v.id || ""}\t${partnerName}\t${v.description || ""}`;
     const matchesQuery = matchAdvancedQuery(combined, query, v.amount);
 
     let matchesType = true;

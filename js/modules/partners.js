@@ -221,7 +221,7 @@ function filterPartners() {
   const filterType = document.getElementById("partner-type-filter") ? document.getElementById("partner-type-filter").value : "all";
 
   filteredPartnersList = state.partners.filter(p => {
-    const combined = `${p.id || ""} ${p.name || ""} ${p.phone || ""} ${p.address || ""}`;
+    const combined = `${p.id || ""}\t${p.name || ""}\t${p.phone || ""}\t${p.address || ""}`;
     const matchesQuery = matchAdvancedQuery(combined, query);
     const matchesType = filterType === "all" || p.type === filterType;
     return matchesQuery && matchesType;

@@ -194,7 +194,7 @@ function filterDebts() {
   const allDebts = calculatePartnerDebts();
 
   filteredDebtsList = allDebts.filter(d => {
-    const combined = `${d.id || ""} ${d.name || ""}`;
+    const combined = `${d.id || ""}\t${d.name || ""}`;
     const debtVal = Math.max(d.closingDebit || 0, d.closingCredit || 0);
     const matchesQuery = matchAdvancedQuery(combined, query, debtVal);
 

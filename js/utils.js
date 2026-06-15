@@ -203,6 +203,8 @@ function matchAdvancedQuery(targetText, queryText, numericValue = null) {
   if (!queryText) return true;
   if (!targetText) targetText = "";
 
+  const isMultiField = targetText.includes('\t');
+  const fields = isMultiField ? targetText.split('\t') : [targetText];
   const cleanTarget = removeAccents(targetText.toLowerCase());
   const cleanQuery = removeAccents(queryText.toLowerCase().trim());
 
@@ -245,26 +247,67 @@ function matchAdvancedQuery(targetText, queryText, numericValue = null) {
   if (cleanQuery.includes("|") || cleanQuery.includes(",")) {
     const parts = cleanQuery.split(/[|,]/).map(p => p.trim()).filter(Boolean);
     if (parts.length > 0) {
-      return parts.some(part => cleanTarget.includes(part));
+      return parts.some(part => {
+        return fields.some(f => removeAccents(f.toLowerCase()).includes(part));
+      });
     }
   }
 
   // 3. Tìm kiếm phủ định (Không chứa từ khóa bằng dấu '-') & Tìm kiếm AND đa từ khóa
   const tokens = cleanQuery.split(/\s+/).filter(Boolean);
+  const cleanFields = fields.map(f => removeAccents(f.toLowerCase()));
+  const commonPronouns = ["anh", "chi", "cty", "cong ty", "an"];
+  
   let match = true;
+  const tokenMatchFields = {}; // token -> array of field indices where it matched
+  
   for (const token of tokens) {
     if (token.startsWith("-") && token.length > 1) {
       const excludeToken = token.substring(1);
-      if (cleanTarget.includes(excludeToken)) {
+      if (cleanFields.some(f => f.includes(excludeToken))) {
         return false;
       }
     } else {
-      if (!cleanTarget.includes(token)) {
+      const matchingFieldIndices = [];
+      cleanFields.forEach((field, idx) => {
+        let isMatch = false;
+        if (isMultiField && idx === 1) {
+          // Trường Tên (Name field) -> Khớp theo tiền tố từ (Word Prefix matching)
+          const words = field.split(/[^a-z0-9]+/).filter(Boolean);
+          isMatch = words.some(w => w.startsWith(token));
+        } else {
+          // Các trường khác -> Khớp substring
+          isMatch = field.includes(token);
+        }
+        if (isMatch) {
+          matchingFieldIndices.push(idx);
+        }
+      });
+      
+      if (matchingFieldIndices.length === 0) {
         match = false;
+        break;
+      }
+      tokenMatchFields[token] = matchingFieldIndices;
+    }
+  }
+  
+  if (!match) return false;
+
+  // Áp dụng luật pronoun chống nhiễu cross-field (Name & ID/Address)
+  if (isMultiField && tokens.length > 1) {
+    const nameMatchedTokens = Object.keys(tokenMatchFields).filter(t => tokenMatchFields[t].includes(1));
+    const otherMatchedTokens = Object.keys(tokenMatchFields).filter(t => tokenMatchFields[t].some(idx => idx !== 1));
+    
+    if (nameMatchedTokens.length > 0 && otherMatchedTokens.length > 0) {
+      const allNameMatchesArePronouns = nameMatchedTokens.every(t => commonPronouns.includes(t));
+      if (allNameMatchesArePronouns) {
+        return false;
       }
     }
   }
-  return match;
+
+  return true;
 }
 
 // Định dạng tiền tệ Việt Nam Đồng VNĐ

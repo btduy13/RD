@@ -19,7 +19,7 @@ function renderSalesTable() {
   if (query) {
     sales = sales.filter(v => {
       const partnerName = getPartnerNameForVoucher(v);
-      const combined = `${v.id || ""} ${partnerName} ${v.description || ""}`;
+      const combined = `${v.id || ""}\t${partnerName}\t${v.description || ""}`;
       return matchAdvancedQuery(combined, query, v.totalAmount);
     });
   }
@@ -597,7 +597,7 @@ function renderSalesReturnTable() {
   if (query) {
     returns = returns.filter(v => {
       const partnerName = getPartnerNameForVoucher(v);
-      const combined = `${v.id || ""} ${partnerName} ${v.description || ""}`;
+      const combined = `${v.id || ""}\t${partnerName}\t${v.description || ""}`;
       return matchAdvancedQuery(combined, query, v.totalAmount);
     });
   }
