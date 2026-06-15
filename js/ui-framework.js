@@ -607,7 +607,10 @@ function viewVoucher(id) {
 
     v.items.forEach(item => {
       const itemGross = (item.qty || 0) * (item.price || 0);
-      const discountPercent = item.discount || 0;
+      let discountPercent = item.discount || 0;
+      if (discountPercent > 100) {
+        discountPercent = itemGross > 0 ? (discountPercent / itemGross) * 100 : 0;
+      }
       const itemDiscountVal = itemGross * (discountPercent / 100);
       grossTotal += itemGross;
       totalDiscount += itemDiscountVal;
@@ -679,7 +682,13 @@ function viewVoucher(id) {
             ${v.items.map((item, idx) => {
       const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: item.productId };
       const qtyFormatted = Number.isInteger(item.qty) ? `${item.qty},0` : item.qty.toString().replace(".", ",");
-      const gcVal = (item.discount !== undefined && item.discount !== null) ? item.discount : "0";
+      
+      const itemGross = (item.qty || 0) * (item.price || 0);
+      let discountPercent = item.discount || 0;
+      if (discountPercent > 100) {
+        discountPercent = itemGross > 0 ? Math.round((discountPercent / itemGross) * 100 * 100) / 100 : 0;
+      }
+      const gcVal = discountPercent > 0 ? `${discountPercent}%` : "0";
       return `
                 <tr>
                   <td style="border: 1px solid #000; padding: 4px 4px; text-align: center;">${idx + 1}</td>

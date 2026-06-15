@@ -494,17 +494,18 @@ async function autoIntegrateSoChiTietBanHangExcel() {
         const unit = (row[11] || "Cái").toString().trim();
         const qty = safeParseFloat(row[12]);
         const price = safeParseFloat(row[13]);
-        const discount = safeParseFloat(row[15]);
+        const discountVal = safeParseFloat(row[15]);
 
         // Doanh số bán (row[14]) là gross, doanh thu thuần là gross - discount
         const grossAmount = qty * price;
-        const amount = grossAmount - discount;
+        const amount = grossAmount - discountVal;
+        const discountPercent = grossAmount > 0 ? Math.round((discountVal / grossAmount) * 100 * 100) / 100 : 0;
 
         itemsArray.push({
           productId: productId,
           qty: qty,
           price: price,
-          discount: discount,
+          discount: discountPercent,
           amount: amount
         });
 
@@ -2070,16 +2071,17 @@ function parseExcelFile(file, type) {
               const unit = (row[11] || "Cái").toString().trim();
               const qty = safeParseFloat(row[12]);
               const price = safeParseFloat(row[13]);
-              const discount = safeParseFloat(row[15]);
+              const discountVal = safeParseFloat(row[15]);
 
               const grossAmount = qty * price;
-              const amount = grossAmount - discount;
+              const amount = grossAmount - discountVal;
+              const discountPercent = grossAmount > 0 ? Math.round((discountVal / grossAmount) * 100 * 100) / 100 : 0;
 
               itemsArray.push({
                 productId: productId,
                 qty: qty,
                 price: price,
-                discount: discount,
+                discount: discountPercent,
                 amount: amount
               });
 

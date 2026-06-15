@@ -477,7 +477,12 @@ function editSalesVoucher(id) {
   v.items.forEach(item => {
     const prod = state.products.find(p => String(p.id) === String(item.productId));
     const prodVal = prod ? `${prod.name} (${prod.id})` : item.productId;
-    addSalesFormRow(prodVal, item.qty, item.price, item.discount);
+    let discountPercent = item.discount || 0;
+    if (discountPercent > 100) {
+      const gross = (item.qty || 0) * (item.price || 0);
+      discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100 * 100) / 100 : 0;
+    }
+    addSalesFormRow(prodVal, item.qty, item.price, discountPercent);
   });
 
   openModal("modal-add-sales");
@@ -1031,7 +1036,12 @@ function editSalesReturnVoucher(id) {
   v.items.forEach(item => {
     const prod = state.products.find(p => String(p.id) === String(item.productId));
     const prodVal = prod ? `${prod.name} (${prod.id})` : item.productId;
-    addSalesReturnFormRow(prodVal, item.qty, item.price, item.discount || 0);
+    let discountPercent = item.discount || 0;
+    if (discountPercent > 100) {
+      const gross = (item.qty || 0) * (item.price || 0);
+      discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100 * 100) / 100 : 0;
+    }
+    addSalesReturnFormRow(prodVal, item.qty, item.price, discountPercent);
   });
 
   openModal("modal-add-sales-return");

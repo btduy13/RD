@@ -233,6 +233,24 @@ function cleanNumericVouchers() {
     hasChanges = true;
   }
 
+  // 3. Khắc phục lỗi chiết khấu đang lưu dạng số tiền tuyệt đối (> 100) thay vì phần trăm
+  state.vouchers.forEach(v => {
+    if (v && Array.isArray(v.items)) {
+      v.items.forEach(item => {
+        if (item && item.discount > 100) {
+          const grossAmount = (item.qty || 0) * (item.price || 0);
+          if (grossAmount > 0) {
+            const calculatedPercent = Math.round((item.discount / grossAmount) * 100 * 100) / 100;
+            if (calculatedPercent <= 100) {
+              item.discount = calculatedPercent;
+              hasChanges = true;
+            }
+          }
+        }
+      });
+    }
+  });
+
   if (hasChanges) {
     saveState();
   }
