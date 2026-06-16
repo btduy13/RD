@@ -12,16 +12,26 @@ function openQuickAddPartnerModal(type = "customer") {
   const labelName = document.getElementById("quick-partner-label-name");
   if (labelName) {
     labelName.innerHTML = type === "customer"
-      ? `Tên khách hàng <span style="color:var(--color-danger)">*</span>`
-      : `Tên nhà cung cấp <span style="color:var(--color-danger)">*</span>`;
+      ? `Tên đối tác (Khách hàng) <span style="color:var(--color-danger)">*</span>`
+      : `Tên đối tác (Nhà cung cấp) <span style="color:var(--color-danger)">*</span>`;
   }
 
+  // Clear inputs
+  const idEl = document.getElementById("quick-partner-id");
   const nameEl = document.getElementById("quick-partner-name");
+  const typeSelect = document.getElementById("quick-partner-type");
   const phoneEl = document.getElementById("quick-partner-phone");
   const addressEl = document.getElementById("quick-partner-address");
+  const taxEl = document.getElementById("quick-partner-taxcode");
+  const inactiveEl = document.getElementById("quick-partner-inactive");
+
+  if (idEl) idEl.value = "";
   if (nameEl) nameEl.value = "";
+  if (typeSelect) typeSelect.value = type;
   if (phoneEl) phoneEl.value = "";
   if (addressEl) addressEl.value = "";
+  if (taxEl) taxEl.value = "";
+  if (inactiveEl) inactiveEl.checked = false;
 
   openModal("modal-quick-add-partner");
 }
@@ -34,11 +44,15 @@ function handleQuickAddPartnerSubmit(e) {
     return;
   }
 
+  const idVal = document.getElementById("quick-partner-id").value.trim();
   const name = document.getElementById("quick-partner-name").value.trim();
+  const type = document.getElementById("quick-partner-type").value;
   const phone = document.getElementById("quick-partner-phone").value.trim();
   const address = document.getElementById("quick-partner-address").value.trim();
+  const taxCode = document.getElementById("quick-partner-taxcode").value.trim();
+  const inactive = document.getElementById("quick-partner-inactive").checked;
 
-  const isSupplier = (quickAddPartnerType === "supplier");
+  const isSupplier = (type === "supplier");
   const typeLabel = isSupplier ? "nhà cung cấp" : "khách hàng";
   const typeNameCap = isSupplier ? "Nhà cung cấp" : "Khách hàng";
 
@@ -50,18 +64,28 @@ function handleQuickAddPartnerSubmit(e) {
   let partner = state.partners.find(p => p.name.toLowerCase() === name.toLowerCase());
 
   if (!partner) {
-    const nextNum = (state.partners.filter(p => p.type === (isSupplier ? "supplier" : "customer")).length + 1).toString().padStart(3, '0');
-    const id = isSupplier ? `NCC${nextNum}` : `KH${nextNum}`;
+    let finalId = idVal;
+    if (!finalId) {
+      const nextNum = (state.partners.filter(p => p.type === type).length + 1).toString().padStart(3, '0');
+      finalId = isSupplier ? `NCC${nextNum}` : `KH${nextNum}`;
+    } else {
+      // Check duplicate ID
+      const duplicateId = state.partners.find(p => p.id.toLowerCase() === finalId.toLowerCase());
+      if (duplicateId) {
+        showToast(`Mã đối tác "${finalId}" đã tồn tại! Vui lòng chọn mã khác.`, "danger");
+        return;
+      }
+    }
 
     partner = {
-      id,
+      id: finalId,
       name,
-      type: isSupplier ? "supplier" : "customer",
+      type,
       phone,
       email: "",
       address,
-      taxCode: "",
-      inactive: false
+      taxCode,
+      inactive
     };
 
     state.partners.push(partner);
@@ -75,7 +99,12 @@ function handleQuickAddPartnerSubmit(e) {
       ).join("");
     }
 
-    showToast(`Đã thêm thành công ${typeLabel} "${name}" với mã ${id}!`, "success");
+    // Refresh partner table if active
+    if (typeof filterPartners === "function") {
+      filterPartners();
+    }
+
+    showToast(`Đã thêm thành công ${typeLabel} "${name}" với mã ${finalId}!`, "success");
   } else {
     showToast(`${typeNameCap} "${name}" đã tồn tại trên hệ thống!`, "info");
   }
@@ -83,10 +112,13 @@ function handleQuickAddPartnerSubmit(e) {
   const inputEl = document.getElementById(isSupplier ? "pur-partner" : "sale-partner");
   if (inputEl) {
     inputEl.value = `${partner.name} (${partner.id})`;
+    // Trigger input event to resolve partner correctly in forms
+    inputEl.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
   closeModal("modal-quick-add-partner");
 }
+
 
 // ==========================================================
 // CÁC PHÂN HỆ NÂNG CẤP: KHÁCH HÀNG, CÔNG NỢ & QUỸ TIỀN

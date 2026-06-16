@@ -3502,7 +3502,7 @@
   <!-- A-2. MODAL: THÊM NHANH KHÁCH HÀNG TỪ PHÂN HỆ BÁN HÀNG -->
   <div id="modal-quick-add-partner" class="modal-overlay" style="z-index: 2000; display: none;">
     <div class="modal-content-container"
-      style="max-width: 450px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); border-radius: var(--radius-lg);">
+      style="max-width: 500px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); border-radius: var(--radius-lg);">
       <div class="modal-header">
         <h3 class="card-title"
           style="font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--color-primary);">
@@ -3519,13 +3519,25 @@
         <form id="form-quick-add-partner" class="form-grid" style="grid-template-columns: 1fr; gap: 12px;"
           onsubmit="handleQuickAddPartnerSubmit(event)">
           <div class="form-group">
-            <label id="quick-partner-label-name" class="form-label" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Tên khách hàng <span style="color:var(--color-danger)">*</span></label>
+            <label class="form-label" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Mã đối tác (ví dụ: KH001, NCC001)</label>
+            <input type="text" id="quick-partner-id" class="form-control" placeholder="Hệ thống tự sinh nếu để trống"
+              style="font-size: 13px; height: 36px; padding: 0 12px;">
+          </div>
+          <div class="form-group">
+            <label id="quick-partner-label-name" class="form-label" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Tên đối tác <span style="color:var(--color-danger)">*</span></label>
             <input type="text" id="quick-partner-name" class="form-control" required
               placeholder="Ví dụ: Đại lý Thiết bị Điện Đông Á" style="font-size: 13px; height: 36px; padding: 0 12px;">
           </div>
           <div class="form-group">
-            <label class="form-label" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Số điện
-              thoại</label>
+            <label class="form-label" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Phân loại</label>
+            <select id="quick-partner-type" class="form-control" required
+              style="font-size: 13px; height: 36px; padding: 0 12px;">
+              <option value="customer">Khách hàng (KH)</option>
+              <option value="supplier">Nhà cung cấp (NCC)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Số điện thoại</label>
             <input type="text" id="quick-partner-phone" class="form-control" placeholder="Ví dụ: 0912345678"
               style="font-size: 13px; height: 36px; padding: 0 12px;">
           </div>
@@ -3533,6 +3545,15 @@
             <label class="form-label" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Địa chỉ</label>
             <input type="text" id="quick-partner-address" class="form-control"
               placeholder="Số nhà, đường phố, tỉnh/thành..." style="font-size: 13px; height: 36px; padding: 0 12px;">
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-size: 12px; font-weight: 600; margin-bottom: 4px;">Mã số thuế</label>
+            <input type="text" id="quick-partner-taxcode" class="form-control" placeholder="MST doanh nghiệp (nếu có)"
+              style="font-size: 13px; height: 36px; padding: 0 12px;">
+          </div>
+          <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="quick-partner-inactive" style="width: 18px; height: 18px; cursor: pointer;">
+            <label class="form-label" for="quick-partner-inactive" style="margin-bottom: 0; cursor: pointer; font-size: 12px; font-weight: 600;">Ngừng theo dõi</label>
           </div>
           <div class="form-actions" style="margin-top: 8px; display: flex; justify-content: flex-end; gap: 10px;">
             <button type="button" class="btn btn-secondary" onclick="closeModal('modal-quick-add-partner')"

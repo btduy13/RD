@@ -334,6 +334,14 @@ function viewPartnerLedger(partnerId) {
       }
 
       const escapedViewId = escapeHtmlAttr(viewId);
+      const originalVoucher = state.vouchers.find(x => x.id === le.id);
+      const vType = originalVoucher ? originalVoucher.type : "";
+
+      tr.className = "clickable-row";
+      tr.setAttribute("data-type", "voucher");
+      tr.setAttribute("data-subtype", vType);
+      tr.setAttribute("data-id", escapeHtmlAttr(le.id));
+
       tr.innerHTML = `
         <td>${le.date}</td>
         <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${displayId}</a></td>
@@ -1003,8 +1011,9 @@ function renderPartnerLedgerOrders() {
       <td>${o.description}</td>
       <td style="text-align:right; font-weight:500;">${formatVND(totalAmt).replace("đ", "")}</td>
       <td style="text-align:right; font-weight:700; color:${o.remainingDebt > 0 ? 'var(--color-warning)' : 'var(--color-success)'};">${formatVND(o.remainingDebt).replace("đ", "")}</td>
-      <td style="text-align:center;">
-        <button class="btn btn-secondary btn-sm" onclick="promptEditOrderDebt('${escapedOrderId}')" style="padding: 2px 8px;">Sửa nợ</button>
+      <td style="text-align:center; display:flex; justify-content:center; gap:4px;">
+        <button class="btn btn-primary btn-sm" onclick="editOrderFromLedger('${escapedOrderId}', '${o.type}')" style="padding: 2px 8px; font-size: 11px;">Sửa đơn</button>
+        <button class="btn btn-secondary btn-sm" onclick="promptEditOrderDebt('${escapedOrderId}')" style="padding: 2px 8px; font-size: 11px;">Sửa nợ</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -1355,4 +1364,44 @@ window.changeDebtsPage = changeDebtsPage;
 window.toggleSelectAllDebts = toggleSelectAllDebts;
 window.updateBatchDebtsUI = updateBatchDebtsUI;
 window.batchDeleteDebts = batchDeleteDebts;
-window.exportDebtsToExcel = exportDebtsToExcel;
+window.exportDebtsToExcel = exportDebtsToExcel;
+
+function editOrderFromLedger(voucherId, voucherType) {
+  closeModal('modal-view-partner-ledger');
+  
+  if (voucherType === 'sales') {
+    if (typeof window.editSalesVoucher === 'function') {
+      window.editSalesVoucher(voucherId);
+    } else {
+      showToast('Không tìm thấy chức năng sửa hóa đơn bán hàng!', 'danger');
+    }
+  } else if (voucherType === 'purchase') {
+    if (typeof window.editPurchaseVoucher === 'function') {
+      window.editPurchaseVoucher(voucherId);
+    } else {
+      showToast('Không tìm thấy chức năng sửa hóa đơn mua hàng!', 'danger');
+    }
+  } else if (voucherType === 'purchase_return') {
+    if (typeof window.editPurchaseReturnVoucher === 'function') {
+      window.editPurchaseReturnVoucher(voucherId);
+    } else {
+      showToast('Không tìm thấy chức năng sửa trả lại hàng mua!', 'danger');
+    }
+  } else if (voucherType === 'sales_return') {
+    if (typeof window.editSalesReturnVoucher === 'function') {
+      window.editSalesReturnVoucher(voucherId);
+    } else {
+      showToast('Không tìm thấy chức năng sửa hàng bán trả lại!', 'danger');
+    }
+  } else if (voucherType === 'purchase_order') {
+    if (typeof window.editPurchaseOrderVoucher === 'function') {
+      window.editPurchaseOrderVoucher(voucherId);
+    } else {
+      showToast('Không tìm thấy chức năng sửa đơn đặt hàng!', 'danger');
+    }
+  } else {
+    showToast(`Không hỗ trợ sửa loại chứng từ: ${voucherType}`, 'warning');
+  }
+}
+window.editOrderFromLedger = editOrderFromLedger;
+
