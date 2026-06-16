@@ -63,55 +63,11 @@ function renderSalesTable() {
   if (checkAll) checkAll.checked = false;
   if (typeof updateBatchSalesUI === "function") updateBatchSalesUI();
 
-  // Render các nút chuyển trang động
-  const paginationControls = document.getElementById("sales-pagination-controls");
-  if (paginationControls) {
-    if (totalPages <= 1) {
-      paginationControls.style.display = "none";
-    } else {
-      paginationControls.style.display = "flex";
-
-      let buttonsHTML = "";
-      buttonsHTML += `
-        <button class="btn btn-secondary btn-sm" onclick="changeSalesPage(1)" ${salesCurrentPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">« Đầu</button>
-        <button class="btn btn-secondary btn-sm" onclick="changeSalesPage(${salesCurrentPage - 1})" ${salesCurrentPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">‹ Trước</button>
-      `;
-
-      let startPage = Math.max(1, salesCurrentPage - 2);
-      let endPage = Math.min(totalPages, salesCurrentPage + 2);
-
-      if (startPage > 1) {
-        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
-      }
-
-      for (let p = startPage; p <= endPage; p++) {
-        buttonsHTML += `
-          <button class="btn ${p === salesCurrentPage ? 'btn-success' : 'btn-secondary'} btn-sm" onclick="changeSalesPage(${p})" style="padding: 4px 10px; font-size: 12px; font-weight: ${p === salesCurrentPage ? '800' : 'normal'};">${p}</button>
-        `;
-      }
-
-      if (endPage < totalPages) {
-        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
-      }
-
-      buttonsHTML += `
-        <button class="btn btn-secondary btn-sm" onclick="changeSalesPage(${salesCurrentPage + 1})" ${salesCurrentPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Sau ›</button>
-        <button class="btn btn-secondary btn-sm" onclick="changeSalesPage(${totalPages})" ${salesCurrentPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Cuối »</button>
-      `;
-
-      paginationControls.innerHTML = `
-        <span style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">
-          Hiển thị ${startIdx + 1} - ${Math.min(startIdx + 30, totalCount)} của ${totalCount} đơn bán hàng
-        </span>
-        <div style="display: flex; gap: 4px; align-items: center;">
-          ${buttonsHTML}
-        </div>
-      `;
-    }
-  }
+  // Render phân trang bằng shared component
+  renderPagination('sales-pagination-controls', salesCurrentPage, totalPages, totalCount, 'changeSalesPage');
 
   if (displayedSales.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy hóa đơn bán hàng nào phù hợp.</td></tr>`;
+    renderEmptyState(tbody, 11, 'Không tìm thấy hóa đơn bán hàng', 'Nhấn nút tạo mới để thêm hóa đơn bán hàng');
     return;
   }
 

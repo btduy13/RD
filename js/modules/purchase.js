@@ -61,57 +61,14 @@ function renderPurchaseTable() {
   if (checkAll) checkAll.checked = false;
   if (typeof updateBatchPurchasesUI === "function") updateBatchPurchasesUI();
 
-  // Render các nút chuyển trang động
-  const paginationControls = document.getElementById("purchase-pagination-controls");
-  if (paginationControls) {
-    if (totalPages <= 1) {
-      paginationControls.style.display = "none";
-    } else {
-      paginationControls.style.display = "flex";
-
-      let buttonsHTML = "";
-      buttonsHTML += `
-        <button class="btn btn-secondary btn-sm" onclick="changePurchasePage(1)" ${purchaseCurrentPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">« Đầu</button>
-        <button class="btn btn-secondary btn-sm" onclick="changePurchasePage(${purchaseCurrentPage - 1})" ${purchaseCurrentPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">‹ Trước</button>
-      `;
-
-      let startPage = Math.max(1, purchaseCurrentPage - 2);
-      let endPage = Math.min(totalPages, purchaseCurrentPage + 2);
-
-      if (startPage > 1) {
-        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
-      }
-
-      for (let p = startPage; p <= endPage; p++) {
-        buttonsHTML += `
-          <button class="btn ${p === purchaseCurrentPage ? 'btn-success' : 'btn-secondary'} btn-sm" onclick="changePurchasePage(${p})" style="padding: 4px 10px; font-size: 12px; font-weight: ${p === purchaseCurrentPage ? '800' : 'normal'};">${p}</button>
-        `;
-      }
-
-      if (endPage < totalPages) {
-        buttonsHTML += `<span style="color: var(--text-secondary); padding: 0 4px; font-size: 12px;">...</span>`;
-      }
-
-      buttonsHTML += `
-        <button class="btn btn-secondary btn-sm" onclick="changePurchasePage(${purchaseCurrentPage + 1})" ${purchaseCurrentPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Sau ›</button>
-        <button class="btn btn-secondary btn-sm" onclick="changePurchasePage(${totalPages})" ${purchaseCurrentPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Cuối »</button>
-      `;
-
-      paginationControls.innerHTML = `
-        <span style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">
-          Hiển thị ${startIdx + 1} - ${Math.min(startIdx + 30, totalCount)} của ${totalCount} đơn mua hàng
-        </span>
-        <div style="display: flex; gap: 4px; align-items: center;">
-          ${buttonsHTML}
-        </div>
-      `;
-    }
-  }
+  // Render phân trang bằng shared component
+  renderPagination('purchase-pagination-controls', purchaseCurrentPage, totalPages, totalCount, 'changePurchasePage');
 
   if (displayedPurchases.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy hóa đơn mua hàng nào phù hợp.</td></tr>`;
+    renderEmptyState(tbody, 8, 'Không tìm thấy hóa đơn mua hàng', 'Nhấn nút tạo mới để thêm hóa đơn mua hàng');
     return;
   }
+
 
   tbody.innerHTML = displayedPurchases.map(v => {
     const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";

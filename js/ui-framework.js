@@ -133,8 +133,12 @@ function switchTab(tabId) {
 
   if (titles[tabId]) {
     document.getElementById("page-display-title").innerText = titles[tabId].title;
-    document.getElementById("page-display-subtitle").innerText = titles[tabId].sub;
   }
+
+  // Update breadcrumb navigation
+  if (typeof updateBreadcrumb === 'function') updateBreadcrumb(tabId);
+  // Update sidebar notification badges
+  if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
 
   // Khởi tạo các combo-box hoặc nạp dữ liệu chuyên biệt cho từng màn hình
   renderTabIfNeeded(tabId);
@@ -835,4 +839,88 @@ function viewVoucher(id) {
 window.viewVoucher = viewVoucher;
 window.closeModal = closeModal;
 window.openModal = openModal;
-window.switchTab = switchTab;
+window.switchTab = switchTab;
+
+// ==========================================================================
+// SHARED UI COMPONENTS (Pagination, Empty State, Counter Animation)
+// ==========================================================================
+
+// Shared pagination renderer using CSS component classes
+function renderPagination(containerId, currentPage, totalPages, totalItems, goToPageFnName) {
+  var container = document.getElementById(containerId);
+  if (!container) return;
+  if (totalPages <= 1 && totalItems <= 0) { container.innerHTML = ''; return; }
+  var html = '<div class="pagination-bar">';
+  html += '<span class="pagination-info">Trang ' + currentPage + ' / ' + totalPages + ' (' + totalItems + ' bản ghi)</span>';
+  html += '<div class="pagination-controls">';
+  html += '<button class="page-btn page-btn-nav" ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="' + goToPageFnName + '(' + (currentPage - 1) + ')">◀ Trước</button>';
+  var startP = Math.max(1, currentPage - 2);
+  var endP = Math.min(totalPages, currentPage + 2);
+  if (startP > 1) html += '<button class="page-btn" onclick="' + goToPageFnName + '(1)">1</button>';
+  if (startP > 2) html += '<span class="pagination-info">…</span>';
+  for (var p = startP; p <= endP; p++) {
+    html += '<button class="page-btn' + (p === currentPage ? ' active' : '') + '" onclick="' + goToPageFnName + '(' + p + ')">' + p + '</button>';
+  }
+  if (endP < totalPages - 1) html += '<span class="pagination-info">…</span>';
+  if (endP < totalPages) html += '<button class="page-btn" onclick="' + goToPageFnName + '(' + totalPages + ')">' + totalPages + '</button>';
+  html += '<button class="page-btn page-btn-nav" ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="' + goToPageFnName + '(' + (currentPage + 1) + ')">Sau ▶</button>';
+  html += '</div></div>';
+  container.innerHTML = html;
+}
+
+// Shared empty state renderer with SVG icon
+function renderEmptyState(container, colSpan, message, description) {
+  var msg = message || 'Chưa có dữ liệu';
+  var desc = description || 'Dữ liệu sẽ xuất hiện ở đây khi bạn tạo mới';
+  var html = '<tr><td colspan="' + colSpan + '">';
+  html += '<div class="empty-state">';
+  html += '<svg class="empty-state-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>';
+  html += '<div class="empty-state-title">' + msg + '</div>';
+  html += '<div class="empty-state-desc">' + desc + '</div>';
+  html += '</div></td></tr>';
+  var el = typeof container === 'string' ? document.getElementById(container) : container;
+  if (el) el.innerHTML = html;
+}
+
+// KPI counter animation with easeOutCubic
+function animateCountUp(element, targetValue, duration) {
+  if (!element || typeof targetValue !== 'number') return;
+  var startValue = 0;
+  var startTime = null;
+  var dur = duration || 800;
+  function step(timestamp) {
+    if (!startTime) startTime = timestamp;
+    var progress = Math.min((timestamp - startTime) / dur, 1);
+    var eased = 1 - Math.pow(1 - progress, 3);
+    var current = Math.round(startValue + (targetValue - startValue) * eased);
+    element.textContent = formatVND(current);
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// Enhanced openModal with animation
+var _origOpenModal = openModal;
+openModal = function(modalId) {
+  var modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.add('modal-animated');
+    modal.style.display = 'flex';
+  }
+};
+
+var _origCloseModal = closeModal;
+closeModal = function(modalId) {
+  var modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.remove('modal-animated');
+    modal.style.display = 'none';
+  }
+};
+
+window.renderPagination = renderPagination;
+window.renderEmptyState = renderEmptyState;
+window.animateCountUp = animateCountUp;
+window.openModal = openModal;
+window.closeModal = closeModal;
+

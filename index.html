@@ -21,7 +21,7 @@
   <div class="app-container">
 
     <!-- SYSTEM SIDEBAR (THANH ĐIỀU HƯỚNG TRÁI) -->
-    <aside class="sidebar">
+    <aside class="sidebar" aria-label="Thanh điều hướng chính">
       <div class="sidebar-brand">
         <div class="brand-logo">
           <img src="logo.jpg" alt="Rạng Đông" class="brand-logo-img">
@@ -30,6 +30,9 @@
           <span class="brand-name">RẠNG ĐÔNG</span>
           <span class="brand-subtitle" id="brand-version-display">RD Accounting v1.0</span>
         </div>
+        <button class="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Thu gọn/Mở rộng sidebar" title="Thu gọn sidebar">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        </button>
       </div>
 
       <ul class="sidebar-menu">
@@ -153,11 +156,14 @@
     <main class="main-wrapper">
 
       <!-- HEADER BAR (THANH ĐẦU TRANG) -->
-      <header class="header">
+      <header class="header" role="banner">
         <div class="header-title-section">
           <h1 id="page-display-title" class="header-title">Tổng quan</h1>
-          <span id="page-display-subtitle" class="header-subtitle">Tổng quan tình hình tài chính công ty Rạng
-            Đông</span>
+          <div id="header-breadcrumb" class="breadcrumb">
+            <span class="breadcrumb-item" onclick="switchTab('dashboard')">Trang chủ</span>
+            <span class="breadcrumb-separator">›</span>
+            <span class="breadcrumb-item active">Tổng quan</span>
+          </div>
         </div>
 
         <div class="header-actions">
@@ -286,6 +292,13 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
                   </svg>
                 </button>
+              </div>
+              <div class="date-presets">
+                <button class="date-preset-btn" onclick="setDatePreset('today','search-dashboard-from','search-dashboard-to','filterDashboard',this)">Hôm nay</button>
+                <button class="date-preset-btn" onclick="setDatePreset('week','search-dashboard-from','search-dashboard-to','filterDashboard',this)">Tuần này</button>
+                <button class="date-preset-btn" onclick="setDatePreset('month','search-dashboard-from','search-dashboard-to','filterDashboard',this)">Tháng này</button>
+                <button class="date-preset-btn" onclick="setDatePreset('quarter','search-dashboard-from','search-dashboard-to','filterDashboard',this)">Quý này</button>
+                <button class="date-preset-btn" onclick="setDatePreset('year','search-dashboard-from','search-dashboard-to','filterDashboard',this)">Năm nay</button>
               </div>
             </div>
             <div style="font-size: 13px; color: var(--text-secondary); font-weight: 500;"
@@ -621,7 +634,7 @@
                   mới nhất</span>
               </div>
               <div class="table-responsive">
-                <table class="data-table">
+                <table class="data-table table-striped animate-rows">
                   <thead>
                     <tr>
                       <th style="width: 30px; text-align: center;"><input type="checkbox" id="check-all-purchase"
@@ -760,7 +773,7 @@
                   mới nhất</span>
               </div>
               <div class="table-responsive">
-                <table class="data-table">
+                <table class="data-table table-striped animate-rows">
                   <thead>
                     <tr>
                       <th style="width: 30px; text-align: center;"><input type="checkbox" id="check-all-purchase-order"
@@ -898,7 +911,7 @@
                   style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Hiển thị tối đa 30 đơn trả lại hàng mới nhất</span>
               </div>
               <div class="table-responsive">
-                <table class="data-table">
+                <table class="data-table table-striped animate-rows">
                   <thead>
                     <tr>
                       <th style="width: 30px; text-align: center;"><input type="checkbox" id="check-all-purchase-return"
@@ -1051,7 +1064,7 @@
                   mới nhất</span>
               </div>
               <div class="table-responsive">
-                <table class="data-table">
+                <table class="data-table table-striped animate-rows">
                   <thead>
                     <tr>
                       <th style="width: 30px; text-align: center;"><input type="checkbox" id="check-all-sales"
@@ -1190,7 +1203,7 @@
                   style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Hiển thị tối đa 30 đơn trả lại hàng mới nhất</span>
               </div>
               <div class="table-responsive">
-                <table class="data-table">
+                <table class="data-table table-striped animate-rows">
                   <thead>
                     <tr>
                       <th style="width: 30px; text-align: center;"><input type="checkbox" id="check-all-sales-return"
@@ -1324,7 +1337,7 @@
                   156)</span>
               </div>
               <div class="table-responsive">
-                <table class="data-table">
+                <table class="data-table table-striped animate-rows">
                   <thead>
                     <tr>
                       <th style="width: 30px; text-align: center;"><input type="checkbox" id="check-all-products"
@@ -1440,7 +1453,7 @@
                 </div>
 
                 <div class="table-responsive" style="flex: 1; overflow-y: auto;">
-                  <table class="data-table">
+                  <table class="data-table table-striped animate-rows">
                     <thead>
                       <tr>
                         <th>Ngày</th>
@@ -1835,7 +1848,7 @@
                 tác</span>
             </div>
             <div class="table-responsive">
-              <table class="data-table">
+              <table class="data-table table-striped animate-rows">
                 <thead>
                   <tr>
                     <th style="width: 30px; text-align: center;"><input type="checkbox" id="check-all-partners"
@@ -1946,7 +1959,7 @@
                 nợ</span>
             </div>
             <div class="table-responsive">
-              <table class="data-table">
+              <table class="data-table table-striped animate-rows">
                 <thead>
                   <tr>
                     <th style="width: 30px; text-align: center;"><input type="checkbox" id="check-all-debts"
@@ -2152,7 +2165,7 @@
                 chi</span>
             </div>
             <div class="table-responsive">
-              <table class="data-table">
+              <table class="data-table table-striped animate-rows">
                 <thead>
                   <tr>
                     <th style="width: 30px; text-align: center;"><input type="checkbox" id="check-all-cash"
@@ -2673,7 +2686,7 @@
         <!-- Container 1: Lịch sử Sổ cái -->
         <div id="partner-ledger-container-entries" class="partner-ledger-subview">
           <div class="table-responsive" style="max-height: 45vh; overflow-y: auto;">
-            <table class="data-table">
+            <table class="data-table table-striped animate-rows">
               <thead>
                 <tr>
                   <th>Ngày CT</th>
@@ -2694,7 +2707,7 @@
         <!-- Container 2: Danh sách Đơn hàng đã mua -->
         <div id="partner-ledger-container-orders" class="partner-ledger-subview" style="display: none;">
           <div class="table-responsive" style="max-height: 45vh; overflow-y: auto;">
-            <table class="data-table">
+            <table class="data-table table-striped animate-rows">
               <thead>
                 <tr>
                   <th>Số chứng từ</th>

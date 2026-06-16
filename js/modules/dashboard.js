@@ -20,7 +20,7 @@ function renderDashboard() {
   // A. Tổng quỹ tiền: Dư nợ TK 111 + TK 112 (tính lũy kế đến toDate)
   const bal111 = getAccountBalance("111", toDate);
   const bal112 = getAccountBalance("112", toDate);
-  document.getElementById("kpi-cash-value").innerText = formatVND(bal111 + bal112);
+  animateCountUp(document.getElementById("kpi-cash-value"), bal111 + bal112);
 
   // B. Tổng doanh thu kỳ này: Tổng Có phát sinh TK 511 (trong khoảng từ/đến ngày)
   let totalRevenue = 0;
@@ -33,11 +33,11 @@ function renderDashboard() {
       });
     }
   });
-  document.getElementById("kpi-revenue-value").innerText = formatVND(totalRevenue);
+  animateCountUp(document.getElementById("kpi-revenue-value"), totalRevenue);
 
   // C. Giá trị tồn kho: Tổng giá trị hàng hóa (lũy kế đến toDate)
   const totalInventoryVal = getInventoryValueAt(toDate);
-  document.getElementById("kpi-inventory-value").innerText = formatVND(totalInventoryVal);
+  animateCountUp(document.getElementById("kpi-inventory-value"), totalInventoryVal);
 
   const acctEscrowPay = state.accountingStandard === "TT200" ? "244" : "1386";
   const acctEscrowReceive = state.accountingStandard === "TT200" ? "344" : "3386";
@@ -46,7 +46,7 @@ function renderDashboard() {
 
   const escrowValueEl = document.getElementById("kpi-escrow-value");
   if (escrowValueEl) {
-    escrowValueEl.innerText = formatVND(bal244 + bal344);
+    animateCountUp(escrowValueEl, bal244 + bal344);
   }
 
   // CẢNH BÁO SẢN PHẨM ÂM KHO
@@ -57,6 +57,9 @@ function renderDashboard() {
 
   // RENDER CÔNG NỢ & ĐƠN HÀNG CHƯA TẤT TOÁN
   renderDashboardDebts();
+
+  // Update sidebar notification badges
+  if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
 }
 
 function filterDashboard() {

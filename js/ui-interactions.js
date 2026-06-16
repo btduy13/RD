@@ -802,4 +802,140 @@ window.toggleAdvancedFilter = toggleAdvancedFilter;
 window.clearAdvancedSalesFilters = clearAdvancedSalesFilters;
 window.clearAdvancedPurchaseFilters = clearAdvancedPurchaseFilters;
 window.clearAdvancedPurchaseOrderFilters = clearAdvancedPurchaseOrderFilters;
-window.clearAdvancedPurchaseReturnFilters = clearAdvancedPurchaseReturnFilters;
+window.clearAdvancedPurchaseReturnFilters = clearAdvancedPurchaseReturnFilters;
+
+// ==========================================================================
+// SIDEBAR TOGGLE, BREADCRUMB, DATE PRESETS & NOTIFICATION BADGES
+// ==========================================================================
+
+// Sidebar collapse/expand with localStorage persistence
+function toggleSidebar() {
+  var sidebar = document.querySelector('.sidebar');
+  if (!sidebar) return;
+  sidebar.classList.toggle('collapsed');
+  var isCollapsed = sidebar.classList.contains('collapsed');
+  localStorage.setItem('sidebar-collapsed', isCollapsed);
+  // Update modal offsets
+  document.querySelectorAll('.modal-overlay').forEach(function(m) {
+    if (isCollapsed) {
+      m.style.left = '68px';
+      m.style.width = 'calc(100% - 68px)';
+    } else {
+      m.style.left = '260px';
+      m.style.width = 'calc(100% - 260px)';
+    }
+  });
+}
+
+// Restore sidebar state on load
+(function restoreSidebarState() {
+  if (localStorage.getItem('sidebar-collapsed') === 'true') {
+    var sidebar = document.querySelector('.sidebar');
+    if (sidebar) sidebar.classList.add('collapsed');
+  }
+})();
+
+// Breadcrumb updater
+function updateBreadcrumb(tabId, subTabId) {
+  var bc = document.getElementById('header-breadcrumb');
+  if (!bc) return;
+  var tabNames = {
+    dashboard: 'Tổng quan', purchase: 'Mua hàng', sales: 'Bán hàng',
+    inventory: 'Kho hàng', partners: 'Khách hàng & NCC', debts: 'Công nợ',
+    cash: 'Quỹ tiền', reports: 'Báo cáo', 'excel-hub': 'Tích hợp Excel',
+    settings: 'Thiết lập', escrow: 'Ký quỹ & Ký cược'
+  };
+  var subTabNames = {
+    invoice: 'Hóa đơn mua', order: 'Đơn đặt hàng', 'return': 'Hàng trả lại',
+    'inventory-list': 'Danh sách kho', 'inventory-ledger': 'Thẻ kho',
+    'sales-invoice': 'Hóa đơn bán', 'sales-return': 'Hàng trả lại (bán)'
+  };
+  var html = '<span class="breadcrumb-item" onclick="switchTab(\'dashboard\')">Trang chủ</span>';
+  html += '<span class="breadcrumb-separator">›</span>';
+  if (subTabId && subTabNames[subTabId]) {
+    html += '<span class="breadcrumb-item" onclick="switchTab(\'' + tabId + '\')">' + (tabNames[tabId] || tabId) + '</span>';
+    html += '<span class="breadcrumb-separator">›</span>';
+    html += '<span class="breadcrumb-item active">' + subTabNames[subTabId] + '</span>';
+  } else {
+    html += '<span class="breadcrumb-item active">' + (tabNames[tabId] || tabId) + '</span>';
+  }
+  bc.innerHTML = html;
+}
+
+// Date preset controller
+function setDatePreset(preset, fromId, toId, filterFnName, btnEl) {
+  var now = new Date();
+  var from, to;
+  to = now.toISOString().split('T')[0];
+  switch (preset) {
+    case 'today':
+      from = to;
+      break;
+    case 'week':
+      var d = new Date(now);
+      d.setDate(d.getDate() - d.getDay() + 1);
+      from = d.toISOString().split('T')[0];
+      break;
+    case 'month':
+      from = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';
+      break;
+    case 'quarter':
+      var qm = Math.floor(now.getMonth() / 3) * 3;
+      from = now.getFullYear() + '-' + String(qm + 1).padStart(2, '0') + '-01';
+      break;
+    case 'year':
+      from = now.getFullYear() + '-01-01';
+      break;
+    default:
+      from = '';
+      to = '';
+  }
+  document.getElementById(fromId).value = from;
+  document.getElementById(toId).value = to;
+  // Highlight active preset
+  if (btnEl) {
+    var parent = btnEl.closest('.date-presets');
+    if (parent) parent.querySelectorAll('.date-preset-btn').forEach(function (b) { b.classList.remove('active'); });
+    btnEl.classList.add('active');
+  }
+  if (filterFnName && window[filterFnName]) window[filterFnName]();
+}
+
+// Sidebar notification badges
+function updateSidebarBadges() {
+  document.querySelectorAll('.nav-badge').forEach(function (b) { b.remove(); });
+  try {
+    var vouchers = (window.state && window.state.vouchers) ? window.state.vouchers : [];
+    var products = (window.state && window.state.products) ? window.state.products : [];
+    // Count unsettled debts
+    var unsettledCount = vouchers.filter(function (v) {
+      return v.type === 'sales' && v.paymentMethod && v.paymentMethod.indexOf('131') !== -1 && (v.remainingBalance > 0);
+    }).length;
+    if (unsettledCount > 0) {
+      var debtsMenuItem = document.querySelector('.menu-item[data-tab="debts"]');
+      if (debtsMenuItem) {
+        var badge = document.createElement('span');
+        badge.className = 'nav-badge badge-amber';
+        badge.textContent = unsettledCount > 99 ? '99+' : unsettledCount;
+        debtsMenuItem.appendChild(badge);
+      }
+    }
+    // Count negative stock
+    var negativeStock = products.filter(function (p) { return p.stock < 0; }).length;
+    if (negativeStock > 0) {
+      var invMenuItem = document.querySelector('.menu-item[data-tab="inventory"]');
+      if (invMenuItem) {
+        var badge2 = document.createElement('span');
+        badge2.className = 'nav-badge';
+        badge2.textContent = negativeStock > 99 ? '99+' : negativeStock;
+        invMenuItem.appendChild(badge2);
+      }
+    }
+  } catch (e) { /* silently ignore badge errors */ }
+}
+
+window.toggleSidebar = toggleSidebar;
+window.updateBreadcrumb = updateBreadcrumb;
+window.setDatePreset = setDatePreset;
+window.updateSidebarBadges = updateSidebarBadges;
+
