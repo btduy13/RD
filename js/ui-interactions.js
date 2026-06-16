@@ -934,231 +934,240 @@ function updateSidebarBadges() {
   } catch (e) { /* silently ignore badge errors */ }
 }
 
+// ==========================================================================
+// HỆ THỐNG CUSTOM AUTOCOMPLETE / COMBOBOX GỢI Ý MẶT HÀNG & ĐỐI TÁC
+// ==========================================================================
+
+let activeInput = null;
+let activeDropdown = null;
+let highlightedIndex = -1;
+let filteredOptions = [];
+
+// Event delegation cho các ô input sử dụng autocomplete datalist gợi ý
+document.addEventListener('focusin', function(e) {
+  const input = e.target;
+  if (input && input.tagName === 'INPUT' && (input.hasAttribute('list') || input.hasAttribute('data-list'))) {
+    initCustomAutocompleteForInput(input);
+  }
+});
+
+function initCustomAutocompleteForInput(input) {
+  if (input.dataset.customAutocompleteInit) {
+    showCustomDropdown(input);
+    return;
+  }
+  input.dataset.customAutocompleteInit = "true";
+  input.autocomplete = "off";
+
+  const listId = input.getAttribute('list') || input.getAttribute('data-list');
+  if (listId) {
+    input.setAttribute('data-list', listId);
+    input.removeAttribute('list');
+  }
+
+  input.addEventListener('input', function() {
+    showCustomDropdown(input);
+  });
+
+  input.addEventListener('focus', function() {
+    showCustomDropdown(input);
+  });
+
+  input.addEventListener('keydown', function(e) {
+    handleAutocompleteKeydown(e, input);
+  });
+  
+  // Hiển thị dropdown gợi ý ngay lập tức
+  showCustomDropdown(input);
+}
+
+function repositionDropdown(input, dropdown) {
+  // Nếu input bị ẩn đi (ví dụ chuyển tab), tự động đóng dropdown
+  if (input.offsetWidth === 0 || input.offsetHeight === 0) {
+    closeCustomDropdown();
+    return;
+  }
+  const rect = input.getBoundingClientRect();
+  dropdown.style.position = 'fixed';
+  dropdown.style.top = rect.bottom + 'px';
+  dropdown.style.left = rect.left + 'px';
+  dropdown.style.width = rect.width + 'px';
+  dropdown.style.zIndex = '999999';
+}
+
+function showCustomDropdown(input) {
+  const listId = input.getAttribute('data-list');
+  if (!listId) return;
+  const datalist = document.getElementById(listId);
+  if (!datalist) return;
+
+  const query = input.value.trim().toLowerCase();
+  filteredOptions = [];
+  const options = datalist.querySelectorAll('option');
+  options.forEach(opt => {
+    const val = opt.value || '';
+    const text = opt.textContent || '';
+    if (!query || val.toLowerCase().includes(query) || text.toLowerCase().includes(query)) {
+      filteredOptions.push({ value: val, label: text });
+    }
+  });
+
+  if (filteredOptions.length === 0) {
+    closeCustomDropdown();
+    return;
+  }
+
+  if (!activeDropdown) {
+    activeDropdown = document.createElement('div');
+    activeDropdown.className = 'custom-autocomplete-dropdown';
+    document.body.appendChild(activeDropdown);
+  }
+
+  repositionDropdown(input, activeDropdown);
+
+  activeDropdown.innerHTML = '';
+  
+  // Tự động highlight giá trị đang trùng khớp hoàn toàn, hoặc mặc định dòng đầu tiên
+  let exactMatchIdx = filteredOptions.findIndex(opt => opt.value === input.value);
+  highlightedIndex = exactMatchIdx !== -1 ? exactMatchIdx : 0;
+
+  filteredOptions.forEach((opt, idx) => {
+    const item = document.createElement('div');
+    item.className = 'autocomplete-option';
+    if (idx === highlightedIndex) {
+      item.classList.add('active');
+    }
+
+    const arrowSpan = document.createElement('span');
+    arrowSpan.className = 'option-arrow';
+    arrowSpan.innerHTML = '➔'; // Mũi tên trỏ đến lựa chọn
+
+    const leftSpan = document.createElement('span');
+    leftSpan.className = 'option-value';
+    leftSpan.textContent = opt.value;
+
+    const rightSpan = document.createElement('span');
+    rightSpan.className = 'option-label';
+    rightSpan.textContent = opt.label;
+
+    item.appendChild(arrowSpan);
+    item.appendChild(leftSpan);
+    item.appendChild(rightSpan);
+
+    item.addEventListener('mousedown', function(e) {
+      e.preventDefault(); // Tránh làm mất focus input
+      selectOption(input, opt.value);
+    });
+
+    item.addEventListener('mouseenter', function() {
+      setHighlightedIndex(idx);
+    });
+
+    activeDropdown.appendChild(item);
+  });
+
+  // Tự động cuộn đến phần tử đang active đầu tiên
+  const activeItem = activeDropdown.querySelector('.autocomplete-option.active');
+  if (activeItem) {
+    activeItem.scrollIntoView({ block: 'nearest' });
+  }
+
+  activeInput = input;
+}
+
+function setHighlightedIndex(idx) {
+  highlightedIndex = idx;
+  if (!activeDropdown) return;
+  const items = activeDropdown.querySelectorAll('.autocomplete-option');
+  items.forEach((item, i) => {
+    if (i === highlightedIndex) {
+      item.classList.add('active');
+      item.scrollIntoView({ block: 'nearest' });
+    } else {
+      item.classList.remove('active');
+    }
+  });
+}
+
+function selectOption(input, value) {
+  input.value = value;
+  
+  // Kích hoạt các sự kiện input và change
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+  
+  closeCustomDropdown();
+}
+
+function closeCustomDropdown() {
+  if (activeDropdown) {
+    activeDropdown.remove();
+    activeDropdown = null;
+  }
+  activeInput = null;
+  highlightedIndex = -1;
+  filteredOptions = [];
+}
+
+function handleAutocompleteKeydown(e, input) {
+  if (!activeDropdown) return;
+
+  const items = activeDropdown.querySelectorAll('.autocomplete-option');
+  if (items.length === 0) return;
+
+  switch (e.key) {
+    case 'ArrowDown':
+      e.preventDefault();
+      setHighlightedIndex((highlightedIndex + 1) % items.length);
+      break;
+    case 'ArrowUp':
+      e.preventDefault();
+      setHighlightedIndex((highlightedIndex - 1 + items.length) % items.length);
+      break;
+    case 'Enter':
+      if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
+        e.preventDefault();
+        selectOption(input, filteredOptions[highlightedIndex].value);
+      }
+      break;
+    case 'Escape':
+      e.preventDefault();
+      closeCustomDropdown();
+      input.blur();
+      break;
+    case 'Tab':
+      if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
+        selectOption(input, filteredOptions[highlightedIndex].value);
+      } else {
+        closeCustomDropdown();
+      }
+      break;
+  }
+}
+
+// Tự động định vị lại khi cuộn màn hình hoặc đổi kích thước cửa sổ
+window.addEventListener('resize', function() {
+  if (activeInput && activeDropdown) {
+    repositionDropdown(activeInput, activeDropdown);
+  }
+});
+
+document.addEventListener('scroll', function() {
+  if (activeInput && activeDropdown) {
+    repositionDropdown(activeInput, activeDropdown);
+  }
+}, { capture: true, passive: true });
+
+// Đóng gợi ý khi nhấp chuột ra ngoài vùng dropdown và input
+document.addEventListener('mousedown', function(e) {
+  if (activeDropdown && !activeDropdown.contains(e.target) && e.target !== activeInput) {
+    closeCustomDropdown();
+  }
+});
+
 window.toggleSidebar = toggleSidebar;
 window.updateBreadcrumb = updateBreadcrumb;
 window.setDatePreset = setDatePreset;
 window.updateSidebarBadges = updateSidebarBadges;
-
-// --- Custom Autocomplete System with Selection Highlighting ---
-(function() {
-  let dropdown = null;
-  let activeInput = null;
-  let filteredItems = [];
-  let activeIndex = -1;
-
-  function createDropdown() {
-    if (dropdown) return;
-    dropdown = document.createElement('div');
-    dropdown.className = 'custom-autocomplete-container';
-    dropdown.style.display = 'none';
-    document.body.appendChild(dropdown);
-
-    // Prevent input blur when clicking inside the dropdown
-    dropdown.addEventListener('mousedown', function(e) {
-      e.preventDefault();
-    });
-  }
-
-  function getDatalistItems(listId) {
-    const datalist = document.getElementById(listId);
-    if (!datalist) return [];
-    return Array.from(datalist.options || datalist.querySelectorAll('option')).map(function(opt) {
-      return {
-        value: opt.value || '',
-        text: opt.textContent || opt.getAttribute('label') || ''
-      };
-    });
-  }
-
-  function showDropdown(input) {
-    createDropdown();
-    activeInput = input;
-    const listId = input.getAttribute('data-list-backup') || input.getAttribute('list');
-    if (!listId) return;
-
-    // Backup and remove list attribute to suppress native autocomplete
-    if (input.getAttribute('list')) {
-      input.setAttribute('data-list-backup', listId);
-      input.removeAttribute('list');
-    }
-
-    renderItems();
-    positionDropdown();
-  }
-
-  function positionDropdown() {
-    if (!dropdown || !activeInput) return;
-    const rect = activeInput.getBoundingClientRect();
-    dropdown.style.left = (rect.left + window.scrollX) + 'px';
-    dropdown.style.top = (rect.bottom + window.scrollY) + 'px';
-    dropdown.style.width = rect.width + 'px';
-    dropdown.style.display = 'block';
-  }
-
-  function hideDropdown() {
-    if (dropdown) {
-      dropdown.style.display = 'none';
-    }
-    activeInput = null;
-    activeIndex = -1;
-  }
-
-  function renderItems() {
-    if (!dropdown || !activeInput) return;
-    const listId = activeInput.getAttribute('data-list-backup');
-    if (!listId) return;
-
-    const allItems = getDatalistItems(listId);
-    const query = activeInput.value.trim().toLowerCase();
-
-    if (query === '') {
-      filteredItems = allItems.slice(0, 100);
-    } else {
-      // Filter items containing query
-      filteredItems = allItems.filter(function(item) {
-        return item.value.toLowerCase().includes(query) || item.text.toLowerCase().includes(query);
-      });
-
-      // Sort matching starts-with first
-      filteredItems.sort(function(a, b) {
-        const aValLower = a.value.toLowerCase();
-        const bValLower = b.value.toLowerCase();
-        const aStarts = aValLower.startsWith(query);
-        const bStarts = bValLower.startsWith(query);
-        if (aStarts && !bStarts) return -1;
-        if (!aStarts && bStarts) return 1;
-        return 0;
-      });
-
-      filteredItems = filteredItems.slice(0, 100);
-    }
-
-    dropdown.innerHTML = '';
-    
-    if (filteredItems.length === 0) {
-      const emptyMsg = document.createElement('div');
-      emptyMsg.className = 'custom-autocomplete-item';
-      emptyMsg.style.justifyContent = 'center';
-      emptyMsg.style.color = 'var(--text-muted)';
-      emptyMsg.style.cursor = 'default';
-      emptyMsg.textContent = 'Không tìm thấy kết quả';
-      dropdown.appendChild(emptyMsg);
-      return;
-    }
-
-    filteredItems.forEach(function(item, index) {
-      const itemEl = document.createElement('div');
-      itemEl.className = 'custom-autocomplete-item';
-      
-      // Highlight currently selected option
-      if (item.value === activeInput.value) {
-        itemEl.classList.add('selected');
-      }
-
-      const valEl = document.createElement('div');
-      valEl.className = 'custom-autocomplete-item-value';
-      valEl.textContent = item.value;
-      itemEl.appendChild(valEl);
-
-      if (item.text) {
-        const txtEl = document.createElement('div');
-        txtEl.className = 'custom-autocomplete-item-text';
-        txtEl.textContent = item.text;
-        itemEl.appendChild(txtEl);
-      }
-
-      itemEl.addEventListener('mousedown', function(e) {
-        e.preventDefault();
-        selectItem(item.value);
-      });
-
-      dropdown.appendChild(itemEl);
-    });
-
-    const selectedIdx = filteredItems.findIndex(function(item) { return item.value === activeInput.value; });
-    activeIndex = selectedIdx !== -1 ? selectedIdx : -1;
-    updateActiveItem();
-  }
-
-  function selectItem(val) {
-    if (!activeInput) return;
-    activeInput.value = val;
-    activeInput.dispatchEvent(new Event('input', { bubbles: true }));
-    activeInput.dispatchEvent(new Event('change', { bubbles: true }));
-    hideDropdown();
-  }
-
-  function updateActiveItem() {
-    if (!dropdown) return;
-    Array.from(dropdown.children).forEach(function(el, index) {
-      if (index === activeIndex) {
-        el.classList.add('kbd-active');
-        el.scrollIntoView({ block: 'nearest' });
-      } else {
-        el.classList.remove('kbd-active');
-      }
-    });
-  }
-
-  document.addEventListener('focusin', function(e) {
-    const target = e.target;
-    if (target && target.tagName === 'INPUT' && (target.getAttribute('list') || target.getAttribute('data-list-backup'))) {
-      showDropdown(target);
-    }
-  });
-
-  document.addEventListener('input', function(e) {
-    const target = e.target;
-    if (activeInput && target === activeInput) {
-      activeIndex = -1;
-      renderItems();
-    }
-  });
-
-  document.addEventListener('keydown', function(e) {
-    if (!activeInput || !dropdown || dropdown.style.display === 'none') return;
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      activeIndex = (activeIndex + 1) % filteredItems.length;
-      updateActiveItem();
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      activeIndex = (activeIndex - 1 + filteredItems.length) % filteredItems.length;
-      updateActiveItem();
-    } else if (e.key === 'Enter') {
-      if (activeIndex >= 0 && activeIndex < filteredItems.length) {
-        e.preventDefault();
-        selectItem(filteredItems[activeIndex].value);
-      }
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      hideDropdown();
-      activeInput.blur();
-    }
-  });
-
-  document.addEventListener('mousedown', function(e) {
-    if (dropdown && dropdown.style.display !== 'none') {
-      if (!dropdown.contains(e.target) && e.target !== activeInput) {
-        hideDropdown();
-      }
-    }
-  });
-
-  window.addEventListener('resize', function() {
-    if (activeInput && dropdown && dropdown.style.display !== 'none') {
-      positionDropdown();
-    }
-  });
-
-  window.addEventListener('scroll', function(e) {
-    if (dropdown && dropdown.style.display !== 'none') {
-      if (e.target !== dropdown && !dropdown.contains(e.target)) {
-        hideDropdown();
-      }
-    }
-  }, true);
-})();
 
 
