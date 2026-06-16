@@ -16,11 +16,22 @@ function initMouseInteractions() {
       document.querySelectorAll("tr.active-row").forEach(r => r.classList.remove("active-row"));
       row.classList.add("active-row");
     }
-    // Ẩn context menu khi nhấp bất kỳ đâu ngoài context menu
+  });
+
+  // Ẩn context menu khi click chuột (trái, phải, giữa) bất kỳ đâu ngoài menu
+  document.addEventListener("mousedown", function (e) {
     if (contextMenu && !e.target.closest("#custom-context-menu")) {
       contextMenu.style.display = "none";
     }
   });
+
+  // Ẩn context menu ngay lập tức khi click chọn một chức năng bên trong nó
+  if (contextMenu) {
+    contextMenu.addEventListener("click", function () {
+      contextMenu.style.display = "none";
+    });
+  }
+
 
   // 2. Nhấp đúp -> Kích hoạt hành động chính
   document.addEventListener("dblclick", function (e) {
