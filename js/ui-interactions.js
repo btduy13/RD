@@ -1002,7 +1002,12 @@ function showCustomDropdown(input) {
   if (!datalist) return;
 
   const query = input.value.trim().toLowerCase();
+  if (query === '') {
+    closeCustomDropdown();
+    return;
+  }
   filteredOptions = [];
+
   const options = datalist.querySelectorAll('option');
   options.forEach(opt => {
     const val = opt.value || '';

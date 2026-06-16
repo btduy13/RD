@@ -1033,6 +1033,11 @@ body {
   border-bottom: 1px solid var(--border-color);
 }
 
+.dynamic-items-table .form-control {
+  width: 100%;
+}
+
+
 .trash-btn {
   background: none;
   border: none;
