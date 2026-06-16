@@ -938,4 +938,227 @@ window.toggleSidebar = toggleSidebar;
 window.updateBreadcrumb = updateBreadcrumb;
 window.setDatePreset = setDatePreset;
 window.updateSidebarBadges = updateSidebarBadges;
+
+// --- Custom Autocomplete System with Selection Highlighting ---
+(function() {
+  let dropdown = null;
+  let activeInput = null;
+  let filteredItems = [];
+  let activeIndex = -1;
+
+  function createDropdown() {
+    if (dropdown) return;
+    dropdown = document.createElement('div');
+    dropdown.className = 'custom-autocomplete-container';
+    dropdown.style.display = 'none';
+    document.body.appendChild(dropdown);
+
+    // Prevent input blur when clicking inside the dropdown
+    dropdown.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+    });
+  }
+
+  function getDatalistItems(listId) {
+    const datalist = document.getElementById(listId);
+    if (!datalist) return [];
+    return Array.from(datalist.options || datalist.querySelectorAll('option')).map(function(opt) {
+      return {
+        value: opt.value || '',
+        text: opt.textContent || opt.getAttribute('label') || ''
+      };
+    });
+  }
+
+  function showDropdown(input) {
+    createDropdown();
+    activeInput = input;
+    const listId = input.getAttribute('data-list-backup') || input.getAttribute('list');
+    if (!listId) return;
+
+    // Backup and remove list attribute to suppress native autocomplete
+    if (input.getAttribute('list')) {
+      input.setAttribute('data-list-backup', listId);
+      input.removeAttribute('list');
+    }
+
+    renderItems();
+    positionDropdown();
+  }
+
+  function positionDropdown() {
+    if (!dropdown || !activeInput) return;
+    const rect = activeInput.getBoundingClientRect();
+    dropdown.style.left = (rect.left + window.scrollX) + 'px';
+    dropdown.style.top = (rect.bottom + window.scrollY) + 'px';
+    dropdown.style.width = rect.width + 'px';
+    dropdown.style.display = 'block';
+  }
+
+  function hideDropdown() {
+    if (dropdown) {
+      dropdown.style.display = 'none';
+    }
+    activeInput = null;
+    activeIndex = -1;
+  }
+
+  function renderItems() {
+    if (!dropdown || !activeInput) return;
+    const listId = activeInput.getAttribute('data-list-backup');
+    if (!listId) return;
+
+    const allItems = getDatalistItems(listId);
+    const query = activeInput.value.trim().toLowerCase();
+
+    if (query === '') {
+      filteredItems = allItems.slice(0, 100);
+    } else {
+      // Filter items containing query
+      filteredItems = allItems.filter(function(item) {
+        return item.value.toLowerCase().includes(query) || item.text.toLowerCase().includes(query);
+      });
+
+      // Sort matching starts-with first
+      filteredItems.sort(function(a, b) {
+        const aValLower = a.value.toLowerCase();
+        const bValLower = b.value.toLowerCase();
+        const aStarts = aValLower.startsWith(query);
+        const bStarts = bValLower.startsWith(query);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        return 0;
+      });
+
+      filteredItems = filteredItems.slice(0, 100);
+    }
+
+    dropdown.innerHTML = '';
+    
+    if (filteredItems.length === 0) {
+      const emptyMsg = document.createElement('div');
+      emptyMsg.className = 'custom-autocomplete-item';
+      emptyMsg.style.justifyContent = 'center';
+      emptyMsg.style.color = 'var(--text-muted)';
+      emptyMsg.style.cursor = 'default';
+      emptyMsg.textContent = 'Không tìm thấy kết quả';
+      dropdown.appendChild(emptyMsg);
+      return;
+    }
+
+    filteredItems.forEach(function(item, index) {
+      const itemEl = document.createElement('div');
+      itemEl.className = 'custom-autocomplete-item';
+      
+      // Highlight currently selected option
+      if (item.value === activeInput.value) {
+        itemEl.classList.add('selected');
+      }
+
+      const valEl = document.createElement('div');
+      valEl.className = 'custom-autocomplete-item-value';
+      valEl.textContent = item.value;
+      itemEl.appendChild(valEl);
+
+      if (item.text) {
+        const txtEl = document.createElement('div');
+        txtEl.className = 'custom-autocomplete-item-text';
+        txtEl.textContent = item.text;
+        itemEl.appendChild(txtEl);
+      }
+
+      itemEl.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        selectItem(item.value);
+      });
+
+      dropdown.appendChild(itemEl);
+    });
+
+    const selectedIdx = filteredItems.findIndex(function(item) { return item.value === activeInput.value; });
+    activeIndex = selectedIdx !== -1 ? selectedIdx : -1;
+    updateActiveItem();
+  }
+
+  function selectItem(val) {
+    if (!activeInput) return;
+    activeInput.value = val;
+    activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+    activeInput.dispatchEvent(new Event('change', { bubbles: true }));
+    hideDropdown();
+  }
+
+  function updateActiveItem() {
+    if (!dropdown) return;
+    Array.from(dropdown.children).forEach(function(el, index) {
+      if (index === activeIndex) {
+        el.classList.add('kbd-active');
+        el.scrollIntoView({ block: 'nearest' });
+      } else {
+        el.classList.remove('kbd-active');
+      }
+    });
+  }
+
+  document.addEventListener('focusin', function(e) {
+    const target = e.target;
+    if (target && target.tagName === 'INPUT' && (target.getAttribute('list') || target.getAttribute('data-list-backup'))) {
+      showDropdown(target);
+    }
+  });
+
+  document.addEventListener('input', function(e) {
+    const target = e.target;
+    if (activeInput && target === activeInput) {
+      activeIndex = -1;
+      renderItems();
+    }
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (!activeInput || !dropdown || dropdown.style.display === 'none') return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIndex = (activeIndex + 1) % filteredItems.length;
+      updateActiveItem();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIndex = (activeIndex - 1 + filteredItems.length) % filteredItems.length;
+      updateActiveItem();
+    } else if (e.key === 'Enter') {
+      if (activeIndex >= 0 && activeIndex < filteredItems.length) {
+        e.preventDefault();
+        selectItem(filteredItems[activeIndex].value);
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      hideDropdown();
+      activeInput.blur();
+    }
+  });
+
+  document.addEventListener('mousedown', function(e) {
+    if (dropdown && dropdown.style.display !== 'none') {
+      if (!dropdown.contains(e.target) && e.target !== activeInput) {
+        hideDropdown();
+      }
+    }
+  });
+
+  window.addEventListener('resize', function() {
+    if (activeInput && dropdown && dropdown.style.display !== 'none') {
+      positionDropdown();
+    }
+  });
+
+  window.addEventListener('scroll', function(e) {
+    if (dropdown && dropdown.style.display !== 'none') {
+      if (e.target !== dropdown && !dropdown.contains(e.target)) {
+        hideDropdown();
+      }
+    }
+  }, true);
+})();
+
 
