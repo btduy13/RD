@@ -514,18 +514,23 @@ let editingSalesReturnId = null;
 function switchSalesSubTab(subTabId) {
   const btnInvoice = document.getElementById("tab-btn-sales-invoice");
   const btnReturn = document.getElementById("tab-btn-sales-return");
+  const btnQuotation = document.getElementById("tab-btn-sales-quotation");
 
   if (btnInvoice) btnInvoice.classList.remove("active");
   if (btnReturn) btnReturn.classList.remove("active");
+  if (btnQuotation) btnQuotation.classList.remove("active");
 
   if (subTabId === "invoice" && btnInvoice) btnInvoice.classList.add("active");
   if (subTabId === "return" && btnReturn) btnReturn.classList.add("active");
+  if (subTabId === "quotation" && btnQuotation) btnQuotation.classList.add("active");
 
   const panelInvoice = document.getElementById("sales-subtab-invoice");
   const panelReturn = document.getElementById("sales-subtab-return");
+  const panelQuotation = document.getElementById("sales-subtab-quotation");
 
   if (panelInvoice) panelInvoice.style.display = "none";
   if (panelReturn) panelReturn.style.display = "none";
+  if (panelQuotation) panelQuotation.style.display = "none";
 
   if (subTabId === "invoice" && panelInvoice) {
     panelInvoice.style.display = "block";
@@ -533,6 +538,9 @@ function switchSalesSubTab(subTabId) {
   } else if (subTabId === "return" && panelReturn) {
     panelReturn.style.display = "block";
     renderSalesReturnTable();
+  } else if (subTabId === "quotation" && panelQuotation) {
+    panelQuotation.style.display = "block";
+    renderQuotationTable();
   }
 }
 
@@ -1236,6 +1244,586 @@ function exportSalesReturnsToExcel() {
     showToast(`Lỗi xuất Excel hàng bán trả lại: ${err.message}`, "danger");
   }
 }
+
+// ==========================================================================
+// PHÂN HỆ BÁO GIÁ (QUOTATION)
+// ==========================================================================
+
+let quotationCurrentPage = 1;
+let editingQuotationId = null;
+
+function resetEditingQuotationId() {
+  editingQuotationId = null;
+}
+
+// renderQuotationTable
+function renderQuotationTable() {
+  const tbody = document.getElementById("quotation-table-body");
+  if (!tbody) return;
+
+  let quotations = state.vouchers.filter(v => v.type === "sales_quotation");
+
+  // Advanced search filters
+  const query = document.getElementById("search-quotation") ? document.getElementById("search-quotation").value : "";
+  const fromDate = document.getElementById("search-quotation-from") ? document.getElementById("search-quotation-from").value : "";
+  const toDate = document.getElementById("search-quotation-to") ? document.getElementById("search-quotation-to").value : "";
+  const advPayment = document.getElementById("adv-filter-quotation-payment") ? document.getElementById("adv-filter-quotation-payment").value : "";
+
+  if (query) {
+    quotations = quotations.filter(v => {
+      const partnerName = getPartnerNameForVoucher(v);
+      const combined = `${v.id || ""}\t${partnerName}\t${v.description || ""}`;
+      return matchAdvancedQuery(combined, query, v.totalAmount);
+    });
+  }
+
+  if (fromDate) {
+    quotations = quotations.filter(v => v.date >= fromDate);
+  }
+  if (toDate) {
+    quotations = quotations.filter(v => v.date <= toDate);
+  }
+  if (advPayment) {
+    quotations = quotations.filter(v => v.paymentMethod === advPayment);
+  }
+
+  // Sắp xếp GIẢM DẦN theo ngày chứng từ (mới nhất lên trước), nếu cùng ngày thì theo số chứng từ giảm dần
+  quotations.sort((a, b) => {
+    if (b.date !== a.date) {
+      return b.date.localeCompare(a.date);
+    }
+    return b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' });
+  });
+
+  const totalCount = quotations.length;
+  const totalPages = Math.ceil(totalCount / 30) || 1;
+
+  if (quotationCurrentPage > totalPages) quotationCurrentPage = totalPages;
+  if (quotationCurrentPage < 1) quotationCurrentPage = 1;
+
+  const startIdx = (quotationCurrentPage - 1) * 30;
+  const displayedQuotations = quotations.slice(startIdx, startIdx + 30);
+
+  // Cập nhật thông tin phân trang trên tiêu đề bảng
+  const countEl = document.getElementById("quotation-pagination-info");
+  if (countEl) {
+    countEl.innerText = `Hiển thị báo giá từ ${totalCount > 0 ? startIdx + 1 : 0} - ${Math.min(startIdx + 30, totalCount)} trong số ${totalCount} báo giá (Trang ${quotationCurrentPage}/${totalPages})`;
+  }
+
+  // Reset check-all-quotation checkbox
+  const checkAll = document.getElementById("check-all-quotation");
+  if (checkAll) checkAll.checked = false;
+  updateBatchQuotationsUI();
+
+  // Render phân trang bằng shared component
+  renderPagination('quotation-pagination-controls', quotationCurrentPage, totalPages, totalCount, 'changeQuotationPage');
+
+  if (displayedQuotations.length === 0) {
+    renderEmptyState(tbody, 8, 'Không tìm thấy phiếu báo giá', 'Nhấn nút tạo mới để thêm báo giá');
+    return;
+  }
+
+  tbody.innerHTML = displayedQuotations.map(v => {
+    const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
+    return `
+      <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
+        <td style="text-align: center;">
+          <input type="checkbox" class="quotation-checkbox" value="${escapeHtmlAttr(v.id)}" onchange="updateBatchQuotationsUI()">
+        </td>
+        <td class="font-numeric" style="color: var(--color-success); font-weight:700;">${v.id}</td>
+        <td>${formattedDate}</td>
+        <td><span style="font-weight:600;">${getPartnerNameForVoucher(v)}</span></td>
+        <td>${v.description}</td>
+        <td><span class="badge ${v.paymentMethod === '131' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '131' ? 'Công nợ (131)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
+        <td class="text-right font-numeric" style="font-weight:700; color:var(--color-success);">${formatVND(v.totalAmount)}</td>
+        <td style="text-align: center;">
+          <div style="display:flex; justify-content:center; gap:6px;">
+            <button class="print-btn" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')" title="Xem và In mẫu báo giá" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-success); cursor: pointer; transition: all 0.2s;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            </button>
+            <button class="edit-btn" onclick="editQuotationVoucher('${escapeHtmlAttr(v.id)}')" title="Chỉnh sửa báo giá" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-primary); cursor: pointer; transition: all 0.2s;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            </button>
+            <button class="trash-btn" onclick="deleteVoucher('${escapeHtmlAttr(v.id)}')" title="Xóa báo giá" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-danger); cursor: pointer; transition: all 0.2s;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function filterQuotationTable() {
+  quotationCurrentPage = 1;
+  renderQuotationTable();
+}
+
+function clearQuotationDateFilter() {
+  const fromEl = document.getElementById("search-quotation-from");
+  const toEl = document.getElementById("search-quotation-to");
+  if (fromEl) fromEl.value = "";
+  if (toEl) toEl.value = "";
+  filterQuotationTable();
+}
+
+function changeQuotationPage(p) {
+  quotationCurrentPage = p;
+  renderQuotationTable();
+}
+
+// Bổ sung các hàng sản phẩm động vào form Báo giá
+function addQuotationFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
+  const tbody = document.getElementById("quotation-form-items-body");
+  if (!tbody) return;
+
+  const rowId = `quotation-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+  const tr = document.createElement("tr");
+  tr.id = rowId;
+  tr.innerHTML = `
+    <td>
+      <input type="text" class="form-control item-productId" placeholder="Gõ mã hoặc tên sản phẩm..." required list="datalist-sales-products" oninput="autoFillQuotationPrice(this)" onblur="autoFillQuotationPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
+    </td>
+    <td>
+      <input type="text" class="form-control item-qty text-right number-format" required value="${qtyVal}" oninput="recalculateQuotationTotals()">
+    </td>
+    <td>
+      <input type="text" class="form-control item-price text-right number-format" required value="${Number(priceVal).toLocaleString("vi-VN")}" oninput="recalculateQuotationTotals()">
+    </td>
+    <td>
+      <input type="text" class="form-control item-discount text-right number-format" required value="${discountVal}" oninput="recalculateQuotationTotals()" placeholder="0">
+    </td>
+    <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
+    <td style="text-align: center;">
+      <button type="button" class="trash-btn" onclick="document.getElementById('${rowId}').remove(); recalculateQuotationTotals();">×</button>
+    </td>
+  `;
+
+  tbody.appendChild(tr);
+  recalculateQuotationTotals();
+
+  // Auto-focus vào ô sản phẩm của dòng vừa tạo
+  const allRows = tbody.querySelectorAll("tr");
+  const newRow = allRows[allRows.length - 1];
+  if (newRow) {
+    const firstInput = newRow.querySelector(".item-productId");
+    if (firstInput) {
+      setTimeout(() => { firstInput.focus(); }, 30);
+    }
+  }
+}
+
+// Lấy giá bán từ thông tin mặt hàng cho báo giá
+function autoFillQuotationPrice(selectEl) {
+  const prodVal = selectEl.value;
+  const prod = resolveProduct(prodVal);
+  const row = selectEl.closest("tr");
+
+  if (prod && row) {
+    if (document.activeElement !== selectEl) {
+      selectEl.value = `${prod.name} (${prod.id})`;
+    }
+    ensureProductExcelRow(prod);
+    const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
+      ? prod.salePrice1
+      : (prod.excelRow && prod.excelRow[21] !== undefined && Number(prod.excelRow[21]) > 0
+        ? Number(prod.excelRow[21])
+        : (Math.round(prod.avgCost * 1.35 / 1000) * 1000 || 50000));
+
+    row.querySelector(".item-price").value = Number(salePriceVal).toLocaleString("vi-VN");
+    recalculateQuotationTotals();
+  }
+}
+
+// Tính toán lại tổng tiền trong form Báo giá
+function recalculateQuotationTotals() {
+  const rows = document.querySelectorAll("#quotation-form-items-body tr");
+  let subtotal = 0;
+
+  rows.forEach(row => {
+    const qty = parseInt(row.querySelector(".item-qty").value.replace(/\D/g, "")) || 0;
+    const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/\D/g, "")) || 0;
+    const amount = Math.round(qty * price * (1 - discount / 100));
+    subtotal += amount;
+
+    row.querySelector(".item-total-display").innerText = formatVND(amount);
+  });
+
+  const taxRate = parseInt(document.getElementById("quotation-tax-rate").value) || 0;
+  const taxAmount = Math.round(subtotal * (taxRate / 100));
+  const total = subtotal + taxAmount;
+
+  document.getElementById("quotation-subtotal-display").value = formatVND(subtotal);
+  document.getElementById("quotation-tax-display").value = formatVND(taxAmount);
+  document.getElementById("quotation-total-display").value = formatVND(total);
+}
+
+// Reset form báo giá
+function resetQuotationForm() {
+  editingQuotationId = null;
+  const modalTitle = document.querySelector("#modal-add-sales-quotation .card-title");
+  if (modalTitle) modalTitle.innerText = "Lập Phiếu Báo Giá";
+
+  const idEl = document.getElementById("quotation-id");
+  if (idEl) idEl.value = "";
+
+  const tbody = document.getElementById("quotation-form-items-body");
+  if (tbody) tbody.innerHTML = "";
+  document.getElementById("quotation-desc").value = "Báo giá hàng hóa";
+  document.getElementById("quotation-date").value = new Date().toISOString().split("T")[0];
+  addQuotationFormRow();
+  setTimeout(() => {
+    const el = document.getElementById("quotation-partner");
+    if (el) { el.focus(); el.select && el.select(); }
+  }, 60);
+}
+
+function generateNextQuotationVoucherId() {
+  const prefix = "BG";
+  const regex = new RegExp(`^${prefix}(\\d+)$`);
+  let maxNum = 0;
+
+  state.vouchers.forEach(v => {
+    const match = v.id.match(regex);
+    if (match) {
+      const num = parseInt(match[1]);
+      if (num > maxNum) maxNum = num;
+    }
+  });
+
+  if (maxNum === 0) {
+    maxNum = 10000;
+  }
+
+  return `${prefix}${maxNum + 1}`;
+}
+
+// Xử lý nộp form Báo giá
+function handleQuotationSubmit(e) {
+  e.preventDefault();
+
+  const modal = document.getElementById("modal-add-sales-quotation");
+  if (modal && (modal.style.display === "none" || window.getComputedStyle(modal).display === "none")) {
+    return;
+  }
+
+  const inputIdEl = document.getElementById("quotation-id");
+  let voucherId = inputIdEl ? inputIdEl.value.trim() : "";
+
+  if (editingQuotationId) {
+    if (!voucherId) {
+      showToast("Số báo giá không được để trống!", "danger");
+      return;
+    }
+  } else {
+    if (!voucherId) {
+      voucherId = generateNextQuotationVoucherId();
+      if (inputIdEl) inputIdEl.value = voucherId;
+    }
+  }
+
+  // Kiểm tra trùng số chứng từ
+  const isDuplicate = state.vouchers.some(v => {
+    if (editingQuotationId && v.id.toLowerCase() === editingQuotationId.toLowerCase()) return false;
+    return v.id.toLowerCase() === voucherId.toLowerCase();
+  });
+
+  if (isDuplicate) {
+    showToast("Số báo giá đã tồn tại, vui lòng nhập số khác!", "danger");
+    return;
+  }
+
+  const rows = document.querySelectorAll("#quotation-form-items-body tr");
+  if (rows.length === 0) {
+    showToast("Vui lòng thêm ít nhất một sản phẩm cần báo giá!", "danger");
+    return;
+  }
+
+  const partnerInputVal = document.getElementById("quotation-partner").value;
+  const resolvedPartner = resolvePartner(partnerInputVal);
+  const partnerId = resolvedPartner.id;
+  const partnerName = resolvedPartner.name;
+
+  const voucherItems = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const productInputVal = row.querySelector(".item-productId").value;
+    const resolvedProduct = resolveProduct(productInputVal);
+
+    if (!resolvedProduct) {
+      showToast(`Không tìm thấy sản phẩm nào khớp với từ khóa "${productInputVal}"!`, "danger");
+      return;
+    }
+
+    const productId = resolvedProduct.id;
+    const qty = parseInt(row.querySelector(".item-qty").value.replace(/\D/g, "")) || 0;
+    const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/\D/g, "")) || 0;
+    const amount = Math.round(qty * price * (1 - discount / 100));
+
+    voucherItems.push({
+      productId,
+      qty,
+      price,
+      discount,
+      amount
+    });
+  }
+
+  const newVoucher = {
+    id: voucherId,
+    type: "sales_quotation",
+    date: document.getElementById("quotation-date").value,
+    partnerId,
+    partnerName,
+    paymentMethod: document.getElementById("quotation-payment").value,
+    description: document.getElementById("quotation-desc").value,
+    items: voucherItems,
+    taxRate: parseInt(document.getElementById("quotation-tax-rate").value),
+    isManual: true,
+    _sessionId: clientSessionId
+  };
+
+  if (editingQuotationId) {
+    const idx = state.vouchers.findIndex(v => v.id === editingQuotationId);
+    if (idx !== -1) {
+      if (state.vouchers[idx].excelRow) {
+        newVoucher.excelRow = state.vouchers[idx].excelRow;
+      }
+      state.vouchers[idx] = newVoucher;
+    }
+    
+    if (voucherId !== editingQuotationId) {
+      if (typeof trackDeletedIds === "function") {
+        trackDeletedIds([editingQuotationId]);
+      }
+    }
+    editingQuotationId = null;
+  } else {
+    state.vouchers.push(newVoucher);
+  }
+
+  saveState();
+  recalculateAccounting();
+
+  closeModal("modal-add-sales-quotation");
+  showToast("Lập phiếu báo giá thành công!", "success");
+}
+
+function editQuotationVoucher(id) {
+  const v = state.vouchers.find(v => v.id === id);
+  if (!v) return;
+
+  editingQuotationId = id;
+
+  const modalTitle = document.querySelector("#modal-add-sales-quotation .card-title");
+  if (modalTitle) modalTitle.innerText = `Chỉnh sửa phiếu báo giá: ${id}`;
+
+  const idEl = document.getElementById("quotation-id");
+  if (idEl) idEl.value = v.id;
+
+  document.getElementById("quotation-date").value = v.date;
+  document.getElementById("quotation-partner").value = getPartnerNameForVoucher(v);
+  document.getElementById("quotation-desc").value = v.description;
+  document.getElementById("quotation-payment").value = v.paymentMethod;
+  if (document.getElementById("quotation-tax-rate")) {
+    document.getElementById("quotation-tax-rate").value = v.taxRate || 0;
+  }
+
+  const tbody = document.getElementById("quotation-form-items-body");
+  if (tbody) tbody.innerHTML = "";
+
+  v.items.forEach(item => {
+    const prod = state.products.find(p => String(p.id) === String(item.productId));
+    const prodVal = prod ? `${prod.name} (${prod.id})` : item.productId;
+    let discountPercent = item.discount || 0;
+    if (discountPercent > 100) {
+      const gross = (item.qty || 0) * (item.price || 0);
+      discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100 * 100) / 100 : 0;
+    }
+    addQuotationFormRow(prodVal, item.qty, item.price, discountPercent);
+  });
+
+  openModal("modal-add-sales-quotation");
+}
+
+function toggleSelectAllQuotations(masterCheckbox) {
+  const checkboxes = document.querySelectorAll(".quotation-checkbox");
+  checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+  updateBatchQuotationsUI();
+}
+
+function updateBatchQuotationsUI() {
+  const checkboxes = document.querySelectorAll(".quotation-checkbox:checked");
+  const count = checkboxes.length;
+  const batchBtn = document.getElementById("btn-batch-delete-quotation");
+  const countEl = document.getElementById("selected-quotations-count");
+
+  if (batchBtn) {
+    if (count > 0) {
+      batchBtn.style.display = "inline-flex";
+    } else {
+      batchBtn.style.display = "none";
+    }
+  }
+  if (countEl) countEl.innerText = count;
+}
+
+function batchDeleteQuotations() {
+  const checkboxes = document.querySelectorAll(".quotation-checkbox:checked");
+  const ids = Array.from(checkboxes).map(cb => cb.value);
+  if (ids.length === 0) return;
+
+  if (confirm(`Bạn có chắc chắn muốn xóa ${ids.length} báo giá đã chọn không?`)) {
+    try {
+      trackDeletedIds(ids);
+      state.vouchers = state.vouchers.filter(v => !ids.includes(v.id));
+      showToast(`Đã xóa thành công ${ids.length} báo giá!`, "success");
+      saveState();
+      recalculateAccounting();
+    } catch (err) {
+      console.error(err);
+      showToast(`Lỗi khi xóa hàng loạt báo giá: ${err.message}`, "danger");
+    }
+  }
+}
+
+// exportQuotationsToExcel
+function exportQuotationsToExcel() {
+  if (typeof XLSX === "undefined") {
+    showToast("Thư viện SheetJS chưa được nạp!", "danger");
+    return;
+  }
+  let filteredQuotations = state.vouchers.filter(v => v.type === "sales_quotation");
+
+  const query = document.getElementById("search-quotation") ? document.getElementById("search-quotation").value.toLowerCase() : "";
+  const fromDate = document.getElementById("search-quotation-from") ? document.getElementById("search-quotation-from").value : "";
+  const toDate = document.getElementById("search-quotation-to") ? document.getElementById("search-quotation-to").value : "";
+
+  if (query) filteredQuotations = filteredQuotations.filter(v =>
+    (v.id || "").toLowerCase().includes(query) ||
+    (v.partnerName || "").toLowerCase().includes(query) ||
+    (v.description || "").toLowerCase().includes(query)
+  );
+  if (fromDate) filteredQuotations = filteredQuotations.filter(v => v.date >= fromDate);
+  if (toDate) filteredQuotations = filteredQuotations.filter(v => v.date <= toDate);
+  filteredQuotations.sort((a, b) => new Date(a.date) - new Date(b.date) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+
+  try {
+    const wb = XLSX.utils.book_new();
+    const ws = {};
+    const merges = [];
+
+    const thin = { style: "thin", color: { rgb: "AAAAAA" } };
+    const border4 = { top: thin, bottom: thin, left: thin, right: thin };
+    const hdrBg = { patternType: "solid", fgColor: { rgb: "1F497D" } };
+    const altBg = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
+    const totBg = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
+    const fntT = { name: "Times New Roman", sz: 13, bold: true };
+    const fntSub = { name: "Times New Roman", sz: 11, italic: true };
+    const fntH = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
+    const fntB = { name: "Times New Roman", sz: 11, bold: true };
+    const fntN = { name: "Times New Roman", sz: 11 };
+    const cC = { horizontal: "center", vertical: "center" };
+    const cL = { horizontal: "left", vertical: "center", wrapText: true };
+    const cR = { horizontal: "right", vertical: "center" };
+    const numFmt = "#,##0 ;[Red](#,##0)";
+
+    const sc = (r, c, v, t, s, z) => {
+      const key = XLSX.utils.encode_cell({ r, c });
+      const cell = { v, t: t || (typeof v === 'number' ? 'n' : 's') };
+      if (s) cell.s = s;
+      if (z) cell.z = z;
+      ws[key] = cell;
+    };
+
+    const today = new Date().toLocaleDateString('vi-VN');
+    sc(0, 0, (state.companyName || "Công Ty Cổ Phần Rạng Đông") + " — DANH SÁCH BÁO GIÁ", 's', { font: fntT, alignment: cC });
+    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 9 } });
+
+    sc(1, 0, `Từ ngày: ${fromDate || 'đầu kỳ'}   Đến ngày: ${toDate || today}`, 's', { font: fntSub, alignment: cC });
+    merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 9 } });
+
+    const headers = ["Ngày báo giá", "Số báo giá", "Khách hàng", "Diễn giải", "Mã hàng", "Tên hàng", "ĐVT", "Số lượng", "Đơn giá", "Tổng thanh toán"];
+    headers.forEach((h, c) => sc(2, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: border4 }));
+
+    let rowIdx = 3;
+    let totalAmt = 0;
+
+    filteredQuotations.forEach((v, idx) => {
+      const bg = idx % 2 === 0 ? null : altBg;
+      const bs = (al) => ({ font: fntN, fill: bg, alignment: al, border: border4 });
+
+      const dateStr = v.date ? v.date.split("-").reverse().join("/") : "";
+      
+      v.items.forEach(item => {
+        const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: item.productId };
+
+        sc(rowIdx, 0, dateStr, 's', bs(cC));
+        sc(rowIdx, 1, v.id, 's', bs(cC));
+        sc(rowIdx, 2, v.partnerName, 's', bs(cL));
+        sc(rowIdx, 3, v.description, 's', bs(cL));
+        sc(rowIdx, 4, item.productId, 's', bs(cC));
+        sc(rowIdx, 5, prod.name, 's', bs(cL));
+        sc(rowIdx, 6, prod.unit || "Cái", 's', bs(cC));
+        sc(rowIdx, 7, item.qty, 'n', bs(cR), "#,##0.0");
+        sc(rowIdx, 8, item.price, 'n', bs(cR), numFmt);
+        sc(rowIdx, 9, item.amount, 'n', bs(cR), numFmt);
+
+        totalAmt += item.amount;
+        rowIdx++;
+      });
+    });
+
+    // ROW CỐI: Tổng cộng
+    sc(rowIdx, 0, "TỔNG CỘNG", 's', { font: fntB, fill: totBg, alignment: cC, border: border4 });
+    merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 8 } });
+    for (let c = 1; c <= 8; c++) {
+      sc(rowIdx, c, "", 's', { fill: totBg, border: border4 });
+    }
+    sc(rowIdx, 9, totalAmt, 'n', { font: fntB, fill: totBg, alignment: cR, border: border4 }, numFmt);
+
+    ws['!merges'] = merges;
+    ws['!ref'] = `A1:J${rowIdx + 1}`;
+    ws['!cols'] = [
+      { wch: 14 }, { wch: 14 }, { wch: 25 }, { wch: 30 }, { wch: 12 },
+      { wch: 25 }, { wch: 8 }, { wch: 12 }, { wch: 14 }, { wch: 16 }
+    ];
+    ws['!rows'] = [
+      { hpt: 22 }, { hpt: 20 }, { hpt: 22 }
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Bao gia chi tiet");
+
+    let dateRangeSuffix = "";
+    if (fromDate || toDate) dateRangeSuffix = `_${fromDate || ""}_${toDate || ""}`;
+    const outName = `Bao_gia_chi_tiet_${new Date().toISOString().split('T')[0]}${dateRangeSuffix}.xlsx`;
+    XLSX.writeFile(wb, outName);
+    showToast(`Đã xuất Excel: ${outName}`, "success");
+  } catch (err) {
+    console.error(err);
+    showToast(`Lỗi xuất Excel báo giá: ${err.message}`, "danger");
+  }
+}
+
+window.resetEditingQuotationId = resetEditingQuotationId;
+window.renderQuotationTable = renderQuotationTable;
+window.filterQuotationTable = filterQuotationTable;
+window.toggleSelectAllQuotations = toggleSelectAllQuotations;
+window.updateBatchQuotationsUI = updateBatchQuotationsUI;
+window.batchDeleteQuotations = batchDeleteQuotations;
+window.editQuotationVoucher = editQuotationVoucher;
+window.resetQuotationForm = resetQuotationForm;
+window.changeQuotationPage = changeQuotationPage;
+window.clearQuotationDateFilter = clearQuotationDateFilter;
+window.addQuotationFormRow = addQuotationFormRow;
+window.autoFillQuotationPrice = autoFillQuotationPrice;
+window.recalculateQuotationTotals = recalculateQuotationTotals;
+window.handleQuotationSubmit = handleQuotationSubmit;
+window.exportQuotationsToExcel = exportQuotationsToExcel;
 
 window.resetEditingSalesId = resetEditingSalesId;
 window.renderSalesTable = renderSalesTable;

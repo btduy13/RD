@@ -37,8 +37,11 @@ function renderTabIfNeeded(tabId) {
       }
     } else if (tabId === "sales") {
       const btnReturn = document.getElementById("tab-btn-sales-return");
+      const btnQuotation = document.getElementById("tab-btn-sales-quotation");
       if (btnReturn && btnReturn.classList.contains("active")) {
         if (typeof renderSalesReturnTable === "function") renderSalesReturnTable();
+      } else if (btnQuotation && btnQuotation.classList.contains("active")) {
+        if (typeof renderQuotationTable === "function") renderQuotationTable();
       } else {
         renderSalesTable();
       }
@@ -758,6 +761,160 @@ function viewVoucher(id) {
           
           <div style="width: 30%; page-break-inside: avoid; break-inside: avoid;">
             <strong>Người lập phiếu</strong><br>
+            <span style="font-style: italic; font-size: 9.5px; color: #555;">(Ký, họ tên)</span>
+            <div style="height: 50px;"></div>
+          </div>
+        </div>
+
+      </div>
+    `;
+  } else if (v.type === "sales_quotation") {
+    // Báo giá -> Phiếu báo giá chi tiết
+    let grossTotal = 0;
+    let totalDiscount = 0;
+
+    v.items.forEach(item => {
+      const itemGross = (item.qty || 0) * (item.price || 0);
+      let discountPercent = item.discount || 0;
+      if (discountPercent > 100) {
+        discountPercent = itemGross > 0 ? (discountPercent / itemGross) * 100 : 0;
+      }
+      const itemDiscountVal = itemGross * (discountPercent / 100);
+      grossTotal += itemGross;
+      totalDiscount += itemDiscountVal;
+    });
+
+    content = `
+      <div class="printable-voucher" style="max-width: 800px; padding: 8px; font-family: 'Times New Roman', Times, serif; font-size: 11px; color: #000; line-height: 1.25;">
+        
+        <!-- Header: Logo Rạng Đông bên trái & Thông tin công ty ở giữa -->
+        <div style="position: relative; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 8px; text-align: center; min-height: 50px;">
+          <div style="position: absolute; left: 0; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content: center; width: 80px;">
+            <img src="logo.jpg" style="max-height: 45px; max-width: 75px; object-fit: contain;" alt="Logo Rạng Đông" />
+          </div>
+
+          <div style="color: #000; padding: 0 10px 0 90px;">
+            <div style="font-weight: bold; font-size: 12px; text-transform: uppercase; letter-spacing: 0.2px; white-space: nowrap;">CÔNG TY CỔ PHẦN RẠNG ĐÔNG</div>
+            <div style="font-weight: bold; font-size: 9.5px; text-transform: uppercase; margin-top: 2px; white-space: nowrap;">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY</div>
+            <div style="font-size: 9.5px; margin-top: 2px; white-space: nowrap;">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh</div>
+            <div style="font-size: 9.5px; margin-top: 1px; font-weight: 500; white-space: nowrap;">Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074</div>
+          </div>
+        </div>
+
+        <!-- Tiêu đề Phiếu báo giá -->
+        <div style="text-align: center; margin-bottom: 10px;">
+          <div style="font-size: 18px; font-weight: bold; letter-spacing: 1.2px; text-transform: uppercase;">BẢNG BÁO GIÁ</div>
+          <span style="font-size: 10px; color: #666; font-style: italic;">(Số: ${v.id} - Không hạch toán kho & kế toán)</span>
+        </div>
+
+        <!-- Phần thông tin khách hàng và ngày hóa đơn -->
+        <div style="display: grid; grid-template-columns: 2fr 1fr; row-gap: 3px; column-gap: 12px; margin-bottom: 8px; font-size: 10.5px;">
+          <div>
+            <strong>Kính gửi khách hàng:</strong> <span style="font-size: 12.5px; font-weight: bold;">${partnerName}</span>
+          </div>
+          <div style="text-align: right;">
+            <strong>Ngày lập:</strong> ${v.date.substring(8, 10)}/${v.date.substring(5, 7)}/${v.date.substring(0, 4)}
+          </div>
+          
+          <div>
+            <strong>Điện thoại:</strong> <span>${(getPartnerForVoucher(v) || {}).phone || "-"}</span>
+          </div>
+          <div style="text-align: right;">
+            <strong>Số báo giá:</strong> <span style="font-family: monospace; font-weight: bold; font-size: 13px;">${v.id}</span>
+          </div>
+
+          <div style="grid-column: span 2;">
+            <strong>Địa chỉ:</strong> <span>${(getPartnerForVoucher(v) || {}).address || "-"}</span>
+          </div>
+          
+          <div style="grid-column: span 2;">
+            <strong>Nội dung báo giá:</strong> ${v.description || `Báo giá hàng hóa cho ${partnerName}`}
+          </div>
+        </div>
+
+        <!-- Bảng sản phẩm -->
+        <table class="voucher-table" style="width: 100%; border-collapse: collapse; margin-bottom: 10px; border: 1.5px solid #000;">
+          <thead>
+            <tr style="background-color: #f3f4f6;">
+              <th style="border: 1px solid #000; padding: 4px 4px; text-align: center; font-weight: bold; width: 5%;">TT</th>
+              <th style="border: 1px solid #000; padding: 4px 6px; text-align: left; font-weight: bold; width: 45%;">Tên sản phẩm / quy cách</th>
+              <th style="border: 1px solid #000; padding: 4px 4px; text-align: center; font-weight: bold; width: 8%;">ĐV</th>
+              <th style="border: 1px solid #000; padding: 4px 4px; text-align: right; font-weight: bold; width: 10%;">Số lượng</th>
+              <th style="border: 1px solid #000; padding: 4px 4px; text-align: right; font-weight: bold; width: 12%;">Đơn giá</th>
+              <th style="border: 1px solid #000; padding: 4px 4px; text-align: right; font-weight: bold; width: 15%;">Thành tiền</th>
+              <th style="border: 1px solid #000; padding: 4px 4px; text-align: center; font-weight: bold; width: 5%;">C.K</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${v.items.map((item, idx) => {
+              const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: item.productId };
+              const qtyFormatted = Number.isInteger(item.qty) ? `${item.qty},0` : item.qty.toString().replace(".", ",");
+              
+              const itemGross = (item.qty || 0) * (item.price || 0);
+              let discountPercent = item.discount || 0;
+              if (discountPercent > 100) {
+                discountPercent = itemGross > 0 ? Math.round((discountPercent / itemGross) * 100 * 100) / 100 : 0;
+              }
+              const gcVal = discountPercent > 0 ? `${discountPercent}%` : "0";
+              return `
+                <tr>
+                  <td style="border: 1px solid #000; padding: 4px 4px; text-align: center;">${idx + 1}</td>
+                  <td style="border: 1px solid #000; padding: 4px 6px; font-weight: 500;">${prod.name}</td>
+                  <td style="border: 1px solid #000; padding: 4px 4px; text-align: center;">${prod.unit || "Cái"}</td>
+                  <td style="border: 1px solid #000; padding: 4px 4px; text-align: right;" class="font-numeric">${qtyFormatted}</td>
+                  <td style="border: 1px solid #000; padding: 4px 4px; text-align: right;" class="font-numeric">${formatVND(item.price).replace("đ", "").trim()}</td>
+                  <td style="border: 1px solid #000; padding: 4px 4px; text-align: right; font-weight: bold;" class="font-numeric">${formatVND(item.amount).replace("đ", "").trim()}</td>
+                  <td style="border: 1px solid #000; padding: 4px 4px; text-align: center;">${gcVal}</td>
+                </tr>
+              `;
+            }).join("")}
+            
+            <!-- Phần tổng tiền -->
+            <tr>
+              <td colspan="5" style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold; border-top: 1.5px solid #000;">Cộng tiền hàng :</td>
+              <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold;" class="font-numeric">${formatVND(grossTotal).replace("đ", "").trim()}</td>
+              <td style="border: 1px solid #000; border-top: 1.5px solid #000;"></td>
+            </tr>
+            <tr>
+              <td colspan="5" style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: 500;">Số tiền chiết khấu:</td>
+              <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: 500;" class="font-numeric">${formatVND(totalDiscount).replace("đ", "").trim()}</td>
+              <td style="border: 1px solid #000;"></td>
+            </tr>
+            <tr style="background-color: #f9fafb;">
+              <td colspan="5" style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold; text-transform: uppercase;">Tổng cộng giá trị báo giá:</td>
+              <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold;" class="font-numeric">${formatVND(v.totalAmount).replace("đ", "").trim()}</td>
+              <td style="border: 1px solid #000;"></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Chữ số tiền viết bằng chữ, ghi chú & Mã QR thanh toán -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; font-size: 11px; line-height: 1.3; page-break-inside: avoid; break-inside: avoid;">
+          <div style="flex: 1; padding-right: 15px;">
+            <div style="margin-bottom: 3px;">
+              <strong>Số tiền viết bằng chữ:</strong> <span style="font-style: italic;">${numberToVietnameseWords(v.totalAmount)}</span>
+            </div>
+            <div>
+              <strong>Ghi chú:</strong> <span style="font-style: italic; color: #374151;">Báo giá có giá trị trong vòng 30 ngày kể từ ngày lập. Giá trên đã bao gồm VAT.</span>
+            </div>
+          </div>
+          <div style="width: 125px; text-align: center; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #000; padding: 4px; border-radius: 4px; background: #fff; page-break-inside: avoid; break-inside: avoid;">
+            <span style="font-size: 8px; font-weight: bold; text-transform: uppercase; color: #000; margin-bottom: 3px; letter-spacing: 0.2px;">Quét QR Để Thanh Toán</span>
+            <img src="https://img.vietqr.io/image/sacombank-050033493999-qr_only.png?amount=${v.totalAmount}&addInfo=${encodeURIComponent('Thanh toan BG ' + v.id)}&accountName=${encodeURIComponent('CTY CP SX DT PHAT TRIEN RANG DONG')}" style="width: 90px; height: 90px; display: block;" alt="VietQR" />
+            <span style="font-size: 8px; color: #000; margin-top: 3px; font-family: monospace; font-weight: bold;">STK: 050033493999</span>
+          </div>
+        </div>
+
+        <!-- Chữ ký và dấu (Báo giá) -->
+        <div style="display: flex; justify-content: space-between; text-align: center; margin-top: 12px; font-size: 10.5px; page-break-inside: avoid; break-inside: avoid;">
+          <div style="width: 45%; page-break-inside: avoid; break-inside: avoid;">
+            <strong>Đại diện khách hàng</strong><br>
+            <span style="font-style: italic; font-size: 9.5px; color: #555;">(Ký, họ tên)</span>
+            <div style="height: 50px;"></div>
+          </div>
+          
+          <div style="width: 45%; page-break-inside: avoid; break-inside: avoid;">
+            <strong>Người báo giá</strong><br>
             <span style="font-style: italic; font-size: 9.5px; color: #555;">(Ký, họ tên)</span>
             <div style="height: 50px;"></div>
           </div>

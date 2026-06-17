@@ -96,6 +96,12 @@ function recalculateAccounting(shouldSave = true) {
       v.taxAmount = 0;
       v.totalAmount = v.items ? v.items.reduce((sum, item) => sum + (item.amount || 0), 0) : 0;
       v.entries = [];
+    } else if (v.type === "sales_quotation") {
+      const subtotal = v.items ? v.items.reduce((sum, item) => sum + (item.amount || 0), 0) : 0;
+      const taxRate = v.taxRate || 0;
+      v.taxAmount = Math.round(subtotal * (taxRate / 100));
+      v.totalAmount = subtotal + v.taxAmount;
+      v.entries = [];
     } else if (v.type === "purchase") {
       // Mua hàng: Tăng số lượng và tăng giá trị tồn
       let itemSubtotal = 0;
@@ -384,6 +390,7 @@ function safeRefreshAllModules() {
   const refreshTasks = [
     { name: "filterSalesTable", fn: typeof window.filterSalesTable === "function" ? window.filterSalesTable : null },
     { name: "filterSalesReturnTable", fn: typeof window.filterSalesReturnTable === "function" ? window.filterSalesReturnTable : null },
+    { name: "filterQuotationTable", fn: typeof window.filterQuotationTable === "function" ? window.filterQuotationTable : null },
     { name: "filterPurchaseTable", fn: typeof window.filterPurchaseTable === "function" ? window.filterPurchaseTable : null },
     { name: "filterPurchaseOrderTable", fn: typeof window.filterPurchaseOrderTable === "function" ? window.filterPurchaseOrderTable : null },
     { name: "filterPurchaseReturnTable", fn: typeof window.filterPurchaseReturnTable === "function" ? window.filterPurchaseReturnTable : null },

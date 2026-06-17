@@ -2219,6 +2219,226 @@ function parseExcelFile(file, type) {
         }
       }
       
+      else if (type === 'sales_quotation') {
+        let isDetailed = false;
+        let headerIdx = -1;
+        for (let r = 0; r < Math.min(rows.length, 10); r++) {
+          if (rows[r] && rows[r].includes("Số chứng từ") && rows[r].includes("Mã hàng")) {
+            headerIdx = r;
+            isDetailed = true;
+            break;
+          }
+        }
+
+        if (isDetailed) {
+          let count = 0;
+          const groupMap = new Map();
+          const startRow = headerIdx + 1;
+          for (let i = startRow; i < rows.length; i++) {
+            const row = rows[i];
+            const voucherId = (row[2] || "").toString().trim();
+            if (!voucherId || voucherId.startsWith("TỔNG")) continue;
+
+            if (!groupMap.has(voucherId)) {
+              groupMap.set(voucherId, []);
+            }
+            groupMap.get(voucherId).push(row);
+          }
+
+          const partnerMap = new Map();
+          state.partners.forEach(p => partnerMap.set(p.id, p));
+
+          const productMap = new Map();
+          state.products.forEach(p => productMap.set(p.id, p));
+
+          const voucherMap = new Map();
+          state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
+
+          for (const [voucherId, voucherRows] of groupMap.entries()) {
+            const firstRow = voucherRows[0];
+            const dateStr = excelDateToISOString(firstRow[1] || firstRow[0]);
+
+            const partnerIdRaw = (firstRow[7] || "").toString().trim();
+            const partnerId = partnerIdRaw ? partnerIdRaw : `DT_${Math.floor(1000 + Math.random() * 9000)}`;
+            const partnerName = (firstRow[8] || "Khách hàng vãng lai").toString().trim();
+            const description = (firstRow[5] || "Báo giá hàng hóa").toString().trim();
+
+            if (!partnerMap.has(partnerId)) {
+              const pObj = {
+                id: partnerId,
+                name: partnerName,
+                type: "customer",
+                phone: "",
+                email: "",
+                address: ""
+              };
+              state.partners.push(pObj);
+              partnerMap.set(partnerId, pObj);
+            }
+
+            let paymentMethod = "131";
+            const descUpper = description.toUpperCase();
+            const nameUpper = partnerName.toUpperCase();
+            if (descUpper.includes("TIỀN MẶT") || descUpper.includes("TM") || nameUpper.includes("BÁN LẺ") || nameUpper.includes("KHÁCH LẺ") || nameUpper.includes("VÃNG LAI")) {
+              paymentMethod = "111";
+            }
+
+            const itemsArray = [];
+            let totalVoucherAmount = 0;
+
+            for (const row of voucherRows) {
+              const productId = (row[9] || "SP_GENERIC").toString().trim();
+              const productName = (row[10] || "Sản phẩm generic").toString().trim();
+              const unit = (row[11] || "Cái").toString().trim();
+              const qty = safeParseFloat(row[12]);
+              const price = safeParseFloat(row[13]);
+              const discountVal = safeParseFloat(row[15]);
+
+              const grossAmount = qty * price;
+              const amount = grossAmount - discountVal;
+              const discountPercent = grossAmount > 0 ? Math.round((discountVal / grossAmount) * 100 * 100) / 100 : 0;
+
+              itemsArray.push({
+                productId: productId,
+                qty: qty,
+                price: price,
+                discount: discountPercent,
+                amount: amount
+              });
+
+              totalVoucherAmount += amount;
+
+              if (!productMap.has(productId)) {
+                const prodObj = {
+                  id: productId,
+                  name: productName,
+                  unit: unit,
+                  stock: 0,
+                  avgCost: 0,
+                  totalValue: 0
+                };
+                state.products.push(prodObj);
+                productMap.set(productId, prodObj);
+              }
+            }
+
+            const vObj = {
+              id: voucherId,
+              type: "sales_quotation",
+              date: dateStr,
+              partnerId: partnerId,
+              partnerName: partnerName,
+              paymentMethod: paymentMethod,
+              description: description,
+              taxRate: 0,
+              taxAmount: 0,
+              totalAmount: totalVoucherAmount,
+              amount: totalVoucherAmount,
+              isImported: true,
+              items: itemsArray
+            };
+
+            const existingIdx = voucherMap.get(voucherId);
+            if (existingIdx !== undefined) {
+              state.vouchers[existingIdx] = vObj;
+            } else {
+              state.vouchers.push(vObj);
+              voucherMap.set(voucherId, state.vouchers.length - 1);
+            }
+            count++;
+          }
+
+          saveState();
+          recalculateAccounting();
+          showToast(`Đã nạp thành công ${count} báo giá chi tiết từ file Excel!`, "success");
+          if (typeof filterQuotationTable === "function") filterQuotationTable();
+        } else {
+          let count = 0;
+          const partnerMap = new Map();
+          state.partners.forEach(p => partnerMap.set(p.name, p.id));
+          const voucherMap = new Map();
+          state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
+
+          for (let i = 2; i < rows.length; i++) {
+            const row = rows[i];
+            const id = (row[2] || "").toString().trim();
+            if (!id || id === "Số chứng từ") continue;
+
+            const dateStr = excelDateToISOString(row[0]);
+            const partnerName = (row[6] || "Khách hàng vãng lai").toString().trim();
+            const description = (row[7] || "Báo giá hàng hóa").toString().trim();
+
+            const H = safeParseFloat(row[8]);
+            const C = safeParseFloat(row[9]);
+            const T = safeParseFloat(row[10]);
+            const totalAmount = safeParseFloat(row[11]);
+
+            let paymentMethod = "131";
+            const docTypeStr = (row[14] || "").toString().trim().toUpperCase();
+            if (docTypeStr.includes("TIỀN MẶT")) {
+              paymentMethod = "111";
+            }
+
+            let partnerId = partnerMap.get(partnerName);
+            if (!partnerId) {
+              partnerId = `DT_${Math.floor(1000 + Math.random() * 9000)}`;
+              state.partners.push({
+                id: partnerId,
+                name: partnerName,
+                type: "customer",
+                phone: "",
+                email: "",
+                address: ""
+              });
+              partnerMap.set(partnerName, partnerId);
+            }
+
+            const originalRow = [];
+            for (let col = 0; col < 15; col++) {
+              originalRow[col] = row[col] !== undefined ? row[col] : "";
+            }
+
+            const vObj = {
+              id,
+              type: "sales_quotation",
+              date: dateStr,
+              partnerId,
+              partnerName,
+              paymentMethod,
+              description,
+              taxRate: 0,
+              taxAmount: T,
+              totalAmount: totalAmount,
+              amount: totalAmount,
+              isImported: true,
+              items: [
+                {
+                  productId: "SP_GENERIC",
+                  qty: 1,
+                  price: H,
+                  discount: H > 0 ? Math.round((C / H) * 100 * 100) / 100 : 0,
+                  amount: H - C
+                }
+              ],
+              excelRow: originalRow
+            };
+
+            const existingIdx = voucherMap.get(id);
+            if (existingIdx !== undefined) {
+              state.vouchers[existingIdx] = vObj;
+            } else {
+              state.vouchers.push(vObj);
+              voucherMap.set(id, state.vouchers.length - 1);
+            }
+            count++;
+          }
+          saveState();
+          recalculateAccounting();
+          showToast(`Đã nạp thành công ${count} báo giá vào lịch sử!`, "success");
+          if (typeof filterQuotationTable === "function") filterQuotationTable();
+        }
+      }
+      
       else if (type === 'purchase' || type === 'purchase_return' || type === 'sales_return') {
         let count = 0;
         const groupMap = new Map();
