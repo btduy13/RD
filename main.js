@@ -417,6 +417,66 @@ ipcMain.handle('print-window', async (event) => {
 });
 
 // ===========================================================================
+// IPC HANDLERS: LƯU/ĐỌC STATE FILE (thay thế localStorage để tránh giới hạn 5MB)
+// ===========================================================================
+
+const STATE_FILE_PATH = path.join(__dirname, 'data', 'rd_state.json');
+const STATE_DIR_PATH = path.join(__dirname, 'data');
+
+// Đảm bảo thư mục data/ tồn tại
+function ensureStateDir() {
+  if (!fs.existsSync(STATE_DIR_PATH)) {
+    fs.mkdirSync(STATE_DIR_PATH, { recursive: true });
+  }
+}
+
+// Ghi state ra file JSON (không giới hạn kích thước)
+ipcMain.handle('write-state-file', async (event, jsonData) => {
+  try {
+    ensureStateDir();
+    fs.writeFileSync(STATE_FILE_PATH, jsonData, 'utf8');
+    return { ok: true };
+  } catch (err) {
+    console.error('[StateFile] Lỗi ghi state file:', err);
+    return { ok: false, error: err.message };
+  }
+});
+
+// Đọc state từ file JSON
+ipcMain.handle('read-state-file', async (event) => {
+  try {
+    if (!fs.existsSync(STATE_FILE_PATH)) {
+      return { ok: false, error: 'State file chưa tồn tại' };
+    }
+    const data = fs.readFileSync(STATE_FILE_PATH, 'utf8');
+    return { ok: true, data };
+  } catch (err) {
+    console.error('[StateFile] Lỗi đọc state file:', err);
+    return { ok: false, error: err.message };
+  }
+});
+
+// Đọc backup gần nhất để phục hồi khi state file bị hỏng
+ipcMain.handle('read-latest-backup', async (event) => {
+  try {
+    ensureBackupDir();
+    const files = fs.readdirSync(BACKUP_DIR)
+      .filter(f => f.startsWith('RD_Backup_') && f.endsWith('.json'))
+      .map(f => ({ name: f, time: fs.statSync(path.join(BACKUP_DIR, f)).mtimeMs }))
+      .sort((a, b) => b.time - a.time);
+    if (files.length === 0) {
+      return { ok: false, error: 'Không có file backup nào' };
+    }
+    const latestPath = path.join(BACKUP_DIR, files[0].name);
+    const data = fs.readFileSync(latestPath, 'utf8');
+    return { ok: true, data, filename: files[0].name };
+  } catch (err) {
+    console.error('[StateFile] Lỗi đọc backup gần nhất:', err);
+    return { ok: false, error: err.message };
+  }
+});
+
+// ===========================================================================
 // VÒNG ĐỜI ỨNG DỤNG
 // ===========================================================================
 

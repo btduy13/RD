@@ -654,9 +654,17 @@ async function pullFromCloudOnStartup() {
       lastSyncedCloudTs = state._lastModified || 0;
       console.log(`[Supabase] Tải dữ liệu đám mây thành công! (${cloudVoucherCount} chứng từ)`);
 
-      // Ghi cache cục bộ
+      // Ghi cache cục bộ (localStorage fallback + file-based primary)
       try {
-        localStorage.setItem("rd_accounting_online_cache", JSON.stringify(state));
+        const stateJson = JSON.stringify(state);
+        // Ghi ra file (Electron IPC) - không giới hạn kích thước
+        if (window.electronAPI && typeof window.electronAPI.writeStateFile === 'function') {
+          window.electronAPI.writeStateFile(stateJson).catch(err => console.error('[StateFile] Lỗi ghi sau cloud pull:', err));
+        }
+        // Fallback localStorage (chỉ nếu < 4MB)
+        if (!window.electronAPI) {
+          try { localStorage.setItem("rd_accounting_online_cache", stateJson); } catch(e) {}
+        }
       } catch (cacheErr) {
         console.error("[Cache] Lỗi ghi cache cục bộ:", cacheErr);
       }

@@ -1,4 +1,4 @@
-
+﻿
 let salesCurrentPage = 1;
 
 // 7. RENDER DỮ LIỆU PHÂN HỆ BÁN HÀNG (SALES)
@@ -1078,43 +1078,44 @@ function exportSalesReturnsToExcel() {
   }
 
   let filteredReturns = state.vouchers.filter(v => v.type === "sales_return");
-
   const query = document.getElementById("search-sales-return") ? document.getElementById("search-sales-return").value.toLowerCase() : "";
   const fromDate = document.getElementById("search-sales-return-from") ? document.getElementById("search-sales-return-from").value : "";
   const toDate = document.getElementById("search-sales-return-to") ? document.getElementById("search-sales-return-to").value : "";
 
-  if (query) {
-    filteredReturns = filteredReturns.filter(v =>
-      (v.id || "").toLowerCase().includes(query) ||
-      (v.partnerName || "").toLowerCase().includes(query) ||
-      (v.description || "").toLowerCase().includes(query)
-    );
-  }
+  if (query) filteredReturns = filteredReturns.filter(v =>
+    (v.id || "").toLowerCase().includes(query) ||
+    (v.partnerName || "").toLowerCase().includes(query) ||
+    (v.description || "").toLowerCase().includes(query)
+  );
   if (fromDate) filteredReturns = filteredReturns.filter(v => v.date >= fromDate);
   if (toDate) filteredReturns = filteredReturns.filter(v => v.date <= toDate);
   filteredReturns.sort((a, b) => new Date(a.date) - new Date(b.date) || a.id.localeCompare(b.id, undefined, { numeric: true }));
 
   try {
+    // ── MISA SO_CHI_TIET_BAN_HANG format (cùng cột, nhưng SL bán=0, SL trả lại=thực tế) ──
     const wb = XLSX.utils.book_new();
     const ws = {};
     const merges = [];
+    const today = new Date().toLocaleDateString('vi-VN');
+    const NCOLS = 19;
 
-    const thin = { style: "thin", color: { rgb: "AAAAAA" } };
-    const border4 = { top: thin, bottom: thin, left: thin, right: thin };
-    const headerBg = { patternType: "solid", fgColor: { rgb: "1F497D" } };
+    const thin = { style: "thin", color: { rgb: "BBBBBB" } };
+    const b4 = { top: thin, bottom: thin, left: thin, right: thin };
+    const hdrBg = { patternType: "solid", fgColor: { rgb: "1F497D" } };
     const altBg = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
-    const fntTitle = { name: "Times New Roman", sz: 13, bold: true };
-    const fntSub = { name: "Times New Roman", sz: 11, italic: true };
-    const fntHdr = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
-    const fntBold = { name: "Times New Roman", sz: 11, bold: true };
-    const fntNorm = { name: "Times New Roman", sz: 11 };
-    const cCenter = { horizontal: "center", vertical: "center" };
-    const cLeft = { horizontal: "left", vertical: "center" };
-    const cRight = { horizontal: "right", vertical: "center" };
+    const totBg = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
+    const fntT = { name: "Times New Roman", sz: 12, bold: true };
+    const fntSub = { name: "Times New Roman", sz: 10, italic: true };
+    const fntH = { name: "Times New Roman", sz: 10, bold: true, color: { rgb: "FFFFFF" } };
+    const fntB = { name: "Times New Roman", sz: 10, bold: true };
+    const fntN = { name: "Times New Roman", sz: 10 };
+    const cC = { horizontal: "center", vertical: "center" };
+    const cL = { horizontal: "left", vertical: "center", wrapText: true };
+    const cR = { horizontal: "right", vertical: "center" };
     const numFmt = "#,##0 ;[Red](#,##0)";
     const dateFmt = "dd/mm/yyyy";
 
-    const setCell = (ws, r, c, v, t, s, z) => {
+    const sc = (r, c, v, t, s, z) => {
       const key = XLSX.utils.encode_cell({ r, c });
       const cell = { v, t: t || (typeof v === 'number' ? 'n' : 's') };
       if (s) cell.s = s;
@@ -1122,121 +1123,100 @@ function exportSalesReturnsToExcel() {
       ws[key] = cell;
     };
 
-    const today = new Date().toLocaleDateString('vi-VN');
-    let dateRangeText = `Từ ngày: ${fromDate || 'đầu kỳ'}   Đến ngày: ${toDate || today}`;
+    sc(0, 0, state.companyName || "Công Ty Cổ Phần Rạng Đông", 's', { font: fntT, alignment: cL });
+    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: NCOLS - 1 } });
+    sc(1, 0, "SỔ CHI TIẾT HÀNG BÁN TRẢ LẠI", 's', { font: fntT, alignment: cC });
+    merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: NCOLS - 1 } });
+    sc(2, 0, `Từ ngày: ${fromDate || 'đầu kỳ'}   Đến ngày: ${toDate || today}`, 's', { font: fntSub, alignment: cC });
+    merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: NCOLS - 1 } });
 
-    const compName = state.companyName || "Công Ty Cổ Phần Rạng Đông";
-    setCell(ws, 0, 0, compName, 's', { font: fntTitle, alignment: cCenter }, null);
-    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 21 } });
-
-    setCell(ws, 1, 0, "SỔ CHI TIẾT HÀNG BÁN TRẢ LẠI THEO MÃ QUY CÁCH", 's', { font: fntTitle, alignment: cCenter }, null);
-    merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 21 } });
-
-    setCell(ws, 2, 0, dateRangeText, 's', { font: fntSub, alignment: cCenter }, null);
-    merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: 21 } });
-
-    const headers = ["Ngày hạch toán", "Ngày chứng từ", "Số chứng từ", "Ngày hóa đơn", "Số hóa đơn", "Mã hàng", "Tên hàng", "ĐVT", "Mã quy cách 1", "Mã quy cách 2", "Mã quy cách 3", "Mã quy cách 4", "Mã quy cách 5", "Số lượng trả lại", "Đơn giá", "Phí trước hải quan", "Phí hàng về kho", "Giá trị trả lại", "Chiết khấu", "Số lượng bán", "Giá trị bán", "Giá trị giảm giá"];
-    headers.forEach((h, c) => {
-      setCell(ws, 3, c, h, 's', { font: fntHdr, fill: headerBg, alignment: cCenter, border: border4 }, null);
-    });
+    // Cùng cấu trúc cột SO_CHI_TIET_BAN_HANG — MISA nhận import ngược
+    const headers = [
+      "Ngày hạch toán", "Ngày chứng từ", "Số chứng từ", "Ngày hóa đơn", "Số hóa đơn",
+      "Diễn giải chung", "Diễn giải", "Mã khách hàng", "Tên khách hàng",
+      "Mã hàng", "Tên hàng", "ĐVT",
+      "Tổng số lượng bán", "Đơn giá", "Doanh số bán", "Chiết khấu",
+      "Tổng số lượng trả lại", "Giá trị trả lại", "Giá trị giảm giá"
+    ];
+    headers.forEach((h, c) => sc(3, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: b4 }));
 
     let rowIdx = 4;
-    let totalGross = 0;
+    let totalQtyRet = 0, totalGrossRet = 0;
 
-    filteredReturns.forEach((v, vIdx) => {
-      const rowBg = vIdx % 2 === 0 ? null : altBg;
-      const baseStyle = (align) => ({ font: fntNorm, fill: rowBg, alignment: align, border: border4 });
-      const numStyle = (align) => ({ font: fntNorm, fill: rowBg, alignment: align || cRight, border: border4 });
+    filteredReturns.forEach((v, vi) => {
+      const bg = vi % 2 === 0 ? null : altBg;
+      const bs = al => ({ font: fntN, fill: bg, alignment: al, border: b4 });
+      const ns = al => ({ font: fntN, fill: bg, alignment: al || cR, border: b4 });
+      const partnerId = v.partnerId || "";
+      const partnerName = v.partnerName || getPartnerNameForVoucher(v);
+      const descCommon = v.description || "";
+
+      const writeRow = (productId, productName, unit, qty, price, grossAmt, ckAmt) => {
+        sc(rowIdx, 0, dateStrToSerial(v.date), 'n', bs(cC), dateFmt);
+        sc(rowIdx, 1, dateStrToSerial(v.date), 'n', bs(cC), dateFmt);
+        sc(rowIdx, 2, v.id, 's', bs(cC));
+        sc(rowIdx, 3, dateStrToSerial(v.date), 'n', bs(cC), dateFmt);
+        sc(rowIdx, 4, v.invoiceNo || "", 's', bs(cC));
+        sc(rowIdx, 5, descCommon, 's', bs(cL));
+        sc(rowIdx, 6, productName, 's', bs(cL));
+        sc(rowIdx, 7, partnerId, 's', bs(cC));
+        sc(rowIdx, 8, partnerName, 's', bs(cL));
+        sc(rowIdx, 9, productId, 's', bs(cC));
+        sc(rowIdx, 10, productName, 's', bs(cL));
+        sc(rowIdx, 11, unit, 's', bs(cC));
+        sc(rowIdx, 12, 0, 'n', ns(cR), "#,##0.##");      // SL bán = 0
+        sc(rowIdx, 13, price, 'n', ns(cR), numFmt);       // Đơn giá
+        sc(rowIdx, 14, 0, 'n', ns(cR), numFmt);           // Doanh số bán = 0
+        sc(rowIdx, 15, ckAmt, 'n', ns(cR), numFmt);       // Chiết khấu
+        sc(rowIdx, 16, qty, 'n', ns(cR), "#,##0.##");     // SL trả lại
+        sc(rowIdx, 17, grossAmt, 'n', ns(cR), numFmt);    // GT trả lại
+        sc(rowIdx, 18, 0, 'n', ns(cR), numFmt);           // GT giảm giá
+        totalQtyRet += qty;
+        totalGrossRet += grossAmt;
+        rowIdx++;
+      };
 
       if (v.items && v.items.length > 0) {
         v.items.forEach(item => {
-          const prod = state.products ? state.products.find(p => String(p.id) === String(item.productId)) : null;
-          const itemGross = (item.qty || 0) * (item.price || 0);
-          const discVal = itemGross * ((item.discount || 0) / 100);
-
-          setCell(ws, rowIdx, 0, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
-          setCell(ws, rowIdx, 1, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
-          setCell(ws, rowIdx, 2, v.id, 's', baseStyle(cCenter), null);
-          setCell(ws, rowIdx, 3, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
-          setCell(ws, rowIdx, 4, v.invoiceNo || "", 's', baseStyle(cCenter), null);
-          setCell(ws, rowIdx, 5, item.productId || "", 's', baseStyle(cLeft), null);
-          setCell(ws, rowIdx, 6, prod ? prod.name : (item.productName || item.productId || ""), 's', baseStyle(cLeft), null);
-          setCell(ws, rowIdx, 7, prod ? (prod.unit || "Cái") : (item.unit || "Cái"), 's', baseStyle(cCenter), null);
-          setCell(ws, rowIdx, 8, "", 's', baseStyle(cLeft), null);
-          setCell(ws, rowIdx, 9, "", 's', baseStyle(cLeft), null);
-          setCell(ws, rowIdx, 10, "", 's', baseStyle(cLeft), null);
-          setCell(ws, rowIdx, 11, "", 's', baseStyle(cLeft), null);
-          setCell(ws, rowIdx, 12, "", 's', baseStyle(cLeft), null);
-          setCell(ws, rowIdx, 13, item.qty || 0, 'n', numStyle(cRight), "#,##0.##");
-          setCell(ws, rowIdx, 14, item.price || 0, 'n', numStyle(cRight), numFmt);
-          setCell(ws, rowIdx, 15, 0, 'n', numStyle(cRight), numFmt);
-          setCell(ws, rowIdx, 16, 0, 'n', numStyle(cRight), numFmt);
-          setCell(ws, rowIdx, 17, itemGross - discVal, 'n', numStyle(cRight), numFmt);
-          setCell(ws, rowIdx, 18, discVal, 'n', numStyle(cRight), numFmt);
-          setCell(ws, rowIdx, 19, 0, 'n', numStyle(cRight), "#,##0.##");
-          setCell(ws, rowIdx, 20, 0, 'n', numStyle(cRight), numFmt);
-          setCell(ws, rowIdx, 21, 0, 'n', numStyle(cRight), numFmt);
-
-          totalGross += itemGross - discVal;
-          rowIdx++;
+          const prod = (state.products || []).find(p => String(p.id) === String(item.productId));
+          const qty = item.qty || 0;
+          const price = item.price || 0;
+          const grossAmt = item.amount || (qty * price);
+          const ckAmt = item.discount ? grossAmt * (item.discount / 100) : 0;
+          writeRow(item.productId || "", prod ? prod.name : (item.productName || item.productId || ""), prod ? (prod.unit || "Cái") : (item.unit || "Cái"), qty, price, grossAmt, ckAmt);
         });
       } else {
-        const gross = v.totalAmount - (v.taxAmount || 0);
-        setCell(ws, rowIdx, 0, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
-        setCell(ws, rowIdx, 1, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
-        setCell(ws, rowIdx, 2, v.id, 's', baseStyle(cCenter), null);
-        setCell(ws, rowIdx, 3, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
-        setCell(ws, rowIdx, 4, v.invoiceNo || "", 's', baseStyle(cCenter), null);
-        setCell(ws, rowIdx, 5, "", 's', baseStyle(cLeft), null);
-        setCell(ws, rowIdx, 6, v.description, 's', baseStyle(cLeft), null);
-        setCell(ws, rowIdx, 7, "", 's', baseStyle(cCenter), null);
-        for (let ci = 8; ci <= 12; ci++) setCell(ws, rowIdx, ci, "", 's', baseStyle(cLeft), null);
-        setCell(ws, rowIdx, 13, 0, 'n', numStyle(cRight), "#,##0.##");
-        setCell(ws, rowIdx, 14, 0, 'n', numStyle(cRight), numFmt);
-        setCell(ws, rowIdx, 15, 0, 'n', numStyle(cRight), numFmt);
-        setCell(ws, rowIdx, 16, 0, 'n', numStyle(cRight), numFmt);
-        setCell(ws, rowIdx, 17, gross, 'n', numStyle(cRight), numFmt);
-        setCell(ws, rowIdx, 18, 0, 'n', numStyle(cRight), numFmt);
-        setCell(ws, rowIdx, 19, 0, 'n', numStyle(cRight), "#,##0.##");
-        setCell(ws, rowIdx, 20, 0, 'n', numStyle(cRight), numFmt);
-        setCell(ws, rowIdx, 21, 0, 'n', numStyle(cRight), numFmt);
-        totalGross += gross;
-        rowIdx++;
+        const gross = (v.totalAmount || 0) - (v.taxAmount || 0);
+        writeRow(v.id, descCommon, "", 0, 0, gross, 0);
       }
     });
 
-    const totalBg = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
-    const totalStyle = (al) => ({ font: fntBold, fill: totalBg, alignment: al, border: border4 });
-    setCell(ws, rowIdx, 0, "TỔNG CỘNG", 's', { font: fntBold, fill: totalBg, alignment: cLeft, border: border4 }, null);
-    merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 12 } });
-    setCell(ws, rowIdx, 13, 0, 'n', totalStyle(cRight), "#,##0.##");
-    setCell(ws, rowIdx, 14, 0, 'n', totalStyle(cRight), numFmt);
-    setCell(ws, rowIdx, 15, 0, 'n', totalStyle(cRight), numFmt);
-    setCell(ws, rowIdx, 16, 0, 'n', totalStyle(cRight), numFmt);
-    setCell(ws, rowIdx, 17, totalGross, 'n', totalStyle(cRight), numFmt);
-    setCell(ws, rowIdx, 18, 0, 'n', totalStyle(cRight), numFmt);
-    setCell(ws, rowIdx, 19, 0, 'n', totalStyle(cRight), "#,##0.##");
-    setCell(ws, rowIdx, 20, 0, 'n', totalStyle(cRight), numFmt);
-    setCell(ws, rowIdx, 21, 0, 'n', totalStyle(cRight), numFmt);
+    const ts = al => ({ font: fntB, fill: totBg, alignment: al, border: b4 });
+    sc(rowIdx, 0, "TỔNG CỘNG", 's', ts(cL));
+    merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 11 } });
+    for (let c = 1; c <= 11; c++) sc(rowIdx, c, "", 's', ts(cL));
+    sc(rowIdx, 12, 0, 'n', ts(cR), "#,##0.##");
+    sc(rowIdx, 13, 0, 'n', ts(cR), numFmt);
+    sc(rowIdx, 14, 0, 'n', ts(cR), numFmt);
+    sc(rowIdx, 15, 0, 'n', ts(cR), numFmt);
+    sc(rowIdx, 16, totalQtyRet, 'n', ts(cR), "#,##0.##");
+    sc(rowIdx, 17, totalGrossRet, 'n', ts(cR), numFmt);
+    sc(rowIdx, 18, 0, 'n', ts(cR), numFmt);
 
-    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: 21 } });
+    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: NCOLS - 1 } });
     ws['!merges'] = merges;
     ws['!cols'] = [
-      { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 13 },
-      { wch: 14 }, { wch: 28 }, { wch: 8 }, { wch: 13 }, { wch: 13 },
-      { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 12 }, { wch: 16 },
-      { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 14 },
-      { wch: 14 }, { wch: 14 }
+      { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 12 },
+      { wch: 26 }, { wch: 26 }, { wch: 16 }, { wch: 28 },
+      { wch: 14 }, { wch: 28 }, { wch: 7 },
+      { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 12 },
+      { wch: 10 }, { wch: 14 }, { wch: 12 }
     ];
-    ws['!rows'] = [
-      { hpt: 22 }, { hpt: 20 }, { hpt: 16 }, { hpt: 22 }
-    ];
+    ws['!rows'] = [{ hpt: 20 }, { hpt: 22 }, { hpt: 16 }, { hpt: 22 }];
 
-    XLSX.utils.book_append_sheet(wb, ws, "Hang ban tra lai");
-
-    let dateRangeSuffix = "";
-    if (fromDate || toDate) dateRangeSuffix = `_${fromDate || ""}_${toDate || ""}`;
-    const outName = `Hang_ban_tra_lai_chi_tiet_${new Date().toISOString().split('T')[0]}${dateRangeSuffix}.xlsx`;
+    XLSX.utils.book_append_sheet(wb, ws, "SO CHI TIET BAN TRA LAI");
+    const suffix = fromDate || toDate ? `_${fromDate || ""}_${toDate || ""}` : "";
+    const outName = `SO_CHI_TIET_HANG_BAN_TRA_LAI_${new Date().toISOString().split('T')[0]}${suffix}.xlsx`;
     XLSX.writeFile(wb, outName);
     showToast(`Đã xuất Excel: ${outName}`, "success");
   } catch (err) {
@@ -1850,4 +1830,4 @@ window.editSalesReturnVoucher = editSalesReturnVoucher;
 window.toggleSelectAllSalesReturns = toggleSelectAllSalesReturns;
 window.updateBatchSalesReturnsUI = updateBatchSalesReturnsUI;
 window.batchDeleteSalesReturns = batchDeleteSalesReturns;
-window.exportSalesReturnsToExcel = exportSalesReturnsToExcel;
+window.exportSalesReturnsToExcel = exportSalesReturnsToExcel;

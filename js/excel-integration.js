@@ -1,4 +1,24 @@
 
+// =============================================================
+// Nhận diện loại chứng từ tự động từ prefix của Số chứng từ
+// BH/HD → bán hàng, BTL/BHTL → bán trả lại
+// PN/MH/NK → mua hàng, PTL/MHTL/TRH → mua trả lại
+// PT → phiếu thu, PC → phiếu chi
+// =============================================================
+function detectVoucherTypeFromId(id) {
+  if (!id) return null;
+  const u = id.toUpperCase().trim();
+  if (u.startsWith('BTL') || u.startsWith('BHTL')) return 'sales_return';
+  if (u.startsWith('BH') || u.startsWith('HD'))    return 'sales';
+  if (u.startsWith('PTL') || u.startsWith('MHTL') || u.startsWith('TRH')) return 'purchase_return';
+  if (u.startsWith('PN') || u.startsWith('MH') || u.startsWith('NK'))     return 'purchase';
+  // PT phải check trước PC vì PT dài hơn
+  if (u.startsWith('PT')) return 'receipt';
+  if (u.startsWith('PC')) return 'payment';
+  return null; // không nhận diện được → giữ type mặc định
+}
+window.detectVoucherTypeFromId = detectVoucherTypeFromId;
+
 async function autoIntegrateProductsExcel() {
   const hasProducts = state.products && state.products.length > 5;
   if (state.productsExcelIntegrated && hasProducts) {
@@ -452,10 +472,13 @@ async function autoIntegrateSoChiTietBanHangExcel() {
     const voucherMap = new Map();
     state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
 
-    // Duyệt qua từng chứng từ bán hàng
+    // Duyệt qua từng chứng từ — tự detect type từ prefix ID
     for (const [voucherId, voucherRows] of groupMap.entries()) {
       const firstRow = voucherRows[0];
       const dateStr = excelDateToISOString(firstRow[1] || firstRow[0]);
+
+      // Auto-detect loại chứng từ từ prefix ID
+      const detectedType = detectVoucherTypeFromId(voucherId) || 'sales';
 
       const partnerIdRaw = (firstRow[7] || "").toString().trim();
       const partnerId = partnerIdRaw ? partnerIdRaw : `DT_${Math.floor(1000 + Math.random() * 9000)}`;
@@ -464,10 +487,11 @@ async function autoIntegrateSoChiTietBanHangExcel() {
 
       // Đăng ký đối tác nếu chưa tồn tại
       if (!partnerMap.has(partnerId)) {
+        const partnerTypeMapped = (detectedType === 'purchase' || detectedType === 'purchase_return') ? 'supplier' : 'customer';
         const pObj = {
           id: partnerId,
           name: partnerName,
-          type: "customer",
+          type: partnerTypeMapped,
           phone: "",
           email: "",
           address: ""
@@ -477,12 +501,14 @@ async function autoIntegrateSoChiTietBanHangExcel() {
       }
 
       // Xác định phương thức thanh toán
-      let paymentMethod = "131"; // Default: Công nợ
+      let paymentMethod = (detectedType === 'purchase' || detectedType === 'purchase_return') ? "331" : "131";
       const descUpper = description.toUpperCase();
       const nameUpper = partnerName.toUpperCase();
       if (descUpper.includes("TIỀN MẶT") || descUpper.includes("TM") || nameUpper.includes("BÁN LẺ") || nameUpper.includes("KHÁCH LẺ") || nameUpper.includes("VÃNG LAI")) {
         paymentMethod = "111"; // Tiền mặt
       }
+      if (detectedType === 'receipt') paymentMethod = "111";
+      if (detectedType === 'payment') paymentMethod = "111";
 
       // Tạo mảng items
       const itemsArray = [];
@@ -492,27 +518,37 @@ async function autoIntegrateSoChiTietBanHangExcel() {
         const productId = (row[9] || "SP_GENERIC").toString().trim();
         const productName = (row[10] || "Sản phẩm generic").toString().trim();
         const unit = (row[11] || "Cái").toString().trim();
-        const qty = safeParseFloat(row[12]);
-        const price = safeParseFloat(row[13]);
-        const discountVal = safeParseFloat(row[15]);
 
-        // Doanh số bán (row[14]) là gross, doanh thu thuần là gross - discount
+        // Nếu là bán trả lại: dùng col[16] (Tổng SL trả lại) và col[17] (Giá trị trả lại)
+        let qty, price, discountVal;
+        if (detectedType === 'sales_return' || detectedType === 'purchase_return') {
+          qty = safeParseFloat(row[16]);
+          const grossReturnAmt = safeParseFloat(row[17]);
+          price = qty > 0 ? Math.round(grossReturnAmt / qty) : safeParseFloat(row[13]);
+          discountVal = 0;
+        } else {
+          qty = safeParseFloat(row[12]);
+          price = safeParseFloat(row[13]);
+          discountVal = safeParseFloat(row[15]);
+        }
+
         const grossAmount = qty * price;
         const amount = grossAmount - discountVal;
         const discountPercent = grossAmount > 0 ? Math.round((discountVal / grossAmount) * 100 * 100) / 100 : 0;
 
-        itemsArray.push({
-          productId: productId,
-          qty: qty,
-          price: price,
-          discount: discountPercent,
-          amount: amount
-        });
-
-        totalVoucherAmount += amount;
+        if (qty !== 0 || amount !== 0) {
+          itemsArray.push({
+            productId: productId,
+            qty: qty,
+            price: price,
+            discount: discountPercent,
+            amount: amount
+          });
+          totalVoucherAmount += amount;
+        }
 
         // Đăng ký sản phẩm nếu chưa tồn tại
-        if (!productMap.has(productId)) {
+        if (!productMap.has(productId) && productId !== "SP_GENERIC") {
           const prodObj = {
             id: productId,
             name: productName,
@@ -526,9 +562,11 @@ async function autoIntegrateSoChiTietBanHangExcel() {
         }
       }
 
+      if (itemsArray.length === 0) continue; // bỏ qua dòng trống
+
       const vObj = {
         id: voucherId,
-        type: "sales",
+        type: detectedType,
         date: dateStr,
         partnerId: partnerId,
         partnerName: partnerName,
@@ -542,12 +580,11 @@ async function autoIntegrateSoChiTietBanHangExcel() {
         items: itemsArray
       };
 
+      // Smart merge: ghi đè nếu trùng, thêm mới nếu chưa có
       const existingIdx = voucherMap.get(voucherId);
       if (existingIdx !== undefined) {
-        // Cập nhật và nâng cấp chứng từ hiện có
         state.vouchers[existingIdx] = vObj;
       } else {
-        // Thêm mới chứng từ bán hàng
         state.vouchers.push(vObj);
         voucherMap.set(voucherId, state.vouchers.length - 1);
       }
@@ -619,9 +656,14 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
       return;
     }
 
-    let colQty = 13;
-    let colPrice = 14;
-    let colAmount = 17;
+    // Mặc định cho SO_CHI_TIET_MUA_HANG (16 cột): col 8=SL mua, 9=Đơn giá, 10=GT mua
+    // SO_CHI_TIET_MUA_HANG_THEO_MA_QUY_CACH (22 cột): col 13=SL mua, 14=Đơn giá, 17=GT mua
+    // Header detection bên dưới sẽ override chính xác cho từng loại file
+    let colQty = 8;
+    let colPrice = 9;
+    let colAmount = 10;
+    let colQtyReturn = 12;   // Số lượng trả lại
+    let colAmtReturn = 13;   // Giá trị trả lại
 
     let headerIdx = -1;
     for (let r = 0; r < Math.min(rows.length, 10); r++) {
@@ -636,9 +678,13 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
       const qIdx = header.indexOf("Số lượng mua");
       const pIdx = header.indexOf("Đơn giá");
       const aIdx = header.indexOf("Giá trị mua");
+      const qrIdx = header.indexOf("Số lượng trả lại");
+      const arIdx = header.indexOf("Giá trị trả lại");
       if (qIdx !== -1) colQty = qIdx;
       if (pIdx !== -1) colPrice = pIdx;
       if (aIdx !== -1) colAmount = aIdx;
+      if (qrIdx !== -1) colQtyReturn = qrIdx;
+      if (arIdx !== -1) colAmtReturn = arIdx;
     }
 
     // Gom nhóm các dòng theo Số chứng từ (row[2])
@@ -686,9 +732,17 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
       const firstRow = voucherRows[0];
       const dateStr = excelDateToISOString(firstRow[1] || firstRow[0]);
       const invoiceNo = firstRow[4] || "";
-      const description = `Nhập kho mua hàng theo số hóa đơn ${invoiceNo || voucherId}`;
 
-      // Tạo mảng items
+      // Tự detect type từ ID (NK/PN/MH → purchase, PTL/TRH → purchase_return)
+      const detectedType = typeof detectVoucherTypeFromId === "function"
+        ? detectVoucherTypeFromId(voucherId)
+        : "purchase";
+      const isPurchaseReturn = detectedType === "purchase_return";
+      const description = isPurchaseReturn
+        ? `Trả lại hàng NCC theo số ${invoiceNo || voucherId}`
+        : `Nhập kho mua hàng theo số hóa đơn ${invoiceNo || voucherId}`;
+
+      // Tạo mảng items — mỗi dòng có thể là mua hoặc trả lại
       const itemsArray = [];
       let totalVoucherAmount = 0;
 
@@ -696,16 +750,26 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
         const productId = (row[5] || "SP_GENERIC").toString().trim();
         const productName = (row[6] || "Sản phẩm generic").toString().trim();
         const unit = (row[7] || "Cái").toString().trim();
-        const qty = safeParseFloat(row[colQty]);
+
+        // Ưu tiên đọc SL trả lại nếu dòng có giá trị ở colQtyReturn
+        const qtyReturn = safeParseFloat(row[colQtyReturn]);
+        const amtReturn = safeParseFloat(row[colAmtReturn]);
+        const qtyBuy = safeParseFloat(row[colQty]);
         const price = safeParseFloat(row[colPrice]);
 
-        // Sử dụng giá trị mua ở row[colAmount], nếu không có thì tính bằng qty * price
-        const amount = safeParseFloat(row[colAmount]) || (qty * price);
+        // Chọn qty/amount đúng theo context
+        const useReturnQty = qtyReturn > 0 || isPurchaseReturn;
+        const qty = useReturnQty && qtyReturn > 0 ? qtyReturn : qtyBuy;
+        const amount = useReturnQty && amtReturn > 0
+          ? amtReturn
+          : (safeParseFloat(row[colAmount]) || (qty * price));
+
+        if (qty === 0 && amount === 0) continue; // bỏ qua dòng trống
 
         itemsArray.push({
           productId: productId,
           qty: qty,
-          price: price,
+          price: price || (qty > 0 ? amount / qty : 0),
           amount: amount
         });
 
@@ -728,12 +792,13 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
 
       const vObj = {
         id: voucherId,
-        type: "purchase",
+        type: detectedType,
         date: dateStr,
         partnerId: partnerId,
         partnerName: partnerName,
-        paymentMethod: "331", // Mặc định là công nợ
+        paymentMethod: isPurchaseReturn ? "331" : "331",
         description: description,
+        invoiceNo: invoiceNo,
         taxRate: 0,
         taxAmount: 0,
         totalAmount: totalVoucherAmount,
@@ -744,10 +809,8 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
 
       const existingIdx = voucherMap.get(voucherId);
       if (existingIdx !== undefined) {
-        // Cập nhật và nâng cấp chứng từ hiện có
         state.vouchers[existingIdx] = vObj;
       } else {
-        // Thêm mới chứng từ mua hàng
         state.vouchers.push(vObj);
         voucherMap.set(voucherId, state.vouchers.length - 1);
       }
@@ -2017,25 +2080,26 @@ function parseExcelFile(file, type) {
             const row = rows[i];
             const voucherId = (row[2] || "").toString().trim();
             if (!voucherId || voucherId.startsWith("TỔNG")) continue;
-
-            if (!groupMap.has(voucherId)) {
-              groupMap.set(voucherId, []);
-            }
+            if (!groupMap.has(voucherId)) groupMap.set(voucherId, []);
             groupMap.get(voucherId).push(row);
           }
 
           const partnerMap = new Map();
           state.partners.forEach(p => partnerMap.set(p.id, p));
-
           const productMap = new Map();
           state.products.forEach(p => productMap.set(p.id, p));
-
           const voucherMap = new Map();
           state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
+
+          // Thống kê số lượng theo từng loại
+          const typeCount = { sales: 0, sales_return: 0, purchase: 0, purchase_return: 0, receipt: 0, payment: 0 };
 
           for (const [voucherId, voucherRows] of groupMap.entries()) {
             const firstRow = voucherRows[0];
             const dateStr = excelDateToISOString(firstRow[1] || firstRow[0]);
+
+            // Auto-detect loại từ prefix ID
+            const detectedType = detectVoucherTypeFromId(voucherId) || 'sales';
 
             const partnerIdRaw = (firstRow[7] || "").toString().trim();
             const partnerId = partnerIdRaw ? partnerIdRaw : `DT_${Math.floor(1000 + Math.random() * 9000)}`;
@@ -2043,24 +2107,19 @@ function parseExcelFile(file, type) {
             const description = (firstRow[5] || "Bán hàng").toString().trim();
 
             if (!partnerMap.has(partnerId)) {
-              const pObj = {
-                id: partnerId,
-                name: partnerName,
-                type: "customer",
-                phone: "",
-                email: "",
-                address: ""
-              };
+              const pType = (detectedType === 'purchase' || detectedType === 'purchase_return') ? 'supplier' : 'customer';
+              const pObj = { id: partnerId, name: partnerName, type: pType, phone: "", email: "", address: "" };
               state.partners.push(pObj);
               partnerMap.set(partnerId, pObj);
             }
 
-            let paymentMethod = "131";
+            let paymentMethod = (detectedType === 'purchase' || detectedType === 'purchase_return') ? "331" : "131";
             const descUpper = description.toUpperCase();
             const nameUpper = partnerName.toUpperCase();
             if (descUpper.includes("TIỀN MẶT") || descUpper.includes("TM") || nameUpper.includes("BÁN LẺ") || nameUpper.includes("KHÁCH LẺ") || nameUpper.includes("VÃNG LAI")) {
               paymentMethod = "111";
             }
+            if (detectedType === 'receipt' || detectedType === 'payment') paymentMethod = "111";
 
             const itemsArray = [];
             let totalVoucherAmount = 0;
@@ -2069,46 +2128,46 @@ function parseExcelFile(file, type) {
               const productId = (row[9] || "SP_GENERIC").toString().trim();
               const productName = (row[10] || "Sản phẩm generic").toString().trim();
               const unit = (row[11] || "Cái").toString().trim();
-              const qty = safeParseFloat(row[12]);
-              const price = safeParseFloat(row[13]);
-              const discountVal = safeParseFloat(row[15]);
+
+              let qty, price, discountVal;
+              if (detectedType === 'sales_return' || detectedType === 'purchase_return') {
+                // Col[16]=SL trả lại, col[17]=GT trả lại, col[13]=đơn giá gốc
+                qty = safeParseFloat(row[16]);
+                const grossRet = safeParseFloat(row[17]);
+                price = qty > 0 ? Math.round(grossRet / qty) : safeParseFloat(row[13]);
+                discountVal = 0;
+              } else {
+                qty = safeParseFloat(row[12]);
+                price = safeParseFloat(row[13]);
+                discountVal = safeParseFloat(row[15]);
+              }
 
               const grossAmount = qty * price;
               const amount = grossAmount - discountVal;
               const discountPercent = grossAmount > 0 ? Math.round((discountVal / grossAmount) * 100 * 100) / 100 : 0;
 
-              itemsArray.push({
-                productId: productId,
-                qty: qty,
-                price: price,
-                discount: discountPercent,
-                amount: amount
-              });
+              if (qty !== 0 || amount !== 0) {
+                itemsArray.push({ productId, qty, price, discount: discountPercent, amount });
+                totalVoucherAmount += amount;
+              }
 
-              totalVoucherAmount += amount;
-
-              if (!productMap.has(productId)) {
-                const prodObj = {
-                  id: productId,
-                  name: productName,
-                  unit: unit,
-                  stock: 0,
-                  avgCost: 0,
-                  totalValue: 0
-                };
+              if (!productMap.has(productId) && productId !== "SP_GENERIC") {
+                const prodObj = { id: productId, name: productName, unit, stock: 0, avgCost: 0, totalValue: 0 };
                 state.products.push(prodObj);
                 productMap.set(productId, prodObj);
               }
             }
 
+            if (itemsArray.length === 0) continue;
+
             const vObj = {
               id: voucherId,
-              type: "sales",
+              type: detectedType,
               date: dateStr,
-              partnerId: partnerId,
-              partnerName: partnerName,
-              paymentMethod: paymentMethod,
-              description: description,
+              partnerId,
+              partnerName,
+              paymentMethod,
+              description,
               taxRate: 0,
               taxAmount: 0,
               totalAmount: totalVoucherAmount,
@@ -2117,6 +2176,7 @@ function parseExcelFile(file, type) {
               items: itemsArray
             };
 
+            // Smart merge: ghi đè nếu trùng, thêm mới nếu chưa có
             const existingIdx = voucherMap.get(voucherId);
             if (existingIdx !== undefined) {
               state.vouchers[existingIdx] = vObj;
@@ -2125,13 +2185,37 @@ function parseExcelFile(file, type) {
               voucherMap.set(voucherId, state.vouchers.length - 1);
             }
             count++;
+            if (typeCount[detectedType] !== undefined) typeCount[detectedType]++;
           }
+
+          state.soChiTietBanHangIntegrated = true;
+          state.salesExcelIntegrated = true;
 
           saveState();
           recalculateAccounting();
-          showToast(`Đã nạp thành công ${count} chứng từ chi tiết bán hàng từ file Excel!`, "success");
+
+          // Báo cáo chi tiết theo loại
+          const typeSummary = Object.entries(typeCount)
+            .filter(([, n]) => n > 0)
+            .map(([t, n]) => {
+              const labels = { sales: 'Bán hàng', sales_return: 'Bán trả lại', purchase: 'Mua hàng', purchase_return: 'Mua trả lại', receipt: 'Phiếu thu', payment: 'Phiếu chi' };
+              return `${labels[t] || t}: ${n}`;
+            }).join(', ');
+          showToast(`Đã nạp ${count} chứng từ (${typeSummary})`, "success");
+
           if (typeof filterSales === "function") filterSales();
           if (typeof renderDashboard === "function") renderDashboard();
+
+          // Đẩy lên cloud ngay để ghi đè data cũ sai
+          if (typeof pushToCloud === "function") {
+            setTimeout(() => {
+              state._lastModified = Date.now();
+              pushToCloud()
+                .then(() => showToast("Đã đồng bộ lên đám mây thành công!", "success"))
+                .catch(err => { console.error('[SalesImport] Lỗi push cloud:', err); showToast("Lỗi đồng bộ: " + err.message, "danger"); });
+            }, 1500);
+          }
+
         } else {
           let count = 0;
           const partnerMap = new Map();
@@ -2442,20 +2526,8 @@ function parseExcelFile(file, type) {
       else if (type === 'purchase' || type === 'purchase_return' || type === 'sales_return') {
         let count = 0;
         const groupMap = new Map();
-        
-        let startRow = 2;
-        for (let i = 0; i < Math.min(rows.length, 10); i++) {
-          const firstVal = (rows[i] ? rows[i][2] : "").toString().trim();
-          if (firstVal === "Số chứng từ") {
-            startRow = i + 1;
-            break;
-          }
-        }
 
-        let colQty = 13;
-        let colPrice = 14;
-        let colAmount = 17;
-
+        // Tìm header row
         let headerIdx = -1;
         for (let r = 0; r < Math.min(rows.length, 10); r++) {
           if (rows[r] && rows[r].includes("Số chứng từ") && rows[r].includes("Mã hàng")) {
@@ -2463,105 +2535,121 @@ function parseExcelFile(file, type) {
             break;
           }
         }
+        const startRow = headerIdx !== -1 ? headerIdx + 1 : 2;
+
+        // Phát hiện vị trí cột từ header động
+        let colProductId = 5;  // SO_CHI_TIET_MUA_HANG mặc định
+        let colProductName = 6;
+        let colUnit = 7;
+        let colPartner = -1;      // Mã NCC/KH
+        let colPartnerName = -1;  // Tên NCC/KH
+        let colQty = 13;
+        let colPrice = 14;
+        let colAmount = 17;
 
         if (headerIdx !== -1) {
           const header = rows[headerIdx];
-          const qIdx = header.indexOf("Số lượng mua") !== -1 ? header.indexOf("Số lượng mua") : header.indexOf("Số lượng");
+          // Phát hiện cột Mã hàng (có thể ở vị trí khác nhau tùy format)
+          const mhIdx = header.indexOf("Mã hàng");
+          if (mhIdx !== -1) colProductId = mhIdx;
+          if (mhIdx !== -1 && mhIdx + 1 < header.length) colProductName = mhIdx + 1;
+          if (mhIdx !== -1 && mhIdx + 2 < header.length) colUnit = mhIdx + 2;
+          // Phát hiện cột partner
+          const maNccIdx = header.indexOf("Mã NCC") !== -1 ? header.indexOf("Mã NCC") : header.indexOf("Mã khách hàng");
+          const tenNccIdx = header.indexOf("Tên NCC") !== -1 ? header.indexOf("Tên NCC") : header.indexOf("Tên khách hàng");
+          if (maNccIdx !== -1) colPartner = maNccIdx;
+          if (tenNccIdx !== -1) colPartnerName = tenNccIdx;
+          // Qty, Price, Amount
+          const qLst = ["Số lượng trả lại", "Số lượng mua", "Số lượng bán", "Số lượng"];
+          for (const ql of qLst) { const qi = header.indexOf(ql); if (qi !== -1) { colQty = qi; break; } }
           const pIdx = header.indexOf("Đơn giá");
-          const aIdx = header.indexOf("Giá trị mua") !== -1 ? header.indexOf("Giá trị mua") : header.indexOf("Thành tiền");
-          if (qIdx !== -1) colQty = qIdx;
           if (pIdx !== -1) colPrice = pIdx;
-          if (aIdx !== -1) colAmount = aIdx;
+          const aLst = ["Giá trị trả lại", "Giá trị mua", "Doanh số bán", "Thành tiền"];
+          for (const al of aLst) { const ai = header.indexOf(al); if (ai !== -1) { colAmount = ai; break; } }
         }
 
+        // Gom hàng theo voucherId
         for (let i = startRow; i < rows.length; i++) {
           const row = rows[i];
           const voucherId = (row[2] || "").toString().trim();
           if (!voucherId || voucherId.startsWith("TỔNG")) continue;
-
-          if (!groupMap.has(voucherId)) {
-            groupMap.set(voucherId, []);
-          }
+          if (!groupMap.has(voucherId)) groupMap.set(voucherId, []);
           groupMap.get(voucherId).push(row);
         }
 
         const partnerMap = new Map();
         state.partners.forEach(p => partnerMap.set(p.id, p));
-
         const productMap = new Map();
         state.products.forEach(p => productMap.set(p.id, p));
-
         const voucherMap = new Map();
         state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
-
-        const partnerId = type === 'purchase' ? "NCC_EXCEL" : (type === 'sales_return' ? "KH_RETURN_EXCEL" : "NCC_RETURN_EXCEL");
-        const partnerName = type === 'purchase' ? "Nhà cung cấp Sổ chi tiết" : (type === 'sales_return' ? "Khách hàng Trả lại" : "Nhà cung cấp Trả lại");
-        const partnerType = type === 'purchase' ? "supplier" : (type === 'sales_return' ? "customer" : "supplier");
-        if (!partnerMap.has(partnerId)) {
-          const pObj = {
-            id: partnerId,
-            name: partnerName,
-            type: partnerType,
-            phone: "",
-            email: "",
-            address: ""
-          };
-          state.partners.push(pObj);
-          partnerMap.set(partnerId, pObj);
-        }
 
         for (const [voucherId, voucherRows] of groupMap.entries()) {
           const firstRow = voucherRows[0];
           const dateStr = excelDateToISOString(firstRow[1] || firstRow[0]);
-          const invoiceNo = firstRow[4] || "";
-          const description = type === 'purchase'
-            ? `Nhập kho mua hàng theo số hóa đơn ${invoiceNo || voucherId}`
-            : (type === 'sales_return'
-               ? `Nhập kho hàng bán trả lại theo số hóa đơn ${invoiceNo || voucherId}`
-               : `Xuất kho trả lại hàng theo số hóa đơn ${invoiceNo || voucherId}`);
+          const invoiceNo = (firstRow[4] || "").toString().trim();
+
+          // Auto-detect loại từ prefix ID, fallback về type từ tham số UI
+          const detectedType = detectVoucherTypeFromId(voucherId) || type;
+
+          // Đọc partner từ file (col động hoặc fallback)
+          const partnerIdRaw = colPartner !== -1
+            ? (firstRow[colPartner] || "").toString().trim()
+            : "";
+          const partnerNameRaw = colPartnerName !== -1
+            ? (firstRow[colPartnerName] || "").toString().trim()
+            : "";
+          const partnerId = partnerIdRaw || `AUTO_${voucherId.replace(/\W/g, '_')}`;
+          const partnerName = partnerNameRaw || (detectedType === 'purchase' || detectedType === 'purchase_return' ? "Nhà cung cấp" : "Khách hàng");
+          const pType = (detectedType === 'purchase' || detectedType === 'purchase_return') ? 'supplier' : 'customer';
+
+          if (!partnerMap.has(partnerId)) {
+            const pObj = { id: partnerId, name: partnerName, type: pType, phone: "", email: "", address: "" };
+            state.partners.push(pObj);
+            partnerMap.set(partnerId, pObj);
+          }
+
+          const descBase = detectedType === 'purchase'
+            ? `Nhập kho mua hàng${invoiceNo ? ' HĐ ' + invoiceNo : ''}`
+            : detectedType === 'sales_return'
+              ? `Hàng bán trả lại${invoiceNo ? ' HĐ ' + invoiceNo : ''}`
+              : `Trả lại hàng mua${invoiceNo ? ' HĐ ' + invoiceNo : ''}`;
+          const description = (firstRow[5] || descBase).toString().trim();
+          const paymentMethod = (detectedType === 'purchase' || detectedType === 'purchase_return') ? "331" : "131";
 
           const itemsArray = [];
           let totalVoucherAmount = 0;
 
           for (const row of voucherRows) {
-            const productId = (row[5] || "SP_GENERIC").toString().trim();
-            const productName = (row[6] || "Sản phẩm generic").toString().trim();
-            const unit = (row[7] || "Cái").toString().trim();
+            const productId = (row[colProductId] || "SP_GENERIC").toString().trim();
+            const productName = (row[colProductName] || "Sản phẩm generic").toString().trim();
+            const unit = (row[colUnit] || "Cái").toString().trim();
             const qty = safeParseFloat(row[colQty]);
             const price = safeParseFloat(row[colPrice]);
             const amount = safeParseFloat(row[colAmount]) || (qty * price);
 
-            itemsArray.push({
-              productId: productId,
-              qty: qty,
-              price: price,
-              amount: amount
-            });
+            if (qty !== 0 || amount !== 0) {
+              itemsArray.push({ productId, qty, price, amount });
+              totalVoucherAmount += amount;
+            }
 
-            totalVoucherAmount += amount;
-
-            if (!productMap.has(productId)) {
-              const prodObj = {
-                id: productId,
-                name: productName,
-                unit: unit,
-                stock: 0,
-                avgCost: 0,
-                totalValue: 0
-              };
+            if (!productMap.has(productId) && productId !== "SP_GENERIC") {
+              const prodObj = { id: productId, name: productName, unit, stock: 0, avgCost: 0, totalValue: 0 };
               state.products.push(prodObj);
               productMap.set(productId, prodObj);
             }
           }
 
+          if (itemsArray.length === 0) continue;
+
           const vObj = {
             id: voucherId,
-            type: type,
+            type: detectedType,
             date: dateStr,
-            partnerId: partnerId,
-            partnerName: partnerName,
-            paymentMethod: type === 'sales_return' ? "131" : "331",
-            description: description,
+            partnerId,
+            partnerName,
+            paymentMethod,
+            description,
             taxRate: 0,
             taxAmount: 0,
             totalAmount: totalVoucherAmount,
@@ -2570,6 +2658,7 @@ function parseExcelFile(file, type) {
             items: itemsArray
           };
 
+          // Smart merge
           const existingIdx = voucherMap.get(voucherId);
           if (existingIdx !== undefined) {
             state.vouchers[existingIdx] = vObj;

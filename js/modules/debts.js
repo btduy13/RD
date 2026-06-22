@@ -25,24 +25,27 @@ function calculatePartnerDebts(toDate = "") {
   state.vouchers.forEach(v => {
     if (toDate && v.date > toDate) return;
     if (!v.entries) return;
+    const pId = v.partnerId;
+    const d = debts[pId];
+    if (!d) return;
 
     v.entries.forEach(e => {
-      if (e.debit.startsWith("131")) {
-        const pId = v.partnerId;
-        if (debts[pId]) debts[pId].debitTrans += e.amount;
+      // Khách hàng (customer): chỉ đọc TK 131
+      if (d.type === "customer") {
+        if (e.debit.startsWith("131"))  d.debitTrans  += e.amount; // Tăng phải thu (bán chịu)
+        if (e.credit.startsWith("131")) d.creditTrans += e.amount; // Giảm phải thu (thu tiền / trả lại)
       }
-      if (e.credit.startsWith("131")) {
-        const pId = v.partnerId;
-        if (debts[pId]) debts[pId].creditTrans += e.amount;
+      // Nhà cung cấp (supplier): chỉ đọc TK 331
+      else if (d.type === "supplier") {
+        if (e.credit.startsWith("331")) d.creditTrans += e.amount; // Tăng phải trả (mua chịu)
+        if (e.debit.startsWith("331"))  d.debitTrans  += e.amount; // Giảm phải trả (thanh toán / trả hàng)
       }
-
-      if (e.debit.startsWith("331")) {
-        const pId = v.partnerId;
-        if (debts[pId]) debts[pId].debitTrans += e.amount;
-      }
-      if (e.credit.startsWith("331")) {
-        const pId = v.partnerId;
-        if (debts[pId]) debts[pId].creditTrans += e.amount;
+      // Đối tác cả 2 loại (both): đọc cả 131 lẫn 331, nhưng theo đúng chiều
+      else {
+        if (e.debit.startsWith("131"))  d.debitTrans  += e.amount;
+        if (e.credit.startsWith("131")) d.creditTrans += e.amount;
+        if (e.credit.startsWith("331")) d.creditTrans += e.amount;
+        if (e.debit.startsWith("331"))  d.debitTrans  += e.amount;
       }
     });
   });

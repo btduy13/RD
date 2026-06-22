@@ -31,7 +31,47 @@ function initApp() {
   localStorage.removeItem("rd_accounting_db");
 
   // Khởi tạo từ cache cục bộ (nếu có) để giao diện hiển thị ngay lập tức
+  // ữu tiên: Đọc từ file JSON (không giới hạn kích thước) | Fallback: localStorage (bị giới hạn 5MB)
   let hasCache = false;
+
+  // === [ƯU TIÊN 1] ĐỌC TỪ FILE JSON QUA ELECTRON IPC ===
+  if (window.electronAPI && typeof window.electronAPI.readStateFile === 'function') {
+    // Chạy async nhưng initApp không block — state sẽ được cập nhật ngay khi file đọc xong
+    window.electronAPI.readStateFile().then(result => {
+      if (result && result.ok && result.data) {
+        try {
+          const parsed = JSON.parse(result.data);
+          if (parsed && Array.isArray(parsed.products) && Array.isArray(parsed.vouchers)) {
+            // Merge: chỉ ghi đè nếu file có dữ liệu phong phú hơn state hiện tại
+            const currentVoucherCount = (state.vouchers || []).length;
+            const fileVoucherCount = parsed.vouchers.length;
+            if (fileVoucherCount > currentVoucherCount) {
+              state = parsed;
+              if (typeof lastSyncState !== 'undefined') {
+                lastSyncState = JSON.parse(JSON.stringify(parsed));
+              }
+              if (typeof lastSyncedCloudTs !== 'undefined') {
+                lastSyncedCloudTs = state._lastModified || 0;
+              }
+              console.log(`[StateFile] Nạp từ file thành công! (${fileVoucherCount} chứng từ, ${(parsed.partners || []).length} đối tác)`);
+              cleanNumericVouchers();
+              // Cập nhật lại UI sau khi nạp file
+              if (typeof recalculateAccounting === 'function') recalculateAccounting();
+              if (typeof switchTab === 'function') switchTab('dashboard');
+              if (typeof renderDashboard === 'function') renderDashboard();
+            }
+          }
+        } catch (parseErr) {
+          console.error('[StateFile] Lỗi parse JSON từ file:', parseErr);
+        }
+      } else if (result && !result.ok) {
+        // File chưa tồn tại — bình thường trong lần chạy đầu tiên
+        console.log('[StateFile] File state chưa tồn tại, sẽ tạo mới khi lưu lần đầu.');
+      }
+    }).catch(err => console.error('[StateFile] Lỗi IPC readStateFile:', err));
+  }
+
+  // === [ƯU TIÊN 2] FALLBACK: ĐỌC TỪ LOCALSTORAGE (để tương thích ngược) ===
   try {
     const cache = localStorage.getItem("rd_accounting_online_cache");
     if (cache) {
@@ -291,11 +331,35 @@ function executeSaveState(sync = false) {
         state.deletedIds = state.deletedIds.filter(id => !activeIds.has(id));
       }
       
-      // Ghi cache cục bộ tức thời
-      try {
-        localStorage.setItem("rd_accounting_online_cache", JSON.stringify(state));
-      } catch (cacheErr) {
-        console.error("[Cache] Lỗi ghi cache cục bộ:", cacheErr);
+      // === [01] GHI RA FILE JSON QUA ELECTRON IPC (không giới hạn kích thước) ===
+      const jsonString = JSON.stringify(state);
+      if (window.electronAPI && typeof window.electronAPI.writeStateFile === 'function') {
+        window.electronAPI.writeStateFile(jsonString).then(result => {
+          if (!result || !result.ok) {
+            console.error('[StateFile] Ghi file thất bại:', result && result.error);
+          }
+        }).catch(err => console.error('[StateFile] Lỗi IPC writeStateFile:', err));
+      }
+
+      // === [02] FALLBACK: GHI VÀO LOCALSTORAGE (đối với trình duyệt web, không phải Electron) ===
+      // Bật cơ chế bảo vệ: chỉ ghi localStorage nếu < 4MB để tránh QuotaExceededError
+      if (!window.electronAPI) {
+        try {
+          if (jsonString.length < 4 * 1024 * 1024) { // < 4MB mới ghi localStorage
+            localStorage.setItem("rd_accounting_online_cache", jsonString);
+          } else {
+            console.warn(`[Cache] Dữ liệu (${(jsonString.length/1024/1024).toFixed(1)}MB) vượt ngưỡng localStorage 4MB, bỏ qua ghi cache cục bộ.`);
+          }
+        } catch (cacheErr) {
+          if (cacheErr.name === 'QuotaExceededError' || cacheErr.code === 22) {
+            console.warn('[Cache] localStorage đầy (QuotaExceededError). Dữ liệu quá lớn để lưu vào local cache.');
+            // Xóa cache cũ để giải phóng chỗ
+            try { localStorage.removeItem('rd_accounting_online_cache'); } catch(e) {}
+            try { localStorage.removeItem('rd_accounting_last_sync_cache'); } catch(e) {}
+          } else {
+            console.error('[Cache] Lỗi ghi cache cục bộ:', cacheErr);
+          }
+        }
       }
 
       if (typeof pushToCloud === "function") {

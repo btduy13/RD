@@ -48,8 +48,12 @@ function recalculateAccounting(shouldSave = true) {
           }
           if (v.type === "purchase") {
             voucherChanges[item.productId].purchases += (item.qty || 0);
-          } else if (v.type === "purchase_return" || v.type === "sales_return") {
-            voucherChanges[item.productId].sales -= (item.qty || 0);
+          } else if (v.type === "sales_return") {
+            // Bán trả lại → hàng về kho → cộng stock (giống purchase)
+            voucherChanges[item.productId].purchases += (item.qty || 0);
+          } else if (v.type === "purchase_return") {
+            // Mua trả lại → xuất kho trả NCC → trừ stock (giống sales)
+            voucherChanges[item.productId].sales += (item.qty || 0);
           } else if (v.type === "sales") {
             voucherChanges[item.productId].sales += (item.qty || 0);
           }
@@ -150,54 +154,109 @@ function recalculateAccounting(shouldSave = true) {
       v.entries = [
         { debit: "156", credit: v.paymentMethod, amount: itemSubtotal, desc: `Nhập kho ${v.description}` },
       ];
-      if (taxAmount > 0) {
+      // TT133 không tách riêng TK 1331 (thuế GTGT gộp vào giá hàng mua)
+      if (taxAmount > 0 && state.accountingStandard !== "TT133") {
         v.entries.push({ debit: "1331", credit: v.paymentMethod, amount: taxAmount, desc: "Thuế GTGT đầu vào được khấu trừ" });
       }
 
-    } else if (v.type === "purchase_return" || v.type === "sales_return") {
-      // Hàng trả lại: Cộng vào stock trong kho và giảm trừ doanh thu
+    } else if (v.type === "sales_return") {
+      // Bán hàng trả lại:
+      // 1. Cộng lại kho (stock +)
+      // 2. Giảm doanh thu (Nợ 511)
+      // 3. Giảm công nợ phải thu khách hàng (Có 131)
       let totalCogs = 0;
       let itemSubtotal = 0;
 
       v.items.forEach(item => {
         const p = productBalanceMap[item.productId];
         if (p) {
-          if (!p.avgCost || p.avgCost <= 0) {
-            p.avgCost = p.lastPurchasePrice || p.initialCost || 0;
-          }
+          if (!p.avgCost || p.avgCost <= 0) p.avgCost = p.lastPurchasePrice || p.initialCost || 0;
           item.cogsUnit = p.avgCost;
           item.cogsAmount = Math.round(item.qty * p.avgCost);
-
           p.stock = Number((p.stock + item.qty).toFixed(3));
           p.totalValue += item.cogsAmount;
-
           totalCogs += item.cogsAmount;
         }
         itemSubtotal += item.amount;
       });
 
       v.cogsAmount = totalCogs;
-      const taxRate = v.taxRate || 0;
-      const taxAmount = Math.round(itemSubtotal * (taxRate / 100));
-      const totalAmount = itemSubtotal + taxAmount;
-
-      v.taxAmount = taxAmount;
-      v.totalAmount = totalAmount;
+      const taxRateSR = v.taxRate || 0;
+      const taxAmountSR = Math.round(itemSubtotal * (taxRateSR / 100));
+      const totalAmountSR = itemSubtotal + taxAmountSR;
+      v.taxAmount = taxAmountSR;
+      v.totalAmount = totalAmountSR;
+      // Công nợ KH giảm (được hoàn lại): remainingDebt âm nghĩa là công ty nợ khách
       if (v.remainingDebt === undefined) {
-        v.remainingDebt = (v.paymentMethod === "131" || v.paymentMethod === "331") ? totalAmount : 0;
+        v.remainingDebt = -totalAmountSR; // Âm = trừ từ tổng công nợ phải thu
       }
 
-      // Giảm trừ doanh thu: Nợ TK 511 / Có TK đối ứng (131, 331, 111, 112)
+      // Bút toán:
+      // Nợ 511: Giảm doanh thu / Có 131: Giảm công nợ phải thu
+      const creditAccSR = v.paymentMethod && v.paymentMethod !== "131" ? v.paymentMethod : "131";
       v.entries = [
-        { debit: "511", credit: v.paymentMethod, amount: itemSubtotal, desc: `Giảm trừ doanh thu hàng trả lại ${v.description}` }
+        { debit: "511", credit: creditAccSR, amount: itemSubtotal, desc: `Giảm doanh thu bán hàng trả lại: ${v.description}` }
       ];
-      if (taxAmount > 0) {
-        v.entries.push({ debit: "3331", credit: v.paymentMethod, amount: taxAmount, desc: "Giảm thuế GTGT đầu ra phải nộp" });
+      if (taxAmountSR > 0) {
+        v.entries.push({ debit: "3331", credit: creditAccSR, amount: taxAmountSR, desc: "Giảm thuế GTGT đầu ra" });
+      }
+      // Nhập lại kho: Nợ 156 / Có 632
+      if (totalCogs > 0) {
+        v.entries.push({ debit: "156", credit: "632", amount: totalCogs, desc: `Nhập lại kho hàng bán trả lại: ${v.description}` });
       }
 
-      // Nhập lại kho: Nợ TK 156 / Có TK 632
-      if (totalCogs > 0) {
-        v.entries.push({ debit: "156", credit: "632", amount: totalCogs, desc: `Nhập lại kho hàng trả lại ${v.description}` });
+    } else if (v.type === "purchase_return") {
+      // Mua hàng trả lại (xuất trả NCC):
+      // 1. Giảm tồn kho (stock -)
+      // 2. Giảm công nợ phải trả NCC (Nợ 331)
+      // 3. Ghi giảm giá vốn hàng mua (Có 156)
+      let totalCogs = 0;
+      let itemSubtotal = 0;
+
+      v.items.forEach(item => {
+        const p = productBalanceMap[item.productId];
+        if (p) {
+          if (!p.avgCost || p.avgCost <= 0) p.avgCost = p.lastPurchasePrice || p.initialCost || 0;
+          item.cogsUnit = p.avgCost;
+          item.cogsAmount = Math.round(item.qty * p.avgCost);
+          // Xuất trả NCC → trừ kho
+          p.stock = Number((p.stock - item.qty).toFixed(3));
+          p.totalValue = Math.max(0, p.totalValue - item.cogsAmount);
+          totalCogs += item.cogsAmount;
+        }
+        itemSubtotal += item.amount;
+      });
+
+      v.cogsAmount = totalCogs;
+      const taxRatePR = v.taxRate || 0;
+      const taxAmountPR = Math.round(itemSubtotal * (taxRatePR / 100));
+      const totalAmountPR = itemSubtotal + taxAmountPR;
+      v.taxAmount = taxAmountPR;
+      v.totalAmount = totalAmountPR;
+      if (v.remainingDebt === undefined) {
+        v.remainingDebt = -totalAmountPR; // Âm = giảm công nợ phải trả NCC
+      }
+
+      // Bút toán mua trả lại:
+      // Nợ 331: Giảm công nợ phải trả NCC (theo giá trị trả — itemSubtotal)
+      // Có 156: Giảm hàng tồn kho (theo giá vốn — totalCogs)
+      const creditAccPR = v.paymentMethod && v.paymentMethod !== "331" ? v.paymentMethod : "331";
+      // Entry chính: Nợ 331 / Có 156 theo giá trị trả (itemSubtotal) — tác động đúng đến công nợ
+      v.entries = [
+        { debit: creditAccPR, credit: "156", amount: itemSubtotal, desc: `Xuất trả hàng NCC: ${v.description}` }
+      ];
+      // Nếu giá vốn khác giá trị trả: ghi chênh lệch vào TK 711
+      if (totalCogs > 0 && totalCogs !== itemSubtotal) {
+        const diff = itemSubtotal - totalCogs;
+        if (diff > 0) {
+          v.entries.push({ debit: "632", credit: "711", amount: diff, desc: "Chênh lệch giá trả > giá vốn" });
+        } else {
+          v.entries.push({ debit: "632", credit: "156", amount: -diff, desc: "Chênh lệch giá vốn > giá trả" });
+        }
+      }
+      // Thuế GTGT — chỉ TT200 mới tách riêng 1331
+      if (taxAmountPR > 0 && state.accountingStandard !== "TT133") {
+        v.entries.push({ debit: creditAccPR, credit: "1331", amount: taxAmountPR, desc: "Giảm thuế GTGT đầu vào" });
       }
 
     } else if (v.type === "sales") {

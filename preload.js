@@ -22,4 +22,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeLog: (content) => ipcRenderer.invoke('write-log', content),
   // Kích hoạt tiến trình in ấn hệ thống
   printWindow: () => ipcRenderer.invoke('print-window'),
+  // Lưu state ra file JSON (không giới hạn kích thước, thay thế localStorage)
+  writeStateFile: (jsonData) => ipcRenderer.invoke('write-state-file', jsonData),
+  // Đọc state từ file JSON
+  readStateFile: () => ipcRenderer.invoke('read-state-file'),
+  // Đọc file backup gần nhất để phục hồi khi state bị hỏng
+  readLatestBackup: () => ipcRenderer.invoke('read-latest-backup'),
 });
