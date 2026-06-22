@@ -4,11 +4,11 @@ function findRelatedSalesVoucher(voucherId, description, partnerId, amount) {
   const v = state.vouchers.find(x => x.id === voucherId);
   if (!v) return null;
 
-  // 1. Tìm theo số chứng từ bán hàng trong diễn giải (ví dụ: BH39244, BH-25-0001, v.v.)
+  // 1. Tìm theo số chứng từ bán hàng trong diễn giải (ví dụ: BH39244, BH-25-0001, BH 42026, v.v.)
   const descStr = (description || v.description || "").toString();
-  const bhMatch = descStr.match(/BH-?\d+/i);
+  const bhMatch = descStr.match(/BH\s*-?\s*\d+/i);
   if (bhMatch) {
-    const matchedId = bhMatch[0].toUpperCase().replace("-", ""); // Chuẩn hóa mã
+    const matchedId = bhMatch[0].toUpperCase().replace(/\s/g, "").replace("-", ""); // Chuẩn hóa mã
     const relatedSales = state.vouchers.find(x => x.type === "sales" && x.id.toUpperCase().replace("-", "") === matchedId);
     if (relatedSales) return relatedSales;
   }
@@ -18,7 +18,12 @@ function findRelatedSalesVoucher(voucherId, description, partnerId, amount) {
   if (numMatches) {
     for (const num of numMatches) {
       if (num.length >= 3) {
-        const relatedSales = state.vouchers.find(x => x.type === "sales" && x.id.includes(num));
+        // Chỉ so khớp nếu phần số của voucher ID bằng đúng num (không khớp substring gây false positive như năm 2026)
+        const relatedSales = state.vouchers.find(x => {
+          if (x.type !== "sales") return false;
+          const numericPart = x.id.replace(/^\D+/, "").replace(/-/g, "");
+          return numericPart === num;
+        });
         if (relatedSales) return relatedSales;
       }
     }

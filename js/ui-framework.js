@@ -368,7 +368,7 @@ function viewVoucher(id) {
       </div>
     `;
   } else if (v.type === "purchase") {
-    // Mua hàng → Phìkếu Nhập Kho theo style của Bán Hàng
+    // Mua hàng → Phiếu Nhập Kho theo style của Bán Hàng
     let grossTotal = 0;
     (v.items || []).forEach(item => { grossTotal += item.amount || ((item.qty||0)*(item.price||0)); });
     const partner_p = getPartnerForVoucher(v) || {};
@@ -388,7 +388,7 @@ function viewVoucher(id) {
         </div>
         <!-- Tiêu đề -->
         <div style="text-align:center; margin-bottom:10px;">
-          <div style="font-size:18px; font-weight:bold; letter-spacing:1.2px; text-transform:uppercase;">PHẾU NHẬP KHO</div>
+          <div style="font-size:18px; font-weight:bold; letter-spacing:1.2px; text-transform:uppercase;">PHIẾU NHẬP KHO</div>
           <div style="font-size:10.5px; font-style:italic;">Ngày ${v.date.substring(8,10)} tháng ${v.date.substring(5,7)} năm ${v.date.substring(0,4)}</div>
         </div>
         <!-- Thông tin -->
@@ -466,7 +466,7 @@ function viewVoucher(id) {
 
 
   } else if (v.type === "purchase_return") {
-    // Mua trả lại → PHẾU XUẤT KHO TRẢ NCC (hàng ĐI RA khỏi kho)
+    // Mua trả lại → PHIẾU XUẤT KHO TRẢ NCC (hàng ĐI RA khỏi kho)
     let grossTotal = 0;
     (v.items || []).forEach(item => { grossTotal += item.amount || ((item.qty||0)*(item.price||0)); });
     const partner_pr = getPartnerForVoucher(v) || {};
@@ -487,7 +487,7 @@ function viewVoucher(id) {
         </div>
         <!-- Tiêu đề -->
         <div style="text-align:center; margin-bottom:10px;">
-          <div style="font-size:18px; font-weight:bold; letter-spacing:1.2px; text-transform:uppercase;">PHẾU XUẤT KHO TRẢ NHÀ CUNG CẤP</div>
+          <div style="font-size:18px; font-weight:bold; letter-spacing:1.2px; text-transform:uppercase;">PHIẾU XUẤT KHO TRẢ NHÀ CUNG CẤP</div>
           <div style="font-size:10.5px; font-style:italic;">Ngày ${v.date.substring(8,10)} tháng ${v.date.substring(5,7)} năm ${v.date.substring(0,4)}</div>
         </div>
         <!-- Thông tin -->
@@ -552,7 +552,7 @@ function viewVoucher(id) {
     `;
 
   } else if (v.type === "sales_return") {
-    // Hàng bán trả lại → PHẾU NHẬP KHO HÀNG BÁN TRẢ LạI (hàng ĐI VÀO kho)
+    // Hàng bán trả lại → PHIẾU NHẬP KHO HÀNG BÁN TRẢ LẠI (hàng ĐI VÀO kho)
     let grossTotal = 0;
     (v.items || []).forEach(item => { grossTotal += item.amount || ((item.qty||0)*(item.price||0)); });
     const partner_sr = getPartnerForVoucher(v) || {};
@@ -573,7 +573,7 @@ function viewVoucher(id) {
         </div>
         <!-- Tiêu đề -->
         <div style="text-align:center; margin-bottom:10px;">
-          <div style="font-size:18px; font-weight:bold; letter-spacing:1.2px; text-transform:uppercase;">PHẾU NHẬP KHO HÀNG BÁN TRẢ LạI</div>
+          <div style="font-size:18px; font-weight:bold; letter-spacing:1.2px; text-transform:uppercase;">PHIẾU NHẬP KHO HÀNG BÁN TRẢ LẠI</div>
           <div style="font-size:10.5px; font-style:italic;">Ngày ${v.date.substring(8,10)} tháng ${v.date.substring(5,7)} năm ${v.date.substring(0,4)}</div>
         </div>
         <!-- Thông tin -->
