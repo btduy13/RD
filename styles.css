@@ -2489,6 +2489,219 @@ input::-webkit-calendar-picker-indicator {
   display: none !important;
 }
 
+/* ==========================================================================
+   CUSTOM DATE PICKER (thay thế native date input)
+   ========================================================================== */
 
+/* Ẩn native picker indicator, chỉ giữ text display */
+input.form-control-date::-webkit-inner-spin-button,
+input.form-control-date::-webkit-clear-button {
+  display: none !important;
+}
 
+/* Wrapper cho mỗi date input */
+.rdp-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.rdp-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.rdp-display.empty {
+  color: var(--text-muted);
+}
+
+.rdp-display svg {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+/* Popup container */
+#rdp-popup {
+  position: fixed;
+  z-index: 99999;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(14,165,233,0.1);
+  padding: 0;
+  min-width: 280px;
+  animation: rdp-appear 0.15s ease;
+  overflow: hidden;
+}
+
+@keyframes rdp-appear {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Header: tháng năm + nút điều hướng */
+.rdp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 8px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+}
+
+.rdp-nav-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.rdp-nav-btn:hover {
+  background: var(--bg-primary);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.rdp-month-year {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s;
+}
+.rdp-month-year:hover { background: var(--bg-primary); }
+
+/* Preset nhanh */
+.rdp-presets {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+}
+.rdp-preset-btn {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.rdp-preset-btn:hover {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+/* Grid ngày trong tuần */
+.rdp-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding: 8px 10px 4px;
+  gap: 2px;
+}
+.rdp-weekday {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 2px 0;
+}
+
+/* Grid các ngày */
+.rdp-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding: 0 10px 10px;
+  gap: 2px;
+}
+
+.rdp-day {
+  text-align: center;
+  font-size: 13px;
+  padding: 6px 2px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: all 0.12s;
+  border: 1px solid transparent;
+  font-weight: 500;
+  line-height: 1.2;
+}
+.rdp-day:hover {
+  background: rgba(14,165,233,0.15);
+  color: var(--color-primary);
+}
+.rdp-day.today {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 700;
+}
+.rdp-day.selected {
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
+}
+.rdp-day.other-month {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+.rdp-day.disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.rdp-day.empty {
+  cursor: default;
+  pointer-events: none;
+}
+
+/* Footer: nút xóa */
+.rdp-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 6px 12px 10px;
+  gap: 6px;
+  border-top: 1px solid var(--border-color);
+}
+.rdp-footer button {
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-weight: 600;
+}
+.rdp-clear-btn {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+.rdp-clear-btn:hover { border-color: var(--color-danger); color: var(--color-danger); }
+.rdp-close-btn {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+.rdp-close-btn:hover { background: var(--color-primary-hover); }
 

@@ -1164,3 +1164,391 @@ window.animateCountUp = animateCountUp;
 window.openModal = openModal;
 window.closeModal = closeModal;
 
+// ==========================================================================
+// RDP — Custom Date Picker (cuốn lịch tùy chỉnh)
+// Tự động wrap tất cả input[type=date].form-control-date
+// ==========================================================================
+(function() {
+  'use strict';
+
+  const MONTHS_VI = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6',
+                     'Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+  const DAYS_VI   = ['CN','T2','T3','T4','T5','T6','T7'];
+
+  let popup = null;       // DOM element popup
+  let activeInput = null; // Input đang được chọn
+  let viewYear = 0;
+  let viewMonth = 0;      // 0-indexed
+
+  // ---- Tạo popup DOM (dùng chung 1 popup cho toàn app) ----
+  function createPopup() {
+    popup = document.createElement('div');
+    popup.id = 'rdp-popup';
+    popup.innerHTML = `
+      <div class="rdp-header">
+        <button class="rdp-nav-btn" id="rdp-prev-year" title="Năm trước">«</button>
+        <button class="rdp-nav-btn" id="rdp-prev-month" title="Tháng trước">‹</button>
+        <span class="rdp-month-year" id="rdp-month-year-label"></span>
+        <button class="rdp-nav-btn" id="rdp-next-month" title="Tháng sau">›</button>
+        <button class="rdp-nav-btn" id="rdp-next-year" title="Năm sau">»</button>
+      </div>
+      <div class="rdp-presets">
+        <button class="rdp-preset-btn" data-preset="today">Hôm nay</button>
+        <button class="rdp-preset-btn" data-preset="week">Tuần này</button>
+        <button class="rdp-preset-btn" data-preset="month">Tháng này</button>
+        <button class="rdp-preset-btn" data-preset="quarter">Quý này</button>
+        <button class="rdp-preset-btn" data-preset="year">Năm nay</button>
+      </div>
+      <div class="rdp-weekdays"></div>
+      <div class="rdp-days" id="rdp-days-grid"></div>
+      <div class="rdp-footer">
+        <button class="rdp-clear-btn" id="rdp-clear-btn">Xóa ngày</button>
+        <button class="rdp-close-btn" id="rdp-done-btn">Xong</button>
+      </div>
+    `;
+
+    // Render weekday headers (Tuần bắt đầu từ T2)
+    const wdEl = popup.querySelector('.rdp-weekdays');
+    // Order: T2 T3 T4 T5 T6 T7 CN
+    const wdOrder = [1,2,3,4,5,6,0];
+    wdOrder.forEach(i => {
+      const d = document.createElement('div');
+      d.className = 'rdp-weekday';
+      d.textContent = DAYS_VI[i];
+      wdEl.appendChild(d);
+    });
+
+    document.body.appendChild(popup);
+
+    // Events
+    popup.querySelector('#rdp-prev-year').addEventListener('click', e => { e.stopPropagation(); viewYear--; renderCalendar(); });
+    popup.querySelector('#rdp-next-year').addEventListener('click', e => { e.stopPropagation(); viewYear++; renderCalendar(); });
+    popup.querySelector('#rdp-prev-month').addEventListener('click', e => {
+      e.stopPropagation();
+      viewMonth--;
+      if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+      renderCalendar();
+    });
+    popup.querySelector('#rdp-next-month').addEventListener('click', e => {
+      e.stopPropagation();
+      viewMonth++;
+      if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+      renderCalendar();
+    });
+
+    popup.querySelector('#rdp-clear-btn').addEventListener('click', e => {
+      e.stopPropagation();
+      if (activeInput) {
+        activeInput.value = '';
+        updateDisplay(activeInput);
+        fireChange(activeInput);
+      }
+      closePopup();
+    });
+
+    popup.querySelector('#rdp-done-btn').addEventListener('click', e => {
+      e.stopPropagation();
+      closePopup();
+    });
+
+    // Preset buttons
+    popup.querySelectorAll('.rdp-preset-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        applyPreset(btn.dataset.preset);
+      });
+    });
+  }
+
+  function applyPreset(preset) {
+    if (!activeInput) return;
+    const now = new Date();
+    let date = null;
+
+    if (preset === 'today') {
+      date = toDateString(now);
+    } else if (preset === 'week') {
+      // Đầu tuần (thứ Hai)
+      const d = new Date(now);
+      const day = d.getDay(); // 0=CN
+      const diff = day === 0 ? -6 : 1 - day;
+      d.setDate(d.getDate() + diff);
+      // Check nếu đây là from hay to
+      if (activeInput.id && activeInput.id.includes('-to')) {
+        // Cuối tuần (CN)
+        d.setDate(d.getDate() + 6);
+      }
+      date = toDateString(d);
+    } else if (preset === 'month') {
+      if (activeInput.id && activeInput.id.includes('-to')) {
+        // Ngày cuối tháng
+        const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        date = toDateString(last);
+      } else {
+        date = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+      }
+    } else if (preset === 'quarter') {
+      const qm = Math.floor(now.getMonth() / 3) * 3;
+      if (activeInput.id && activeInput.id.includes('-to')) {
+        const last = new Date(now.getFullYear(), qm + 3, 0);
+        date = toDateString(last);
+      } else {
+        date = `${now.getFullYear()}-${String(qm+1).padStart(2,'0')}-01`;
+      }
+    } else if (preset === 'year') {
+      if (activeInput.id && activeInput.id.includes('-to')) {
+        date = `${now.getFullYear()}-12-31`;
+      } else {
+        date = `${now.getFullYear()}-01-01`;
+      }
+    }
+
+    if (date) {
+      activeInput.value = date;
+      updateDisplay(activeInput);
+      fireChange(activeInput);
+      // Chuyển lịch về tháng vừa chọn
+      const [y, m] = date.split('-').map(Number);
+      viewYear = y; viewMonth = m - 1;
+      renderCalendar();
+    }
+  }
+
+  function toDateString(d) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function formatDisplayDate(isoStr) {
+    if (!isoStr) return null;
+    const [y, m, d] = isoStr.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  // ---- Render lưới lịch ----
+  function renderCalendar() {
+    if (!popup) return;
+    popup.querySelector('#rdp-month-year-label').textContent = `${MONTHS_VI[viewMonth]} ${viewYear}`;
+
+    const grid = popup.querySelector('#rdp-days-grid');
+    grid.innerHTML = '';
+
+    const today = toDateString(new Date());
+    const selectedVal = activeInput ? activeInput.value : '';
+
+    const firstDay = new Date(viewYear, viewMonth, 1);
+    const lastDay  = new Date(viewYear, viewMonth + 1, 0);
+
+    // Day-of-week offset (tuần bắt đầu Thứ Hai: 0=T2, 6=CN)
+    let startDow = firstDay.getDay(); // 0=CN, 1=T2, ...
+    startDow = (startDow === 0) ? 6 : startDow - 1; // Convert: T2=0 ... CN=6
+
+    // Empty cells before first day
+    for (let i = 0; i < startDow; i++) {
+      const empty = document.createElement('div');
+      empty.className = 'rdp-day empty';
+      grid.appendChild(empty);
+    }
+
+    // Day cells
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+      const cell = document.createElement('div');
+      const iso = `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      cell.className = 'rdp-day';
+      if (iso === today) cell.classList.add('today');
+      if (iso === selectedVal) cell.classList.add('selected');
+      cell.textContent = day;
+      cell.addEventListener('click', e => {
+        e.stopPropagation();
+        if (activeInput) {
+          activeInput.value = iso;
+          updateDisplay(activeInput);
+          fireChange(activeInput);
+        }
+        closePopup();
+      });
+      grid.appendChild(cell);
+    }
+  }
+
+  // ---- Vị trí popup ----
+  function positionPopup(trigger) {
+    const rect = trigger.getBoundingClientRect();
+    const popW = 280;
+    const popH = 380;
+
+    let left = rect.left;
+    let top  = rect.bottom + 4;
+
+    // Tránh ra khỏi cửa sổ
+    if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
+    if (top + popH > window.innerHeight - 8) top = rect.top - popH - 4;
+
+    popup.style.left = left + 'px';
+    popup.style.top  = top  + 'px';
+  }
+
+  // ---- Mở popup ----
+  function openPopup(input, triggerEl) {
+    if (!popup) createPopup();
+    activeInput = input;
+
+    // Set view tới tháng hiện tại của input (hoặc hôm nay)
+    const val = input.value;
+    if (val) {
+      const [y, m] = val.split('-').map(Number);
+      viewYear = y; viewMonth = m - 1;
+    } else {
+      const now = new Date();
+      viewYear = now.getFullYear(); viewMonth = now.getMonth();
+    }
+
+    renderCalendar();
+    positionPopup(triggerEl);
+    popup.style.display = 'block';
+
+    // Close on outside click (next tick)
+    setTimeout(() => {
+      document.addEventListener('click', onOutsideClick, { once: true });
+    }, 0);
+  }
+
+  function closePopup() {
+    if (popup) popup.style.display = 'none';
+    activeInput = null;
+  }
+
+  function onOutsideClick(e) {
+    if (popup && !popup.contains(e.target)) {
+      closePopup();
+    } else if (popup && popup.style.display !== 'none') {
+      // Still open — reattach listener
+      document.addEventListener('click', onOutsideClick, { once: true });
+    }
+  }
+
+  // ---- Fire change event ----
+  function fireChange(input) {
+    const event = new Event('change', { bubbles: true });
+    input.dispatchEvent(event);
+    // Also call onchange attribute if set
+    if (typeof input.onchange === 'function') {
+      try { input.onchange.call(input, event); } catch(e) {}
+    }
+    // Support oninput attribute (some filters use oninput)
+    const onchangeAttr = input.getAttribute('onchange');
+    if (onchangeAttr) {
+      try { new Function(onchangeAttr).call(input); } catch(e) {}
+    }
+  }
+
+  // ---- Cập nhật display text sau khi chọn ----
+  function updateDisplay(input) {
+    const wrapper = input.parentElement;
+    if (!wrapper || !wrapper.classList.contains('rdp-wrapper')) return;
+    const display = wrapper.querySelector('.rdp-display');
+    if (!display) return;
+    const formatted = formatDisplayDate(input.value);
+    if (formatted) {
+      display.innerHTML = `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> ${formatted}`;
+      display.classList.remove('empty');
+    } else {
+      display.innerHTML = `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> <span style="opacity:0.5">Chọn ngày</span>`;
+      display.classList.add('empty');
+    }
+  }
+
+  // ---- Wrap một input ----
+  function wrapDateInput(input) {
+    // Tránh wrap lại nếu đã wrap
+    if (input.parentElement && input.parentElement.classList.contains('rdp-wrapper')) return;
+    // Bỏ qua các input trong form nhập liệu (chỉ wrap những input search filter)
+    if (!input.classList.contains('form-control-date')) return;
+
+    // Tạo wrapper
+    const wrapper = document.createElement('div');
+    wrapper.className = 'rdp-wrapper';
+
+    // Clone style từ parent div nếu có
+    input.parentNode.insertBefore(wrapper, input);
+    wrapper.appendChild(input);
+
+    // Ẩn native input (giữ nguyên để value vẫn đọc được)
+    input.style.position = 'absolute';
+    input.style.opacity = '0';
+    input.style.width = '0';
+    input.style.height = '0';
+    input.style.pointerEvents = 'none';
+
+    // Tạo display element
+    const display = document.createElement('div');
+    display.className = 'rdp-display empty';
+    display.innerHTML = `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> <span style="opacity:0.5">Chọn ngày</span>`;
+    wrapper.appendChild(display);
+
+    // Khởi tạo display với giá trị hiện có nếu có
+    updateDisplay(input);
+
+    // Click vào display → mở popup
+    display.addEventListener('click', e => {
+      e.stopPropagation();
+      if (popup && popup.style.display !== 'none' && activeInput === input) {
+        closePopup();
+      } else {
+        openPopup(input, wrapper);
+      }
+    });
+  }
+
+  // ---- Init: wrap tất cả inputs khi DOM sẵn sàng ----
+  function init() {
+    document.querySelectorAll('input[type="date"].form-control-date').forEach(wrapDateInput);
+  }
+
+  // Chạy sau DOMContentLoaded hoặc ngay nếu đã loaded
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    // Delay nhỏ để đảm bảo tất cả elements đã mount
+    setTimeout(init, 100);
+  }
+
+  // Expose để có thể gọi lại nếu cần re-init
+  window.rdpInit = init;
+  window.rdpWrapInput = wrapDateInput;
+})();
+
+// rdpClearInput: Xóa giá trị ngày và cập nhật display (dùng trong clearXxxDateFilter)
+window.rdpClearInput = function(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.value = '';
+  const wrapper = input.parentElement;
+  if (wrapper && wrapper.classList.contains('rdp-wrapper')) {
+    const display = wrapper.querySelector('.rdp-display');
+    if (display) {
+      display.innerHTML = '<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> <span style="opacity:0.5">Chọn ngày</span>';
+      display.classList.add('empty');
+    }
+  }
+};
+
+// rdpSetInput: Đặt giá trị ngày (ISO yyyy-mm-dd) và cập nhật display
+window.rdpSetInput = function(inputId, isoValue) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.value = isoValue || '';
+  const wrapper = input.parentElement;
+  if (wrapper && wrapper.classList.contains('rdp-wrapper')) {
+    const display = wrapper.querySelector('.rdp-display');
+    if (display) {
+      if (isoValue) {
+        const [y, m, d] = isoValue.split('-');
+        display.innerHTML = '<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> ' + d + '/' + m + '/' + y;
+        display.classList.remove('empty');
+      } else {
+        display.innerHTML = '<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> <span style="opacity:0.5">Chọn ngày</span>';
+        display.classList.add('empty');
+      }
+    }
+  }
+};

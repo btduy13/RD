@@ -1,4 +1,4 @@
-﻿
+
 // 6. REN
 // 6. RENDER DỮ LIỆU PHÂN HỆ MUA HÀNG (PURCHASING)
 function renderPurchaseTable() {
@@ -118,10 +118,15 @@ function filterPurchaseTable() {
 }
 
 function clearPurchaseDateFilter() {
-  const fromEl = document.getElementById("search-purchase-from");
-  const toEl = document.getElementById("search-purchase-to");
-  if (fromEl) fromEl.value = "";
-  if (toEl) toEl.value = "";
+  if (window.rdpClearInput) {
+    rdpClearInput('search-purchase-from');
+    rdpClearInput('search-purchase-to');
+  } else {
+    const fromEl = document.getElementById('search-purchase-from');
+    const toEl = document.getElementById('search-purchase-to');
+    if (fromEl) fromEl.value = '';
+    if (toEl) toEl.value = '';
+  }
   filterPurchaseTable();
 }
 
@@ -522,9 +527,9 @@ function exportPurchasesToExcel() {
   const toDate = document.getElementById("search-purchase-to") ? document.getElementById("search-purchase-to").value : "";
 
   if (query) filteredPurchases = filteredPurchases.filter(v =>
-    (v.id || "").toLowerCase().includes(query) ||
-    (v.partnerName || "").toLowerCase().includes(query) ||
-    (v.description || "").toLowerCase().includes(query)
+    matchStr(v.id, query) ||
+    matchStr(v.partnerName, query) ||
+    matchStr(v.description, query)
   );
   if (fromDate) filteredPurchases = filteredPurchases.filter(v => v.date >= fromDate);
   if (toDate) filteredPurchases = filteredPurchases.filter(v => v.date <= toDate);
@@ -1172,10 +1177,15 @@ function filterPurchaseOrderTable() {
 }
 
 function clearPurchaseOrderDateFilter() {
-  const fromEl = document.getElementById("search-purchase-order-from");
-  const toEl = document.getElementById("search-purchase-order-to");
-  if (fromEl) fromEl.value = "";
-  if (toEl) toEl.value = "";
+  if (window.rdpClearInput) {
+    rdpClearInput('search-purchase-order-from');
+    rdpClearInput('search-purchase-order-to');
+  } else {
+    const fromEl = document.getElementById('search-purchase-order-from');
+    const toEl = document.getElementById('search-purchase-order-to');
+    if (fromEl) fromEl.value = '';
+    if (toEl) toEl.value = '';
+  }
   filterPurchaseOrderTable();
 }
 
@@ -1249,9 +1259,9 @@ function exportPurchaseOrdersToExcel() {
 
   if (query) {
     filteredOrders = filteredOrders.filter(v =>
-      (v.id || "").toLowerCase().includes(query) ||
-      (v.partnerName || "").toLowerCase().includes(query) ||
-      (v.description || "").toLowerCase().includes(query)
+      matchStr(v.id, query) ||
+      matchStr(v.partnerName, query) ||
+      matchStr(v.description, query)
     );
   }
   if (fromDate) filteredOrders = filteredOrders.filter(v => v.date >= fromDate);
@@ -1579,10 +1589,15 @@ function filterPurchaseReturnTable() {
 }
 
 function clearPurchaseReturnDateFilter() {
-  const fromEl = document.getElementById("search-purchase-return-from");
-  const toEl = document.getElementById("search-purchase-return-to");
-  if (fromEl) fromEl.value = "";
-  if (toEl) toEl.value = "";
+  if (window.rdpClearInput) {
+    rdpClearInput('search-purchase-return-from');
+    rdpClearInput('search-purchase-return-to');
+  } else {
+    const fromEl = document.getElementById('search-purchase-return-from');
+    const toEl = document.getElementById('search-purchase-return-to');
+    if (fromEl) fromEl.value = '';
+    if (toEl) toEl.value = '';
+  }
   filterPurchaseReturnTable();
 }
 
@@ -1949,9 +1964,9 @@ function exportPurchaseReturnsToExcel() {
   const toDate = document.getElementById("search-purchase-return-to") ? document.getElementById("search-purchase-return-to").value : "";
 
   if (query) filteredReturns = filteredReturns.filter(v =>
-    (v.id || "").toLowerCase().includes(query) ||
-    (v.partnerName || "").toLowerCase().includes(query) ||
-    (v.description || "").toLowerCase().includes(query)
+    matchStr(v.id, query) ||
+    matchStr(v.partnerName, query) ||
+    matchStr(v.description, query)
   );
   if (fromDate) filteredReturns = filteredReturns.filter(v => v.date >= fromDate);
   if (toDate) filteredReturns = filteredReturns.filter(v => v.date <= toDate);

@@ -2090,40 +2090,89 @@
             </div>
           </div>
 
-          <div class="table-card">
-            <div class="card-header-bar"
-              style="padding: 10px 20px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-tertiary); justify-content: space-between; display: flex; align-items: center;">
-              <span class="card-title" id="debts-pagination-info"
-                style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Hiển thị danh sách công
-                nợ</span>
-            </div>
-            <div class="table-responsive">
-              <table class="data-table table-striped animate-rows">
-                <thead>
-                  <tr>
-                    <th style="width: 30px; text-align: center;"><input type="checkbox" id="check-all-debts"
-                        onchange="toggleSelectAllDebts(this)"></th>
-                    <th>Mã đối tác</th>
-                    <th>Tên đối tác</th>
-                    <th style="text-align: right;">Dư đầu kỳ Nợ</th>
-                    <th style="text-align: right;">Dư đầu kỳ Có</th>
-                    <th style="text-align: right;">Phát sinh Nợ</th>
-                    <th style="text-align: right;">Phát sinh Có</th>
-                    <th style="text-align: right;">Dư cuối kỳ Nợ</th>
-                    <th style="text-align: right;">Dư cuối kỳ Có</th>
-                    <th style="width: 160px; text-align: center;">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody id="debts-table-body">
-                  <!-- Được render động -->
-                </tbody>
-              </table>
-            </div>
+          <!-- Tab switcher: Theo Công trình | Theo Đối tác -->
+          <div id="debts-view-tabs" style="display:flex; gap:0; margin-bottom:0; border-bottom: 2px solid var(--border-color);">
+            <button id="debts-tab-btn-project" onclick="switchDebtsViewTab('project')"
+              style="padding: 9px 22px; font-size: 13px; font-weight: 600; border: none; border-bottom: 3px solid var(--color-primary); background: var(--bg-secondary); color: var(--color-primary); cursor: pointer; display:inline-flex; align-items:center; gap:6px; transition: all 0.18s;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+              Theo Công trình
+            </button>
+            <button id="debts-tab-btn-partner" onclick="switchDebtsViewTab('partner')"
+              style="padding: 9px 22px; font-size: 13px; font-weight: 600; border: none; border-bottom: 3px solid transparent; background: transparent; color: var(--text-secondary); cursor: pointer; display:inline-flex; align-items:center; gap:6px; transition: all 0.18s;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+              Theo Đối tác
+            </button>
+          </div>
 
-            <!-- Phân trang thông minh -->
-            <div id="debts-pagination-controls"
-              style="padding: 12px 20px; border-top: 1px solid var(--border-color); background-color: var(--bg-tertiary); display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-              <!-- Render động bằng Javascript -->
+          <!-- Tab 1: Theo Công trình (mặc định hiển thị) -->
+          <div id="debts-by-project-container">
+            <div class="table-card" style="border-top: none; border-radius: 0 0 var(--radius-lg) var(--radius-lg);">
+              <div class="card-header-bar"
+                style="padding: 10px 20px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-tertiary); justify-content: space-between; display: flex; align-items: center;">
+                <span class="card-title" id="debts-pagination-info"
+                  style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Hiển thị danh sách công nợ</span>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table table-striped animate-rows">
+                  <thead>
+                    <tr>
+                      <th style="width: 30px; text-align: center;"><input type="checkbox" id="check-all-debts" onchange="toggleSelectAllDebts(this)"></th>
+                      <th>Mã đối tác / Công trình</th>
+                      <th>Tên đối tác</th>
+                      <th style="text-align: right;">Dư đầu kỳ Nợ</th>
+                      <th style="text-align: right;">Dư đầu kỳ Có</th>
+                      <th style="text-align: right;">Phát sinh Nợ</th>
+                      <th style="text-align: right;">Phát sinh Có</th>
+                      <th style="text-align: right;">Dư cuối kỳ Nợ</th>
+                      <th style="text-align: right;">Dư cuối kỳ Có</th>
+                      <th style="width: 160px; text-align: center;">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody id="debts-table-body">
+                    <!-- Được render động -->
+                  </tbody>
+                </table>
+              </div>
+              <!-- Phân trang -->
+              <div id="debts-pagination-controls"
+                style="padding: 12px 20px; border-top: 1px solid var(--border-color); background-color: var(--bg-tertiary); display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 2: Theo Đối tác (ẩn mặc định) -->
+          <div id="debts-by-partner-container" style="display:none;">
+            <div class="table-card" style="border-top: none; border-radius: 0 0 var(--radius-lg) var(--radius-lg);">
+              <div class="card-header-bar"
+                style="padding: 10px 20px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-tertiary); justify-content: space-between; display: flex; align-items: center;">
+                <span class="card-title" id="debts-by-partner-info"
+                  style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Công nợ gộp theo tên đối tác</span>
+                <span style="font-size:12px; color:var(--text-muted); font-style:italic;">Gộp tất cả mã cùng tên — chỉ phục vụ xem, không thay đổi dữ liệu</span>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table table-striped animate-rows">
+                  <thead>
+                    <tr>
+                      <th>Tên đối tác</th>
+                      <th style="text-align:center;">Số CTrinh</th>
+                      <th style="text-align: right;">Dư đầu kỳ Nợ</th>
+                      <th style="text-align: right;">Dư đầu kỳ Có</th>
+                      <th style="text-align: right;">Phát sinh Nợ</th>
+                      <th style="text-align: right;">Phát sinh Có</th>
+                      <th style="text-align: right;">Dư cuối kỳ Nợ</th>
+                      <th style="text-align: right;">Dư cuối kỳ Có</th>
+                      <th style="width: 100px; text-align: center;">Chi tiết</th>
+                    </tr>
+                  </thead>
+                  <tbody id="debts-by-partner-body">
+                    <!-- Được render động -->
+                  </tbody>
+                </table>
+              </div>
+              <!-- Phân trang -->
+              <div id="debts-by-partner-pagination"
+                style="padding: 12px 20px; border-top: 1px solid var(--border-color); background-color: var(--bg-tertiary); display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+              </div>
             </div>
           </div>
         </section>

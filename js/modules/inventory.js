@@ -167,8 +167,8 @@ function renderLedgerProductList() {
   let products = state.products || [];
   if (query) {
     products = products.filter(p =>
-      (p.id || "").toLowerCase().includes(query) ||
-      (p.name || "").toLowerCase().includes(query)
+      matchStr(p.id, query) ||
+      matchStr(p.name, query)
     );
   }
 

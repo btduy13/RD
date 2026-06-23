@@ -197,6 +197,16 @@ function removeAccents(str) {
     .replace(/Đ/g, "D");
 }
 
+// matchStr: Tìm kiếm chuỗi con, không phân biệt hoa thường và dấu tiếng Việt
+// Dùng cho các inline filter thay thế .toLowerCase().includes()
+// Ví dụ: matchStr("An Trưng", "an tr") → true
+function matchStr(text, query) {
+  if (!query) return true;
+  if (!text) return false;
+  return removeAccents(text.toLowerCase()).includes(removeAccents(query.toLowerCase().trim()));
+}
+window.matchStr = matchStr;
+
 // Bộ lọc nâng cao (Advanced Filter) cho ô tìm kiếm
 // Hỗ trợ: Không dấu, tìm kiếm AND đa từ khóa, tìm kiếm phủ định, tìm kiếm OR và lọc khoảng số
 function matchAdvancedQuery(targetText, queryText, numericValue = null) {
@@ -265,35 +275,34 @@ function matchAdvancedQuery(targetText, queryText, numericValue = null) {
 
   if (posTokens.length === 0) return true;
 
-  // Tìm kiếm đơn trường (single field) -> dùng substring matching
+  // Tìm kiếm đơn trường (single field) -> dùng substring matching của cả cụm từ theo thứ tự
   if (!isMultiField) {
-    return posTokens.every(token => cleanTarget.includes(token));
+    if (posTokens.length > 0) {
+      const phraseQuery = posTokens.join(' ');
+      return cleanTarget.includes(phraseQuery);
+    }
+    return true;
   }
 
   // Tìm kiếm đa trường (multi-field):
-  // - Query NHIỀU TỪ (≥2): Tìm cụm từ liên tiếp trong Tên (phrase matching theo thứ tự)
-  //   "an trung" → Tên phải chứa ["an","trung"] liên tiếp, đúng thứ tự
-  //   Không tìm trong Mã đối tác để tránh false positive
-  // - Query MỘT TỪ: Tìm trong tất cả các trường (Mã: substring, Tên: exact word)
+  // Với multi-word query: tìm toàn bộ cụm từ (theo thứ tự) dưới dạng substring
+  // Ví dụ: "an tr" khớp "an trung", "Công ty An Trung", v.v.
+  // Với single-word query: tìm substring trong tất cả các trường
   const nameField = cleanFields.length > 1 ? cleanFields[1] : cleanFields[0];
-  const nameWords = nameField.split(/[^a-z0-9]+/).filter(Boolean);
 
   if (posTokens.length > 1) {
-    // Phrase matching: tokens phải xuất hiện liên tiếp, đúng thứ tự trong mảng từ của Tên
-    for (let i = 0; i <= nameWords.length - posTokens.length; i++) {
-      if (posTokens.every((token, j) => nameWords[i + j] === token)) {
-        return true;
-      }
-    }
-    return false;
+    // Ghép toàn bộ tokens lại thành một chuỗi tìm kiếm duy nhất
+    // rồi kiểm tra substring trong tên (không phân biệt dấu, không phân biệt hoa thường)
+    const phraseQuery = posTokens.join(' ');
+    // Tìm trong name field (bỏ dấu)
+    if (nameField.includes(phraseQuery)) return true;
+    // Fallback: tìm trong toàn bộ target (mã + tên)
+    return cleanTarget.includes(phraseQuery);
   }
 
-  // Single-word: kiểm tra tất cả trường
+  // Single-word: kiểm tra substring trong tất cả trường
   const singleToken = posTokens[0];
-  return cleanFields.some((fieldVal, fieldIdx) => {
-    if (fieldIdx === 1) return nameWords.includes(singleToken);
-    return fieldVal.includes(singleToken);
-  });
+  return cleanFields.some(fieldVal => fieldVal.includes(singleToken));
 }
 
 // Định dạng tiền tệ Việt Nam Đồng VNĐ

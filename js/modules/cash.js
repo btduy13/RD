@@ -244,10 +244,15 @@ function filterCash() {
 }
 
 function clearCashDateFilter() {
-  const fromEl = document.getElementById("search-cash-from");
-  const toEl = document.getElementById("search-cash-to");
-  if (fromEl) fromEl.value = "";
-  if (toEl) toEl.value = "";
+  if (window.rdpClearInput) {
+    rdpClearInput('search-cash-from');
+    rdpClearInput('search-cash-to');
+  } else {
+    const fromEl = document.getElementById('search-cash-from');
+    const toEl = document.getElementById('search-cash-to');
+    if (fromEl) fromEl.value = '';
+    if (toEl) toEl.value = '';
+  }
   filterCash();
 }
 
@@ -495,9 +500,9 @@ function exportSalesToExcel() {
   const toDate = document.getElementById("search-sales-to") ? document.getElementById("search-sales-to").value : "";
 
   if (query) filteredSales = filteredSales.filter(v =>
-    (v.id || "").toLowerCase().includes(query) ||
-    (v.partnerName || "").toLowerCase().includes(query) ||
-    (v.description || "").toLowerCase().includes(query)
+    matchStr(v.id, query) ||
+    matchStr(v.partnerName, query) ||
+    matchStr(v.description, query)
   );
   if (fromDate) filteredSales = filteredSales.filter(v => v.date >= fromDate);
   if (toDate) filteredSales = filteredSales.filter(v => v.date <= toDate);

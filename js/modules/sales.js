@@ -1,4 +1,4 @@
-﻿
+
 let salesCurrentPage = 1;
 
 // 7. RENDER DỮ LIỆU PHÂN HỆ BÁN HÀNG (SALES)
@@ -123,10 +123,15 @@ function filterSalesTable() {
 }
 
 function clearSalesDateFilter() {
-  const fromEl = document.getElementById("search-sales-from");
-  const toEl = document.getElementById("search-sales-to");
-  if (fromEl) fromEl.value = "";
-  if (toEl) toEl.value = "";
+  if (window.rdpClearInput) {
+    rdpClearInput('search-sales-from');
+    rdpClearInput('search-sales-to');
+  } else {
+    const fromEl = document.getElementById('search-sales-from');
+    const toEl = document.getElementById('search-sales-to');
+    if (fromEl) fromEl.value = '';
+    if (toEl) toEl.value = '';
+  }
   filterSalesTable();
 }
 
@@ -704,10 +709,15 @@ function filterSalesReturnTable() {
 }
 
 function clearSalesReturnDateFilter() {
-  const fromEl = document.getElementById("search-sales-return-from");
-  const toEl = document.getElementById("search-sales-return-to");
-  if (fromEl) fromEl.value = "";
-  if (toEl) toEl.value = "";
+  if (window.rdpClearInput) {
+    rdpClearInput('search-sales-return-from');
+    rdpClearInput('search-sales-return-to');
+  } else {
+    const fromEl = document.getElementById('search-sales-return-from');
+    const toEl = document.getElementById('search-sales-return-to');
+    if (fromEl) fromEl.value = '';
+    if (toEl) toEl.value = '';
+  }
   filterSalesReturnTable();
 }
 
@@ -1083,9 +1093,9 @@ function exportSalesReturnsToExcel() {
   const toDate = document.getElementById("search-sales-return-to") ? document.getElementById("search-sales-return-to").value : "";
 
   if (query) filteredReturns = filteredReturns.filter(v =>
-    (v.id || "").toLowerCase().includes(query) ||
-    (v.partnerName || "").toLowerCase().includes(query) ||
-    (v.description || "").toLowerCase().includes(query)
+    matchStr(v.id, query) ||
+    matchStr(v.partnerName, query) ||
+    matchStr(v.description, query)
   );
   if (fromDate) filteredReturns = filteredReturns.filter(v => v.date >= fromDate);
   if (toDate) filteredReturns = filteredReturns.filter(v => v.date <= toDate);
@@ -1340,10 +1350,15 @@ function filterQuotationTable() {
 }
 
 function clearQuotationDateFilter() {
-  const fromEl = document.getElementById("search-quotation-from");
-  const toEl = document.getElementById("search-quotation-to");
-  if (fromEl) fromEl.value = "";
-  if (toEl) toEl.value = "";
+  if (window.rdpClearInput) {
+    rdpClearInput('search-quotation-from');
+    rdpClearInput('search-quotation-to');
+  } else {
+    const fromEl = document.getElementById('search-quotation-from');
+    const toEl = document.getElementById('search-quotation-to');
+    if (fromEl) fromEl.value = '';
+    if (toEl) toEl.value = '';
+  }
   filterQuotationTable();
 }
 
@@ -1684,9 +1699,9 @@ function exportQuotationsToExcel() {
   const toDate = document.getElementById("search-quotation-to") ? document.getElementById("search-quotation-to").value : "";
 
   if (query) filteredQuotations = filteredQuotations.filter(v =>
-    (v.id || "").toLowerCase().includes(query) ||
-    (v.partnerName || "").toLowerCase().includes(query) ||
-    (v.description || "").toLowerCase().includes(query)
+    matchStr(v.id, query) ||
+    matchStr(v.partnerName, query) ||
+    matchStr(v.description, query)
   );
   if (fromDate) filteredQuotations = filteredQuotations.filter(v => v.date >= fromDate);
   if (toDate) filteredQuotations = filteredQuotations.filter(v => v.date <= toDate);
