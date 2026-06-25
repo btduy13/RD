@@ -127,21 +127,168 @@ function setupNumberFormattingEventListeners() {
       const input = e.target;
       const val = input.value;
       
-      // Allow only numbers, comma, dot, and negative sign
-      let cleaned = val.replace(/[^0-9.,-]/g, "");
+      // Xác định sản phẩm và đơn vị để quyết định có cho phép nhập số thập phân hay không
+      let allowDecimals = true;
+      const row = input.closest("tr");
+      if (row) {
+        const prodInput = row.querySelector(".item-productId");
+        if (prodInput) {
+          const prodVal = prodInput.value;
+          const resolver = typeof resolveProduct === "function" ? resolveProduct : (window.resolveProduct || null);
+          if (resolver) {
+            const prod = resolver(prodVal);
+            if (prod) {
+              const unit = (prod.unit || "").trim().toLowerCase();
+              const name = (prod.name || "").trim().toLowerCase();
+              if (unit === "cái" && !name.includes("ống")) {
+                allowDecimals = false;
+              }
+            }
+          }
+        }
+      } else {
+        let unitVal = "";
+        let nameVal = "";
+        if (input.id === "prod-stock" || input.id === "prod-min-stock") {
+          const unitEl = document.getElementById("prod-unit");
+          const nameEl = document.getElementById("prod-name");
+          if (unitEl) unitVal = unitEl.value;
+          if (nameEl) nameVal = nameEl.value;
+        } else if (input.id === "edit-prod-initial-stock" || input.id === "edit-prod-min-stock") {
+          const unitEl = document.getElementById("edit-prod-unit");
+          const nameEl = document.getElementById("edit-prod-name");
+          if (unitEl) unitVal = unitEl.value;
+          if (nameEl) nameVal = nameEl.value;
+        } else if (input.id === "qap-prod-stock") {
+          const unitEl = document.getElementById("qap-prod-unit");
+          const nameEl = document.getElementById("qap-prod-name");
+          if (unitEl) unitVal = unitEl.value;
+          if (nameEl) nameVal = nameEl.value;
+        } else if (input.id === "quick-import-qty") {
+          const prodIdEl = document.getElementById("quick-import-prod-id");
+          const resolver = typeof resolveProduct === "function" ? resolveProduct : (window.resolveProduct || null);
+          if (prodIdEl && prodIdEl.value && resolver) {
+            const prod = resolver(prodIdEl.value);
+            if (prod) {
+              unitVal = prod.unit || "";
+              nameVal = prod.name || "";
+            }
+          }
+        }
+        
+        if (unitVal) {
+          const unit = unitVal.trim().toLowerCase();
+          const name = nameVal.trim().toLowerCase();
+          if (unit === "cái" && !name.includes("ống")) {
+            allowDecimals = false;
+          }
+        }
+      }
+
+      // Nếu cho phép số thập phân: cho phép số, dấu chấm, dấu phẩy, dấu trừ
+      // Nếu không cho phép (đơn vị Cái): chỉ cho phép số nguyên và dấu trừ
+      let cleaned = allowDecimals ? val.replace(/[^0-9.,-]/g, "") : val.replace(/[^0-9-]/g, "");
       
-      // Ensure at most one decimal separator (comma or dot)
-      const firstSepIdx = cleaned.search(/[.,]/);
-      if (firstSepIdx !== -1) {
-        const before = cleaned.substring(0, firstSepIdx + 1);
-        const after = cleaned.substring(firstSepIdx + 1).replace(/[.,]/g, "");
-        cleaned = before + after;
+      if (allowDecimals) {
+        // Đảm bảo tối đa 1 ký tự phân tách thập phân (chấm hoặc phẩy)
+        const firstSepIdx = cleaned.search(/[.,]/);
+        if (firstSepIdx !== -1) {
+          const before = cleaned.substring(0, firstSepIdx + 1);
+          const after = cleaned.substring(firstSepIdx + 1).replace(/[.,]/g, "");
+          cleaned = before + after;
+        }
       }
       
       if (val !== cleaned) {
         const selectionStart = input.selectionStart;
         input.value = cleaned;
         input.setSelectionRange(selectionStart, selectionStart);
+      }
+    }
+  });
+
+  // Tự động làm sạch ô Số lượng về Số nguyên khi thay đổi đơn vị tính / chọn mặt hàng là "Cái"
+  document.addEventListener("blur", function (e) {
+    if (e.target && (e.target.id === "prod-unit" || e.target.id === "edit-prod-unit" || e.target.id === "qap-prod-unit")) {
+      const unitVal = e.target.value.trim().toLowerCase();
+      let qtyInputId = "";
+      let nameElId = "";
+      if (e.target.id === "prod-unit") {
+        qtyInputId = "prod-stock";
+        nameElId = "prod-name";
+      } else if (e.target.id === "edit-prod-unit") {
+        qtyInputId = "edit-prod-initial-stock";
+        nameElId = "edit-prod-name";
+      } else if (e.target.id === "qap-prod-unit") {
+        qtyInputId = "qap-prod-stock";
+        nameElId = "qap-prod-name";
+      }
+      
+      const qtyInput = document.getElementById(qtyInputId);
+      const nameEl = document.getElementById(nameElId);
+      const nameVal = nameEl ? nameEl.value.trim().toLowerCase() : "";
+      if (qtyInput && unitVal === "cái" && !nameVal.includes("ống")) {
+        const val = qtyInput.value;
+        const cleaned = val.replace(/[^0-9-]/g, "");
+        if (val !== cleaned) {
+          qtyInput.value = cleaned;
+          qtyInput.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+      }
+    }
+    
+    if (e.target && e.target.classList.contains("item-productId")) {
+      const row = e.target.closest("tr");
+      if (row) {
+        const qtyInput = row.querySelector(".item-qty");
+        if (qtyInput) {
+          const prodVal = e.target.value;
+          const resolver = typeof resolveProduct === "function" ? resolveProduct : (window.resolveProduct || null);
+          if (resolver) {
+            const prod = resolver(prodVal);
+            if (prod) {
+              const unit = (prod.unit || "").trim().toLowerCase();
+              const name = (prod.name || "").trim().toLowerCase();
+              if (unit === "cái" && !name.includes("ống")) {
+                const val = qtyInput.value;
+                const cleaned = val.replace(/[^0-9-]/g, "");
+                if (val !== cleaned) {
+                  qtyInput.value = cleaned;
+                  qtyInput.dispatchEvent(new Event("input", { bubbles: true }));
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, true);
+
+  // Cũng hỗ trợ làm sạch ngay khi người dùng chọn/nhập xong mặt hàng (oninput event)
+  document.addEventListener("input", function (e) {
+    if (e.target && e.target.classList.contains("item-productId")) {
+      const row = e.target.closest("tr");
+      if (row) {
+        const qtyInput = row.querySelector(".item-qty");
+        if (qtyInput) {
+          const prodVal = e.target.value;
+          const resolver = typeof resolveProduct === "function" ? resolveProduct : (window.resolveProduct || null);
+          if (resolver) {
+            const prod = resolver(prodVal);
+            if (prod) {
+              const unit = (prod.unit || "").trim().toLowerCase();
+              const name = (prod.name || "").trim().toLowerCase();
+              if (unit === "cái" && !name.includes("ống")) {
+                const val = qtyInput.value;
+                const cleaned = val.replace(/[^0-9-]/g, "");
+                if (val !== cleaned) {
+                  qtyInput.value = cleaned;
+                  qtyInput.dispatchEvent(new Event("input", { bubbles: true }));
+                }
+              }
+            }
+          }
+        }
       }
     }
   });
@@ -265,6 +412,16 @@ function removeAccents(str) {
     .replace(/Đ/g, "D");
 }
 
+// matchStr: Tìm kiếm chuỗi con, không phân biệt hoa thường và dấu tiếng Việt
+// Dùng cho các inline filter thay thế .toLowerCase().includes()
+// Ví dụ: matchStr("An Trưng", "an tr") → true
+function matchStr(text, query) {
+  if (!query) return true;
+  if (!text) return false;
+  return removeAccents(text.toLowerCase()).includes(removeAccents(query.toLowerCase().trim()));
+}
+window.matchStr = matchStr;
+
 // Bộ lọc nâng cao (Advanced Filter) cho ô tìm kiếm
 // Hỗ trợ: Không dấu, tìm kiếm AND đa từ khóa, tìm kiếm phủ định, tìm kiếm OR và lọc khoảng số
 function matchAdvancedQuery(targetText, queryText, numericValue = null) {
@@ -333,35 +490,34 @@ function matchAdvancedQuery(targetText, queryText, numericValue = null) {
 
   if (posTokens.length === 0) return true;
 
-  // Tìm kiếm đơn trường (single field) -> dùng substring matching
+  // Tìm kiếm đơn trường (single field) -> dùng substring matching của cả cụm từ theo thứ tự
   if (!isMultiField) {
-    return posTokens.every(token => cleanTarget.includes(token));
+    if (posTokens.length > 0) {
+      const phraseQuery = posTokens.join(' ');
+      return cleanTarget.includes(phraseQuery);
+    }
+    return true;
   }
 
   // Tìm kiếm đa trường (multi-field):
-  // - Query NHIỀU TỪ (≥2): Tìm cụm từ liên tiếp trong Tên (phrase matching theo thứ tự)
-  //   "an trung" → Tên phải chứa ["an","trung"] liên tiếp, đúng thứ tự
-  //   Không tìm trong Mã đối tác để tránh false positive
-  // - Query MỘT TỪ: Tìm trong tất cả các trường (Mã: substring, Tên: exact word)
+  // Với multi-word query: tìm toàn bộ cụm từ (theo thứ tự) dưới dạng substring
+  // Ví dụ: "an tr" khớp "an trung", "Công ty An Trung", v.v.
+  // Với single-word query: tìm substring trong tất cả các trường
   const nameField = cleanFields.length > 1 ? cleanFields[1] : cleanFields[0];
-  const nameWords = nameField.split(/[^a-z0-9]+/).filter(Boolean);
 
   if (posTokens.length > 1) {
-    // Phrase matching: tokens phải xuất hiện liên tiếp, đúng thứ tự trong mảng từ của Tên
-    for (let i = 0; i <= nameWords.length - posTokens.length; i++) {
-      if (posTokens.every((token, j) => nameWords[i + j] === token)) {
-        return true;
-      }
-    }
-    return false;
+    // Ghép toàn bộ tokens lại thành một chuỗi tìm kiếm duy nhất
+    // rồi kiểm tra substring trong tên (không phân biệt dấu, không phân biệt hoa thường)
+    const phraseQuery = posTokens.join(' ');
+    // Tìm trong name field (bỏ dấu)
+    if (nameField.includes(phraseQuery)) return true;
+    // Fallback: tìm trong toàn bộ target (mã + tên)
+    return cleanTarget.includes(phraseQuery);
   }
 
-  // Single-word: kiểm tra tất cả trường
+  // Single-word: kiểm tra substring trong tất cả trường
   const singleToken = posTokens[0];
-  return cleanFields.some((fieldVal, fieldIdx) => {
-    if (fieldIdx === 1) return nameWords.includes(singleToken);
-    return fieldVal.includes(singleToken);
-  });
+  return cleanFields.some(fieldVal => fieldVal.includes(singleToken));
 }
 
 // H11 Fix: Cache Intl.NumberFormat instance for performance

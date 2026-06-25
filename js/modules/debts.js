@@ -1,4 +1,8 @@
 let filteredDebtsList = [];
+let currentDebtsViewTab = 'project'; // 'project' | 'partner'
+let filteredDebtsGroupedList = [];
+let debtsGroupedPage = 1;
+let activePartnerNameForGroupedLedger = "";
 
 // --- Phân hệ Công nợ ---
 function calculatePartnerDebts(toDate = "") {
@@ -252,8 +256,362 @@ function filterDebts() {
   });
 
   debtsPage = 1;
-  renderDebtsTable();
+
+  if (currentDebtsViewTab === 'partner') {
+    // --- Tab 2: Theo Đối tác ---
+    const allGrouped = calculatePartnerDebtsGrouped();
+    filteredDebtsGroupedList = allGrouped.filter(g => {
+      const debtVal = Math.max(g.closingDebit || 0, g.closingCredit || 0);
+      const matchesQuery = matchAdvancedQuery(g.name || '', query, debtVal);
+
+      let matchesType = true;
+      if (filterType === "131") matchesType = g.primaryType === "customer";
+      else if (filterType === "331") matchesType = g.primaryType === "supplier";
+
+      let matchesActive = true;
+      if (activeOnly) matchesActive = (g.closingDebit > 0 || g.closingCredit > 0);
+
+      return matchesQuery && matchesType && matchesActive;
+    });
+    debtsGroupedPage = 1;
+    renderDebtsGroupedTable();
+  } else {
+    renderDebtsTable();
+  }
 }
+
+// Tính công nợ gộp theo tên đối tác (case-insensitive)
+function calculatePartnerDebtsGrouped() {
+  const allDebts = calculatePartnerDebts();
+
+  // Build map: normalizedName → group
+  const groups = {};
+  allDebts.forEach(d => {
+    const key = (d.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    if (!groups[key]) {
+      groups[key] = {
+        name: d.name, // giữ tên gốc của mã đầu tiên
+        primaryType: d.type,
+        openingDebit: 0,
+        openingCredit: 0,
+        debitTrans: 0,
+        creditTrans: 0,
+        closingDebit: 0,
+        closingCredit: 0,
+        childIds: [],       // danh sách mã thành phần
+        childNames: [],     // danh sách tên gốc của từng mã
+      };
+    }
+    const g = groups[key];
+    g.openingDebit  += d.openingDebit  || 0;
+    g.openingCredit += d.openingCredit || 0;
+    g.debitTrans    += d.debitTrans    || 0;
+    g.creditTrans   += d.creditTrans   || 0;
+    g.childIds.push(d.id);
+    g.childNames.push(d.id); // dùng mã để hiển thị
+    // Nếu có nhiều loại, ưu tiên 'customer' rồi 'supplier' rồi 'both'
+    if (d.type === 'customer') g.primaryType = 'customer';
+    else if (d.type === 'supplier' && g.primaryType !== 'customer') g.primaryType = 'supplier';
+  });
+
+  // Tính lại số dư cuối kỳ dựa trên tổng gộp
+  return Object.values(groups).map(g => {
+    const balance = g.openingDebit - g.openingCredit + g.debitTrans - g.creditTrans;
+    if (g.primaryType === 'customer' || g.primaryType !== 'supplier') {
+      // customer: Nợ > 0 là KH đang nợ; Có > 0 là công ty nợ KH
+      if (balance >= 0) { g.closingDebit = balance; g.closingCredit = 0; }
+      else               { g.closingDebit = 0; g.closingCredit = -balance; }
+    } else {
+      // supplier
+      const supBalance = g.openingCredit - g.openingDebit + g.creditTrans - g.debitTrans;
+      if (supBalance >= 0) { g.closingCredit = supBalance; g.closingDebit = 0; }
+      else                  { g.closingCredit = 0; g.closingDebit = -supBalance; }
+    }
+    return g;
+  }).sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+}
+
+// Render bảng Tab 2: Theo Đối tác
+function renderDebtsGroupedTable() {
+  const tbody = document.getElementById('debts-by-partner-body');
+  const infoEl = document.getElementById('debts-by-partner-info');
+  const paginEl = document.getElementById('debts-by-partner-pagination');
+  if (!tbody) return;
+
+  const perPage = 30;
+  const total = filteredDebtsGroupedList.length;
+  const totalPages = Math.ceil(total / perPage) || 1;
+  if (debtsGroupedPage > totalPages) debtsGroupedPage = totalPages;
+  if (debtsGroupedPage < 1) debtsGroupedPage = 1;
+
+  const startIdx = (debtsGroupedPage - 1) * perPage;
+  const pageItems = filteredDebtsGroupedList.slice(startIdx, startIdx + perPage);
+
+  if (infoEl) infoEl.innerText = `Hiển thị ${startIdx + 1}–${Math.min(startIdx + perPage, total)} trong số ${total} đối tác (gộp theo tên)`;
+
+  tbody.innerHTML = '';
+  if (pageItems.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy đối tác nào</td></tr>`;
+  } else {
+    // Dòng TỔNG CỘNG
+    let totOD = 0, totOC = 0, totDT = 0, totCT = 0, totCD = 0, totCC = 0;
+    filteredDebtsGroupedList.forEach(g => {
+      totOD += g.openingDebit  || 0;
+      totOC += g.openingCredit || 0;
+      totDT += g.debitTrans    || 0;
+      totCT += g.creditTrans   || 0;
+      totCD += g.closingDebit  || 0;
+      totCC += g.closingCredit || 0;
+    });
+    const trTot = document.createElement('tr');
+    trTot.style.fontWeight = 'bold';
+    trTot.style.backgroundColor = 'var(--bg-tertiary)';
+    trTot.style.borderBottom = '2px solid var(--border-color)';
+    trTot.innerHTML = `
+      <td style="font-weight:bold; color:var(--text-primary);">TỔNG CỘNG</td>
+      <td></td>
+      <td style="text-align:right; font-weight:bold;" class="font-numeric">${totOD > 0 ? formatVND(totOD).replace('đ','') : '-'}</td>
+      <td style="text-align:right; font-weight:bold;" class="font-numeric">${totOC > 0 ? formatVND(totOC).replace('đ','') : '-'}</td>
+      <td style="text-align:right; color:var(--color-primary); font-weight:bold;" class="font-numeric">${totDT > 0 ? formatVND(totDT).replace('đ','') : '-'}</td>
+      <td style="text-align:right; color:var(--color-warning); font-weight:bold;" class="font-numeric">${totCT > 0 ? formatVND(totCT).replace('đ','') : '-'}</td>
+      <td style="text-align:right; font-weight:bold; color:var(--color-success);" class="font-numeric">${totCD > 0 ? formatVND(totCD).replace('đ','') : '-'}</td>
+      <td style="text-align:right; font-weight:bold; color:var(--color-warning);" class="font-numeric">${totCC > 0 ? formatVND(totCC).replace('đ','') : '-'}</td>
+      <td></td>
+    `;
+    tbody.appendChild(trTot);
+
+    pageItems.forEach(g => {
+      const encodedName = encodeURIComponent(g.name);
+      const countBadge = g.childIds.length > 1
+        ? `<span style="display:inline-block; background:var(--color-primary); color:#fff; border-radius:9px; padding:1px 8px; font-size:11px; font-weight:700; margin-left:6px;">${g.childIds.length} mã</span>`
+        : '';
+      const tr = document.createElement('tr');
+      tr.className = 'clickable-row';
+      tr.innerHTML = `
+        <td style="font-weight:600;">
+          <a href="#" onclick="viewGroupedPartnerLedger(decodeURIComponent('${encodedName}')); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${g.name}</a>
+          ${countBadge}
+        </td>
+        <td style="text-align:center;">
+          <button onclick="toggleGroupChildren(this)" style="font-size:11px; padding:2px 8px; border:1px solid var(--border-color); border-radius:4px; background:var(--bg-secondary); cursor:pointer; color:var(--text-secondary);">Xem mã</button>
+          <div class="group-children" style="display:none; margin-top:6px; font-size:11px; color:var(--text-muted); line-height:1.7;">${g.childNames.map(id => `<span style='display:block;'>• ${id}</span>`).join('')}</div>
+        </td>
+        <td style="text-align:right; font-weight:500;" class="font-numeric">${g.openingDebit > 0 ? formatVND(g.openingDebit).replace('đ','') : '-'}</td>
+        <td style="text-align:right; font-weight:500;" class="font-numeric">${g.openingCredit > 0 ? formatVND(g.openingCredit).replace('đ','') : '-'}</td>
+        <td style="text-align:right; color:var(--color-primary); font-weight:500;" class="font-numeric">${g.debitTrans > 0 ? formatVND(g.debitTrans).replace('đ','') : '-'}</td>
+        <td style="text-align:right; color:var(--color-warning); font-weight:500;" class="font-numeric">${g.creditTrans > 0 ? formatVND(g.creditTrans).replace('đ','') : '-'}</td>
+        <td style="text-align:right; font-weight:700;" class="font-numeric ${g.closingDebit > 0 ? 'text-success' : ''}">${g.closingDebit > 0 ? formatVND(g.closingDebit).replace('đ','') : '-'}</td>
+        <td style="text-align:right; font-weight:700;" class="font-numeric ${g.closingCredit > 0 ? 'text-warning' : ''}">${g.closingCredit > 0 ? formatVND(g.closingCredit).replace('đ','') : '-'}</td>
+        <td style="text-align:center;">
+          <button class="btn btn-secondary btn-sm" onclick="viewGroupedPartnerLedger(decodeURIComponent('${encodedName}'))" style="padding:2px 8px;">Xem Sổ</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Phân trang
+  if (paginEl) {
+    if (totalPages <= 1) {
+      paginEl.style.display = 'none';
+    } else {
+      paginEl.style.display = 'flex';
+      let html = `<span style="font-size:12px; color:var(--text-secondary); font-weight:500;">Hiển thị ${startIdx+1}–${Math.min(startIdx+perPage,total)} của ${total}</span><div style="display:flex; gap:4px; align-items:center;">`;
+      html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsGroupedPage(1)" ${debtsGroupedPage===1?'disabled':''} style="padding:4px 10px; font-size:12px;">« Đầu</button>`;
+      html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsGroupedPage(${debtsGroupedPage-1})" ${debtsGroupedPage===1?'disabled':''} style="padding:4px 10px; font-size:12px;">‹ Trước</button>`;
+      const sp = Math.max(1, debtsGroupedPage-2), ep = Math.min(totalPages, debtsGroupedPage+2);
+      for (let p = sp; p <= ep; p++) {
+        html += `<button class="btn ${p===debtsGroupedPage?'btn-success':'btn-secondary'} btn-sm" onclick="changeDebtsGroupedPage(${p})" style="padding:4px 10px; font-size:12px; font-weight:${p===debtsGroupedPage?'800':'normal'};">${p}</button>`;
+      }
+      html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsGroupedPage(${debtsGroupedPage+1})" ${debtsGroupedPage===totalPages?'disabled':''} style="padding:4px 10px; font-size:12px;">Sau ›</button>`;
+      html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsGroupedPage(${totalPages})" ${debtsGroupedPage===totalPages?'disabled':''} style="padding:4px 10px; font-size:12px;">Cuối »</button>`;
+      html += `</div>`;
+      paginEl.innerHTML = html;
+    }
+  }
+}
+
+function changeDebtsGroupedPage(p) {
+  debtsGroupedPage = p;
+  renderDebtsGroupedTable();
+}
+
+function toggleGroupChildren(btn) {
+  const div = btn.nextElementSibling;
+  if (!div) return;
+  if (div.style.display === 'none') {
+    div.style.display = 'block';
+    btn.textContent = 'Ẩn mã';
+  } else {
+    div.style.display = 'none';
+    btn.textContent = 'Xem mã';
+  }
+}
+
+// Chuyển giữa 2 tab con trong màn hình Công nợ
+function switchDebtsViewTab(tabName) {
+  currentDebtsViewTab = tabName;
+
+  const projectContainer = document.getElementById('debts-by-project-container');
+  const partnerContainer = document.getElementById('debts-by-partner-container');
+  const btnProject = document.getElementById('debts-tab-btn-project');
+  const btnPartner = document.getElementById('debts-tab-btn-partner');
+
+  if (tabName === 'project') {
+    if (projectContainer) projectContainer.style.display = '';
+    if (partnerContainer) partnerContainer.style.display = 'none';
+    if (btnProject) {
+      btnProject.style.borderBottom = '3px solid var(--color-primary)';
+      btnProject.style.background = 'var(--bg-secondary)';
+      btnProject.style.color = 'var(--color-primary)';
+    }
+    if (btnPartner) {
+      btnPartner.style.borderBottom = '3px solid transparent';
+      btnPartner.style.background = 'transparent';
+      btnPartner.style.color = 'var(--text-secondary)';
+    }
+  } else {
+    if (projectContainer) projectContainer.style.display = 'none';
+    if (partnerContainer) partnerContainer.style.display = '';
+    if (btnPartner) {
+      btnPartner.style.borderBottom = '3px solid var(--color-primary)';
+      btnPartner.style.background = 'var(--bg-secondary)';
+      btnPartner.style.color = 'var(--color-primary)';
+    }
+    if (btnProject) {
+      btnProject.style.borderBottom = '3px solid transparent';
+      btnProject.style.background = 'transparent';
+      btnProject.style.color = 'var(--text-secondary)';
+    }
+  }
+
+  filterDebts();
+}
+
+// Xem sổ chi tiết gộp: lấy chứng từ từ tất cả các mã cùng tên đối tác
+function viewGroupedPartnerLedger(partnerName) {
+  const normalizedName = (partnerName || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+  // Tìm tất cả đối tác cùng tên
+  const matchingPartners = state.partners.filter(p =>
+    (p.name || '').trim().toLowerCase().replace(/\s+/g, ' ') === normalizedName
+  );
+  if (matchingPartners.length === 0) return;
+
+  const matchingIds = new Set(matchingPartners.map(p => p.id));
+  const primaryType = matchingPartners.find(p => p.type === 'customer')?.type
+    || matchingPartners[0].type;
+
+  // Tính tổng số dư đầu kỳ gộp
+  let totalOpeningDebit = 0, totalOpeningCredit = 0;
+  matchingPartners.forEach(p => {
+    const op = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
+    totalOpeningDebit  += op.debit  || 0;
+    totalOpeningCredit += op.credit || 0;
+  });
+
+  const openingVal = primaryType === 'customer'
+    ? totalOpeningDebit - totalOpeningCredit
+    : totalOpeningCredit - totalOpeningDebit;
+  const openingText = primaryType === 'customer'
+    ? (openingVal >= 0 ? `${formatVND(openingVal)} (Nợ)` : `${formatVND(-openingVal)} (Có)`)
+    : (openingVal >= 0 ? `${formatVND(openingVal)} (Có)` : `${formatVND(-openingVal)} (Nợ)`);
+
+  // Cập nhật tiêu đề modal
+  const idList = matchingPartners.map(p => p.id).join(', ');
+  document.getElementById('partner-ledger-subtitle').innerText =
+    `Đối tác: ${partnerName} | ${matchingPartners.length} mã: ${idList.length > 80 ? idList.slice(0,80)+'...' : idList}`;
+  document.getElementById('partner-ledger-opening').innerText = openingText;
+
+  const tbody = document.getElementById('partner-ledger-table-body');
+  tbody.innerHTML = '';
+
+  // Thu thập tất cả chứng từ từ các mã con
+  let debitSum = 0, creditSum = 0;
+  const ledgerEntries = [];
+
+  state.vouchers.forEach(v => {
+    if (!matchingIds.has(v.partnerId)) return;
+    if (!v.entries) return;
+
+    let debitAmount = 0, creditAmount = 0;
+    const offsetAccountSet = new Set();
+
+    v.entries.forEach(e => {
+      const is131 = (e.debit && e.debit.startsWith('131')) || (e.credit && e.credit.startsWith('131'));
+      const is331 = (e.debit && e.debit.startsWith('331')) || (e.credit && e.credit.startsWith('331'));
+      if (!is131 && !is331) return;
+      if ((e.debit && e.debit.startsWith('131')) || (e.debit && e.debit.startsWith('331'))) {
+        debitAmount += e.amount;
+        offsetAccountSet.add(e.credit);
+      } else {
+        creditAmount += e.amount;
+        offsetAccountSet.add(e.debit);
+      }
+    });
+
+    if (debitAmount > 0 || creditAmount > 0) {
+      ledgerEntries.push({
+        date: v.date,
+        id: v.id,
+        partnerId: v.partnerId,
+        desc: v.description,
+        offsetAccount: Array.from(offsetAccountSet).join(', '),
+        debit: debitAmount,
+        credit: creditAmount
+      });
+      debitSum += debitAmount;
+      creditSum += creditAmount;
+    }
+  });
+
+  ledgerEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  if (ledgerEntries.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px;">Không có giao dịch phát sinh công nợ trong kỳ</td></tr>`;
+  } else {
+    ledgerEntries.forEach(le => {
+      const tr = document.createElement('tr');
+      const escapedViewId = escapeHtmlAttr(le.id);
+      const originalVoucher = state.vouchers.find(x => x.id === le.id);
+      const vType = originalVoucher ? originalVoucher.type : '';
+      tr.className = 'clickable-row';
+      tr.setAttribute('data-type', 'voucher');
+      tr.setAttribute('data-subtype', vType);
+      tr.setAttribute('data-id', escapeHtmlAttr(le.id));
+      // Hiển thị mã đối tác con nếu có nhiều mã
+      const partnerIdNote = matchingPartners.length > 1
+        ? ` <span style="font-size:11px; color:var(--text-muted); font-style:italic;">[${le.partnerId}]</span>`
+        : '';
+      tr.innerHTML = `
+        <td>${le.date}</td>
+        <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${le.id}</a>${partnerIdNote}</td>
+        <td>${le.desc}</td>
+        <td style="text-align:center; font-weight:700;">${le.offsetAccount}</td>
+        <td style="text-align:right; font-weight:500;">${le.debit > 0 ? formatVND(le.debit).replace('đ','') : '-'}</td>
+        <td style="text-align:right; font-weight:500;">${le.credit > 0 ? formatVND(le.credit).replace('đ','') : '-'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Tính số dư cuối kỳ gộp
+  let closingVal = primaryType === 'customer'
+    ? openingVal + debitSum - creditSum
+    : openingVal + creditSum - debitSum;
+  const closingText = primaryType === 'customer'
+    ? (closingVal >= 0 ? `${formatVND(closingVal)} (Nợ)` : `${formatVND(-closingVal)} (Có)`)
+    : (closingVal >= 0 ? `${formatVND(closingVal)} (Có)` : `${formatVND(-closingVal)} (Nợ)`);
+
+  document.getElementById('partner-ledger-closing').innerText = closingText;
+
+  // Sử dụng lại môđan sẵn có
+  activePartnerIdForLedger = matchingPartners[0].id;
+  activePartnerNameForGroupedLedger = partnerName;
+  switchPartnerLedgerTab('entries');
+  openModal('modal-view-partner-ledger');
+}
+
 
 let currentPartnerLedgerTab = "entries";
 let activePartnerIdForLedger = "";
@@ -263,6 +621,7 @@ function viewPartnerLedger(partnerId) {
   if (!p) return;
 
   activePartnerIdForLedger = partnerId;
+  activePartnerNameForGroupedLedger = "";
 
   const opening = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
   const openingText = p.type === "customer"
@@ -388,20 +747,37 @@ async function exportPartnerDebtExcel(partnerId) {
   }
 
   try {
-    // 1. Get ledger data
-    const opening = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
+    // 1. Get ledger data (supporting grouped accounts)
+    let matchingPartners = [p];
+    if (activePartnerNameForGroupedLedger) {
+      const normalizedName = activePartnerNameForGroupedLedger.trim().toLowerCase().replace(/\s+/g, ' ');
+      matchingPartners = state.partners.filter(item =>
+        (item.name || '').trim().toLowerCase().replace(/\s+/g, ' ') === normalizedName
+      );
+    }
+    const matchingIds = new Set(matchingPartners.map(item => item.id));
+    const primaryType = matchingPartners.find(item => item.type === 'customer')?.type || p.type;
+
+    let totalOpeningDebit = 0;
+    let totalOpeningCredit = 0;
+    matchingPartners.forEach(item => {
+      const op = state.partnerOpeningBalances[item.id] || { debit: 0, credit: 0 };
+      totalOpeningDebit += op.debit || 0;
+      totalOpeningCredit += op.credit || 0;
+    });
+
     let openingVal = 0;
-    if (p.type === "customer") {
-      openingVal = opening.debit - opening.credit;
+    if (primaryType === "customer") {
+      openingVal = totalOpeningDebit - totalOpeningCredit;
     } else {
-      openingVal = opening.credit - opening.debit;
+      openingVal = totalOpeningCredit - totalOpeningDebit;
     }
 
     let debitSum = 0;
     let creditSum = 0;
     const ledgerEntries = [];
     state.vouchers.forEach(v => {
-      if (v.partnerId !== p.id) return;
+      if (!matchingIds.has(v.partnerId)) return;
       if (!v.entries) return;
 
       let debitAmount = 0;
@@ -426,6 +802,7 @@ async function exportPartnerDebtExcel(partnerId) {
         ledgerEntries.push({
           date: v.date,
           id: v.id,
+          partnerId: v.partnerId,
           desc: v.description,
           offsetAccount: Array.from(offsetAccountSet).join(", "),
           debit: debitAmount,
@@ -441,7 +818,7 @@ async function exportPartnerDebtExcel(partnerId) {
 
     // Calculate closing balance
     let closingVal = 0;
-    if (p.type === "customer") {
+    if (primaryType === "customer") {
       closingVal = openingVal + debitSum - creditSum;
     } else {
       closingVal = openingVal + creditSum - debitSum;
@@ -540,12 +917,16 @@ async function exportPartnerDebtExcel(partnerId) {
     merges.push({ s: { r: 8, c: 3 }, e: { r: 8, c: 4 } });
 
     // --- ROW 9: Đơn vị ---
-    setCell("A10", `Đơn vị: ${p.name} (${p.id})`, "s",
+    const idList = matchingPartners.map(item => item.id).join(', ');
+    const unitText = `${p.name} (${idList})`;
+    const address = matchingPartners.map(item => item.address).filter(Boolean)[0] || p.address || "";
+
+    setCell("A10", `Đơn vị: ${unitText}`, "s",
       { font: fontNormal, alignment: alignLeft });
     merges.push({ s: { r: 9, c: 0 }, e: { r: 9, c: 2 } });
 
     // --- ROW 10: Địa chỉ + Số dư cuối kỳ ---
-    setCell("A11", `Địa chỉ: ${p.address || ""}`, "s",
+    setCell("A11", `Địa chỉ: ${address}`, "s",
       { font: fontNormal, alignment: alignLeft });
     merges.push({ s: { r: 10, c: 0 }, e: { r: 10, c: 2 } });
     setCell("D11", "Số dư cuối kỳ:", "s",
@@ -592,7 +973,7 @@ async function exportPartnerDebtExcel(partnerId) {
       const excelRow = r + 1;
 
       let amount = 0;
-      if (p.type === "customer") {
+      if (primaryType === "customer") {
         amount = le.debit - le.credit;
       } else {
         amount = le.credit - le.debit;
@@ -616,8 +997,10 @@ async function exportPartnerDebtExcel(partnerId) {
         return s;
       };
 
+      const subCodeStr = matchingPartners.length > 1 ? ` [${le.partnerId}]` : "";
+
       setCell("A" + excelRow, dateFormatted, "s", makeStyle(alignCenter));
-      setCell("B" + excelRow, le.id, "s", makeStyle(alignCenter));
+      setCell("B" + excelRow, le.id + subCodeStr, "s", makeStyle(alignCenter));
       setCell("C" + excelRow, le.desc, "s", makeStyle(alignLeft));
       setCell("D" + excelRow, amount, "n", makeStyle(alignRight), '#,##0;(#,##0);"-"');
       setCell("E" + excelRow, currentBalance, "n", makeStyleBold(alignRight), '#,##0;(#,##0);"-"');
@@ -640,7 +1023,7 @@ async function exportPartnerDebtExcel(partnerId) {
       { font: fontBold, alignment: alignRight, fill: totalBg, border: totalBorder });
 
     const totalAmount = ledgerEntries.reduce((sum, le) => {
-      if (p.type === "customer") return sum + le.debit - le.credit;
+      if (primaryType === "customer") return sum + le.debit - le.credit;
       return sum + le.credit - le.debit;
     }, 0);
     setCell("D" + totalsExcelRow, totalAmount, "n",
@@ -713,20 +1096,37 @@ function previewPartnerDebtNotice(partnerId) {
     return;
   }
 
-  // Get ledger data
-  const opening = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
+  // Get ledger data (supporting grouped accounts)
+  let matchingPartners = [p];
+  if (activePartnerNameForGroupedLedger) {
+    const normalizedName = activePartnerNameForGroupedLedger.trim().toLowerCase().replace(/\s+/g, ' ');
+    matchingPartners = state.partners.filter(item =>
+      (item.name || '').trim().toLowerCase().replace(/\s+/g, ' ') === normalizedName
+    );
+  }
+  const matchingIds = new Set(matchingPartners.map(item => item.id));
+  const primaryType = matchingPartners.find(item => item.type === 'customer')?.type || p.type;
+
+  let totalOpeningDebit = 0;
+  let totalOpeningCredit = 0;
+  matchingPartners.forEach(item => {
+    const op = state.partnerOpeningBalances[item.id] || { debit: 0, credit: 0 };
+    totalOpeningDebit += op.debit || 0;
+    totalOpeningCredit += op.credit || 0;
+  });
+
   let openingVal = 0;
-  if (p.type === "customer") {
-    openingVal = opening.debit - opening.credit;
+  if (primaryType === "customer") {
+    openingVal = totalOpeningDebit - totalOpeningCredit;
   } else {
-    openingVal = opening.credit - opening.debit;
+    openingVal = totalOpeningCredit - totalOpeningDebit;
   }
 
   let debitSum = 0;
   let creditSum = 0;
   const ledgerEntries = [];
   state.vouchers.forEach(v => {
-    if (v.partnerId !== p.id) return;
+    if (!matchingIds.has(v.partnerId)) return;
     if (!v.entries) return;
 
     let debitAmount = 0;
@@ -751,6 +1151,7 @@ function previewPartnerDebtNotice(partnerId) {
       ledgerEntries.push({
         date: v.date,
         id: v.id,
+        partnerId: v.partnerId,
         desc: v.description,
         offsetAccount: Array.from(offsetAccountSet).join(", "),
         debit: debitAmount,
@@ -766,7 +1167,7 @@ function previewPartnerDebtNotice(partnerId) {
 
   // Calculate closing balance
   let closingVal = 0;
-  if (p.type === "customer") {
+  if (primaryType === "customer") {
     closingVal = openingVal + debitSum - creditSum;
   } else {
     closingVal = openingVal + creditSum - debitSum;
@@ -796,11 +1197,15 @@ function previewPartnerDebtNotice(partnerId) {
     return clean;
   };
 
+  const idList = matchingPartners.map(item => item.id).join(', ');
+  const unitText = `${p.name} (${idList})`;
+  const address = matchingPartners.map(item => item.address).filter(Boolean)[0] || p.address || "";
+
   let tableRowsHtml = "";
   let currentBalance = openingVal;
   ledgerEntries.forEach((le) => {
     let amount = 0;
-    if (p.type === "customer") {
+    if (primaryType === "customer") {
       amount = le.debit - le.credit;
     } else {
       amount = le.credit - le.debit;
@@ -811,10 +1216,14 @@ function previewPartnerDebtNotice(partnerId) {
     const pad = (n) => n.toString().padStart(2, '0');
     const dateFormatted = `${pad(dVal.getDate())}/${pad(dVal.getMonth() + 1)}/${dVal.getFullYear()}`;
 
+    const subCodeStr = matchingPartners.length > 1
+      ? `<br><span style="font-size:8.5px; color:#555; font-style:italic;">[${le.partnerId}]</span>`
+      : "";
+
     tableRowsHtml += `
       <tr>
         <td style="text-align: center; border: 1px solid #000; padding: 6px;">${dateFormatted}</td>
-        <td style="text-align: center; font-family: monospace; font-weight: 500; border: 1px solid #000; padding: 6px;">${le.id}</td>
+        <td style="text-align: center; font-family: monospace; font-weight: 500; border: 1px solid #000; padding: 6px;">${le.id}${subCodeStr}</td>
         <td style="border: 1px solid #000; padding: 6px;">${le.desc}</td>
         <td style="text-align: right; font-family: 'Times New Roman', serif; border: 1px solid #000; padding: 6px;" class="font-numeric">${formatDebtAmount(amount)}</td>
         <td style="text-align: right; font-family: 'Times New Roman', serif; font-weight: bold; border: 1px solid #000; padding: 6px;" class="font-numeric">${formatDebtAmount(currentBalance)}</td>
@@ -892,15 +1301,16 @@ function previewPartnerDebtNotice(partnerId) {
         <div><strong>Kính gửi:</strong></div>
         <div><strong>Kỳ:</strong> Từ ngày ${fromDateStr} đến ngày ${toDateStr}</div>
         
-        <div><strong>Đơn vị:</strong> ${p.name} (${p.id})</div>
+        <div><strong>Đơn vị:</strong> ${unitText}</div>
         <div><strong>Số dư đầu kỳ:</strong> <span style="font-weight: bold;">${formatDebtAmount(openingVal)} đ</span></div>
         
-        <div><strong>Địa chỉ:</strong> ${p.address || ""}</div>
+        <div><strong>Địa chỉ:</strong> ${address}</div>
         <div><strong>Số dư cuối kỳ:</strong> <span style="font-weight: bold; color: var(--color-primary);">${formatDebtAmount(closingVal)} đ</span></div>
         
         <div><strong>Mã số thuế:</strong> ${p.taxCode || ""}</div>
         <div></div>
       </div>
+
 
       <!-- Table -->
       <table class="debt-notice-table" style="width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 10px;">
@@ -1368,6 +1778,12 @@ window.toggleSelectAllDebts = toggleSelectAllDebts;
 window.updateBatchDebtsUI = updateBatchDebtsUI;
 window.batchDeleteDebts = batchDeleteDebts;
 window.exportDebtsToExcel = exportDebtsToExcel;
+// Grouped / dual-tab
+window.switchDebtsViewTab = switchDebtsViewTab;
+window.renderDebtsGroupedTable = renderDebtsGroupedTable;
+window.changeDebtsGroupedPage = changeDebtsGroupedPage;
+window.toggleGroupChildren = toggleGroupChildren;
+window.viewGroupedPartnerLedger = viewGroupedPartnerLedger;
 
 function editOrderFromLedger(voucherId, voucherType) {
   closeModal('modal-view-partner-ledger');

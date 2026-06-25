@@ -67,10 +67,15 @@ function filterDashboard() {
 }
 
 function clearDashboardDateFilter() {
-  const fromEl = document.getElementById("search-dashboard-from");
-  const toEl = document.getElementById("search-dashboard-to");
-  if (fromEl) fromEl.value = "";
-  if (toEl) toEl.value = "";
+  if (window.rdpClearInput) {
+    rdpClearInput('search-dashboard-from');
+    rdpClearInput('search-dashboard-to');
+  } else {
+    const fromEl = document.getElementById('search-dashboard-from');
+    const toEl = document.getElementById('search-dashboard-to');
+    if (fromEl) fromEl.value = '';
+    if (toEl) toEl.value = '';
+  }
   renderDashboard();
 }
 

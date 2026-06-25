@@ -339,9 +339,9 @@ function exportEscrowsToExcel() {
 
   if (query) {
     filteredEscrows = filteredEscrows.filter(v =>
-      (v.id || "").toLowerCase().includes(query) ||
-      (v.partnerName || "").toLowerCase().includes(query) ||
-      (v.description || "").toLowerCase().includes(query)
+      matchStr(v.id, query) ||
+      matchStr(v.partnerName, query) ||
+      matchStr(v.description, query)
     );
   }
   if (fromDate) filteredEscrows = filteredEscrows.filter(v => v.date >= fromDate);
