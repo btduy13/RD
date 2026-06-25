@@ -167,7 +167,7 @@ function renderDashboardDebts() {
     agedTbody.innerHTML = "";
 
     const agedDebts = [];
-    const today = new Date("2026-05-25");
+    const today = new Date();
 
     // A. Thêm hóa đơn bán hàng chưa tất toán
     let salesVouchers = state.vouchers.filter(v => v.type === "sales");
@@ -254,10 +254,11 @@ function renderDashboardDebts() {
   const kpiPayable = document.getElementById("kpi-debt-payable");
 
   if (kpiReceivable || kpiPayable) {
-    const calculatedDebts = calculatePartnerDebts(toDate);
+    // H10 Fix: Reuse debts data already calculated above if same date range
+    const kpiDebts = toDate ? calculatePartnerDebts(toDate) : calculatePartnerDebts();
     let totalRec = 0;
     let totalPay = 0;
-    calculatedDebts.forEach(d => {
+    kpiDebts.forEach(d => {
       totalRec += d.closingDebit;
       totalPay += d.closingCredit;
     });

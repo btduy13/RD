@@ -777,7 +777,7 @@ function viewVoucher(id) {
           </div>
           <div style="width: 125px; text-align: center; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #000; padding: 4px; border-radius: 4px; background: #fff; page-break-inside: avoid; break-inside: avoid;">
             <span style="font-size: 8px; font-weight: bold; text-transform: uppercase; color: #000; margin-bottom: 3px; letter-spacing: 0.2px;">Quét Mã QR Thanh Toán</span>
-            <img src="https://img.vietqr.io/image/sacombank-050033493999-qr_only.png?amount=${v.totalAmount}&addInfo=${encodeURIComponent('Thanh toan ' + v.id)}&accountName=${encodeURIComponent('CTY CP SX DT PHAT TRIEN RANG DONG')}" style="width: 90px; height: 90px; display: block;" alt="VietQR" />
+            <img src="https://img.vietqr.io/image/sacombank-050033493999-qr_only.png?amount=${v.totalAmount}&addInfo=${encodeURIComponent('thanh toan mua hang')}&accountName=${encodeURIComponent('CTY CP SX DT PHAT TRIEN RANG DONG')}" style="width: 90px; height: 90px; display: block;" alt="VietQR" />
             <span style="font-size: 8px; color: #000; margin-top: 3px; font-family: monospace; font-weight: bold;">STK: 050033493999</span>
           </div>
         </div>
@@ -937,7 +937,7 @@ function viewVoucher(id) {
           </div>
           <div style="width: 125px; text-align: center; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #000; padding: 4px; border-radius: 4px; background: #fff; page-break-inside: avoid; break-inside: avoid;">
             <span style="font-size: 8px; font-weight: bold; text-transform: uppercase; color: #000; margin-bottom: 3px; letter-spacing: 0.2px;">Quét QR Để Thanh Toán</span>
-            <img src="https://img.vietqr.io/image/sacombank-050033493999-qr_only.png?amount=${v.totalAmount}&addInfo=${encodeURIComponent('Thanh toan BG ' + v.id)}&accountName=${encodeURIComponent('CTY CP SX DT PHAT TRIEN RANG DONG')}" style="width: 90px; height: 90px; display: block;" alt="VietQR" />
+            <img src="https://img.vietqr.io/image/sacombank-050033493999-qr_only.png?amount=${v.totalAmount}&addInfo=${encodeURIComponent('thanh toan mua hang')}&accountName=${encodeURIComponent('CTY CP SX DT PHAT TRIEN RANG DONG')}" style="width: 90px; height: 90px; display: block;" alt="VietQR" />
             <span style="font-size: 8px; color: #000; margin-top: 3px; font-family: monospace; font-weight: bold;">STK: 050033493999</span>
           </div>
         </div>

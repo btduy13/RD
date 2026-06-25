@@ -1635,9 +1635,8 @@ function resolvePartner(value) {
   if (!val) return { id: "DT_VANGLAI", name: "Khách hàng vãng lai" };
 
   // Hỗ trợ định dạng "Tên đối tác (Mã đối tác)"
-  const match = val.match(/\(([^)]+)\)$/);
-  if (match) {
-    const idInParens = match[1].trim();
+  const idInParens = extractIdFromParentheses(val);
+  if (idInParens) {
     let p = state.partners.find(item => String(item.id).toLowerCase() === idInParens.toLowerCase());
     if (p) return p;
   }
@@ -1664,9 +1663,8 @@ function resolveProduct(value) {
   if (!val) return null;
 
   // Hỗ trợ định dạng "Tên sản phẩm (Mã sản phẩm)" khi nạp từ form sửa hoặc khi blur
-  const match = val.match(/\(([^)]+)\)$/);
-  if (match) {
-    const idInParens = match[1].trim();
+  const idInParens = extractIdFromParentheses(val);
+  if (idInParens) {
     let p = state.products.find(item => String(item.id).toLowerCase() === idInParens.toLowerCase());
     if (p) return p;
   }

@@ -21,7 +21,14 @@ function safeParseFloat(val) {
     if (commaCount > 1) {
       cleaned = str.replace(/,/g, "");
     } else {
-      cleaned = str.replace(",", ".");
+      // C8 Fix: Check if digits after comma are exactly 3 → thousands separator (Vietnamese: "1,000" = 1000)
+      const commaIdx = str.indexOf(",");
+      const afterComma = str.substring(commaIdx + 1).replace(/[^\d]/g, "");
+      if (afterComma.length === 3) {
+        cleaned = str.replace(/,/g, ""); // Thousands separator
+      } else {
+        cleaned = str.replace(",", "."); // Decimal separator
+      }
     }
   } else if (hasDot) {
     const dotCount = (str.match(/\./g) || []).length;
@@ -51,6 +58,32 @@ async function readExcelViaIPC(filename) {
   }
   const arrayBuffer = await response.arrayBuffer();
   return new Uint8Array(arrayBuffer);
+}
+
+// Trích xuất ID nằm trong dấu ngoặc kép ở cuối chuỗi, hỗ trợ cả ngoặc lồng nhau (ví dụ: "(37NGUYENBINH(CH))")
+function extractIdFromParentheses(val) {
+  if (!val) return "";
+  const str = String(val).trim();
+  if (!str.endsWith(")")) return "";
+  
+  let depth = 0;
+  let lastOpenParenIdx = -1;
+  for (let i = str.length - 1; i >= 0; i--) {
+    if (str[i] === ')') {
+      depth++;
+    } else if (str[i] === '(') {
+      depth--;
+      if (depth === 0) {
+        lastOpenParenIdx = i;
+        break;
+      }
+    }
+  }
+  
+  if (lastOpenParenIdx !== -1) {
+    return str.substring(lastOpenParenIdx + 1, str.length - 1).trim();
+  }
+  return "";
 }
 
 function setupNumberFormattingEventListeners() {
@@ -87,6 +120,29 @@ function setupNumberFormattingEventListeners() {
       }
       
       input.setSelectionRange(newCursorPos, newCursorPos);
+    }
+
+    // Qty format: allow digits, comma, dot, and negative sign
+    if (e.target && e.target.classList.contains("qty-format")) {
+      const input = e.target;
+      const val = input.value;
+      
+      // Allow only numbers, comma, dot, and negative sign
+      let cleaned = val.replace(/[^0-9.,-]/g, "");
+      
+      // Ensure at most one decimal separator (comma or dot)
+      const firstSepIdx = cleaned.search(/[.,]/);
+      if (firstSepIdx !== -1) {
+        const before = cleaned.substring(0, firstSepIdx + 1);
+        const after = cleaned.substring(firstSepIdx + 1).replace(/[.,]/g, "");
+        cleaned = before + after;
+      }
+      
+      if (val !== cleaned) {
+        const selectionStart = input.selectionStart;
+        input.value = cleaned;
+        input.setSelectionRange(selectionStart, selectionStart);
+      }
     }
   });
 }
@@ -154,12 +210,24 @@ function getPartnerForVoucher(v) {
   // 1. Tìm theo ID trước
   if (partnerIdStr) {
     p = partnerCacheById[partnerIdStr];
+    if (!p) {
+      const extractedId = extractIdFromParentheses(partnerIdStr);
+      if (extractedId) {
+        p = partnerCacheById[extractedId];
+      }
+    }
   }
 
   // 2. Tìm theo tên nếu tìm theo ID thất bại hoặc nếu partnerId chính là tên đối tác
   if (!p && partnerNameStr) {
     const nameLower = partnerNameStr.toLowerCase();
     p = partnerCacheByName[nameLower];
+    if (!p) {
+      const extractedId = extractIdFromParentheses(partnerNameStr);
+      if (extractedId) {
+        p = partnerCacheById[extractedId];
+      }
+    }
   }
 
   if (!p && partnerIdStr) {
@@ -296,15 +364,18 @@ function matchAdvancedQuery(targetText, queryText, numericValue = null) {
   });
 }
 
-// Định dạng tiền tệ Việt Nam Đồng VNĐ
+// H11 Fix: Cache Intl.NumberFormat instance for performance
+const _vndFormatter = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" });
 function formatVND(value) {
   if (value === undefined || value === null || isNaN(value)) value = 0;
-  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value);
+  return _vndFormatter.format(value);
 }
 
 // Thuật toán chuyển đổi Số thành Chữ tiếng Việt cực chuẩn và chuyên nghiệp
 function numberToVietnameseWords(number) {
-  number = Math.round(number); // Làm tròn số tiền thành số nguyên trước khi đọc chữ
+  // H7 Fix: Handle negative numbers
+  const isNegative = number < 0;
+  number = Math.abs(Math.round(number)); // Làm tròn số tiền thành số nguyên trước khi đọc chữ
   if (number === 0) return "Không đồng.";
 
   const units = ["", "nghìn", "triệu", "tỷ", "nghìn tỷ", "triệu tỷ"];
@@ -359,7 +430,8 @@ function numberToVietnameseWords(number) {
 
   str = str.trim();
   // Viết hoa chữ cái đầu tiên và thêm đuôi "đồng chẵn."
-  return str.charAt(0).toUpperCase() + str.slice(1) + " đồng chẵn.";
+  const result = str.charAt(0).toUpperCase() + str.slice(1) + " đồng chẵn.";
+  return isNegative ? "Âm " + result.charAt(0).toLowerCase() + result.slice(1) : result;
 }
 
 // Giao diện đổi Theme Tối/Sáng
@@ -388,14 +460,15 @@ function showToast(message, type = "primary") {
   toast.className = "toast";
   toast.style.setProperty("--toast-color", colors[type] || colors.primary);
 
-  toast.innerHTML = `
-    <div style="color: ${colors[type] || colors.primary}; display:flex; align-items:center;">
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:20px; height:20px;">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-      </svg>
-    </div>
-    <span class="toast-message">${message}</span>
-  `;
+  // H3 Fix: Use textContent instead of raw innerHTML to prevent XSS
+  const iconDiv = document.createElement("div");
+  iconDiv.style.cssText = `color: ${colors[type] || colors.primary}; display:flex; align-items:center;`;
+  iconDiv.innerHTML = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:20px; height:20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+  const msgSpan = document.createElement("span");
+  msgSpan.className = "toast-message";
+  msgSpan.textContent = message; // Safe: textContent escapes HTML
+  toast.appendChild(iconDiv);
+  toast.appendChild(msgSpan);
 
   container.appendChild(toast);
 

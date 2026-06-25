@@ -1193,4 +1193,38 @@ window.updateBreadcrumb = updateBreadcrumb;
 window.setDatePreset = setDatePreset;
 window.updateSidebarBadges = updateSidebarBadges;
 
+// Quản lý tỉ lệ cỡ chữ (font size scale) toàn phần mềm thông qua CSS Zoom
+let currentFontScale = parseFloat(localStorage.getItem('rd_font_scale')) || 1.0;
+
+function applyFontSizeScale(scale) {
+  currentFontScale = scale;
+  localStorage.setItem('rd_font_scale', scale);
+  document.body.style.zoom = scale;
+  
+  // Đồng bộ giá trị với dropdown nếu tồn tại
+  const selectEl = document.getElementById("font-scale-select");
+  if (selectEl) {
+    selectEl.value = scale.toString();
+  }
+}
+
+// Khởi chạy ngay khi script được nạp để tránh giật lag layout
+if (document.body) {
+  document.body.style.zoom = currentFontScale;
+} else {
+  document.addEventListener("DOMContentLoaded", () => {
+    document.body.style.zoom = currentFontScale;
+  });
+}
+
+// Đồng bộ trạng thái dropdown khi DOM hoàn thành tải
+document.addEventListener("DOMContentLoaded", () => {
+  const selectEl = document.getElementById("font-scale-select");
+  if (selectEl) {
+    selectEl.value = currentFontScale.toString();
+  }
+});
+
+window.applyFontSizeScale = applyFontSizeScale;
+
 

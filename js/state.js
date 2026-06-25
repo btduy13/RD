@@ -28,7 +28,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Khởi tạo ứng dụng: Ở chế độ Online-Only, CSDL cục bộ sẽ bị loại bỏ hoàn toàn
 function initApp() {
-  localStorage.removeItem("rd_accounting_db");
+  // M6: Obsolete localStorage migration removed (was running forever)
+
+  // C5 Fix: Track whether app has been fully initialized to prevent async IPC overwrite
+  let stateFullyInitialized = false;
 
   // Khởi tạo từ cache cục bộ (nếu có) để giao diện hiển thị ngay lập tức
   // ữu tiên: Đọc từ file JSON (không giới hạn kích thước) | Fallback: localStorage (bị giới hạn 5MB)
@@ -45,7 +48,7 @@ function initApp() {
             // Merge: chỉ ghi đè nếu file có dữ liệu phong phú hơn state hiện tại
             const currentVoucherCount = (state.vouchers || []).length;
             const fileVoucherCount = parsed.vouchers.length;
-            if (fileVoucherCount > currentVoucherCount) {
+            if (fileVoucherCount > currentVoucherCount && !stateFullyInitialized) {
               state = parsed;
               if (typeof lastSyncState !== 'undefined') {
                 lastSyncState = JSON.parse(JSON.stringify(parsed));
@@ -54,7 +57,8 @@ function initApp() {
                 lastSyncedCloudTs = state._lastModified || 0;
               }
               console.log(`[StateFile] Nạp từ file thành công! (${fileVoucherCount} chứng từ, ${(parsed.partners || []).length} đối tác)`);
-              cleanNumericVouchers();
+              // C6 Fix: Skip aggressive cleanup that can delete legitimate vouchers
+              // cleanNumericVouchers();
               // Cập nhật lại UI sau khi nạp file
               if (typeof recalculateAccounting === 'function') recalculateAccounting();
               if (typeof switchTab === 'function') switchTab('dashboard');
@@ -184,14 +188,17 @@ function initApp() {
     cleanNumericUnitProducts();
   }
 
-  // Khởi tạo cache sản phẩm & datalist đối tác Excel
-  initExcelIntegration();
+  // H4 Fix: initExcelIntegration already called at line 128-130, removed duplicate call
+  // initExcelIntegration();
 
   // Cập nhật thông tin công ty lên giao diện
   updateCompanyUI();
 
   // Chạy lại thuật toán tính toán kế toán & giá vốn để đồng bộ
   recalculateAccounting();
+
+  // C5 Fix: Mark state as fully initialized to prevent async IPC from overwriting
+  stateFullyInitialized = true;
 
   // Tách số điện thoại từ địa chỉ tự động nếu có
   if (typeof autoExtractPhonesAndCleanAddresses === "function") {
@@ -267,9 +274,9 @@ function cleanNumericVouchers() {
 
   if (trashVouchers.length > 0) {
     console.log(`[Cleanup] Phát hiện và xóa ${trashVouchers.length} chứng từ rác/test dữ liệu cũ.`);
-    const trashIds = trashVouchers.map(v => v.id);
-    trackDeletedIds(trashIds);
-    state.vouchers = state.vouchers.filter(v => v && v.id && !trashIds.includes(v.id));
+    const trashIds = new Set(trashVouchers.map(v => v.id));
+    trackDeletedIds([...trashIds]);
+    state.vouchers = state.vouchers.filter(v => v && v.id && !trashIds.has(v.id));
     hasChanges = true;
   }
 
@@ -404,7 +411,8 @@ async function autoSaveBeforeClose() {
     executeSaveState(true);
 
     // 3. Nếu Cloud đang kết nối → đẩy trạng thái cuối cùng lên Cloud
-    if (cloudSyncActive && supabaseClient) {
+    // H6 Fix: Guard against sync.js variables being undefined if sync.js failed to load
+    if (typeof cloudSyncActive !== 'undefined' && cloudSyncActive && typeof supabaseClient !== 'undefined' && supabaseClient) {
       // LƯU Ý: KHÔNG reset isPushing ở đây!
       // Việc reset isPushing khi đang có push chạy sẽ gây ra CONCURRENT PUSH,
       // dẫn đến race condition và dữ liệu bị trùng lặp trên cloud!

@@ -113,23 +113,22 @@ function recalculateAccounting(shouldSave = true) {
         const p = productBalanceMap[item.productId];
         if (p) {
           const oldStock = p.stock;
-          const oldVal = p.totalValue;
 
           p.stock = Number((p.stock + item.qty).toFixed(3));
           p.totalValue += item.amount; // Thành tiền mua chưa thuế
 
           if (oldStock >= 0 && p.stock > 0) {
-            p.avgCost = Math.round(p.totalValue / p.stock);
+            p.avgCost = Math.round((p.totalValue / p.stock) * 100) / 100;
           } else if (p.stock > 0) {
             // Trước đó bị âm, nay dương trở lại: Đơn giá bình quân = đơn giá mua mới
             p.avgCost = item.price;
-            p.totalValue = p.stock * p.avgCost;
+            p.totalValue = Math.round(p.stock * p.avgCost);
           } else {
             // Vẫn bị âm hoặc bằng 0: giữ nguyên đơn giá cũ
             if (!p.avgCost || p.avgCost <= 0) {
               p.avgCost = item.price;
             }
-            p.totalValue = p.stock * p.avgCost;
+            p.totalValue = Math.round(p.stock * p.avgCost);
           }
           // Lưu đơn giá mua này làm đơn giá mua gần nhất
           p.lastPurchasePrice = item.price;
@@ -151,10 +150,12 @@ function recalculateAccounting(shouldSave = true) {
         v.remainingDebt = (v.paymentMethod === "331") ? totalAmount : 0;
       }
 
+      // TT133: thuế GTGT gộp vào giá hàng mua (cộng tax vào TK 156)
+      const purchaseDebitAmount = (state.accountingStandard === "TT133") ? (itemSubtotal + taxAmount) : itemSubtotal;
       v.entries = [
-        { debit: "156", credit: v.paymentMethod, amount: itemSubtotal, desc: `Nhập kho ${v.description}` },
+        { debit: "156", credit: v.paymentMethod, amount: purchaseDebitAmount, desc: `Nhập kho ${v.description}` },
       ];
-      // TT133 không tách riêng TK 1331 (thuế GTGT gộp vào giá hàng mua)
+      // TT200: tách riêng TK 1331 cho thuế GTGT đầu vào
       if (taxAmount > 0 && state.accountingStandard !== "TT133") {
         v.entries.push({ debit: "1331", credit: v.paymentMethod, amount: taxAmount, desc: "Thuế GTGT đầu vào được khấu trừ" });
       }
@@ -167,7 +168,7 @@ function recalculateAccounting(shouldSave = true) {
       let totalCogs = 0;
       let itemSubtotal = 0;
 
-      v.items.forEach(item => {
+      (v.items || []).forEach(item => {
         const p = productBalanceMap[item.productId];
         if (p) {
           if (!p.avgCost || p.avgCost <= 0) p.avgCost = p.lastPurchasePrice || p.initialCost || 0;
@@ -175,6 +176,10 @@ function recalculateAccounting(shouldSave = true) {
           item.cogsAmount = Math.round(item.qty * p.avgCost);
           p.stock = Number((p.stock + item.qty).toFixed(3));
           p.totalValue += item.cogsAmount;
+          // C3 Fix: Recalculate avgCost after restoring stock from sales return
+          if (p.stock > 0) {
+            p.avgCost = Math.round((p.totalValue / p.stock) * 100) / 100;
+          }
           totalCogs += item.cogsAmount;
         }
         itemSubtotal += item.amount;
@@ -213,15 +218,22 @@ function recalculateAccounting(shouldSave = true) {
       let totalCogs = 0;
       let itemSubtotal = 0;
 
-      v.items.forEach(item => {
+      (v.items || []).forEach(item => {
         const p = productBalanceMap[item.productId];
         if (p) {
           if (!p.avgCost || p.avgCost <= 0) p.avgCost = p.lastPurchasePrice || p.initialCost || 0;
           item.cogsUnit = p.avgCost;
           item.cogsAmount = Math.round(item.qty * p.avgCost);
-          // Xuất trả NCC → trừ kho
+          // Xuất trả NCC → trừ kho (C1 Fix: không clamp Math.max(0) nữa)
           p.stock = Number((p.stock - item.qty).toFixed(3));
-          p.totalValue = Math.max(0, p.totalValue - item.cogsAmount);
+          p.totalValue -= item.cogsAmount;
+          // Nếu stock <= 0 sau khi trả, reset totalValue để tránh drift
+          if (p.stock <= 0) {
+            p.totalValue = 0;
+            if (!p.avgCost || p.avgCost <= 0) p.avgCost = p.lastPurchasePrice || item.price || 0;
+          } else {
+            p.avgCost = Math.round((p.totalValue / p.stock) * 100) / 100;
+          }
           totalCogs += item.cogsAmount;
         }
         itemSubtotal += item.amount;
@@ -246,12 +258,13 @@ function recalculateAccounting(shouldSave = true) {
         { debit: creditAccPR, credit: "156", amount: itemSubtotal, desc: `Xuất trả hàng NCC: ${v.description}` }
       ];
       // Nếu giá vốn khác giá trị trả: ghi chênh lệch vào TK 711
+      // C7 Fix: Ghi chênh lệch vào TK 632/711, không credit TK 156 lần thứ hai
       if (totalCogs > 0 && totalCogs !== itemSubtotal) {
         const diff = itemSubtotal - totalCogs;
         if (diff > 0) {
           v.entries.push({ debit: "632", credit: "711", amount: diff, desc: "Chênh lệch giá trả > giá vốn" });
         } else {
-          v.entries.push({ debit: "632", credit: "156", amount: -diff, desc: "Chênh lệch giá vốn > giá trả" });
+          v.entries.push({ debit: "632", credit: "711", amount: -diff, desc: "Chênh lệch giá vốn > giá trả" });
         }
       }
       // Thuế GTGT — chỉ TT200 mới tách riêng 1331
@@ -264,7 +277,7 @@ function recalculateAccounting(shouldSave = true) {
       let totalCogs = 0;
       let itemSubtotal = 0;
 
-      v.items.forEach(item => {
+      (v.items || []).forEach(item => {
         const p = productBalanceMap[item.productId];
         if (p) {
           // Nếu chưa có đơn giá bình quân (bị 0), lấy đơn giá mua gần nhất hoặc đơn giá khởi tạo
@@ -275,9 +288,14 @@ function recalculateAccounting(shouldSave = true) {
           item.cogsUnit = p.avgCost;
           item.cogsAmount = Math.round(item.qty * p.avgCost);
 
-          // Trừ tồn kho
+          // Trừ tồn kho (C2 Fix: nếu stock <= 0 thì reset totalValue)
           p.stock = Number((p.stock - item.qty).toFixed(3));
           p.totalValue -= item.cogsAmount;
+          if (p.stock <= 0) {
+            p.totalValue = 0;
+          } else if (p.stock > 0) {
+            p.avgCost = Math.round((p.totalValue / p.stock) * 100) / 100;
+          }
 
           totalCogs += item.cogsAmount;
         }
@@ -393,7 +411,10 @@ function rebalanceEquity() {
     }
   });
 
-  state.initialBalances["411"].balance = debitSum - creditSum;
+  // H12 Fix: Null guard for TK 411
+  if (state.initialBalances["411"]) {
+    state.initialBalances["411"].balance = debitSum - creditSum;
+  }
 }
 
 // Xóa chứng từ khỏi sổ cái
@@ -431,11 +452,9 @@ function deleteVoucher(id) {
 
       // Trì hoãn công việc nặng (recalculate + render) sang frame tiếp theo
       // để giải phóng main thread, tránh brick UI sau khi xóa
+      // H2 Fix: recalculateAccounting() already calls saveState() internally
       setTimeout(() => {
-        saveState();
         recalculateAccounting();
-        // recalculateAccounting đã gọi refreshUI() bên trong,
-        // KHÔNG cần gọi safeRefreshAllModules() thêm lần nữa
       }, 0);
     } catch (err) {
       console.error("Lỗi nghiêm trọng trong quá trình xóa chứng từ:", err);

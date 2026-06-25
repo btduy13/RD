@@ -501,10 +501,10 @@ function handleProductSubmit(e) {
   }
   const name = document.getElementById("prod-name").value.trim();
   const unit = document.getElementById("prod-unit").value.trim();
-  const initialStock = parseInt(document.getElementById("prod-stock").value.replace(/\D/g, "")) || 0;
+  const initialStock = safeParseFloat(document.getElementById("prod-stock").value) || 0;
   const initialCost = parseInt(document.getElementById("prod-cost").value.replace(/\D/g, "")) || 0;
   const salePrice1 = parseInt(document.getElementById("prod-sale-price").value.replace(/\D/g, "")) || 0;
-  const minStock = parseInt(document.getElementById("prod-min-stock").value.replace(/\D/g, "")) || 0;
+  const minStock = safeParseFloat(document.getElementById("prod-min-stock").value) || 0;
 
   const nature = document.getElementById("prod-nature").value;
   const group = document.getElementById("prod-group").value.trim();
@@ -627,7 +627,7 @@ function handleQuickImportSubmit(e) {
     e.preventDefault();
 
     const prodId = document.getElementById("quick-import-prod-id").value;
-    const qty = parseInt(document.getElementById("quick-import-qty").value.replace(/\D/g, "")) || 0;
+    const qty = safeParseFloat(document.getElementById("quick-import-qty").value) || 0;
     const price = parseInt(document.getElementById("quick-import-price").value.replace(/\D/g, "")) || 0;
 
     if (qty <= 0 || price < 0) {
@@ -753,9 +753,9 @@ function handleEditProductPriceSubmit(e) {
     const unit = document.getElementById("edit-prod-unit").value.trim();
 
     const initialCost = parseInt(document.getElementById("edit-prod-initial-cost").value.replace(/\D/g, "")) || 0;
-    const initialStock = parseInt(document.getElementById("edit-prod-initial-stock").value.replace(/\D/g, "")) || 0;
+    const initialStock = safeParseFloat(document.getElementById("edit-prod-initial-stock").value) || 0;
     const avgCost = parseInt(document.getElementById("edit-prod-avg-cost").value.replace(/\D/g, "")) || 0;
-    const minStock = parseInt(document.getElementById("edit-prod-min-stock").value.replace(/\D/g, "")) || 0;
+    const minStock = safeParseFloat(document.getElementById("edit-prod-min-stock").value) || 0;
     const salePrice1 = parseInt(document.getElementById("edit-prod-sale-price").value.replace(/\D/g, "")) || 0;
 
     const nature = document.getElementById("edit-prod-nature").value;
@@ -1023,7 +1023,7 @@ function handleQuickAddProductSubmit(e) {
     let rawId = idEl ? idEl.value.trim().toUpperCase() : "";
     const name = document.getElementById("qap-prod-name").value.trim();
     const unit = document.getElementById("qap-prod-unit").value.trim();
-    const initStock = parseInt(document.getElementById("qap-prod-stock").value.replace(/\D/g, "")) || 0;
+    const initStock = safeParseFloat(document.getElementById("qap-prod-stock").value) || 0;
     const initCost = parseInt(document.getElementById("qap-prod-cost").value.replace(/\D/g, "")) || 0;
 
     if (!name) {

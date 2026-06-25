@@ -51,7 +51,7 @@ function generateReport() {
     html += `
       <div style="text-align:center; font-family:'Times New Roman', serif; color:#000; margin-bottom:20px;">
         <h2 style="font-size: 20px; font-weight: bold; text-transform: uppercase;">SỔ NHẬT KÝ CHUNG</h2>
-        <p style="font-style: italic; font-size:13px;">Niên độ kế toán năm 2026</p>
+        <p style="font-style: italic; font-size:13px;">Niên độ kế toán năm ${new Date().getFullYear()}</p>
         <p style="font-size:12px;">Áp dụng theo ${std === 'TT200' ? 'Thông tư 200/2014/TT-BTC' : 'Thông tư 133/2016/TT-BTC'}</p>
       </div>
       
@@ -112,7 +112,7 @@ function generateReport() {
       <div style="text-align:center; font-family:'Times New Roman', serif; color:#000; margin-bottom:20px;">
         <h2 style="font-size: 20px; font-weight: bold; text-transform: uppercase;">SỔ CÁI TÀI KHOẢN</h2>
         <h3 style="font-size: 16px; font-weight: bold;">Tài khoản: ${acctCode} - ${acctName}</h3>
-        <p style="font-style: italic; font-size:12px;">Niên độ kế toán năm 2026</p>
+        <p style="font-style: italic; font-size:12px;">Niên độ kế toán năm ${new Date().getFullYear()}</p>
       </div>
       
       <table class="data-table" style="width:100%; font-family:'Times New Roman', serif; border:1px solid #000; border-collapse:collapse; font-size:12px;">
@@ -209,7 +209,7 @@ function generateReport() {
     html += `
       <div style="text-align:center; font-family:'Times New Roman', serif; color:#000; margin-bottom:20px;">
         <h2 style="font-size: 20px; font-weight: bold; text-transform: uppercase;">BẢNG CÂN ĐỐI PHÁT SINH TÀI KHOẢN</h2>
-        <p style="font-style: italic; font-size:12px;">Niên độ kế toán năm 2026</p>
+        <p style="font-style: italic; font-size:12px;">Niên độ kế toán năm ${new Date().getFullYear()}</p>
         <p style="font-size:11px;">(Đảm bảo tính chính xác và cân đối kép của toàn bộ hệ thống)</p>
       </div>
       
@@ -357,6 +357,17 @@ function calculateTrialBalance() {
 
   const trialRows = [];
 
+  // H9 Fix: Single-pass aggregation for all accounts (runs ONCE, not per-account)
+  const acctMoves = {};
+  accounts.forEach(a => { acctMoves[a.code] = { deb: 0, cre: 0 }; });
+
+  state.vouchers.forEach(v => {
+    v.entries.forEach(e => {
+      if (acctMoves[e.debit]) acctMoves[e.debit].deb += e.amount;
+      if (acctMoves[e.credit]) acctMoves[e.credit].cre += e.amount;
+    });
+  });
+
   accounts.forEach(acct => {
     // 1. Số dư đầu kỳ
     const initBalObj = state.initialBalances[acct.code] || { type: "debit", balance: 0 };
@@ -369,20 +380,10 @@ function calculateTrialBalance() {
       openCre = initBalObj.balance;
     }
 
-    // 2. Cộng phát sinh trong kỳ
-    let moveDeb = 0;
-    let moveCre = 0;
-
-    state.vouchers.forEach(v => {
-      v.entries.forEach(e => {
-        if (e.debit === acct.code) {
-          moveDeb += e.amount;
-        }
-        if (e.credit === acct.code) {
-          moveCre += e.amount;
-        }
-      });
-    });
+    // 2. Cộng phát sinh trong kỳ (from single-pass result)
+    const moves = acctMoves[acct.code] || { deb: 0, cre: 0 };
+    const moveDeb = moves.deb;
+    const moveCre = moves.cre;
 
     // 3. Số dư cuối kỳ
     let closeDeb = 0;
@@ -417,4 +418,5 @@ function calculateTrialBalance() {
   });
 
   return trialRows;
-}
+}
+

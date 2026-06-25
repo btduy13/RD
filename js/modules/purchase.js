@@ -1,4 +1,4 @@
-﻿
+
 // 6. REN
 // 6. RENDER DỮ LIỆU PHÂN HỆ MUA HÀNG (PURCHASING)
 function renderPurchaseTable() {
@@ -157,7 +157,7 @@ function addPurchaseFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discoun
       <input type="text" class="form-control item-productId" placeholder="Gõ mã hoặc tên sản phẩm..." required list="datalist-purchase-products" oninput="autoFillPurchasePrice(this)" onblur="autoFillPurchasePrice(this)" value="${escapeHtmlAttr(productIdVal)}">
     </td>
     <td>
-      <input type="text" class="form-control item-qty text-right number-format" required value="${qtyVal}" oninput="recalculatePurchaseTotals()">
+      <input type="text" class="form-control item-qty text-right qty-format" required value="${Number.isInteger(qtyVal) ? qtyVal : qtyVal.toString().replace(".", ",")}" oninput="recalculatePurchaseTotals()">
     </td>
     <td>
       <input type="text" class="form-control item-price text-right number-format" required value="${Number(priceVal).toLocaleString("vi-VN")}" oninput="recalculatePurchaseTotals()">
@@ -214,9 +214,9 @@ function recalculatePurchaseTotals() {
   let subtotal = 0;
 
   rows.forEach(row => {
-    const qty = parseInt(row.querySelector(".item-qty").value.replace(/\D/g, "")) || 0;
+    const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/\D/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
     subtotal += amount;
 
@@ -322,9 +322,9 @@ function handlePurchaseSubmit(e) {
     }
 
     const productId = resolvedProduct.id;
-    const qty = parseInt(row.querySelector(".item-qty").value.replace(/\D/g, "")) || 0;
+    const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/\D/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
 
     voucherItems.push({
@@ -755,7 +755,7 @@ function addPurchaseOrderFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, di
       <input type="text" class="form-control item-productId" placeholder="Gõ mã hoặc tên sản phẩm..." required list="datalist-purchase-products" oninput="autoFillPurchaseOrderPrice(this)" onblur="autoFillPurchaseOrderPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
     </td>
     <td>
-      <input type="text" class="form-control item-qty text-right number-format" required value="${qtyVal}" oninput="recalculatePurchaseOrderTotals()">
+      <input type="text" class="form-control item-qty text-right qty-format" required value="${Number.isInteger(qtyVal) ? qtyVal : qtyVal.toString().replace(".", ",")}" oninput="recalculatePurchaseOrderTotals()">
     </td>
     <td>
       <input type="text" class="form-control item-price text-right number-format" required value="${Number(priceVal).toLocaleString("vi-VN")}" oninput="recalculatePurchaseOrderTotals()">
@@ -810,9 +810,9 @@ function recalculatePurchaseOrderTotals() {
   let subtotal = 0;
 
   rows.forEach(row => {
-    const qty = parseInt(row.querySelector(".item-qty").value.replace(/\D/g, "")) || 0;
+    const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/\D/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
     subtotal += amount;
 
@@ -915,9 +915,9 @@ function handlePurchaseOrderSubmit(e) {
     }
 
     const productId = resolvedProduct.id;
-    const qty = parseInt(row.querySelector(".item-qty").value.replace(/\D/g, "")) || 0;
+    const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/\D/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
 
     voucherItems.push({
@@ -1604,7 +1604,7 @@ function addPurchaseReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, d
       <input type="text" class="form-control item-productId" placeholder="Gõ mã hoặc tên sản phẩm..." required list="datalist-purchase-products" oninput="autoFillPurchaseReturnPrice(this)" onblur="autoFillPurchaseReturnPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
     </td>
     <td>
-      <input type="text" class="form-control item-qty text-right number-format" required value="${qtyVal}" oninput="recalculatePurchaseReturnTotals()">
+      <input type="text" class="form-control item-qty text-right qty-format" required value="${Number.isInteger(qtyVal) ? qtyVal : qtyVal.toString().replace(".", ",")}" oninput="recalculatePurchaseReturnTotals()">
     </td>
     <td>
       <input type="text" class="form-control item-price text-right number-format" required value="${Number(priceVal).toLocaleString("vi-VN")}" oninput="recalculatePurchaseReturnTotals()">
@@ -1658,9 +1658,9 @@ function recalculatePurchaseReturnTotals() {
   let subtotal = 0;
 
   rows.forEach(row => {
-    const qty = parseInt(row.querySelector(".item-qty").value.replace(/\D/g, "")) || 0;
+    const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/\D/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
     subtotal += amount;
 
@@ -1764,9 +1764,9 @@ function handlePurchaseReturnSubmit(e) {
     }
 
     const productId = resolvedProduct.id;
-    const qty = parseInt(row.querySelector(".item-qty").value.replace(/\D/g, "")) || 0;
+    const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/\D/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
 
     voucherItems.push({
