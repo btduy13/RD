@@ -97,9 +97,7 @@ function renderDashboardDebts() {
 
     salesVouchers.forEach(v => {
       const totalAmt = v.totalAmount || v.amount || 0;
-      if (v.remainingDebt === undefined) {
-        v.remainingDebt = (v.paymentMethod === "131") ? totalAmt : 0;
-      }
+      ensureRemainingDebt(v);
       if (v.remainingDebt > 0) {
         unsettled.push({
           id: v.id,
@@ -181,9 +179,7 @@ function renderDashboardDebts() {
 
     salesVouchers.forEach(v => {
       const totalAmt = v.totalAmount || v.amount || 0;
-      if (v.remainingDebt === undefined) {
-        v.remainingDebt = (v.paymentMethod === "131") ? totalAmt : 0;
-      }
+      ensureRemainingDebt(v);
 
       if (v.remainingDebt > 0) {
         const docDate = new Date(v.date);

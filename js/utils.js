@@ -422,6 +422,15 @@ function matchStr(text, query) {
 }
 window.matchStr = matchStr;
 
+// Helper thống nhất khởi tạo remainingDebt cho chứng từ (BUG #5 Fix)
+function ensureRemainingDebt(v) {
+  if (v.remainingDebt === undefined) {
+    const totalAmt = v.totalAmount || v.amount || 0;
+    v.remainingDebt = (v.paymentMethod === "131" || v.paymentMethod === "331") ? totalAmt : 0;
+  }
+}
+window.ensureRemainingDebt = ensureRemainingDebt;
+
 // Bộ lọc nâng cao (Advanced Filter) cho ô tìm kiếm
 // Hỗ trợ: Không dấu, tìm kiếm AND đa từ khóa, tìm kiếm phủ định, tìm kiếm OR và lọc khoảng số
 function matchAdvancedQuery(targetText, queryText, numericValue = null) {

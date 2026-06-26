@@ -317,7 +317,7 @@ function calculatePartnerDebtsGrouped() {
   // Tính lại số dư cuối kỳ dựa trên tổng gộp
   return Object.values(groups).map(g => {
     const balance = g.openingDebit - g.openingCredit + g.debitTrans - g.creditTrans;
-    if (g.primaryType === 'customer' || g.primaryType !== 'supplier') {
+    if (g.primaryType === 'customer') {
       // customer: Nợ > 0 là KH đang nợ; Có > 0 là công ty nợ KH
       if (balance >= 0) { g.closingDebit = balance; g.closingCredit = 0; }
       else               { g.closingDebit = 0; g.closingCredit = -balance; }
@@ -538,9 +538,16 @@ function viewGroupedPartnerLedger(partnerName) {
     const offsetAccountSet = new Set();
 
     v.entries.forEach(e => {
-      const is131 = (e.debit && e.debit.startsWith('131')) || (e.credit && e.credit.startsWith('131'));
-      const is331 = (e.debit && e.debit.startsWith('331')) || (e.credit && e.credit.startsWith('331'));
-      if (!is131 && !is331) return;
+      let isRelevant = false;
+      if (primaryType === 'customer') {
+        isRelevant = (e.debit && e.debit.startsWith('131')) || (e.credit && e.credit.startsWith('131'));
+      } else if (primaryType === 'supplier') {
+        isRelevant = (e.debit && e.debit.startsWith('331')) || (e.credit && e.credit.startsWith('331'));
+      } else {
+        isRelevant = ((e.debit && e.debit.startsWith('131')) || (e.credit && e.credit.startsWith('131')))
+                  || ((e.debit && e.debit.startsWith('331')) || (e.credit && e.credit.startsWith('331')));
+      }
+      if (!isRelevant) return;
       if ((e.debit && e.debit.startsWith('131')) || (e.debit && e.debit.startsWith('331'))) {
         debitAmount += e.amount;
         offsetAccountSet.add(e.credit);
@@ -647,9 +654,16 @@ function viewPartnerLedger(partnerId) {
     let offsetAccountSet = new Set();
 
     v.entries.forEach(e => {
-      const is131 = e.debit.startsWith("131") || e.credit.startsWith("131");
-      const is331 = e.debit.startsWith("331") || e.credit.startsWith("331");
-      if (!is131 && !is331) return;
+      let isRelevant = false;
+      if (p.type === "customer") {
+        isRelevant = e.debit.startsWith("131") || e.credit.startsWith("131");
+      } else if (p.type === "supplier") {
+        isRelevant = e.debit.startsWith("331") || e.credit.startsWith("331");
+      } else {
+        isRelevant = (e.debit.startsWith("131") || e.credit.startsWith("131"))
+                  || (e.debit.startsWith("331") || e.credit.startsWith("331"));
+      }
+      if (!isRelevant) return;
 
       if (e.debit.startsWith("131") || e.debit.startsWith("331")) {
         debitAmount += e.amount;
@@ -785,9 +799,16 @@ async function exportPartnerDebtExcel(partnerId) {
       let offsetAccountSet = new Set();
 
       v.entries.forEach(e => {
-        const is131 = e.debit.startsWith("131") || e.credit.startsWith("131");
-        const is331 = e.debit.startsWith("331") || e.credit.startsWith("331");
-        if (!is131 && !is331) return;
+        let isRelevant = false;
+        if (primaryType === "customer") {
+          isRelevant = e.debit.startsWith("131") || e.credit.startsWith("131");
+        } else if (primaryType === "supplier") {
+          isRelevant = e.debit.startsWith("331") || e.credit.startsWith("331");
+        } else {
+          isRelevant = (e.debit.startsWith("131") || e.credit.startsWith("131"))
+                    || (e.debit.startsWith("331") || e.credit.startsWith("331"));
+        }
+        if (!isRelevant) return;
 
         if (e.debit.startsWith("131") || e.debit.startsWith("331")) {
           debitAmount += e.amount;
@@ -1134,9 +1155,16 @@ function previewPartnerDebtNotice(partnerId) {
     let offsetAccountSet = new Set();
 
     v.entries.forEach(e => {
-      const is131 = e.debit.startsWith("131") || e.credit.startsWith("131");
-      const is331 = e.debit.startsWith("331") || e.credit.startsWith("331");
-      if (!is131 && !is331) return;
+      let isRelevant = false;
+      if (primaryType === "customer") {
+        isRelevant = e.debit.startsWith("131") || e.credit.startsWith("131");
+      } else if (primaryType === "supplier") {
+        isRelevant = e.debit.startsWith("331") || e.credit.startsWith("331");
+      } else {
+        isRelevant = (e.debit.startsWith("131") || e.credit.startsWith("131"))
+                  || (e.debit.startsWith("331") || e.credit.startsWith("331"));
+      }
+      if (!isRelevant) return;
 
       if (e.debit.startsWith("131") || e.debit.startsWith("331")) {
         debitAmount += e.amount;
@@ -1408,9 +1436,7 @@ function renderPartnerLedgerOrders() {
 
   orders.forEach(o => {
     const totalAmt = o.totalAmount || o.amount || 0;
-    if (o.remainingDebt === undefined) {
-      o.remainingDebt = (o.paymentMethod === "131" || o.paymentMethod === "331") ? totalAmt : 0;
-    }
+    ensureRemainingDebt(o);
 
     const tr = document.createElement("tr");
     const escapedOrderId = escapeHtmlAttr(o.id);
@@ -1452,9 +1478,7 @@ function promptEditOrderDebt(voucherId) {
     }
 
     const totalAmt = v.totalAmount || v.amount || 0;
-    if (v.remainingDebt === undefined) {
-      v.remainingDebt = (v.paymentMethod === "131" || v.paymentMethod === "331") ? totalAmt : 0;
-    }
+    ensureRemainingDebt(v);
 
     // Mở modal sửa công nợ đơn hàng
     document.getElementById("modal-edit-debt-title").innerText = "Chỉnh sửa Công nợ Đơn hàng";
@@ -1625,8 +1649,8 @@ function exportDebtsToExcel() {
       ws[key] = cell;
     };
 
-    // Columns: Mã(0) Tên(1) Loại(2) Đầu kỳ Dư(3) Trong kỳ Debit(4) Trong kỳ Credit(5) Cuối kỳ Dư(6) Địa chỉ(7) MST(8) ĐT(9)
-    const headers = ["Mã", "Tên khách hàng / NCC", "Loại", "Dư đầu kỳ", "PS Nợ trong kỳ", "PS Có trong kỳ", "Dư cuối kỳ", "Địa chỉ", "Mã số thuế", "Điện thoại"];
+    // Columns: Mã(0) Tên(1) Loại(2) Dư ĐK Nợ(3) Dư ĐK Có(4) PS Nợ(5) PS Có(6) Dư CK Nợ(7) Dư CK Có(8) Địa chỉ(9) MST(10) ĐT(11)
+    const headers = ["Mã", "Tên khách hàng / NCC", "Loại", "Dư ĐK Nợ", "Dư ĐK Có", "PS Nợ trong kỳ", "PS Có trong kỳ", "Dư CK Nợ", "Dư CK Có", "Địa chỉ", "Mã số thuế", "Điện thoại"];
     const ncols = headers.length;
 
     // ROW 0: Tiêu đề
@@ -1639,18 +1663,13 @@ function exportDebtsToExcel() {
     // DATA ROWS
     const calculatedDebts = calculatePartnerDebts();
     let rowIdx = 2;
-    let totalOpeningKH = 0, totalOpeningNCC = 0;
+    let totalOpeningDebitKH = 0, totalOpeningCreditKH = 0, totalOpeningDebitNCC = 0, totalOpeningCreditNCC = 0;
     let totalDebitKH = 0, totalCreditKH = 0;
     let totalDebitNCC = 0, totalCreditNCC = 0;
-    let totalClosingKH = 0, totalClosingNCC = 0;
+    let totalClosingDebitKH = 0, totalClosingCreditKH = 0, totalClosingDebitNCC = 0, totalClosingCreditNCC = 0;
 
     calculatedDebts.forEach((d, idx) => {
       const isKH = d.type === "customer";
-      const openingBal = state.partnerOpeningBalances[d.id] || { debit: 0, credit: 0 };
-      const openingNet = isKH ? (openingBal.debit - openingBal.credit) : (openingBal.credit - openingBal.debit);
-      const closingNet = isKH ? (d.closingDebit - d.closingCredit) : (d.closingCredit - d.closingDebit);
-      const psTrans = isKH ? d.debitTrans : d.creditTrans;   // PS bên tăng
-      const psCred = isKH ? d.creditTrans : d.debitTrans;   // PS bên giảm
 
       const bg = idx % 2 === 0 ? (isKH ? null : { patternType: "solid", fgColor: { rgb: "FFFAF5" } }) : (isKH ? altBg : { patternType: "solid", fgColor: { rgb: "FFF0E0" } });
       const bs = (al) => ({ font: fntN, fill: bg, alignment: al, border: border4 });
@@ -1659,24 +1678,30 @@ function exportDebtsToExcel() {
       sc(rowIdx, 0, d.id || "", 's', bs(cC));
       sc(rowIdx, 1, d.name || "", 's', bs(cL));
       sc(rowIdx, 2, isKH ? "KH" : "NCC", 's', bs(cC));
-      sc(rowIdx, 3, openingNet, 'n', ns(cR), numFmt);
-      sc(rowIdx, 4, psTrans, 'n', ns(cR), numFmt);
-      sc(rowIdx, 5, psCred, 'n', ns(cR), numFmt);
-      sc(rowIdx, 6, closingNet, 'n', ns(cR), numFmt);
-      sc(rowIdx, 7, d.address || "", 's', bs(cL));
-      sc(rowIdx, 8, d.taxCode || "", 's', bs(cC));
-      sc(rowIdx, 9, d.phone || "", 's', bs(cC));
+      sc(rowIdx, 3, d.openingDebit || 0, 'n', ns(cR), numFmt);
+      sc(rowIdx, 4, d.openingCredit || 0, 'n', ns(cR), numFmt);
+      sc(rowIdx, 5, d.debitTrans || 0, 'n', ns(cR), numFmt);
+      sc(rowIdx, 6, d.creditTrans || 0, 'n', ns(cR), numFmt);
+      sc(rowIdx, 7, d.closingDebit || 0, 'n', ns(cR), numFmt);
+      sc(rowIdx, 8, d.closingCredit || 0, 'n', ns(cR), numFmt);
+      sc(rowIdx, 9, d.address || "", 's', bs(cL));
+      sc(rowIdx, 10, d.taxCode || "", 's', bs(cC));
+      sc(rowIdx, 11, d.phone || "", 's', bs(cC));
 
       if (isKH) {
-        totalOpeningKH += openingNet;
-        totalDebitKH += psTrans;
-        totalCreditKH += psCred;
-        totalClosingKH += closingNet;
+        totalOpeningDebitKH += d.openingDebit || 0;
+        totalOpeningCreditKH += d.openingCredit || 0;
+        totalDebitKH += d.debitTrans || 0;
+        totalCreditKH += d.creditTrans || 0;
+        totalClosingDebitKH += d.closingDebit || 0;
+        totalClosingCreditKH += d.closingCredit || 0;
       } else {
-        totalOpeningNCC += openingNet;
-        totalDebitNCC += psTrans;
-        totalCreditNCC += psCred;
-        totalClosingNCC += closingNet;
+        totalOpeningDebitNCC += d.openingDebit || 0;
+        totalOpeningCreditNCC += d.openingCredit || 0;
+        totalDebitNCC += d.debitTrans || 0;
+        totalCreditNCC += d.creditTrans || 0;
+        totalClosingDebitNCC += d.closingDebit || 0;
+        totalClosingCreditNCC += d.closingCredit || 0;
       }
       rowIdx++;
     });
@@ -1684,24 +1709,28 @@ function exportDebtsToExcel() {
     // DÒNG TỔNG KHÁCH HÀNG
     const ts = (al) => ({ font: fntB, fill: totBg, alignment: al, border: border4 });
     sc(rowIdx, 0, "TỔNG KHÁCH HÀNG", 's', ts(cL)); merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 2 } });
-    sc(rowIdx, 3, totalOpeningKH, 'n', ts(cR), numFmt);
-    sc(rowIdx, 4, totalDebitKH, 'n', ts(cR), numFmt);
-    sc(rowIdx, 5, totalCreditKH, 'n', ts(cR), numFmt);
-    sc(rowIdx, 6, totalClosingKH, 'n', ts(cR), numFmt);
-    sc(rowIdx, 7, "", 's', ts(cL)); sc(rowIdx, 8, "", 's', ts(cC)); sc(rowIdx, 9, "", 's', ts(cC));
+    sc(rowIdx, 3, totalOpeningDebitKH, 'n', ts(cR), numFmt);
+    sc(rowIdx, 4, totalOpeningCreditKH, 'n', ts(cR), numFmt);
+    sc(rowIdx, 5, totalDebitKH, 'n', ts(cR), numFmt);
+    sc(rowIdx, 6, totalCreditKH, 'n', ts(cR), numFmt);
+    sc(rowIdx, 7, totalClosingDebitKH, 'n', ts(cR), numFmt);
+    sc(rowIdx, 8, totalClosingCreditKH, 'n', ts(cR), numFmt);
+    sc(rowIdx, 9, "", 's', ts(cL)); sc(rowIdx, 10, "", 's', ts(cC)); sc(rowIdx, 11, "", 's', ts(cC));
     rowIdx++;
 
     // DÒNG TỔNG NCC
     sc(rowIdx, 0, "TỔNG NHÀ CUNG CẤP", 's', ts(cL)); merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 2 } });
-    sc(rowIdx, 3, totalOpeningNCC, 'n', ts(cR), numFmt);
-    sc(rowIdx, 4, totalDebitNCC, 'n', ts(cR), numFmt);
-    sc(rowIdx, 5, totalCreditNCC, 'n', ts(cR), numFmt);
-    sc(rowIdx, 6, totalClosingNCC, 'n', ts(cR), numFmt);
-    sc(rowIdx, 7, "", 's', ts(cL)); sc(rowIdx, 8, "", 's', ts(cC)); sc(rowIdx, 9, "", 's', ts(cC));
+    sc(rowIdx, 3, totalOpeningDebitNCC, 'n', ts(cR), numFmt);
+    sc(rowIdx, 4, totalOpeningCreditNCC, 'n', ts(cR), numFmt);
+    sc(rowIdx, 5, totalDebitNCC, 'n', ts(cR), numFmt);
+    sc(rowIdx, 6, totalCreditNCC, 'n', ts(cR), numFmt);
+    sc(rowIdx, 7, totalClosingDebitNCC, 'n', ts(cR), numFmt);
+    sc(rowIdx, 8, totalClosingCreditNCC, 'n', ts(cR), numFmt);
+    sc(rowIdx, 9, "", 's', ts(cL)); sc(rowIdx, 10, "", 's', ts(cC)); sc(rowIdx, 11, "", 's', ts(cC));
 
     ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: ncols - 1 } });
     ws['!merges'] = merges;
-    ws['!cols'] = [{ wch: 18 }, { wch: 32 }, { wch: 8 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 38 }, { wch: 14 }, { wch: 14 }];
+    ws['!cols'] = [{ wch: 18 }, { wch: 32 }, { wch: 8 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 38 }, { wch: 14 }, { wch: 14 }];
     ws['!rows'] = [{ hpt: 22 }, { hpt: 22 }];
 
     XLSX.utils.book_append_sheet(wb, ws, "Cong no");
