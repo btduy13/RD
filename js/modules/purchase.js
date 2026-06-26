@@ -252,16 +252,19 @@ function resetPurchaseForm() {
   const idEl = document.getElementById("pur-id");
   if (idEl) idEl.value = "";
 
+  const partnerEl = document.getElementById("pur-partner");
+  if (partnerEl) partnerEl.value = "";
+
   const tbody = document.getElementById("purchase-form-items-body");
   if (tbody) tbody.innerHTML = "";
   document.getElementById("pur-desc").value = "Mua vật tư hàng hóa nhập kho";
   document.getElementById("pur-date").value = new Date().toISOString().split("T")[0];
   
   addPurchaseFormRow();
-  // Auto-focus vào ô ngày hạch toán (trường đầu tiên hiển thị của form mua)
+  // Auto-focus vào ô Nhà cung cấp (trường đầu tiên hiển thị của form mua)
   setTimeout(() => {
-    const el = document.getElementById("pur-date");
-    if (el) el.focus();
+    const el = document.getElementById("pur-partner");
+    if (el) { el.focus(); el.select && el.select(); }
   }, 60);
 }
 
@@ -925,16 +928,19 @@ function resetPurchaseOrderForm() {
   const idEl = document.getElementById("pur-order-id");
   if (idEl) idEl.value = "";
 
+  const partnerEl = document.getElementById("pur-order-partner");
+  if (partnerEl) partnerEl.value = "";
+
   const tbody = document.getElementById("purchase-order-form-items-body");
   if (tbody) tbody.innerHTML = "";
   document.getElementById("pur-order-desc").value = "Đơn đặt hàng mua vật tư hàng hóa";
   document.getElementById("pur-order-date").value = new Date().toISOString().split("T")[0];
 
   addPurchaseOrderFormRow();
-  // Auto-focus vào ô ngày hạch toán
+  // Auto-focus vào ô Nhà cung cấp
   setTimeout(() => {
-    const el = document.getElementById("pur-order-date");
-    if (el) el.focus();
+    const el = document.getElementById("pur-order-partner");
+    if (el) { el.focus(); el.select && el.select(); }
   }, 60);
 }
 
@@ -1778,20 +1784,24 @@ function recalculatePurchaseReturnTotals() {
 function resetPurchaseReturnForm() {
   editingPurchaseReturnId = null;
   const modalTitle = document.querySelector("#modal-add-purchase-return .card-title");
-  if (modalTitle) modalTitle.innerText = "Chứng từ Nhập hàng trả lại từ khách hàng";
+  if (modalTitle) modalTitle.innerText = "Chứng từ Hàng trả lại mua";
 
   const idEl = document.getElementById("pur-return-id");
   if (idEl) idEl.value = "";
 
+  const partnerEl = document.getElementById("ret-partner");
+  if (partnerEl) partnerEl.value = "";
+
   const tbody = document.getElementById("purchase-return-form-items-body");
   if (tbody) tbody.innerHTML = "";
-  document.getElementById("ret-desc").value = "Nhập hàng trả lại từ khách hàng";
+  document.getElementById("ret-desc").value = "Trả lại hàng mua cho nhà cung cấp";
   document.getElementById("ret-date").value = new Date().toISOString().split("T")[0];
 
   addPurchaseReturnFormRow();
+  // Auto-focus vào ô Nhà cung cấp
   setTimeout(() => {
-    const el = document.getElementById("ret-date");
-    if (el) el.focus();
+    const el = document.getElementById("ret-partner");
+    if (el) { el.focus(); el.select && el.select(); }
   }, 60);
 }
 

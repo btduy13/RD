@@ -3248,9 +3248,21 @@
       </div>
       <div class="modal-body">
         <form id="form-purchase" class="form-grid" onsubmit="handlePurchaseSubmit(event)">
-          <div class="form-group" style="display: none;">
-            <label class="form-label">Nhà cung cấp</label>
-            <input type="text" id="pur-partner" class="form-control" value="Nhà cung cấp" list="datalist-partners">
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label class="form-label" style="margin: 0;">Nhà cung cấp</label>
+              <button type="button" class="btn-text-link" onclick="openQuickAddPartnerModal('supplier')"
+                style="font-size: 11.5px; color: var(--color-primary); background: none; border: none; padding: 0; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 3px;"
+                onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg" style="width: 12px; height: 12px;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Thêm nhanh NCC
+              </button>
+            </div>
+            <input type="text" id="pur-partner" class="form-control" placeholder="Gõ để tìm nhà cung cấp..." required
+              list="datalist-partners">
           </div>
 
           <div class="form-group">
@@ -3350,9 +3362,21 @@
       </div>
       <div class="modal-body">
         <form id="form-purchase-return" class="form-grid" onsubmit="handlePurchaseReturnSubmit(event)">
-          <div class="form-group" style="display: none;">
-            <label class="form-label">Nhà cung cấp</label>
-            <input type="text" id="ret-partner" class="form-control" value="Nhà cung cấp" list="datalist-partners">
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label class="form-label" style="margin: 0;">Nhà cung cấp</label>
+              <button type="button" class="btn-text-link" onclick="openQuickAddPartnerModal('supplier')"
+                style="font-size: 11.5px; color: var(--color-primary); background: none; border: none; padding: 0; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 3px;"
+                onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg" style="width: 12px; height: 12px;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Thêm nhanh NCC
+              </button>
+            </div>
+            <input type="text" id="ret-partner" class="form-control" placeholder="Gõ để tìm nhà cung cấp..." required
+              list="datalist-partners">
           </div>
 
           <div class="form-group">
@@ -3452,9 +3476,21 @@
       </div>
       <div class="modal-body">
         <form id="form-purchase-order" class="form-grid" onsubmit="handlePurchaseOrderSubmit(event)">
-          <div class="form-group" style="display: none;">
-            <label class="form-label">Nhà cung cấp</label>
-            <input type="text" id="pur-order-partner" class="form-control" value="Nhà cung cấp" list="datalist-partners">
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label class="form-label" style="margin: 0;">Nhà cung cấp</label>
+              <button type="button" class="btn-text-link" onclick="openQuickAddPartnerModal('supplier')"
+                style="font-size: 11.5px; color: var(--color-primary); background: none; border: none; padding: 0; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 3px;"
+                onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg" style="width: 12px; height: 12px;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Thêm nhanh NCC
+              </button>
+            </div>
+            <input type="text" id="pur-order-partner" class="form-control" placeholder="Gõ để tìm nhà cung cấp..." required
+              list="datalist-partners">
           </div>
 
           <div class="form-group">
