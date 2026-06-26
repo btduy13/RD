@@ -1684,7 +1684,7 @@ function exportVoucherToExcel(id) {
     rows.push(["Địa chỉ:", [partnerAddr, partnerPhone].filter(Boolean).join(" - ") || "N/A", "", "", "", ""]);
     rows.push([`Lý do ${isReceipt ? "nộp" : "chi"}:`, v.description || "", "", "", "", ""]);
     rows.push(["Số tiền:", v.amount || v.totalAmount || 0, "", "", "", ""]);
-    rows.push(["Viết bằng chữ:", numberToVietnameseWords(v.amount || v.totalAmount || 0), "", "", "", ""]);
+    rows.push([`Viết bằng chữ: ${numberToVietnameseWords(v.amount || v.totalAmount || 0)}`, "", "", "", "", ""]);
     rows.push(["Kèm theo:", "............... chứng từ gốc", "", "", "", ""]);
   } else {
     rows.push(["Đối tác:", partnerName, "", "", "Số điện thoại:", partnerPhone || "N/A"]);
@@ -1738,7 +1738,7 @@ function exportVoucherToExcel(id) {
       rows.push(["", `Thuế GTGT (${v.taxRate || 0}%):`, "", "", "", v.taxAmount, ""]);
     }
     rows.push(["", "Tổng cộng tiền thanh toán:", "", "", "", v.totalAmount || grossTotal, ""]);
-    rows.push(["Số tiền viết bằng chữ:", numberToVietnameseWords(v.totalAmount || grossTotal), "", "", "", "", ""]);
+    rows.push([`Số tiền viết bằng chữ: ${numberToVietnameseWords(v.totalAmount || grossTotal)}`, "", "", "", "", "", ""]);
   }
   
   rows.push(["", "", "", "", "", ""]); // Blank row
@@ -1763,12 +1763,28 @@ function exportVoucherToExcel(id) {
   
   rows.push(["", "", "", "", `Ngày ...... tháng ...... năm ......`, ""]);
   
-  const sigRow = [];
-  const subRow = [];
-  activeSigs.forEach(sig => {
-    sigRow.push(sig);
-    subRow.push("(Ký, họ tên)");
-  });
+  const sigRow = ["", "", "", "", "", "", ""];
+  const subRow = ["", "", "", "", "", "", ""];
+  
+  if (activeSigs.length === 3) {
+    sigRow[0] = activeSigs[0]; sigRow[2] = activeSigs[1]; sigRow[4] = activeSigs[2];
+    subRow[0] = "(Ký, họ tên)"; subRow[2] = "(Ký, họ tên)"; subRow[4] = "(Ký, họ tên)";
+  } else if (activeSigs.length === 4) {
+    sigRow[0] = activeSigs[0]; sigRow[2] = activeSigs[1]; sigRow[4] = activeSigs[2]; sigRow[5] = activeSigs[3];
+    subRow[0] = "(Ký, họ tên)"; subRow[2] = "(Ký, họ tên)"; subRow[4] = "(Ký, họ tên)"; subRow[5] = "(Ký, họ tên)";
+  } else {
+    // 5 signatures
+    sigRow[0] = activeSigs[0]; sigRow[2] = activeSigs[1]; sigRow[3] = activeSigs[2]; sigRow[4] = activeSigs[3]; sigRow[5] = activeSigs[4];
+    subRow[0] = "(Ký, họ tên)"; subRow[2] = "(Ký, họ tên)"; subRow[3] = "(Ký, họ tên)"; subRow[4] = "(Ký, họ tên)"; subRow[5] = "(Ký, họ tên)";
+    if (activeSigs[4] === "Giám đốc" || activeSigs[0] === "Giám đốc") {
+      const gdIdx = activeSigs.indexOf("Giám đốc");
+      if (gdIdx === 0) subRow[0] = "(Ký, họ tên, đóng dấu)";
+      else if (gdIdx === 1) subRow[2] = "(Ký, họ tên, đóng dấu)";
+      else if (gdIdx === 2) subRow[3] = "(Ký, họ tên, đóng dấu)";
+      else if (gdIdx === 3) subRow[4] = "(Ký, họ tên, đóng dấu)";
+      else if (gdIdx === 4) subRow[5] = "(Ký, họ tên, đóng dấu)";
+    }
+  }
   
   rows.push(sigRow);
   rows.push(subRow);
@@ -1794,18 +1810,53 @@ function exportVoucherToExcel(id) {
     }
   }
 
-  if (hasItems) {
-    const inWordsRowIdx = itemsStartRow + 1 + v.items.length + (v.taxAmount > 0 ? 1 : 0) + (totalDiscount > 0 ? 1 : 0) + 1;
-    merges.push({ s: { r: inWordsRowIdx, c: 1 }, e: { r: inWordsRowIdx, c: 6 } });
+  // Merge number-to-words rows (A to G)
+  rows.forEach((row, r) => {
+    const val = row[0] ? String(row[0]).trim() : "";
+    if (val.startsWith("Số tiền viết bằng chữ:") || val.startsWith("Viết bằng chữ:")) {
+      merges.push({ s: { r, c: 0 }, e: { r, c: 6 } });
+    }
+  });
+
+  // Merge the signature dates and columns dynamically to prevent cutting off text
+  const sigRowIdx = rows.length - 2;
+  const sigSubRowIdx = sigRowIdx + 1;
+  const dateRowIdx = sigRowIdx - 1;
+  
+  if (activeSigs.length === 3) {
+    merges.push({ s: { r: sigRowIdx, c: 0 }, e: { r: sigRowIdx, c: 1 } });
+    merges.push({ s: { r: sigRowIdx, c: 2 }, e: { r: sigRowIdx, c: 3 } });
+    merges.push({ s: { r: sigRowIdx, c: 4 }, e: { r: sigRowIdx, c: 6 } });
+    
+    merges.push({ s: { r: sigSubRowIdx, c: 0 }, e: { r: sigSubRowIdx, c: 1 } });
+    merges.push({ s: { r: sigSubRowIdx, c: 2 }, e: { r: sigSubRowIdx, c: 3 } });
+    merges.push({ s: { r: sigSubRowIdx, c: 4 }, e: { r: sigSubRowIdx, c: 6 } });
+  } else if (activeSigs.length === 4) {
+    merges.push({ s: { r: sigRowIdx, c: 0 }, e: { r: sigRowIdx, c: 1 } });
+    merges.push({ s: { r: sigRowIdx, c: 2 }, e: { r: sigRowIdx, c: 3 } });
+    merges.push({ s: { r: sigRowIdx, c: 5 }, e: { r: sigRowIdx, c: 6 } });
+    
+    merges.push({ s: { r: sigSubRowIdx, c: 0 }, e: { r: sigSubRowIdx, c: 1 } });
+    merges.push({ s: { r: sigSubRowIdx, c: 2 }, e: { r: sigSubRowIdx, c: 3 } });
+    merges.push({ s: { r: sigSubRowIdx, c: 5 }, e: { r: sigSubRowIdx, c: 6 } });
+  } else if (activeSigs.length === 5) {
+    merges.push({ s: { r: sigRowIdx, c: 0 }, e: { r: sigRowIdx, c: 1 } });
+    merges.push({ s: { r: sigRowIdx, c: 5 }, e: { r: sigRowIdx, c: 6 } });
+    
+    merges.push({ s: { r: sigSubRowIdx, c: 0 }, e: { r: sigSubRowIdx, c: 1 } });
+    merges.push({ s: { r: sigSubRowIdx, c: 5 }, e: { r: sigSubRowIdx, c: 6 } });
   }
+  
+  // Date row merge
+  merges.push({ s: { r: dateRowIdx, c: 4 }, e: { r: dateRowIdx, c: 6 } });
 
   ws["!merges"] = merges;
 
   ws["!cols"] = [
     { wch: 6 },  // A
     { wch: 32 }, // B
-    { wch: 10 }, // C
-    { wch: 12 }, // D
+    { wch: 13 }, // C
+    { wch: 13 }, // D
     { wch: 15 }, // E
     { wch: 18 }, // F
     { wch: 15 }  // G
