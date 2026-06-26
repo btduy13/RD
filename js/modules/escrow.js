@@ -5,7 +5,7 @@ function renderEscrowTable() {
   const tbody = document.getElementById("escrow-table-body");
   if (!tbody) return;
 
-  let escrows = state.vouchers.filter(v => v.type.startsWith("escrow_"));
+  let escrows = state.vouchers.filter(v => v.type && v.type.startsWith("escrow_"));
 
   // Advanced search filters
   const query = document.getElementById("search-escrow") ? document.getElementById("search-escrow").value : "";
@@ -115,10 +115,11 @@ function renderEscrowTable() {
   };
 
   tbody.innerHTML = displayedEscrows.map(v => {
-    const lbl = typeLabels[v.type] || { name: "Ký quỹ", class: "badge-info", acct: "" };
-    const isRefund = v.type.includes("refund");
-    return `
-      <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
+     const typeVal = v.type || "";
+     const lbl = typeLabels[typeVal] || { name: "Ký quỹ", class: "badge-info", acct: "" };
+     const isRefund = typeVal.includes("refund");
+     return `
+       <tr class="clickable-row" data-type="voucher" data-subtype="${typeVal}" data-id="${escapeHtmlAttr(v.id)}">
         <td style="text-align: center;">
           <input type="checkbox" class="escrow-checkbox" value="${escapeHtmlAttr(v.id)}" onchange="updateBatchEscrowsUI()">
         </td>
@@ -201,7 +202,7 @@ function populateActiveEscrowsDropdown() {
   // Lọc các ký quỹ gốc mang đi hoặc nhận về chưa từng được tất toán
   const allVouchers = state.vouchers;
   const refundedIds = allVouchers
-    .filter(v => v.type.includes("refund"))
+    .filter(v => v.type && v.type.includes("refund"))
     .map(v => v.escrowRefId);
 
   // Lọc loại ký quỹ tương ứng
@@ -252,7 +253,7 @@ function handleEscrowSubmit(e) {
   }
 
   const newVoucher = {
-    id: `KQ-${new Date().getFullYear().toString().substring(2)}-${(state.vouchers.filter(v => v.type.startsWith('escrow_')).length + 1).toString().padStart(4, '0')}`,
+    id: `KQ-${new Date().getFullYear().toString().substring(2)}-${(state.vouchers.filter(v => v.type && v.type.startsWith('escrow_')).length + 1).toString().padStart(4, '0')}`,
     type,
     date: document.getElementById("esc-date").value,
     partnerId,
@@ -331,7 +332,7 @@ function exportEscrowsToExcel() {
     return;
   }
 
-  let filteredEscrows = state.vouchers.filter(v => v.type.startsWith("escrow_"));
+  let filteredEscrows = state.vouchers.filter(v => v.type && v.type.startsWith("escrow_"));
 
   const query = document.getElementById("search-escrow") ? document.getElementById("search-escrow").value.toLowerCase() : "";
   const fromDate = document.getElementById("search-escrow-from") ? document.getElementById("search-escrow-from").value : "";
@@ -404,15 +405,16 @@ function exportEscrowsToExcel() {
     filteredEscrows.forEach((v, idx) => {
       const bg = idx % 2 === 0 ? null : altBg;
       const bs = (al) => ({ font: fntNorm, fill: bg, alignment: al, border: border4 });
-      const acct = v.type.includes("receive") || v.type.includes("refund_receive")
+      const typeVal = v.type || "";
+      const acct = typeVal.includes("receive") || typeVal.includes("refund_receive")
         ? (state.accountingStandard === "TT200" ? "344" : "3386")
         : (state.accountingStandard === "TT200" ? "244" : "1386");
-      const status = v.type.includes("refund") ? "Đã tất toán" : "Đang hiệu lực";
+      const status = typeVal.includes("refund") ? "Đã tất toán" : "Đang hiệu lực";
 
       setCell(ws, rowIdx, 0, dateStrToSerial(v.date), 'n', bs(cCenter), dateFmt);
       setCell(ws, rowIdx, 1, v.id, 's', bs(cCenter), null);
       setCell(ws, rowIdx, 2, v.partnerName || getPartnerNameForVoucher(v), 's', bs(cLeft), null);
-      setCell(ws, rowIdx, 3, typeNames[v.type] || "Ký quỹ", 's', bs(cLeft), null);
+      setCell(ws, rowIdx, 3, typeNames[typeVal] || "Ký quỹ", 's', bs(cLeft), null);
       setCell(ws, rowIdx, 4, v.description, 's', bs(cLeft), null);
       setCell(ws, rowIdx, 5, acct, 's', bs(cCenter), null);
       setCell(ws, rowIdx, 6, v.amount || 0, 'n', bs(cRight), numFmt);

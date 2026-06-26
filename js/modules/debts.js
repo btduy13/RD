@@ -5,7 +5,57 @@ let debtsGroupedPage = 1;
 let activePartnerNameForGroupedLedger = "";
 
 // --- Phân hệ Công nợ ---
-function calculatePartnerDebts(toDate = "") {
+function getDebtDateRange() {
+  const period = document.getElementById("debt-period-filter") ? document.getElementById("debt-period-filter").value : "all";
+  let fromDate = "";
+  let toDate = "";
+  
+  if (period === "month") {
+    const val = document.getElementById("debt-month-input") ? document.getElementById("debt-month-input").value : ""; // e.g. "2026-06"
+    if (val) {
+      const parts = val.split("-");
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      
+      const firstDay = new Date(year, month - 1, 1);
+      const lastDay = new Date(year, month, 0);
+      
+      const pad = (n) => n.toString().padStart(2, '0');
+      fromDate = `${firstDay.getFullYear()}-${pad(firstDay.getMonth() + 1)}-01`;
+      toDate = `${lastDay.getFullYear()}-${pad(lastDay.getMonth() + 1)}-${pad(lastDay.getDate())}`;
+    }
+  } else if (period === "year") {
+    const year = document.getElementById("debt-year-select") ? document.getElementById("debt-year-select").value : "";
+    if (year) {
+      fromDate = `${year}-01-01`;
+      toDate = `${year}-12-31`;
+    }
+  } else if (period === "custom") {
+    fromDate = document.getElementById("debt-start-date") ? document.getElementById("debt-start-date").value : "";
+    toDate = document.getElementById("debt-end-date") ? document.getElementById("debt-end-date").value : "";
+  }
+  
+  return { fromDate, toDate };
+}
+
+function changeDebtPeriodFilter() {
+  const period = document.getElementById("debt-period-filter") ? document.getElementById("debt-period-filter").value : "all";
+  
+  const monthWrap = document.getElementById("debt-month-filter-wrap");
+  const yearWrap = document.getElementById("debt-year-filter-wrap");
+  const customWrap = document.getElementById("debt-custom-filter-wrap");
+  
+  if (monthWrap) monthWrap.style.display = (period === "month") ? "inline-flex" : "none";
+  if (yearWrap) yearWrap.style.display = (period === "year") ? "inline-flex" : "none";
+  if (customWrap) customWrap.style.display = (period === "custom") ? "inline-flex" : "none";
+  
+  if (typeof filterDebts === "function") {
+    filterDebts();
+  }
+}
+
+// --- Phân hệ Công nợ ---
+function calculatePartnerDebts(fromDate = "", toDate = "") {
   const debts = {};
 
   state.partners.forEach(p => {
@@ -17,8 +67,12 @@ function calculatePartnerDebts(toDate = "") {
       address: p.address || "",
       taxCode: p.taxCode || "",
       phone: p.phone || "",
-      openingDebit: opening.debit || 0,
-      openingCredit: opening.credit || 0,
+      initialOpeningDebit: opening.debit || 0,
+      initialOpeningCredit: opening.credit || 0,
+      priorDebit: 0,
+      priorCredit: 0,
+      openingDebit: 0,
+      openingCredit: 0,
       debitTrans: 0,
       creditTrans: 0,
       closingDebit: 0,
@@ -33,30 +87,68 @@ function calculatePartnerDebts(toDate = "") {
     const d = debts[pId];
     if (!d) return;
 
+    const isPrior = fromDate && v.date < fromDate;
+
     v.entries.forEach(e => {
       // Khách hàng (customer): chỉ đọc TK 131
       if (d.type === "customer") {
-        if (e.debit.startsWith("131"))  d.debitTrans  += e.amount; // Tăng phải thu (bán chịu)
-        if (e.credit.startsWith("131")) d.creditTrans += e.amount; // Giảm phải thu (thu tiền / trả lại)
+        if (e.debit && e.debit.startsWith("131")) {
+          if (isPrior) d.priorDebit += e.amount;
+          else d.debitTrans += e.amount; // Tăng phải thu (bán chịu)
+        }
+        if (e.credit && e.credit.startsWith("131")) {
+          if (isPrior) d.priorCredit += e.amount;
+          else d.creditTrans += e.amount; // Giảm phải thu (thu tiền / trả lại)
+        }
       }
       // Nhà cung cấp (supplier): chỉ đọc TK 331
       else if (d.type === "supplier") {
-        if (e.credit.startsWith("331")) d.creditTrans += e.amount; // Tăng phải trả (mua chịu)
-        if (e.debit.startsWith("331"))  d.debitTrans  += e.amount; // Giảm phải trả (thanh toán / trả hàng)
+        if (e.credit && e.credit.startsWith("331")) {
+          if (isPrior) d.priorCredit += e.amount;
+          else d.creditTrans += e.amount; // Tăng phải trả (mua chịu)
+        }
+        if (e.debit && e.debit.startsWith("331")) {
+          if (isPrior) d.priorDebit += e.amount;
+          else d.debitTrans += e.amount; // Giảm phải trả (thanh toán / trả hàng)
+        }
       }
       // Đối tác cả 2 loại (both): đọc cả 131 lẫn 331, nhưng theo đúng chiều
       else {
-        if (e.debit.startsWith("131"))  d.debitTrans  += e.amount;
-        if (e.credit.startsWith("131")) d.creditTrans += e.amount;
-        if (e.credit.startsWith("331")) d.creditTrans += e.amount;
-        if (e.debit.startsWith("331"))  d.debitTrans  += e.amount;
+        if (e.debit && e.debit.startsWith("131")) {
+          if (isPrior) d.priorDebit += e.amount;
+          else d.debitTrans += e.amount;
+        }
+        if (e.credit && e.credit.startsWith("131")) {
+          if (isPrior) d.priorCredit += e.amount;
+          else d.creditTrans += e.amount;
+        }
+        if (e.credit && e.credit.startsWith("331")) {
+          if (isPrior) d.priorCredit += e.amount;
+          else d.creditTrans += e.amount;
+        }
+        if (e.debit && e.debit.startsWith("331")) {
+          if (isPrior) d.priorDebit += e.amount;
+          else d.debitTrans += e.amount;
+        }
       }
     });
   });
 
   Object.keys(debts).forEach(id => {
     const d = debts[id];
+    const rawOpeningDebit = d.initialOpeningDebit + d.priorDebit;
+    const rawOpeningCredit = d.initialOpeningCredit + d.priorCredit;
+
     if (d.type === "customer") {
+      const opBalance = rawOpeningDebit - rawOpeningCredit;
+      if (opBalance >= 0) {
+        d.openingDebit = opBalance;
+        d.openingCredit = 0;
+      } else {
+        d.openingDebit = 0;
+        d.openingCredit = -opBalance;
+      }
+
       const balance = d.openingDebit - d.openingCredit + d.debitTrans - d.creditTrans;
       if (balance >= 0) {
         d.closingDebit = balance;
@@ -66,6 +158,15 @@ function calculatePartnerDebts(toDate = "") {
         d.closingCredit = -balance;
       }
     } else {
+      const opBalance = rawOpeningCredit - rawOpeningDebit;
+      if (opBalance >= 0) {
+        d.openingCredit = opBalance;
+        d.openingDebit = 0;
+      } else {
+        d.openingCredit = 0;
+        d.openingDebit = -opBalance;
+      }
+
       const balance = d.openingCredit - d.openingDebit + d.creditTrans - d.debitTrans;
       if (balance >= 0) {
         d.closingCredit = balance;
@@ -233,7 +334,9 @@ function filterDebts() {
   const filterType = document.getElementById("debt-type-filter") ? document.getElementById("debt-type-filter").value : "all";
   const activeOnly = document.getElementById("debt-active-only-filter") ? document.getElementById("debt-active-only-filter").checked : false;
 
-  const allDebts = calculatePartnerDebts();
+  const { fromDate, toDate } = getDebtDateRange();
+
+  const allDebts = calculatePartnerDebts(fromDate, toDate);
 
   filteredDebtsList = allDebts.filter(d => {
     const combined = `${d.id || ""}\t${d.name || ""}`;
@@ -259,7 +362,7 @@ function filterDebts() {
 
   if (currentDebtsViewTab === 'partner') {
     // --- Tab 2: Theo Đối tác ---
-    const allGrouped = calculatePartnerDebtsGrouped();
+    const allGrouped = calculatePartnerDebtsGrouped(fromDate, toDate);
     filteredDebtsGroupedList = allGrouped.filter(g => {
       const debtVal = Math.max(g.closingDebit || 0, g.closingCredit || 0);
       const matchesQuery = matchAdvancedQuery(g.name || '', query, debtVal);
@@ -281,16 +384,24 @@ function filterDebts() {
 }
 
 // Tính công nợ gộp theo tên đối tác (case-insensitive)
-function calculatePartnerDebtsGrouped() {
-  const allDebts = calculatePartnerDebts();
+function calculatePartnerDebtsGrouped(fromDate = "", toDate = "") {
+  const allDebts = calculatePartnerDebts(fromDate, toDate);
 
   // Build map: normalizedName → group
   const groups = {};
   allDebts.forEach(d => {
-    const key = (d.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    let key = (d.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    // Loại bỏ các tiền tố phổ biến như công ty, cty, cty tnhh, cty cp, doanh nghiệp, dn
+    key = key.replace(/^(công ty tnhh sx tm dv|công ty tnhh sx tm|công ty tnhh tm dv|công ty tnhh dv|công ty tnhh|công ty cổ phần|công ty cp|công ty|cty tnhh sx tm dv|cty tnhh sx tm|cty tnhh tm dv|cty tnhh dv|cty tnhh|cty cp|cty|doanh nghiệp|dn)\s+/i, '');
+    // Loại bỏ phần trong ngoặc đơn ở cuối tên chứa mã khách hàng/năm/tháng
+    key = key.replace(/\s*\([^)]*(?:kh|kht|ncc|dt|t\d|\d{2}\/\d{2}|\d{4})[^)]*\)$/i, '');
+    key = key.trim();
+
     if (!groups[key]) {
+      // Dọn dẹp tên hiển thị nhóm để loại bỏ mã/ngày tháng ở cuối
+      let displayName = d.name.trim().replace(/\s*\([^)]*(?:kh|kht|ncc|dt|t\d|\d{2}\/\d{2}|\d{4})[^)]*\)$/i, '');
       groups[key] = {
-        name: d.name, // giữ tên gốc của mã đầu tiên
+        name: displayName,
         primaryType: d.type,
         openingDebit: 0,
         openingCredit: 0,
@@ -502,12 +613,42 @@ function viewGroupedPartnerLedger(partnerName) {
   const primaryType = matchingPartners.find(p => p.type === 'customer')?.type
     || matchingPartners[0].type;
 
-  // Tính tổng số dư đầu kỳ gộp
+  const { fromDate, toDate } = getDebtDateRange();
+
+  // Tính tổng số dư đầu kỳ gộp tại fromDate
   let totalOpeningDebit = 0, totalOpeningCredit = 0;
   matchingPartners.forEach(p => {
     const op = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
-    totalOpeningDebit  += op.debit  || 0;
-    totalOpeningCredit += op.credit || 0;
+    let initialDebit = op.debit || 0;
+    let initialCredit = op.credit || 0;
+    let priorDebit = 0;
+    let priorCredit = 0;
+
+    if (fromDate) {
+      state.vouchers.forEach(v => {
+        if (v.partnerId !== p.id) return;
+        if (v.date >= fromDate) return;
+        if (!v.entries) return;
+
+        v.entries.forEach(e => {
+          if (p.type === "customer") {
+            if (e.debit && e.debit.startsWith("131")) priorDebit += e.amount;
+            if (e.credit && e.credit.startsWith("131")) priorCredit += e.amount;
+          } else if (p.type === "supplier") {
+            if (e.credit && e.credit.startsWith("331")) priorCredit += e.amount;
+            if (e.debit && e.debit.startsWith("331")) priorDebit += e.amount;
+          } else {
+            if (e.debit && e.debit.startsWith("131")) priorDebit += e.amount;
+            if (e.credit && e.credit.startsWith("131")) priorCredit += e.amount;
+            if (e.credit && e.credit.startsWith("331")) priorCredit += e.amount;
+            if (e.debit && e.debit.startsWith("331")) priorDebit += e.amount;
+          }
+        });
+      });
+    }
+
+    totalOpeningDebit  += (initialDebit + priorDebit);
+    totalOpeningCredit += (initialCredit + priorCredit);
   });
 
   const openingVal = primaryType === 'customer'
@@ -519,8 +660,17 @@ function viewGroupedPartnerLedger(partnerName) {
 
   // Cập nhật tiêu đề modal
   const idList = matchingPartners.map(p => p.id).join(', ');
-  document.getElementById('partner-ledger-subtitle').innerText =
-    `Đối tác: ${partnerName} | ${matchingPartners.length} mã: ${idList.length > 80 ? idList.slice(0,80)+'...' : idList}`;
+  let subtitle = `Đối tác: ${partnerName} | ${matchingPartners.length} mã: ${idList.length > 80 ? idList.slice(0,80)+'...' : idList}`;
+  if (fromDate || toDate) {
+    const formatD = (dStr) => {
+      if (!dStr) return "";
+      const pt = dStr.split("-");
+      return `${pt[2]}/${pt[1]}/${pt[0]}`;
+    };
+    subtitle += ` | Kỳ: ${fromDate ? 'Từ ' + formatD(fromDate) : ''} ${toDate ? 'Đến ' + formatD(toDate) : ''}`;
+  }
+
+  document.getElementById('partner-ledger-subtitle').innerText = subtitle;
   document.getElementById('partner-ledger-opening').innerText = openingText;
 
   const tbody = document.getElementById('partner-ledger-table-body');
@@ -532,6 +682,8 @@ function viewGroupedPartnerLedger(partnerName) {
 
   state.vouchers.forEach(v => {
     if (!matchingIds.has(v.partnerId)) return;
+    if (fromDate && v.date < fromDate) return;
+    if (toDate && v.date > toDate) return;
     if (!v.entries) return;
 
     let debitAmount = 0, creditAmount = 0;
@@ -630,12 +782,62 @@ function viewPartnerLedger(partnerId) {
   activePartnerIdForLedger = partnerId;
   activePartnerNameForGroupedLedger = "";
 
-  const opening = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
-  const openingText = p.type === "customer"
-    ? (opening.debit >= opening.credit ? `${formatVND(opening.debit - opening.credit)} (Nợ)` : `${formatVND(opening.credit - opening.debit)} (Có)`)
-    : (opening.credit >= opening.debit ? `${formatVND(opening.credit - opening.debit)} (Có)` : `${formatVND(opening.debit - opening.credit)} (Nợ)`);
+  const { fromDate, toDate } = getDebtDateRange();
 
-  document.getElementById("partner-ledger-subtitle").innerText = `Đối tác: ${p.id} - ${p.name} | Loại: ${p.type === 'customer' ? 'Khách hàng' : 'Nhà cung cấp'}`;
+  // Calculate rolling opening balance if fromDate is active
+  const op = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
+  let initialDebit = op.debit || 0;
+  let initialCredit = op.credit || 0;
+  let priorDebit = 0;
+  let priorCredit = 0;
+
+  if (fromDate) {
+    state.vouchers.forEach(v => {
+      if (v.partnerId !== p.id) return;
+      if (v.date >= fromDate) return; // only prior
+      if (!v.entries) return;
+
+      v.entries.forEach(e => {
+        if (p.type === "customer") {
+          if (e.debit && e.debit.startsWith("131")) priorDebit += e.amount;
+          if (e.credit && e.credit.startsWith("131")) priorCredit += e.amount;
+        } else if (p.type === "supplier") {
+          if (e.credit && e.credit.startsWith("331")) priorCredit += e.amount;
+          if (e.debit && e.debit.startsWith("331")) priorDebit += e.amount;
+        } else {
+          if (e.debit && e.debit.startsWith("131")) priorDebit += e.amount;
+          if (e.credit && e.credit.startsWith("131")) priorCredit += e.amount;
+          if (e.credit && e.credit.startsWith("331")) priorCredit += e.amount;
+          if (e.debit && e.debit.startsWith("331")) priorDebit += e.amount;
+        }
+      });
+    });
+  }
+
+  const openingDebit = initialDebit + priorDebit;
+  const openingCredit = initialCredit + priorCredit;
+
+  let openingVal = 0;
+  let openingText = "";
+  if (p.type === "customer") {
+    openingVal = openingDebit - openingCredit;
+    openingText = openingVal >= 0 ? `${formatVND(openingVal)} (Nợ)` : `${formatVND(-openingVal)} (Có)`;
+  } else {
+    openingVal = openingCredit - openingDebit;
+    openingText = openingVal >= 0 ? `${formatVND(openingVal)} (Có)` : `${formatVND(-openingVal)} (Nợ)`;
+  }
+
+  let subtitle = `Đối tác: ${p.id} - ${p.name} | Loại: ${p.type === 'customer' ? 'Khách hàng' : 'Nhà cung cấp'}`;
+  if (fromDate || toDate) {
+    const formatD = (dStr) => {
+      if (!dStr) return "";
+      const pt = dStr.split("-");
+      return `${pt[2]}/${pt[1]}/${pt[0]}`;
+    };
+    subtitle += ` | Kỳ: ${fromDate ? 'Từ ' + formatD(fromDate) : ''} ${toDate ? 'Đến ' + formatD(toDate) : ''}`;
+  }
+
+  document.getElementById("partner-ledger-subtitle").innerText = subtitle;
   document.getElementById("partner-ledger-opening").innerText = openingText;
 
   const tbody = document.getElementById("partner-ledger-table-body");
@@ -647,6 +849,8 @@ function viewPartnerLedger(partnerId) {
   const ledgerEntries = [];
   state.vouchers.forEach(v => {
     if (v.partnerId !== p.id) return;
+    if (fromDate && v.date < fromDate) return;
+    if (toDate && v.date > toDate) return;
     if (!v.entries) return;
 
     let debitAmount = 0;
@@ -733,10 +937,10 @@ function viewPartnerLedger(partnerId) {
   let closingVal = 0;
   let closingText = "";
   if (p.type === "customer") {
-    closingVal = (opening.debit - opening.credit) + debitSum - creditSum;
+    closingVal = openingVal + debitSum - creditSum;
     closingText = closingVal >= 0 ? `${formatVND(closingVal)} (Nợ)` : `${formatVND(-closingVal)} (Có)`;
   } else {
-    closingVal = (opening.credit - opening.debit) + creditSum - debitSum;
+    closingVal = openingVal + creditSum - debitSum;
     closingText = closingVal >= 0 ? `${formatVND(closingVal)} (Có)` : `${formatVND(-closingVal)} (Nợ)`;
   }
 
@@ -772,12 +976,42 @@ async function exportPartnerDebtExcel(partnerId) {
     const matchingIds = new Set(matchingPartners.map(item => item.id));
     const primaryType = matchingPartners.find(item => item.type === 'customer')?.type || p.type;
 
+    const { fromDate, toDate } = getDebtDateRange();
+
     let totalOpeningDebit = 0;
     let totalOpeningCredit = 0;
     matchingPartners.forEach(item => {
       const op = state.partnerOpeningBalances[item.id] || { debit: 0, credit: 0 };
-      totalOpeningDebit += op.debit || 0;
-      totalOpeningCredit += op.credit || 0;
+      let initialDebit = op.debit || 0;
+      let initialCredit = op.credit || 0;
+      let priorDebit = 0;
+      let priorCredit = 0;
+
+      if (fromDate) {
+        state.vouchers.forEach(v => {
+          if (v.partnerId !== item.id) return;
+          if (v.date >= fromDate) return; // prior only
+          if (!v.entries) return;
+
+          v.entries.forEach(e => {
+            if (item.type === "customer") {
+              if (e.debit && e.debit.startsWith("131")) priorDebit += e.amount;
+              if (e.credit && e.credit.startsWith("131")) priorCredit += e.amount;
+            } else if (item.type === "supplier") {
+              if (e.credit && e.credit.startsWith("331")) priorCredit += e.amount;
+              if (e.debit && e.debit.startsWith("331")) priorDebit += e.amount;
+            } else {
+              if (e.debit && e.debit.startsWith("131")) priorDebit += e.amount;
+              if (e.credit && e.credit.startsWith("131")) priorCredit += e.amount;
+              if (e.credit && e.credit.startsWith("331")) priorCredit += e.amount;
+              if (e.debit && e.debit.startsWith("331")) priorDebit += e.amount;
+            }
+          });
+        });
+      }
+
+      totalOpeningDebit += (initialDebit + priorDebit);
+      totalOpeningCredit += (initialCredit + priorCredit);
     });
 
     let openingVal = 0;
@@ -792,6 +1026,8 @@ async function exportPartnerDebtExcel(partnerId) {
     const ledgerEntries = [];
     state.vouchers.forEach(v => {
       if (!matchingIds.has(v.partnerId)) return;
+      if (fromDate && v.date < fromDate) return;
+      if (toDate && v.date > toDate) return;
       if (!v.entries) return;
 
       let debitAmount = 0;
@@ -847,13 +1083,23 @@ async function exportPartnerDebtExcel(partnerId) {
 
     // Determine min/max dates
     const pad = (n) => n.toString().padStart(2, '0');
-    let fromDateStr = "01/01/2026";
-    let toDateStr = new Date().toLocaleDateString('vi-VN');
-    if (ledgerEntries.length > 0) {
+    const formatD = (dStr) => {
+      if (!dStr) return "";
+      const pt = dStr.split("-");
+      return `${pt[2]}/${pt[1]}/${pt[0]}`;
+    };
+
+    let fromDateStr = fromDate ? formatD(fromDate) : "01/01/2026";
+    let toDateStr = toDate ? formatD(toDate) : new Date().toLocaleDateString('vi-VN');
+
+    if (!fromDate && ledgerEntries.length > 0) {
       const dates = ledgerEntries.map(e => new Date(e.date));
       const minDate = new Date(Math.min(...dates));
-      const maxDate = new Date(Math.max(...dates));
       fromDateStr = `${pad(minDate.getDate())}/${pad(minDate.getMonth() + 1)}/${minDate.getFullYear()}`;
+    }
+    if (!toDate && ledgerEntries.length > 0) {
+      const dates = ledgerEntries.map(e => new Date(e.date));
+      const maxDate = new Date(Math.max(...dates));
       toDateStr = `${pad(maxDate.getDate())}/${pad(maxDate.getMonth() + 1)}/${maxDate.getFullYear()}`;
     }
 
@@ -1128,12 +1374,42 @@ function previewPartnerDebtNotice(partnerId) {
   const matchingIds = new Set(matchingPartners.map(item => item.id));
   const primaryType = matchingPartners.find(item => item.type === 'customer')?.type || p.type;
 
+  const { fromDate, toDate } = getDebtDateRange();
+
   let totalOpeningDebit = 0;
   let totalOpeningCredit = 0;
   matchingPartners.forEach(item => {
     const op = state.partnerOpeningBalances[item.id] || { debit: 0, credit: 0 };
-    totalOpeningDebit += op.debit || 0;
-    totalOpeningCredit += op.credit || 0;
+    let initialDebit = op.debit || 0;
+    let initialCredit = op.credit || 0;
+    let priorDebit = 0;
+    let priorCredit = 0;
+
+    if (fromDate) {
+      state.vouchers.forEach(v => {
+        if (v.partnerId !== item.id) return;
+        if (v.date >= fromDate) return; // prior only
+        if (!v.entries) return;
+
+        v.entries.forEach(e => {
+          if (item.type === "customer") {
+            if (e.debit && e.debit.startsWith("131")) priorDebit += e.amount;
+            if (e.credit && e.credit.startsWith("131")) priorCredit += e.amount;
+          } else if (item.type === "supplier") {
+            if (e.credit && e.credit.startsWith("331")) priorCredit += e.amount;
+            if (e.debit && e.debit.startsWith("331")) priorDebit += e.amount;
+          } else {
+            if (e.debit && e.debit.startsWith("131")) priorDebit += e.amount;
+            if (e.credit && e.credit.startsWith("131")) priorCredit += e.amount;
+            if (e.credit && e.credit.startsWith("331")) priorCredit += e.amount;
+            if (e.debit && e.debit.startsWith("331")) priorDebit += e.amount;
+          }
+        });
+      });
+    }
+
+    totalOpeningDebit += (initialDebit + priorDebit);
+    totalOpeningCredit += (initialCredit + priorCredit);
   });
 
   let openingVal = 0;
@@ -1148,6 +1424,8 @@ function previewPartnerDebtNotice(partnerId) {
   const ledgerEntries = [];
   state.vouchers.forEach(v => {
     if (!matchingIds.has(v.partnerId)) return;
+    if (fromDate && v.date < fromDate) return;
+    if (toDate && v.date > toDate) return;
     if (!v.entries) return;
 
     let debitAmount = 0;
@@ -1202,15 +1480,25 @@ function previewPartnerDebtNotice(partnerId) {
   }
 
   // Determine min/max dates
-  let fromDateStr = "01/01/2026";
-  let toDateStr = new Date().toLocaleDateString('vi-VN');
-  if (ledgerEntries.length > 0) {
+  const formatD = (dStr) => {
+    if (!dStr) return "";
+    const pt = dStr.split("-");
+    return `${pt[2]}/${pt[1]}/${pt[0]}`;
+  };
+
+  let fromDateStr = fromDate ? formatD(fromDate) : "01/01/2026";
+  let toDateStr = toDate ? formatD(toDate) : new Date().toLocaleDateString('vi-VN');
+
+  if (!fromDate && ledgerEntries.length > 0) {
     const dates = ledgerEntries.map(e => new Date(e.date));
     const minDate = new Date(Math.min(...dates));
-    const maxDate = new Date(Math.max(...dates));
-
     const pad = (n) => n.toString().padStart(2, '0');
     fromDateStr = `${pad(minDate.getDate())}/${pad(minDate.getMonth() + 1)}/${minDate.getFullYear()}`;
+  }
+  if (!toDate && ledgerEntries.length > 0) {
+    const dates = ledgerEntries.map(e => new Date(e.date));
+    const maxDate = new Date(Math.max(...dates));
+    const pad = (n) => n.toString().padStart(2, '0');
     toDateStr = `${pad(maxDate.getDate())}/${pad(maxDate.getMonth() + 1)}/${maxDate.getFullYear()}`;
   }
 
@@ -1653,15 +1941,26 @@ function exportDebtsToExcel() {
     const headers = ["Mã", "Tên khách hàng / NCC", "Loại", "Dư ĐK Nợ", "Dư ĐK Có", "PS Nợ trong kỳ", "PS Có trong kỳ", "Dư CK Nợ", "Dư CK Có", "Địa chỉ", "Mã số thuế", "Điện thoại"];
     const ncols = headers.length;
 
+    const { fromDate, toDate } = getDebtDateRange();
+
     // ROW 0: Tiêu đề
-    sc(0, 0, (state.companyName || "Công Ty Cổ Phần Rạng Đông") + " — SỔ DƯ CÔNG NỢ", 's', { font: fntT, alignment: cC });
+    const formatD = (dStr) => {
+      if (!dStr) return "";
+      const pt = dStr.split("-");
+      return `${pt[2]}/${pt[1]}/${pt[0]}`;
+    };
+    let titleStr = (state.companyName || "Công Ty Cổ Phần Rạng Đông") + " — SỔ DƯ CÔNG NỢ";
+    if (fromDate || toDate) {
+      titleStr += ` (Kỳ: ${fromDate ? 'Từ ' + formatD(fromDate) : ''} ${toDate ? 'Đến ' + formatD(toDate) : ''})`;
+    }
+    sc(0, 0, titleStr, 's', { font: fntT, alignment: cC });
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: ncols - 1 } });
 
     // ROW 1: Headers
     headers.forEach((h, c) => sc(1, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: border4 }));
 
     // DATA ROWS
-    const calculatedDebts = calculatePartnerDebts();
+    const calculatedDebts = calculatePartnerDebts(fromDate, toDate);
     let rowIdx = 2;
     let totalOpeningDebitKH = 0, totalOpeningCreditKH = 0, totalOpeningDebitNCC = 0, totalOpeningCreditNCC = 0;
     let totalDebitKH = 0, totalCreditKH = 0;
@@ -1779,11 +2078,22 @@ function exportDebtsToExcelDetailed() {
     const headers = ["Ngày HT/CT", "Số chứng từ", "Diễn giải", "Tài khoản đối ứng", "Nợ phát sinh", "Có phát sinh", "Dư Nợ lũy kế", "Dư Có lũy kế"];
     const ncols = headers.length;
 
+    const { fromDate, toDate } = getDebtDateRange();
+
     // ROW 0: Tiêu đề
-    sc(0, 0, (state.companyName || "Công Ty Cổ Phần Rạng Đông") + " — CHI TIẾT SỔ CÔNG NỢ ĐỐI TÁC", 's', { font: fntT, alignment: cC });
+    const formatD = (dStr) => {
+      if (!dStr) return "";
+      const pt = dStr.split("-");
+      return `${pt[2]}/${pt[1]}/${pt[0]}`;
+    };
+    let titleStr = (state.companyName || "Công Ty Cổ Phần Rạng Đông") + " — CHI TIẾT SỔ CÔNG NỢ ĐỐI TÁC";
+    if (fromDate || toDate) {
+      titleStr += ` (Kỳ: ${fromDate ? 'Từ ' + formatD(fromDate) : ''} ${toDate ? 'Đến ' + formatD(toDate) : ''})`;
+    }
+    sc(0, 0, titleStr, 's', { font: fntT, alignment: cC });
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: ncols - 1 } });
 
-    const calculatedDebts = calculatePartnerDebts();
+    const calculatedDebts = calculatePartnerDebts(fromDate, toDate);
     let rowIdx = 2;
 
     calculatedDebts.forEach((d) => {
@@ -1791,14 +2101,11 @@ function exportDebtsToExcelDetailed() {
       if (!p) return;
 
       const primaryType = p.type;
-      const op = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
-      const opDebit = op.debit || 0;
-      const opCredit = op.credit || 0;
       let runningVal = 0;
       if (primaryType === "customer") {
-        runningVal = opDebit - opCredit;
+        runningVal = d.openingDebit - d.openingCredit;
       } else {
-        runningVal = opCredit - opDebit;
+        runningVal = d.openingCredit - d.openingDebit;
       }
 
       const ledgerEntries = [];
@@ -1807,6 +2114,8 @@ function exportDebtsToExcelDetailed() {
 
       state.vouchers.forEach(v => {
         if (v.partnerId !== p.id) return;
+        if (fromDate && v.date < fromDate) return;
+        if (toDate && v.date > toDate) return;
         if (!v.entries) return;
 
         let debitAmount = 0;
@@ -1850,7 +2159,7 @@ function exportDebtsToExcelDetailed() {
 
       ledgerEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-      if (ledgerEntries.length === 0 && opDebit === 0 && opCredit === 0) {
+      if (ledgerEntries.length === 0 && d.openingDebit === 0 && d.openingCredit === 0) {
         return;
       }
 
@@ -2037,4 +2346,31 @@ function editOrderFromLedger(voucherId, voucherType) {
   }
 }
 window.editOrderFromLedger = editOrderFromLedger;
+window.changeDebtPeriodFilter = changeDebtPeriodFilter;
+
+document.addEventListener("DOMContentLoaded", () => {
+  const monthInput = document.getElementById("debt-month-input");
+  const yearSelect = document.getElementById("debt-year-select");
+  const startDateInput = document.getElementById("debt-start-date");
+  const endDateInput = document.getElementById("debt-end-date");
+  
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  
+  if (monthInput) {
+    monthInput.value = `${yyyy}-${mm}`;
+  }
+  if (yearSelect) {
+    yearSelect.value = String(yyyy);
+  }
+  if (startDateInput) {
+    startDateInput.value = `${yyyy}-${mm}-01`;
+  }
+  if (endDateInput) {
+    const lastDay = new Date(yyyy, today.getMonth() + 1, 0).getDate();
+    endDateInput.value = `${yyyy}-${mm}-${String(lastDay).padStart(2, '0')}`;
+  }
+});
+
 

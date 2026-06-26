@@ -32,15 +32,29 @@ try {
 
 function addErrorLog(context, message, err = null) {
   const timestamp = new Date().toLocaleString();
+  let fullMessage = message;
+  if (err) {
+    const extraInfo = [];
+    if (err.details) extraInfo.push(`Details: ${err.details}`);
+    if (err.hint) extraInfo.push(`Hint: ${err.hint}`);
+    if (err.code) extraInfo.push(`Code: ${err.code}`);
+    if (extraInfo.length > 0) {
+      fullMessage = `${message} (${extraInfo.join(", ")})`;
+    }
+  }
+
   const errorDetails = err ? {
     message: err.message,
-    stack: err.stack
+    stack: err.stack,
+    details: err.details,
+    hint: err.hint,
+    code: err.code
   } : null;
 
   const logEntry = {
     timestamp,
     context,
-    message,
+    message: fullMessage,
     error: errorDetails
   };
 
@@ -58,7 +72,7 @@ function addErrorLog(context, message, err = null) {
 
   // Hiển thị toast cảnh báo nếu có lỗi mới
   if (typeof showToast === "function") {
-    showToast(`Lỗi [${context}]: ${message}`, "danger");
+    showToast(`Lỗi [${context}]: ${fullMessage}`, "danger");
   }
 }
 

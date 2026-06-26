@@ -153,6 +153,37 @@ function clearAllData() {
     showToast("Đã xóa sạch cơ sở dữ liệu về trắng!", "warning");
   }
 }
+
+// Xóa sạch Chứng từ
+function clearAllVouchers() {
+  if (confirm("CẢNH BÁO: Bạn có chắc chắn muốn xóa sạch toàn bộ Chứng từ/Giao dịch? Hành động này không thể hoàn tác.")) {
+    state.vouchers = [];
+    saveState();
+    recalculateAccounting();
+    showToast("Đã xóa sạch toàn bộ chứng từ!", "success");
+  }
+}
+
+// Xóa sạch Sản phẩm
+function clearAllProducts() {
+  if (confirm("CẢNH BÁO: Bạn có chắc chắn muốn xóa sạch toàn bộ danh mục Sản phẩm? Hành động này không thể hoàn tác.")) {
+    state.products = [];
+    saveState();
+    recalculateAccounting();
+    showToast("Đã xóa sạch danh mục sản phẩm!", "success");
+  }
+}
+
+// Xóa sạch Đối tác
+function clearAllPartners() {
+  if (confirm("CẢNH BÁO: Bạn có chắc chắn muốn xóa sạch toàn bộ danh sách Đối tác và Số dư đầu kỳ đối tác? Hành động này không thể hoàn tác.")) {
+    state.partners = [];
+    state.partnerOpeningBalances = {};
+    saveState();
+    recalculateAccounting();
+    showToast("Đã xóa sạch danh sách đối tác!", "success");
+  }
+}
 let lastSyncedCloudTs = 0; // Timestamp cloud đã đồng bộ thành công lần cuối (tách biệt khỏi state._lastModified)
 let foundOldChunkIds = [];
 let migrationPending = false;

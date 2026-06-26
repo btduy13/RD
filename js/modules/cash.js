@@ -49,7 +49,7 @@ function recalculateCashKpis() {
   let totalPayments = 0;
 
   state.vouchers.forEach(v => {
-    const isCashVoucher = v.type === "receipt" || v.type === "payment" || v.type.startsWith("escrow_");
+    const isCashVoucher = v.type === "receipt" || v.type === "payment" || (v.type && v.type.startsWith("escrow_"));
     if (!isCashVoucher) return;
 
     if (v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay") {
@@ -205,7 +205,7 @@ function filterCash() {
   const toDate = document.getElementById("search-cash-to") ? document.getElementById("search-cash-to").value : "";
 
   filteredCashList = state.vouchers.filter(v => {
-    const isCash = v.type === "receipt" || v.type === "payment" || v.type.startsWith("escrow_");
+    const isCash = v.type === "receipt" || v.type === "payment" || (v.type && v.type.startsWith("escrow_"));
     if (!isCash) return false;
 
     const partnerName = getPartnerNameForVoucher(v);
@@ -419,7 +419,7 @@ function exportCashToExcel() {
   const toDate = document.getElementById("search-cash-to") ? document.getElementById("search-cash-to").value : "";
 
   let filteredCash = state.vouchers.filter(v => {
-    const isCash = v.type === "receipt" || v.type === "payment" || v.type.startsWith("escrow_");
+    const isCash = v.type === "receipt" || v.type === "payment" || (v.type && v.type.startsWith("escrow_"));
     if (!isCash) return false;
 
     const partnerName = getPartnerNameForVoucher(v);

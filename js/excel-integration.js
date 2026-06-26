@@ -230,7 +230,9 @@ async function autoIntegrateVouchersExcel() {
       let debitAccount = "111";
       let creditAccount = "131";
 
-      if (voucherTypeStr.includes("CHI") || voucherTypeStr.includes("MUA HÀNG") || voucherTypeStr.includes("TRẢ LẠI")) {
+      const isPayment = voucherTypeStr.includes("CHI") || voucherTypeStr.includes("MUA HÀNG") || voucherTypeStr.includes("TRẢ LẠI");
+
+      if (isPayment) {
         type = "payment";
         debitAccount = "331";
         creditAccount = paymentMethod;
@@ -239,6 +241,29 @@ async function autoIntegrateVouchersExcel() {
           debitAccount = "156";
         } else if (descLower.includes("chi phí") || descLower.includes("thuê xưởng")) {
           debitAccount = "642";
+        } else if (
+          descLower.includes("vay ngân hàng") || descLower.includes("vay sacombank") || 
+          descLower.includes("trả gốc") || descLower.includes("trả tiền vay") || 
+          descLower.includes("trả vay") || descLower.includes("trả sacombank") || 
+          descLower.includes("tất toán ld") || descLower.includes("tất toán") || 
+          descLower.includes("tả tiền vay") || descLower.includes("trả nợ sacom") ||
+          descLower.includes("trả nợ gốc") || descLower.includes("trả nợ vay")
+        ) {
+          debitAccount = "341";
+        } else if (
+          descLower.includes("lãi vay") || descLower.includes("nộp lãi") || 
+          descLower.includes("trả lãi") || descLower.includes("tiền lãi") || 
+          descLower.includes("laxi vay") || descLower.includes("lương lãi")
+        ) {
+          debitAccount = "635";
+        } else if (descLower.includes("lương") || descLower.includes("thưởng") || descLower.includes("tháng 13")) {
+          debitAccount = "334";
+        } else if (descLower.includes("bhxh") || descLower.includes("bảo hiểm xã hội") || descLower.includes("bảo hiểm") || descLower.includes("nộp bh")) {
+          debitAccount = "338";
+        } else if (descLower.includes("nộp thuế") || descLower.includes("thuế gtgt") || descLower.includes("nộp ngân sách") || descLower.includes("tiền thuế")) {
+          debitAccount = "333";
+        } else if (descLower.includes("mua xe") || descLower.includes("ô tô")) {
+          debitAccount = "211";
         }
       } else {
         type = "receipt";
@@ -246,6 +271,14 @@ async function autoIntegrateVouchersExcel() {
         creditAccount = "131";
         if (descLower.includes("doanh thu") || descLower.includes("bán hàng")) {
           creditAccount = "511";
+        } else if (
+          descLower.includes("vay ngân hàng") || descLower.includes("vay sacombank") || 
+          descLower.includes("giải ngân") || descLower.includes("sombank") || 
+          descLower.includes("vay giải ngân") || descLower.includes("sacomban") ||
+          descLower.includes("sacombank") || descLower.includes("việt nga") ||
+          descLower.includes("vay")
+        ) {
+          creditAccount = "341";
         }
       }
 
@@ -525,7 +558,7 @@ async function autoIntegrateSoChiTietBanHangExcel() {
           qty = safeParseFloat(row[16]);
           const grossReturnAmt = safeParseFloat(row[17]);
           price = qty > 0 ? Math.round(grossReturnAmt / qty) : safeParseFloat(row[13]);
-          discountVal = 0;
+          discountVal = Math.abs(safeParseFloat(row[15]));
         } else {
           qty = safeParseFloat(row[12]);
           price = safeParseFloat(row[13]);
@@ -664,6 +697,7 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
     let colAmount = 10;
     let colQtyReturn = 12;   // Số lượng trả lại
     let colAmtReturn = 13;   // Giá trị trả lại
+    let colDiscount = 11;    // Chiết khấu mặc định cho SO_CHI_TIET_MUA_HANG (16 cột)
 
     let headerIdx = -1;
     for (let r = 0; r < Math.min(rows.length, 10); r++) {
@@ -680,11 +714,13 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
       const aIdx = header.indexOf("Giá trị mua");
       const qrIdx = header.indexOf("Số lượng trả lại");
       const arIdx = header.indexOf("Giá trị trả lại");
+      const discIdx = header.indexOf("Chiết khấu");
       if (qIdx !== -1) colQty = qIdx;
       if (pIdx !== -1) colPrice = pIdx;
       if (aIdx !== -1) colAmount = aIdx;
       if (qrIdx !== -1) colQtyReturn = qrIdx;
       if (arIdx !== -1) colAmtReturn = arIdx;
+      if (discIdx !== -1) colDiscount = discIdx;
     }
 
     // Gom nhóm các dòng theo Số chứng từ (row[2])
@@ -734,9 +770,9 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
       const invoiceNo = firstRow[4] || "";
 
       // Tự detect type từ ID (NK/PN/MH → purchase, PTL/TRH → purchase_return)
-      const detectedType = typeof detectVoucherTypeFromId === "function"
+      const detectedType = (typeof detectVoucherTypeFromId === "function"
         ? detectVoucherTypeFromId(voucherId)
-        : "purchase";
+        : null) || "purchase";
       const isPurchaseReturn = detectedType === "purchase_return";
       const description = isPurchaseReturn
         ? `Trả lại hàng NCC theo số ${invoiceNo || voucherId}`
@@ -760,16 +796,23 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
         // Chọn qty/amount đúng theo context
         const useReturnQty = qtyReturn > 0 || isPurchaseReturn;
         const qty = useReturnQty && qtyReturn > 0 ? qtyReturn : qtyBuy;
-        const amount = useReturnQty && amtReturn > 0
+        const grossAmount = useReturnQty && amtReturn > 0
           ? amtReturn
           : (safeParseFloat(row[colAmount]) || (qty * price));
+
+        const discountVal = colDiscount !== -1 ? Math.abs(safeParseFloat(row[colDiscount])) : 0;
+        const amount = grossAmount - discountVal;
+        
+        const finalPrice = price || (qty > 0 ? Math.round(grossAmount / qty) : 0);
+        const discountPercent = (qty * finalPrice) > 0 ? Math.round((discountVal / (qty * finalPrice)) * 100 * 100) / 100 : 0;
 
         if (qty === 0 && amount === 0) continue; // bỏ qua dòng trống
 
         itemsArray.push({
           productId: productId,
           qty: qty,
-          price: price || (qty > 0 ? amount / qty : 0),
+          price: finalPrice,
+          discount: discountPercent,
           amount: amount
         });
 
@@ -809,6 +852,13 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
 
       const existingIdx = voucherMap.get(voucherId);
       if (existingIdx !== undefined) {
+        // Bảo lưu đối tác thực tế đã được ánh xạ (ví dụ từ file công nợ phải trả theo hóa đơn)
+        const oldPartnerId = state.vouchers[existingIdx].partnerId;
+        const oldPartnerName = state.vouchers[existingIdx].partnerName;
+        if (oldPartnerId && oldPartnerId !== "NCC_EXCEL") {
+          vObj.partnerId = oldPartnerId;
+          vObj.partnerName = oldPartnerName;
+        }
         state.vouchers[existingIdx] = vObj;
       } else {
         state.vouchers.push(vObj);
@@ -1785,6 +1835,90 @@ function parseExcelFile(file, type) {
         return;
       }
 
+      // Phát hiện định dạng đặc biệt: CHI TIẾT CÔNG NỢ PHẢI TRẢ THEO HÓA ĐƠN
+      const firstRowVal = (rows[0] && rows[0][0] || "").toString().trim();
+      const isCongNoPhaiTraFile = firstRowVal.includes("CHI TIẾT CÔNG NỢ PHẢI TRẢ THEO HÓA ĐƠN");
+
+      if (isCongNoPhaiTraFile) {
+        let countCreated = 0;
+        let countUpdated = 0;
+        let currentSupplierName = "";
+        
+        const partnerMap = new Map();
+        state.partners.forEach(p => partnerMap.set(p.id, p));
+        const voucherMap = new Map();
+        state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
+
+        for (let i = 3; i < rows.length; i++) {
+          const row = rows[i];
+          if (!row || row.length === 0) continue;
+
+          const col0 = (row[0] || "").toString().trim();
+          if (col0.startsWith("Tên nhà cung cấp :")) {
+            currentSupplierName = col0.replace("Tên nhà cung cấp :", "").trim();
+            // Remove trailing count like " (26 )"
+            currentSupplierName = currentSupplierName.replace(/\s*\(\d+\s*\)\s*$/, "").trim();
+          } else {
+            const voucherId = (row[3] || "").toString().trim();
+            if (voucherId && (voucherId.startsWith("NK") || voucherId.startsWith("PC") || voucherId.startsWith("PT"))) {
+              const dateStr = excelDateToISOString(row[2] || row[1]);
+              const invoiceNo = (row[4] || "").toString().trim();
+              const description = (row[5] || "").toString().trim();
+              const amount = safeParseFloat(row[7]);
+
+              if (!currentSupplierName) continue;
+
+              const resolvedPartner = resolvePartner(currentSupplierName);
+              const pId = resolvedPartner.id;
+              const pName = resolvedPartner.name;
+
+              if (!partnerMap.has(pId)) {
+                const pObj = { id: pId, name: pName, type: "supplier", phone: "", email: "", address: "" };
+                state.partners.push(pObj);
+                partnerMap.set(pId, pObj);
+              }
+
+              const existingIdx = voucherMap.get(voucherId);
+              if (existingIdx !== undefined) {
+                // Cập nhật nhà cung cấp cho chứng từ đã tồn tại
+                state.vouchers[existingIdx].partnerId = pId;
+                state.vouchers[existingIdx].partnerName = pName;
+                countUpdated++;
+              } else {
+                // Tạo chứng từ mới
+                const detectedType = detectVoucherTypeFromId(voucherId) || 'purchase';
+                const paymentMethod = (detectedType === 'purchase' || detectedType === 'purchase_return') ? "331" : "111";
+                const vObj = {
+                  id: voucherId,
+                  type: detectedType,
+                  date: dateStr,
+                  partnerId: pId,
+                  partnerName: pName,
+                  paymentMethod: paymentMethod,
+                  description: description || `Nhập kho mua hàng${invoiceNo ? ' HĐ ' + invoiceNo : ''}`,
+                  taxRate: 0,
+                  taxAmount: 0,
+                  totalAmount: amount,
+                  amount: amount,
+                  isImported: true,
+                  items: [{ productId: "SP_GENERIC", qty: 1, price: amount, amount: amount }]
+                };
+                state.vouchers.push(vObj);
+                voucherMap.set(voucherId, state.vouchers.length - 1);
+                countCreated++;
+              }
+            }
+          }
+        }
+
+        saveState();
+        recalculateAccounting();
+        if (typeof filterPurchases === "function") filterPurchases();
+        if (typeof filterVouchers === "function") filterVouchers();
+        showToast(`Đã xử lý Công nợ phải trả: Cập nhật ${countUpdated} chứng từ, tạo mới ${countCreated} chứng từ!`, "success");
+        return;
+      }
+
       if (type === 'products') {
         let count = 0;
         // Phát hiện hàng chứa header động
@@ -2043,7 +2177,9 @@ function parseExcelFile(file, type) {
           let debitAccount = "111";
           let creditAccount = "131";
 
-          if (voucherTypeStr.includes("CHI") || voucherTypeStr.includes("MUA HÀNG") || voucherTypeStr.includes("TRẢ LẠI")) {
+          const isPayment = voucherTypeStr.includes("CHI") || voucherTypeStr.includes("MUA HÀNG") || voucherTypeStr.includes("TRẢ LẠI");
+
+          if (isPayment) {
             type = "payment";
             debitAccount = "331";
             creditAccount = paymentMethod;
@@ -2052,6 +2188,29 @@ function parseExcelFile(file, type) {
               debitAccount = "156";
             } else if (descLower.includes("chi phí") || descLower.includes("thuê xưởng")) {
               debitAccount = "642";
+            } else if (
+              descLower.includes("vay ngân hàng") || descLower.includes("vay sacombank") || 
+              descLower.includes("trả gốc") || descLower.includes("trả tiền vay") || 
+              descLower.includes("trả vay") || descLower.includes("trả sacombank") || 
+              descLower.includes("tất toán ld") || descLower.includes("tất toán") || 
+              descLower.includes("tả tiền vay") || descLower.includes("trả nợ sacom") ||
+              descLower.includes("trả nợ gốc") || descLower.includes("trả nợ vay")
+            ) {
+              debitAccount = "341";
+            } else if (
+              descLower.includes("lãi vay") || descLower.includes("nộp lãi") || 
+              descLower.includes("trả lãi") || descLower.includes("tiền lãi") || 
+              descLower.includes("laxi vay") || descLower.includes("lương lãi")
+            ) {
+              debitAccount = "635";
+            } else if (descLower.includes("lương") || descLower.includes("thưởng") || descLower.includes("tháng 13")) {
+              debitAccount = "334";
+            } else if (descLower.includes("bhxh") || descLower.includes("bảo hiểm xã hội") || descLower.includes("bảo hiểm") || descLower.includes("nộp bh")) {
+              debitAccount = "338";
+            } else if (descLower.includes("nộp thuế") || descLower.includes("thuế gtgt") || descLower.includes("nộp ngân sách") || descLower.includes("tiền thuế")) {
+              debitAccount = "333";
+            } else if (descLower.includes("mua xe") || descLower.includes("ô tô")) {
+              debitAccount = "211";
             }
           } else {
             type = "receipt";
@@ -2059,6 +2218,14 @@ function parseExcelFile(file, type) {
             creditAccount = "131";
             if (descLower.includes("doanh thu") || descLower.includes("bán hàng")) {
               creditAccount = "511";
+            } else if (
+              descLower.includes("vay ngân hàng") || descLower.includes("vay sacombank") || 
+              descLower.includes("giải ngân") || descLower.includes("sombank") || 
+              descLower.includes("vay giải ngân") || descLower.includes("sacomban") ||
+              descLower.includes("sacombank") || descLower.includes("việt nga") ||
+              descLower.includes("vay")
+            ) {
+              creditAccount = "341";
             }
           }
 
@@ -2230,7 +2397,7 @@ function parseExcelFile(file, type) {
                 qty = safeParseFloat(row[colReturnQty]);
                 const grossRet = safeParseFloat(row[colReturnAmount]);
                 price = qty > 0 ? Math.round(grossRet / qty) : safeParseFloat(row[colPrice]);
-                discountVal = 0;
+                discountVal = Math.abs(safeParseFloat(row[colDiscount]));
               } else {
                 qty = safeParseFloat(row[colQty]);
                 price = safeParseFloat(row[colPrice]);
@@ -2689,6 +2856,7 @@ function parseExcelFile(file, type) {
         let colQty = 13;
         let colPrice = 14;
         let colAmount = 17;
+        let colDiscount = -1;     // Cột chiết khấu động
         let colDescription = -1;
 
         if (headerIdx !== -1) {
@@ -2733,6 +2901,9 @@ function parseExcelFile(file, type) {
           
           const aIdx = findColumnIndex(header, ["giá trị mua", "doanh số bán", "giá trị trả lại", "giá trị giảm giá", "thành tiền"]);
           if (aIdx !== -1) colAmount = aIdx;
+
+          const discIdx = findColumnIndex(header, ["chiết khấu", "tiền chiết khấu"]);
+          if (discIdx !== -1) colDiscount = discIdx;
         }
 
         // Gom hàng theo voucherId
@@ -2793,10 +2964,14 @@ function parseExcelFile(file, type) {
             const unit = (row[colUnit] || "Cái").toString().trim();
             const qty = safeParseFloat(row[colQty]);
             const price = safeParseFloat(row[colPrice]);
-            const amount = safeParseFloat(row[colAmount]) || (qty * price);
+            
+            const discountVal = colDiscount !== -1 ? Math.abs(safeParseFloat(row[colDiscount])) : 0;
+            const grossAmount = safeParseFloat(row[colAmount]) || (qty * price);
+            const amount = grossAmount - discountVal;
+            const discountPercent = grossAmount > 0 ? Math.round((discountVal / grossAmount) * 100 * 100) / 100 : 0;
 
             if (qty !== 0 || amount !== 0) {
-              itemsArray.push({ productId, qty, price, amount });
+              itemsArray.push({ productId, qty, price, discount: discountPercent, amount });
               totalVoucherAmount += amount;
             }
 

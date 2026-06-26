@@ -107,12 +107,8 @@ async function initApp() {
   if (!state.initialBalances || Object.keys(state.initialBalances).length === 0) {
     state.initialBalances = JSON.parse(JSON.stringify(DEFAULT_DATA.initialBalances));
   }
-  if (!state.partnerOpeningBalances || Object.keys(state.partnerOpeningBalances).length === 0) {
-    if (typeof PREPOPULATED_DATABASE !== "undefined" && PREPOPULATED_DATABASE.partnerOpeningBalances) {
-      state.partnerOpeningBalances = JSON.parse(JSON.stringify(PREPOPULATED_DATABASE.partnerOpeningBalances));
-    } else {
-      state.partnerOpeningBalances = {};
-    }
+  if (!state.partnerOpeningBalances) {
+    state.partnerOpeningBalances = {};
   }
 
   // === ƯU TIÊN KHỞI CHẠY ĐẦU TIÊN: Nạp ngay các dropdown list của cửa sổ bán hàng từ cache cục bộ ===
@@ -137,11 +133,42 @@ async function initApp() {
 
   // Đánh dấu các chứng từ cũ từ database là imported (trừ khi đã có isManual)
   if (state.vouchers) {
+    let hasRepaired = false;
     state.vouchers.forEach(v => {
       if (v.isManual === undefined && v.isImported === undefined) {
         v.isImported = true;
       }
+      // Sửa chữa các chứng từ có type bị null/undefined
+      if (!v.type) {
+        const u = (v.id || "").toUpperCase().trim();
+        let detected = null;
+        if (u.startsWith('BTL') || u.startsWith('BHTL')) detected = 'sales_return';
+        else if (u.startsWith('BH') || u.startsWith('HD')) detected = 'sales';
+        else if (u.startsWith('PTL') || u.startsWith('MHTL') || u.startsWith('TRH')) detected = 'purchase_return';
+        else if (u.startsWith('PN') || u.startsWith('MH') || u.startsWith('NK')) detected = 'purchase';
+        else if (u.startsWith('PT')) detected = 'receipt';
+        else if (u.startsWith('PC')) detected = 'payment';
+        
+        // Nếu excelRow chỉ ra loại chứng từ
+        if (!detected && v.excelRow && v.excelRow[8]) {
+          const lbl = v.excelRow[8].toLowerCase();
+          if (lbl.includes("thu")) detected = "receipt";
+          else if (lbl.includes("chi")) detected = "payment";
+          else if (lbl.includes("bán")) detected = "sales";
+          else if (lbl.includes("mua")) detected = "purchase";
+        }
+        
+        v.type = detected || "purchase";
+        hasRepaired = true;
+        console.log(`[State] Tự động sửa type cho chứng từ ${v.id} thành: ${v.type}`);
+      }
     });
+
+    if (hasRepaired) {
+      setTimeout(() => {
+        saveState();
+      }, 0);
+    }
   }
 
   // Dọn dẹp dữ liệu rác đối tác đầu kỳ không hợp lệ

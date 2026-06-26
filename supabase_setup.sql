@@ -33,6 +33,9 @@ CREATE POLICY "Allow public insert" ON rd_accounting_data
 CREATE POLICY "Allow public update" ON rd_accounting_data
   FOR UPDATE USING (true);
 
+CREATE POLICY "Allow public delete" ON rd_accounting_data
+  FOR DELETE USING (true);
+
 -- 5. Tạo index cho last_modified để tối ưu hóa truy vấn delta sync, tránh timeout
 CREATE INDEX IF NOT EXISTS idx_rd_accounting_data_last_modified ON rd_accounting_data(last_modified);
 

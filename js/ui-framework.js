@@ -960,7 +960,7 @@ function viewVoucher(id) {
 
       </div>
     `;
-  } else if (v.type.startsWith("escrow_") || v.type === "receipt" || v.type === "payment") {
+  } else if ((v.type && v.type.startsWith("escrow_")) || v.type === "receipt" || v.type === "payment") {
     // Nghiệp vụ ký quỹ hoặc Thu/Chi → PHIẾU THU hoặc PHIẾU CHI (chuẩn MISA)
     const isReceipt = v.type === "escrow_receive" || v.type === "escrow_refund_pay" || v.type === "receipt";
     const title = isReceipt ? "PHIẾU THU" : "PHIẾU CHI";
@@ -1584,18 +1584,25 @@ async function printCurrentVoucherToPDF(e) {
   if (e) e.preventDefault();
   hideVoucherPrintDropdown();
   
-  if (!window.currentViewingVoucherId) {
-    showToast("Không tìm thấy thông tin chứng từ hiện tại", "error");
-    return;
+  const modalTitle = document.querySelector("#modal-view-voucher .card-title");
+  const isDebtNotice = modalTitle && modalTitle.innerText.includes("Thông báo Công nợ");
+  
+  let cleanFilename = "";
+  if (isDebtNotice) {
+    cleanFilename = `Thong_bao_cong_no_${new Date().toISOString().split('T')[0]}.pdf`;
+  } else {
+    if (!window.currentViewingVoucherId) {
+      showToast("Không tìm thấy thông tin chứng từ hiện tại", "error");
+      return;
+    }
+    const v = state.vouchers.find(x => x.id === window.currentViewingVoucherId);
+    if (!v) {
+      showToast("Không tìm thấy thông tin chứng từ", "error");
+      return;
+    }
+    cleanFilename = `${v.id}_${v.date}.pdf`;
   }
   
-  const v = state.vouchers.find(x => x.id === window.currentViewingVoucherId);
-  if (!v) {
-    showToast("Không tìm thấy thông tin chứng từ", "error");
-    return;
-  }
-  
-  const cleanFilename = `${v.id}_${v.date}.pdf`;
   showToast("Đang chuẩn bị tạo PDF...", "info");
   
   try {
@@ -1620,6 +1627,18 @@ async function printCurrentVoucherToPDF(e) {
 function printCurrentVoucherToExcel(e) {
   if (e) e.preventDefault();
   hideVoucherPrintDropdown();
+  
+  const modalTitle = document.querySelector("#modal-view-voucher .card-title");
+  const isDebtNotice = modalTitle && modalTitle.innerText.includes("Thông báo Công nợ");
+  
+  if (isDebtNotice) {
+    if (typeof window.exportCurrentPartnerDebtExcel === "function") {
+      window.exportCurrentPartnerDebtExcel();
+    } else {
+      showToast("Không tìm thấy chức năng xuất Excel công nợ", "error");
+    }
+    return;
+  }
   
   if (!window.currentViewingVoucherId) {
     showToast("Không tìm thấy thông tin chứng từ hiện tại", "error");
@@ -1678,7 +1697,7 @@ function exportVoucherToExcel(id) {
   const partnerAddr = partner ? partner.address : "";
 
   // Info
-  if (v.type === "receipt" || v.type === "payment" || v.type.startsWith("escrow_")) {
+  if (v.type === "receipt" || v.type === "payment" || (v.type && v.type.startsWith("escrow_"))) {
     const isReceipt = v.type === "receipt" || v.type === "escrow_receive";
     rows.push([`Họ và tên người ${isReceipt ? "nộp" : "nhận"} tiền:`, partnerName, "", "", "", ""]);
     rows.push(["Địa chỉ:", [partnerAddr, partnerPhone].filter(Boolean).join(" - ") || "N/A", "", "", "", ""]);

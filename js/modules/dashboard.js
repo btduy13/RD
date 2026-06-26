@@ -256,13 +256,19 @@ function renderDashboardDebts() {
 
   if (kpiReceivable || kpiPayable) {
     // H10 Fix: Reuse debts data already calculated above if same date range
-    const kpiDebts = toDate ? calculatePartnerDebts(toDate) : calculatePartnerDebts();
+    const kpiDebts = toDate ? calculatePartnerDebts("", toDate) : calculatePartnerDebts();
     let totalRec = 0;
     let totalPay = 0;
     kpiDebts.forEach(d => {
-      totalRec += d.closingDebit;
-      totalPay += d.closingCredit;
+      if (d.type === 'customer' || d.type === 'both') {
+        // NET: phải thu (closingDebit) trừ khách hàng trả thừa (closingCredit)
+        totalRec += (d.closingDebit || 0) - (d.closingCredit || 0);
+      }
+      if (d.type === 'supplier' || d.type === 'both') {
+        totalPay += d.closingCredit || 0;
+      }
     });
+    if (totalRec < 0) totalRec = 0; // không hiện số âm trên KPI
     if (kpiReceivable) kpiReceivable.innerText = formatVND(totalRec);
     if (kpiPayable) kpiPayable.innerText = formatVND(totalPay);
   }

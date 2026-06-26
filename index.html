@@ -2117,6 +2117,47 @@
                 <option value="331">Phải trả Nhà cung cấp (TK 331)</option>
               </select>
 
+              <select id="debt-period-filter" class="form-control"
+                style="height: 36px; padding: 4px 12px; font-size: 13px; font-weight: 500; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); outline: none; min-width: 140px;"
+                onchange="changeDebtPeriodFilter()">
+                <option value="all">Tất cả thời gian</option>
+                <option value="month">Theo tháng</option>
+                <option value="year">Theo năm</option>
+                <option value="custom">Khoảng thời gian</option>
+              </select>
+
+              <!-- Bộ lọc tháng -->
+              <div id="debt-month-filter-wrap" style="display: none; align-items: center; gap: 6px;">
+                <input type="month" id="debt-month-input" class="form-control"
+                  style="height: 36px; padding: 4px 12px; font-size: 13px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); outline: none; cursor: pointer;"
+                  onchange="filterDebts()" onclick="this.showPicker()">
+              </div>
+
+              <!-- Bộ lọc năm -->
+              <div id="debt-year-filter-wrap" style="display: none; align-items: center; gap: 6px;">
+                <select id="debt-year-select" class="form-control"
+                  style="height: 36px; padding: 4px 12px; font-size: 13px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); outline: none; min-width: 80px;"
+                  onchange="filterDebts()">
+                  <option value="2026">2026</option>
+                  <option value="2025">2025</option>
+                  <option value="2024">2024</option>
+                  <option value="2023">2023</option>
+                  <option value="2027">2027</option>
+                </select>
+              </div>
+
+              <!-- Bộ lọc khoảng thời gian -->
+              <div id="debt-custom-filter-wrap" style="display: none; align-items: center; gap: 6px;">
+                <input type="date" id="debt-start-date" class="form-control"
+                  style="height: 36px; padding: 4px 12px; font-size: 13px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); outline: none; cursor: pointer;"
+                  onchange="filterDebts()" onclick="this.showPicker()">
+                <span style="font-size: 13px; color: var(--text-secondary);">đến</span>
+                <input type="date" id="debt-end-date" class="form-control"
+                  style="height: 36px; padding: 4px 12px; font-size: 13px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); outline: none; cursor: pointer;"
+                  onchange="filterDebts()" onclick="this.showPicker()">
+              </div>
+
+
               <label
                 style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-primary); cursor: pointer; user-select: none; white-space: nowrap;">
                 <input type="checkbox" id="debt-active-only-filter" onchange="filterDebts()"
@@ -2562,6 +2603,21 @@
                   <button class="btn btn-secondary" onclick="clearAllData()"
                     style="flex: 1; color: var(--color-danger);">
                     Xóa sạch dữ liệu trắng
+                  </button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px;">
+                  <button class="btn btn-secondary" onclick="clearAllVouchers()"
+                    style="color: var(--color-danger); border-color: rgba(239, 68, 68, 0.2); font-size: 11.5px; padding: 8px 4px; font-weight: 600;">
+                    🗑️ Xóa hết Chứng từ
+                  </button>
+                  <button class="btn btn-secondary" onclick="clearAllProducts()"
+                    style="color: var(--color-danger); border-color: rgba(239, 68, 68, 0.2); font-size: 11.5px; padding: 8px 4px; font-weight: 600;">
+                    🗑️ Xóa hết Sản phẩm
+                  </button>
+                  <button class="btn btn-secondary" onclick="clearAllPartners()"
+                    style="color: var(--color-danger); border-color: rgba(239, 68, 68, 0.2); font-size: 11.5px; padding: 8px 4px; font-weight: 600;">
+                    🗑️ Xóa hết Đối tác
                   </button>
                 </div>
 
