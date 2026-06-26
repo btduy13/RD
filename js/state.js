@@ -16,8 +16,8 @@ let state = {
 };
 
 // 2. KHỞI CHẠY KHI TRANG ĐƯỢC TẢI
-document.addEventListener("DOMContentLoaded", () => {
-  initApp();
+document.addEventListener("DOMContentLoaded", async () => {
+  await initApp();
   if (typeof initMouseInteractions === "function") {
     initMouseInteractions();
   }
@@ -27,79 +27,66 @@ document.addEventListener("DOMContentLoaded", () => {
 // Helper chuyển đổi an toàn mọi giá trị (chuỗi định dạng Việt Nam/Quốc tế, số) sang kiểu Float
 
 // Khởi tạo ứng dụng: Ở chế độ Online-Only, CSDL cục bộ sẽ bị loại bỏ hoàn toàn
-function initApp() {
+async function initApp() {
   // M6: Obsolete localStorage migration removed (was running forever)
 
-  // C5 Fix: Track whether app has been fully initialized to prevent async IPC overwrite
-  let stateFullyInitialized = false;
-
   // Khởi tạo từ cache cục bộ (nếu có) để giao diện hiển thị ngay lập tức
-  // ữu tiên: Đọc từ file JSON (không giới hạn kích thước) | Fallback: localStorage (bị giới hạn 5MB)
+  // Ưu tiên: Đọc từ file JSON (không giới hạn kích thước) | Fallback: localStorage (bị giới hạn 5MB)
   let hasCache = false;
 
   // === [ƯU TIÊN 1] ĐỌC TỪ FILE JSON QUA ELECTRON IPC ===
   if (window.electronAPI && typeof window.electronAPI.readStateFile === 'function') {
-    // Chạy async nhưng initApp không block — state sẽ được cập nhật ngay khi file đọc xong
-    window.electronAPI.readStateFile().then(result => {
+    try {
+      const result = await window.electronAPI.readStateFile();
       if (result && result.ok && result.data) {
-        try {
-          const parsed = JSON.parse(result.data);
-          if (parsed && Array.isArray(parsed.products) && Array.isArray(parsed.vouchers)) {
-            // Merge: chỉ ghi đè nếu file có dữ liệu phong phú hơn state hiện tại
-            const currentVoucherCount = (state.vouchers || []).length;
-            const fileVoucherCount = parsed.vouchers.length;
-            if (fileVoucherCount > currentVoucherCount && !stateFullyInitialized) {
-              state = parsed;
-              if (typeof lastSyncState !== 'undefined') {
-                lastSyncState = JSON.parse(JSON.stringify(parsed));
-              }
-              if (typeof lastSyncedCloudTs !== 'undefined') {
-                lastSyncedCloudTs = state._lastModified || 0;
-              }
-              console.log(`[StateFile] Nạp từ file thành công! (${fileVoucherCount} chứng từ, ${(parsed.partners || []).length} đối tác)`);
-              // C6 Fix: Skip aggressive cleanup that can delete legitimate vouchers
-              // cleanNumericVouchers();
-              // Cập nhật lại UI sau khi nạp file
-              if (typeof recalculateAccounting === 'function') recalculateAccounting();
-              if (typeof switchTab === 'function') switchTab('dashboard');
-              if (typeof renderDashboard === 'function') renderDashboard();
-            }
+        const parsed = JSON.parse(result.data);
+        if (parsed && Array.isArray(parsed.products) && Array.isArray(parsed.vouchers)) {
+          state = parsed;
+          if (typeof lastSyncState !== 'undefined') {
+            lastSyncState = JSON.parse(JSON.stringify(parsed));
           }
-        } catch (parseErr) {
-          console.error('[StateFile] Lỗi parse JSON từ file:', parseErr);
+          if (typeof lastSyncedCloudTs !== 'undefined') {
+            lastSyncedCloudTs = state._lastModified || 0;
+          }
+          console.log(`[StateFile] Nạp từ file thành công! (${parsed.vouchers.length} chứng từ, ${(parsed.partners || []).length} đối tác)`);
+          hasCache = true;
         }
       } else if (result && !result.ok) {
         // File chưa tồn tại — bình thường trong lần chạy đầu tiên
         console.log('[StateFile] File state chưa tồn tại, sẽ tạo mới khi lưu lần đầu.');
       }
-    }).catch(err => console.error('[StateFile] Lỗi IPC readStateFile:', err));
+    } catch (parseErr) {
+      console.error('[StateFile] Lỗi parse JSON từ file:', parseErr);
+    }
   }
 
   // === [ƯU TIÊN 2] FALLBACK: ĐỌC TỪ LOCALSTORAGE (để tương thích ngược) ===
-  try {
-    const cache = localStorage.getItem("rd_accounting_online_cache");
-    if (cache) {
-      const parsed = JSON.parse(cache);
-      if (parsed && Array.isArray(parsed.products) && Array.isArray(parsed.vouchers)) {
-        state = parsed;
-        let loadedLastSyncState = null;
-        try {
-          const syncCache = localStorage.getItem("rd_accounting_last_sync_cache");
-          if (syncCache) {
-            loadedLastSyncState = JSON.parse(syncCache);
+  if (!hasCache) {
+    try {
+      const cache = localStorage.getItem("rd_accounting_online_cache");
+      if (cache) {
+        const parsed = JSON.parse(cache);
+        if (parsed && Array.isArray(parsed.products) && Array.isArray(parsed.vouchers)) {
+          state = parsed;
+          let loadedLastSyncState = null;
+          try {
+            const syncCache = localStorage.getItem("rd_accounting_last_sync_cache");
+            if (syncCache) {
+              loadedLastSyncState = JSON.parse(syncCache);
+            }
+          } catch (e) {
+            console.error("[Cache] Lỗi đọc cache đồng bộ cũ:", e);
           }
-        } catch (e) {
-          console.error("[Cache] Lỗi đọc cache đồng bộ cũ:", e);
+          lastSyncState = loadedLastSyncState || JSON.parse(JSON.stringify(parsed));
+          hasCache = true;
+          lastSyncedCloudTs = state._lastModified || 0;
+          console.log(`[Cache] Khởi tạo dữ liệu từ cache cục bộ thành công! (${(state.vouchers || []).length} chứng từ, ${(state.partners || []).length} đối tác)`);
+          cleanNumericVouchers();
         }
-        lastSyncState = loadedLastSyncState || JSON.parse(JSON.stringify(parsed));
-        hasCache = true;
-        lastSyncedCloudTs = state._lastModified || 0;
-        console.log(`[Cache] Khởi tạo dữ liệu từ cache cục bộ thành công! (${(state.vouchers || []).length} chứng từ, ${(state.partners || []).length} đối tác)`);
-        cleanNumericVouchers();
       }
+    } catch (err) {
+      console.error("[Cache] Lỗi đọc cache khởi động:", err);
     }
-  } catch (err) {
-    console.error("[Cache] Lỗi đọc cache khởi động:", err);
   }
 
   if (!hasCache) {
@@ -196,9 +183,6 @@ function initApp() {
 
   // Chạy lại thuật toán tính toán kế toán & giá vốn để đồng bộ
   recalculateAccounting();
-
-  // C5 Fix: Mark state as fully initialized to prevent async IPC from overwriting
-  stateFullyInitialized = true;
 
   // Tách số điện thoại từ địa chỉ tự động nếu có
   if (typeof autoExtractPhonesAndCleanAddresses === "function") {
