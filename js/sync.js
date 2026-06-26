@@ -697,10 +697,10 @@ async function pullFromCloudOnStartup() {
       }
 
       // Cập nhật giao diện
-      recalculateAccounting(false);
-      filterDebts();
-      filterPartners();
-      filterCash();
+      if (typeof recalculateAccounting === "function") recalculateAccounting(false);
+      if (typeof filterDebts === "function") filterDebts();
+      if (typeof filterPartners === "function") filterPartners();
+      if (typeof filterCash === "function") filterCash();
       if (typeof initExcelIntegration === "function") initExcelIntegration();
       updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
     } else {
@@ -794,10 +794,10 @@ function forcePullFromCloud() {
           setTimeout(() => resolveConflictedVouchers(rescuedVouchers), 1000);
         }
 
-        recalculateAccounting();
-        filterDebts();
-        filterPartners();
-        filterCash();
+        if (typeof recalculateAccounting === "function") recalculateAccounting();
+        if (typeof filterDebts === "function") filterDebts();
+        if (typeof filterPartners === "function") filterPartners();
+        if (typeof filterCash === "function") filterCash();
         if (typeof initExcelIntegration === "function") initExcelIntegration();
         updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
         showToast("Tải dữ liệu từ Đám mây về máy này thành công!", "success");
@@ -1301,10 +1301,10 @@ async function pullAndMergeFromCloud() {
         setTimeout(() => resolveConflictedVouchers(rescuedVouchers), 500);
       }
 
-      recalculateAccounting(false);
-      filterDebts();
-      filterPartners();
-      filterCash();
+      if (typeof recalculateAccounting === "function") recalculateAccounting(false);
+      if (typeof filterDebts === "function") filterDebts();
+      if (typeof filterPartners === "function") filterPartners();
+      if (typeof filterCash === "function") filterCash();
       if (typeof initExcelIntegration === "function") initExcelIntegration();
       updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
     } else {
