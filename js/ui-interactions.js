@@ -799,6 +799,12 @@ document.addEventListener("click", function (e) {
       dDrop.style.display = "none";
     }
   }
+  const vpDrop = document.getElementById("voucher-print-dropdown");
+  if (vpDrop && vpDrop.style.display === "block") {
+    if (!e.target.closest("#voucher-print-dropdown-wrap")) {
+      vpDrop.style.display = "none";
+    }
+  }
 });
 
 function toggleAdvancedFilter(panelId) {

@@ -229,6 +229,7 @@ function closeModal(modalId) {
 
 // 12. XEM VÀ IN BIỂU MẪU CHỨNG TỪ THEO CHUẨN BỘ TÀI CHÍNH
 function viewVoucher(id) {
+  window.currentViewingVoucherId = id;
   const v = state.vouchers.find(v => v.id === id);
   if (!v) return;
 
@@ -1549,6 +1550,275 @@ window.rdpSetInput = function(inputId, isoValue) {
         display.innerHTML = '<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> <span style="opacity:0.5">Chọn ngày</span>';
         display.classList.add('empty');
       }
-    }
   }
 };
+
+// ==========================================================================
+// VOUCHER PRINT & EXPORT OPTIONS (Printer, PDF, Excel)
+// ==========================================================================
+
+function toggleVoucherPrintDropdown(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById("voucher-print-dropdown");
+  if (!menu) return;
+  if (menu.style.display === "none" || menu.style.display === "") {
+    menu.style.display = "block";
+  } else {
+    menu.style.display = "none";
+  }
+}
+
+function hideVoucherPrintDropdown() {
+  const menu = document.getElementById("voucher-print-dropdown");
+  if (menu) menu.style.display = "none";
+}
+
+function printCurrentVoucher(e) {
+  if (e) e.preventDefault();
+  hideVoucherPrintDropdown();
+  triggerPrint();
+}
+
+async function printCurrentVoucherToPDF(e) {
+  if (e) e.preventDefault();
+  hideVoucherPrintDropdown();
+  
+  if (!window.currentViewingVoucherId) {
+    showToast("Không tìm thấy thông tin chứng từ hiện tại", "error");
+    return;
+  }
+  
+  const v = state.vouchers.find(x => x.id === window.currentViewingVoucherId);
+  if (!v) {
+    showToast("Không tìm thấy thông tin chứng từ", "error");
+    return;
+  }
+  
+  const cleanFilename = `${v.id}_${v.date}.pdf`;
+  showToast("Đang chuẩn bị tạo PDF...", "info");
+  
+  try {
+    if (window.electronAPI && typeof window.electronAPI.printToPDF === "function") {
+      const res = await window.electronAPI.printToPDF(cleanFilename);
+      if (res && res.ok) {
+        showToast(`Đã lưu thành công PDF tại: ${res.filePath}`, "success");
+      } else if (res && res.error === 'Hủy lưu PDF') {
+        showToast("Hủy lưu file PDF", "info");
+      } else {
+        showToast(`Lỗi xuất PDF: ${res ? res.error : "Không rõ nguyên nhân"}`, "error");
+      }
+    } else {
+      showToast("Môi trường trình duyệt không hỗ trợ in trực tiếp PDF. Vui lòng dùng 'In ra máy in' -> 'Save as PDF'.", "warning");
+    }
+  } catch (error) {
+    console.error("Lỗi xuất PDF:", error);
+    showToast(`Lỗi xuất PDF: ${error.message}`, "error");
+  }
+}
+
+function printCurrentVoucherToExcel(e) {
+  if (e) e.preventDefault();
+  hideVoucherPrintDropdown();
+  
+  if (!window.currentViewingVoucherId) {
+    showToast("Không tìm thấy thông tin chứng từ hiện tại", "error");
+    return;
+  }
+  
+  exportVoucherToExcel(window.currentViewingVoucherId);
+}
+
+function exportVoucherToExcel(id) {
+  const v = state.vouchers.find(x => x.id === id);
+  if (!v) {
+    showToast("Không tìm thấy thông tin chứng từ", "error");
+    return;
+  }
+
+  const companyName = state.companyName || "Công Ty Cổ Phần Rạng Đông";
+  const companyAddr = state.address || "255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh";
+  const companyTax = state.taxCode || "0100101438";
+
+  const rows = [];
+  
+  // Header
+  rows.push([companyName, "", "", "", "", "Mẫu số: " + (v.type === "purchase" ? "C21-DN" : v.type === "sales" ? "01-VT" : "01-TT")]);
+  rows.push(["TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY", "", "", "", "", "Quyển số: ........"]);
+  rows.push(["Địa chỉ: " + companyAddr, "", "", "", "", "Số: " + v.id]);
+  rows.push(["MST: " + companyTax + " | Tel: 0254.3543551", "", "", "", "", ""]);
+  rows.push(["", "", "", "", "", ""]); // Blank row
+  
+  // Title
+  let title = "CHỨNG TỪ KẾ TOÁN";
+  let subtitle = "";
+  if (v.type === "purchase_order") title = "ĐƠN ĐẶT HÀNG";
+  else if (v.type === "purchase") title = "PHIẾU NHẬP KHO";
+  else if (v.type === "purchase_return") title = "PHIẾU XUẤT KHO TRẢ NCC";
+  else if (v.type === "sales_return") title = "PHIẾU NHẬP KHO HÀNG BÁN TRẢ LẠI";
+  else if (v.type === "sales") title = "PHIẾU GIAO HÀNG";
+  else if (v.type === "sales_quotation") title = "BẢNG BÁO GIÁ";
+  else if (v.type === "receipt" || v.type === "escrow_receive") title = "PHIẾU THU";
+  else if (v.type === "payment" || v.type === "escrow_refund_pay") title = "PHIẾU CHI";
+
+  if (v.date) {
+    const y = v.date.substring(0, 4);
+    const m = v.date.substring(5, 7);
+    const d = v.date.substring(8, 10);
+    subtitle = `Ngày ${d} tháng ${m} năm ${y}`;
+  }
+  
+  rows.push([title, "", "", "", "", ""]);
+  rows.push([subtitle, "", "", "", "", ""]);
+  rows.push(["", "", "", "", "", ""]); // Blank row
+
+  const partnerName = getPartnerNameForVoucher ? getPartnerNameForVoucher(v) : (v.partnerName || "Khách hàng lẻ");
+  const partner = getPartnerForVoucher ? getPartnerForVoucher(v) : null;
+  const partnerPhone = partner ? partner.phone : "";
+  const partnerAddr = partner ? partner.address : "";
+
+  // Info
+  if (v.type === "receipt" || v.type === "payment" || v.type.startsWith("escrow_")) {
+    const isReceipt = v.type === "receipt" || v.type === "escrow_receive";
+    rows.push([`Họ và tên người ${isReceipt ? "nộp" : "nhận"} tiền:`, partnerName, "", "", "", ""]);
+    rows.push(["Địa chỉ:", [partnerAddr, partnerPhone].filter(Boolean).join(" - ") || "N/A", "", "", "", ""]);
+    rows.push([`Lý do ${isReceipt ? "nộp" : "chi"}:`, v.description || "", "", "", "", ""]);
+    rows.push(["Số tiền:", (v.amount || v.totalAmount || 0).toLocaleString("vi-VN") + " VND", "", "", "", ""]);
+    rows.push(["Viết bằng chữ:", numberToVietnameseWords(v.amount || v.totalAmount || 0), "", "", "", ""]);
+    rows.push(["Kèm theo:", "............... chứng từ gốc", "", "", "", ""]);
+  } else {
+    rows.push(["Đối tác:", partnerName, "", "", "Số điện thoại:", partnerPhone || "N/A"]);
+    rows.push(["Địa chỉ:", partnerAddr || "N/A", "", "", "Số chứng từ:", v.id]);
+    rows.push(["Diễn giải:", v.description || "", "", "", "Phương thức TT:", v.paymentMethod || "N/A"]);
+  }
+
+  rows.push(["", "", "", "", "", ""]); // Blank row
+
+  const hasItems = v.items && v.items.length > 0;
+  let itemsStartRow = rows.length;
+  if (hasItems) {
+    rows.push(["STT", "Tên sản phẩm / quy cách", "ĐVT", "Số lượng", "Đơn giá", "Thành tiền", "Ghi chú"]);
+    
+    let idx = 1;
+    let grossTotal = 0;
+    let totalDiscount = 0;
+    
+    v.items.forEach(item => {
+      const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: item.productId || "Sản phẩm", unit: "Cái" };
+      const itemAmt = item.amount || ((item.qty || 0) * (item.price || 0));
+      grossTotal += (item.qty || 0) * (item.price || 0);
+      
+      let discountVal = 0;
+      if (item.discount) {
+        if (item.discount > 100) {
+          discountVal = item.discount;
+        } else {
+          discountVal = ((item.qty || 0) * (item.price || 0)) * (item.discount / 100);
+        }
+      }
+      totalDiscount += discountVal;
+
+      rows.push([
+        idx++,
+        prod.name,
+        prod.unit || "Cái",
+        item.qty || 0,
+        item.price || 0,
+        itemAmt,
+        item.discount ? (item.discount > 100 ? `${item.discount.toLocaleString()} đ` : `${item.discount}%`) : ""
+      ]);
+    });
+
+    rows.push(["", "Cộng tiền hàng:", "", "", "", grossTotal, ""]);
+    if (totalDiscount > 0) {
+      rows.push(["", "Số tiền chiết khấu:", "", "", "", totalDiscount, ""]);
+    }
+    if (v.taxAmount > 0) {
+      rows.push(["", `Thuế GTGT (${v.taxRate || 0}%):`, "", "", "", v.taxAmount, ""]);
+    }
+    rows.push(["", "Tổng cộng tiền thanh toán:", "", "", "", v.totalAmount || grossTotal, ""]);
+    rows.push(["Số tiền viết bằng chữ:", numberToVietnameseWords(v.totalAmount || grossTotal), "", "", "", "", ""]);
+  }
+  
+  rows.push(["", "", "", "", "", ""]); // Blank row
+  rows.push(["", "", "", "", "", ""]); // Blank row
+
+  let sigs = [];
+  if (v.type === "receipt" || v.type === "escrow_receive") {
+    sigs = ["Giám đốc", "Kế toán trưởng", "Người nộp tiền", "Người lập phiếu", "Thủ quỹ"];
+  } else if (v.type === "payment" || v.type === "escrow_refund_pay") {
+    sigs = ["Giám đốc", "Kế toán trưởng", "Thủ quỹ", "Người lập phiếu", "Người nhận tiền"];
+  } else if (v.type === "purchase" || v.type === "purchase_return") {
+    sigs = ["Giám đốc", "Kế toán trưởng", "Thủ kho", "Người giao hàng", "Người lập phiếu"];
+  } else if (v.type === "sales") {
+    sigs = ["Người nhận hàng", "Người giao hàng", "Người lập phiếu", "", ""];
+  } else if (v.type === "purchase_order") {
+    sigs = ["Người lập phiếu", "Kế toán trưởng", "Đại diện NCC", "Giám đốc", ""];
+  } else {
+    sigs = ["Người lập biểu", "Kế toán trưởng", "Giám đốc", "", ""];
+  }
+
+  const activeSigs = sigs.filter(Boolean);
+  
+  rows.push(["", "", "", "", `Ngày ...... tháng ...... năm ......`, ""]);
+  
+  const sigRow = [];
+  const subRow = [];
+  activeSigs.forEach(sig => {
+    sigRow.push(sig);
+    subRow.push("(Ký, họ tên)");
+  });
+  
+  rows.push(sigRow);
+  rows.push(subRow);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+
+  const merges = [];
+  merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } });
+  merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 4 } });
+  merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: 4 } });
+  merges.push({ s: { r: 3, c: 0 }, e: { r: 3, c: 4 } });
+  
+  merges.push({ s: { r: 5, c: 0 }, e: { r: 5, c: 6 } });
+  merges.push({ s: { r: 6, c: 0 }, e: { r: 6, c: 6 } });
+
+  let infoStartRow = 8;
+  let infoEndRow = hasItems ? itemsStartRow - 1 : rows.length - 8;
+  for (let r = infoStartRow; r < infoEndRow; r++) {
+    const firstCell = rows[r] ? rows[r][0] : "";
+    if (firstCell && (firstCell.startsWith("Họ và tên") || firstCell.startsWith("Địa chỉ") || firstCell.startsWith("Lý do") || firstCell.startsWith("Số tiền") || firstCell.startsWith("Viết bằng chữ") || firstCell.startsWith("Kèm theo") || firstCell.startsWith("Đối tác") || firstCell.startsWith("Diễn giải"))) {
+      merges.push({ s: { r, c: 1 }, e: { r, c: 4 } });
+    }
+  }
+
+  if (hasItems) {
+    const inWordsRowIdx = itemsStartRow + 1 + v.items.length + (v.taxAmount > 0 ? 1 : 0) + (totalDiscount > 0 ? 1 : 0) + 1;
+    merges.push({ s: { r: inWordsRowIdx, c: 1 }, e: { r: inWordsRowIdx, c: 6 } });
+  }
+
+  ws["!merges"] = merges;
+
+  ws["!cols"] = [
+    { wch: 6 },  // A
+    { wch: 32 }, // B
+    { wch: 10 }, // C
+    { wch: 12 }, // D
+    { wch: 15 }, // E
+    { wch: 18 }, // F
+    { wch: 15 }  // G
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, "Chứng từ " + v.id);
+
+  const outName = `${v.id}_${v.date}.xlsx`;
+  XLSX.writeFile(wb, outName);
+  showToast(`Đã xuất chứng từ Excel thành công: ${outName}`, "success");
+}
+
+window.toggleVoucherPrintDropdown = toggleVoucherPrintDropdown;
+window.hideVoucherPrintDropdown = hideVoucherPrintDropdown;
+window.printCurrentVoucher = printCurrentVoucher;
+window.printCurrentVoucherToPDF = printCurrentVoucherToPDF;
+window.printCurrentVoucherToExcel = printCurrentVoucherToExcel;
+window.exportVoucherToExcel = exportVoucherToExcel;

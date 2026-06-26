@@ -1,5 +1,5 @@
 // CẤU HÌNH VÒNG ĐỜI VÀ CỬA SỔ DESKTOP APP ĐỘC LẬP (MAIN.JS)
-const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, shell, dialog } = require('electron');
 const path = require('path');
 const { exec } = require('child_process');
 const fs = require('fs');
@@ -412,6 +412,37 @@ ipcMain.handle('print-window', async (event) => {
     return { ok: true };
   } catch (err) {
     console.error('[Print] Lỗi khi xử lý in ấn IPC:', err);
+    return { ok: false, error: err.message };
+  }
+});
+
+// IPC Handler: Xuất chứng từ thành PDF
+ipcMain.handle('print-to-pdf', async (event, filename) => {
+  try {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return { ok: false, error: 'Không tìm thấy cửa sổ ứng dụng' };
+
+    const { filePath } = await dialog.showSaveDialog(win, {
+      title: 'Lưu chứng từ PDF',
+      defaultPath: path.join(app.getPath('downloads'), filename || 'ChungTu.pdf'),
+      filters: [
+        { name: 'PDF Files', extensions: ['pdf'] }
+      ]
+    });
+
+    if (!filePath) {
+      return { ok: false, error: 'Hủy lưu PDF' };
+    }
+
+    const data = await win.webContents.printToPDF({
+      printBackground: true,
+      preferCSSPageSize: true
+    });
+
+    fs.writeFileSync(filePath, data);
+    return { ok: true, filePath };
+  } catch (err) {
+    console.error('[PDF] Lỗi khi xuất PDF:', err);
     return { ok: false, error: err.message };
   }
 });

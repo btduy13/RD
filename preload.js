@@ -22,6 +22,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeLog: (content) => ipcRenderer.invoke('write-log', content),
   // Kích hoạt tiến trình in ấn hệ thống
   printWindow: () => ipcRenderer.invoke('print-window'),
+  // Xuất file PDF bản địa của OS
+  printToPDF: (filename) => ipcRenderer.invoke('print-to-pdf', filename),
   // Lưu state ra file JSON (không giới hạn kích thước, thay thế localStorage)
   writeStateFile: (jsonData) => ipcRenderer.invoke('write-state-file', jsonData),
   // Đọc state từ file JSON
