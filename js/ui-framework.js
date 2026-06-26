@@ -1550,6 +1550,7 @@ window.rdpSetInput = function(inputId, isoValue) {
         display.innerHTML = '<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> <span style="opacity:0.5">Chọn ngày</span>';
         display.classList.add('empty');
       }
+    }
   }
 };
 
