@@ -488,7 +488,7 @@ function exportCashToExcel() {
   );
 }
 
-function exportSalesToExcel() {
+function exportSalesToExcel(detailed = true) {
   if (typeof XLSX === "undefined") {
     showToast("Thư viện SheetJS chưa được nạp!", "danger");
     return;
@@ -509,15 +509,10 @@ function exportSalesToExcel() {
   filteredSales.sort((a, b) => new Date(a.date) - new Date(b.date) || a.id.localeCompare(b.id, undefined, { numeric: true }));
 
   try {
-    // ── MISA SO_CHI_TIET_BAN_HANG format ──
-    // Col: Ngày HT | Ngày CT | Số CT | Ngày HĐ | Số HĐ | DG chung | DG riêng |
-    //      Mã KH | Tên KH | Mã hàng | Tên hàng | ĐVT | SL bán | Đơn giá |
-    //      Doanh số | CK | SL trả lại | GT trả lại | GT giảm giá
     const wb = XLSX.utils.book_new();
     const ws = {};
     const merges = [];
     const today = new Date().toLocaleDateString('vi-VN');
-    const NCOLS = 19;
 
     const thin = { style: "thin", color: { rgb: "BBBBBB" } };
     const b4 = { top: thin, bottom: thin, left: thin, right: thin };
@@ -543,120 +538,208 @@ function exportSalesToExcel() {
       ws[key] = cell;
     };
 
-    // ROW 0: Tên công ty
-    sc(0, 0, state.companyName || "Công Ty Cổ Phần Rạng Đông", 's', { font: fntT, alignment: cL });
-    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: NCOLS - 1 } });
+    if (detailed) {
+      // ── MISA SO_CHI_TIET_BAN_HANG format ──
+      // Col: Ngày HT | Ngày CT | Số CT | Ngày HĐ | Số HĐ | DG chung | DG riêng |
+      //      Mã KH | Tên KH | Mã hàng | Tên hàng | ĐVT | SL bán | Đơn giá |
+      //      Doanh số | CK | SL trả lại | GT trả lại | GT giảm giá
+      const NCOLS = 19;
 
-    // ROW 1: Tiêu đề báo cáo (giống MISA)
-    sc(1, 0, "SỔ CHI TIẾT BÁN HÀNG", 's', { font: fntT, alignment: cC });
-    merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: NCOLS - 1 } });
+      // ROW 0: Tên công ty
+      sc(0, 0, state.companyName || "Công Ty Cổ Phần Rạng Đông", 's', { font: fntT, alignment: cL });
+      merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: NCOLS - 1 } });
 
-    // ROW 2: Phạm vi ngày
-    sc(2, 0, `Từ ngày: ${fromDate || 'đầu kỳ'}   Đến ngày: ${toDate || today}`, 's', { font: fntSub, alignment: cC });
-    merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: NCOLS - 1 } });
+      // ROW 1: Tiêu đề báo cáo (giống MISA)
+      sc(1, 0, "SỔ CHI TIẾT BÁN HÀNG", 's', { font: fntT, alignment: cC });
+      merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: NCOLS - 1 } });
 
-    // ROW 3: Headers (đúng tên cột MISA để có thể import lại)
-    const headers = [
-      "Ngày hạch toán", "Ngày chứng từ", "Số chứng từ", "Ngày hóa đơn", "Số hóa đơn",
-      "Diễn giải chung", "Diễn giải", "Mã khách hàng", "Tên khách hàng",
-      "Mã hàng", "Tên hàng", "ĐVT",
-      "Tổng số lượng bán", "Đơn giá", "Doanh số bán", "Chiết khấu",
-      "Tổng số lượng trả lại", "Giá trị trả lại", "Giá trị giảm giá"
-    ];
-    headers.forEach((h, c) => sc(3, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: b4 }));
+      // ROW 2: Phạm vi ngày
+      sc(2, 0, `Từ ngày: ${fromDate || 'đầu kỳ'}   Đến ngày: ${toDate || today}`, 's', { font: fntSub, alignment: cC });
+      merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: NCOLS - 1 } });
 
-    // DATA ROWS — 1 dòng mỗi sản phẩm trong mỗi chứng từ
-    let rowIdx = 4;
-    let totalQty = 0, totalGross = 0, totalCK = 0;
+      // ROW 3: Headers (đúng tên cột MISA để có thể import lại)
+      const headers = [
+        "Ngày hạch toán", "Ngày chứng từ", "Số chứng từ", "Ngày hóa đơn", "Số hóa đơn",
+        "Diễn giải chung", "Diễn giải", "Mã khách hàng", "Tên khách hàng",
+        "Mã hàng", "Tên hàng", "ĐVT",
+        "Tổng số lượng bán", "Đơn giá", "Doanh số bán", "Chiết khấu",
+        "Tổng số lượng trả lại", "Giá trị trả lại", "Giá trị giảm giá"
+      ];
+      headers.forEach((h, c) => sc(3, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: b4 }));
 
-    filteredSales.forEach((v, vi) => {
-      const bg = vi % 2 === 0 ? null : altBg;
-      const bs = al => ({ font: fntN, fill: bg, alignment: al, border: b4 });
-      const ns = al => ({ font: fntN, fill: bg, alignment: al || cR, border: b4 });
-      const partnerId = v.partnerId || "";
-      const partnerName = v.partnerName || getPartnerNameForVoucher(v);
-      const descCommon = v.description || "";
+      // DATA ROWS — 1 dòng mỗi sản phẩm trong mỗi chứng từ
+      let rowIdx = 4;
+      let totalQty = 0, totalGross = 0, totalCK = 0;
 
-      const writeRow = (productId, productName, unit, qty, price, grossAmt, ckAmt) => {
-        sc(rowIdx, 0, dateStrToSerial(v.date), 'n', bs(cC), dateFmt);
-        sc(rowIdx, 1, dateStrToSerial(v.date), 'n', bs(cC), dateFmt);
-        sc(rowIdx, 2, v.id, 's', bs(cC));
-        sc(rowIdx, 3, dateStrToSerial(v.date), 'n', bs(cC), dateFmt);
-        sc(rowIdx, 4, v.invoiceNo || "", 's', bs(cC));
-        sc(rowIdx, 5, descCommon, 's', bs(cL));
-        sc(rowIdx, 6, productName, 's', bs(cL));
-        sc(rowIdx, 7, partnerId, 's', bs(cC));
-        sc(rowIdx, 8, partnerName, 's', bs(cL));
-        sc(rowIdx, 9, productId, 's', bs(cC));
-        sc(rowIdx, 10, productName, 's', bs(cL));
-        sc(rowIdx, 11, unit, 's', bs(cC));
-        sc(rowIdx, 12, qty, 'n', ns(cR), "#,##0.##");
-        sc(rowIdx, 13, price, 'n', ns(cR), numFmt);
-        sc(rowIdx, 14, grossAmt, 'n', ns(cR), numFmt);
-        sc(rowIdx, 15, ckAmt, 'n', ns(cR), numFmt);
-        sc(rowIdx, 16, 0, 'n', ns(cR), "#,##0.##");  // SL trả lại
-        sc(rowIdx, 17, 0, 'n', ns(cR), numFmt);        // GT trả lại
-        sc(rowIdx, 18, 0, 'n', ns(cR), numFmt);        // GT giảm giá
-        totalQty += qty;
-        totalGross += grossAmt;
-        totalCK += ckAmt;
+      filteredSales.forEach((v, vi) => {
+        const bg = vi % 2 === 0 ? null : altBg;
+        const bs = al => ({ font: fntN, fill: bg, alignment: al, border: b4 });
+        const ns = al => ({ font: fntN, fill: bg, alignment: al || cR, border: b4 });
+        const partnerId = v.partnerId || "";
+        const partnerName = v.partnerName || getPartnerNameForVoucher(v);
+        const descCommon = v.description || "";
+
+        const writeRow = (productId, productName, unit, qty, price, grossAmt, ckAmt) => {
+          sc(rowIdx, 0, dateStrToSerial(v.date), 'n', bs(cC), dateFmt);
+          sc(rowIdx, 1, dateStrToSerial(v.date), 'n', bs(cC), dateFmt);
+          sc(rowIdx, 2, v.id, 's', bs(cC));
+          sc(rowIdx, 3, dateStrToSerial(v.date), 'n', bs(cC), dateFmt);
+          sc(rowIdx, 4, v.invoiceNo || "", 's', bs(cC));
+          sc(rowIdx, 5, descCommon, 's', bs(cL));
+          sc(rowIdx, 6, productName, 's', bs(cL));
+          sc(rowIdx, 7, partnerId, 's', bs(cC));
+          sc(rowIdx, 8, partnerName, 's', bs(cL));
+          sc(rowIdx, 9, productId, 's', bs(cC));
+          sc(rowIdx, 10, productName, 's', bs(cL));
+          sc(rowIdx, 11, unit, 's', bs(cC));
+          sc(rowIdx, 12, qty, 'n', ns(cR), "#,##0.##");
+          sc(rowIdx, 13, price, 'n', ns(cR), numFmt);
+          sc(rowIdx, 14, grossAmt, 'n', ns(cR), numFmt);
+          sc(rowIdx, 15, ckAmt, 'n', ns(cR), numFmt);
+          sc(rowIdx, 16, 0, 'n', ns(cR), "#,##0.##");  // SL trả lại
+          sc(rowIdx, 17, 0, 'n', ns(cR), numFmt);        // GT trả lại
+          sc(rowIdx, 18, 0, 'n', ns(cR), numFmt);        // GT giảm giá
+          totalQty += qty;
+          totalGross += grossAmt;
+          totalCK += ckAmt;
+          rowIdx++;
+        };
+
+        if (v.items && v.items.length > 0) {
+          v.items.forEach(item => {
+            const prod = (state.products || []).find(p => String(p.id) === String(item.productId));
+            const qty = item.qty || 0;
+            const price = item.price || 0;
+            const grossAmt = qty * price;
+            const ckAmt = grossAmt * ((item.discount || 0) / 100);
+            writeRow(
+              item.productId || "",
+              prod ? prod.name : (item.productName || item.productId || ""),
+              prod ? (prod.unit || "Cái") : (item.unit || "Cái"),
+              qty, price, grossAmt, ckAmt
+            );
+          });
+        } else {
+          // Voucher không có items → 1 dòng tổng
+          const gross = (v.totalAmount || 0) - (v.taxAmount || 0);
+          writeRow(v.id, descCommon, "", 0, 0, gross, 0);
+        }
+      });
+
+      // DÒNG TỔNG
+      const ts = al => ({ font: fntB, fill: totBg, alignment: al, border: b4 });
+      sc(rowIdx, 0, "TỔNG CỘNG", 's', ts(cL));
+      merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 11 } });
+      for (let c = 1; c <= 11; c++) sc(rowIdx, c, "", 's', ts(cL));
+      sc(rowIdx, 12, totalQty, 'n', ts(cR), "#,##0.##");
+      sc(rowIdx, 13, 0, 'n', ts(cR), numFmt);
+      sc(rowIdx, 14, totalGross, 'n', ts(cR), numFmt);
+      sc(rowIdx, 15, totalCK, 'n', ts(cR), numFmt);
+      sc(rowIdx, 16, 0, 'n', ts(cR), "#,##0.##");
+      sc(rowIdx, 17, 0, 'n', ts(cR), numFmt);
+      sc(rowIdx, 18, 0, 'n', ts(cR), numFmt);
+
+      ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: NCOLS - 1 } });
+      ws['!merges'] = merges;
+      ws['!cols'] = [
+        { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 12 },
+        { wch: 26 }, { wch: 26 }, { wch: 16 }, { wch: 28 },
+        { wch: 14 }, { wch: 28 }, { wch: 7 },
+        { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 12 },
+        { wch: 10 }, { wch: 14 }, { wch: 12 }
+      ];
+      ws['!rows'] = [{ hpt: 20 }, { hpt: 22 }, { hpt: 16 }, { hpt: 22 }];
+
+      XLSX.utils.book_append_sheet(wb, ws, "SO CHI TIET BAN HANG");
+      const suffix = fromDate || toDate ? `_${fromDate || ""}_${toDate || ""}` : "";
+      const outName = `SO_CHI_TIET_BAN_HANG_${new Date().toISOString().split('T')[0]}${suffix}.xlsx`;
+      XLSX.writeFile(wb, outName);
+      showToast(`Đã xuất Excel: ${outName}`, "success");
+    } else {
+      // ── Xuất danh sách hóa đơn bán hàng (chi tiet = false -> chi xuat thong tin phieu) ──
+      const NCOLS = 11;
+
+      // ROW 0: Tên công ty
+      sc(0, 0, state.companyName || "Công Ty Cổ Phần Rạng Đông", 's', { font: fntT, alignment: cL });
+      merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: NCOLS - 1 } });
+
+      // ROW 1: Tiêu đề báo cáo
+      sc(1, 0, "DANH SÁCH HÓA ĐƠN BÁN HÀNG", 's', { font: fntT, alignment: cC });
+      merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: NCOLS - 1 } });
+
+      // ROW 2: Phạm vi ngày
+      sc(2, 0, `Từ ngày: ${fromDate || 'đầu kỳ'}   Đến ngày: ${toDate || today}`, 's', { font: fntSub, alignment: cC });
+      merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: NCOLS - 1 } });
+
+      // ROW 3: Headers
+      const headers = [
+        "Ngày hạch toán", "Ngày chứng từ", "Số chứng từ", "Ngày hóa đơn", "Số hóa đơn",
+        "Khách hàng", "Diễn giải chung", "Doanh số bán", "Thuế GTGT", "Tổng cộng thanh toán", "Phương thức thanh toán"
+      ];
+      headers.forEach((h, c) => sc(3, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: b4 }));
+
+      let rowIdx = 4;
+      let totalAmountGross = 0;
+      let totalAmountTax = 0;
+      let totalAmountTotal = 0;
+
+      filteredSales.forEach((v, vi) => {
+        const bg = vi % 2 === 0 ? null : altBg;
+        const bs = al => ({ font: fntN, fill: bg, alignment: al, border: b4 });
+        const ns = al => ({ font: fntN, fill: bg, alignment: al || cR, border: b4 });
+
+        const taxAmt = v.taxAmount || 0;
+        const totalAmt = v.totalAmount || 0;
+        const grossAmt = totalAmt - taxAmt;
+        const partnerName = v.partnerName || getPartnerNameForVoucher(v);
+
+        sc(rowIdx, 0,  dateStrToSerial(v.date), 'n', bs(cC), dateFmt);  // Ngày HT
+        sc(rowIdx, 1,  dateStrToSerial(v.date), 'n', bs(cC), dateFmt);  // Ngày CT
+        sc(rowIdx, 2,  v.id,              's',  bs(cC));                 // Số CT
+        sc(rowIdx, 3,  dateStrToSerial(v.date), 'n', bs(cC), dateFmt);  // Ngày HĐ
+        sc(rowIdx, 4,  v.invoiceNo || "", 's',  bs(cC));                 // Số HĐ
+        sc(rowIdx, 5,  partnerName,       's',  bs(cL));                 // Khách hàng
+        sc(rowIdx, 6,  v.description || "", 's', bs(cL));                 // Diễn giải chung
+        sc(rowIdx, 7,  grossAmt,          'n',  ns(cR), numFmt);         // Doanh số bán
+        sc(rowIdx, 8,  taxAmt,            'n',  ns(cR), numFmt);         // Tiền thuế
+        sc(rowIdx, 9,  totalAmt,          'n',  ns(cR), numFmt);         // Tổng cộng
+        sc(rowIdx, 10, v.paymentMethod === '131' ? 'Công nợ (131)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)', 's', bs(cC));
+
+        totalAmountGross += grossAmt;
+        totalAmountTax += taxAmt;
+        totalAmountTotal += totalAmt;
         rowIdx++;
-      };
+      });
 
-      if (v.items && v.items.length > 0) {
-        v.items.forEach(item => {
-          const prod = (state.products || []).find(p => String(p.id) === String(item.productId));
-          const qty = item.qty || 0;
-          const price = item.price || 0;
-          const grossAmt = qty * price;
-          const ckAmt = grossAmt * ((item.discount || 0) / 100);
-          writeRow(
-            item.productId || "",
-            prod ? prod.name : (item.productName || item.productId || ""),
-            prod ? (prod.unit || "Cái") : (item.unit || "Cái"),
-            qty, price, grossAmt, ckAmt
-          );
-        });
-      } else {
-        // Voucher không có items → 1 dòng tổng
-        const gross = (v.totalAmount || 0) - (v.taxAmount || 0);
-        writeRow(v.id, descCommon, "", 0, 0, gross, 0);
-      }
-    });
+      // DÒNG TỔNG CỘNG
+      const ts = al => ({ font: fntB, fill: totBg, alignment: al, border: b4 });
+      sc(rowIdx, 0, "TỔNG CỘNG", 's', ts(cL));
+      merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 6 } });
+      for (let c = 1; c <= 6; c++) sc(rowIdx, c, "", 's', ts(cL));
+      sc(rowIdx, 7,  totalAmountGross,  'n', ts(cR), numFmt);
+      sc(rowIdx, 8,  totalAmountTax,    'n', ts(cR), numFmt);
+      sc(rowIdx, 9,  totalAmountTotal,  'n', ts(cR), numFmt);
+      sc(rowIdx, 10, "",                's', ts(cC));
 
-    // DÒNG TỔNG
-    const ts = al => ({ font: fntB, fill: totBg, alignment: al, border: b4 });
-    sc(rowIdx, 0, "TỔNG CỘNG", 's', ts(cL));
-    merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 11 } });
-    for (let c = 1; c <= 11; c++) sc(rowIdx, c, "", 's', ts(cL));
-    sc(rowIdx, 12, totalQty, 'n', ts(cR), "#,##0.##");
-    sc(rowIdx, 13, 0, 'n', ts(cR), numFmt);
-    sc(rowIdx, 14, totalGross, 'n', ts(cR), numFmt);
-    sc(rowIdx, 15, totalCK, 'n', ts(cR), numFmt);
-    sc(rowIdx, 16, 0, 'n', ts(cR), "#,##0.##");
-    sc(rowIdx, 17, 0, 'n', ts(cR), numFmt);
-    sc(rowIdx, 18, 0, 'n', ts(cR), numFmt);
+      ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: NCOLS - 1 } });
+      ws['!merges'] = merges;
+      ws['!cols'] = [
+        { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 12 },
+        { wch: 30 }, { wch: 30 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 18 }
+      ];
+      ws['!rows'] = [{ hpt: 20 }, { hpt: 22 }, { hpt: 16 }, { hpt: 22 }];
 
-    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: NCOLS - 1 } });
-    ws['!merges'] = merges;
-    ws['!cols'] = [
-      { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 12 },
-      { wch: 26 }, { wch: 26 }, { wch: 16 }, { wch: 28 },
-      { wch: 14 }, { wch: 28 }, { wch: 7 },
-      { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 12 },
-      { wch: 10 }, { wch: 14 }, { wch: 12 }
-    ];
-    ws['!rows'] = [{ hpt: 20 }, { hpt: 22 }, { hpt: 16 }, { hpt: 22 }];
-
-    XLSX.utils.book_append_sheet(wb, ws, "SO CHI TIET BAN HANG");
-    const suffix = fromDate || toDate ? `_${fromDate || ""}_${toDate || ""}` : "";
-    const outName = `SO_CHI_TIET_BAN_HANG_${new Date().toISOString().split('T')[0]}${suffix}.xlsx`;
-    XLSX.writeFile(wb, outName);
-    showToast(`Đã xuất Excel: ${outName}`, "success");
+      XLSX.utils.book_append_sheet(wb, ws, "Danh sach");
+      const suffix = fromDate || toDate ? `_${fromDate || ""}_${toDate || ""}` : "";
+      const outName = `DANH_SACH_BAN_HANG_${new Date().toISOString().split('T')[0]}${suffix}.xlsx`;
+      XLSX.writeFile(wb, outName);
+      showToast(`Đã xuất Excel: ${outName}`, "success");
+    }
   } catch (err) {
     console.error(err);
     showToast(`Lỗi xuất Excel bán hàng: ${err.message}`, "danger");
   }
+}
 }
 
 function toggleSelectAllCash(masterCheckbox) {

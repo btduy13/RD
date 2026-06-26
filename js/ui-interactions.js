@@ -779,6 +779,26 @@ document.addEventListener("click", function (e) {
       menu.style.display = "none";
     }
   }
+
+  // Close export dropdowns
+  const pDrop = document.getElementById("purchase-export-dropdown");
+  if (pDrop && pDrop.style.display === "block") {
+    if (!e.target.closest("#purchase-export-dropdown-wrap")) {
+      pDrop.style.display = "none";
+    }
+  }
+  const sDrop = document.getElementById("sales-export-dropdown");
+  if (sDrop && sDrop.style.display === "block") {
+    if (!e.target.closest("#sales-export-dropdown-wrap")) {
+      sDrop.style.display = "none";
+    }
+  }
+  const dDrop = document.getElementById("debts-export-dropdown");
+  if (dDrop && dDrop.style.display === "block") {
+    if (!e.target.closest("#debts-export-dropdown-wrap")) {
+      dDrop.style.display = "none";
+    }
+  }
 });
 
 function toggleAdvancedFilter(panelId) {
@@ -1226,5 +1246,56 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 window.applyFontSizeScale = applyFontSizeScale;
+
+// ── Excel Export Dropdowns Interactivity ─────────────────────────────────────
+function togglePurchaseExportDropdown(e) {
+  if (e) e.stopPropagation();
+  const dropdown = document.getElementById("purchase-export-dropdown");
+  if (dropdown) {
+    dropdown.style.display = dropdown.style.display === "none" || dropdown.style.display === "" ? "block" : "none";
+  }
+  hideSalesExportDropdown();
+  hideDebtsExportDropdown();
+}
+function hidePurchaseExportDropdown() {
+  const dropdown = document.getElementById("purchase-export-dropdown");
+  if (dropdown) dropdown.style.display = "none";
+}
+
+function toggleSalesExportDropdown(e) {
+  if (e) e.stopPropagation();
+  const dropdown = document.getElementById("sales-export-dropdown");
+  if (dropdown) {
+    dropdown.style.display = dropdown.style.display === "none" || dropdown.style.display === "" ? "block" : "none";
+  }
+  hidePurchaseExportDropdown();
+  hideDebtsExportDropdown();
+}
+function hideSalesExportDropdown() {
+  const dropdown = document.getElementById("sales-export-dropdown");
+  if (dropdown) dropdown.style.display = "none";
+}
+
+function toggleDebtsExportDropdown(e) {
+  if (e) e.stopPropagation();
+  const dropdown = document.getElementById("debts-export-dropdown");
+  if (dropdown) {
+    dropdown.style.display = dropdown.style.display === "none" || dropdown.style.display === "" ? "block" : "none";
+  }
+  hidePurchaseExportDropdown();
+  hideSalesExportDropdown();
+}
+function hideDebtsExportDropdown() {
+  const dropdown = document.getElementById("debts-export-dropdown");
+  if (dropdown) dropdown.style.display = "none";
+}
+
+window.togglePurchaseExportDropdown = togglePurchaseExportDropdown;
+window.hidePurchaseExportDropdown = hidePurchaseExportDropdown;
+window.toggleSalesExportDropdown = toggleSalesExportDropdown;
+window.hideSalesExportDropdown = hideSalesExportDropdown;
+window.toggleDebtsExportDropdown = toggleDebtsExportDropdown;
+window.hideDebtsExportDropdown = hideDebtsExportDropdown;
+
 
 

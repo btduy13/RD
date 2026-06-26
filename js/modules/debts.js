@@ -1742,6 +1742,190 @@ function exportDebtsToExcel() {
     showToast(`Lỗi xuất Excel công nợ: ${err.message}`, "danger");
   }
 }
+
+function exportDebtsToExcelDetailed() {
+  if (typeof XLSX === "undefined") {
+    showToast("Thư viện SheetJS chưa được nạp!", "danger");
+    return;
+  }
+  try {
+    const wb = XLSX.utils.book_new();
+    const ws = {};
+    const merges = [];
+
+    const thin = { style: "thin", color: { rgb: "AAAAAA" } };
+    const border4 = { top: thin, bottom: thin, left: thin, right: thin };
+    const hdrBg = { patternType: "solid", fgColor: { rgb: "1F497D" } };
+    const altBg = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
+    const totBg = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
+    const secBg = { patternType: "solid", fgColor: { rgb: "EBF3FF" } };
+    const fntT = { name: "Times New Roman", sz: 13, bold: true };
+    const fntB = { name: "Times New Roman", sz: 11, bold: true };
+    const fntN = { name: "Times New Roman", sz: 11 };
+    const cC = { horizontal: "center", vertical: "center" };
+    const cL = { horizontal: "left", vertical: "center", wrapText: true };
+    const cR = { horizontal: "right", vertical: "center" };
+    const numFmt = "#,##0 ;[Red](#,##0)";
+    const dateFmt = "dd/mm/yyyy";
+
+    const sc = (r, c, v, t, s, z) => {
+      const key = XLSX.utils.encode_cell({ r, c });
+      const cell = { v, t: t || (typeof v === 'number' ? 'n' : 's') };
+      if (s) cell.s = s;
+      if (z) cell.z = z;
+      ws[key] = cell;
+    };
+
+    const headers = ["Ngày HT/CT", "Số chứng từ", "Diễn giải", "Tài khoản đối ứng", "Nợ phát sinh", "Có phát sinh", "Dư Nợ lũy kế", "Dư Có lũy kế"];
+    const ncols = headers.length;
+
+    // ROW 0: Tiêu đề
+    sc(0, 0, (state.companyName || "Công Ty Cổ Phần Rạng Đông") + " — CHI TIẾT SỔ CÔNG NỢ ĐỐI TÁC", 's', { font: fntT, alignment: cC });
+    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: ncols - 1 } });
+
+    const calculatedDebts = calculatePartnerDebts();
+    let rowIdx = 2;
+
+    calculatedDebts.forEach((d) => {
+      const p = state.partners.find(item => item.id === d.id);
+      if (!p) return;
+
+      const primaryType = p.type;
+      const op = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
+      const opDebit = op.debit || 0;
+      const opCredit = op.credit || 0;
+      let runningVal = 0;
+      if (primaryType === "customer") {
+        runningVal = opDebit - opCredit;
+      } else {
+        runningVal = opCredit - opDebit;
+      }
+
+      const ledgerEntries = [];
+      let debitSum = 0;
+      let creditSum = 0;
+
+      state.vouchers.forEach(v => {
+        if (v.partnerId !== p.id) return;
+        if (!v.entries) return;
+
+        let debitAmount = 0;
+        let creditAmount = 0;
+        let offsetAccountSet = new Set();
+
+        v.entries.forEach(e => {
+          let isRelevant = false;
+          if (primaryType === "customer") {
+            isRelevant = e.debit.startsWith("131") || e.credit.startsWith("131");
+          } else if (primaryType === "supplier") {
+            isRelevant = e.debit.startsWith("331") || e.credit.startsWith("331");
+          } else {
+            isRelevant = (e.debit.startsWith("131") || e.credit.startsWith("131"))
+                      || (e.debit.startsWith("331") || e.credit.startsWith("331"));
+          }
+          if (!isRelevant) return;
+
+          if (e.debit.startsWith("131") || e.debit.startsWith("331")) {
+            debitAmount += e.amount;
+            offsetAccountSet.add(e.credit);
+          } else {
+            creditAmount += e.amount;
+            offsetAccountSet.add(e.debit);
+          }
+        });
+
+        if (debitAmount > 0 || creditAmount > 0) {
+          ledgerEntries.push({
+            date: v.date,
+            id: v.id,
+            desc: v.description,
+            offsetAccount: Array.from(offsetAccountSet).join(", "),
+            debit: debitAmount,
+            credit: creditAmount
+          });
+          debitSum += debitAmount;
+          creditSum += creditAmount;
+        }
+      });
+
+      ledgerEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      if (ledgerEntries.length === 0 && opDebit === 0 && opCredit === 0) {
+        return;
+      }
+
+      sc(rowIdx, 0, `ĐỐI TÁC: [${p.id}] - ${p.name} (${primaryType === 'customer' ? 'Khách hàng' : primaryType === 'supplier' ? 'Nhà cung cấp' : 'Cả hai'})`, 's', { font: fntB, fill: secBg, alignment: cL });
+      merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: ncols - 1 } });
+      rowIdx++;
+
+      headers.forEach((h, c) => sc(rowIdx, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: border4 }));
+      rowIdx++;
+
+      sc(rowIdx, 0, "", 's', { font: fntN, border: border4 });
+      sc(rowIdx, 1, "", 's', { font: fntN, border: border4 });
+      sc(rowIdx, 2, "Số dư đầu kỳ", 's', { font: fntB, alignment: cL, border: border4 });
+      sc(rowIdx, 3, "", 's', { font: fntN, border: border4 });
+      sc(rowIdx, 4, "", 's', { font: fntN, border: border4 });
+      sc(rowIdx, 5, "", 's', { font: fntN, border: border4 });
+      if (primaryType === "customer") {
+        sc(rowIdx, 6, runningVal >= 0 ? runningVal : 0, 'n', { font: fntB, alignment: cR, border: border4 }, numFmt);
+        sc(rowIdx, 7, runningVal < 0 ? -runningVal : 0, 'n', { font: fntB, alignment: cR, border: border4 }, numFmt);
+      } else {
+        sc(rowIdx, 6, runningVal < 0 ? -runningVal : 0, 'n', { font: fntB, alignment: cR, border: border4 }, numFmt);
+        sc(rowIdx, 7, runningVal >= 0 ? runningVal : 0, 'n', { font: fntB, alignment: cR, border: border4 }, numFmt);
+      }
+      rowIdx++;
+
+      ledgerEntries.forEach((entry) => {
+        sc(rowIdx, 0, dateStrToSerial(entry.date), 'n', { font: fntN, alignment: cC, border: border4 }, dateFmt);
+        sc(rowIdx, 1, entry.id, 's', { font: fntN, alignment: cC, border: border4 });
+        sc(rowIdx, 2, entry.desc, 's', { font: fntN, alignment: cL, border: border4 });
+        sc(rowIdx, 3, entry.offsetAccount, 's', { font: fntN, alignment: cC, border: border4 });
+        sc(rowIdx, 4, entry.debit, 'n', { font: fntN, alignment: cR, border: border4 }, numFmt);
+        sc(rowIdx, 5, entry.credit, 'n', { font: fntN, alignment: cR, border: border4 }, numFmt);
+
+        if (primaryType === "customer") {
+          runningVal += entry.debit - entry.credit;
+          sc(rowIdx, 6, runningVal >= 0 ? runningVal : 0, 'n', { font: fntN, alignment: cR, border: border4 }, numFmt);
+          sc(rowIdx, 7, runningVal < 0 ? -runningVal : 0, 'n', { font: fntN, alignment: cR, border: border4 }, numFmt);
+        } else {
+          runningVal += entry.credit - entry.debit;
+          sc(rowIdx, 6, runningVal < 0 ? -runningVal : 0, 'n', { font: fntN, alignment: cR, border: border4 }, numFmt);
+          sc(rowIdx, 7, runningVal >= 0 ? runningVal : 0, 'n', { font: fntN, alignment: cR, border: border4 }, numFmt);
+        }
+        rowIdx++;
+      });
+
+      sc(rowIdx, 0, "", 's', { font: fntB, fill: totBg, border: border4 });
+      sc(rowIdx, 1, "", 's', { font: fntB, fill: totBg, border: border4 });
+      sc(rowIdx, 2, "Cộng phát sinh", 's', { font: fntB, fill: totBg, alignment: cL, border: border4 });
+      sc(rowIdx, 3, "", 's', { font: fntB, fill: totBg, border: border4 });
+      sc(rowIdx, 4, debitSum, 'n', { font: fntB, fill: totBg, alignment: cR, border: border4 }, numFmt);
+      sc(rowIdx, 5, creditSum, 'n', { font: fntB, fill: totBg, alignment: cR, border: border4 }, numFmt);
+      if (primaryType === "customer") {
+        sc(rowIdx, 6, runningVal >= 0 ? runningVal : 0, 'n', { font: fntB, fill: totBg, alignment: cR, border: border4 }, numFmt);
+        sc(rowIdx, 7, runningVal < 0 ? -runningVal : 0, 'n', { font: fntB, fill: totBg, alignment: cR, border: border4 }, numFmt);
+      } else {
+        sc(rowIdx, 6, runningVal < 0 ? -runningVal : 0, 'n', { font: fntB, fill: totBg, alignment: cR, border: border4 }, numFmt);
+        sc(rowIdx, 7, runningVal >= 0 ? runningVal : 0, 'n', { font: fntB, fill: totBg, alignment: cR, border: border4 }, numFmt);
+      }
+      rowIdx += 3;
+    });
+
+    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: ncols - 1 } });
+    ws['!merges'] = merges;
+    ws['!cols'] = [{ wch: 14 }, { wch: 14 }, { wch: 38 }, { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
+    
+    XLSX.utils.book_append_sheet(wb, ws, "Chi tiet cong no");
+    const outName = `Chi_tiet_cong_no_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, outName);
+    showToast(`Đã xuất Excel: ${outName}`, "success");
+  } catch (err) {
+    console.error(err);
+    showToast(`Lỗi xuất chi tiết công nợ: ${err.message}`, "danger");
+  }
+}
+
 window.promptEditOrderDebt = promptEditOrderDebt;
 window.promptEditPartnerOpeningDebt = promptEditPartnerOpeningDebt;
 window.handleEditDebtSubmit = handleEditDebtSubmit;
@@ -1807,6 +1991,7 @@ window.toggleSelectAllDebts = toggleSelectAllDebts;
 window.updateBatchDebtsUI = updateBatchDebtsUI;
 window.batchDeleteDebts = batchDeleteDebts;
 window.exportDebtsToExcel = exportDebtsToExcel;
+window.exportDebtsToExcelDetailed = exportDebtsToExcelDetailed;
 // Grouped / dual-tab
 window.switchDebtsViewTab = switchDebtsViewTab;
 window.renderDebtsGroupedTable = renderDebtsGroupedTable;

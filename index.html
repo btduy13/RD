@@ -617,17 +617,47 @@
                 <input type="file" id="excel-file-purchase-view" accept=".xlsx, .xls" style="display: none;"
                   onchange="handleExcelImport(event, 'purchase')">
 
-                <button class="btn btn-secondary" onclick="exportPurchasesToExcel()"
-                  style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
-                  onmouseover="this.style.borderColor='var(--color-primary)'; this.style.color='var(--color-primary)'"
-                  onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'">
-                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                  </svg>
-                  Xuất Excel
-                </button>
+                <div style="position: relative; display: inline-block;" id="purchase-export-dropdown-wrap">
+                  <button class="btn btn-secondary" onclick="togglePurchaseExportDropdown(event)"
+                    style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
+                    onmouseover="this.style.borderColor='var(--color-primary)'; this.style.color='var(--color-primary)'"
+                    onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+                      <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                    Xuất Excel
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-left: -2px;">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                  </button>
+                  <div id="purchase-export-dropdown" style="display:none; position:absolute; top:100%; right:0; margin-top:4px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:var(--radius-md); box-shadow:0 4px 16px rgba(0,0,0,0.15); z-index:1000; min-width:220px; overflow:hidden;">
+                    <button onclick="exportPurchasesToExcel(false); hidePurchaseExportDropdown()"
+                      style="display:flex; align-items:center; gap:8px; width:100%; padding:10px 16px; border:none; background:none; cursor:pointer; font-size:13px; color:var(--text-primary); text-align:left; transition:background 0.15s;"
+                      onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background='none'">
+                      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px; height:16px; flex-shrink:0;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                      </svg>
+                      <div>
+                        <div style="font-weight:600;">Xuất danh sách</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:1px;">Chỉ xuất tên/thông tin phiếu</div>
+                      </div>
+                    </button>
+                    <div style="border-top:1px solid var(--border-color);"></div>
+                    <button onclick="exportPurchasesToExcel(true); hidePurchaseExportDropdown()"
+                      style="display:flex; align-items:center; gap:8px; width:100%; padding:10px 16px; border:none; background:none; cursor:pointer; font-size:13px; color:var(--text-primary); text-align:left; transition:background 0.15s;"
+                      onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background='none'">
+                      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px; height:16px; flex-shrink:0;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                      </svg>
+                      <div>
+                        <div style="font-weight:600;">Xuất chi tiết</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:1px;">Gồm tất cả mặt hàng trong phiếu</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
 
                 <button class="btn btn-primary" onclick="resetPurchaseForm(); openModal('modal-add-purchase')"
                   style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25); cursor: pointer; transition: all 0.2s;">
@@ -1052,17 +1082,47 @@
                 <input type="file" id="excel-file-sales-view" accept=".xlsx, .xls" style="display: none;"
                   onchange="handleExcelImport(event, 'sales')">
 
-                <button class="btn btn-secondary" onclick="exportSalesToExcel()"
-                  style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
-                  onmouseover="this.style.borderColor='var(--color-primary)'; this.style.color='var(--color-primary)'"
-                  onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'">
-                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                  </svg>
-                  Xuất Excel
-                </button>
+                <div style="position: relative; display: inline-block;" id="sales-export-dropdown-wrap">
+                  <button class="btn btn-secondary" onclick="toggleSalesExportDropdown(event)"
+                    style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
+                    onmouseover="this.style.borderColor='var(--color-primary)'; this.style.color='var(--color-primary)'"
+                    onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+                      <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                    Xuất Excel
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-left: -2px;">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                  </button>
+                  <div id="sales-export-dropdown" style="display:none; position:absolute; top:100%; right:0; margin-top:4px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:var(--radius-md); box-shadow:0 4px 16px rgba(0,0,0,0.15); z-index:1000; min-width:220px; overflow:hidden;">
+                    <button onclick="exportSalesToExcel(false); hideSalesExportDropdown()"
+                      style="display:flex; align-items:center; gap:8px; width:100%; padding:10px 16px; border:none; background:none; cursor:pointer; font-size:13px; color:var(--text-primary); text-align:left; transition:background 0.15s;"
+                      onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background='none'">
+                      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px; height:16px; flex-shrink:0;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                      </svg>
+                      <div>
+                        <div style="font-weight:600;">Xuất danh sách</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:1px;">Chỉ xuất tên/thông tin phiếu</div>
+                      </div>
+                    </button>
+                    <div style="border-top:1px solid var(--border-color);"></div>
+                    <button onclick="exportSalesToExcel(true); hideSalesExportDropdown()"
+                      style="display:flex; align-items:center; gap:8px; width:100%; padding:10px 16px; border:none; background:none; cursor:pointer; font-size:13px; color:var(--text-primary); text-align:left; transition:background 0.15s;"
+                      onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background='none'">
+                      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px; height:16px; flex-shrink:0;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                      </svg>
+                      <div>
+                        <div style="font-weight:600;">Xuất chi tiết</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:1px;">Gồm tất cả mặt hàng trong phiếu</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
 
                 <button class="btn btn-success" onclick="resetSalesForm(); openModal('modal-add-sales')"
                   style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25); cursor: pointer; transition: all 0.2s;">
@@ -2092,17 +2152,47 @@
               <input type="file" id="excel-file-debts-view" accept=".xlsx, .xls" style="display: none;"
                 onchange="handleExcelImport(event, 'debts_opening')">
 
-              <button class="btn btn-secondary" onclick="exportDebtsToExcel()"
-                style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
-                onmouseover="this.style.borderColor='var(--color-primary)'; this.style.color='var(--color-primary)'"
-                onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
-                  <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                </svg>
-                Xuất Công nợ Excel
-              </button>
+              <div style="position: relative; display: inline-block;" id="debts-export-dropdown-wrap">
+                <button class="btn btn-secondary" onclick="toggleDebtsExportDropdown()"
+                  style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
+                  onmouseover="this.style.borderColor='var(--color-primary)'; this.style.color='var(--color-primary)'"
+                  onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                  </svg>
+                  Xuất Excel
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-left: -2px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
+                  </svg>
+                </button>
+                <div id="debts-export-dropdown" style="display:none; position:absolute; top:100%; right:0; margin-top:4px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:var(--radius-md); box-shadow:0 4px 16px rgba(0,0,0,0.15); z-index:1000; min-width:200px; overflow:hidden;">
+                  <button onclick="exportDebtsToExcel(); hideDebtsExportDropdown()"
+                    style="display:flex; align-items:center; gap:8px; width:100%; padding:10px 16px; border:none; background:none; cursor:pointer; font-size:13px; color:var(--text-primary); text-align:left; transition:background 0.15s;"
+                    onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background='none'">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px; height:16px; flex-shrink:0;">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                    <div>
+                      <div style="font-weight:600;">Xuất danh sách</div>
+                      <div style="font-size:11px; color:var(--text-muted); margin-top:1px;">Chỉ tên đối tác & số dư</div>
+                    </div>
+                  </button>
+                  <div style="border-top:1px solid var(--border-color);"></div>
+                  <button onclick="exportDebtsToExcelDetailed(); hideDebtsExportDropdown()"
+                    style="display:flex; align-items:center; gap:8px; width:100%; padding:10px 16px; border:none; background:none; cursor:pointer; font-size:13px; color:var(--text-primary); text-align:left; transition:background 0.15s;"
+                    onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background='none'">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px; height:16px; flex-shrink:0;">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <div>
+                      <div style="font-weight:600;">Xuất chi tiết</div>
+                      <div style="font-size:11px; color:var(--text-muted); margin-top:1px;">Gồm tất cả đơn hàng từng đối tác</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
