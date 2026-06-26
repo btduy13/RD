@@ -1683,7 +1683,7 @@ function exportVoucherToExcel(id) {
     rows.push([`Họ và tên người ${isReceipt ? "nộp" : "nhận"} tiền:`, partnerName, "", "", "", ""]);
     rows.push(["Địa chỉ:", [partnerAddr, partnerPhone].filter(Boolean).join(" - ") || "N/A", "", "", "", ""]);
     rows.push([`Lý do ${isReceipt ? "nộp" : "chi"}:`, v.description || "", "", "", "", ""]);
-    rows.push(["Số tiền:", (v.amount || v.totalAmount || 0).toLocaleString("vi-VN") + " VND", "", "", "", ""]);
+    rows.push(["Số tiền:", v.amount || v.totalAmount || 0, "", "", "", ""]);
     rows.push(["Viết bằng chữ:", numberToVietnameseWords(v.amount || v.totalAmount || 0), "", "", "", ""]);
     rows.push(["Kèm theo:", "............... chứng từ gốc", "", "", "", ""]);
   } else {
@@ -1810,6 +1810,161 @@ function exportVoucherToExcel(id) {
     { wch: 18 }, // F
     { wch: 15 }  // G
   ];
+
+  // Apply formatting, font, alignment, fill and border to the sheet
+  const fontTitle = { name: "Times New Roman", sz: 14, bold: true };
+  const fontSubtitle = { name: "Times New Roman", sz: 11, italic: true };
+  const fontCompany = { name: "Times New Roman", sz: 12, bold: true };
+  const fontAddr = { name: "Times New Roman", sz: 9.5 };
+  const fontNormal = { name: "Times New Roman", sz: 11 };
+  const fontBold = { name: "Times New Roman", sz: 11, bold: true };
+  const fontItalic = { name: "Times New Roman", sz: 10, italic: true };
+  const fontHeader = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
+  
+  const alignCenter = { horizontal: "center", vertical: "center" };
+  const alignLeft = { horizontal: "left", vertical: "center" };
+  const alignRight = { horizontal: "right", vertical: "center" };
+  
+  const thinBorder = { style: "thin", color: { rgb: "999999" } };
+  const border4 = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+  const headerBg = { patternType: "solid", fgColor: { rgb: "2F5496" } };
+  const totalsBg = { patternType: "solid", fgColor: { rgb: "F9FAFB" } };
+
+  // Loop through all cells in ws
+  for (const cellRef in ws) {
+    if (cellRef.startsWith("!")) continue;
+    const cell = ws[cellRef];
+    if (!cell) continue;
+    
+    const coord = XLSX.utils.decode_cell(cellRef);
+    const r = coord.r;
+    const c = coord.c;
+    
+    if (typeof cell.v === "number") {
+      cell.t = "n";
+    }
+    
+    let style = { font: fontNormal };
+    
+    // Check by row and column position first
+    if (r >= 0 && r <= 3) {
+      // Company Header
+      if (c === 0) {
+        style = { font: r <= 1 ? fontCompany : fontAddr, alignment: alignLeft };
+      } else {
+        style = { font: fontNormal, alignment: alignCenter };
+      }
+      cell.s = style;
+      continue;
+    }
+    
+    if (r === 5) {
+      // Main Title
+      style = { font: fontTitle, alignment: alignCenter };
+      cell.s = style;
+      continue;
+    }
+    
+    if (r === 6) {
+      // Subtitle (Date)
+      style = { font: fontSubtitle, alignment: alignCenter };
+      cell.s = style;
+      continue;
+    }
+    
+    // Check cell value contents for contextual styling
+    const valStr = cell.v ? String(cell.v).trim() : "";
+    
+    if (valStr.startsWith("Số tiền viết bằng chữ:") || valStr.startsWith("Tổng số tiền (viết bằng chữ):") || valStr.startsWith("Tổng số tiền viết bằng chữ:") || valStr.startsWith("Viết bằng chữ:")) {
+      style = { font: fontItalic, alignment: alignLeft };
+      cell.s = style;
+      continue;
+    }
+    
+    if (valStr.startsWith("Cộng tiền hàng") || valStr.startsWith("Số tiền chiết khấu:") || valStr.startsWith("Thuế GTGT") || valStr.startsWith("Tổng cộng tiền") || valStr.startsWith("Tổng cộng giá trị") || valStr.startsWith("Tổng tiền thanh toán:")) {
+      style = { font: fontBold, alignment: alignRight, fill: totalsBg };
+      cell.s = style;
+      continue;
+    }
+    
+    // Check if it's the value cell for a totals row (row has totals label in column 1)
+    const rowLabelCell = ws[XLSX.utils.encode_cell({ r, c: 1 })];
+    const rowLabelVal = rowLabelCell && rowLabelCell.v ? String(rowLabelCell.v).trim() : "";
+    if (c === 5 && (rowLabelVal.startsWith("Cộng tiền hàng") || rowLabelVal.startsWith("Số tiền chiết khấu:") || rowLabelVal.startsWith("Thuế GTGT") || rowLabelVal.startsWith("Tổng cộng tiền") || rowLabelVal.startsWith("Tổng cộng giá trị") || rowLabelVal.startsWith("Tổng tiền thanh toán:"))) {
+      cell.z = "#,##0";
+      style = { font: fontBold, alignment: alignRight, fill: totalsBg };
+      cell.s = style;
+      continue;
+    }
+
+    // Check if it's the value cell for a cash voucher amount (row has label in column 0)
+    const col0LabelCell = ws[XLSX.utils.encode_cell({ r, c: 0 })];
+    const col0LabelVal = col0LabelCell && col0LabelCell.v ? String(col0LabelCell.v).trim() : "";
+    if (col0LabelVal.startsWith("Số tiền:") && c === 1) {
+      cell.z = '#,##0" VND"';
+      style = { font: fontBold, alignment: alignLeft };
+      cell.s = style;
+      continue;
+    }
+
+    if (valStr.startsWith("Ngày ...... tháng ......")) {
+      style = { font: fontItalic, alignment: alignRight };
+      cell.s = style;
+      continue;
+    }
+
+    // Check signature labels
+    const sigLabels = ["Người lập phiếu", "Người lập biểu", "Kế toán trưởng", "Giám đốc", "Người nộp tiền", "Thủ quỹ", "Người nhận tiền", "Người giao hàng", "Thủ kho", "Đại diện NCC", "Người nhận hàng", "Đại diện khách hàng", "Người báo giá", "Đại diện nhà cung cấp"];
+    if (sigLabels.includes(valStr)) {
+      style = { font: fontBold, alignment: alignCenter };
+      cell.s = style;
+      continue;
+    }
+    
+    if (valStr === "(Ký, họ tên)" || valStr === "(Ký, họ tên, đóng dấu)") {
+      style = { font: fontItalic, alignment: alignCenter };
+      cell.s = style;
+      continue;
+    }
+
+    // Info section (r between 8 and itemsStartRow)
+    if (r >= 8 && r < itemsStartRow) {
+      const isLabel = (c === 0 || c === 4);
+      style = { font: isLabel ? fontBold : fontNormal, alignment: alignLeft };
+      cell.s = style;
+      continue;
+    }
+
+    // Table rows (Header & Data)
+    if (hasItems && r === itemsStartRow) {
+      style = { font: fontHeader, fill: headerBg, alignment: alignCenter, border: border4 };
+      cell.s = style;
+      continue;
+    }
+    
+    if (hasItems && r > itemsStartRow && r <= itemsStartRow + v.items.length) {
+      let align = alignLeft;
+      if (c === 0) align = alignCenter; // STT
+      else if (c === 2) align = alignCenter; // Unit
+      else if (c === 3) {
+        align = alignRight; // Qty
+        cell.z = "#,##0.0";
+      } else if (c === 4) {
+        align = alignRight; // Price
+        cell.z = "#,##0";
+      } else if (c === 5) {
+        align = alignRight; // Amount
+        cell.z = "#,##0";
+      } else if (c === 6) {
+        align = alignCenter; // Note/Discount
+      }
+      style = { font: fontNormal, alignment: align, border: border4 };
+      cell.s = style;
+      continue;
+    }
+    
+    cell.s = style;
+  }
 
   XLSX.utils.book_append_sheet(wb, ws, "Chứng từ " + v.id);
 
