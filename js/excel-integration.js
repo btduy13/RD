@@ -1730,6 +1730,41 @@ function handleExcelImport(event, type) {
   event.target.value = "";
 }
 
+// Tìm dòng chứa tiêu đề (header) của bảng dữ liệu Excel một cách mềm dẻo (fuzzy matching)
+function findExcelHeaderRow(rows, requiredKeywords) {
+  for (let r = 0; r < Math.min(rows.length, 15); r++) {
+    const row = rows[r];
+    if (!row || !Array.isArray(row)) continue;
+    const normalizedCells = row.map(cell => 
+      cell !== undefined && cell !== null ? cell.toString().trim().toLowerCase() : ""
+    );
+    const matchedAll = requiredKeywords.every(keywordGroup => {
+      return keywordGroup.some(keyword => {
+        return normalizedCells.some(cellVal => cellVal === keyword || cellVal.includes(keyword));
+      });
+    });
+    if (matchedAll) return r;
+  }
+  return -1;
+}
+
+// Tìm chỉ số cột (index) của tiêu đề dựa trên danh sách từ đồng nghĩa
+function findColumnIndex(headerRow, synonyms) {
+  if (!headerRow || !Array.isArray(headerRow)) return -1;
+  const normalized = headerRow.map(cell => 
+    cell !== undefined && cell !== null ? cell.toString().trim().toLowerCase() : ""
+  );
+  for (const syn of synonyms) {
+    const exactIdx = normalized.indexOf(syn.toLowerCase());
+    if (exactIdx !== -1) return exactIdx;
+  }
+  for (const syn of synonyms) {
+    const partialIdx = normalized.findIndex(cellVal => cellVal.includes(syn.toLowerCase()));
+    if (partialIdx !== -1) return partialIdx;
+  }
+  return -1;
+}
+
 // Bộ máy phân tích Excel động Client-side
 function parseExcelFile(file, type) {
   if (typeof XLSX === "undefined") {
@@ -2061,22 +2096,85 @@ function parseExcelFile(file, type) {
         showToast(`Đã nạp thành công ${count} chứng từ vào sổ cái!`, "success");
       } else if (type === 'sales') {
         let isDetailed = false;
-        let headerIdx = -1;
-        for (let r = 0; r < Math.min(rows.length, 10); r++) {
-          if (rows[r] && rows[r].includes("Số chứng từ") && rows[r].includes("Mã hàng")) {
-            headerIdx = r;
-            isDetailed = true;
-            break;
-          }
+        const requiredKeywords = [
+          ["số chứng từ", "số ct", "số đơn hàng", "số đơn", "mã chứng từ", "mã ct", "số hđ", "số hóa đơn", "voucher id", "voucher_id"],
+          ["mã hàng", "mã sp", "mã sản phẩm", "mã hàng hóa", "mã vật tư", "product id", "product_id"]
+        ];
+        const headerIdx = findExcelHeaderRow(rows, requiredKeywords);
+        if (headerIdx !== -1) {
+          isDetailed = true;
         }
 
         if (isDetailed) {
           let count = 0;
           const groupMap = new Map();
           const startRow = headerIdx + 1;
+
+          // Default column positions
+          let colVoucherId = 2;
+          let colDate = 1;
+          let colProductId = 9;
+          let colProductName = 10;
+          let colUnit = 11;
+          let colPartner = 7;
+          let colPartnerName = 8;
+          let colDescription = 5;
+          let colQty = 12;
+          let colPrice = 13;
+          let colDiscount = 15;
+          let colReturnQty = 16;
+          let colReturnAmount = 17;
+
+          if (headerIdx !== -1) {
+            const header = rows[headerIdx];
+
+            const vIdx = findColumnIndex(header, ["số chứng từ", "số ct", "mã chứng từ", "mã ct", "voucher id", "voucher_id", "số hđ", "số hóa đơn"]);
+            if (vIdx !== -1) colVoucherId = vIdx;
+
+            const dIdx = findColumnIndex(header, ["ngày chứng từ", "ngày hạch toán", "ngày ct", "ngày lập", "date"]);
+            if (dIdx !== -1) colDate = dIdx;
+            
+            const mhIdx = findColumnIndex(header, ["mã hàng", "mã sp", "mã sản phẩm", "mã hàng hóa", "mã vật tư"]);
+            if (mhIdx !== -1) {
+              colProductId = mhIdx;
+              colProductName = mhIdx + 1;
+              colUnit = mhIdx + 2;
+            }
+            
+            const nameIdx = findColumnIndex(header, ["tên hàng", "tên sp", "tên sản phẩm", "tên hàng hóa"]);
+            if (nameIdx !== -1) colProductName = nameIdx;
+            
+            const unitIdx = findColumnIndex(header, ["đvt", "đơn vị tính", "đơn vị"]);
+            if (unitIdx !== -1) colUnit = unitIdx;
+            
+            const mkhIdx = findColumnIndex(header, ["mã khách hàng", "mã kh", "mã đối tác", "mã ncc", "mã nhà cung cấp"]);
+            if (mkhIdx !== -1) colPartner = mkhIdx;
+            
+            const tkhIdx = findColumnIndex(header, ["tên khách hàng", "tên kh", "tên đối tác", "tên ncc", "tên nhà cung cấp"]);
+            if (tkhIdx !== -1) colPartnerName = tkhIdx;
+            
+            const descIdx = findColumnIndex(header, ["diễn giải chung", "diễn giải"]);
+            if (descIdx !== -1) colDescription = descIdx;
+            
+            const qIdx = findColumnIndex(header, ["tổng số lượng bán", "số lượng bán", "số lượng", "số lượng mua"]);
+            if (qIdx !== -1) colQty = qIdx;
+            
+            const pIdx = findColumnIndex(header, ["đơn giá", "giá"]);
+            if (pIdx !== -1) colPrice = pIdx;
+            
+            const discIdx = findColumnIndex(header, ["chiết khấu", "tiền chiết khấu"]);
+            if (discIdx !== -1) colDiscount = discIdx;
+            
+            const rqIdx = findColumnIndex(header, ["tổng số lượng trả lại", "số lượng trả lại", "sl trả lại"]);
+            if (rqIdx !== -1) colReturnQty = rqIdx;
+            
+            const raIdx = findColumnIndex(header, ["giá trị trả lại", "tiền trả lại", "gt trả lại"]);
+            if (raIdx !== -1) colReturnAmount = raIdx;
+          }
+
           for (let i = startRow; i < rows.length; i++) {
             const row = rows[i];
-            const voucherId = (row[2] || "").toString().trim();
+            const voucherId = (row[colVoucherId] || "").toString().trim();
             if (!voucherId || voucherId.startsWith("TỔNG")) continue;
             if (!groupMap.has(voucherId)) groupMap.set(voucherId, []);
             groupMap.get(voucherId).push(row);
@@ -2094,15 +2192,15 @@ function parseExcelFile(file, type) {
 
           for (const [voucherId, voucherRows] of groupMap.entries()) {
             const firstRow = voucherRows[0];
-            const dateStr = excelDateToISOString(firstRow[1] || firstRow[0]);
+            const dateStr = excelDateToISOString(firstRow[colDate] || firstRow[0]);
 
             // Auto-detect loại từ prefix ID
             const detectedType = detectVoucherTypeFromId(voucherId) || 'sales';
 
-            const partnerIdRaw = (firstRow[7] || "").toString().trim();
+            const partnerIdRaw = (firstRow[colPartner] || "").toString().trim();
             const partnerId = partnerIdRaw ? partnerIdRaw : `DT_${Math.floor(1000 + Math.random() * 9000)}`;
-            const partnerName = (firstRow[8] || "Khách hàng vãng lai").toString().trim();
-            const description = (firstRow[5] || "Bán hàng").toString().trim();
+            const partnerName = (firstRow[colPartnerName] || "Khách hàng vãng lai").toString().trim();
+            const description = (firstRow[colDescription] || "Bán hàng").toString().trim();
 
             if (!partnerMap.has(partnerId)) {
               const pType = (detectedType === 'purchase' || detectedType === 'purchase_return') ? 'supplier' : 'customer';
@@ -2123,21 +2221,20 @@ function parseExcelFile(file, type) {
             let totalVoucherAmount = 0;
 
             for (const row of voucherRows) {
-              const productId = (row[9] || "SP_GENERIC").toString().trim();
-              const productName = (row[10] || "Sản phẩm generic").toString().trim();
-              const unit = (row[11] || "Cái").toString().trim();
+              const productId = (row[colProductId] || "SP_GENERIC").toString().trim();
+              const productName = (row[colProductName] || "Sản phẩm generic").toString().trim();
+              const unit = (row[colUnit] || "Cái").toString().trim();
 
               let qty, price, discountVal;
               if (detectedType === 'sales_return' || detectedType === 'purchase_return') {
-                // Col[16]=SL trả lại, col[17]=GT trả lại, col[13]=đơn giá gốc
-                qty = safeParseFloat(row[16]);
-                const grossRet = safeParseFloat(row[17]);
-                price = qty > 0 ? Math.round(grossRet / qty) : safeParseFloat(row[13]);
+                qty = safeParseFloat(row[colReturnQty]);
+                const grossRet = safeParseFloat(row[colReturnAmount]);
+                price = qty > 0 ? Math.round(grossRet / qty) : safeParseFloat(row[colPrice]);
                 discountVal = 0;
               } else {
-                qty = safeParseFloat(row[12]);
-                price = safeParseFloat(row[13]);
-                discountVal = safeParseFloat(row[15]);
+                qty = safeParseFloat(row[colQty]);
+                price = safeParseFloat(row[colPrice]);
+                discountVal = safeParseFloat(row[colDiscount]);
               }
 
               const grossAmount = qty * price;
@@ -2303,19 +2400,66 @@ function parseExcelFile(file, type) {
       
       else if (type === 'sales_quotation') {
         let isDetailed = false;
-        let headerIdx = -1;
-        for (let r = 0; r < Math.min(rows.length, 10); r++) {
-          if (rows[r] && rows[r].includes("Số chứng từ") && rows[r].includes("Mã hàng")) {
-            headerIdx = r;
-            isDetailed = true;
-            break;
-          }
+        const requiredKeywords = [
+          ["số chứng từ", "số ct", "số đơn hàng", "số đơn", "mã chứng từ", "mã ct", "số hđ", "số hóa đơn", "voucher id", "voucher_id"],
+          ["mã hàng", "mã sp", "mã sản phẩm", "mã hàng hóa", "mã vật tư", "product id", "product_id"]
+        ];
+        const headerIdx = findExcelHeaderRow(rows, requiredKeywords);
+        if (headerIdx !== -1) {
+          isDetailed = true;
         }
 
         if (isDetailed) {
           let count = 0;
           const groupMap = new Map();
           const startRow = headerIdx + 1;
+
+          // Default column positions
+          let colProductId = 9;
+          let colProductName = 10;
+          let colUnit = 11;
+          let colPartner = 7;
+          let colPartnerName = 8;
+          let colDescription = 5;
+          let colQty = 12;
+          let colPrice = 13;
+          let colDiscount = 15;
+
+          if (headerIdx !== -1) {
+            const header = rows[headerIdx];
+            
+            const mhIdx = findColumnIndex(header, ["mã hàng", "mã sp", "mã sản phẩm", "mã hàng hóa", "mã vật tư"]);
+            if (mhIdx !== -1) {
+              colProductId = mhIdx;
+              colProductName = mhIdx + 1;
+              colUnit = mhIdx + 2;
+            }
+            
+            const nameIdx = findColumnIndex(header, ["tên hàng", "tên sp", "tên sản phẩm", "tên hàng hóa"]);
+            if (nameIdx !== -1) colProductName = nameIdx;
+            
+            const unitIdx = findColumnIndex(header, ["đvt", "đơn vị tính", "đơn vị"]);
+            if (unitIdx !== -1) colUnit = unitIdx;
+            
+            const mkhIdx = findColumnIndex(header, ["mã khách hàng", "mã kh", "mã đối tác", "mã ncc", "mã nhà cung cấp"]);
+            if (mkhIdx !== -1) colPartner = mkhIdx;
+            
+            const tkhIdx = findColumnIndex(header, ["tên khách hàng", "tên kh", "tên đối tác", "tên ncc", "tên nhà cung cấp"]);
+            if (tkhIdx !== -1) colPartnerName = tkhIdx;
+            
+            const descIdx = findColumnIndex(header, ["diễn giải chung", "diễn giải"]);
+            if (descIdx !== -1) colDescription = descIdx;
+            
+            const qIdx = findColumnIndex(header, ["tổng số lượng bán", "số lượng bán", "số lượng", "số lượng mua"]);
+            if (qIdx !== -1) colQty = qIdx;
+            
+            const pIdx = findColumnIndex(header, ["đơn giá", "giá"]);
+            if (pIdx !== -1) colPrice = pIdx;
+            
+            const discIdx = findColumnIndex(header, ["chiết khấu", "tiền chiết khấu"]);
+            if (discIdx !== -1) colDiscount = discIdx;
+          }
+
           for (let i = startRow; i < rows.length; i++) {
             const row = rows[i];
             const voucherId = (row[2] || "").toString().trim();
@@ -2340,10 +2484,10 @@ function parseExcelFile(file, type) {
             const firstRow = voucherRows[0];
             const dateStr = excelDateToISOString(firstRow[1] || firstRow[0]);
 
-            const partnerIdRaw = (firstRow[7] || "").toString().trim();
+            const partnerIdRaw = (firstRow[colPartner] || "").toString().trim();
             const partnerId = partnerIdRaw ? partnerIdRaw : `DT_${Math.floor(1000 + Math.random() * 9000)}`;
-            const partnerName = (firstRow[8] || "Khách hàng vãng lai").toString().trim();
-            const description = (firstRow[5] || "Báo giá hàng hóa").toString().trim();
+            const partnerName = (firstRow[colPartnerName] || "Khách hàng vãng lai").toString().trim();
+            const description = (firstRow[colDescription] || "Báo giá hàng hóa").toString().trim();
 
             if (!partnerMap.has(partnerId)) {
               const pObj = {
@@ -2369,12 +2513,12 @@ function parseExcelFile(file, type) {
             let totalVoucherAmount = 0;
 
             for (const row of voucherRows) {
-              const productId = (row[9] || "SP_GENERIC").toString().trim();
-              const productName = (row[10] || "Sản phẩm generic").toString().trim();
-              const unit = (row[11] || "Cái").toString().trim();
-              const qty = safeParseFloat(row[12]);
-              const price = safeParseFloat(row[13]);
-              const discountVal = safeParseFloat(row[15]);
+              const productId = (row[colProductId] || "SP_GENERIC").toString().trim();
+              const productName = (row[colProductName] || "Sản phẩm generic").toString().trim();
+              const unit = (row[colUnit] || "Cái").toString().trim();
+              const qty = safeParseFloat(row[colQty]);
+              const price = safeParseFloat(row[colPrice]);
+              const discountVal = safeParseFloat(row[colDiscount]);
 
               const grossAmount = qty * price;
               const amount = grossAmount - discountVal;
@@ -2525,17 +2669,18 @@ function parseExcelFile(file, type) {
         let count = 0;
         const groupMap = new Map();
 
-        // Tìm header row
-        let headerIdx = -1;
-        for (let r = 0; r < Math.min(rows.length, 10); r++) {
-          if (rows[r] && rows[r].includes("Số chứng từ") && rows[r].includes("Mã hàng")) {
-            headerIdx = r;
-            break;
-          }
-        }
+        // Tìm header row fuzzy
+        const requiredKeywords = [
+          ["số chứng từ", "số ct", "số đơn hàng", "số đơn", "mã chứng từ", "mã ct", "số hđ", "số hóa đơn", "voucher id", "voucher_id"],
+          ["mã hàng", "mã sp", "mã sản phẩm", "mã hàng hóa", "mã vật tư", "product id", "product_id"]
+        ];
+        const headerIdx = findExcelHeaderRow(rows, requiredKeywords);
         const startRow = headerIdx !== -1 ? headerIdx + 1 : 2;
 
         // Phát hiện vị trí cột từ header động
+        let colVoucherId = 2;
+        let colDate = 1;
+        let colInvoiceNo = 4;
         let colProductId = 5;  // SO_CHI_TIET_MUA_HANG mặc định
         let colProductName = 6;
         let colUnit = 7;
@@ -2544,32 +2689,56 @@ function parseExcelFile(file, type) {
         let colQty = 13;
         let colPrice = 14;
         let colAmount = 17;
+        let colDescription = -1;
 
         if (headerIdx !== -1) {
           const header = rows[headerIdx];
-          // Phát hiện cột Mã hàng (có thể ở vị trí khác nhau tùy format)
-          const mhIdx = header.indexOf("Mã hàng");
-          if (mhIdx !== -1) colProductId = mhIdx;
-          if (mhIdx !== -1 && mhIdx + 1 < header.length) colProductName = mhIdx + 1;
-          if (mhIdx !== -1 && mhIdx + 2 < header.length) colUnit = mhIdx + 2;
-          // Phát hiện cột partner
-          const maNccIdx = header.indexOf("Mã NCC") !== -1 ? header.indexOf("Mã NCC") : header.indexOf("Mã khách hàng");
-          const tenNccIdx = header.indexOf("Tên NCC") !== -1 ? header.indexOf("Tên NCC") : header.indexOf("Tên khách hàng");
+
+          const vIdx = findColumnIndex(header, ["số chứng từ", "số ct", "mã chứng từ", "mã ct", "voucher id", "voucher_id", "số hđ", "số hóa đơn"]);
+          if (vIdx !== -1) colVoucherId = vIdx;
+
+          const dIdx = findColumnIndex(header, ["ngày chứng từ", "ngày hạch toán", "ngày ct", "ngày lập", "date"]);
+          if (dIdx !== -1) colDate = dIdx;
+
+          const invNoIdx = findColumnIndex(header, ["số hóa đơn", "số hđ", "invoice no", "invoice_no"]);
+          if (invNoIdx !== -1) colInvoiceNo = invNoIdx;
+
+          const descIdx = findColumnIndex(header, ["diễn giải", "lý do", "nội dung", "ghi chú", "description", "memo"]);
+          if (descIdx !== -1) colDescription = descIdx;
+          
+          const mhIdx = findColumnIndex(header, ["mã hàng", "mã sp", "mã sản phẩm", "mã hàng hóa", "mã vật tư"]);
+          if (mhIdx !== -1) {
+            colProductId = mhIdx;
+            colProductName = mhIdx + 1;
+            colUnit = mhIdx + 2;
+          }
+          
+          const nameIdx = findColumnIndex(header, ["tên hàng", "tên sp", "tên sản phẩm", "tên hàng hóa"]);
+          if (nameIdx !== -1) colProductName = nameIdx;
+          
+          const unitIdx = findColumnIndex(header, ["đvt", "đơn vị tính", "đơn vị"]);
+          if (unitIdx !== -1) colUnit = unitIdx;
+          
+          const maNccIdx = findColumnIndex(header, ["mã ncc", "mã khách hàng", "mã kh", "mã đối tác", "mã nhà cung cấp"]);
           if (maNccIdx !== -1) colPartner = maNccIdx;
+          
+          const tenNccIdx = findColumnIndex(header, ["tên ncc", "tên khách hàng", "tên kh", "tên đối tác", "tên nhà cung cấp"]);
           if (tenNccIdx !== -1) colPartnerName = tenNccIdx;
-          // Qty, Price, Amount
-          const qLst = ["Số lượng trả lại", "Số lượng mua", "Số lượng bán", "Số lượng"];
-          for (const ql of qLst) { const qi = header.indexOf(ql); if (qi !== -1) { colQty = qi; break; } }
-          const pIdx = header.indexOf("Đơn giá");
+          
+          const qIdx = findColumnIndex(header, ["số lượng mua", "số lượng bán", "số lượng trả lại", "số lượng"]);
+          if (qIdx !== -1) colQty = qIdx;
+          
+          const pIdx = findColumnIndex(header, ["đơn giá", "giá"]);
           if (pIdx !== -1) colPrice = pIdx;
-          const aLst = ["Giá trị trả lại", "Giá trị mua", "Doanh số bán", "Thành tiền"];
-          for (const al of aLst) { const ai = header.indexOf(al); if (ai !== -1) { colAmount = ai; break; } }
+          
+          const aIdx = findColumnIndex(header, ["giá trị mua", "doanh số bán", "giá trị trả lại", "giá trị giảm giá", "thành tiền"]);
+          if (aIdx !== -1) colAmount = aIdx;
         }
 
         // Gom hàng theo voucherId
         for (let i = startRow; i < rows.length; i++) {
           const row = rows[i];
-          const voucherId = (row[2] || "").toString().trim();
+          const voucherId = (row[colVoucherId] || "").toString().trim();
           if (!voucherId || voucherId.startsWith("TỔNG")) continue;
           if (!groupMap.has(voucherId)) groupMap.set(voucherId, []);
           groupMap.get(voucherId).push(row);
@@ -2584,8 +2753,8 @@ function parseExcelFile(file, type) {
 
         for (const [voucherId, voucherRows] of groupMap.entries()) {
           const firstRow = voucherRows[0];
-          const dateStr = excelDateToISOString(firstRow[1] || firstRow[0]);
-          const invoiceNo = (firstRow[4] || "").toString().trim();
+          const dateStr = excelDateToISOString(firstRow[colDate] || firstRow[0]);
+          const invoiceNo = (firstRow[colInvoiceNo] || "").toString().trim();
 
           // Auto-detect loại từ prefix ID, fallback về type từ tham số UI
           const detectedType = detectVoucherTypeFromId(voucherId) || type;
@@ -2612,7 +2781,7 @@ function parseExcelFile(file, type) {
             : detectedType === 'sales_return'
               ? `Hàng bán trả lại${invoiceNo ? ' HĐ ' + invoiceNo : ''}`
               : `Trả lại hàng mua${invoiceNo ? ' HĐ ' + invoiceNo : ''}`;
-          const description = (firstRow[5] || descBase).toString().trim();
+          const description = (colDescription !== -1 && firstRow[colDescription]) ? firstRow[colDescription].toString().trim() : descBase;
           const paymentMethod = (detectedType === 'purchase' || detectedType === 'purchase_return') ? "331" : "131";
 
           const itemsArray = [];
@@ -2684,18 +2853,21 @@ function parseExcelFile(file, type) {
         let count = 0;
         
         // 1. Phân biệt định dạng
-        let headerIdx = -1;
-        let isDetailedFormat = false;
+        const detailedKeywords = [
+          ["số chứng từ", "số ct", "số đơn hàng", "số đơn", "mã chứng từ", "mã ct", "voucher id", "voucher_id"],
+          ["mã hàng", "mã sp", "mã sản phẩm", "mã hàng hóa", "mã vật tư", "product id", "product_id"]
+        ];
+        const listKeywords = [
+          ["số đơn hàng", "số đơn", "số chứng từ", "số ct", "mã chứng từ", "mã ct"],
+          ["ngày đơn hàng", "ngày đơn", "ngày chứng từ", "ngày ct", "ngày giao hàng", "ngày giao"]
+        ];
 
-        for (let r = 0; r < Math.min(rows.length, 10); r++) {
-          const row = rows[r];
-          if (row && (row.includes("Số chứng từ") || row.includes("Số đơn hàng"))) {
-            headerIdx = r;
-            if (row.includes("Mã hàng") || row.includes("Mã SP")) {
-              isDetailedFormat = true;
-            }
-            break;
-          }
+        let headerIdx = findExcelHeaderRow(rows, detailedKeywords);
+        let isDetailedFormat = false;
+        if (headerIdx !== -1) {
+          isDetailedFormat = true;
+        } else {
+          headerIdx = findExcelHeaderRow(rows, listKeywords);
         }
 
         const partnerMap = new Map();
@@ -2712,23 +2884,54 @@ function parseExcelFile(file, type) {
           const groupMap = new Map();
           let startRow = headerIdx !== -1 ? headerIdx + 1 : 2;
 
+          let colVoucherId = 2;
+          let colDate = 1;
+          let colInvoiceNo = 4;
+          let colProductId = 5;
+          let colProductName = 6;
+          let colUnit = 7;
           let colQty = 13;
           let colPrice = 14;
           let colAmount = 17;
 
           if (headerIdx !== -1) {
             const header = rows[headerIdx];
-            const qIdx = header.indexOf("Số lượng mua") !== -1 ? header.indexOf("Số lượng mua") : header.indexOf("Số lượng");
-            const pIdx = header.indexOf("Đơn giá");
-            const aIdx = header.indexOf("Giá trị mua") !== -1 ? header.indexOf("Giá trị mua") : header.indexOf("Thành tiền");
+            
+            const vIdx = findColumnIndex(header, ["số chứng từ", "số ct", "mã chứng từ", "mã ct", "voucher id", "voucher_id", "số đơn hàng", "số đơn"]);
+            if (vIdx !== -1) colVoucherId = vIdx;
+
+            const dIdx = findColumnIndex(header, ["ngày chứng từ", "ngày hạch toán", "ngày ct", "ngày lập", "date", "ngày đơn hàng", "ngày đơn"]);
+            if (dIdx !== -1) colDate = dIdx;
+
+            const invNoIdx = findColumnIndex(header, ["số hóa đơn", "số hđ", "invoice no", "invoice_no", "số đơn hàng", "số đơn"]);
+            if (invNoIdx !== -1) colInvoiceNo = invNoIdx;
+
+            const mhIdx = findColumnIndex(header, ["mã hàng", "mã sp", "mã sản phẩm", "mã hàng hóa", "mã vật tư"]);
+            if (mhIdx !== -1) {
+              colProductId = mhIdx;
+              colProductName = mhIdx + 1;
+              colUnit = mhIdx + 2;
+            }
+            
+            const nameIdx = findColumnIndex(header, ["tên hàng", "tên sp", "tên sản phẩm", "tên hàng hóa"]);
+            if (nameIdx !== -1) colProductName = nameIdx;
+            
+            const unitIdx = findColumnIndex(header, ["đvt", "đơn vị tính", "đơn vị"]);
+            if (unitIdx !== -1) colUnit = unitIdx;
+
+            const qIdx = findColumnIndex(header, ["số lượng mua", "số lượng bán", "số lượng trả lại", "số lượng", "số lượng đặt", "sl đặt"]);
             if (qIdx !== -1) colQty = qIdx;
+            
+            const pIdx = findColumnIndex(header, ["đơn giá", "giá"]);
             if (pIdx !== -1) colPrice = pIdx;
+            
+            const aIdx = findColumnIndex(header, ["giá trị mua", "doanh số bán", "giá trị trả lại", "giá trị giảm giá", "thành tiền"]);
             if (aIdx !== -1) colAmount = aIdx;
           }
 
           for (let i = startRow; i < rows.length; i++) {
             const row = rows[i];
-            const voucherId = (row[2] || "").toString().trim();
+            const voucherId = (row[colVoucherId] || "").toString().trim();
             if (!voucherId || voucherId.startsWith("TỔNG")) continue;
 
             if (!groupMap.has(voucherId)) {
@@ -2754,17 +2957,17 @@ function parseExcelFile(file, type) {
 
           for (const [voucherId, voucherRows] of groupMap.entries()) {
             const firstRow = voucherRows[0];
-            const dateStr = excelDateToISOString(firstRow[1] || firstRow[0]);
-            const invoiceNo = firstRow[4] || "";
+            const dateStr = excelDateToISOString(firstRow[colDate] || firstRow[0]);
+            const invoiceNo = firstRow[colInvoiceNo] || "";
             const description = `Đơn đặt hàng mua hàng theo số ${invoiceNo || voucherId}`;
 
             const itemsArray = [];
             let totalVoucherAmount = 0;
 
             for (const row of voucherRows) {
-              const productId = (row[5] || "SP_GENERIC").toString().trim();
-              const productName = (row[6] || "Sản phẩm generic").toString().trim();
-              const unit = (row[7] || "Cái").toString().trim();
+              const productId = (row[colProductId] || "SP_GENERIC").toString().trim();
+              const productName = (row[colProductName] || "Sản phẩm generic").toString().trim();
+              const unit = (row[colUnit] || "Cái").toString().trim();
               const qty = safeParseFloat(row[colQty]);
               const price = safeParseFloat(row[colPrice]);
               const amount = safeParseFloat(row[colAmount]) || (qty * price);
@@ -2820,13 +3023,31 @@ function parseExcelFile(file, type) {
         } else {
           // --- THẾ HỆ MỚI: DANH SÁCH ĐƠN MUA HÀNG (MẪU DON_MUA_HANG.XLSX) ---
           let startRow = headerIdx !== -1 ? headerIdx + 1 : 2;
-          const header = headerIdx !== -1 ? rows[headerIdx] : [];
+          
+          let colDate = 1;
+          let colId = 2;
+          let colPartner = 4;
+          let colDesc = 5;
+          let colTotal = 6;
 
-          const colDate = header.indexOf("Ngày đơn hàng") !== -1 ? header.indexOf("Ngày đơn hàng") : 1;
-          const colId = header.indexOf("Số đơn hàng") !== -1 ? header.indexOf("Số đơn hàng") : 2;
-          const colPartner = header.indexOf("Nhà cung cấp") !== -1 ? header.indexOf("Nhà cung cấp") : 4;
-          const colDesc = header.indexOf("Diễn giải") !== -1 ? header.indexOf("Diễn giải") : 5;
-          const colTotal = header.indexOf("Giá trị đơn hàng") !== -1 ? header.indexOf("Giá trị đơn hàng") : 6;
+          if (headerIdx !== -1) {
+            const header = rows[headerIdx];
+            
+            const dIdx = findColumnIndex(header, ["ngày đơn hàng", "ngày đơn", "ngày chứng từ", "ngày ct", "ngày hạch toán", "ngày"]);
+            if (dIdx !== -1) colDate = dIdx;
+
+            const idIdx = findColumnIndex(header, ["số đơn hàng", "số đơn", "số chứng từ", "số ct", "mã đơn hàng", "mã đơn", "voucher id", "voucher_id"]);
+            if (idIdx !== -1) colId = idIdx;
+
+            const partnerIdx = findColumnIndex(header, ["nhà cung cấp", "ncc", "đối tác", "tên ncc", "tên nhà cung cấp", "supplier", "vendor"]);
+            if (partnerIdx !== -1) colPartner = partnerIdx;
+
+            const descIdx = findColumnIndex(header, ["diễn giải", "nội dung", "ghi chú", "description", "memo"]);
+            if (descIdx !== -1) colDesc = descIdx;
+
+            const totalIdx = findColumnIndex(header, ["giá trị đơn hàng", "giá trị", "giá trị mua", "thành tiền", "tổng tiền", "amount", "total amount"]);
+            if (totalIdx !== -1) colTotal = totalIdx;
+          }
 
           // Đảm bảo có sản phẩm generic
           const genericProductId = "SP_GENERIC";
