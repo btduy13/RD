@@ -1696,12 +1696,13 @@ function exportVoucherToExcel(id) {
 
   const hasItems = v.items && v.items.length > 0;
   let itemsStartRow = rows.length;
+  let totalDiscount = 0;
   if (hasItems) {
     rows.push(["STT", "Tên sản phẩm / quy cách", "ĐVT", "Số lượng", "Đơn giá", "Thành tiền", "Ghi chú"]);
     
     let idx = 1;
     let grossTotal = 0;
-    let totalDiscount = 0;
+    totalDiscount = 0;
     
     v.items.forEach(item => {
       const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: item.productId || "Sản phẩm", unit: "Cái" };
