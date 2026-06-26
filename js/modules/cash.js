@@ -740,7 +740,6 @@ function exportSalesToExcel(detailed = true) {
     showToast(`Lỗi xuất Excel bán hàng: ${err.message}`, "danger");
   }
 }
-}
 
 function toggleSelectAllCash(masterCheckbox) {
   const checkboxes = document.querySelectorAll(".cash-checkbox");

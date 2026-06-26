@@ -752,7 +752,6 @@ function exportPurchasesToExcel(detailed = true) {
     showToast(`Lỗi xuất Excel mua hàng: ${err.message}`, "danger");
   }
 }
-}
 
 
 window.editPurchaseVoucher = editPurchaseVoucher;
