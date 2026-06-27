@@ -1,5 +1,5 @@
 let filteredDebtsList = [];
-let currentDebtsViewTab = 'overview'; // 'overview' | 'individual' | 'project' | 'company' | 'partner'
+let currentDebtsViewTab = 'overview'; // 'overview' | 'project' (khách cá nhân) | 'company' | 'partner'
 let filteredDebtsGroupedList = [];
 let debtsGroupedPage = 1;
 let activePartnerNameForGroupedLedger = "";
@@ -360,24 +360,12 @@ function filterDebts() {
     return;
   }
 
-  if (currentDebtsViewTab === 'individual') {
-    filteredIndividualList = allDebts.filter(d => {
-      if (d.type !== 'customer') return false; // Only show customers
-      if (!makeFilter(d)) return false;
-      const p = (state.partners || []).find(x => x.id === d.id);
-      return classifyPartnerCategory(p || { name: d.name }) === 'individual';
-    });
-    debtsIndividualPage = 1;
-    renderDebtsIndividualTable();
-    return;
-  }
-
   if (currentDebtsViewTab === 'project') {
+    // Tab "Khách Cá Nhân" = tất cả customer (gộp cả cá nhân và công trình)
     filteredDebtsList = allDebts.filter(d => {
-      if (d.type !== 'customer') return false; // Only show customers
+      if (d.type !== 'customer') return false;
       if (!makeFilter(d)) return false;
-      const p = (state.partners || []).find(x => x.id === d.id);
-      return classifyPartnerCategory(p || { name: d.name }) === 'project';
+      return true;
     });
     debtsPage = 1;
     renderDebtsTable();
@@ -600,7 +588,7 @@ function switchDebtsViewTab(tabName) {
   currentDebtsViewTab = tabName;
 
   // All tab containers and buttons
-  const tabs = ['overview', 'individual', 'project', 'company', 'partner'];
+  const tabs = ['overview', 'project', 'company', 'partner', 'individual']; // keep individual for backward-compat hide
   tabs.forEach(t => {
     const container = document.getElementById(`debts-by-${t}-container`);
     const btn = document.getElementById(`debts-tab-btn-${t}`);
@@ -2509,20 +2497,19 @@ function renderDebtOverview(allDebts) {
       if (d.closingDebit > 0) { totalRec += d.closingDebit; partnersWithDebt++; }
       if (d.closingCredit > 0) { partnersOverpaid++; }
       totalNetRec += net;
-
       const cat = classifyPartnerCategory(partnerMap[d.id] || { name: d.name });
       const cs = cats[cat] || cats.project;
       cs.rec += d.closingDebit || 0;
       cs.overpaid += d.closingCredit || 0;
       if (d.closingDebit > 0 || d.closingCredit > 0) cs.count++;
+
+      totalInitOB += (d.openingDebit || 0) - (d.openingCredit || 0);
+      totalDebitTx += d.debitTrans || 0;
+      totalCreditTx += d.creditTrans || 0;
     }
     if (d.type === 'supplier' || d.type === 'both') {
       totalPay += d.closingCredit || 0;
     }
-    // For audit: accumulate opening + transactions
-    totalInitOB += (d.openingDebit || 0) - (d.openingCredit || 0);
-    totalDebitTx += d.debitTrans || 0;
-    totalCreditTx += d.creditTrans || 0;
   });
 
   // KPI cards
@@ -2546,26 +2533,31 @@ function renderDebtOverview(allDebts) {
     `).join('');
   }
 
-  // Breakdown table
+  // Breakdown table — 2 rows: Khách Cá Nhân (gộp toàn bộ cá nhân + công trình) + Trong đó: Công nợ theo Công ty
   if (breakdownEl) {
+    const nonCompanyRec = cats.individual.rec + cats.project.rec + cats.company.rec;
+    const nonCompanyOvp = cats.individual.overpaid + cats.project.overpaid + cats.company.overpaid;
+    const nonCompanyNet = nonCompanyRec - nonCompanyOvp;
+    const nonCompanyCount = cats.individual.count + cats.project.count + cats.company.count;
+    const compRec = cats.company.rec;
+    const compOvp = cats.company.overpaid;
+    const compNet = compRec - compOvp;
+    const compCount = cats.company.count;
+    const totalRowRec = nonCompanyRec;
+    const totalRowOvp = nonCompanyOvp;
+    const totalRowNet = nonCompanyNet;
+    const totalRowCount = nonCompanyCount;
     const catRows = [
-      { label: '👤 Khách Cá Nhân', key: 'individual', accent: '#4f9cf9' },
-      { label: '🏗️ Công Trình', key: 'project', accent: '#f97316' },
-      { label: '🏢 Công Ty', key: 'company', accent: '#22c55e' }
+      { label: '👤 Khách Cá Nhân / Công trình (Tổng)', rec: nonCompanyRec, ovp: nonCompanyOvp, net: nonCompanyNet, count: nonCompanyCount },
+      { label: '🏢 Trong đó: Công nợ theo Công ty', rec: compRec, ovp: compOvp, net: compNet, count: compCount }
     ];
-    let totalRowRec = 0, totalRowOvp = 0, totalRowNet = 0, totalRowCount = 0;
-    const rows = catRows.map(cr => {
-      const cs = cats[cr.key];
-      const net = cs.rec - cs.overpaid;
-      totalRowRec += cs.rec; totalRowOvp += cs.overpaid; totalRowNet += net; totalRowCount += cs.count;
-      return `<tr>
-        <td style="font-weight:600; color:var(--text-primary);">${cr.label}</td>
-        <td style="text-align:right; font-family:monospace;">${cs.count.toLocaleString('vi-VN')}</td>
-        <td style="text-align:right; color:var(--color-success); font-family:monospace;">${cs.rec > 0 ? formatVND(cs.rec).replace('đ','') : '-'}</td>
-        <td style="text-align:right; color:var(--color-warning); font-family:monospace;">${cs.overpaid > 0 ? formatVND(cs.overpaid).replace('đ','') : '-'}</td>
-        <td style="text-align:right; font-weight:700; font-family:monospace; color:${(cs.rec-cs.overpaid)>=0?'var(--color-success)':'var(--color-danger)'};">${formatVND(net).replace('đ','')}</td>
-      </tr>`;
-    });
+    const rows = catRows.map(cr => `<tr>
+      <td style="font-weight:600; color:var(--text-primary);">${cr.label}</td>
+      <td style="text-align:right; font-family:monospace;">${cr.count.toLocaleString('vi-VN')}</td>
+      <td style="text-align:right; color:var(--color-success); font-family:monospace;">${cr.rec > 0 ? formatVND(cr.rec).replace('đ','') : '-'}</td>
+      <td style="text-align:right; color:var(--color-warning); font-family:monospace;">${cr.ovp > 0 ? formatVND(cr.ovp).replace('đ','') : '-'}</td>
+      <td style="text-align:right; font-weight:700; font-family:monospace; color:${cr.net>=0?'var(--color-success)':'var(--color-danger)'};">${formatVND(cr.net).replace('đ','')}</td>
+    </tr>`);
     rows.push(`<tr style="font-weight:bold; background:var(--bg-tertiary); border-top:2px solid var(--border-color);">
       <td>TỔNG CỘNG</td>
       <td style="text-align:right; font-family:monospace;">${totalRowCount.toLocaleString('vi-VN')}</td>

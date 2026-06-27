@@ -1035,7 +1035,7 @@ function repositionDropdown(input, dropdown) {
   dropdown.style.position = 'fixed';
   dropdown.style.top = rect.bottom + 'px';
   dropdown.style.left = rect.left + 'px';
-  dropdown.style.width = rect.width + 'px';
+  dropdown.style.width = Math.max(rect.width, 480) + 'px';
   dropdown.style.zIndex = '999999';
 }
 

@@ -381,6 +381,31 @@ function recalculateAccounting(shouldSave = true) {
     }
   });
 
+  // Tự động đồng bộ số dư đầu kỳ của tài khoản kế toán 131 và 331 từ danh mục công nợ đối tác
+  if (state.initialBalances && state.partnerOpeningBalances) {
+    let customerNetOpen = 0;
+    let supplierNetOpen = 0;
+    state.partners.forEach(p => {
+      const op = state.partnerOpeningBalances[p.id];
+      if (op) {
+        if (p.type === 'customer') {
+          customerNetOpen += (op.debit || 0) - (op.credit || 0);
+        } else if (p.type === 'supplier') {
+          supplierNetOpen += (op.credit || 0) - (op.debit || 0);
+        }
+      }
+    });
+    if (state.initialBalances["131"]) {
+      state.initialBalances["131"].balance = customerNetOpen >= 0 ? customerNetOpen : -customerNetOpen;
+      state.initialBalances["131"].type = customerNetOpen >= 0 ? "debit" : "credit";
+    }
+    if (state.initialBalances["331"]) {
+      state.initialBalances["331"].balance = supplierNetOpen >= 0 ? supplierNetOpen : -supplierNetOpen;
+      state.initialBalances["331"].type = supplierNetOpen >= 0 ? "credit" : "debit";
+    }
+    rebalanceEquity();
+  }
+
   // Cập nhật lại cache sản phẩm & đối tác
   if (typeof cacheProductOptions === "function") {
     cacheProductOptions();

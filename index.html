@@ -687,6 +687,7 @@
                           onchange="toggleSelectAllPurchases(this)"></th>
                       <th>Số chứng từ</th>
                       <th>Ngày lập</th>
+                      <th>Nhà cung cấp</th>
                       <th>Diễn giải</th>
                       <th>Phương thức</th>
                       <th class="text-right">Tổng cộng</th>
@@ -826,6 +827,7 @@
                           onchange="toggleSelectAllPurchaseOrders(this)"></th>
                       <th>Số đơn hàng</th>
                       <th>Ngày lập</th>
+                      <th>Nhà cung cấp</th>
                       <th>Diễn giải</th>
                       <th>Phương thức</th>
                       <th class="text-right">Tổng cộng</th>
@@ -964,6 +966,7 @@
                           onchange="toggleSelectAllPurchaseReturns(this)"></th>
                       <th>Số chứng từ</th>
                       <th>Ngày lập</th>
+                      <th>Nhà cung cấp</th>
                       <th>Diễn giải</th>
                       <th>Phương thức</th>
                       <th class="text-right">Tổng cộng</th>
@@ -2244,15 +2247,10 @@
               <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
               Tổng Quan
             </button>
-            <button id="debts-tab-btn-individual" onclick="switchDebtsViewTab('individual')"
+            <button id="debts-tab-btn-project" onclick="switchDebtsViewTab('project')"
               style="padding: 9px 20px; font-size: 13px; font-weight: 600; border: none; border-bottom: 3px solid transparent; background: transparent; color: var(--text-secondary); cursor: pointer; display:inline-flex; align-items:center; gap:6px; transition: all 0.18s;">
               <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
               Khách Cá Nhân
-            </button>
-            <button id="debts-tab-btn-project" onclick="switchDebtsViewTab('project')"
-              style="padding: 9px 20px; font-size: 13px; font-weight: 600; border: none; border-bottom: 3px solid transparent; background: transparent; color: var(--text-secondary); cursor: pointer; display:inline-flex; align-items:center; gap:6px; transition: all 0.18s;">
-              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-              Theo Công Trình
             </button>
             <button id="debts-tab-btn-company" onclick="switchDebtsViewTab('company')"
               style="padding: 9px 20px; font-size: 13px; font-weight: 600; border: none; border-bottom: 3px solid transparent; background: transparent; color: var(--text-secondary); cursor: pointer; display:inline-flex; align-items:center; gap:6px; transition: all 0.18s;">
@@ -2296,34 +2294,7 @@
             </div>
           </div>
 
-          <!-- Tab: Khách Cá Nhân -->
-          <div id="debts-by-individual-container" style="display:none;">
-            <div class="table-card" style="border-top: none; border-radius: 0 0 var(--radius-lg) var(--radius-lg);">
-              <div class="card-header-bar" style="padding: 10px 20px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-tertiary); justify-content: space-between; display: flex; align-items: center;">
-                <span class="card-title" id="debts-individual-info" style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Công nợ Khách Cá Nhân</span>
-              </div>
-              <div class="table-responsive">
-                <table class="data-table table-striped animate-rows">
-                  <thead>
-                    <tr>
-                      <th style="width:30px; text-align:center;"><input type="checkbox" id="check-all-debts-ind" onchange="toggleSelectAllDebts(this, 'ind')"></th>
-                      <th>Mã đối tác</th>
-                      <th>Tên khách hàng</th>
-                      <th style="text-align:right;">Dư đầu kỳ Nợ</th>
-                      <th style="text-align:right;">Dư đầu kỳ Có</th>
-                      <th style="text-align:right;">Phát sinh Nợ</th>
-                      <th style="text-align:right;">Phát sinh Có</th>
-                      <th style="text-align:right;">Dư cuối kỳ Nợ</th>
-                      <th style="text-align:right;">Dư cuối kỳ Có</th>
-                      <th style="width:130px; text-align:center;">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody id="debts-individual-body"></tbody>
-                </table>
-              </div>
-              <div id="debts-individual-pagination" style="padding:12px 20px; border-top:1px solid var(--border-color); background:var(--bg-tertiary); display:flex; justify-content:space-between; align-items:center; gap:10px;"></div>
-            </div>
-          </div>
+
 
           <!-- Tab: Theo Công Trình -->
           <div id="debts-by-project-container" style="display:none;">
@@ -3396,8 +3367,8 @@
           style="width: 32px; height: 32px;">×</button>
       </div>
       <div class="modal-body">
-        <form id="form-purchase" class="form-grid" onsubmit="handlePurchaseSubmit(event)">
-          <div class="form-group">
+        <form id="form-purchase" class="form-grid" style="grid-template-columns: repeat(12, 1fr);" onsubmit="handlePurchaseSubmit(event)">
+          <div class="form-group" style="grid-column: span 5;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <label class="form-label" style="margin: 0;">Nhà cung cấp</label>
               <button type="button" class="btn-text-link" onclick="openQuickAddPartnerModal('supplier')"
@@ -3414,17 +3385,17 @@
               list="datalist-partners">
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 2;">
             <label class="form-label">Số chứng từ</label>
             <input type="text" id="pur-id" class="form-control" placeholder="Tự sinh nếu để trống">
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 2;">
             <label class="form-label">Ngày hạch toán</label>
             <input type="date" id="pur-date" class="form-control" required>
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 3;">
             <label class="form-label">Phương thức thanh toán</label>
             <select id="pur-payment" class="form-control" required>
               <option value="331">Chưa thanh toán (Công nợ TK 331)</option>
@@ -3737,13 +3708,13 @@
         <button class="icon-btn" onclick="closeModal('modal-add-sales')" style="width: 32px; height: 32px;">×</button>
       </div>
       <div class="modal-body">
-        <form id="form-sales" class="form-grid" onsubmit="handleSalesSubmit(event)">
-          <div class="form-group">
+        <form id="form-sales" class="form-grid" style="grid-template-columns: repeat(12, 1fr);" onsubmit="handleSalesSubmit(event)">
+          <div class="form-group" style="grid-column: span 2;">
             <label class="form-label">Số chứng từ</label>
             <input type="text" id="sale-id" class="form-control" placeholder="Tự sinh nếu để trống">
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 5;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <label class="form-label" style="margin: 0;">Khách hàng mua</label>
               <button type="button" class="btn-text-link" onclick="openQuickAddPartnerModal()"
@@ -3760,12 +3731,12 @@
               list="datalist-partners">
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 2;">
             <label class="form-label">Ngày hạch toán</label>
             <input type="date" id="sale-date" class="form-control" required>
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 3;">
             <label class="form-label">Hình thức thu tiền</label>
             <select id="sale-payment" class="form-control" required>
               <option value="131">Chưa thu tiền (Ghi nợ TK 131)</option>
