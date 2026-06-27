@@ -7,6 +7,7 @@ let filteredIndividualList = [];
 let debtsIndividualPage = 1;
 let filteredCompanyGroupedList = [];
 let debtsCompanyPage = 1;
+let _companyGroupCache = []; // Cache for company tab onclick handlers (index → {name, childIds})
 
 // --- Phân hệ Công nợ ---
 function getDebtDateRange() {
@@ -361,6 +362,7 @@ function filterDebts() {
 
   if (currentDebtsViewTab === 'individual') {
     filteredIndividualList = allDebts.filter(d => {
+      if (d.type !== 'customer') return false; // Only show customers
       if (!makeFilter(d)) return false;
       const p = (state.partners || []).find(x => x.id === d.id);
       return classifyPartnerCategory(p || { name: d.name }) === 'individual';
@@ -372,6 +374,7 @@ function filterDebts() {
 
   if (currentDebtsViewTab === 'project') {
     filteredDebtsList = allDebts.filter(d => {
+      if (d.type !== 'customer') return false; // Only show customers
       if (!makeFilter(d)) return false;
       const p = (state.partners || []).find(x => x.id === d.id);
       return classifyPartnerCategory(p || { name: d.name }) === 'project';
@@ -383,6 +386,7 @@ function filterDebts() {
 
   if (currentDebtsViewTab === 'company') {
     const companyDebts = allDebts.filter(d => {
+      if (d.type !== 'customer') return false; // Only show customers
       if (!makeFilter(d)) return false;
       const p = (state.partners || []).find(x => x.id === d.id);
       return classifyPartnerCategory(p || { name: d.name }) === 'company';
@@ -788,6 +792,152 @@ function viewGroupedPartnerLedger(partnerName) {
   // Sử dụng lại môđan sẵn có
   activePartnerIdForLedger = matchingPartners[0].id;
   activePartnerNameForGroupedLedger = partnerName;
+  switchPartnerLedgerTab('entries');
+  openModal('modal-view-partner-ledger');
+}
+
+/**
+ * Xem sổ chi tiết gộp theo danh sách mã đối tác (không cần match tên).
+ * Dùng cho tab Công Ty khi mỗi nhóm công ty có nhiều mã đối tác.
+ */
+function viewLedgerByIds(partnerIds, groupName) {
+  const matchingIds = new Set(partnerIds);
+  const matchingPartners = (state.partners || []).filter(p => matchingIds.has(p.id));
+  if (matchingPartners.length === 0) {
+    showToast('Không tìm thấy đối tác nào trong nhóm này.', 'warning');
+    return;
+  }
+
+  const primaryType = matchingPartners.find(p => p.type === 'customer')?.type || matchingPartners[0].type;
+  const { fromDate, toDate } = getDebtDateRange();
+
+  // Tính tổng số dư đầu kỳ
+  let totalOpeningDebit = 0, totalOpeningCredit = 0;
+  matchingPartners.forEach(p => {
+    const op = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
+    let initialDebit = op.debit || 0;
+    let initialCredit = op.credit || 0;
+    let priorDebit = 0, priorCredit = 0;
+    if (fromDate) {
+      state.vouchers.forEach(v => {
+        if (v.partnerId !== p.id) return;
+        if (v.date >= fromDate) return;
+        if (!v.entries) return;
+        v.entries.forEach(e => {
+          if (p.type === 'customer') {
+            if (e.debit && e.debit.startsWith('131')) priorDebit += e.amount;
+            if (e.credit && e.credit.startsWith('131')) priorCredit += e.amount;
+          } else if (p.type === 'supplier') {
+            if (e.credit && e.credit.startsWith('331')) priorCredit += e.amount;
+            if (e.debit && e.debit.startsWith('331')) priorDebit += e.amount;
+          } else {
+            if (e.debit && e.debit.startsWith('131')) priorDebit += e.amount;
+            if (e.credit && e.credit.startsWith('131')) priorCredit += e.amount;
+            if (e.credit && e.credit.startsWith('331')) priorCredit += e.amount;
+            if (e.debit && e.debit.startsWith('331')) priorDebit += e.amount;
+          }
+        });
+      });
+    }
+    totalOpeningDebit  += (initialDebit + priorDebit);
+    totalOpeningCredit += (initialCredit + priorCredit);
+  });
+
+  const openingVal = primaryType === 'customer'
+    ? totalOpeningDebit - totalOpeningCredit
+    : totalOpeningCredit - totalOpeningDebit;
+  const openingText = primaryType === 'customer'
+    ? (openingVal >= 0 ? `${formatVND(openingVal)} (Nợ)` : `${formatVND(-openingVal)} (Có)`)
+    : (openingVal >= 0 ? `${formatVND(openingVal)} (Có)` : `${formatVND(-openingVal)} (Nợ)`);
+
+  const idList = matchingPartners.map(p => p.id).join(', ');
+  let subtitle = `Công ty: ${groupName} | ${matchingPartners.length} mã: ${idList.length > 100 ? idList.slice(0,100)+'...' : idList}`;
+  if (fromDate || toDate) {
+    const fmtD = s => { if (!s) return ''; const pt = s.split('-'); return `${pt[2]}/${pt[1]}/${pt[0]}`; };
+    subtitle += ` | Kỳ: ${fromDate ? 'Từ ' + fmtD(fromDate) : ''} ${toDate ? 'Đến ' + fmtD(toDate) : ''}`;
+  }
+
+  document.getElementById('partner-ledger-subtitle').innerText = subtitle;
+  document.getElementById('partner-ledger-opening').innerText = openingText;
+
+  const tbody = document.getElementById('partner-ledger-table-body');
+  tbody.innerHTML = '';
+
+  let debitSum = 0, creditSum = 0;
+  const ledgerEntries = [];
+
+  state.vouchers.forEach(v => {
+    if (!matchingIds.has(v.partnerId)) return;
+    if (fromDate && v.date < fromDate) return;
+    if (toDate && v.date > toDate) return;
+    if (!v.entries) return;
+
+    let debitAmount = 0, creditAmount = 0;
+    const offsetAccountSet = new Set();
+    v.entries.forEach(e => {
+      let isRelevant = false;
+      if (primaryType === 'customer') {
+        isRelevant = (e.debit && e.debit.startsWith('131')) || (e.credit && e.credit.startsWith('131'));
+      } else if (primaryType === 'supplier') {
+        isRelevant = (e.debit && e.debit.startsWith('331')) || (e.credit && e.credit.startsWith('331'));
+      } else {
+        isRelevant = ((e.debit && e.debit.startsWith('131')) || (e.credit && e.credit.startsWith('131')))
+                  || ((e.debit && e.debit.startsWith('331')) || (e.credit && e.credit.startsWith('331')));
+      }
+      if (!isRelevant) return;
+      if ((e.debit && (e.debit.startsWith('131') || e.debit.startsWith('331')))) {
+        debitAmount += e.amount;
+        offsetAccountSet.add(e.credit);
+      } else {
+        creditAmount += e.amount;
+        offsetAccountSet.add(e.debit);
+      }
+    });
+    if (debitAmount > 0 || creditAmount > 0) {
+      ledgerEntries.push({ date: v.date, id: v.id, partnerId: v.partnerId, desc: v.description, offsetAccount: Array.from(offsetAccountSet).join(', '), debit: debitAmount, credit: creditAmount });
+      debitSum += debitAmount;
+      creditSum += creditAmount;
+    }
+  });
+
+  ledgerEntries.sort((a, b) => (a.date||'').localeCompare(b.date||''));
+
+  if (ledgerEntries.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px;">Không có giao dịch phát sinh công nợ trong kỳ</td></tr>`;
+  } else {
+    ledgerEntries.forEach(le => {
+      const tr2 = document.createElement('tr');
+      const escapedViewId = escapeHtmlAttr(le.id);
+      const originalVoucher = state.vouchers.find(x => x.id === le.id);
+      const vType = originalVoucher ? originalVoucher.type : '';
+      tr2.className = 'clickable-row';
+      tr2.setAttribute('data-type', 'voucher');
+      tr2.setAttribute('data-subtype', vType);
+      tr2.setAttribute('data-id', escapedViewId);
+      const partnerNote = matchingPartners.length > 1
+        ? ` <span style="font-size:11px; color:var(--text-muted); font-style:italic;">[${le.partnerId}]</span>` : '';
+      tr2.innerHTML = `
+        <td>${le.date}</td>
+        <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${le.id}</a>${partnerNote}</td>
+        <td>${le.desc}</td>
+        <td style="text-align:center; font-weight:700;">${le.offsetAccount}</td>
+        <td style="text-align:right; font-weight:500;">${le.debit > 0 ? formatVND(le.debit).replace('đ','') : '-'}</td>
+        <td style="text-align:right; font-weight:500;">${le.credit > 0 ? formatVND(le.credit).replace('đ','') : '-'}</td>
+      `;
+      tbody.appendChild(tr2);
+    });
+  }
+
+  let closingVal = primaryType === 'customer'
+    ? openingVal + debitSum - creditSum
+    : openingVal + creditSum - debitSum;
+  const closingText = primaryType === 'customer'
+    ? (closingVal >= 0 ? `${formatVND(closingVal)} (Nợ)` : `${formatVND(-closingVal)} (Có)`)
+    : (closingVal >= 0 ? `${formatVND(closingVal)} (Có)` : `${formatVND(-closingVal)} (Nợ)`);
+  document.getElementById('partner-ledger-closing').innerText = closingText;
+
+  activePartnerIdForLedger = matchingPartners[0].id;
+  activePartnerNameForGroupedLedger = groupName;
   switchPartnerLedgerTab('entries');
   openModal('modal-view-partner-ledger');
 }
@@ -2568,6 +2718,9 @@ function renderDebtsCompanyGroupedTable() {
   const startIdx = (debtsCompanyPage - 1) * perPage;
   const pageItems = filteredCompanyGroupedList.slice(startIdx, startIdx + perPage);
 
+  // Build global cache for safe onclick — index maps to {name, childIds}
+  _companyGroupCache = filteredCompanyGroupedList.map(g => ({ name: g.displayName, childIds: g.childIds }));
+
   if (infoEl) infoEl.innerText = `Công nợ Theo Công Ty — ${total} công ty (${startIdx+1}–${Math.min(startIdx+perPage,total)})`;
 
   tbody.innerHTML = '';
@@ -2587,22 +2740,24 @@ function renderDebtsCompanyGroupedTable() {
     <td></td>`;
   tbody.appendChild(trTot);
 
-  pageItems.forEach(g => {
-    const encodedName = encodeURIComponent(g.displayName);
-    const encodedChildIds = encodeURIComponent(JSON.stringify(g.childIds));
+  pageItems.forEach((g, localIdx) => {
+    const globalIdx = startIdx + localIdx; // index into _companyGroupCache
     const countBadge = g.childIds.length > 1
       ? `<span style="display:inline-block; background:var(--color-primary); color:#fff; border-radius:9px; padding:1px 8px; font-size:11px; font-weight:700; margin-left:6px;">${g.childIds.length} công trình</span>` : '';
+
+    // Build child IDs list safely via DOM (no encoding needed)
+    const childIdHtml = g.childIds.map(id => `<span style="display:block;">• ${escapeHtmlAttr(id)}</span>`).join('');
 
     const tr = document.createElement('tr');
     tr.className = 'clickable-row';
     tr.innerHTML = `
       <td style="font-weight:600;">
-        <a href="#" onclick="viewGroupedPartnerLedger(decodeURIComponent('${encodedName}')); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${g.displayName}</a>
+        <a href="#" class="company-view-ledger" data-idx="${globalIdx}" style="color:inherit; text-decoration:underline; cursor:pointer;">${g.displayName}</a>
         ${countBadge}
       </td>
       <td style="text-align:center;">
         <button onclick="toggleGroupChildren(this)" style="font-size:11px; padding:2px 8px; border:1px solid var(--border-color); border-radius:4px; background:var(--bg-secondary); cursor:pointer; color:var(--text-secondary);">Xem mã</button>
-        <div class="group-children" style="display:none; margin-top:6px; font-size:11px; color:var(--text-muted); line-height:1.7;">${g.childIds.map(id=>`<span style='display:block;'>• ${id}</span>`).join('')}</div>
+        <div class="group-children" style="display:none; margin-top:6px; font-size:11px; color:var(--text-muted); line-height:1.7;">${childIdHtml}</div>
       </td>
       <td style="text-align:right; font-weight:500;" class="font-numeric">${g.openingDebit>0?formatVND(g.openingDebit).replace('đ',''):'-'}</td>
       <td style="text-align:right; font-weight:500;" class="font-numeric">${g.openingCredit>0?formatVND(g.openingCredit).replace('đ',''):'-'}</td>
@@ -2612,10 +2767,26 @@ function renderDebtsCompanyGroupedTable() {
       <td style="text-align:right; font-weight:700; color:var(--color-warning);" class="font-numeric">${g.closingCredit>0?formatVND(g.closingCredit).replace('đ',''):'-'}</td>
       <td style="text-align:center;">
         <div style="display:flex; gap:4px; justify-content:center;">
-          <button class="btn btn-secondary btn-sm" onclick="viewGroupedPartnerLedger(decodeURIComponent('${encodedName}'))" style="padding:2px 8px;">Xem Sổ</button>
-          <button class="btn btn-primary btn-sm" onclick="exportCompanyToExcel(decodeURIComponent('${encodedName}'), JSON.parse(decodeURIComponent('${encodedChildIds}')))" style="padding:2px 8px; background:var(--color-success); border-color:var(--color-success);">Xuất Excel</button>
+          <button class="btn btn-secondary btn-sm company-view-ledger" data-idx="${globalIdx}" style="padding:2px 8px;">Xem Sổ</button>
+          <button class="btn btn-primary btn-sm company-export-excel" data-idx="${globalIdx}" style="padding:2px 8px; background:var(--color-success); border-color:var(--color-success);">Xuất Excel</button>
         </div>
       </td>`;
+
+    // Attach click handlers safely via event listeners (no string encoding needed)
+    tr.querySelectorAll('.company-view-ledger').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const idx = parseInt(btn.dataset.idx);
+        const group = _companyGroupCache[idx];
+        if (group) viewLedgerByIds(group.childIds, group.name);
+      });
+    });
+    tr.querySelector('.company-export-excel').addEventListener('click', () => {
+      const idx = parseInt(tr.querySelector('.company-export-excel').dataset.idx);
+      const group = _companyGroupCache[idx];
+      if (group) exportCompanyToExcel(group.name, group.childIds);
+    });
+
     tbody.appendChild(tr);
   });
 
@@ -2912,6 +3083,7 @@ window.changeDebtsIndividualPage = changeDebtsIndividualPage;
 window.renderDebtsCompanyGroupedTable = renderDebtsCompanyGroupedTable;
 window.changeDebtsCompanyPage = changeDebtsCompanyPage;
 window.buildCompanyGroupedList = buildCompanyGroupedList;
+window.viewLedgerByIds = viewLedgerByIds;
 window.exportCompanyToExcel = exportCompanyToExcel;
 
 function editOrderFromLedger(voucherId, voucherType) {
