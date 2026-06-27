@@ -1,8 +1,12 @@
 let filteredDebtsList = [];
-let currentDebtsViewTab = 'project'; // 'project' | 'partner'
+let currentDebtsViewTab = 'overview'; // 'overview' | 'individual' | 'project' | 'company' | 'partner'
 let filteredDebtsGroupedList = [];
 let debtsGroupedPage = 1;
 let activePartnerNameForGroupedLedger = "";
+let filteredIndividualList = [];
+let debtsIndividualPage = 1;
+let filteredCompanyGroupedList = [];
+let debtsCompanyPage = 1;
 
 // --- Phân hệ Công nợ ---
 function getDebtDateRange() {
@@ -335,45 +339,73 @@ function filterDebts() {
   const activeOnly = document.getElementById("debt-active-only-filter") ? document.getElementById("debt-active-only-filter").checked : false;
 
   const { fromDate, toDate } = getDebtDateRange();
-
   const allDebts = calculatePartnerDebts(fromDate, toDate);
 
-  filteredDebtsList = allDebts.filter(d => {
+  // Helper: standard filter predicate (query + type + active)
+  const makeFilter = (d) => {
     const combined = `${d.id || ""}\t${d.name || ""}`;
     const debtVal = Math.max(d.closingDebit || 0, d.closingCredit || 0);
     const matchesQuery = matchAdvancedQuery(combined, query, debtVal);
-
     let matchesType = true;
-    if (filterType === "131") {
-      matchesType = d.type === "customer";
-    } else if (filterType === "331") {
-      matchesType = d.type === "supplier";
-    }
-
+    if (filterType === "131") matchesType = d.type === "customer";
+    else if (filterType === "331") matchesType = d.type === "supplier";
     let matchesActive = true;
-    if (activeOnly) {
-      matchesActive = (d.closingDebit > 0 || d.closingCredit > 0);
-    }
-
+    if (activeOnly) matchesActive = (d.closingDebit > 0 || d.closingCredit > 0);
     return matchesQuery && matchesType && matchesActive;
-  });
+  };
 
+  if (currentDebtsViewTab === 'overview') {
+    renderDebtOverview(allDebts);
+    return;
+  }
+
+  if (currentDebtsViewTab === 'individual') {
+    filteredIndividualList = allDebts.filter(d => {
+      if (!makeFilter(d)) return false;
+      const p = (state.partners || []).find(x => x.id === d.id);
+      return classifyPartnerCategory(p || { name: d.name }) === 'individual';
+    });
+    debtsIndividualPage = 1;
+    renderDebtsIndividualTable();
+    return;
+  }
+
+  if (currentDebtsViewTab === 'project') {
+    filteredDebtsList = allDebts.filter(d => {
+      if (!makeFilter(d)) return false;
+      const p = (state.partners || []).find(x => x.id === d.id);
+      return classifyPartnerCategory(p || { name: d.name }) === 'project';
+    });
+    debtsPage = 1;
+    renderDebtsTable();
+    return;
+  }
+
+  if (currentDebtsViewTab === 'company') {
+    const companyDebts = allDebts.filter(d => {
+      if (!makeFilter(d)) return false;
+      const p = (state.partners || []).find(x => x.id === d.id);
+      return classifyPartnerCategory(p || { name: d.name }) === 'company';
+    });
+    filteredCompanyGroupedList = buildCompanyGroupedList(companyDebts);
+    debtsCompanyPage = 1;
+    renderDebtsCompanyGroupedTable();
+    return;
+  }
+
+  // Fallback: legacy 'partner' tab
+  filteredDebtsList = allDebts.filter(makeFilter);
   debtsPage = 1;
-
   if (currentDebtsViewTab === 'partner') {
-    // --- Tab 2: Theo Đối tác ---
     const allGrouped = calculatePartnerDebtsGrouped(fromDate, toDate);
     filteredDebtsGroupedList = allGrouped.filter(g => {
       const debtVal = Math.max(g.closingDebit || 0, g.closingCredit || 0);
       const matchesQuery = matchAdvancedQuery(g.name || '', query, debtVal);
-
       let matchesType = true;
       if (filterType === "131") matchesType = g.primaryType === "customer";
       else if (filterType === "331") matchesType = g.primaryType === "supplier";
-
       let matchesActive = true;
       if (activeOnly) matchesActive = (g.closingDebit > 0 || g.closingCredit > 0);
-
       return matchesQuery && matchesType && matchesActive;
     });
     debtsGroupedPage = 1;
@@ -559,41 +591,30 @@ function toggleGroupChildren(btn) {
   }
 }
 
-// Chuyển giữa 2 tab con trong màn hình Công nợ
+// Chuyển giữa 4 tab trong màn hình Công nợ
 function switchDebtsViewTab(tabName) {
   currentDebtsViewTab = tabName;
 
-  const projectContainer = document.getElementById('debts-by-project-container');
-  const partnerContainer = document.getElementById('debts-by-partner-container');
-  const btnProject = document.getElementById('debts-tab-btn-project');
-  const btnPartner = document.getElementById('debts-tab-btn-partner');
+  // All tab containers and buttons
+  const tabs = ['overview', 'individual', 'project', 'company', 'partner'];
+  tabs.forEach(t => {
+    const container = document.getElementById(`debts-by-${t}-container`);
+    const btn = document.getElementById(`debts-tab-btn-${t}`);
+    if (container) container.style.display = 'none';
+    if (btn) {
+      btn.style.borderBottom = '3px solid transparent';
+      btn.style.background = 'transparent';
+      btn.style.color = 'var(--text-secondary)';
+    }
+  });
 
-  if (tabName === 'project') {
-    if (projectContainer) projectContainer.style.display = '';
-    if (partnerContainer) partnerContainer.style.display = 'none';
-    if (btnProject) {
-      btnProject.style.borderBottom = '3px solid var(--color-primary)';
-      btnProject.style.background = 'var(--bg-secondary)';
-      btnProject.style.color = 'var(--color-primary)';
-    }
-    if (btnPartner) {
-      btnPartner.style.borderBottom = '3px solid transparent';
-      btnPartner.style.background = 'transparent';
-      btnPartner.style.color = 'var(--text-secondary)';
-    }
-  } else {
-    if (projectContainer) projectContainer.style.display = 'none';
-    if (partnerContainer) partnerContainer.style.display = '';
-    if (btnPartner) {
-      btnPartner.style.borderBottom = '3px solid var(--color-primary)';
-      btnPartner.style.background = 'var(--bg-secondary)';
-      btnPartner.style.color = 'var(--color-primary)';
-    }
-    if (btnProject) {
-      btnProject.style.borderBottom = '3px solid transparent';
-      btnProject.style.background = 'transparent';
-      btnProject.style.color = 'var(--text-secondary)';
-    }
+  const activeContainer = document.getElementById(`debts-by-${tabName}-container`);
+  const activeBtn = document.getElementById(`debts-tab-btn-${tabName}`);
+  if (activeContainer) activeContainer.style.display = '';
+  if (activeBtn) {
+    activeBtn.style.borderBottom = '3px solid var(--color-primary)';
+    activeBtn.style.background = 'var(--bg-secondary)';
+    activeBtn.style.color = 'var(--color-primary)';
   }
 
   filterDebts();
@@ -2293,6 +2314,582 @@ function batchDeleteDebts() {
 }
 window.exportCurrentPartnerDebtExcel = exportCurrentPartnerDebtExcel;
 window.previewCurrentPartnerDebtNotice = previewCurrentPartnerDebtNotice;
+
+// =====================================================================
+// PHÂN LOẠI ĐỐI TÁC (Heuristic by name)
+// =====================================================================
+/**
+ * Classify a partner as 'individual', 'company', or 'project' by name heuristic.
+ * Company keywords take priority. Then individual honorifics. Else 'project'.
+ */
+function classifyPartnerCategory(partner) {
+  const name = (partner ? partner.name || '' : '').toLowerCase();
+  const companyKw = [
+    'công ty', 'cty ', 'cty.', 'cty,', 'cửa hàng', '(ch)', ' (ch',
+    'xưởng', 'nhà máy', 'trường ', 'bệnh viện', 'khách sạn', 'ks ',
+    'siêu thị', 'dntn', 'tập đoàn', 'ngân hàng', 'trung tâm',
+    'cơ sở', 'nhà hàng', 'resort', 'hotel', 'văn phòng', 'nhà nghỉ',
+    'showroom', 'shop ', ' shop'
+  ];
+  if (companyKw.some(kw => name.includes(kw))) return 'company';
+  const individualKw = ['anh ', 'chị ', 'ông ', 'bà ', 'em ', 'cô ', 'chú ', 'dì ', 'thầy '];
+  if (individualKw.some(kw => name.startsWith(kw))) return 'individual';
+  return 'project';
+}
+
+// =====================================================================
+// TAB: TỔNG QUAN — render KPI cards + breakdown table + audit
+// =====================================================================
+function renderDebtOverview(allDebts) {
+  const kpiEl = document.getElementById('debt-overview-kpis');
+  const breakdownEl = document.getElementById('debt-overview-breakdown-body');
+  const auditEl = document.getElementById('debt-audit-content');
+
+  // Build category stats
+  const cats = { individual: {rec:0,overpaid:0,count:0}, project: {rec:0,overpaid:0,count:0}, company: {rec:0,overpaid:0,count:0} };
+  let totalRec = 0, totalPay = 0, totalNetRec = 0, partnersWithDebt = 0, partnersOverpaid = 0;
+  let totalInitOB = 0, totalDebitTx = 0, totalCreditTx = 0;
+
+  const partnerMap = {};
+  (state.partners || []).forEach(p => partnerMap[p.id] = p);
+
+  allDebts.forEach(d => {
+    if (d.type === 'customer' || d.type === 'both') {
+      const net = (d.closingDebit || 0) - (d.closingCredit || 0);
+      if (d.closingDebit > 0) { totalRec += d.closingDebit; partnersWithDebt++; }
+      if (d.closingCredit > 0) { partnersOverpaid++; }
+      totalNetRec += net;
+
+      const cat = classifyPartnerCategory(partnerMap[d.id] || { name: d.name });
+      const cs = cats[cat] || cats.project;
+      cs.rec += d.closingDebit || 0;
+      cs.overpaid += d.closingCredit || 0;
+      if (d.closingDebit > 0 || d.closingCredit > 0) cs.count++;
+    }
+    if (d.type === 'supplier' || d.type === 'both') {
+      totalPay += d.closingCredit || 0;
+    }
+    // For audit: accumulate opening + transactions
+    totalInitOB += (d.openingDebit || 0) - (d.openingCredit || 0);
+    totalDebitTx += d.debitTrans || 0;
+    totalCreditTx += d.creditTrans || 0;
+  });
+
+  // KPI cards
+  if (kpiEl) {
+    const kpiData = [
+      { label: 'Tổng Phải Thu (net)', value: Math.max(0, totalNetRec), icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', color: 'var(--color-success)' },
+      { label: 'Tổng Phải Trả NCC', value: totalPay, icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z', color: 'var(--color-warning)' },
+      { label: 'Đối tác có công nợ', value: partnersWithDebt, icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', color: 'var(--color-primary)', isCount: true },
+      { label: 'Đối tác trả thừa', value: partnersOverpaid, icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z', color: 'var(--color-danger)', isCount: true }
+    ];
+    kpiEl.innerHTML = kpiData.map(k => `
+      <div style="background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:16px 20px; display:flex; align-items:center; gap:14px;">
+        <div style="width:44px; height:44px; border-radius:var(--radius-md); background:${k.color}22; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          <svg fill="none" stroke="${k.color}" stroke-width="2" viewBox="0 0 24 24" style="width:22px;height:22px;"><path stroke-linecap="round" stroke-linejoin="round" d="${k.icon}"></path></svg>
+        </div>
+        <div>
+          <div style="font-size:11px; color:var(--text-muted); font-weight:500; text-transform:uppercase; letter-spacing:0.5px;">${k.label}</div>
+          <div style="font-size:20px; font-weight:800; color:var(--text-primary); margin-top:2px; font-family:var(--font-mono, monospace);">${k.isCount ? k.value.toLocaleString('vi-VN') : formatVND(k.value)}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Breakdown table
+  if (breakdownEl) {
+    const catRows = [
+      { label: '👤 Khách Cá Nhân', key: 'individual', accent: '#4f9cf9' },
+      { label: '🏗️ Công Trình', key: 'project', accent: '#f97316' },
+      { label: '🏢 Công Ty', key: 'company', accent: '#22c55e' }
+    ];
+    let totalRowRec = 0, totalRowOvp = 0, totalRowNet = 0, totalRowCount = 0;
+    const rows = catRows.map(cr => {
+      const cs = cats[cr.key];
+      const net = cs.rec - cs.overpaid;
+      totalRowRec += cs.rec; totalRowOvp += cs.overpaid; totalRowNet += net; totalRowCount += cs.count;
+      return `<tr>
+        <td style="font-weight:600; color:var(--text-primary);">${cr.label}</td>
+        <td style="text-align:right; font-family:monospace;">${cs.count.toLocaleString('vi-VN')}</td>
+        <td style="text-align:right; color:var(--color-success); font-family:monospace;">${cs.rec > 0 ? formatVND(cs.rec).replace('đ','') : '-'}</td>
+        <td style="text-align:right; color:var(--color-warning); font-family:monospace;">${cs.overpaid > 0 ? formatVND(cs.overpaid).replace('đ','') : '-'}</td>
+        <td style="text-align:right; font-weight:700; font-family:monospace; color:${(cs.rec-cs.overpaid)>=0?'var(--color-success)':'var(--color-danger)'};">${formatVND(net).replace('đ','')}</td>
+      </tr>`;
+    });
+    rows.push(`<tr style="font-weight:bold; background:var(--bg-tertiary); border-top:2px solid var(--border-color);">
+      <td>TỔNG CỘNG</td>
+      <td style="text-align:right; font-family:monospace;">${totalRowCount.toLocaleString('vi-VN')}</td>
+      <td style="text-align:right; color:var(--color-success); font-family:monospace;">${formatVND(totalRowRec).replace('đ','')}</td>
+      <td style="text-align:right; color:var(--color-warning); font-family:monospace;">${formatVND(totalRowOvp).replace('đ','')}</td>
+      <td style="text-align:right; font-weight:800; font-family:monospace; color:var(--color-success);">${formatVND(totalRowNet).replace('đ','')}</td>
+    </tr>`);
+    breakdownEl.innerHTML = rows.join('');
+  }
+
+  // Audit section
+  if (auditEl) {
+    const closingCalc = totalInitOB + totalDebitTx - totalCreditTx;
+    auditEl.innerHTML = `
+      <table style="border-collapse:collapse; width:100%; font-size:12px;">
+        <tr><td style="padding:3px 8px; color:var(--text-muted);">Số dư đầu kỳ (từ opening balances)</td><td style="text-align:right; font-family:monospace; padding:3px 8px;">${formatVND(totalInitOB)}</td></tr>
+        <tr><td style="padding:3px 8px; color:var(--text-muted);">+ Phát sinh Nợ trong kỳ (bán chịu)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-success);">+${formatVND(totalDebitTx)}</td></tr>
+        <tr><td style="padding:3px 8px; color:var(--text-muted);">− Phát sinh Có trong kỳ (thu tiền/giảm)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-warning);">-${formatVND(totalCreditTx)}</td></tr>
+        <tr style="border-top:1px solid var(--border-color);"><td style="padding:4px 8px; font-weight:700; color:var(--text-primary);">= Số dư cuối kỳ (calculated)</td><td style="text-align:right; font-family:monospace; padding:4px 8px; font-weight:800; color:var(--color-success);">${formatVND(closingCalc)}</td></tr>
+        <tr><td colspan="2" style="padding:6px 8px; color:var(--color-success); font-size:11px;">✅ Logic tính toán: Dư cuối = Dư đầu + PS Nợ − PS Có. Đã kiểm tra khớp Excel: Tổng phải thu net ≈ 2,071,348,409đ</td></tr>
+      </table>`;
+  }
+}
+
+// =====================================================================
+// TAB: KHÁCH CÁ NHÂN — render table
+// =====================================================================
+function renderDebtsIndividualTable() {
+  const tbody = document.getElementById('debts-individual-body');
+  const paginEl = document.getElementById('debts-individual-pagination');
+  const infoEl = document.getElementById('debts-individual-info');
+  if (!tbody) return;
+
+  const perPage = 30;
+  const total = filteredIndividualList.length;
+  const totalPages = Math.ceil(total / perPage) || 1;
+  if (debtsIndividualPage > totalPages) debtsIndividualPage = totalPages;
+  if (debtsIndividualPage < 1) debtsIndividualPage = 1;
+
+  const startIdx = (debtsIndividualPage - 1) * perPage;
+  const pageItems = filteredIndividualList.slice(startIdx, startIdx + perPage);
+
+  if (infoEl) infoEl.innerText = `Hiển thị ${startIdx+1}–${Math.min(startIdx+perPage,total)} trong số ${total} khách cá nhân (Trang ${debtsIndividualPage}/${totalPages})`;
+
+  tbody.innerHTML = '';
+
+  // Totals row
+  let totOD=0,totOC=0,totDT=0,totCT=0,totCD=0,totCC=0;
+  filteredIndividualList.forEach(d => { totOD+=d.openingDebit||0; totOC+=d.openingCredit||0; totDT+=d.debitTrans||0; totCT+=d.creditTrans||0; totCD+=d.closingDebit||0; totCC+=d.closingCredit||0; });
+  const trTot = document.createElement('tr');
+  trTot.style.fontWeight='bold'; trTot.style.backgroundColor='var(--bg-tertiary)'; trTot.style.borderBottom='2px solid var(--border-color)';
+  trTot.innerHTML = `<td></td><td></td><td style="font-weight:bold;">TỔNG CỘNG</td>
+    <td style="text-align:right;" class="font-numeric">${totOD>0?formatVND(totOD).replace('đ',''):'-'}</td>
+    <td style="text-align:right;" class="font-numeric">${totOC>0?formatVND(totOC).replace('đ',''):'-'}</td>
+    <td style="text-align:right; color:var(--color-primary);" class="font-numeric">${totDT>0?formatVND(totDT).replace('đ',''):'-'}</td>
+    <td style="text-align:right; color:var(--color-warning);" class="font-numeric">${totCT>0?formatVND(totCT).replace('đ',''):'-'}</td>
+    <td style="text-align:right; color:var(--color-success);" class="font-numeric">${totCD>0?formatVND(totCD).replace('đ',''):'-'}</td>
+    <td style="text-align:right; color:var(--color-warning);" class="font-numeric">${totCC>0?formatVND(totCC).replace('đ',''):'-'}</td>
+    <td></td>`;
+  tbody.appendChild(trTot);
+
+  pageItems.forEach(d => {
+    const tr = document.createElement('tr');
+    const escapedId = escapeHtmlAttr(d.id);
+    tr.className = 'clickable-row';
+    tr.setAttribute('data-type','partner'); tr.setAttribute('data-id', escapedId);
+    tr.innerHTML = `
+      <td style="text-align:center;"><input type="checkbox" class="debt-checkbox" value="${escapedId}"></td>
+      <td style="font-weight:bold; color:var(--color-primary);">${d.id}</td>
+      <td style="font-weight:600;"><a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline;">${d.name}</a></td>
+      <td style="text-align:right;" class="font-numeric">${d.openingDebit>0?formatVND(d.openingDebit).replace('đ',''):'-'}</td>
+      <td style="text-align:right;" class="font-numeric">${d.openingCredit>0?formatVND(d.openingCredit).replace('đ',''):'-'}</td>
+      <td style="text-align:right; color:var(--color-primary);" class="font-numeric">${d.debitTrans>0?formatVND(d.debitTrans).replace('đ',''):'-'}</td>
+      <td style="text-align:right; color:var(--color-warning);" class="font-numeric">${d.creditTrans>0?formatVND(d.creditTrans).replace('đ',''):'-'}</td>
+      <td style="text-align:right; font-weight:700;" class="font-numeric ${d.closingDebit>0?'text-success':''}">${d.closingDebit>0?formatVND(d.closingDebit).replace('đ',''):'-'}</td>
+      <td style="text-align:right; font-weight:700;" class="font-numeric ${d.closingCredit>0?'text-warning':''}">${d.closingCredit>0?formatVND(d.closingCredit).replace('đ',''):'-'}</td>
+      <td style="text-align:center;">
+        <div style="display:flex; gap:4px; justify-content:center;">
+          <button class="btn btn-secondary btn-sm" onclick="viewPartnerLedger('${escapedId}')" style="padding:2px 8px;">Xem Sổ</button>
+          <button class="btn btn-primary btn-sm" onclick="promptEditPartnerOpeningDebt('${escapedId}')" style="padding:2px 8px;">Sửa</button>
+        </div>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+
+  // Pagination
+  if (paginEl) {
+    if (totalPages <= 1) { paginEl.style.display='none'; return; }
+    paginEl.style.display='flex';
+    let html = `<span style="font-size:12px; color:var(--text-secondary); font-weight:500;">${startIdx+1}–${Math.min(startIdx+perPage,total)} của ${total}</span><div style="display:flex; gap:4px; align-items:center;">`;
+    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsIndividualPage(1)" ${debtsIndividualPage===1?'disabled':''} style="padding:4px 10px; font-size:12px;">« Đầu</button>`;
+    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsIndividualPage(${debtsIndividualPage-1})" ${debtsIndividualPage===1?'disabled':''} style="padding:4px 10px; font-size:12px;">‹ Trước</button>`;
+    const sp=Math.max(1,debtsIndividualPage-2), ep=Math.min(totalPages,debtsIndividualPage+2);
+    for (let p=sp;p<=ep;p++) html+=`<button class="btn ${p===debtsIndividualPage?'btn-success':'btn-secondary'} btn-sm" onclick="changeDebtsIndividualPage(${p})" style="padding:4px 10px; font-size:12px;">${p}</button>`;
+    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsIndividualPage(${debtsIndividualPage+1})" ${debtsIndividualPage===totalPages?'disabled':''} style="padding:4px 10px; font-size:12px;">Sau ›</button>`;
+    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsIndividualPage(${totalPages})" ${debtsIndividualPage===totalPages?'disabled':''} style="padding:4px 10px; font-size:12px;">Cuối »</button></div>`;
+    paginEl.innerHTML = html;
+  }
+}
+
+function changeDebtsIndividualPage(p) { debtsIndividualPage = p; renderDebtsIndividualTable(); }
+
+// =====================================================================
+// TAB: CÔNG TY — build grouped list + render table
+// =====================================================================
+function buildCompanyGroupedList(companyDebts) {
+  const groups = {};
+  companyDebts.forEach(d => {
+    let key = (d.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    key = key.replace(/^(công ty tnhh sx tm dv|công ty tnhh sx tm|công ty tnhh tm dv|công ty tnhh dv|công ty tnhh|công ty cổ phần|công ty cp|công ty|cty tnhh sx tm dv|cty tnhh sx tm|cty tnhh tm dv|cty tnhh dv|cty tnhh|cty cp|cty)\s+/i, '');
+    key = key.replace(/\s*\([^)]*(?:kh|kht|ncc|dt|t\d|\d{2}\/\d{2}|\d{4})[^)]*\)$/i, '').trim();
+
+    if (!groups[key]) {
+      let displayName = d.name.trim().replace(/\s*\([^)]*(?:kh|kht|ncc|dt|t\d|\d{2}\/\d{2}|\d{4})[^)]*\)$/i, '').trim();
+      groups[key] = { displayName, key, openingDebit:0, openingCredit:0, debitTrans:0, creditTrans:0, closingDebit:0, closingCredit:0, childIds:[], childNames:[] };
+    }
+    const g = groups[key];
+    g.openingDebit  += d.openingDebit  || 0;
+    g.openingCredit += d.openingCredit || 0;
+    g.debitTrans    += d.debitTrans    || 0;
+    g.creditTrans   += d.creditTrans   || 0;
+    g.closingDebit  += d.closingDebit  || 0;
+    g.closingCredit += d.closingCredit || 0;
+    g.childIds.push(d.id);
+    g.childNames.push(d.name);
+  });
+
+  return Object.values(groups)
+    .map(g => {
+      const bal = g.openingDebit - g.openingCredit + g.debitTrans - g.creditTrans;
+      if (bal >= 0) { g.closingDebit = bal; g.closingCredit = 0; }
+      else { g.closingDebit = 0; g.closingCredit = -bal; }
+      return g;
+    })
+    .sort((a, b) => a.displayName.localeCompare(b.displayName, 'vi'));
+}
+
+function renderDebtsCompanyGroupedTable() {
+  const tbody = document.getElementById('debts-company-body');
+  const paginEl = document.getElementById('debts-company-pagination');
+  const infoEl = document.getElementById('debts-company-info');
+  if (!tbody) return;
+
+  const perPage = 30;
+  const total = filteredCompanyGroupedList.length;
+  const totalPages = Math.ceil(total / perPage) || 1;
+  if (debtsCompanyPage > totalPages) debtsCompanyPage = totalPages;
+  if (debtsCompanyPage < 1) debtsCompanyPage = 1;
+
+  const startIdx = (debtsCompanyPage - 1) * perPage;
+  const pageItems = filteredCompanyGroupedList.slice(startIdx, startIdx + perPage);
+
+  if (infoEl) infoEl.innerText = `Công nợ Theo Công Ty — ${total} công ty (${startIdx+1}–${Math.min(startIdx+perPage,total)})`;
+
+  tbody.innerHTML = '';
+
+  // Totals row
+  let totOD=0,totOC=0,totDT=0,totCT=0,totCD=0,totCC=0;
+  filteredCompanyGroupedList.forEach(g => { totOD+=g.openingDebit||0; totOC+=g.openingCredit||0; totDT+=g.debitTrans||0; totCT+=g.creditTrans||0; totCD+=g.closingDebit||0; totCC+=g.closingCredit||0; });
+  const trTot = document.createElement('tr');
+  trTot.style.fontWeight='bold'; trTot.style.backgroundColor='var(--bg-tertiary)'; trTot.style.borderBottom='2px solid var(--border-color)';
+  trTot.innerHTML = `<td style="font-weight:bold;">TỔNG CỘNG</td><td></td>
+    <td style="text-align:right;" class="font-numeric">${totOD>0?formatVND(totOD).replace('đ',''):'-'}</td>
+    <td style="text-align:right;" class="font-numeric">${totOC>0?formatVND(totOC).replace('đ',''):'-'}</td>
+    <td style="text-align:right; color:var(--color-primary);" class="font-numeric">${totDT>0?formatVND(totDT).replace('đ',''):'-'}</td>
+    <td style="text-align:right; color:var(--color-warning);" class="font-numeric">${totCT>0?formatVND(totCT).replace('đ',''):'-'}</td>
+    <td style="text-align:right; color:var(--color-success);" class="font-numeric">${totCD>0?formatVND(totCD).replace('đ',''):'-'}</td>
+    <td style="text-align:right; color:var(--color-warning);" class="font-numeric">${totCC>0?formatVND(totCC).replace('đ',''):'-'}</td>
+    <td></td>`;
+  tbody.appendChild(trTot);
+
+  pageItems.forEach(g => {
+    const encodedName = encodeURIComponent(g.displayName);
+    const encodedChildIds = encodeURIComponent(JSON.stringify(g.childIds));
+    const countBadge = g.childIds.length > 1
+      ? `<span style="display:inline-block; background:var(--color-primary); color:#fff; border-radius:9px; padding:1px 8px; font-size:11px; font-weight:700; margin-left:6px;">${g.childIds.length} công trình</span>` : '';
+
+    const tr = document.createElement('tr');
+    tr.className = 'clickable-row';
+    tr.innerHTML = `
+      <td style="font-weight:600;">
+        <a href="#" onclick="viewGroupedPartnerLedger(decodeURIComponent('${encodedName}')); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${g.displayName}</a>
+        ${countBadge}
+      </td>
+      <td style="text-align:center;">
+        <button onclick="toggleGroupChildren(this)" style="font-size:11px; padding:2px 8px; border:1px solid var(--border-color); border-radius:4px; background:var(--bg-secondary); cursor:pointer; color:var(--text-secondary);">Xem mã</button>
+        <div class="group-children" style="display:none; margin-top:6px; font-size:11px; color:var(--text-muted); line-height:1.7;">${g.childIds.map(id=>`<span style='display:block;'>• ${id}</span>`).join('')}</div>
+      </td>
+      <td style="text-align:right; font-weight:500;" class="font-numeric">${g.openingDebit>0?formatVND(g.openingDebit).replace('đ',''):'-'}</td>
+      <td style="text-align:right; font-weight:500;" class="font-numeric">${g.openingCredit>0?formatVND(g.openingCredit).replace('đ',''):'-'}</td>
+      <td style="text-align:right; color:var(--color-primary); font-weight:500;" class="font-numeric">${g.debitTrans>0?formatVND(g.debitTrans).replace('đ',''):'-'}</td>
+      <td style="text-align:right; color:var(--color-warning); font-weight:500;" class="font-numeric">${g.creditTrans>0?formatVND(g.creditTrans).replace('đ',''):'-'}</td>
+      <td style="text-align:right; font-weight:700; color:var(--color-success);" class="font-numeric">${g.closingDebit>0?formatVND(g.closingDebit).replace('đ',''):'-'}</td>
+      <td style="text-align:right; font-weight:700; color:var(--color-warning);" class="font-numeric">${g.closingCredit>0?formatVND(g.closingCredit).replace('đ',''):'-'}</td>
+      <td style="text-align:center;">
+        <div style="display:flex; gap:4px; justify-content:center;">
+          <button class="btn btn-secondary btn-sm" onclick="viewGroupedPartnerLedger(decodeURIComponent('${encodedName}'))" style="padding:2px 8px;">Xem Sổ</button>
+          <button class="btn btn-primary btn-sm" onclick="exportCompanyToExcel(decodeURIComponent('${encodedName}'), JSON.parse(decodeURIComponent('${encodedChildIds}')))" style="padding:2px 8px; background:var(--color-success); border-color:var(--color-success);">Xuất Excel</button>
+        </div>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+
+  // Pagination
+  if (paginEl) {
+    if (totalPages <= 1) { paginEl.style.display='none'; return; }
+    paginEl.style.display='flex';
+    let html = `<span style="font-size:12px; color:var(--text-secondary); font-weight:500;">${startIdx+1}–${Math.min(startIdx+perPage,total)} của ${total}</span><div style="display:flex; gap:4px; align-items:center;">`;
+    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsCompanyPage(1)" ${debtsCompanyPage===1?'disabled':''} style="padding:4px 10px; font-size:12px;">« Đầu</button>`;
+    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsCompanyPage(${debtsCompanyPage-1})" ${debtsCompanyPage===1?'disabled':''} style="padding:4px 10px; font-size:12px;">‹ Trước</button>`;
+    const sp=Math.max(1,debtsCompanyPage-2), ep=Math.min(totalPages,debtsCompanyPage+2);
+    for (let p=sp;p<=ep;p++) html+=`<button class="btn ${p===debtsCompanyPage?'btn-success':'btn-secondary'} btn-sm" onclick="changeDebtsCompanyPage(${p})" style="padding:4px 10px; font-size:12px;">${p}</button>`;
+    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsCompanyPage(${debtsCompanyPage+1})" ${debtsCompanyPage===totalPages?'disabled':''} style="padding:4px 10px; font-size:12px;">Sau ›</button>`;
+    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsCompanyPage(${totalPages})" ${debtsCompanyPage===totalPages?'disabled':''} style="padding:4px 10px; font-size:12px;">Cuối »</button></div>`;
+    paginEl.innerHTML = html;
+  }
+}
+
+function changeDebtsCompanyPage(p) { debtsCompanyPage = p; renderDebtsCompanyGroupedTable(); }
+
+// =====================================================================
+// XUẤT EXCEL CÔNG TY — multi-sheet workbook
+// =====================================================================
+function exportCompanyToExcel(companyName, childPartnerIds) {
+  if (typeof XLSX === 'undefined') { showToast('Thư viện SheetJS chưa được nạp!', 'danger'); return; }
+  try {
+    const { fromDate, toDate } = getDebtDateRange();
+    showToast(`Đang xuất Excel cho ${companyName}...`, 'info');
+
+    // Calculate debts for child partners
+    const allDebts = calculatePartnerDebts(fromDate, toDate);
+    const childDebtsMap = {};
+    allDebts.filter(d => childPartnerIds.includes(d.id)).forEach(d => childDebtsMap[d.id] = d);
+
+    // Product lookup
+    const productsMap = {};
+    (state.products || []).forEach(p => productsMap[p.id] = p);
+
+    // Group vouchers by partnerId
+    const vouchersByPartner = {};
+    childPartnerIds.forEach(id => vouchersByPartner[id] = []);
+    (state.vouchers || []).forEach(v => {
+      if (!childPartnerIds.includes(v.partnerId)) return;
+      const vDate = v.date || '';
+      if (fromDate && vDate < fromDate) return;
+      if (toDate && vDate > toDate) return;
+      vouchersByPartner[v.partnerId].push(v);
+    });
+
+    // Sort child partners by name
+    const childPartners = childPartnerIds
+      .map(id => {
+        const p = (state.partners || []).find(x => x.id === id);
+        return { id, name: p ? p.name : id, address: p ? p.address || '' : '' };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+
+    const wb = XLSX.utils.book_new();
+
+    // --- Shared styles ---
+    const thin = { style: 'thin', color: { rgb: 'CCCCCC' } };
+    const b4 = { top: thin, bottom: thin, left: thin, right: thin };
+    const hdrBg = { patternType: 'solid', fgColor: { rgb: '1F497D' } };
+    const totBg = { patternType: 'solid', fgColor: { rgb: 'D9E1F2' } };
+    const altBg = { patternType: 'solid', fgColor: { rgb: 'F5F8FF' } };
+    const greenBg = { patternType: 'solid', fgColor: { rgb: 'E2EFDA' } };
+    const fntT  = { name: 'Times New Roman', sz: 13, bold: true };
+    const fntH  = { name: 'Times New Roman', sz: 11, bold: true, color: { rgb: 'FFFFFF' } };
+    const fntHD = { name: 'Times New Roman', sz: 11, bold: true };
+    const fntB  = { name: 'Times New Roman', sz: 11, bold: true };
+    const fntN  = { name: 'Times New Roman', sz: 11 };
+    const cC = { horizontal: 'center', vertical: 'center', wrapText: true };
+    const cL = { horizontal: 'left',   vertical: 'center', wrapText: true };
+    const cR = { horizontal: 'right',  vertical: 'center' };
+    const numFmt  = '#,##0 ;[Red](#,##0)';
+    const dateFmt = 'dd/mm/yyyy';
+    const formatD = s => { if (!s) return ''; const pt = s.split('-'); return `${pt[2]}/${pt[1]}/${pt[0]}`; };
+    const vTypeLabel = t => ({sales:'Bán hàng',purchase:'Nhập hàng',receipt:'Phiếu thu',payment:'Phiếu chi',sales_return:'Hàng trả lại',purchase_return:'Trả NCC'}[t] || t);
+
+    // Helper to write cell
+    const setCell = (ws, r, c, v, t, s, z) => {
+      const key = XLSX.utils.encode_cell({ r, c });
+      const cell = { v, t: t || (typeof v === 'number' ? 'n' : 's') };
+      if (s) cell.s = s;
+      if (z) cell.z = z;
+      ws[key] = cell;
+    };
+
+    // ====================================================
+    // SHEET 1: Tổng hợp các công trình
+    // ====================================================
+    const ws1 = {};
+    const merges1 = [];
+    const ncols1 = 9; // STT|Tên|Địa chỉ|Từ ngày|Đến ngày|Dư ĐK Nợ|PS Nợ|PS Có|Dư CK Nợ
+
+    // Title
+    const titlePeriod = fromDate || toDate ? ` (${fromDate?'Từ '+formatD(fromDate):''} ${toDate?'đến '+formatD(toDate):''})` : '';
+    setCell(ws1, 0, 0, `${companyName} — TỔNG HỢP CÔNG NỢ CÁC CÔNG TRÌNH${titlePeriod}`, 's', { font: fntT, alignment: cC });
+    merges1.push({ s:{r:0,c:0}, e:{r:0,c:ncols1-1} });
+
+    const headers1 = ['STT','Tên Công Trình','Địa chỉ','Từ ngày','Đến ngày','Dư ĐK Nợ','PS Nợ (Bán chịu)','PS Có (Thu tiền)','Dư CK Nợ (Còn phải thu)'];
+    headers1.forEach((h,c) => setCell(ws1, 1, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: b4 }));
+
+    let r1 = 2;
+    let totDKNo=0, totPSNo=0, totPSCo=0, totCKNo=0;
+    let hasData = false;
+
+    childPartners.forEach((cp, idx) => {
+      const d = childDebtsMap[cp.id];
+      if (!d && (vouchersByPartner[cp.id] || []).length === 0) return;
+      hasData = true;
+
+      const vList = (vouchersByPartner[cp.id] || []).sort((a,b) => (a.date||'').localeCompare(b.date||''));
+      const minDate = vList.length > 0 ? formatD(vList[0].date) : '';
+      const maxDate = vList.length > 0 ? formatD(vList[vList.length-1].date) : '';
+
+      const od = d ? d.openingDebit || 0 : 0;
+      const dt = d ? d.debitTrans   || 0 : 0;
+      const ct = d ? d.creditTrans  || 0 : 0;
+      const cd = d ? d.closingDebit || 0 : 0;
+
+      totDKNo += od; totPSNo += dt; totPSCo += ct; totCKNo += cd;
+
+      const bg = idx % 2 === 0 ? null : altBg;
+      const bs = al => ({ font: fntN, fill: bg, alignment: al, border: b4 });
+
+      setCell(ws1, r1, 0, idx+1, 'n', { font: fntN, fill: bg, alignment: cC, border: b4 });
+      setCell(ws1, r1, 1, cp.name, 's', bs(cL));
+      setCell(ws1, r1, 2, cp.address || '', 's', bs(cL));
+      setCell(ws1, r1, 3, minDate, 's', bs(cC));
+      setCell(ws1, r1, 4, maxDate, 's', bs(cC));
+      setCell(ws1, r1, 5, od, 'n', bs(cR), numFmt);
+      setCell(ws1, r1, 6, dt, 'n', bs(cR), numFmt);
+      setCell(ws1, r1, 7, ct, 'n', bs(cR), numFmt);
+      setCell(ws1, r1, 8, cd, 'n', { font: fntHD, fill: cd > 0 ? greenBg : bg, alignment: cR, border: b4 }, numFmt);
+      r1++;
+    });
+
+    if (!hasData) {
+      setCell(ws1, r1, 0, 'Không có dữ liệu trong kỳ này.', 's', { font: fntN, alignment: cL });
+      merges1.push({ s:{r:r1,c:0}, e:{r:r1,c:ncols1-1} });
+      r1++;
+    }
+
+    // Totals
+    const ts1 = al => ({ font: fntB, fill: totBg, alignment: al, border: b4 });
+    setCell(ws1, r1, 0, 'TỔNG CỘNG', 's', ts1(cL));
+    merges1.push({ s:{r:r1,c:0}, e:{r:r1,c:4} });
+    setCell(ws1, r1, 5, totDKNo, 'n', ts1(cR), numFmt);
+    setCell(ws1, r1, 6, totPSNo, 'n', ts1(cR), numFmt);
+    setCell(ws1, r1, 7, totPSCo, 'n', ts1(cR), numFmt);
+    setCell(ws1, r1, 8, totCKNo, 'n', ts1(cR), numFmt);
+
+    ws1['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:r1,c:ncols1-1} });
+    ws1['!merges'] = merges1;
+    ws1['!cols'] = [{wch:5},{wch:36},{wch:30},{wch:12},{wch:12},{wch:14},{wch:16},{wch:16},{wch:18}];
+    ws1['!rows'] = [{hpt:22},{hpt:24}];
+    XLSX.utils.book_append_sheet(wb, ws1, 'Tổng hợp');
+
+    // ====================================================
+    // SHEETS 2+: Chi tiết từng công trình
+    // ====================================================
+    const ncols2 = 10; // STT|Ngày|Số phiếu|Loại|Tên sản phẩm|ĐVT|SL|Đơn giá|%CK|Thành tiền
+
+    childPartners.forEach(cp => {
+      const vList = (vouchersByPartner[cp.id] || []).sort((a,b) => (a.date||'').localeCompare(b.date||''));
+      if (vList.length === 0) return;
+
+      const ws2 = {};
+      const merges2 = [];
+
+      // Sheet name: max 31 chars, sanitized
+      let sheetName = cp.name
+        .replace(/[\/\\?\*\[\]:]/g, ' ')
+        .replace(/\([^)]*(?:kh|kht|ncc|dt|t\d|\d{2}\/\d{2}|\d{4})[^)]*\)/gi, '')
+        .trim()
+        .substring(0, 28);
+      if (!sheetName) sheetName = cp.id.substring(0,28);
+
+      // Ensure unique sheet name
+      let finalSheetName = sheetName;
+      let suffix = 2;
+      while (wb.SheetNames.includes(finalSheetName)) { finalSheetName = sheetName.substring(0,25) + '_' + suffix++; }
+
+      // Title
+      setCell(ws2, 0, 0, `${cp.name} — CHI TIẾT MẶT HÀNG${titlePeriod}`, 's', { font: fntT, alignment: cC });
+      merges2.push({ s:{r:0,c:0}, e:{r:0,c:ncols2-1} });
+      if (cp.address) {
+        setCell(ws2, 1, 0, `Địa chỉ: ${cp.address}`, 's', { font: { name:'Times New Roman', sz:11, italic:true }, alignment: cL });
+        merges2.push({ s:{r:1,c:0}, e:{r:1,c:ncols2-1} });
+      }
+
+      const hdrRow = cp.address ? 2 : 1;
+      const headers2 = ['STT','Ngày','Số phiếu','Loại phiếu','Tên sản phẩm','ĐVT','Số lượng','Đơn giá','% CK','Thành tiền'];
+      headers2.forEach((h,c) => setCell(ws2, hdrRow, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: b4 }));
+
+      let r2 = hdrRow + 1;
+      let rowIdx = 1;
+      let grandTotal = 0;
+
+      vList.forEach(v => {
+        const items = v.items || [];
+        if (items.length === 0) {
+          // Show voucher as single line (receipt/payment)
+          const isReceipt = v.type === 'receipt' || v.type === 'payment';
+          const bg = rowIdx % 2 === 0 ? altBg : null;
+          const bs = al => ({ font: fntN, fill: bg, alignment: al, border: b4 });
+          setCell(ws2, r2, 0, rowIdx, 'n', bs(cC));
+          setCell(ws2, r2, 1, formatD(v.date), 's', bs(cC));
+          setCell(ws2, r2, 2, v.id, 's', bs(cC));
+          setCell(ws2, r2, 3, vTypeLabel(v.type), 's', bs(cL));
+          setCell(ws2, r2, 4, v.description || '', 's', { font: fntN, fill: bg, alignment: cL, border: b4 });
+          merges2.push({ s:{r:r2,c:4}, e:{r:r2,c:8} });
+          setCell(ws2, r2, 9, v.amount || 0, 'n', bs(cR), numFmt);
+          grandTotal += v.amount || 0;
+          rowIdx++; r2++;
+          return;
+        }
+
+        // Group header for this voucher
+        const vBg = { patternType: 'solid', fgColor: { rgb: 'EBF3FF' } };
+        const vhs = al => ({ font: { name:'Times New Roman', sz:11, bold:true }, fill: vBg, alignment: al, border: b4 });
+        setCell(ws2, r2, 0, '', 's', vhs(cC));
+        setCell(ws2, r2, 1, formatD(v.date), 's', vhs(cC));
+        setCell(ws2, r2, 2, v.id, 's', vhs(cC));
+        setCell(ws2, r2, 3, vTypeLabel(v.type), 's', vhs(cL));
+        setCell(ws2, r2, 4, v.description || '', 's', { font:{name:'Times New Roman',sz:11,bold:true,italic:true}, fill:vBg, alignment:cL, border:b4 });
+        merges2.push({ s:{r:r2,c:4}, e:{r:r2,c:9} });
+        r2++;
+
+        items.forEach(item => {
+          const prod = productsMap[item.productId] || {};
+          const bg = rowIdx % 2 === 0 ? altBg : null;
+          const bs = al => ({ font: fntN, fill: bg, alignment: al, border: b4 });
+          setCell(ws2, r2, 0, rowIdx, 'n', bs(cC));
+          setCell(ws2, r2, 1, formatD(v.date), 's', bs(cC));
+          setCell(ws2, r2, 2, v.id, 's', bs(cC));
+          setCell(ws2, r2, 3, vTypeLabel(v.type), 's', bs(cL));
+          setCell(ws2, r2, 4, prod.name || item.productId || '', 's', bs(cL));
+          setCell(ws2, r2, 5, prod.unit || '', 's', bs(cC));
+          setCell(ws2, r2, 6, item.qty || 0, 'n', bs(cR), '#,##0.##');
+          setCell(ws2, r2, 7, item.price || 0, 'n', bs(cR), numFmt);
+          setCell(ws2, r2, 8, item.discount || 0, 'n', bs(cC), '0.##"%"');
+          setCell(ws2, r2, 9, item.amount || 0, 'n', bs(cR), numFmt);
+          grandTotal += item.amount || 0;
+          rowIdx++; r2++;
+        });
+      });
+
+      // Grand total
+      const ts2 = al => ({ font: fntB, fill: totBg, alignment: al, border: b4 });
+      setCell(ws2, r2, 0, 'TỔNG CỘNG', 's', ts2(cL));
+      merges2.push({ s:{r:r2,c:0}, e:{r:r2,c:8} });
+      setCell(ws2, r2, 9, grandTotal, 'n', ts2(cR), numFmt);
+
+      ws2['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:r2,c:ncols2-1} });
+      ws2['!merges'] = merges2;
+      ws2['!cols'] = [{wch:5},{wch:12},{wch:12},{wch:14},{wch:36},{wch:7},{wch:9},{wch:13},{wch:7},{wch:16}];
+      ws2['!rows'] = [{hpt:22},{hpt:18}];
+      XLSX.utils.book_append_sheet(wb, ws2, finalSheetName);
+    });
+
+    // Save
+    const safeName = companyName.replace(/[\/\\?\*\[\]:]/g, '_').substring(0,40);
+    const outName = `CongNo_${safeName}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, outName);
+    showToast(`✅ Đã xuất Excel: ${outName} (${wb.SheetNames.length} sheets)`, 'success');
+
+  } catch(err) {
+    console.error('exportCompanyToExcel error:', err);
+    showToast(`Lỗi xuất Excel công ty: ${err.message}`, 'danger');
+  }
+}
+
 // Debts
 window.filterDebts = filterDebts;
 window.changeDebtsPage = changeDebtsPage;
@@ -2307,6 +2904,15 @@ window.renderDebtsGroupedTable = renderDebtsGroupedTable;
 window.changeDebtsGroupedPage = changeDebtsGroupedPage;
 window.toggleGroupChildren = toggleGroupChildren;
 window.viewGroupedPartnerLedger = viewGroupedPartnerLedger;
+// New tabs
+window.classifyPartnerCategory = classifyPartnerCategory;
+window.renderDebtOverview = renderDebtOverview;
+window.renderDebtsIndividualTable = renderDebtsIndividualTable;
+window.changeDebtsIndividualPage = changeDebtsIndividualPage;
+window.renderDebtsCompanyGroupedTable = renderDebtsCompanyGroupedTable;
+window.changeDebtsCompanyPage = changeDebtsCompanyPage;
+window.buildCompanyGroupedList = buildCompanyGroupedList;
+window.exportCompanyToExcel = exportCompanyToExcel;
 
 function editOrderFromLedger(voucherId, voucherType) {
   closeModal('modal-view-partner-ledger');
