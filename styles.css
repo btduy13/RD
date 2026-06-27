@@ -334,14 +334,18 @@ body {
   flex-grow: 1;
   padding: 24px;
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 24px;
+  min-width: 0;
 }
 
 .tab-view {
   display: none;
   animation: fadeIn 0.4s ease forwards;
+  min-width: 0;
+  width: 100%;
 }
 
 .tab-view.active-tab {
