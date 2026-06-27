@@ -493,7 +493,7 @@ function exportSalesToExcel(detailed = true) {
     showToast("Thư viện SheetJS chưa được nạp!", "danger");
     return;
   }
-  let filteredSales = state.vouchers.filter(v => v.type === "sales");
+  let filteredSales = state.vouchers.filter(v => v.type === "sales" || v.type === "sales_return");
 
   const query = document.getElementById("search-sales") ? document.getElementById("search-sales").value.toLowerCase() : "";
   const fromDate = document.getElementById("search-sales-from") ? document.getElementById("search-sales-from").value : "";
@@ -570,6 +570,7 @@ function exportSalesToExcel(detailed = true) {
       // DATA ROWS — 1 dòng mỗi sản phẩm trong mỗi chứng từ
       let rowIdx = 4;
       let totalQty = 0, totalGross = 0, totalCK = 0;
+      let totalReturnQty = 0, totalReturnValue = 0;
 
       filteredSales.forEach((v, vi) => {
         const bg = vi % 2 === 0 ? null : altBg;
@@ -578,6 +579,7 @@ function exportSalesToExcel(detailed = true) {
         const partnerId = v.partnerId || "";
         const partnerName = v.partnerName || getPartnerNameForVoucher(v);
         const descCommon = v.description || "";
+        const isReturn = v.type === "sales_return";
 
         const writeRow = (productId, productName, unit, qty, price, grossAmt, ckAmt) => {
           sc(rowIdx, 0, dateStrToSerial(v.date), 'n', bs(cC), dateFmt);
@@ -592,16 +594,29 @@ function exportSalesToExcel(detailed = true) {
           sc(rowIdx, 9, productId, 's', bs(cC));
           sc(rowIdx, 10, productName, 's', bs(cL));
           sc(rowIdx, 11, unit, 's', bs(cC));
-          sc(rowIdx, 12, qty, 'n', ns(cR), "#,##0.##");
-          sc(rowIdx, 13, price, 'n', ns(cR), numFmt);
-          sc(rowIdx, 14, grossAmt, 'n', ns(cR), numFmt);
-          sc(rowIdx, 15, ckAmt, 'n', ns(cR), numFmt);
-          sc(rowIdx, 16, 0, 'n', ns(cR), "#,##0.##");  // SL trả lại
-          sc(rowIdx, 17, 0, 'n', ns(cR), numFmt);        // GT trả lại
-          sc(rowIdx, 18, 0, 'n', ns(cR), numFmt);        // GT giảm giá
-          totalQty += qty;
-          totalGross += grossAmt;
-          totalCK += ckAmt;
+          
+          if (isReturn) {
+            sc(rowIdx, 12, 0, 'n', ns(cR), "#,##0.##");  // SL bán
+            sc(rowIdx, 13, price, 'n', ns(cR), numFmt);    // Đơn giá
+            sc(rowIdx, 14, 0, 'n', ns(cR), numFmt);        // Doanh số bán
+            sc(rowIdx, 15, 0, 'n', ns(cR), numFmt);        // Chiết khấu
+            sc(rowIdx, 16, qty, 'n', ns(cR), "#,##0.##");  // SL trả lại
+            sc(rowIdx, 17, grossAmt, 'n', ns(cR), numFmt);  // GT trả lại
+            sc(rowIdx, 18, 0, 'n', ns(cR), numFmt);        // GT giảm giá
+            totalReturnQty += qty;
+            totalReturnValue += grossAmt;
+          } else {
+            sc(rowIdx, 12, qty, 'n', ns(cR), "#,##0.##");  // SL bán
+            sc(rowIdx, 13, price, 'n', ns(cR), numFmt);    // Đơn giá
+            sc(rowIdx, 14, grossAmt, 'n', ns(cR), numFmt); // Doanh số bán
+            sc(rowIdx, 15, ckAmt, 'n', ns(cR), numFmt);    // Chiết khấu
+            sc(rowIdx, 16, 0, 'n', ns(cR), "#,##0.##");    // SL trả lại
+            sc(rowIdx, 17, 0, 'n', ns(cR), numFmt);        // GT trả lại
+            sc(rowIdx, 18, 0, 'n', ns(cR), numFmt);        // GT giảm giá
+            totalQty += qty;
+            totalGross += grossAmt;
+            totalCK += ckAmt;
+          }
           rowIdx++;
         };
 
@@ -635,8 +650,8 @@ function exportSalesToExcel(detailed = true) {
       sc(rowIdx, 13, 0, 'n', ts(cR), numFmt);
       sc(rowIdx, 14, totalGross, 'n', ts(cR), numFmt);
       sc(rowIdx, 15, totalCK, 'n', ts(cR), numFmt);
-      sc(rowIdx, 16, 0, 'n', ts(cR), "#,##0.##");
-      sc(rowIdx, 17, 0, 'n', ts(cR), numFmt);
+      sc(rowIdx, 16, totalReturnQty, 'n', ts(cR), "#,##0.##");
+      sc(rowIdx, 17, totalReturnValue, 'n', ts(cR), numFmt);
       sc(rowIdx, 18, 0, 'n', ts(cR), numFmt);
 
       ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: NCOLS - 1 } });
@@ -688,8 +703,11 @@ function exportSalesToExcel(detailed = true) {
         const bs = al => ({ font: fntN, fill: bg, alignment: al, border: b4 });
         const ns = al => ({ font: fntN, fill: bg, alignment: al || cR, border: b4 });
 
-        const taxAmt = v.taxAmount || 0;
-        const totalAmt = v.totalAmount || 0;
+        const isReturn = v.type === "sales_return";
+        const sign = isReturn ? -1 : 1;
+
+        const taxAmt = (v.taxAmount || 0) * sign;
+        const totalAmt = (v.totalAmount || 0) * sign;
         const grossAmt = totalAmt - taxAmt;
         const partnerName = v.partnerName || getPartnerNameForVoucher(v);
 
@@ -700,10 +718,10 @@ function exportSalesToExcel(detailed = true) {
         sc(rowIdx, 4,  v.invoiceNo || "", 's',  bs(cC));                 // Số HĐ
         sc(rowIdx, 5,  partnerName,       's',  bs(cL));                 // Khách hàng
         sc(rowIdx, 6,  v.description || "", 's', bs(cL));                 // Diễn giải chung
-        sc(rowIdx, 7,  grossAmt,          'n',  ns(cR), numFmt);         // Doanh số bán
+        sc(rowIdx, 7,  grossAmt,          'n',  ns(cR), numFmt);         // Doanh số bán (BTL hiển thị số âm)
         sc(rowIdx, 8,  taxAmt,            'n',  ns(cR), numFmt);         // Tiền thuế
         sc(rowIdx, 9,  totalAmt,          'n',  ns(cR), numFmt);         // Tổng cộng
-        sc(rowIdx, 10, v.paymentMethod === '131' ? 'Công nợ (131)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)', 's', bs(cC));
+        sc(rowIdx, 10, isReturn ? 'Trả hàng' : (v.paymentMethod === '131' ? 'Công nợ (131)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'), 's', bs(cC));
 
         totalAmountGross += grossAmt;
         totalAmountTax += taxAmt;
