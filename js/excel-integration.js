@@ -2184,7 +2184,12 @@ function parseExcelFile(file, type) {
             debitAccount = "331";
             creditAccount = paymentMethod;
 
-            if (descLower.includes("mua hàng") || descLower.includes("nhập kho")) {
+            if ((descLower.includes("mua hàng") || descLower.includes("nhập kho")) && 
+                !descLower.includes("theo hóa đơn") && 
+                !descLower.includes("theo hđ") && 
+                !descLower.includes("trả tiền") && 
+                !descLower.includes("thanh toán") && 
+                !descLower.includes("trả nợ")) {
               debitAccount = "156";
             } else if (descLower.includes("chi phí") || descLower.includes("thuê xưởng")) {
               debitAccount = "642";

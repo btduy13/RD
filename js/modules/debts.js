@@ -14,17 +14,17 @@ function getDebtDateRange() {
   const period = document.getElementById("debt-period-filter") ? document.getElementById("debt-period-filter").value : "all";
   let fromDate = "";
   let toDate = "";
-  
+
   if (period === "month") {
     const val = document.getElementById("debt-month-input") ? document.getElementById("debt-month-input").value : ""; // e.g. "2026-06"
     if (val) {
       const parts = val.split("-");
       const year = parseInt(parts[0], 10);
       const month = parseInt(parts[1], 10);
-      
+
       const firstDay = new Date(year, month - 1, 1);
       const lastDay = new Date(year, month, 0);
-      
+
       const pad = (n) => n.toString().padStart(2, '0');
       fromDate = `${firstDay.getFullYear()}-${pad(firstDay.getMonth() + 1)}-01`;
       toDate = `${lastDay.getFullYear()}-${pad(lastDay.getMonth() + 1)}-${pad(lastDay.getDate())}`;
@@ -39,21 +39,21 @@ function getDebtDateRange() {
     fromDate = document.getElementById("debt-start-date") ? document.getElementById("debt-start-date").value : "";
     toDate = document.getElementById("debt-end-date") ? document.getElementById("debt-end-date").value : "";
   }
-  
+
   return { fromDate, toDate };
 }
 
 function changeDebtPeriodFilter() {
   const period = document.getElementById("debt-period-filter") ? document.getElementById("debt-period-filter").value : "all";
-  
+
   const monthWrap = document.getElementById("debt-month-filter-wrap");
   const yearWrap = document.getElementById("debt-year-filter-wrap");
   const customWrap = document.getElementById("debt-custom-filter-wrap");
-  
+
   if (monthWrap) monthWrap.style.display = (period === "month") ? "inline-flex" : "none";
   if (yearWrap) yearWrap.style.display = (period === "year") ? "inline-flex" : "none";
   if (customWrap) customWrap.style.display = (period === "custom") ? "inline-flex" : "none";
-  
+
   if (typeof filterDebts === "function") {
     filterDebts();
   }
@@ -189,6 +189,11 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
 function renderDebtsTable() {
   const tbody = document.getElementById("debts-table-body");
   if (!tbody) return;
+
+  const headerId = document.getElementById("debts-table-header-id");
+  if (headerId) {
+    headerId.textContent = (currentDebtsViewTab === 'supplier') ? 'Mã Nhà cung cấp' : 'Mã đối tác / Công trình';
+  }
 
   const debtsItemsPerPage = 30;
   const total = filteredDebtsList.length;
@@ -372,6 +377,18 @@ function filterDebts() {
     return;
   }
 
+  if (currentDebtsViewTab === 'supplier') {
+    // Tab "Nhà Cung Cấp" = tất cả supplier
+    filteredDebtsList = allDebts.filter(d => {
+      if (d.type !== 'supplier') return false;
+      if (!makeFilter(d)) return false;
+      return true;
+    });
+    debtsPage = 1;
+    renderDebtsTable();
+    return;
+  }
+
   if (currentDebtsViewTab === 'company') {
     const companyDebts = allDebts.filter(d => {
       if (d.type !== 'customer') return false; // Only show customers
@@ -438,10 +455,10 @@ function calculatePartnerDebtsGrouped(fromDate = "", toDate = "") {
       };
     }
     const g = groups[key];
-    g.openingDebit  += d.openingDebit  || 0;
+    g.openingDebit += d.openingDebit || 0;
     g.openingCredit += d.openingCredit || 0;
-    g.debitTrans    += d.debitTrans    || 0;
-    g.creditTrans   += d.creditTrans   || 0;
+    g.debitTrans += d.debitTrans || 0;
+    g.creditTrans += d.creditTrans || 0;
     g.childIds.push(d.id);
     g.childNames.push(d.id); // dùng mã để hiển thị
     // Nếu có nhiều loại, ưu tiên 'customer' rồi 'supplier' rồi 'both'
@@ -455,12 +472,12 @@ function calculatePartnerDebtsGrouped(fromDate = "", toDate = "") {
     if (g.primaryType === 'customer') {
       // customer: Nợ > 0 là KH đang nợ; Có > 0 là công ty nợ KH
       if (balance >= 0) { g.closingDebit = balance; g.closingCredit = 0; }
-      else               { g.closingDebit = 0; g.closingCredit = -balance; }
+      else { g.closingDebit = 0; g.closingCredit = -balance; }
     } else {
       // supplier
       const supBalance = g.openingCredit - g.openingDebit + g.creditTrans - g.debitTrans;
       if (supBalance >= 0) { g.closingCredit = supBalance; g.closingDebit = 0; }
-      else                  { g.closingCredit = 0; g.closingDebit = -supBalance; }
+      else { g.closingCredit = 0; g.closingDebit = -supBalance; }
     }
     return g;
   }).sort((a, b) => a.name.localeCompare(b.name, 'vi'));
@@ -491,11 +508,11 @@ function renderDebtsGroupedTable() {
     // Dòng TỔNG CỘNG
     let totOD = 0, totOC = 0, totDT = 0, totCT = 0, totCD = 0, totCC = 0;
     filteredDebtsGroupedList.forEach(g => {
-      totOD += g.openingDebit  || 0;
+      totOD += g.openingDebit || 0;
       totOC += g.openingCredit || 0;
-      totDT += g.debitTrans    || 0;
-      totCT += g.creditTrans   || 0;
-      totCD += g.closingDebit  || 0;
+      totDT += g.debitTrans || 0;
+      totCT += g.creditTrans || 0;
+      totCD += g.closingDebit || 0;
       totCC += g.closingCredit || 0;
     });
     const trTot = document.createElement('tr');
@@ -505,12 +522,12 @@ function renderDebtsGroupedTable() {
     trTot.innerHTML = `
       <td style="font-weight:bold; color:var(--text-primary);">TỔNG CỘNG</td>
       <td></td>
-      <td style="text-align:right; font-weight:bold;" class="font-numeric">${totOD > 0 ? formatVND(totOD).replace('đ','') : '-'}</td>
-      <td style="text-align:right; font-weight:bold;" class="font-numeric">${totOC > 0 ? formatVND(totOC).replace('đ','') : '-'}</td>
-      <td style="text-align:right; color:var(--color-primary); font-weight:bold;" class="font-numeric">${totDT > 0 ? formatVND(totDT).replace('đ','') : '-'}</td>
-      <td style="text-align:right; color:var(--color-warning); font-weight:bold;" class="font-numeric">${totCT > 0 ? formatVND(totCT).replace('đ','') : '-'}</td>
-      <td style="text-align:right; font-weight:bold; color:var(--color-success);" class="font-numeric">${totCD > 0 ? formatVND(totCD).replace('đ','') : '-'}</td>
-      <td style="text-align:right; font-weight:bold; color:var(--color-warning);" class="font-numeric">${totCC > 0 ? formatVND(totCC).replace('đ','') : '-'}</td>
+      <td style="text-align:right; font-weight:bold;" class="font-numeric">${totOD > 0 ? formatVND(totOD).replace('đ', '') : '-'}</td>
+      <td style="text-align:right; font-weight:bold;" class="font-numeric">${totOC > 0 ? formatVND(totOC).replace('đ', '') : '-'}</td>
+      <td style="text-align:right; color:var(--color-primary); font-weight:bold;" class="font-numeric">${totDT > 0 ? formatVND(totDT).replace('đ', '') : '-'}</td>
+      <td style="text-align:right; color:var(--color-warning); font-weight:bold;" class="font-numeric">${totCT > 0 ? formatVND(totCT).replace('đ', '') : '-'}</td>
+      <td style="text-align:right; font-weight:bold; color:var(--color-success);" class="font-numeric">${totCD > 0 ? formatVND(totCD).replace('đ', '') : '-'}</td>
+      <td style="text-align:right; font-weight:bold; color:var(--color-warning);" class="font-numeric">${totCC > 0 ? formatVND(totCC).replace('đ', '') : '-'}</td>
       <td></td>
     `;
     tbody.appendChild(trTot);
@@ -531,12 +548,12 @@ function renderDebtsGroupedTable() {
           <button onclick="toggleGroupChildren(this)" style="font-size:11px; padding:2px 8px; border:1px solid var(--border-color); border-radius:4px; background:var(--bg-secondary); cursor:pointer; color:var(--text-secondary);">Xem mã</button>
           <div class="group-children" style="display:none; margin-top:6px; font-size:11px; color:var(--text-muted); line-height:1.7;">${g.childNames.map(id => `<span style='display:block;'>• ${id}</span>`).join('')}</div>
         </td>
-        <td style="text-align:right; font-weight:500;" class="font-numeric">${g.openingDebit > 0 ? formatVND(g.openingDebit).replace('đ','') : '-'}</td>
-        <td style="text-align:right; font-weight:500;" class="font-numeric">${g.openingCredit > 0 ? formatVND(g.openingCredit).replace('đ','') : '-'}</td>
-        <td style="text-align:right; color:var(--color-primary); font-weight:500;" class="font-numeric">${g.debitTrans > 0 ? formatVND(g.debitTrans).replace('đ','') : '-'}</td>
-        <td style="text-align:right; color:var(--color-warning); font-weight:500;" class="font-numeric">${g.creditTrans > 0 ? formatVND(g.creditTrans).replace('đ','') : '-'}</td>
-        <td style="text-align:right; font-weight:700;" class="font-numeric ${g.closingDebit > 0 ? 'text-success' : ''}">${g.closingDebit > 0 ? formatVND(g.closingDebit).replace('đ','') : '-'}</td>
-        <td style="text-align:right; font-weight:700;" class="font-numeric ${g.closingCredit > 0 ? 'text-warning' : ''}">${g.closingCredit > 0 ? formatVND(g.closingCredit).replace('đ','') : '-'}</td>
+        <td style="text-align:right; font-weight:500;" class="font-numeric">${g.openingDebit > 0 ? formatVND(g.openingDebit).replace('đ', '') : '-'}</td>
+        <td style="text-align:right; font-weight:500;" class="font-numeric">${g.openingCredit > 0 ? formatVND(g.openingCredit).replace('đ', '') : '-'}</td>
+        <td style="text-align:right; color:var(--color-primary); font-weight:500;" class="font-numeric">${g.debitTrans > 0 ? formatVND(g.debitTrans).replace('đ', '') : '-'}</td>
+        <td style="text-align:right; color:var(--color-warning); font-weight:500;" class="font-numeric">${g.creditTrans > 0 ? formatVND(g.creditTrans).replace('đ', '') : '-'}</td>
+        <td style="text-align:right; font-weight:700;" class="font-numeric ${g.closingDebit > 0 ? 'text-success' : ''}">${g.closingDebit > 0 ? formatVND(g.closingDebit).replace('đ', '') : '-'}</td>
+        <td style="text-align:right; font-weight:700;" class="font-numeric ${g.closingCredit > 0 ? 'text-warning' : ''}">${g.closingCredit > 0 ? formatVND(g.closingCredit).replace('đ', '') : '-'}</td>
         <td style="text-align:center;">
           <button class="btn btn-secondary btn-sm" onclick="viewGroupedPartnerLedger(decodeURIComponent('${encodedName}'))" style="padding:2px 8px;">Xem Sổ</button>
         </td>
@@ -551,15 +568,15 @@ function renderDebtsGroupedTable() {
       paginEl.style.display = 'none';
     } else {
       paginEl.style.display = 'flex';
-      let html = `<span style="font-size:12px; color:var(--text-secondary); font-weight:500;">Hiển thị ${startIdx+1}–${Math.min(startIdx+perPage,total)} của ${total}</span><div style="display:flex; gap:4px; align-items:center;">`;
-      html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsGroupedPage(1)" ${debtsGroupedPage===1?'disabled':''} style="padding:4px 10px; font-size:12px;">« Đầu</button>`;
-      html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsGroupedPage(${debtsGroupedPage-1})" ${debtsGroupedPage===1?'disabled':''} style="padding:4px 10px; font-size:12px;">‹ Trước</button>`;
-      const sp = Math.max(1, debtsGroupedPage-2), ep = Math.min(totalPages, debtsGroupedPage+2);
+      let html = `<span style="font-size:12px; color:var(--text-secondary); font-weight:500;">Hiển thị ${startIdx + 1}–${Math.min(startIdx + perPage, total)} của ${total}</span><div style="display:flex; gap:4px; align-items:center;">`;
+      html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsGroupedPage(1)" ${debtsGroupedPage === 1 ? 'disabled' : ''} style="padding:4px 10px; font-size:12px;">« Đầu</button>`;
+      html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsGroupedPage(${debtsGroupedPage - 1})" ${debtsGroupedPage === 1 ? 'disabled' : ''} style="padding:4px 10px; font-size:12px;">‹ Trước</button>`;
+      const sp = Math.max(1, debtsGroupedPage - 2), ep = Math.min(totalPages, debtsGroupedPage + 2);
       for (let p = sp; p <= ep; p++) {
-        html += `<button class="btn ${p===debtsGroupedPage?'btn-success':'btn-secondary'} btn-sm" onclick="changeDebtsGroupedPage(${p})" style="padding:4px 10px; font-size:12px; font-weight:${p===debtsGroupedPage?'800':'normal'};">${p}</button>`;
+        html += `<button class="btn ${p === debtsGroupedPage ? 'btn-success' : 'btn-secondary'} btn-sm" onclick="changeDebtsGroupedPage(${p})" style="padding:4px 10px; font-size:12px; font-weight:${p === debtsGroupedPage ? '800' : 'normal'};">${p}</button>`;
       }
-      html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsGroupedPage(${debtsGroupedPage+1})" ${debtsGroupedPage===totalPages?'disabled':''} style="padding:4px 10px; font-size:12px;">Sau ›</button>`;
-      html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsGroupedPage(${totalPages})" ${debtsGroupedPage===totalPages?'disabled':''} style="padding:4px 10px; font-size:12px;">Cuối »</button>`;
+      html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsGroupedPage(${debtsGroupedPage + 1})" ${debtsGroupedPage === totalPages ? 'disabled' : ''} style="padding:4px 10px; font-size:12px;">Sau ›</button>`;
+      html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsGroupedPage(${totalPages})" ${debtsGroupedPage === totalPages ? 'disabled' : ''} style="padding:4px 10px; font-size:12px;">Cuối »</button>`;
       html += `</div>`;
       paginEl.innerHTML = html;
     }
@@ -588,7 +605,7 @@ function switchDebtsViewTab(tabName) {
   currentDebtsViewTab = tabName;
 
   // All tab containers and buttons
-  const tabs = ['overview', 'project', 'company', 'partner', 'individual']; // keep individual for backward-compat hide
+  const tabs = ['overview', 'project', 'company', 'partner', 'individual', 'supplier']; // keep individual for backward-compat hide
   tabs.forEach(t => {
     const container = document.getElementById(`debts-by-${t}-container`);
     const btn = document.getElementById(`debts-tab-btn-${t}`);
@@ -600,7 +617,8 @@ function switchDebtsViewTab(tabName) {
     }
   });
 
-  const activeContainer = document.getElementById(`debts-by-${tabName}-container`);
+  const actualContainerId = (tabName === 'supplier') ? 'debts-by-project-container' : `debts-by-${tabName}-container`;
+  const activeContainer = document.getElementById(actualContainerId);
   const activeBtn = document.getElementById(`debts-tab-btn-${tabName}`);
   if (activeContainer) activeContainer.style.display = '';
   if (activeBtn) {
@@ -660,7 +678,7 @@ function viewGroupedPartnerLedger(partnerName) {
       });
     }
 
-    totalOpeningDebit  += (initialDebit + priorDebit);
+    totalOpeningDebit += (initialDebit + priorDebit);
     totalOpeningCredit += (initialCredit + priorCredit);
   });
 
@@ -673,7 +691,7 @@ function viewGroupedPartnerLedger(partnerName) {
 
   // Cập nhật tiêu đề modal
   const idList = matchingPartners.map(p => p.id).join(', ');
-  let subtitle = `Đối tác: ${partnerName} | ${matchingPartners.length} mã: ${idList.length > 80 ? idList.slice(0,80)+'...' : idList}`;
+  let subtitle = `Đối tác: ${partnerName} | ${matchingPartners.length} mã: ${idList.length > 80 ? idList.slice(0, 80) + '...' : idList}`;
   if (fromDate || toDate) {
     const formatD = (dStr) => {
       if (!dStr) return "";
@@ -710,7 +728,7 @@ function viewGroupedPartnerLedger(partnerName) {
         isRelevant = (e.debit && e.debit.startsWith('331')) || (e.credit && e.credit.startsWith('331'));
       } else {
         isRelevant = ((e.debit && e.debit.startsWith('131')) || (e.credit && e.credit.startsWith('131')))
-                  || ((e.debit && e.debit.startsWith('331')) || (e.credit && e.credit.startsWith('331')));
+          || ((e.debit && e.debit.startsWith('331')) || (e.credit && e.credit.startsWith('331')));
       }
       if (!isRelevant) return;
       if ((e.debit && e.debit.startsWith('131')) || (e.debit && e.debit.startsWith('331'))) {
@@ -760,8 +778,8 @@ function viewGroupedPartnerLedger(partnerName) {
         <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${le.id}</a>${partnerIdNote}</td>
         <td>${le.desc}</td>
         <td style="text-align:center; font-weight:700;">${le.offsetAccount}</td>
-        <td style="text-align:right; font-weight:500;">${le.debit > 0 ? formatVND(le.debit).replace('đ','') : '-'}</td>
-        <td style="text-align:right; font-weight:500;">${le.credit > 0 ? formatVND(le.credit).replace('đ','') : '-'}</td>
+        <td style="text-align:right; font-weight:500;">${le.debit > 0 ? formatVND(le.debit).replace('đ', '') : '-'}</td>
+        <td style="text-align:right; font-weight:500;">${le.credit > 0 ? formatVND(le.credit).replace('đ', '') : '-'}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -827,7 +845,7 @@ function viewLedgerByIds(partnerIds, groupName) {
         });
       });
     }
-    totalOpeningDebit  += (initialDebit + priorDebit);
+    totalOpeningDebit += (initialDebit + priorDebit);
     totalOpeningCredit += (initialCredit + priorCredit);
   });
 
@@ -839,7 +857,7 @@ function viewLedgerByIds(partnerIds, groupName) {
     : (openingVal >= 0 ? `${formatVND(openingVal)} (Có)` : `${formatVND(-openingVal)} (Nợ)`);
 
   const idList = matchingPartners.map(p => p.id).join(', ');
-  let subtitle = `Công ty: ${groupName} | ${matchingPartners.length} mã: ${idList.length > 100 ? idList.slice(0,100)+'...' : idList}`;
+  let subtitle = `Công ty: ${groupName} | ${matchingPartners.length} mã: ${idList.length > 100 ? idList.slice(0, 100) + '...' : idList}`;
   if (fromDate || toDate) {
     const fmtD = s => { if (!s) return ''; const pt = s.split('-'); return `${pt[2]}/${pt[1]}/${pt[0]}`; };
     subtitle += ` | Kỳ: ${fromDate ? 'Từ ' + fmtD(fromDate) : ''} ${toDate ? 'Đến ' + fmtD(toDate) : ''}`;
@@ -870,7 +888,7 @@ function viewLedgerByIds(partnerIds, groupName) {
         isRelevant = (e.debit && e.debit.startsWith('331')) || (e.credit && e.credit.startsWith('331'));
       } else {
         isRelevant = ((e.debit && e.debit.startsWith('131')) || (e.credit && e.credit.startsWith('131')))
-                  || ((e.debit && e.debit.startsWith('331')) || (e.credit && e.credit.startsWith('331')));
+          || ((e.debit && e.debit.startsWith('331')) || (e.credit && e.credit.startsWith('331')));
       }
       if (!isRelevant) return;
       if ((e.debit && (e.debit.startsWith('131') || e.debit.startsWith('331')))) {
@@ -888,7 +906,7 @@ function viewLedgerByIds(partnerIds, groupName) {
     }
   });
 
-  ledgerEntries.sort((a, b) => (a.date||'').localeCompare(b.date||''));
+  ledgerEntries.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
   if (ledgerEntries.length === 0) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px;">Không có giao dịch phát sinh công nợ trong kỳ</td></tr>`;
@@ -909,8 +927,8 @@ function viewLedgerByIds(partnerIds, groupName) {
         <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${le.id}</a>${partnerNote}</td>
         <td>${le.desc}</td>
         <td style="text-align:center; font-weight:700;">${le.offsetAccount}</td>
-        <td style="text-align:right; font-weight:500;">${le.debit > 0 ? formatVND(le.debit).replace('đ','') : '-'}</td>
-        <td style="text-align:right; font-weight:500;">${le.credit > 0 ? formatVND(le.credit).replace('đ','') : '-'}</td>
+        <td style="text-align:right; font-weight:500;">${le.debit > 0 ? formatVND(le.debit).replace('đ', '') : '-'}</td>
+        <td style="text-align:right; font-weight:500;">${le.credit > 0 ? formatVND(le.credit).replace('đ', '') : '-'}</td>
       `;
       tbody.appendChild(tr2);
     });
@@ -1024,7 +1042,7 @@ function viewPartnerLedger(partnerId) {
         isRelevant = e.debit.startsWith("331") || e.credit.startsWith("331");
       } else {
         isRelevant = (e.debit.startsWith("131") || e.credit.startsWith("131"))
-                  || (e.debit.startsWith("331") || e.credit.startsWith("331"));
+          || (e.debit.startsWith("331") || e.credit.startsWith("331"));
       }
       if (!isRelevant) return;
 
@@ -1201,7 +1219,7 @@ async function exportPartnerDebtExcel(partnerId) {
           isRelevant = e.debit.startsWith("331") || e.credit.startsWith("331");
         } else {
           isRelevant = (e.debit.startsWith("131") || e.credit.startsWith("131"))
-                    || (e.debit.startsWith("331") || e.credit.startsWith("331"));
+            || (e.debit.startsWith("331") || e.credit.startsWith("331"));
         }
         if (!isRelevant) return;
 
@@ -1599,7 +1617,7 @@ function previewPartnerDebtNotice(partnerId) {
         isRelevant = e.debit.startsWith("331") || e.credit.startsWith("331");
       } else {
         isRelevant = (e.debit.startsWith("131") || e.credit.startsWith("131"))
-                  || (e.debit.startsWith("331") || e.credit.startsWith("331"));
+          || (e.debit.startsWith("331") || e.credit.startsWith("331"));
       }
       if (!isRelevant) return;
 
@@ -2289,7 +2307,7 @@ function exportDebtsToExcelDetailed() {
             isRelevant = e.debit.startsWith("331") || e.credit.startsWith("331");
           } else {
             isRelevant = (e.debit.startsWith("131") || e.credit.startsWith("131"))
-                      || (e.debit.startsWith("331") || e.credit.startsWith("331"));
+              || (e.debit.startsWith("331") || e.credit.startsWith("331"));
           }
           if (!isRelevant) return;
 
@@ -2383,7 +2401,7 @@ function exportDebtsToExcelDetailed() {
     ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: ncols - 1 } });
     ws['!merges'] = merges;
     ws['!cols'] = [{ wch: 14 }, { wch: 14 }, { wch: 38 }, { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
-    
+
     XLSX.utils.book_append_sheet(wb, ws, "Chi tiet cong no");
     const outName = `Chi_tiet_cong_no_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(wb, outName);
@@ -2484,7 +2502,7 @@ function renderDebtOverview(allDebts) {
   const auditEl = document.getElementById('debt-audit-content');
 
   // Build category stats
-  const cats = { individual: {rec:0,overpaid:0,count:0}, project: {rec:0,overpaid:0,count:0}, company: {rec:0,overpaid:0,count:0} };
+  const cats = { individual: { rec: 0, overpaid: 0, count: 0 }, project: { rec: 0, overpaid: 0, count: 0 }, company: { rec: 0, overpaid: 0, count: 0 } };
   let totalRec = 0, totalPay = 0, totalNetRec = 0, partnersWithDebt = 0, partnersOverpaid = 0;
   let totalInitOB = 0, totalDebitTx = 0, totalCreditTx = 0;
 
@@ -2554,16 +2572,16 @@ function renderDebtOverview(allDebts) {
     const rows = catRows.map(cr => `<tr>
       <td style="font-weight:600; color:var(--text-primary);">${cr.label}</td>
       <td style="text-align:right; font-family:monospace;">${cr.count.toLocaleString('vi-VN')}</td>
-      <td style="text-align:right; color:var(--color-success); font-family:monospace;">${cr.rec > 0 ? formatVND(cr.rec).replace('đ','') : '-'}</td>
-      <td style="text-align:right; color:var(--color-warning); font-family:monospace;">${cr.ovp > 0 ? formatVND(cr.ovp).replace('đ','') : '-'}</td>
-      <td style="text-align:right; font-weight:700; font-family:monospace; color:${cr.net>=0?'var(--color-success)':'var(--color-danger)'};">${formatVND(cr.net).replace('đ','')}</td>
+      <td style="text-align:right; color:var(--color-success); font-family:monospace;">${cr.rec > 0 ? formatVND(cr.rec).replace('đ', '') : '-'}</td>
+      <td style="text-align:right; color:var(--color-warning); font-family:monospace;">${cr.ovp > 0 ? formatVND(cr.ovp).replace('đ', '') : '-'}</td>
+      <td style="text-align:right; font-weight:700; font-family:monospace; color:${cr.net >= 0 ? 'var(--color-success)' : 'var(--color-danger)'};">${formatVND(cr.net).replace('đ', '')}</td>
     </tr>`);
     rows.push(`<tr style="font-weight:bold; background:var(--bg-tertiary); border-top:2px solid var(--border-color);">
       <td>TỔNG CỘNG</td>
       <td style="text-align:right; font-family:monospace;">${totalRowCount.toLocaleString('vi-VN')}</td>
-      <td style="text-align:right; color:var(--color-success); font-family:monospace;">${formatVND(totalRowRec).replace('đ','')}</td>
-      <td style="text-align:right; color:var(--color-warning); font-family:monospace;">${formatVND(totalRowOvp).replace('đ','')}</td>
-      <td style="text-align:right; font-weight:800; font-family:monospace; color:var(--color-success);">${formatVND(totalRowNet).replace('đ','')}</td>
+      <td style="text-align:right; color:var(--color-success); font-family:monospace;">${formatVND(totalRowRec).replace('đ', '')}</td>
+      <td style="text-align:right; color:var(--color-warning); font-family:monospace;">${formatVND(totalRowOvp).replace('đ', '')}</td>
+      <td style="text-align:right; font-weight:800; font-family:monospace; color:var(--color-success);">${formatVND(totalRowNet).replace('đ', '')}</td>
     </tr>`);
     breakdownEl.innerHTML = rows.join('');
   }
@@ -2577,7 +2595,7 @@ function renderDebtOverview(allDebts) {
         <tr><td style="padding:3px 8px; color:var(--text-muted);">+ Phát sinh Nợ trong kỳ (bán chịu)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-success);">+${formatVND(totalDebitTx)}</td></tr>
         <tr><td style="padding:3px 8px; color:var(--text-muted);">− Phát sinh Có trong kỳ (thu tiền/giảm)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-warning);">-${formatVND(totalCreditTx)}</td></tr>
         <tr style="border-top:1px solid var(--border-color);"><td style="padding:4px 8px; font-weight:700; color:var(--text-primary);">= Số dư cuối kỳ (calculated)</td><td style="text-align:right; font-family:monospace; padding:4px 8px; font-weight:800; color:var(--color-success);">${formatVND(closingCalc)}</td></tr>
-        <tr><td colspan="2" style="padding:6px 8px; color:var(--color-success); font-size:11px;">✅ Logic tính toán: Dư cuối = Dư đầu + PS Nợ − PS Có. Đã kiểm tra khớp Excel: Tổng phải thu net ≈ 2,071,348,409đ</td></tr>
+        <tr><td colspan="2" style="padding:6px 8px; color:var(--color-success); font-size:11px;"></td></tr>
       </table>`;
   }
 }
@@ -2600,22 +2618,22 @@ function renderDebtsIndividualTable() {
   const startIdx = (debtsIndividualPage - 1) * perPage;
   const pageItems = filteredIndividualList.slice(startIdx, startIdx + perPage);
 
-  if (infoEl) infoEl.innerText = `Hiển thị ${startIdx+1}–${Math.min(startIdx+perPage,total)} trong số ${total} khách cá nhân (Trang ${debtsIndividualPage}/${totalPages})`;
+  if (infoEl) infoEl.innerText = `Hiển thị ${startIdx + 1}–${Math.min(startIdx + perPage, total)} trong số ${total} khách cá nhân (Trang ${debtsIndividualPage}/${totalPages})`;
 
   tbody.innerHTML = '';
 
   // Totals row
-  let totOD=0,totOC=0,totDT=0,totCT=0,totCD=0,totCC=0;
-  filteredIndividualList.forEach(d => { totOD+=d.openingDebit||0; totOC+=d.openingCredit||0; totDT+=d.debitTrans||0; totCT+=d.creditTrans||0; totCD+=d.closingDebit||0; totCC+=d.closingCredit||0; });
+  let totOD = 0, totOC = 0, totDT = 0, totCT = 0, totCD = 0, totCC = 0;
+  filteredIndividualList.forEach(d => { totOD += d.openingDebit || 0; totOC += d.openingCredit || 0; totDT += d.debitTrans || 0; totCT += d.creditTrans || 0; totCD += d.closingDebit || 0; totCC += d.closingCredit || 0; });
   const trTot = document.createElement('tr');
-  trTot.style.fontWeight='bold'; trTot.style.backgroundColor='var(--bg-tertiary)'; trTot.style.borderBottom='2px solid var(--border-color)';
+  trTot.style.fontWeight = 'bold'; trTot.style.backgroundColor = 'var(--bg-tertiary)'; trTot.style.borderBottom = '2px solid var(--border-color)';
   trTot.innerHTML = `<td></td><td></td><td style="font-weight:bold;">TỔNG CỘNG</td>
-    <td style="text-align:right;" class="font-numeric">${totOD>0?formatVND(totOD).replace('đ',''):'-'}</td>
-    <td style="text-align:right;" class="font-numeric">${totOC>0?formatVND(totOC).replace('đ',''):'-'}</td>
-    <td style="text-align:right; color:var(--color-primary);" class="font-numeric">${totDT>0?formatVND(totDT).replace('đ',''):'-'}</td>
-    <td style="text-align:right; color:var(--color-warning);" class="font-numeric">${totCT>0?formatVND(totCT).replace('đ',''):'-'}</td>
-    <td style="text-align:right; color:var(--color-success);" class="font-numeric">${totCD>0?formatVND(totCD).replace('đ',''):'-'}</td>
-    <td style="text-align:right; color:var(--color-warning);" class="font-numeric">${totCC>0?formatVND(totCC).replace('đ',''):'-'}</td>
+    <td style="text-align:right;" class="font-numeric">${totOD > 0 ? formatVND(totOD).replace('đ', '') : '-'}</td>
+    <td style="text-align:right;" class="font-numeric">${totOC > 0 ? formatVND(totOC).replace('đ', '') : '-'}</td>
+    <td style="text-align:right; color:var(--color-primary);" class="font-numeric">${totDT > 0 ? formatVND(totDT).replace('đ', '') : '-'}</td>
+    <td style="text-align:right; color:var(--color-warning);" class="font-numeric">${totCT > 0 ? formatVND(totCT).replace('đ', '') : '-'}</td>
+    <td style="text-align:right; color:var(--color-success);" class="font-numeric">${totCD > 0 ? formatVND(totCD).replace('đ', '') : '-'}</td>
+    <td style="text-align:right; color:var(--color-warning);" class="font-numeric">${totCC > 0 ? formatVND(totCC).replace('đ', '') : '-'}</td>
     <td></td>`;
   tbody.appendChild(trTot);
 
@@ -2623,17 +2641,17 @@ function renderDebtsIndividualTable() {
     const tr = document.createElement('tr');
     const escapedId = escapeHtmlAttr(d.id);
     tr.className = 'clickable-row';
-    tr.setAttribute('data-type','partner'); tr.setAttribute('data-id', escapedId);
+    tr.setAttribute('data-type', 'partner'); tr.setAttribute('data-id', escapedId);
     tr.innerHTML = `
       <td style="text-align:center;"><input type="checkbox" class="debt-checkbox" value="${escapedId}"></td>
       <td style="font-weight:bold; color:var(--color-primary);">${d.id}</td>
       <td style="font-weight:600;"><a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline;">${d.name}</a></td>
-      <td style="text-align:right;" class="font-numeric">${d.openingDebit>0?formatVND(d.openingDebit).replace('đ',''):'-'}</td>
-      <td style="text-align:right;" class="font-numeric">${d.openingCredit>0?formatVND(d.openingCredit).replace('đ',''):'-'}</td>
-      <td style="text-align:right; color:var(--color-primary);" class="font-numeric">${d.debitTrans>0?formatVND(d.debitTrans).replace('đ',''):'-'}</td>
-      <td style="text-align:right; color:var(--color-warning);" class="font-numeric">${d.creditTrans>0?formatVND(d.creditTrans).replace('đ',''):'-'}</td>
-      <td style="text-align:right; font-weight:700;" class="font-numeric ${d.closingDebit>0?'text-success':''}">${d.closingDebit>0?formatVND(d.closingDebit).replace('đ',''):'-'}</td>
-      <td style="text-align:right; font-weight:700;" class="font-numeric ${d.closingCredit>0?'text-warning':''}">${d.closingCredit>0?formatVND(d.closingCredit).replace('đ',''):'-'}</td>
+      <td style="text-align:right;" class="font-numeric">${d.openingDebit > 0 ? formatVND(d.openingDebit).replace('đ', '') : '-'}</td>
+      <td style="text-align:right;" class="font-numeric">${d.openingCredit > 0 ? formatVND(d.openingCredit).replace('đ', '') : '-'}</td>
+      <td style="text-align:right; color:var(--color-primary);" class="font-numeric">${d.debitTrans > 0 ? formatVND(d.debitTrans).replace('đ', '') : '-'}</td>
+      <td style="text-align:right; color:var(--color-warning);" class="font-numeric">${d.creditTrans > 0 ? formatVND(d.creditTrans).replace('đ', '') : '-'}</td>
+      <td style="text-align:right; font-weight:700;" class="font-numeric ${d.closingDebit > 0 ? 'text-success' : ''}">${d.closingDebit > 0 ? formatVND(d.closingDebit).replace('đ', '') : '-'}</td>
+      <td style="text-align:right; font-weight:700;" class="font-numeric ${d.closingCredit > 0 ? 'text-warning' : ''}">${d.closingCredit > 0 ? formatVND(d.closingCredit).replace('đ', '') : '-'}</td>
       <td style="text-align:center;">
         <div style="display:flex; gap:4px; justify-content:center;">
           <button class="btn btn-secondary btn-sm" onclick="viewPartnerLedger('${escapedId}')" style="padding:2px 8px;">Xem Sổ</button>
@@ -2645,15 +2663,15 @@ function renderDebtsIndividualTable() {
 
   // Pagination
   if (paginEl) {
-    if (totalPages <= 1) { paginEl.style.display='none'; return; }
-    paginEl.style.display='flex';
-    let html = `<span style="font-size:12px; color:var(--text-secondary); font-weight:500;">${startIdx+1}–${Math.min(startIdx+perPage,total)} của ${total}</span><div style="display:flex; gap:4px; align-items:center;">`;
-    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsIndividualPage(1)" ${debtsIndividualPage===1?'disabled':''} style="padding:4px 10px; font-size:12px;">« Đầu</button>`;
-    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsIndividualPage(${debtsIndividualPage-1})" ${debtsIndividualPage===1?'disabled':''} style="padding:4px 10px; font-size:12px;">‹ Trước</button>`;
-    const sp=Math.max(1,debtsIndividualPage-2), ep=Math.min(totalPages,debtsIndividualPage+2);
-    for (let p=sp;p<=ep;p++) html+=`<button class="btn ${p===debtsIndividualPage?'btn-success':'btn-secondary'} btn-sm" onclick="changeDebtsIndividualPage(${p})" style="padding:4px 10px; font-size:12px;">${p}</button>`;
-    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsIndividualPage(${debtsIndividualPage+1})" ${debtsIndividualPage===totalPages?'disabled':''} style="padding:4px 10px; font-size:12px;">Sau ›</button>`;
-    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsIndividualPage(${totalPages})" ${debtsIndividualPage===totalPages?'disabled':''} style="padding:4px 10px; font-size:12px;">Cuối »</button></div>`;
+    if (totalPages <= 1) { paginEl.style.display = 'none'; return; }
+    paginEl.style.display = 'flex';
+    let html = `<span style="font-size:12px; color:var(--text-secondary); font-weight:500;">${startIdx + 1}–${Math.min(startIdx + perPage, total)} của ${total}</span><div style="display:flex; gap:4px; align-items:center;">`;
+    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsIndividualPage(1)" ${debtsIndividualPage === 1 ? 'disabled' : ''} style="padding:4px 10px; font-size:12px;">« Đầu</button>`;
+    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsIndividualPage(${debtsIndividualPage - 1})" ${debtsIndividualPage === 1 ? 'disabled' : ''} style="padding:4px 10px; font-size:12px;">‹ Trước</button>`;
+    const sp = Math.max(1, debtsIndividualPage - 2), ep = Math.min(totalPages, debtsIndividualPage + 2);
+    for (let p = sp; p <= ep; p++) html += `<button class="btn ${p === debtsIndividualPage ? 'btn-success' : 'btn-secondary'} btn-sm" onclick="changeDebtsIndividualPage(${p})" style="padding:4px 10px; font-size:12px;">${p}</button>`;
+    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsIndividualPage(${debtsIndividualPage + 1})" ${debtsIndividualPage === totalPages ? 'disabled' : ''} style="padding:4px 10px; font-size:12px;">Sau ›</button>`;
+    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsIndividualPage(${totalPages})" ${debtsIndividualPage === totalPages ? 'disabled' : ''} style="padding:4px 10px; font-size:12px;">Cuối »</button></div>`;
     paginEl.innerHTML = html;
   }
 }
@@ -2672,14 +2690,14 @@ function buildCompanyGroupedList(companyDebts) {
 
     if (!groups[key]) {
       let displayName = d.name.trim().replace(/\s*\([^)]*(?:kh|kht|ncc|dt|t\d|\d{2}\/\d{2}|\d{4})[^)]*\)$/i, '').trim();
-      groups[key] = { displayName, key, openingDebit:0, openingCredit:0, debitTrans:0, creditTrans:0, closingDebit:0, closingCredit:0, childIds:[], childNames:[] };
+      groups[key] = { displayName, key, openingDebit: 0, openingCredit: 0, debitTrans: 0, creditTrans: 0, closingDebit: 0, closingCredit: 0, childIds: [], childNames: [] };
     }
     const g = groups[key];
-    g.openingDebit  += d.openingDebit  || 0;
+    g.openingDebit += d.openingDebit || 0;
     g.openingCredit += d.openingCredit || 0;
-    g.debitTrans    += d.debitTrans    || 0;
-    g.creditTrans   += d.creditTrans   || 0;
-    g.closingDebit  += d.closingDebit  || 0;
+    g.debitTrans += d.debitTrans || 0;
+    g.creditTrans += d.creditTrans || 0;
+    g.closingDebit += d.closingDebit || 0;
     g.closingCredit += d.closingCredit || 0;
     g.childIds.push(d.id);
     g.childNames.push(d.name);
@@ -2713,22 +2731,22 @@ function renderDebtsCompanyGroupedTable() {
   // Build global cache for safe onclick — index maps to {name, childIds}
   _companyGroupCache = filteredCompanyGroupedList.map(g => ({ name: g.displayName, childIds: g.childIds }));
 
-  if (infoEl) infoEl.innerText = `Công nợ Theo Công Ty — ${total} công ty (${startIdx+1}–${Math.min(startIdx+perPage,total)})`;
+  if (infoEl) infoEl.innerText = `Công nợ Theo Công Ty — ${total} công ty (${startIdx + 1}–${Math.min(startIdx + perPage, total)})`;
 
   tbody.innerHTML = '';
 
   // Totals row
-  let totOD=0,totOC=0,totDT=0,totCT=0,totCD=0,totCC=0;
-  filteredCompanyGroupedList.forEach(g => { totOD+=g.openingDebit||0; totOC+=g.openingCredit||0; totDT+=g.debitTrans||0; totCT+=g.creditTrans||0; totCD+=g.closingDebit||0; totCC+=g.closingCredit||0; });
+  let totOD = 0, totOC = 0, totDT = 0, totCT = 0, totCD = 0, totCC = 0;
+  filteredCompanyGroupedList.forEach(g => { totOD += g.openingDebit || 0; totOC += g.openingCredit || 0; totDT += g.debitTrans || 0; totCT += g.creditTrans || 0; totCD += g.closingDebit || 0; totCC += g.closingCredit || 0; });
   const trTot = document.createElement('tr');
-  trTot.style.fontWeight='bold'; trTot.style.backgroundColor='var(--bg-tertiary)'; trTot.style.borderBottom='2px solid var(--border-color)';
+  trTot.style.fontWeight = 'bold'; trTot.style.backgroundColor = 'var(--bg-tertiary)'; trTot.style.borderBottom = '2px solid var(--border-color)';
   trTot.innerHTML = `<td style="font-weight:bold;">TỔNG CỘNG</td><td></td>
-    <td style="text-align:right;" class="font-numeric">${totOD>0?formatVND(totOD).replace('đ',''):'-'}</td>
-    <td style="text-align:right;" class="font-numeric">${totOC>0?formatVND(totOC).replace('đ',''):'-'}</td>
-    <td style="text-align:right; color:var(--color-primary);" class="font-numeric">${totDT>0?formatVND(totDT).replace('đ',''):'-'}</td>
-    <td style="text-align:right; color:var(--color-warning);" class="font-numeric">${totCT>0?formatVND(totCT).replace('đ',''):'-'}</td>
-    <td style="text-align:right; color:var(--color-success);" class="font-numeric">${totCD>0?formatVND(totCD).replace('đ',''):'-'}</td>
-    <td style="text-align:right; color:var(--color-warning);" class="font-numeric">${totCC>0?formatVND(totCC).replace('đ',''):'-'}</td>
+    <td style="text-align:right;" class="font-numeric">${totOD > 0 ? formatVND(totOD).replace('đ', '') : '-'}</td>
+    <td style="text-align:right;" class="font-numeric">${totOC > 0 ? formatVND(totOC).replace('đ', '') : '-'}</td>
+    <td style="text-align:right; color:var(--color-primary);" class="font-numeric">${totDT > 0 ? formatVND(totDT).replace('đ', '') : '-'}</td>
+    <td style="text-align:right; color:var(--color-warning);" class="font-numeric">${totCT > 0 ? formatVND(totCT).replace('đ', '') : '-'}</td>
+    <td style="text-align:right; color:var(--color-success);" class="font-numeric">${totCD > 0 ? formatVND(totCD).replace('đ', '') : '-'}</td>
+    <td style="text-align:right; color:var(--color-warning);" class="font-numeric">${totCC > 0 ? formatVND(totCC).replace('đ', '') : '-'}</td>
     <td></td>`;
   tbody.appendChild(trTot);
 
@@ -2751,12 +2769,12 @@ function renderDebtsCompanyGroupedTable() {
         <button onclick="toggleGroupChildren(this)" style="font-size:11px; padding:2px 8px; border:1px solid var(--border-color); border-radius:4px; background:var(--bg-secondary); cursor:pointer; color:var(--text-secondary);">Xem mã</button>
         <div class="group-children" style="display:none; margin-top:6px; font-size:11px; color:var(--text-muted); line-height:1.7;">${childIdHtml}</div>
       </td>
-      <td style="text-align:right; font-weight:500;" class="font-numeric">${g.openingDebit>0?formatVND(g.openingDebit).replace('đ',''):'-'}</td>
-      <td style="text-align:right; font-weight:500;" class="font-numeric">${g.openingCredit>0?formatVND(g.openingCredit).replace('đ',''):'-'}</td>
-      <td style="text-align:right; color:var(--color-primary); font-weight:500;" class="font-numeric">${g.debitTrans>0?formatVND(g.debitTrans).replace('đ',''):'-'}</td>
-      <td style="text-align:right; color:var(--color-warning); font-weight:500;" class="font-numeric">${g.creditTrans>0?formatVND(g.creditTrans).replace('đ',''):'-'}</td>
-      <td style="text-align:right; font-weight:700; color:var(--color-success);" class="font-numeric">${g.closingDebit>0?formatVND(g.closingDebit).replace('đ',''):'-'}</td>
-      <td style="text-align:right; font-weight:700; color:var(--color-warning);" class="font-numeric">${g.closingCredit>0?formatVND(g.closingCredit).replace('đ',''):'-'}</td>
+      <td style="text-align:right; font-weight:500;" class="font-numeric">${g.openingDebit > 0 ? formatVND(g.openingDebit).replace('đ', '') : '-'}</td>
+      <td style="text-align:right; font-weight:500;" class="font-numeric">${g.openingCredit > 0 ? formatVND(g.openingCredit).replace('đ', '') : '-'}</td>
+      <td style="text-align:right; color:var(--color-primary); font-weight:500;" class="font-numeric">${g.debitTrans > 0 ? formatVND(g.debitTrans).replace('đ', '') : '-'}</td>
+      <td style="text-align:right; color:var(--color-warning); font-weight:500;" class="font-numeric">${g.creditTrans > 0 ? formatVND(g.creditTrans).replace('đ', '') : '-'}</td>
+      <td style="text-align:right; font-weight:700; color:var(--color-success);" class="font-numeric">${g.closingDebit > 0 ? formatVND(g.closingDebit).replace('đ', '') : '-'}</td>
+      <td style="text-align:right; font-weight:700; color:var(--color-warning);" class="font-numeric">${g.closingCredit > 0 ? formatVND(g.closingCredit).replace('đ', '') : '-'}</td>
       <td style="text-align:center;">
         <div style="display:flex; gap:4px; justify-content:center;">
           <button class="btn btn-secondary btn-sm company-view-ledger" data-idx="${globalIdx}" style="padding:2px 8px;">Xem Sổ</button>
@@ -2784,15 +2802,15 @@ function renderDebtsCompanyGroupedTable() {
 
   // Pagination
   if (paginEl) {
-    if (totalPages <= 1) { paginEl.style.display='none'; return; }
-    paginEl.style.display='flex';
-    let html = `<span style="font-size:12px; color:var(--text-secondary); font-weight:500;">${startIdx+1}–${Math.min(startIdx+perPage,total)} của ${total}</span><div style="display:flex; gap:4px; align-items:center;">`;
-    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsCompanyPage(1)" ${debtsCompanyPage===1?'disabled':''} style="padding:4px 10px; font-size:12px;">« Đầu</button>`;
-    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsCompanyPage(${debtsCompanyPage-1})" ${debtsCompanyPage===1?'disabled':''} style="padding:4px 10px; font-size:12px;">‹ Trước</button>`;
-    const sp=Math.max(1,debtsCompanyPage-2), ep=Math.min(totalPages,debtsCompanyPage+2);
-    for (let p=sp;p<=ep;p++) html+=`<button class="btn ${p===debtsCompanyPage?'btn-success':'btn-secondary'} btn-sm" onclick="changeDebtsCompanyPage(${p})" style="padding:4px 10px; font-size:12px;">${p}</button>`;
-    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsCompanyPage(${debtsCompanyPage+1})" ${debtsCompanyPage===totalPages?'disabled':''} style="padding:4px 10px; font-size:12px;">Sau ›</button>`;
-    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsCompanyPage(${totalPages})" ${debtsCompanyPage===totalPages?'disabled':''} style="padding:4px 10px; font-size:12px;">Cuối »</button></div>`;
+    if (totalPages <= 1) { paginEl.style.display = 'none'; return; }
+    paginEl.style.display = 'flex';
+    let html = `<span style="font-size:12px; color:var(--text-secondary); font-weight:500;">${startIdx + 1}–${Math.min(startIdx + perPage, total)} của ${total}</span><div style="display:flex; gap:4px; align-items:center;">`;
+    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsCompanyPage(1)" ${debtsCompanyPage === 1 ? 'disabled' : ''} style="padding:4px 10px; font-size:12px;">« Đầu</button>`;
+    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsCompanyPage(${debtsCompanyPage - 1})" ${debtsCompanyPage === 1 ? 'disabled' : ''} style="padding:4px 10px; font-size:12px;">‹ Trước</button>`;
+    const sp = Math.max(1, debtsCompanyPage - 2), ep = Math.min(totalPages, debtsCompanyPage + 2);
+    for (let p = sp; p <= ep; p++) html += `<button class="btn ${p === debtsCompanyPage ? 'btn-success' : 'btn-secondary'} btn-sm" onclick="changeDebtsCompanyPage(${p})" style="padding:4px 10px; font-size:12px;">${p}</button>`;
+    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsCompanyPage(${debtsCompanyPage + 1})" ${debtsCompanyPage === totalPages ? 'disabled' : ''} style="padding:4px 10px; font-size:12px;">Sau ›</button>`;
+    html += `<button class="btn btn-secondary btn-sm" onclick="changeDebtsCompanyPage(${totalPages})" ${debtsCompanyPage === totalPages ? 'disabled' : ''} style="padding:4px 10px; font-size:12px;">Cuối »</button></div>`;
     paginEl.innerHTML = html;
   }
 }
@@ -2845,18 +2863,18 @@ function exportCompanyToExcel(companyName, childPartnerIds) {
     const totBg = { patternType: 'solid', fgColor: { rgb: 'D9E1F2' } };
     const altBg = { patternType: 'solid', fgColor: { rgb: 'F5F8FF' } };
     const greenBg = { patternType: 'solid', fgColor: { rgb: 'E2EFDA' } };
-    const fntT  = { name: 'Times New Roman', sz: 13, bold: true };
-    const fntH  = { name: 'Times New Roman', sz: 11, bold: true, color: { rgb: 'FFFFFF' } };
+    const fntT = { name: 'Times New Roman', sz: 13, bold: true };
+    const fntH = { name: 'Times New Roman', sz: 11, bold: true, color: { rgb: 'FFFFFF' } };
     const fntHD = { name: 'Times New Roman', sz: 11, bold: true };
-    const fntB  = { name: 'Times New Roman', sz: 11, bold: true };
-    const fntN  = { name: 'Times New Roman', sz: 11 };
+    const fntB = { name: 'Times New Roman', sz: 11, bold: true };
+    const fntN = { name: 'Times New Roman', sz: 11 };
     const cC = { horizontal: 'center', vertical: 'center', wrapText: true };
-    const cL = { horizontal: 'left',   vertical: 'center', wrapText: true };
-    const cR = { horizontal: 'right',  vertical: 'center' };
-    const numFmt  = '#,##0 ;[Red](#,##0)';
+    const cL = { horizontal: 'left', vertical: 'center', wrapText: true };
+    const cR = { horizontal: 'right', vertical: 'center' };
+    const numFmt = '#,##0 ;[Red](#,##0)';
     const dateFmt = 'dd/mm/yyyy';
     const formatD = s => { if (!s) return ''; const pt = s.split('-'); return `${pt[2]}/${pt[1]}/${pt[0]}`; };
-    const vTypeLabel = t => ({sales:'Bán hàng',purchase:'Nhập hàng',receipt:'Phiếu thu',payment:'Phiếu chi',sales_return:'Hàng trả lại',purchase_return:'Trả NCC'}[t] || t);
+    const vTypeLabel = t => ({ sales: 'Bán hàng', purchase: 'Nhập hàng', receipt: 'Phiếu thu', payment: 'Phiếu chi', sales_return: 'Hàng trả lại', purchase_return: 'Trả NCC' }[t] || t);
 
     // Helper to write cell
     const setCell = (ws, r, c, v, t, s, z) => {
@@ -2875,15 +2893,15 @@ function exportCompanyToExcel(companyName, childPartnerIds) {
     const ncols1 = 9; // STT|Tên|Địa chỉ|Từ ngày|Đến ngày|Dư ĐK Nợ|PS Nợ|PS Có|Dư CK Nợ
 
     // Title
-    const titlePeriod = fromDate || toDate ? ` (${fromDate?'Từ '+formatD(fromDate):''} ${toDate?'đến '+formatD(toDate):''})` : '';
+    const titlePeriod = fromDate || toDate ? ` (${fromDate ? 'Từ ' + formatD(fromDate) : ''} ${toDate ? 'đến ' + formatD(toDate) : ''})` : '';
     setCell(ws1, 0, 0, `${companyName} — TỔNG HỢP CÔNG NỢ CÁC CÔNG TRÌNH${titlePeriod}`, 's', { font: fntT, alignment: cC });
-    merges1.push({ s:{r:0,c:0}, e:{r:0,c:ncols1-1} });
+    merges1.push({ s: { r: 0, c: 0 }, e: { r: 0, c: ncols1 - 1 } });
 
-    const headers1 = ['STT','Tên Công Trình','Địa chỉ','Từ ngày','Đến ngày','Dư ĐK Nợ','PS Nợ (Bán chịu)','PS Có (Thu tiền)','Dư CK Nợ (Còn phải thu)'];
-    headers1.forEach((h,c) => setCell(ws1, 1, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: b4 }));
+    const headers1 = ['STT', 'Tên Công Trình', 'Địa chỉ', 'Từ ngày', 'Đến ngày', 'Dư ĐK Nợ', 'PS Nợ (Bán chịu)', 'PS Có (Thu tiền)', 'Dư CK Nợ (Còn phải thu)'];
+    headers1.forEach((h, c) => setCell(ws1, 1, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: b4 }));
 
     let r1 = 2;
-    let totDKNo=0, totPSNo=0, totPSCo=0, totCKNo=0;
+    let totDKNo = 0, totPSNo = 0, totPSCo = 0, totCKNo = 0;
     let hasData = false;
 
     childPartners.forEach((cp, idx) => {
@@ -2891,13 +2909,13 @@ function exportCompanyToExcel(companyName, childPartnerIds) {
       if (!d && (vouchersByPartner[cp.id] || []).length === 0) return;
       hasData = true;
 
-      const vList = (vouchersByPartner[cp.id] || []).sort((a,b) => (a.date||'').localeCompare(b.date||''));
+      const vList = (vouchersByPartner[cp.id] || []).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
       const minDate = vList.length > 0 ? formatD(vList[0].date) : '';
-      const maxDate = vList.length > 0 ? formatD(vList[vList.length-1].date) : '';
+      const maxDate = vList.length > 0 ? formatD(vList[vList.length - 1].date) : '';
 
       const od = d ? d.openingDebit || 0 : 0;
-      const dt = d ? d.debitTrans   || 0 : 0;
-      const ct = d ? d.creditTrans  || 0 : 0;
+      const dt = d ? d.debitTrans || 0 : 0;
+      const ct = d ? d.creditTrans || 0 : 0;
       const cd = d ? d.closingDebit || 0 : 0;
 
       totDKNo += od; totPSNo += dt; totPSCo += ct; totCKNo += cd;
@@ -2905,7 +2923,7 @@ function exportCompanyToExcel(companyName, childPartnerIds) {
       const bg = idx % 2 === 0 ? null : altBg;
       const bs = al => ({ font: fntN, fill: bg, alignment: al, border: b4 });
 
-      setCell(ws1, r1, 0, idx+1, 'n', { font: fntN, fill: bg, alignment: cC, border: b4 });
+      setCell(ws1, r1, 0, idx + 1, 'n', { font: fntN, fill: bg, alignment: cC, border: b4 });
       setCell(ws1, r1, 1, cp.name, 's', bs(cL));
       setCell(ws1, r1, 2, cp.address || '', 's', bs(cL));
       setCell(ws1, r1, 3, minDate, 's', bs(cC));
@@ -2919,23 +2937,23 @@ function exportCompanyToExcel(companyName, childPartnerIds) {
 
     if (!hasData) {
       setCell(ws1, r1, 0, 'Không có dữ liệu trong kỳ này.', 's', { font: fntN, alignment: cL });
-      merges1.push({ s:{r:r1,c:0}, e:{r:r1,c:ncols1-1} });
+      merges1.push({ s: { r: r1, c: 0 }, e: { r: r1, c: ncols1 - 1 } });
       r1++;
     }
 
     // Totals
     const ts1 = al => ({ font: fntB, fill: totBg, alignment: al, border: b4 });
     setCell(ws1, r1, 0, 'TỔNG CỘNG', 's', ts1(cL));
-    merges1.push({ s:{r:r1,c:0}, e:{r:r1,c:4} });
+    merges1.push({ s: { r: r1, c: 0 }, e: { r: r1, c: 4 } });
     setCell(ws1, r1, 5, totDKNo, 'n', ts1(cR), numFmt);
     setCell(ws1, r1, 6, totPSNo, 'n', ts1(cR), numFmt);
     setCell(ws1, r1, 7, totPSCo, 'n', ts1(cR), numFmt);
     setCell(ws1, r1, 8, totCKNo, 'n', ts1(cR), numFmt);
 
-    ws1['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:r1,c:ncols1-1} });
+    ws1['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: r1, c: ncols1 - 1 } });
     ws1['!merges'] = merges1;
-    ws1['!cols'] = [{wch:5},{wch:36},{wch:30},{wch:12},{wch:12},{wch:14},{wch:16},{wch:16},{wch:18}];
-    ws1['!rows'] = [{hpt:22},{hpt:24}];
+    ws1['!cols'] = [{ wch: 5 }, { wch: 36 }, { wch: 30 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 18 }];
+    ws1['!rows'] = [{ hpt: 22 }, { hpt: 24 }];
     XLSX.utils.book_append_sheet(wb, ws1, 'Tổng hợp');
 
     // ====================================================
@@ -2944,36 +2962,37 @@ function exportCompanyToExcel(companyName, childPartnerIds) {
     const ncols2 = 10; // STT|Ngày|Số phiếu|Loại|Tên sản phẩm|ĐVT|SL|Đơn giá|%CK|Thành tiền
 
     childPartners.forEach(cp => {
-      const vList = (vouchersByPartner[cp.id] || []).sort((a,b) => (a.date||'').localeCompare(b.date||''));
+      const vList = (vouchersByPartner[cp.id] || []).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
       if (vList.length === 0) return;
 
       const ws2 = {};
       const merges2 = [];
 
-      // Sheet name: max 31 chars, sanitized
-      let sheetName = cp.name
+      // Sheet name: use address if available, fallback to name. Max 31 chars, sanitized.
+      let nameToUse = (cp.address && cp.address.trim()) ? cp.address.trim() : cp.name;
+      let sheetName = nameToUse
         .replace(/[\/\\?\*\[\]:]/g, ' ')
         .replace(/\([^)]*(?:kh|kht|ncc|dt|t\d|\d{2}\/\d{2}|\d{4})[^)]*\)/gi, '')
         .trim()
         .substring(0, 28);
-      if (!sheetName) sheetName = cp.id.substring(0,28);
+      if (!sheetName) sheetName = cp.id.substring(0, 28);
 
       // Ensure unique sheet name
       let finalSheetName = sheetName;
       let suffix = 2;
-      while (wb.SheetNames.includes(finalSheetName)) { finalSheetName = sheetName.substring(0,25) + '_' + suffix++; }
+      while (wb.SheetNames.includes(finalSheetName)) { finalSheetName = sheetName.substring(0, 25) + '_' + suffix++; }
 
       // Title
       setCell(ws2, 0, 0, `${cp.name} — CHI TIẾT MẶT HÀNG${titlePeriod}`, 's', { font: fntT, alignment: cC });
-      merges2.push({ s:{r:0,c:0}, e:{r:0,c:ncols2-1} });
+      merges2.push({ s: { r: 0, c: 0 }, e: { r: 0, c: ncols2 - 1 } });
       if (cp.address) {
-        setCell(ws2, 1, 0, `Địa chỉ: ${cp.address}`, 's', { font: { name:'Times New Roman', sz:11, italic:true }, alignment: cL });
-        merges2.push({ s:{r:1,c:0}, e:{r:1,c:ncols2-1} });
+        setCell(ws2, 1, 0, `Địa chỉ: ${cp.address}`, 's', { font: { name: 'Times New Roman', sz: 11, italic: true }, alignment: cL });
+        merges2.push({ s: { r: 1, c: 0 }, e: { r: 1, c: ncols2 - 1 } });
       }
 
       const hdrRow = cp.address ? 2 : 1;
-      const headers2 = ['STT','Ngày','Số phiếu','Loại phiếu','Tên sản phẩm','ĐVT','Số lượng','Đơn giá','% CK','Thành tiền'];
-      headers2.forEach((h,c) => setCell(ws2, hdrRow, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: b4 }));
+      const headers2 = ['STT', 'Ngày', 'Số phiếu', 'Loại phiếu', 'Tên sản phẩm', 'ĐVT', 'Số lượng', 'Đơn giá', '% CK', 'Thành tiền'];
+      headers2.forEach((h, c) => setCell(ws2, hdrRow, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: b4 }));
 
       let r2 = hdrRow + 1;
       let rowIdx = 1;
@@ -2991,7 +3010,7 @@ function exportCompanyToExcel(companyName, childPartnerIds) {
           setCell(ws2, r2, 2, v.id, 's', bs(cC));
           setCell(ws2, r2, 3, vTypeLabel(v.type), 's', bs(cL));
           setCell(ws2, r2, 4, v.description || '', 's', { font: fntN, fill: bg, alignment: cL, border: b4 });
-          merges2.push({ s:{r:r2,c:4}, e:{r:r2,c:8} });
+          merges2.push({ s: { r: r2, c: 4 }, e: { r: r2, c: 8 } });
           setCell(ws2, r2, 9, v.amount || 0, 'n', bs(cR), numFmt);
           grandTotal += v.amount || 0;
           rowIdx++; r2++;
@@ -3000,13 +3019,13 @@ function exportCompanyToExcel(companyName, childPartnerIds) {
 
         // Group header for this voucher
         const vBg = { patternType: 'solid', fgColor: { rgb: 'EBF3FF' } };
-        const vhs = al => ({ font: { name:'Times New Roman', sz:11, bold:true }, fill: vBg, alignment: al, border: b4 });
+        const vhs = al => ({ font: { name: 'Times New Roman', sz: 11, bold: true }, fill: vBg, alignment: al, border: b4 });
         setCell(ws2, r2, 0, '', 's', vhs(cC));
         setCell(ws2, r2, 1, formatD(v.date), 's', vhs(cC));
         setCell(ws2, r2, 2, v.id, 's', vhs(cC));
         setCell(ws2, r2, 3, vTypeLabel(v.type), 's', vhs(cL));
-        setCell(ws2, r2, 4, v.description || '', 's', { font:{name:'Times New Roman',sz:11,bold:true,italic:true}, fill:vBg, alignment:cL, border:b4 });
-        merges2.push({ s:{r:r2,c:4}, e:{r:r2,c:9} });
+        setCell(ws2, r2, 4, v.description || '', 's', { font: { name: 'Times New Roman', sz: 11, bold: true, italic: true }, fill: vBg, alignment: cL, border: b4 });
+        merges2.push({ s: { r: r2, c: 4 }, e: { r: r2, c: 9 } });
         r2++;
 
         items.forEach(item => {
@@ -3031,23 +3050,23 @@ function exportCompanyToExcel(companyName, childPartnerIds) {
       // Grand total
       const ts2 = al => ({ font: fntB, fill: totBg, alignment: al, border: b4 });
       setCell(ws2, r2, 0, 'TỔNG CỘNG', 's', ts2(cL));
-      merges2.push({ s:{r:r2,c:0}, e:{r:r2,c:8} });
+      merges2.push({ s: { r: r2, c: 0 }, e: { r: r2, c: 8 } });
       setCell(ws2, r2, 9, grandTotal, 'n', ts2(cR), numFmt);
 
-      ws2['!ref'] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:r2,c:ncols2-1} });
+      ws2['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: r2, c: ncols2 - 1 } });
       ws2['!merges'] = merges2;
-      ws2['!cols'] = [{wch:5},{wch:12},{wch:12},{wch:14},{wch:36},{wch:7},{wch:9},{wch:13},{wch:7},{wch:16}];
-      ws2['!rows'] = [{hpt:22},{hpt:18}];
+      ws2['!cols'] = [{ wch: 5 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 36 }, { wch: 7 }, { wch: 9 }, { wch: 13 }, { wch: 7 }, { wch: 16 }];
+      ws2['!rows'] = [{ hpt: 22 }, { hpt: 18 }];
       XLSX.utils.book_append_sheet(wb, ws2, finalSheetName);
     });
 
     // Save
-    const safeName = companyName.replace(/[\/\\?\*\[\]:]/g, '_').substring(0,40);
+    const safeName = companyName.replace(/[\/\\?\*\[\]:]/g, '_').substring(0, 40);
     const outName = `CongNo_${safeName}_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(wb, outName);
     showToast(`✅ Đã xuất Excel: ${outName} (${wb.SheetNames.length} sheets)`, 'success');
 
-  } catch(err) {
+  } catch (err) {
     console.error('exportCompanyToExcel error:', err);
     showToast(`Lỗi xuất Excel công ty: ${err.message}`, 'danger');
   }
@@ -3080,7 +3099,7 @@ window.exportCompanyToExcel = exportCompanyToExcel;
 
 function editOrderFromLedger(voucherId, voucherType) {
   closeModal('modal-view-partner-ledger');
-  
+
   if (voucherType === 'sales') {
     if (typeof window.editSalesVoucher === 'function') {
       window.editSalesVoucher(voucherId);
@@ -3123,11 +3142,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const yearSelect = document.getElementById("debt-year-select");
   const startDateInput = document.getElementById("debt-start-date");
   const endDateInput = document.getElementById("debt-end-date");
-  
+
   const today = new Date();
   const yyyy = today.getFullYear();
   const mm = String(today.getMonth() + 1).padStart(2, '0');
-  
+
   if (monthInput) {
     monthInput.value = `${yyyy}-${mm}`;
   }
@@ -3143,4 +3162,4 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-
+

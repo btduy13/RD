@@ -2257,6 +2257,11 @@
               <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
               Theo Công Ty
             </button>
+            <button id="debts-tab-btn-supplier" onclick="switchDebtsViewTab('supplier')"
+              style="padding: 9px 20px; font-size: 13px; font-weight: 600; border: none; border-bottom: 3px solid transparent; background: transparent; color: var(--text-secondary); cursor: pointer; display:inline-flex; align-items:center; gap:6px; transition: all 0.18s;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+              Nhà Cung Cấp
+            </button>
           </div>
 
           <!-- Tab: Tổng Quan -->
@@ -2307,7 +2312,7 @@
                   <thead>
                     <tr>
                       <th style="width: 30px; text-align: center;"><input type="checkbox" id="check-all-debts" onchange="toggleSelectAllDebts(this)"></th>
-                      <th>Mã đối tác / Công trình</th>
+                      <th id="debts-table-header-id">Mã đối tác / Công trình</th>
                       <th>Tên đối tác</th>
                       <th style="text-align: right;">Dư đầu kỳ Nợ</th>
                       <th style="text-align: right;">Dư đầu kỳ Có</th>
