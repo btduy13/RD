@@ -2913,10 +2913,10 @@ function exportCompanyToExcel(companyName, childPartnerIds) {
       const minDate = vList.length > 0 ? formatD(vList[0].date) : '';
       const maxDate = vList.length > 0 ? formatD(vList[vList.length - 1].date) : '';
 
-      const od = d ? d.openingDebit || 0 : 0;
+      const od = d ? (d.openingDebit || 0) - (d.openingCredit || 0) : 0;
       const dt = d ? d.debitTrans || 0 : 0;
       const ct = d ? d.creditTrans || 0 : 0;
-      const cd = d ? d.closingDebit || 0 : 0;
+      const cd = od + dt - ct;
 
       totDKNo += od; totPSNo += dt; totPSCo += ct; totCKNo += cd;
 
