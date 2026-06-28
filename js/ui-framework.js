@@ -774,11 +774,9 @@ function viewVoucher(id) {
             <div style="margin-bottom: 3px;">
               <strong>Số tiền viết bằng chữ:</strong> <span style="font-style: italic;">${numberToVietnameseWords(v.totalAmount)}</span>
             </div>
-            ${(v.note !== undefined ? v.note : (v.notes || "hàng thừa trả lại dơ bẩn không thu lại. Không thu lại nút bịt")) ? `
-            <div style="margin-top: 4px;">
-              <strong>Ghi chú:</strong> <span style="font-style: italic; color: #374151;">${v.note !== undefined ? v.note : (v.notes || "hàng thừa trả lại dơ bẩn không thu lại. Không thu lại nút bịt")}</span>
+            <div>
+              <strong>Ghi chú:</strong> <span style="font-style: italic; color: #374151;">hàng thừa trả lại dơ bẩn không thu lại. Không thu lại nút bịt.${(v.note || v.notes) ? ` ${v.note || v.notes}` : ""}</span>
             </div>
-            ` : ""}
           </div>
           <div style="width: 125px; text-align: center; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #000; padding: 4px; border-radius: 4px; background: #fff; page-break-inside: avoid; break-inside: avoid;">
             <span style="font-size: 8px; font-weight: bold; text-transform: uppercase; color: #000; margin-bottom: 3px; letter-spacing: 0.2px;">Quét Mã QR Thanh Toán</span>
