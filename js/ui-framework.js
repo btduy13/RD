@@ -420,10 +420,11 @@ function viewVoucher(id) {
           <tbody>
             ${(v.items || []).map((item, idx) => {
               const prod = (state.products||[]).find(p=>String(p.id)===String(item.productId))||{name:item.productId||'SP'};
+              const displayName = item.itemDesc || prod.name;
               const amt = item.amount||((item.qty||0)*(item.price||0));
               return `<tr>
                 <td style="border:1px solid #000; padding:4px; text-align:center;">${idx+1}</td>
-                <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${prod.name}</td>
+                <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${displayName}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:center;">${prod.unit||'Cái'}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:right;">${item.qty||0}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVND(item.price||0).replace('đ','')}</td>
@@ -449,9 +450,10 @@ function viewVoucher(id) {
           </tbody>
         </table>
         <!-- Chữ số tiền -->
-        <div style="margin-bottom:12px; font-size:11px;">
+        <div style="margin-bottom:6px; font-size:11px;">
           <strong>Số tiền viết bằng chữ:</strong> <span style="font-style:italic;">${numberToVietnameseWords(v.totalAmount||grossTotal)}</span>
         </div>
+        ${v.note ? `<div style="margin-bottom:10px; font-size:11px; border:1px dashed #888; padding:5px 8px; border-radius:4px;"><strong>Ghi chú:</strong> ${v.note}</div>` : ''}
         <!-- Chữ ký -->
         <div style="display:flex; justify-content:space-between; text-align:center; margin-top:12px; font-size:10.5px;">
           ${['Người lập phiếu','Người giao hàng','Thủ kho','Kế toán trưởng','Giám đốc'].map((s,i)=>`

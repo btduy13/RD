@@ -141,7 +141,7 @@ function changeSalesPage(p) {
 }
 
 // Bổ sung các hàng sản phẩm động vào form Bán hàng
-function addSalesFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
+function addSalesFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
   const tbody = document.getElementById("sales-form-items-body");
   if (!tbody) return;
 
@@ -151,7 +151,10 @@ function addSalesFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVa
   tr.id = rowId;
   tr.innerHTML = `
     <td>
-      <input type="text" class="form-control item-productId" placeholder="Gõ mã hoặc tên sản phẩm..." required list="datalist-sales-products" oninput="autoFillProductPrice(this)" onblur="autoFillProductPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
+      <input type="text" class="form-control item-productId" placeholder="Mã SP..." required list="datalist-sales-products" oninput="autoFillProductPrice(this)" onblur="autoFillProductPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
+    </td>
+    <td>
+      <input type="text" class="form-control item-desc" placeholder="Mô tả..." value="${escapeHtmlAttr(descVal)}">
     </td>
     <td>
       <input type="text" class="form-control item-qty text-right qty-format" required value="${Number.isInteger(qtyVal) ? qtyVal : qtyVal.toString().replace(".", ",")}" oninput="recalculateSalesTotals()">
@@ -190,7 +193,12 @@ function autoFillProductPrice(selectEl) {
 
   if (prod && row) {
     if (document.activeElement !== selectEl) {
-      selectEl.value = `${prod.name} (${prod.id})`;
+      selectEl.value = prod.id;
+    }
+    // Tự điền mô tả nếu ô mô tả đang trống
+    const descEl = row.querySelector(".item-desc");
+    if (descEl && !descEl.value) {
+      descEl.value = prod.name;
     }
     ensureProductExcelRow(prod);
     const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
@@ -243,6 +251,8 @@ function resetSalesForm() {
   if (tbody) tbody.innerHTML = "";
   document.getElementById("sale-desc").value = "Bán hàng xuất kho";
   document.getElementById("sale-date").value = new Date().toISOString().split("T")[0];
+  const noteEl = document.getElementById("sale-note");
+  if (noteEl) noteEl.value = "";
   addSalesFormRow();
   // Auto-focus vào ô “Khách hàng mua” — trường quan trọng nhất khi mở form
   setTimeout(() => {
@@ -336,6 +346,7 @@ function handleSalesSubmit(e) {
     }
 
     const productId = resolvedProduct.id;
+    const itemDesc = row.querySelector(".item-desc") ? row.querySelector(".item-desc").value.trim() : "";
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
     const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
@@ -356,6 +367,7 @@ function handleSalesSubmit(e) {
 
     voucherItems.push({
       productId,
+      itemDesc,
       qty,
       price,
       discount,
@@ -373,11 +385,14 @@ function handleSalesSubmit(e) {
     partnerName,
     paymentMethod: document.getElementById("sale-payment").value,
     description: document.getElementById("sale-desc").value,
+    note: (document.getElementById("sale-note") ? document.getElementById("sale-note").value.trim() : "") || undefined,
     items: voucherItems,
     taxRate: parseInt(document.getElementById("sale-tax-rate").value),
     isManual: true,
     _sessionId: clientSessionId
   };
+  // Loại bỏ trường note nếu rỗng để không lưu giá trị undefined
+  if (!newVoucher.note) delete newVoucher.note;
 
   if (editingSalesId) {
     const idx = state.vouchers.findIndex(v => v.id === editingSalesId);
@@ -428,6 +443,9 @@ function editSalesVoucher(id) {
   document.getElementById("sale-partner").value = getPartnerNameForVoucher(v);
   document.getElementById("sale-desc").value = v.description;
   document.getElementById("sale-payment").value = v.paymentMethod;
+  if (document.getElementById("sale-note")) {
+    document.getElementById("sale-note").value = v.note || "";
+  }
   if (document.getElementById("sale-tax-rate")) {
     document.getElementById("sale-tax-rate").value = v.taxRate || 0;
   }
@@ -437,13 +455,14 @@ function editSalesVoucher(id) {
 
   v.items.forEach(item => {
     const prod = state.products.find(p => String(p.id) === String(item.productId));
-    const prodVal = prod ? `${prod.name} (${prod.id})` : item.productId;
+    const prodId = prod ? prod.id : item.productId;
+    const itemDesc = item.itemDesc || (prod ? prod.name : item.productId);
     let discountPercent = item.discount || 0;
     if (discountPercent > 100) {
       const gross = (item.qty || 0) * (item.price || 0);
       discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100 * 100) / 100 : 0;
     }
-    addSalesFormRow(prodVal, item.qty, item.price, discountPercent);
+    addSalesFormRow(prodId, itemDesc, item.qty, item.price, discountPercent);
   });
 
   openModal("modal-add-sales");
