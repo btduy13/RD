@@ -475,7 +475,7 @@ function exportStockLedgerToExcel() {
     ws['!rows'] = [{ hpt: 24 }, { hpt: 20 }, { hpt: 20 }, { hpt: 12 }, { hpt: 22 }];
 
     XLSX.utils.book_append_sheet(wb, ws, "The kho chi tiet");
-    const outName = `The_kho_chi_tiet_${prodId}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const outName = `The_kho_chi_tiet_${prodId}_${getLocalDateString()}.xlsx`;
     XLSX.writeFile(wb, outName);
     showToast(`Đã xuất Excel thẻ kho: ${outName}`, "success");
   } catch (err) {
@@ -649,7 +649,7 @@ function handleQuickImportSubmit(e) {
     const voucher = {
       id: quickId,
       type: "purchase",
-      date: new Date().toISOString().slice(0, 10),
+      date: getLocalDateString(),
       partnerId: supplier.id,
       partnerName: supplier.name,
       paymentMethod: "331", // Nợ TK 156 / Có TK 331

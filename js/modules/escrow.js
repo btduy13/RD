@@ -186,7 +186,7 @@ function handleEscrowTypeChange() {
 
     // Thiết lập giá trị mặc định cho form tạo mới
     document.getElementById("esc-amount").value = Number(10000000).toLocaleString("vi-VN");
-    document.getElementById("esc-date").value = new Date().toISOString().split("T")[0];
+    document.getElementById("esc-date").value = getLocalDateString();
     document.getElementById("esc-return-date").value = "";
     document.getElementById("esc-desc").value = type === "escrow_pay" ? "Chi tiền gửi ký quỹ bảo lãnh" : "Nhận tiền đặt cọc ký quỹ của đối tác";
   }
@@ -225,7 +225,7 @@ function autoFillEscrowRefundData() {
   if (originVoucher) {
     document.getElementById("esc-partner").innerHTML = `<option value="${originVoucher.partnerId}">${originVoucher.partnerName}</option>`;
     document.getElementById("esc-amount").value = Number(originVoucher.amount || 0).toLocaleString("vi-VN");
-    document.getElementById("esc-date").value = new Date().toISOString().split("T")[0];
+    document.getElementById("esc-date").value = getLocalDateString();
     document.getElementById("esc-desc").value = `Tất toán hoàn trả theo chứng từ gốc ${originVoucher.id}`;
   }
 }

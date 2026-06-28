@@ -254,7 +254,7 @@ function resetSalesForm() {
   const tbody = document.getElementById("sales-form-items-body");
   if (tbody) tbody.innerHTML = "";
   document.getElementById("sale-desc").value = "Bán hàng xuất kho";
-  document.getElementById("sale-date").value = new Date().toISOString().split("T")[0];
+  document.getElementById("sale-date").value = getLocalDateString();
   const noteEl = document.getElementById("sale-note");
   if (noteEl) noteEl.value = "";
   addSalesFormRow();
@@ -266,8 +266,7 @@ function resetSalesForm() {
 }
 
 function generateNextSalesVoucherId(paymentMethod) {
-  const isCredit = (paymentMethod === "131");
-  const prefix = isCredit ? "BH" : "PT";
+  const prefix = "BH";
 
   // Tìm tất cả các chứng từ có ID khớp với tiền tố + số
   const regex = new RegExp(`^${prefix}(\\d+)$`);
@@ -283,7 +282,7 @@ function generateNextSalesVoucherId(paymentMethod) {
 
   // Giá trị mặc định an toàn nếu chưa có chứng từ nào
   if (maxNum === 0) {
-    maxNum = isCredit ? 44340 : 13122;
+    maxNum = 44340;
   }
 
   return `${prefix}${maxNum + 1}`;
@@ -878,7 +877,7 @@ function resetSalesReturnForm() {
   const tbody = document.getElementById("sales-return-form-items-body");
   if (tbody) tbody.innerHTML = "";
   document.getElementById("sales-ret-desc").value = "Nhập hàng bán trả lại";
-  document.getElementById("sales-ret-date").value = new Date().toISOString().split("T")[0];
+  document.getElementById("sales-ret-date").value = getLocalDateString();
   
   addSalesReturnFormRow();
   setTimeout(() => {
@@ -1255,7 +1254,7 @@ function exportSalesReturnsToExcel() {
 
     XLSX.utils.book_append_sheet(wb, ws, "SO CHI TIET BAN TRA LAI");
     const suffix = fromDate || toDate ? `_${fromDate || ""}_${toDate || ""}` : "";
-    const outName = `SO_CHI_TIET_HANG_BAN_TRA_LAI_${new Date().toISOString().split('T')[0]}${suffix}.xlsx`;
+    const outName = `SO_CHI_TIET_HANG_BAN_TRA_LAI_${getLocalDateString()}${suffix}.xlsx`;
     XLSX.writeFile(wb, outName);
     showToast(`Đã xuất Excel: ${outName}`, "success");
   } catch (err) {
@@ -1496,7 +1495,7 @@ function resetQuotationForm() {
   const tbody = document.getElementById("quotation-form-items-body");
   if (tbody) tbody.innerHTML = "";
   document.getElementById("quotation-desc").value = "Báo giá hàng hóa";
-  document.getElementById("quotation-date").value = new Date().toISOString().split("T")[0];
+  document.getElementById("quotation-date").value = getLocalDateString();
   addQuotationFormRow();
   setTimeout(() => {
     const el = document.getElementById("quotation-partner");
@@ -1824,7 +1823,7 @@ function exportQuotationsToExcel() {
 
     let dateRangeSuffix = "";
     if (fromDate || toDate) dateRangeSuffix = `_${fromDate || ""}_${toDate || ""}`;
-    const outName = `Bao_gia_chi_tiet_${new Date().toISOString().split('T')[0]}${dateRangeSuffix}.xlsx`;
+    const outName = `Bao_gia_chi_tiet_${getLocalDateString()}${dateRangeSuffix}.xlsx`;
     XLSX.writeFile(wb, outName);
     showToast(`Đã xuất Excel: ${outName}`, "success");
   } catch (err) {

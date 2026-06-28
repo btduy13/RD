@@ -47,7 +47,7 @@ function exportData() {
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
   const downloadAnchor = document.createElement("a");
   downloadAnchor.setAttribute("href", dataStr);
-  downloadAnchor.setAttribute("download", `RD_Accounting_Backup_${new Date().toISOString().split("T")[0]}.json`);
+  downloadAnchor.setAttribute("download", `RD_Accounting_Backup_${getLocalDateString()}.json`);
   document.body.appendChild(downloadAnchor);
   downloadAnchor.click();
   downloadAnchor.remove();

@@ -259,7 +259,7 @@ function resetPurchaseForm() {
   const tbody = document.getElementById("purchase-form-items-body");
   if (tbody) tbody.innerHTML = "";
   document.getElementById("pur-desc").value = "Mua vật tư hàng hóa nhập kho";
-  document.getElementById("pur-date").value = new Date().toISOString().split("T")[0];
+  document.getElementById("pur-date").value = getLocalDateString();
   
   addPurchaseFormRow();
   // Auto-focus vào ô Nhà cung cấp (trường đầu tiên hiển thị của form mua)
@@ -672,7 +672,7 @@ function exportPurchasesToExcel(detailed = true) {
 
       XLSX.utils.book_append_sheet(wb, ws, "Báo cáo");
       const suffix = fromDate || toDate ? `_${fromDate || ""}_${toDate || ""}` : "";
-      const outName = `SO_CHI_TIET_MUA_HANG_${new Date().toISOString().split('T')[0]}${suffix}.xlsx`;
+      const outName = `SO_CHI_TIET_MUA_HANG_${getLocalDateString()}${suffix}.xlsx`;
       XLSX.writeFile(wb, outName);
       showToast(`Đã xuất Excel: ${outName}`, "success");
     } else {
@@ -747,7 +747,7 @@ function exportPurchasesToExcel(detailed = true) {
 
       XLSX.utils.book_append_sheet(wb, ws, "Danh sach");
       const suffix = fromDate || toDate ? `_${fromDate || ""}_${toDate || ""}` : "";
-      const outName = `DANH_SACH_MUA_HANG_${new Date().toISOString().split('T')[0]}${suffix}.xlsx`;
+      const outName = `DANH_SACH_MUA_HANG_${getLocalDateString()}${suffix}.xlsx`;
       XLSX.writeFile(wb, outName);
       showToast(`Đã xuất Excel: ${outName}`, "success");
     }
@@ -935,7 +935,7 @@ function resetPurchaseOrderForm() {
   const tbody = document.getElementById("purchase-order-form-items-body");
   if (tbody) tbody.innerHTML = "";
   document.getElementById("pur-order-desc").value = "Đơn đặt hàng mua vật tư hàng hóa";
-  document.getElementById("pur-order-date").value = new Date().toISOString().split("T")[0];
+  document.getElementById("pur-order-date").value = getLocalDateString();
 
   addPurchaseOrderFormRow();
   // Auto-focus vào ô Nhà cung cấp
@@ -1503,7 +1503,7 @@ function exportPurchaseOrdersToExcel() {
 
     let dateRangeSuffix = "";
     if (fromDate || toDate) dateRangeSuffix = `_${fromDate || ""}_${toDate || ""}`;
-    const outName = `Don_dat_hang_chi_tiet_${new Date().toISOString().split('T')[0]}${dateRangeSuffix}.xlsx`;
+    const outName = `Don_dat_hang_chi_tiet_${getLocalDateString()}${dateRangeSuffix}.xlsx`;
     XLSX.writeFile(wb, outName);
     showToast(`Đã xuất Excel: ${outName}`, "success");
   } catch (err) {
@@ -1798,7 +1798,7 @@ function resetPurchaseReturnForm() {
   const tbody = document.getElementById("purchase-return-form-items-body");
   if (tbody) tbody.innerHTML = "";
   document.getElementById("ret-desc").value = "Trả lại hàng mua cho nhà cung cấp";
-  document.getElementById("ret-date").value = new Date().toISOString().split("T")[0];
+  document.getElementById("ret-date").value = getLocalDateString();
 
   addPurchaseReturnFormRow();
   // Auto-focus vào ô Nhà cung cấp
@@ -2178,7 +2178,7 @@ function exportPurchaseReturnsToExcel() {
 
     XLSX.utils.book_append_sheet(wb, ws, "SO CHI TIET TRA LAI MUA");
     const suffix = fromDate || toDate ? `_${fromDate || ""}_${toDate || ""}` : "";
-    const outName = `SO_CHI_TIET_HANG_TRA_LAI_MUA_${new Date().toISOString().split('T')[0]}${suffix}.xlsx`;
+    const outName = `SO_CHI_TIET_HANG_TRA_LAI_MUA_${getLocalDateString()}${suffix}.xlsx`;
     XLSX.writeFile(wb, outName);
     showToast(`Đã xuất Excel: ${outName}`, "success");
   } catch (err) {

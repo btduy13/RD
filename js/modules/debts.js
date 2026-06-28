@@ -2210,7 +2210,7 @@ function exportDebtsToExcel() {
     ws['!rows'] = [{ hpt: 22 }, { hpt: 22 }];
 
     XLSX.utils.book_append_sheet(wb, ws, "Cong no");
-    const outName = `Cong_no_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const outName = `Cong_no_${getLocalDateString()}.xlsx`;
     XLSX.writeFile(wb, outName);
     showToast(`Đã xuất Excel: ${outName}`, "success");
   } catch (err) {
@@ -2403,7 +2403,7 @@ function exportDebtsToExcelDetailed() {
     ws['!cols'] = [{ wch: 14 }, { wch: 14 }, { wch: 38 }, { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
 
     XLSX.utils.book_append_sheet(wb, ws, "Chi tiet cong no");
-    const outName = `Chi_tiet_cong_no_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const outName = `Chi_tiet_cong_no_${getLocalDateString()}.xlsx`;
     XLSX.writeFile(wb, outName);
     showToast(`Đã xuất Excel: ${outName}`, "success");
   } catch (err) {
@@ -3062,7 +3062,7 @@ function exportCompanyToExcel(companyName, childPartnerIds) {
 
     // Save
     const safeName = companyName.replace(/[\/\\?\*\[\]:]/g, '_').substring(0, 40);
-    const outName = `CongNo_${safeName}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const outName = `CongNo_${safeName}_${getLocalDateString()}.xlsx`;
     XLSX.writeFile(wb, outName);
     showToast(`✅ Đã xuất Excel: ${outName} (${wb.SheetNames.length} sheets)`, 'success');
 

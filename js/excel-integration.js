@@ -1481,7 +1481,7 @@ function exportProductsToExcel() {
     ws['!rows'] = [{ hpt: 22 }, { hpt: 22 }];
 
     XLSX.utils.book_append_sheet(wb, ws, "Vat_tu__hang_hoa__dich_vu");
-    const outName = `Vat_tu_hang_hoa_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const outName = `Vat_tu_hang_hoa_${getLocalDateString()}.xlsx`;
     XLSX.writeFile(wb, outName);
     showToast(`Đã xuất Excel: ${outName}`, "success");
   } catch (err) {
@@ -1560,7 +1560,7 @@ function exportPartnersToExcel() {
     ws['!rows'] = [{ hpt: 22 }, { hpt: 22 }];
 
     XLSX.utils.book_append_sheet(wb, ws, "Doi tuong");
-    const outName = `Khach_hang_NCC_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const outName = `Khach_hang_NCC_${getLocalDateString()}.xlsx`;
     XLSX.writeFile(wb, outName);
     showToast(`Đã xuất Excel: ${outName}`, "success");
   } catch (err) {

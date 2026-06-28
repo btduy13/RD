@@ -910,15 +910,18 @@ function updateBreadcrumb(tabId, subTabId) {
 function setDatePreset(preset, fromId, toId, filterFnName, btnEl) {
   var now = new Date();
   var from, to;
-  to = now.toISOString().split('T')[0];
+  const tzOffset = now.getTimezoneOffset() * 60000;
+  to = new Date(now.getTime() - tzOffset).toISOString().split('T')[0];
   switch (preset) {
     case 'today':
       from = to;
       break;
     case 'week':
-      var d = new Date(now);
-      d.setDate(d.getDate() - d.getDay() + 1);
-      from = d.toISOString().split('T')[0];
+      // Tính thứ 2 đầu tuần theo giờ địa phương
+      var dayOfWeek = now.getDay();
+      var distance = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      var d = new Date(now.getTime() + distance * 86400000);
+      from = new Date(d.getTime() - tzOffset).toISOString().split('T')[0];
       break;
     case 'month':
       from = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';

@@ -1591,7 +1591,7 @@ async function printCurrentVoucherToPDF(e) {
   
   let cleanFilename = "";
   if (isDebtNotice) {
-    cleanFilename = `Thong_bao_cong_no_${new Date().toISOString().split('T')[0]}.pdf`;
+    cleanFilename = `Thong_bao_cong_no_${getLocalDateString()}.pdf`;
   } else {
     if (!window.currentViewingVoucherId) {
       showToast("Không tìm thấy thông tin chứng từ hiện tại", "error");

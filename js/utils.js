@@ -294,6 +294,13 @@ function setupNumberFormattingEventListeners() {
   });
 }
 
+// Lấy ngày hiện tại ở định dạng YYYY-MM-DD theo giờ địa phương (tránh lỗi lệch múi giờ ở múi giờ UTC)
+function getLocalDateString() {
+  const tzOffset = new Date().getTimezoneOffset() * 60000;
+  return new Date(Date.now() - tzOffset).toISOString().split("T")[0];
+}
+window.getLocalDateString = getLocalDateString;
+
 // Hàm escape thuộc tính HTML và JavaScript để tránh lỗi vỡ chuỗi khi ID hoặc Tên chứa dấu nháy kép / nháy đơn / dấu gạch chéo ngược
 function escapeHtmlAttr(str) {
   if (str === undefined || str === null) return "";

@@ -258,13 +258,13 @@ function clearCashDateFilter() {
 
 function openAddReceiptModal() {
   document.getElementById("form-receipt").reset();
-  document.getElementById("receipt-date").value = new Date().toISOString().split("T")[0];
+  document.getElementById("receipt-date").value = getLocalDateString();
   openModal("modal-add-receipt");
 }
 
 function openAddPaymentModal() {
   document.getElementById("form-payment").reset();
-  document.getElementById("payment-date").value = new Date().toISOString().split("T")[0];
+  document.getElementById("payment-date").value = getLocalDateString();
   openModal("modal-add-payment");
 }
 
@@ -480,7 +480,7 @@ function exportCashToExcel() {
 
   exportExcelWithTemplate(
     'excel/Thu__chi_tien.xlsx',
-    `Thu__chi_tien_${new Date().toISOString().split("T")[0]}${dateRangeSuffix}.xlsx`,
+    `Thu__chi_tien_${getLocalDateString()}${dateRangeSuffix}.xlsx`,
     filteredCash,
     cashMapper,
     fallbackHeaders,
