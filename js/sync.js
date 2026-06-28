@@ -93,16 +93,18 @@ async function startSupabaseClient() {
     updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
     showToast("Đã kết nối Supabase đám mây thành công!", "success");
 
-    // Kéo dữ liệu khi khởi động
-    await pullFromCloudOnStartup();
-
-    // Đăng ký lắng nghe thay đổi realtime
+    // Đăng ký lắng nghe thay đổi realtime ngay lập tức
     listenToCloudChanges();
 
     const forcePullBtn = document.getElementById("btn-force-pull");
     if (forcePullBtn) forcePullBtn.style.display = "inline-block";
     const forcePushBtn = document.getElementById("btn-force-push");
     if (forcePushBtn) forcePushBtn.style.display = "inline-block";
+
+    // Kéo dữ liệu đầy đủ từ cloud trong nền — app dùng được ngay từ cache cục bộ
+    // không await để không chặn giao diện
+    updateCloudSyncBadge(false, "Mây: Đang đồng bộ...", "#f59e0b");
+    pullFromCloudOnStartup(); // fire-and-forget
   } catch (err) {
     if (typeof addErrorLog === "function") {
       addErrorLog("startSupabaseClient", err.message, err);
