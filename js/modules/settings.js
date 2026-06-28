@@ -184,7 +184,15 @@ function clearAllPartners() {
     showToast("Đã xóa sạch danh sách đối tác!", "success");
   }
 }
-
+let lastSyncedCloudTs = 0; // Timestamp cloud đã đồng bộ thành công lần cuối (tách biệt khỏi state._lastModified)
+let foundOldChunkIds = [];
+let migrationPending = false;
+const clientSessionId = "client_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+let cloudSyncSettings = {
+  enabled: true,
+  supabaseUrl: "https://drnrfdbjzyffdxtytbpg.supabase.co",
+  supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRybnJmZGJqenlmZmR4dHl0YnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NTUzNzAsImV4cCI6MjA5NjQzMTM3MH0.IZ1kL0dqL7WuKAIKKnmpcym4YUEnWJvZ9eIiext4Keg"
+};
 
 function loadCloudSettings() {
   try {

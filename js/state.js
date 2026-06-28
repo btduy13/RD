@@ -206,14 +206,10 @@ async function initApp() {
   // initExcelIntegration();
 
   // Cập nhật thông tin công ty lên giao diện
-  if (typeof updateCompanyUI === "function") {
-    updateCompanyUI();
-  }
+  updateCompanyUI();
 
   // Chạy lại thuật toán tính toán kế toán & giá vốn để đồng bộ
-  if (typeof recalculateAccounting === "function") {
-    recalculateAccounting();
-  }
+  recalculateAccounting();
 
   // Tách số điện thoại từ địa chỉ tự động nếu có
   if (typeof autoExtractPhonesAndCleanAddresses === "function") {
