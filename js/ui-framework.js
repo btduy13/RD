@@ -726,7 +726,6 @@ function viewVoucher(id) {
           <tbody>
             ${v.items.map((item, idx) => {
       const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: item.productId };
-      const displayName = item.productName || prod.name || item.productId;
       const qtyFormatted = Number.isInteger(item.qty) ? `${item.qty},0` : item.qty.toString().replace(".", ",");
       
       const itemGross = (item.qty || 0) * (item.price || 0);
@@ -738,7 +737,7 @@ function viewVoucher(id) {
       return `
                 <tr>
                   <td style="border: 1px solid #000; padding: 4px 4px; text-align: center;">${idx + 1}</td>
-                  <td style="border: 1px solid #000; padding: 4px 6px; font-weight: 500;">${displayName}</td>
+                  <td style="border: 1px solid #000; padding: 4px 6px; font-weight: 500;">${prod.name}</td>
                   <td style="border: 1px solid #000; padding: 4px 4px; text-align: center;">${prod.unit || "Cái"}</td>
                   <td style="border: 1px solid #000; padding: 4px 4px; text-align: right;" class="font-numeric">${qtyFormatted}</td>
                   <td style="border: 1px solid #000; padding: 4px 4px; text-align: right;" class="font-numeric">${formatVND(item.price).replace("đ", "").trim()}</td>
@@ -887,7 +886,6 @@ function viewVoucher(id) {
           <tbody>
             ${v.items.map((item, idx) => {
               const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: item.productId };
-              const displayName = item.productName || prod.name || item.productId;
               const qtyFormatted = Number.isInteger(item.qty) ? `${item.qty},0` : item.qty.toString().replace(".", ",");
               
               const itemGross = (item.qty || 0) * (item.price || 0);
@@ -899,7 +897,7 @@ function viewVoucher(id) {
               return `
                 <tr>
                   <td style="border: 1px solid #000; padding: 4px 4px; text-align: center;">${idx + 1}</td>
-                  <td style="border: 1px solid #000; padding: 4px 6px; font-weight: 500;">${displayName}</td>
+                  <td style="border: 1px solid #000; padding: 4px 6px; font-weight: 500;">${prod.name}</td>
                   <td style="border: 1px solid #000; padding: 4px 4px; text-align: center;">${prod.unit || "Cái"}</td>
                   <td style="border: 1px solid #000; padding: 4px 4px; text-align: right;" class="font-numeric">${qtyFormatted}</td>
                   <td style="border: 1px solid #000; padding: 4px 4px; text-align: right;" class="font-numeric">${formatVND(item.price).replace("đ", "").trim()}</td>
@@ -1742,7 +1740,7 @@ function exportVoucherToExcel(id) {
 
       rows.push([
         idx++,
-        item.productName || prod.name || item.productId,
+        prod.name,
         prod.unit || "Cái",
         item.qty || 0,
         item.price || 0,
