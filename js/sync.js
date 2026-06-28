@@ -394,6 +394,7 @@ function applyDeltaToState(changedRows, cloudTs) {
     if (!row) return;
     
     if (row.id === "metadata") {
+      // Cloud luôn là nguồn sự thật cho metadata (bao gồm partnerOpeningBalances)
       Object.assign(baseState, row.data);
     } else if (row.id === "products") {
       baseState.products = row.data || [];
@@ -642,7 +643,9 @@ async function pullFromCloudOnStartup() {
   if (!cloudSyncActive || !supabaseClient) return;
 
   try {
-    const result = await fetchCloudData(lastSyncedCloudTs);
+    // Luôn kéo đầy đủ từ cloud khi khởi động (truyền 0 = full pull)
+    // để đảm bảo partnerOpeningBalances và mọi metadata luôn là bản mới nhất từ cloud
+    const result = await fetchCloudData(0);
     if (!result) return;
     const { newState: cloudData, rescuedVouchers } = result;
     const hasCloudProducts = cloudData && cloudData.products && cloudData.products.length > 0;
@@ -760,6 +763,7 @@ function forcePushToCloud() {
       });
   }
 }
+
 
 function forcePullFromCloud() {
   if (!cloudSyncActive || !supabaseClient) {
