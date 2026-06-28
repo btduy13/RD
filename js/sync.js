@@ -6,6 +6,9 @@ let supabaseClient = null;
 let cloudSyncActive = false;
 let realtimeChannel = null;
 let lastSyncState = null;
+let migrationPending = false;
+let foundOldChunkIds = [];
+
 function updateLastSyncState(newState) {
   if (!newState) {
     lastSyncState = null;
