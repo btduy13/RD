@@ -635,7 +635,7 @@ function exportPurchasesToExcel(detailed = true) {
             const ckAmt = item.discount ? grossAmt * (item.discount / 100) : 0;
             writeRow(
               item.productId || "",
-              prod ? prod.name : (item.productName || item.productId || ""),
+              item.productName || (prod ? prod.name : (item.productId || "")),
               prod ? (prod.unit || "Cái") : (item.unit || "Cái"),
               qty, price, grossAmt, ckAmt
             );
@@ -1425,7 +1425,7 @@ function exportPurchaseOrdersToExcel() {
           setCell(ws, rowIdx, 3, dateStrToSerial(v.date), 'n', baseStyle(cCenter), dateFmt);
           setCell(ws, rowIdx, 4, v.invoiceNo || "", 's', baseStyle(cCenter), null);
           setCell(ws, rowIdx, 5, item.productId || "", 's', baseStyle(cLeft), null);
-          setCell(ws, rowIdx, 6, prod ? prod.name : (item.productName || item.productId || ""), 's', baseStyle(cLeft), null);
+          setCell(ws, rowIdx, 6, item.productName || (prod ? prod.name : (item.productId || "")), 's', baseStyle(cLeft), null);
           setCell(ws, rowIdx, 7, prod ? (prod.unit || "Cái") : (item.unit || "Cái"), 's', baseStyle(cCenter), null);
           setCell(ws, rowIdx, 8, "", 's', baseStyle(cLeft), null);
           setCell(ws, rowIdx, 9, "", 's', baseStyle(cLeft), null);
@@ -2148,7 +2148,7 @@ function exportPurchaseReturnsToExcel() {
           const price = item.price || 0;
           const grossAmt = item.amount || (qty * price);
           const ckAmt = item.discount ? grossAmt * (item.discount / 100) : 0;
-          writeRow(item.productId || "", prod ? prod.name : (item.productName || item.productId || ""), prod ? (prod.unit || "Cái") : (item.unit || "Cái"), qty, price, grossAmt, ckAmt);
+          writeRow(item.productId || "", item.productName || (prod ? prod.name : (item.productId || "")), prod ? (prod.unit || "Cái") : (item.unit || "Cái"), qty, price, grossAmt, ckAmt);
         });
       } else {
         const gross = (v.totalAmount || 0) - (v.taxAmount || 0);

@@ -629,7 +629,7 @@ function exportSalesToExcel(detailed = true) {
             const ckAmt = grossAmt * ((item.discount || 0) / 100);
             writeRow(
               item.productId || "",
-              prod ? prod.name : (item.productName || item.productId || ""),
+              item.productName || (prod ? prod.name : (item.productId || "")),
               prod ? (prod.unit || "Cái") : (item.unit || "Cái"),
               qty, price, grossAmt, ckAmt
             );

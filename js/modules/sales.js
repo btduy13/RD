@@ -141,7 +141,7 @@ function changeSalesPage(p) {
 }
 
 // Bổ sung các hàng sản phẩm động vào form Bán hàng
-function addSalesFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
+function addSalesFormRow(productIdVal = "", productNameVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
   const tbody = document.getElementById("sales-form-items-body");
   if (!tbody) return;
 
@@ -151,7 +151,10 @@ function addSalesFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVa
   tr.id = rowId;
   tr.innerHTML = `
     <td>
-      <input type="text" class="form-control item-productId" placeholder="Gõ mã hoặc tên sản phẩm..." required list="datalist-sales-products" oninput="autoFillProductPrice(this)" onblur="autoFillProductPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
+      <input type="text" class="form-control item-productId" placeholder="Mã SP..." required list="datalist-sales-products" oninput="autoFillProductPrice(this)" onblur="autoFillProductPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
+    </td>
+    <td>
+      <input type="text" class="form-control item-productName" placeholder="Tên sản phẩm..." required value="${escapeHtmlAttr(productNameVal)}">
     </td>
     <td>
       <input type="text" class="form-control item-qty text-right qty-format" required value="${Number.isInteger(qtyVal) ? qtyVal : qtyVal.toString().replace(".", ",")}" oninput="recalculateSalesTotals()">
@@ -189,8 +192,10 @@ function autoFillProductPrice(selectEl) {
   const row = selectEl.closest("tr");
 
   if (prod && row) {
-    if (document.activeElement !== selectEl) {
-      selectEl.value = `${prod.name} (${prod.id})`;
+    selectEl.value = prod.id;
+    const nameEl = row.querySelector(".item-productName");
+    if (nameEl) {
+      nameEl.value = prod.name;
     }
     ensureProductExcelRow(prod);
     const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
@@ -336,6 +341,7 @@ function handleSalesSubmit(e) {
     }
 
     const productId = resolvedProduct.id;
+    const productName = row.querySelector(".item-productName").value.trim() || resolvedProduct.name;
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
     const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
@@ -356,6 +362,7 @@ function handleSalesSubmit(e) {
 
     voucherItems.push({
       productId,
+      productName,
       qty,
       price,
       discount,
@@ -437,13 +444,14 @@ function editSalesVoucher(id) {
 
   v.items.forEach(item => {
     const prod = state.products.find(p => String(p.id) === String(item.productId));
-    const prodVal = prod ? `${prod.name} (${prod.id})` : item.productId;
+    const prodId = prod ? prod.id : item.productId;
+    const prodName = item.productName || (prod ? prod.name : item.productId);
     let discountPercent = item.discount || 0;
     if (discountPercent > 100) {
       const gross = (item.qty || 0) * (item.price || 0);
       discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100 * 100) / 100 : 0;
     }
-    addSalesFormRow(prodVal, item.qty, item.price, discountPercent);
+    addSalesFormRow(prodId, prodName, item.qty, item.price, discountPercent);
   });
 
   openModal("modal-add-sales");
@@ -727,7 +735,7 @@ function changeSalesReturnPage(p) {
 }
 
 // addSalesReturnFormRow
-function addSalesReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
+function addSalesReturnFormRow(productIdVal = "", productNameVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
   const tbody = document.getElementById("sales-return-form-items-body");
   if (!tbody) return;
 
@@ -737,7 +745,10 @@ function addSalesReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, disc
   tr.id = rowId;
   tr.innerHTML = `
     <td>
-      <input type="text" class="form-control item-productId" placeholder="Gõ mã hoặc tên sản phẩm..." required list="datalist-sales-products" oninput="autoFillSalesReturnPrice(this)" onblur="autoFillSalesReturnPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
+      <input type="text" class="form-control item-productId" placeholder="Mã SP..." required list="datalist-sales-products" oninput="autoFillSalesReturnPrice(this)" onblur="autoFillSalesReturnPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
+    </td>
+    <td>
+      <input type="text" class="form-control item-productName" placeholder="Tên sản phẩm..." required value="${escapeHtmlAttr(productNameVal)}">
     </td>
     <td>
       <input type="text" class="form-control item-qty text-right qty-format" required value="${Number.isInteger(qtyVal) ? qtyVal : qtyVal.toString().replace(".", ",")}" oninput="recalculateSalesReturnTotals()">
@@ -775,8 +786,10 @@ function autoFillSalesReturnPrice(selectEl) {
   const row = selectEl.closest("tr");
 
   if (prod && row) {
-    if (document.activeElement !== selectEl) {
-      selectEl.value = `${prod.name} (${prod.id})`;
+    selectEl.value = prod.id;
+    const nameEl = row.querySelector(".item-productName");
+    if (nameEl) {
+      nameEl.value = prod.name;
     }
     ensureProductExcelRow(prod);
     const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
@@ -919,6 +932,7 @@ function handleSalesReturnSubmit(e) {
     }
 
     const productId = resolvedProduct.id;
+    const productName = row.querySelector(".item-productName").value.trim() || resolvedProduct.name;
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
     const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
@@ -926,6 +940,7 @@ function handleSalesReturnSubmit(e) {
 
     voucherItems.push({
       productId,
+      productName,
       qty,
       price,
       discount,
@@ -1009,13 +1024,14 @@ function editSalesReturnVoucher(id) {
 
   v.items.forEach(item => {
     const prod = state.products.find(p => String(p.id) === String(item.productId));
-    const prodVal = prod ? `${prod.name} (${prod.id})` : item.productId;
+    const prodId = prod ? prod.id : item.productId;
+    const prodName = item.productName || (prod ? prod.name : item.productId);
     let discountPercent = item.discount || 0;
     if (discountPercent > 100) {
       const gross = (item.qty || 0) * (item.price || 0);
       discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100 * 100) / 100 : 0;
     }
-    addSalesReturnFormRow(prodVal, item.qty, item.price, discountPercent);
+    addSalesReturnFormRow(prodId, prodName, item.qty, item.price, discountPercent);
   });
 
   openModal("modal-add-sales-return");
@@ -1193,7 +1209,7 @@ function exportSalesReturnsToExcel() {
           const price = item.price || 0;
           const grossAmt = item.amount || (qty * price);
           const ckAmt = item.discount ? grossAmt * (item.discount / 100) : 0;
-          writeRow(item.productId || "", prod ? prod.name : (item.productName || item.productId || ""), prod ? (prod.unit || "Cái") : (item.unit || "Cái"), qty, price, grossAmt, ckAmt);
+          writeRow(item.productId || "", item.productName || (prod ? prod.name : (item.productId || "")), prod ? (prod.unit || "Cái") : (item.unit || "Cái"), qty, price, grossAmt, ckAmt);
         });
       } else {
         const gross = (v.totalAmount || 0) - (v.taxAmount || 0);
@@ -1368,7 +1384,7 @@ function changeQuotationPage(p) {
 }
 
 // Bổ sung các hàng sản phẩm động vào form Báo giá
-function addQuotationFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
+function addQuotationFormRow(productIdVal = "", productNameVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
   const tbody = document.getElementById("quotation-form-items-body");
   if (!tbody) return;
 
@@ -1378,7 +1394,10 @@ function addQuotationFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discou
   tr.id = rowId;
   tr.innerHTML = `
     <td>
-      <input type="text" class="form-control item-productId" placeholder="Gõ mã hoặc tên sản phẩm..." required list="datalist-sales-products" oninput="autoFillQuotationPrice(this)" onblur="autoFillQuotationPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
+      <input type="text" class="form-control item-productId" placeholder="Mã SP..." required list="datalist-sales-products" oninput="autoFillQuotationPrice(this)" onblur="autoFillQuotationPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
+    </td>
+    <td>
+      <input type="text" class="form-control item-productName" placeholder="Tên sản phẩm..." required value="${escapeHtmlAttr(productNameVal)}">
     </td>
     <td>
       <input type="text" class="form-control item-qty text-right qty-format" required value="${Number.isInteger(qtyVal) ? qtyVal : qtyVal.toString().replace(".", ",")}" oninput="recalculateQuotationTotals()">
@@ -1416,8 +1435,10 @@ function autoFillQuotationPrice(selectEl) {
   const row = selectEl.closest("tr");
 
   if (prod && row) {
-    if (document.activeElement !== selectEl) {
-      selectEl.value = `${prod.name} (${prod.id})`;
+    selectEl.value = prod.id;
+    const nameEl = row.querySelector(".item-productName");
+    if (nameEl) {
+      nameEl.value = prod.name;
     }
     ensureProductExcelRow(prod);
     const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
@@ -1554,6 +1575,7 @@ function handleQuotationSubmit(e) {
     }
 
     const productId = resolvedProduct.id;
+    const productName = row.querySelector(".item-productName").value.trim() || resolvedProduct.name;
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
     const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
@@ -1561,6 +1583,7 @@ function handleQuotationSubmit(e) {
 
     voucherItems.push({
       productId,
+      productName,
       qty,
       price,
       discount,
@@ -1633,13 +1656,14 @@ function editQuotationVoucher(id) {
 
   v.items.forEach(item => {
     const prod = state.products.find(p => String(p.id) === String(item.productId));
-    const prodVal = prod ? `${prod.name} (${prod.id})` : item.productId;
+    const prodId = prod ? prod.id : item.productId;
+    const prodName = item.productName || (prod ? prod.name : item.productId);
     let discountPercent = item.discount || 0;
     if (discountPercent > 100) {
       const gross = (item.qty || 0) * (item.price || 0);
       discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100 * 100) / 100 : 0;
     }
-    addQuotationFormRow(prodVal, item.qty, item.price, discountPercent);
+    addQuotationFormRow(prodId, prodName, item.qty, item.price, discountPercent);
   });
 
   openModal("modal-add-sales-quotation");
@@ -1762,7 +1786,7 @@ function exportQuotationsToExcel() {
         sc(rowIdx, 2, v.partnerName, 's', bs(cL));
         sc(rowIdx, 3, v.description, 's', bs(cL));
         sc(rowIdx, 4, item.productId, 's', bs(cC));
-        sc(rowIdx, 5, prod.name, 's', bs(cL));
+        sc(rowIdx, 5, item.productName || prod.name, 's', bs(cL));
         sc(rowIdx, 6, prod.unit || "Cái", 's', bs(cC));
         sc(rowIdx, 7, item.qty, 'n', bs(cR), "#,##0.0");
         sc(rowIdx, 8, item.price, 'n', bs(cR), numFmt);
