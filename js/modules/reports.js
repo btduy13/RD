@@ -317,10 +317,17 @@ function getReportSignaturesHTML() {
 // Hàm in báo cáo
 function triggerPrint() {
   if (window.electronAPI && typeof window.electronAPI.printWindow === "function") {
-    window.electronAPI.printWindow().catch(err => {
-      console.error("[Print] Lỗi khi gọi API in Electron, chuyển sang window.print():", err);
-      window.print();
-    });
+    window.electronAPI.printWindow()
+      .then(res => {
+        if (res && res.ok === false) {
+          console.warn("[Print] Electron printWindow trả về lỗi:", res.error, "- chuyển sang window.print()");
+          window.print();
+        }
+      })
+      .catch(err => {
+        console.error("[Print] Lỗi khi gọi API in Electron, chuyển sang window.print():", err);
+        window.print();
+      });
   } else {
     window.print();
   }

@@ -739,7 +739,7 @@ function viewVoucher(id) {
       return `
                 <tr>
                   <td style="border: 1px solid #000; padding: 4px 4px; text-align: center;">${idx + 1}</td>
-                  <td style="border: 1px solid #000; padding: 4px 6px; font-weight: 500;">${prod.name}</td>
+                  <td style="border: 1px solid #000; padding: 4px 6px; font-weight: 500;">${item.itemDesc || prod.name}</td>
                   <td style="border: 1px solid #000; padding: 4px 4px; text-align: center;">${prod.unit || "Cái"}</td>
                   <td style="border: 1px solid #000; padding: 4px 4px; text-align: right;" class="font-numeric">${qtyFormatted}</td>
                   <td style="border: 1px solid #000; padding: 4px 4px; text-align: right;" class="font-numeric">${formatVND(item.price).replace("đ", "").trim()}</td>
@@ -774,9 +774,11 @@ function viewVoucher(id) {
             <div style="margin-bottom: 3px;">
               <strong>Số tiền viết bằng chữ:</strong> <span style="font-style: italic;">${numberToVietnameseWords(v.totalAmount)}</span>
             </div>
-            <div>
-              <strong>Ghi chú:</strong> <span style="font-style: italic; color: #374151;">${v.notes || "hàng thừa trả lại dơ bẩn không thu lại. Không thu lại nút bịt"}</span>
+            ${(v.note || v.notes) ? `
+            <div style="margin-top: 4px;">
+              <strong>Ghi chú:</strong> <span style="font-style: italic; color: #374151;">${v.note || v.notes}</span>
             </div>
+            ` : ""}
           </div>
           <div style="width: 125px; text-align: center; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #000; padding: 4px; border-radius: 4px; background: #fff; page-break-inside: avoid; break-inside: avoid;">
             <span style="font-size: 8px; font-weight: bold; text-transform: uppercase; color: #000; margin-bottom: 3px; letter-spacing: 0.2px;">Quét Mã QR Thanh Toán</span>
