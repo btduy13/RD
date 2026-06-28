@@ -389,14 +389,12 @@ function handleSalesSubmit(e) {
     partnerName,
     paymentMethod: document.getElementById("sale-payment").value,
     description: document.getElementById("sale-desc").value,
-    note: (document.getElementById("sale-note") ? document.getElementById("sale-note").value.trim() : "") || undefined,
+    note: document.getElementById("sale-note") ? document.getElementById("sale-note").value.trim() : "",
     items: voucherItems,
     taxRate: parseInt(document.getElementById("sale-tax-rate").value),
     isManual: true,
     _sessionId: clientSessionId
   };
-  // Loại bỏ trường note nếu rỗng để không lưu giá trị undefined
-  if (!newVoucher.note) delete newVoucher.note;
 
   if (editingSalesId) {
     const idx = state.vouchers.findIndex(v => v.id === editingSalesId);

@@ -774,9 +774,9 @@ function viewVoucher(id) {
             <div style="margin-bottom: 3px;">
               <strong>Số tiền viết bằng chữ:</strong> <span style="font-style: italic;">${numberToVietnameseWords(v.totalAmount)}</span>
             </div>
-            ${(v.note || v.notes) ? `
+            ${(v.note !== undefined ? v.note : (v.notes || "hàng thừa trả lại dơ bẩn không thu lại. Không thu lại nút bịt")) ? `
             <div style="margin-top: 4px;">
-              <strong>Ghi chú:</strong> <span style="font-style: italic; color: #374151;">${v.note || v.notes}</span>
+              <strong>Ghi chú:</strong> <span style="font-style: italic; color: #374151;">${v.note !== undefined ? v.note : (v.notes || "hàng thừa trả lại dơ bẩn không thu lại. Không thu lại nút bịt")}</span>
             </div>
             ` : ""}
           </div>
