@@ -192,20 +192,28 @@ function autoFillProductPrice(selectEl) {
   const row = selectEl.closest("tr");
 
   if (prod && row) {
-    selectEl.value = prod.id;
-    const nameEl = row.querySelector(".item-productName");
-    if (nameEl) {
-      nameEl.value = prod.name;
-    }
-    ensureProductExcelRow(prod);
-    const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
-      ? prod.salePrice1
-      : (prod.excelRow && prod.excelRow[21] !== undefined && Number(prod.excelRow[21]) > 0
-        ? Number(prod.excelRow[21])
-        : (Math.round(prod.avgCost * 1.35 / 1000) * 1000 || 50000));
+    const val = selectEl.value.trim();
+    const isBlur = document.activeElement !== selectEl;
+    const isExactId = val.toLowerCase() === prod.id.toLowerCase();
+    const isExactName = val.toLowerCase() === prod.name.toLowerCase();
+    const isDatalistSelect = val.includes("(") && val.includes(")");
 
-    row.querySelector(".item-price").value = Number(salePriceVal).toLocaleString("vi-VN");
-    recalculateSalesTotals();
+    if (isBlur || isExactId || isExactName || isDatalistSelect) {
+      selectEl.value = prod.id;
+      const nameEl = row.querySelector(".item-productName");
+      if (nameEl) {
+        nameEl.value = prod.name;
+      }
+      ensureProductExcelRow(prod);
+      const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
+        ? prod.salePrice1
+        : (prod.excelRow && prod.excelRow[21] !== undefined && Number(prod.excelRow[21]) > 0
+          ? Number(prod.excelRow[21])
+          : (Math.round(prod.avgCost * 1.35 / 1000) * 1000 || 50000));
+
+      row.querySelector(".item-price").value = Number(salePriceVal).toLocaleString("vi-VN");
+      recalculateSalesTotals();
+    }
   }
 }
 
@@ -786,20 +794,28 @@ function autoFillSalesReturnPrice(selectEl) {
   const row = selectEl.closest("tr");
 
   if (prod && row) {
-    selectEl.value = prod.id;
-    const nameEl = row.querySelector(".item-productName");
-    if (nameEl) {
-      nameEl.value = prod.name;
-    }
-    ensureProductExcelRow(prod);
-    const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
-      ? prod.salePrice1
-      : (prod.excelRow && prod.excelRow[21] !== undefined && Number(prod.excelRow[21]) > 0
-        ? Number(prod.excelRow[21])
-        : (Math.round(prod.avgCost * 1.35 / 1000) * 1000 || 50000));
+    const val = selectEl.value.trim();
+    const isBlur = document.activeElement !== selectEl;
+    const isExactId = val.toLowerCase() === prod.id.toLowerCase();
+    const isExactName = val.toLowerCase() === prod.name.toLowerCase();
+    const isDatalistSelect = val.includes("(") && val.includes(")");
 
-    row.querySelector(".item-price").value = Number(salePriceVal).toLocaleString("vi-VN");
-    recalculateSalesReturnTotals();
+    if (isBlur || isExactId || isExactName || isDatalistSelect) {
+      selectEl.value = prod.id;
+      const nameEl = row.querySelector(".item-productName");
+      if (nameEl) {
+        nameEl.value = prod.name;
+      }
+      ensureProductExcelRow(prod);
+      const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
+        ? prod.salePrice1
+        : (prod.excelRow && prod.excelRow[21] !== undefined && Number(prod.excelRow[21]) > 0
+          ? Number(prod.excelRow[21])
+          : (Math.round(prod.avgCost * 1.35 / 1000) * 1000 || 50000));
+
+      row.querySelector(".item-price").value = Number(salePriceVal).toLocaleString("vi-VN");
+      recalculateSalesReturnTotals();
+    }
   }
 }
 
@@ -1435,20 +1451,28 @@ function autoFillQuotationPrice(selectEl) {
   const row = selectEl.closest("tr");
 
   if (prod && row) {
-    selectEl.value = prod.id;
-    const nameEl = row.querySelector(".item-productName");
-    if (nameEl) {
-      nameEl.value = prod.name;
-    }
-    ensureProductExcelRow(prod);
-    const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
-      ? prod.salePrice1
-      : (prod.excelRow && prod.excelRow[21] !== undefined && Number(prod.excelRow[21]) > 0
-        ? Number(prod.excelRow[21])
-        : (Math.round(prod.avgCost * 1.35 / 1000) * 1000 || 50000));
+    const val = selectEl.value.trim();
+    const isBlur = document.activeElement !== selectEl;
+    const isExactId = val.toLowerCase() === prod.id.toLowerCase();
+    const isExactName = val.toLowerCase() === prod.name.toLowerCase();
+    const isDatalistSelect = val.includes("(") && val.includes(")");
 
-    row.querySelector(".item-price").value = Number(salePriceVal).toLocaleString("vi-VN");
-    recalculateQuotationTotals();
+    if (isBlur || isExactId || isExactName || isDatalistSelect) {
+      selectEl.value = prod.id;
+      const nameEl = row.querySelector(".item-productName");
+      if (nameEl) {
+        nameEl.value = prod.name;
+      }
+      ensureProductExcelRow(prod);
+      const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
+        ? prod.salePrice1
+        : (prod.excelRow && prod.excelRow[21] !== undefined && Number(prod.excelRow[21]) > 0
+          ? Number(prod.excelRow[21])
+          : (Math.round(prod.avgCost * 1.35 / 1000) * 1000 || 50000));
+
+      row.querySelector(".item-price").value = Number(salePriceVal).toLocaleString("vi-VN");
+      recalculateQuotationTotals();
+    }
   }
 }
 
