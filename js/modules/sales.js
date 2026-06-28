@@ -154,7 +154,8 @@ function addSalesFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVal =
       <input type="text" class="form-control item-productId" placeholder="Mã SP..." required list="datalist-sales-products" oninput="autoFillProductPrice(this)" onblur="autoFillProductPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
     </td>
     <td>
-      <input type="text" class="form-control item-desc" placeholder="Mô tả..." value="${escapeHtmlAttr(descVal)}">
+      <input type="text" class="form-control item-desc" placeholder="Mô tả..." value="${escapeHtmlAttr(descVal)}"
+        oninput="this.dataset.userEdited='1'">
     </td>
     <td>
       <input type="text" class="form-control item-qty text-right qty-format" required value="${Number.isInteger(qtyVal) ? qtyVal : qtyVal.toString().replace(".", ",")}" oninput="recalculateSalesTotals()">
@@ -190,16 +191,19 @@ function autoFillProductPrice(selectEl) {
   const prodVal = selectEl.value;
   const prod = resolveProduct(prodVal);
   const row = selectEl.closest("tr");
+  const isBlur = document.activeElement !== selectEl;
 
   if (prod && row) {
-    if (document.activeElement !== selectEl) {
+    if (isBlur) {
+      // Khi blur: đặt lại mã SP về đúng ID sản phẩm
       selectEl.value = prod.id;
+      // Tự điền mô tả khi blur — chỉ điền nếu user CHƯA tự sửa
+      const descEl = row.querySelector(".item-desc");
+      if (descEl && !descEl.dataset.userEdited) {
+        descEl.value = prod.name;
+      }
     }
-    // Tự điền mô tả nếu ô mô tả đang trống
-    const descEl = row.querySelector(".item-desc");
-    if (descEl && !descEl.value) {
-      descEl.value = prod.name;
-    }
+    // Điền giá bán (cả khi input và blur)
     ensureProductExcelRow(prod);
     const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
       ? prod.salePrice1
@@ -463,6 +467,14 @@ function editSalesVoucher(id) {
       discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100 * 100) / 100 : 0;
     }
     addSalesFormRow(prodId, itemDesc, item.qty, item.price, discountPercent);
+    // Đánh dấu mô tả đã được điền sẵn → không bị ghi đè bởi autoFill khi blur
+    if (itemDesc) {
+      const lastRow = document.querySelector("#sales-form-items-body tr:last-child");
+      if (lastRow) {
+        const descEl = lastRow.querySelector(".item-desc");
+        if (descEl) descEl.dataset.userEdited = "1";
+      }
+    }
   });
 
   openModal("modal-add-sales");
