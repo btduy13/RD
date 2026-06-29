@@ -962,25 +962,21 @@ function switchPurchaseSubTab(subTabId) {
 }
 
 function generateNextPurchaseOrderVoucherId() {
-  const currentYear = new Date().getFullYear().toString().substring(2);
-  const regex = new RegExp(`^(ĐMH|DMH)-${currentYear}-(\\d+)$`, 'i');
+  const prefix = "ĐMH";
+  const regex = /^(ĐMH|DMH)(\d{5})$/i;
   let maxNum = 0;
-  let detectedPrefix = `ĐMH-${currentYear}-`; // default
 
   state.vouchers.forEach(v => {
     if (v.type === 'purchase_order' && v.id) {
       const match = v.id.match(regex);
       if (match) {
         const num = parseInt(match[2]);
-        if (num > maxNum) {
-          maxNum = num;
-          detectedPrefix = `${match[1].toUpperCase()}-${currentYear}-`;
-        }
+        if (num > maxNum) maxNum = num;
       }
     }
   });
 
-  return `${detectedPrefix}${(maxNum + 1).toString().padStart(4, '0')}`;
+  return `${prefix}${(maxNum + 1).toString().padStart(5, '0')}`;
 }
 
 function addPurchaseOrderFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
