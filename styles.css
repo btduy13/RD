@@ -69,28 +69,90 @@
 
 /* Biến màu cho Chế độ Sáng (Light Theme) */
 body.light-theme {
-  --bg-primary: #f0f2f8;
-  --bg-secondary: rgba(255, 255, 255, 0.85);
-  --bg-tertiary: rgba(241, 243, 249, 0.9);
-  --border-color: rgba(0, 0, 0, 0.08);
+  --bg-primary: #e6ecf4;
+  --bg-secondary: rgba(255, 255, 255, 0.9);
+  --bg-tertiary: rgba(240, 244, 250, 0.95);
+  --border-color: rgba(15, 23, 42, 0.12);
   --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
 
-  --glass-bg: rgba(255, 255, 255, 0.55);
-  --glass-bg-solid: rgba(255, 255, 255, 0.8);
-  --glass-border: rgba(0, 0, 0, 0.06);
-  --glass-border-hover: rgba(0, 0, 0, 0.12);
-  --glass-shine: linear-gradient(135deg, rgba(255,255,255,0.7) 0%, transparent 50%, rgba(255,255,255,0.3) 100%);
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-bg-solid: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(15, 23, 42, 0.08);
+  --glass-border-hover: rgba(15, 23, 42, 0.18);
+  --glass-shine: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, transparent 50%, rgba(255,255,255,0.4) 100%);
 
-  --glow-primary: 0 0 20px rgba(14, 165, 233, 0.15), 0 0 60px rgba(14, 165, 233, 0.05);
-  --glow-accent: 0 0 20px rgba(139, 92, 246, 0.15), 0 0 60px rgba(139, 92, 246, 0.05);
+  --glow-primary: 0 0 20px rgba(14, 165, 233, 0.18), 0 0 60px rgba(14, 165, 233, 0.06);
+  --glow-accent: 0 0 20px rgba(139, 92, 246, 0.18), 0 0 60px rgba(139, 92, 246, 0.06);
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.1);
-  --shadow-premium: 0 8px 32px rgba(14, 165, 233, 0.08);
-  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 14px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 12px 40px rgba(15, 23, 42, 0.12);
+  --shadow-premium: 0 8px 32px rgba(14, 165, 233, 0.12);
+  --shadow-glass: 0 8px 32px rgba(15, 23, 42, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* Light Theme Component Overrides for High Contrast */
+body.light-theme .data-table th {
+  background: rgba(15, 23, 42, 0.04) !important;
+  color: #1e293b !important;
+  font-weight: 800;
+  border-bottom: 2px solid rgba(15, 23, 42, 0.1) !important;
+}
+
+body.light-theme .menu-item.active a {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.15), rgba(139, 92, 246, 0.12)) !important;
+  color: #0284c7 !important;
+  border-color: rgba(14, 165, 233, 0.35) !important;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+body.light-theme .menu-item a:hover {
+  background: rgba(15, 23, 42, 0.04) !important;
+  color: #0f172a !important;
+}
+
+body.light-theme .sidebar {
+  border-right: 1px solid rgba(15, 23, 42, 0.1) !important;
+}
+
+body.light-theme .header {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.1) !important;
+}
+
+body.light-theme .kpi-card {
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+}
+
+body.light-theme .kpi-icon-wrapper {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(139, 92, 246, 0.14)) !important;
+  border-color: rgba(14, 165, 233, 0.2) !important;
+}
+
+body.light-theme .table-card {
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+}
+
+body.light-theme .data-table td {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06) !important;
+}
+
+body.light-theme .sub-tab-btn.active {
+  color: #0284c7 !important;
+}
+
+body.light-theme .sub-tabs-bar {
+  border-bottom: 2px solid rgba(15, 23, 42, 0.1) !important;
+}
+
+body.light-theme .form-control {
+  border: 1px solid rgba(15, 23, 42, 0.15) !important;
+}
+
+body.light-theme .form-control:focus {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15) !important;
 }
 
 /* 2. THIẾT LẬP CHUNG & TYPOGRAPHY */
@@ -129,9 +191,9 @@ body::before {
 
 body.light-theme::before {
   background:
-    radial-gradient(ellipse 80% 60% at 15% 60%, rgba(14, 165, 233, 0.06), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 85% 25%, rgba(139, 92, 246, 0.05), transparent 55%),
-    radial-gradient(ellipse 60% 80% at 50% 90%, rgba(16, 185, 129, 0.04), transparent 55%);
+    radial-gradient(ellipse 80% 60% at 15% 60%, rgba(14, 165, 233, 0.14), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 25%, rgba(139, 92, 246, 0.11), transparent 55%),
+    radial-gradient(ellipse 60% 80% at 50% 90%, rgba(16, 185, 129, 0.07), transparent 55%);
 }
 
 /* Custom Scrollbar — Glass */
