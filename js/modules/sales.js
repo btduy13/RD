@@ -1644,7 +1644,7 @@ function changeQuotationPage(p) {
 }
 
 // Bổ sung các hàng sản phẩm động vào form Báo giá
-function addQuotationFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
+function addQuotationFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
   const tbody = document.getElementById("quotation-form-items-body");
   if (!tbody) return;
 
@@ -1654,7 +1654,11 @@ function addQuotationFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discou
   tr.id = rowId;
   tr.innerHTML = `
     <td>
-      <input type="text" class="form-control item-productId" placeholder="Gõ mã hoặc tên sản phẩm..." required list="datalist-sales-products" oninput="autoFillQuotationPrice(this)" onblur="autoFillQuotationPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
+      <input type="text" class="form-control item-productId" placeholder="Mã SP..." required list="datalist-sales-products" oninput="autoFillQuotationPrice(this)" onblur="autoFillQuotationPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
+    </td>
+    <td>
+      <input type="text" class="form-control item-desc" placeholder="Mô tả..." value="${escapeHtmlAttr(descVal)}"
+        oninput="this.dataset.userEdited='1'">
     </td>
     <td>
       <input type="text" class="form-control item-qty text-right qty-format" required value="${Number.isInteger(qtyVal) ? qtyVal : qtyVal.toString().replace(".", ",")}" oninput="recalculateQuotationTotals()">
@@ -1690,10 +1694,15 @@ function autoFillQuotationPrice(selectEl) {
   const prodVal = selectEl.value;
   const prod = resolveProduct(prodVal);
   const row = selectEl.closest("tr");
+  const isBlur = document.activeElement !== selectEl;
 
   if (prod && row) {
-    if (document.activeElement !== selectEl) {
-      selectEl.value = `${prod.name} (${prod.id})`;
+    if (isBlur) {
+      selectEl.value = prod.id;
+      const descInput = row.querySelector(".item-desc");
+      if (descInput && !descInput.dataset.userEdited) {
+        descInput.value = prod.name;
+      }
     }
     ensureProductExcelRow(prod);
     const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
@@ -1830,6 +1839,7 @@ function handleQuotationSubmit(e) {
     }
 
     const productId = resolvedProduct.id;
+    const itemDesc = row.querySelector(".item-desc") ? row.querySelector(".item-desc").value.trim() : "";
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
     const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
@@ -1837,6 +1847,7 @@ function handleQuotationSubmit(e) {
 
     voucherItems.push({
       productId,
+      itemDesc,
       qty,
       price,
       discount,
@@ -1912,13 +1923,14 @@ function editQuotationVoucher(id) {
 
   v.items.forEach(item => {
     const prod = state.products.find(p => String(p.id) === String(item.productId));
-    const prodVal = prod ? `${prod.name} (${prod.id})` : item.productId;
+    const prodId = prod ? prod.id : item.productId;
+    const itemDesc = item.itemDesc || (prod ? prod.name : item.productId);
     let discountPercent = item.discount || 0;
     if (discountPercent > 100) {
       const gross = (item.qty || 0) * (item.price || 0);
       discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100) : 0;
     }
-    addQuotationFormRow(prodVal, item.qty, item.price, discountPercent);
+    addQuotationFormRow(prodId, itemDesc, item.qty, item.price, discountPercent);
   });
 
   openModal("modal-add-sales-quotation");

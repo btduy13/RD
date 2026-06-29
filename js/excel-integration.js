@@ -2716,6 +2716,7 @@ function parseExcelFile(file, type) {
 
               itemsArray.push({
                 productId: productId,
+                itemDesc: productName,
                 qty: qty,
                 price: price,
                 discount: discountPercent,
