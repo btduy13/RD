@@ -94,9 +94,15 @@ function handleQuickAddPartnerSubmit(e) {
     // Nạp lại datalist đối tác
     const datalist = document.getElementById("datalist-partners");
     if (datalist && state.partners) {
-      datalist.innerHTML = state.partners.map(p =>
-        `<option value="${p.name} (${p.id})">[${p.type === 'supplier' ? 'NCC' : 'KH'}]</option>`
-      ).join("");
+      datalist.innerHTML = state.partners.map(p => {
+        const typeLabel = p.type === 'supplier' ? 'NCC' : (p.type === 'enterprise' ? 'DN' : (p.type === 'project' ? 'CT' : 'KL'));
+        let parentInfo = "";
+        if (p.type === 'project' && p.parentId) {
+          const parent = state.partners.find(parent => parent.id === p.parentId);
+          if (parent) parentInfo = ` - Thuộc: ${parent.name}`;
+        }
+        return `<option value="${p.name} (${p.id})">[${typeLabel}${parentInfo}]</option>`;
+      }).join("");
     }
 
     // Refresh partner table if active
@@ -132,11 +138,132 @@ const itemsPerPage = 50;
 let filteredPartnersList = [];
 
 // --- Phân hệ Khách hàng ---
+window.switchPartnerModalTab = function(type) {
+  const tabs = ['enterprise', 'retail', 'supplier'];
+  tabs.forEach(t => {
+    const btn = document.getElementById(`partner-tab-${t}`);
+    if (btn) {
+      if (t === type) {
+        btn.classList.add('active');
+        btn.style.borderBottom = '2px solid var(--color-primary)';
+        btn.style.color = 'var(--text-primary)';
+        btn.style.fontWeight = '600';
+      } else {
+        btn.classList.remove('active');
+        btn.style.borderBottom = '2px solid transparent';
+        btn.style.color = 'var(--text-secondary)';
+        btn.style.fontWeight = '500';
+      }
+    }
+  });
+
+  document.getElementById('partner-modal-type').value = type;
+
+  // Show / hide B2B specific options
+  const groupEnterpriseOptions = document.getElementById('group-enterprise-options');
+  const groupProjectName = document.getElementById('group-partner-project-name');
+  const groupParent = document.getElementById('group-partner-parent');
+  const groupTaxcode = document.getElementById('group-partner-taxcode');
+
+  const lblName = document.getElementById('label-partner-name');
+  const lblAddress = document.getElementById('label-partner-address');
+  const lblId = document.getElementById('label-partner-id');
+
+  if (type === 'enterprise') {
+    if (groupEnterpriseOptions) groupEnterpriseOptions.style.display = 'flex';
+    const radio = document.querySelector('input[name="enterprise-option"]:checked');
+    const option = radio ? radio.value : 'new';
+    toggleEnterpriseOption(option);
+  } else {
+    if (groupEnterpriseOptions) groupEnterpriseOptions.style.display = 'none';
+    if (groupProjectName) groupProjectName.style.display = 'none';
+    if (groupParent) groupParent.style.display = 'none';
+    
+    if (type === 'retail') {
+      if (groupTaxcode) groupTaxcode.style.display = 'none';
+      if (lblName) lblName.innerHTML = `Tên Khách lẻ <span style="color:var(--color-danger)">*</span>`;
+      if (lblAddress) lblAddress.innerText = 'Địa chỉ liên hệ';
+      if (lblId) lblId.innerText = 'Mã Khách lẻ';
+    } else if (type === 'supplier') {
+      if (groupTaxcode) groupTaxcode.style.display = 'block';
+      if (lblName) lblName.innerHTML = `Tên Nhà cung cấp <span style="color:var(--color-danger)">*</span>`;
+      if (lblAddress) lblAddress.innerText = 'Địa chỉ trụ sở';
+      if (lblId) lblId.innerText = 'Mã Nhà cung cấp';
+    }
+  }
+};
+
+window.toggleEnterpriseOption = function(option) {
+  const groupProjectName = document.getElementById('group-partner-project-name');
+  const groupParent = document.getElementById('group-partner-parent');
+  const groupTaxcode = document.getElementById('group-partner-taxcode');
+
+  const lblName = document.getElementById('label-partner-name');
+  const lblAddress = document.getElementById('label-partner-address');
+  const lblId = document.getElementById('label-partner-id');
+
+  if (option === 'new') {
+    if (groupProjectName) groupProjectName.style.display = 'block';
+    if (groupParent) groupParent.style.display = 'none';
+    if (groupTaxcode) groupTaxcode.style.display = 'block';
+    if (lblName) lblName.innerHTML = `Tên Doanh nghiệp <span style="color:var(--color-danger)">*</span>`;
+    if (lblAddress) lblAddress.innerText = 'Địa chỉ trụ sở';
+    if (lblId) lblId.innerText = 'Mã Doanh nghiệp';
+  } else {
+    if (groupProjectName) groupProjectName.style.display = 'none';
+    if (groupParent) groupParent.style.display = 'block';
+    if (groupTaxcode) groupTaxcode.style.display = 'none';
+    if (lblName) lblName.innerHTML = `Tên Công trình mới <span style="color:var(--color-danger)">*</span>`;
+    if (lblAddress) lblAddress.innerText = 'Địa chỉ công trình';
+    if (lblId) lblId.innerText = 'Mã Công trình';
+
+    const select = document.getElementById('partner-parent-select');
+    if (select) {
+      const enterprises = state.partners.filter(p => p.type === 'enterprise');
+      select.innerHTML = enterprises.map(e => `<option value="${e.id}">${e.name} (${e.id})</option>`).join('');
+      if (enterprises.length === 0) {
+        select.innerHTML = '<option value="">(Chưa có doanh nghiệp nào, vui lòng tạo mới)</option>';
+      }
+    }
+  }
+};
+
 function renderPartnersTable() {
   const tbody = document.getElementById("partners-table-body");
   if (!tbody) return;
 
-  const total = filteredPartnersList.length;
+  const displayList = [];
+  const rootPartners = state.partners.filter(p => p.type !== 'project');
+  const projectPartners = state.partners.filter(p => p.type === 'project');
+
+  const matchesFilter = (p) => {
+    return filteredPartnersList.some(f => f.id === p.id);
+  };
+
+  rootPartners.forEach(root => {
+    const isRootMatch = matchesFilter(root);
+    const children = projectPartners.filter(c => c.parentId === root.id);
+    const matchingChildren = children.filter(c => matchesFilter(c));
+
+    if (isRootMatch || matchingChildren.length > 0) {
+      displayList.push({ partner: root, isChild: false, depth: 0 });
+      const childrenToDisplay = isRootMatch ? children : matchingChildren;
+      childrenToDisplay.forEach(child => {
+        displayList.push({ partner: child, isChild: true, depth: 1 });
+      });
+    }
+  });
+
+  projectPartners.forEach(proj => {
+    if (matchesFilter(proj)) {
+      const hasParent = rootPartners.some(r => r.id === proj.parentId);
+      if (!hasParent) {
+        displayList.push({ partner: proj, isChild: false, depth: 0 });
+      }
+    }
+  });
+
+  const total = displayList.length;
   const totalPages = Math.ceil(total / itemsPerPage) || 1;
 
   if (partnersPage > totalPages) partnersPage = totalPages;
@@ -144,29 +271,47 @@ function renderPartnersTable() {
 
   const startIdx = (partnersPage - 1) * itemsPerPage;
   const endIdx = startIdx + itemsPerPage;
-  const pageItems = filteredPartnersList.slice(startIdx, endIdx);
+  const pageItems = displayList.slice(startIdx, endIdx);
 
   tbody.innerHTML = "";
   if (pageItems.length === 0) {
     tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy đối tác nào</td></tr>`;
   } else {
-    pageItems.forEach(p => {
+    pageItems.forEach(item => {
+      const p = item.partner;
       const tr = document.createElement("tr");
       const escapedId = escapeHtmlAttr(p.id);
       tr.className = "clickable-row";
       tr.setAttribute("data-type", "partner");
       tr.setAttribute("data-id", escapedId);
+
+      let nameStyle = "font-weight:600;";
+      let namePrefix = "";
+      if (item.isChild) {
+        nameStyle += " padding-left: 24px; color: var(--text-secondary);";
+        namePrefix = `<span style="color: var(--text-muted); margin-right: 6px;">┕</span>`;
+      }
+
+      let typeBadge = "";
+      if (p.type === 'enterprise') {
+        typeBadge = `<span class="badge" style="background-color: #6366f1; color: white;">Doanh nghiệp</span>`;
+      } else if (p.type === 'project') {
+        typeBadge = `<span class="badge" style="background-color: #f59e0b; color: white;">Công trình</span>`;
+      } else if (p.type === 'retail') {
+        typeBadge = `<span class="badge" style="background-color: #10b981; color: white;">Khách lẻ</span>`;
+      } else if (p.type === 'supplier') {
+        typeBadge = `<span class="badge" style="background-color: #3b82f6; color: white;">Nhà cung cấp</span>`;
+      } else {
+        typeBadge = `<span class="badge badge-info">${p.type}</span>`;
+      }
+
       tr.innerHTML = `
         <td style="text-align: center;">
           <input type="checkbox" class="partner-checkbox" value="${escapedId}" onchange="updateBatchPartnersUI()">
         </td>
         <td style="font-weight:bold; color:var(--color-primary);">${p.id}</td>
-        <td style="font-weight:600;"><a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${p.name}</a></td>
-        <td>
-          <span class="badge ${p.type === 'supplier' ? 'badge-warning' : 'badge-info'}">
-            ${p.type === 'supplier' ? 'Nhà cung cấp' : 'Khách hàng'}
-          </span>
-        </td>
+        <td style="${nameStyle}">${namePrefix}<a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${p.name}</a></td>
+        <td>${typeBadge}</td>
         <td class="font-numeric">${p.phone || "-"}</td>
         <td>${p.address || "-"}</td>
         <td>
@@ -186,16 +331,14 @@ function renderPartnersTable() {
   const paginationInfo = document.getElementById("partners-pagination-info");
   if (paginationInfo) {
     paginationInfo.innerText = total > 0
-      ? `Hiển thị ${startIdx + 1} - ${Math.min(endIdx, total)} trong số ${total} đối tác (Trang ${partnersPage}/${totalPages})`
+      ? `Hiển thị ${startIdx + 1} - ${Math.min(endIdx, total)} trong số ${total} thực thể (Trang ${partnersPage}/${totalPages})`
       : `Hiển thị 0 - 0 trong số 0 đối tác`;
   }
 
-  // Reset check-all-partners checkbox
   const checkAll = document.getElementById("check-all-partners");
   if (checkAll) checkAll.checked = false;
   if (typeof updateBatchPartnersUI === "function") updateBatchPartnersUI();
 
-  // Render pagination controls
   const paginationControls = document.getElementById("partners-pagination-controls");
   if (paginationControls) {
     if (totalPages <= 1) {
@@ -255,7 +398,15 @@ function filterPartners() {
   filteredPartnersList = state.partners.filter(p => {
     const combined = `${p.id || ""}\t${p.name || ""}\t${p.phone || ""}\t${p.address || ""}`;
     const matchesQuery = matchAdvancedQuery(combined, query);
-    const matchesType = filterType === "all" || p.type === filterType;
+    
+    let matchesType = false;
+    if (filterType === "all") {
+      matchesType = true;
+    } else if (filterType === "customer") {
+      matchesType = (p.type === "retail" || p.type === "enterprise" || p.type === "project");
+    } else {
+      matchesType = p.type === filterType;
+    }
     return matchesQuery && matchesType;
   });
 
@@ -266,8 +417,17 @@ function filterPartners() {
 function openAddPartnerModal() {
   document.getElementById("edit-partner-index").value = "-1";
   document.getElementById("form-partner").reset();
+  
+  const radioNew = document.querySelector('input[name="enterprise-option"][value="new"]');
+  if (radioNew) radioNew.checked = true;
+
   document.getElementById("partner-id").disabled = false;
   document.getElementById("modal-partner-title").innerText = "Khai báo Đối tác mới";
+  
+  const tabContainer = document.querySelector("#modal-add-partner .sub-tabs-bar");
+  if (tabContainer) tabContainer.style.display = 'flex';
+
+  switchPartnerModalTab('enterprise');
   openModal("modal-add-partner");
 }
 
@@ -277,15 +437,57 @@ function openEditPartnerModal(id) {
 
   document.getElementById("edit-partner-index").value = p.id;
   document.getElementById("partner-id").value = p.id;
-  document.getElementById("partner-id").disabled = false; // Mở khóa mã đối tác cho phép chỉnh sửa
+  document.getElementById("partner-id").disabled = false;
   document.getElementById("partner-name").value = p.name;
-  document.getElementById("partner-type").value = p.type;
+  
+  const tabContainer = document.querySelector("#modal-add-partner .sub-tabs-bar");
+  if (tabContainer) tabContainer.style.display = 'none';
+
+  const groupEnterpriseOptions = document.getElementById('group-enterprise-options');
+  if (groupEnterpriseOptions) groupEnterpriseOptions.style.display = 'none';
+  const groupProjectName = document.getElementById('group-partner-project-name');
+  if (groupProjectName) groupProjectName.style.display = 'none';
+  const groupParent = document.getElementById('group-partner-parent');
+  if (groupParent) groupParent.style.display = 'none';
+
   document.getElementById("partner-phone").value = p.phone || "";
   document.getElementById("partner-address").value = p.address || "";
   document.getElementById("partner-taxcode").value = p.taxCode || "";
   document.getElementById("partner-inactive").checked = !!p.inactive;
 
-  document.getElementById("modal-partner-title").innerText = "Chỉnh sửa Đối tác";
+  document.getElementById("partner-modal-type").value = p.type;
+  
+  const lblName = document.getElementById('label-partner-name');
+  const lblAddress = document.getElementById('label-partner-address');
+  const lblId = document.getElementById('label-partner-id');
+  const groupTaxcode = document.getElementById('group-partner-taxcode');
+
+  if (p.type === 'enterprise') {
+    document.getElementById("modal-partner-title").innerText = "Chỉnh sửa Doanh nghiệp";
+    if (lblName) lblName.innerHTML = `Tên Doanh nghiệp <span style="color:var(--color-danger)">*</span>`;
+    if (lblAddress) lblAddress.innerText = 'Địa chỉ trụ sở';
+    if (lblId) lblId.innerText = 'Mã Doanh nghiệp';
+    if (groupTaxcode) groupTaxcode.style.display = 'block';
+  } else if (p.type === 'project') {
+    document.getElementById("modal-partner-title").innerText = "Chỉnh sửa Công trình";
+    if (lblName) lblName.innerHTML = `Tên Công trình <span style="color:var(--color-danger)">*</span>`;
+    if (lblAddress) lblAddress.innerText = 'Địa chỉ công trình';
+    if (lblId) lblId.innerText = 'Mã Công trình';
+    if (groupTaxcode) groupTaxcode.style.display = 'none';
+  } else if (p.type === 'retail') {
+    document.getElementById("modal-partner-title").innerText = "Chỉnh sửa Khách lẻ";
+    if (lblName) lblName.innerHTML = `Tên Khách lẻ <span style="color:var(--color-danger)">*</span>`;
+    if (lblAddress) lblAddress.innerText = 'Địa chỉ liên hệ';
+    if (lblId) lblId.innerText = 'Mã Khách lẻ';
+    if (groupTaxcode) groupTaxcode.style.display = 'none';
+  } else if (p.type === 'supplier') {
+    document.getElementById("modal-partner-title").innerText = "Chỉnh sửa Nhà cung cấp";
+    if (lblName) lblName.innerHTML = `Tên Nhà cung cấp <span style="color:var(--color-danger)">*</span>`;
+    if (lblAddress) lblAddress.innerText = 'Địa chỉ trụ sở';
+    if (lblId) lblId.innerText = 'Mã Nhà cung cấp';
+    if (groupTaxcode) groupTaxcode.style.display = 'block';
+  }
+
   openModal("modal-add-partner");
 }
 
@@ -301,11 +503,37 @@ function handlePartnerSubmit(e) {
   const idEl = document.getElementById("partner-id");
   const idVal = idEl ? idEl.value.trim() : "";
   const name = document.getElementById("partner-name").value.trim();
-  const type = document.getElementById("partner-type").value;
   const phone = document.getElementById("partner-phone").value.trim();
   const address = document.getElementById("partner-address").value.trim();
   const taxCode = document.getElementById("partner-taxcode").value.trim();
   const inactive = document.getElementById("partner-inactive").checked;
+
+  let type = document.getElementById("partner-modal-type").value;
+  let parentId = "";
+  let projectName = "";
+
+  if (editIndex === "-1") {
+    if (type === "enterprise") {
+      const radio = document.querySelector('input[name="enterprise-option"]:checked');
+      const option = radio ? radio.value : 'new';
+      if (option === 'existing') {
+        type = "project";
+        parentId = document.getElementById("partner-parent-select").value;
+        if (!parentId) {
+          showToast("Vui lòng chọn Doanh nghiệp mẹ!", "danger");
+          return;
+        }
+      } else {
+        projectName = document.getElementById("partner-project-name").value.trim();
+      }
+    }
+  } else {
+    const pExist = state.partners.find(item => item.id === editIndex);
+    if (pExist) {
+      type = pExist.type;
+      parentId = pExist.parentId || "";
+    }
+  }
 
   if (editIndex !== "-1") {
     const idx = state.partners.findIndex(p => String(p.id) === String(editIndex));
@@ -316,7 +544,6 @@ function handlePartnerSubmit(e) {
         return;
       }
 
-      // Cập nhật tất cả các tham chiếu liên quan nếu Mã đối tác bị thay đổi
       if (newId !== editIndex) {
         state.vouchers.forEach(v => {
           if (String(v.partnerId) === String(editIndex)) {
@@ -324,19 +551,23 @@ function handlePartnerSubmit(e) {
             v.partnerName = name;
           }
         });
+        state.partners.forEach(p => {
+          if (p.parentId === editIndex) p.parentId = newId;
+        });
         if (state.partnerOpeningBalances && state.partnerOpeningBalances[editIndex]) {
           state.partnerOpeningBalances[newId] = state.partnerOpeningBalances[editIndex];
           delete state.partnerOpeningBalances[editIndex];
         }
       }
 
-      state.partners[idx] = { id: newId, name, type, phone, email: "", address, taxCode, inactive };
+      state.partners[idx] = { id: newId, name, type, parentId, phone, email: "", address, taxCode, inactive };
       showToast("Cập nhật đối tác thành công!", "success");
     }
   } else {
     let id = idVal.toUpperCase();
     if (!id) {
-      const prefix = type === "supplier" ? "NCC" : "KH";
+      const prefixMap = { enterprise: "DN", project: "CT", retail: "KL", supplier: "NCC" };
+      const prefix = prefixMap[type] || "DT";
       const nextNum = (state.partners.filter(p => p.type === type).length + 1).toString().padStart(3, '0');
       id = `${prefix}${nextNum}`;
       if (idEl) idEl.value = id;
@@ -347,8 +578,26 @@ function handlePartnerSubmit(e) {
       return;
     }
 
-    state.partners.push({ id, name, type, phone, email: "", address, taxCode, inactive });
+    state.partners.push({ id, name, type, parentId, phone, email: "", address, taxCode, inactive });
     showToast("Thêm đối tác mới thành công!", "success");
+
+    if (type === "enterprise" && projectName) {
+      const projPrefix = "CT";
+      const projNextNum = (state.partners.filter(p => p.type === "project").length + 1).toString().padStart(3, '0');
+      const projId = `${projPrefix}${projNextNum}`;
+      state.partners.push({
+        id: projId,
+        name: projectName,
+        type: "project",
+        parentId: id,
+        phone,
+        email: "",
+        address,
+        taxCode: "",
+        inactive
+      });
+      showToast(`Tạo thành công công trình "${projectName}" thuộc doanh nghiệp này!`, "success");
+    }
   }
 
   saveState();

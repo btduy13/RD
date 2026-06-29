@@ -1613,9 +1613,15 @@ function initExcelIntegration() {
   // Nạp datalist partners
   const datalist = document.getElementById("datalist-partners");
   if (datalist && state.partners) {
-    datalist.innerHTML = state.partners.map(p =>
-      `<option value="${p.name} (${p.id})">[${p.type === 'supplier' ? 'NCC' : 'KH'}]</option>`
-    ).join("");
+    datalist.innerHTML = state.partners.map(p => {
+      const typeLabel = p.type === 'supplier' ? 'NCC' : (p.type === 'enterprise' ? 'DN' : (p.type === 'project' ? 'CT' : 'KL'));
+      let parentInfo = "";
+      if (p.type === 'project' && p.parentId) {
+        const parent = state.partners.find(parent => parent.id === p.parentId);
+        if (parent) parentInfo = ` - Thuộc: ${parent.name}`;
+      }
+      return `<option value="${p.name} (${p.id})">[${typeLabel}${parentInfo}]</option>`;
+    }).join("");
   }
 
   // Nạp datalist sản phẩm phục vụ autocomplete trong hóa đơn bán hàng & mua hàng
@@ -2064,9 +2070,15 @@ function parseExcelFile(file, type) {
         // Cập nhật datalist
         const datalist = document.getElementById("datalist-partners");
         if (datalist) {
-          datalist.innerHTML = state.partners.map(p =>
-            `<option value="${p.name} (${p.id})">[${p.type === 'supplier' ? 'NCC' : 'KH'}]</option>`
-          ).join("");
+          datalist.innerHTML = state.partners.map(p => {
+            const typeLabel = p.type === 'supplier' ? 'NCC' : (p.type === 'enterprise' ? 'DN' : (p.type === 'project' ? 'CT' : 'KL'));
+            let parentInfo = "";
+            if (p.type === 'project' && p.parentId) {
+              const parent = state.partners.find(parent => parent.id === p.parentId);
+              if (parent) parentInfo = ` - Thuộc: ${parent.name}`;
+            }
+            return `<option value="${p.name} (${p.id})">[${typeLabel}${parentInfo}]</option>`;
+          }).join("");
         }
 
         saveState();
@@ -2143,9 +2155,15 @@ function parseExcelFile(file, type) {
         // Cập nhật datalist
         const datalist = document.getElementById("datalist-partners");
         if (datalist) {
-          datalist.innerHTML = state.partners.map(p =>
-            `<option value="${p.name} (${p.id})">[${p.type === 'supplier' ? 'NCC' : 'KH'}]</option>`
-          ).join("");
+          datalist.innerHTML = state.partners.map(p => {
+            const typeLabel = p.type === 'supplier' ? 'NCC' : (p.type === 'enterprise' ? 'DN' : (p.type === 'project' ? 'CT' : 'KL'));
+            let parentInfo = "";
+            if (p.type === 'project' && p.parentId) {
+              const parent = state.partners.find(parent => parent.id === p.parentId);
+              if (parent) parentInfo = ` - Thuộc: ${parent.name}`;
+            }
+            return `<option value="${p.name} (${p.id})">[${typeLabel}${parentInfo}]</option>`;
+          }).join("");
         }
 
         saveState();

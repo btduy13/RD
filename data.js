@@ -17,8 +17,9 @@ const DEFAULT_DATA = {
 
   // Danh mục đối tác (Khách hàng & Nhà cung cấp)
   partners: [
-    { id: "KH001", name: "Đại lý Thiết bị Điện Ánh Dương", type: "customer", phone: "0912345678", email: "anhduong@gmail.com", address: "Số 120 Đường Cầu Giấy, Quận Cầu Giấy, Hà Nội" },
-    { id: "KH002", name: "Cửa hàng Thiết bị Gia dụng Gia Minh", type: "customer", phone: "0987654321", email: "giaminh@gmail.com", address: "Số 45 Đường Trần Hưng Đạo, Quận Hải Châu, Đà Nẵng" },
+    { id: "KH001", name: "Đại lý Thiết bị Điện Ánh Dương", type: "enterprise", phone: "0912345678", email: "anhduong@gmail.com", address: "Số 120 Đường Cầu Giấy, Quận Cầu Giấy, Hà Nội" },
+    { id: "CT001", name: "Công trình Chung cư Ánh Dương Lô A", type: "project", parentId: "KH001", phone: "0912345678", email: "anhduong@gmail.com", address: "Số 120 Đường Cầu Giấy, Quận Cầu Giấy, Hà Nội" },
+    { id: "KH002", name: "Cửa hàng Thiết bị Gia dụng Gia Minh", type: "retail", phone: "0987654321", email: "giaminh@gmail.com", address: "Số 45 Đường Trần Hưng Đạo, Quận Hải Châu, Đà Nẵng" },
     { id: "NCC001", name: "Công ty Cổ phần Nhựa Tiền Phong", type: "supplier", phone: "0243123456", email: "vattu@tienphong.vn", address: "Khu công nghiệp Vĩnh Niệm, Quận Lê Chân, Hải Phòng" },
     { id: "NCC002", name: "Nhà máy Thủy tinh Thống Nhất", type: "supplier", phone: "02253847291", email: "sales@thuytinhthongnhat.com", address: "Phố Đức Giang, Quận Long Biên, Hà Nội" },
     { id: "NCC003", name: "Tổng công ty Bất động sản Hà Nội (Cho thuê xưởng)", type: "supplier", phone: "0905111222", email: "leasing@hanoiland.com", address: "Số 10 Trần Duy Hưng, Quận Cầu Giấy, Hà Nội" }

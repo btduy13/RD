@@ -395,7 +395,13 @@ function getPartnerForVoucher(v) {
 // Lấy tên đối tác mới nhất một cách động dựa trên partnerId để liên kết CSDL
 function getPartnerNameForVoucher(v) {
   const p = getPartnerForVoucher(v);
-  if (p) return p.name;
+  if (p) {
+    if (p.type === 'project' && p.parentId) {
+      const parent = state.partners.find(item => item.id === p.parentId);
+      if (parent) return `${p.name} (${parent.name})`;
+    }
+    return p.name;
+  }
   return (v && v.partnerName) ? v.partnerName : "Khách hàng vãng lai";
 }
 // Phân tích chuỗi số định dạng tiền tệ Việt Nam thành Number

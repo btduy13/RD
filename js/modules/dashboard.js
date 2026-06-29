@@ -117,7 +117,7 @@ function renderDashboardDebts() {
       if (toDate && "2026-01-01" > toDate) return;
       const opening = state.partnerOpeningBalances[p.id];
       if (opening) {
-        const val = p.type === "customer" ? (opening.debit || 0) : (opening.credit || 0);
+        const val = p.type !== "supplier" ? (opening.debit || 0) : (opening.credit || 0);
         if (val > 0) {
           unsettled.push({
             id: `OP-${p.id}`,
@@ -200,7 +200,7 @@ function renderDashboardDebts() {
     state.partners.forEach(p => {
       if (fromDate && "2026-01-01" < fromDate) return;
       if (toDate && "2026-01-01" > toDate) return;
-      if (p.type === "customer") {
+      if (p.type !== "supplier") {
         const opening = state.partnerOpeningBalances[p.id];
         const val = opening ? (opening.debit || 0) : 0;
         if (val > 0) {
@@ -260,7 +260,7 @@ function renderDashboardDebts() {
     let totalRec = 0;
     let totalPay = 0;
     kpiDebts.forEach(d => {
-      if (d.type === 'customer' || d.type === 'both') {
+      if (d.type !== 'supplier' || d.type === 'both') {
         // NET: phải thu (closingDebit) trừ khách hàng trả thừa (closingCredit)
         totalRec += (d.closingDebit || 0) - (d.closingCredit || 0);
       }

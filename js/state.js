@@ -171,6 +171,20 @@ async function initApp() {
     }
   }
 
+  // Di chuyển loại đối tác từ 'customer' sang 'retail'
+  if (state.partners) {
+    let hasPartnerMigrated = false;
+    state.partners.forEach(p => {
+      if (p.type === "customer") {
+        p.type = "retail";
+        hasPartnerMigrated = true;
+      }
+    });
+    if (hasPartnerMigrated) {
+      setTimeout(() => { saveState(); }, 0);
+    }
+  }
+
   // Dọn dẹp dữ liệu rác đối tác đầu kỳ không hợp lệ
   if (state.partnerOpeningBalances) {
     const validPartnerIds = new Set(state.partners.map(p => p.id));

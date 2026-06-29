@@ -2103,7 +2103,9 @@
                 style="height: 36px; padding: 4px 12px; font-size: 13px; font-weight: 500; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); outline: none; min-width: 150px;"
                 onchange="filterPartners()">
                 <option value="all">Tất cả đối tác</option>
-                <option value="customer">Khách hàng (KH)</option>
+                <option value="retail">Khách hàng lẻ (KL)</option>
+                <option value="enterprise">Doanh nghiệp (DN)</option>
+                <option value="project">Công trình (CT)</option>
                 <option value="supplier">Nhà cung cấp (NCC)</option>
               </select>
             </div>
@@ -2950,46 +2952,81 @@
   <div id="modal-add-partner" class="modal-overlay">
     <div class="modal-content-container" style="max-width: 500px;">
       <div class="modal-header">
-        <h3 class="card-title" id="modal-partner-title">Khai báo Đối tác (Khách hàng & NCC)</h3>
+        <h3 class="card-title" id="modal-partner-title">Khai báo Đối tác</h3>
         <button class="icon-btn" onclick="closeModal('modal-add-partner')" style="width: 32px; height: 32px;">×</button>
       </div>
-      <div class="modal-body">
-        <form id="form-partner" class="form-grid" style="grid-template-columns: 1fr;"
-          onsubmit="handlePartnerSubmit(event)">
+      <div class="modal-body" style="padding-top: 10px;">
+        <!-- Modal Tabs -->
+        <div class="sub-tabs-bar" style="margin-bottom: 16px; border-bottom: 1px solid var(--border-color); display: flex; gap: 8px;">
+          <button type="button" id="partner-tab-enterprise" class="sub-tab-btn active" onclick="switchPartnerModalTab('enterprise')" style="padding: 8px 12px; font-size: 13px; font-weight: 600; border: none; background: none; border-bottom: 2px solid var(--color-primary); color: var(--text-primary); cursor: pointer;">
+            Khách Doanh nghiệp
+          </button>
+          <button type="button" id="partner-tab-retail" class="sub-tab-btn" onclick="switchPartnerModalTab('retail')" style="padding: 8px 12px; font-size: 13px; font-weight: 500; border: none; background: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">
+            Khách Lẻ
+          </button>
+          <button type="button" id="partner-tab-supplier" class="sub-tab-btn" onclick="switchPartnerModalTab('supplier')" style="padding: 8px 12px; font-size: 13px; font-weight: 500; border: none; background: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">
+            Nhà Cung Cấp
+          </button>
+        </div>
+
+        <form id="form-partner" class="form-grid" style="grid-template-columns: 1fr; gap: 12px;" onsubmit="handlePartnerSubmit(event)">
           <input type="hidden" id="edit-partner-index" value="-1">
-          <div class="form-group">
-            <label class="form-label">Mã đối tác (ví dụ: KH001, NCC001)</label>
+          <input type="hidden" id="partner-modal-type" value="enterprise">
+
+          <!-- Enterprise Radio Options -->
+          <div id="group-enterprise-options" class="form-group" style="display: flex; gap: 16px; align-items: center; background: var(--bg-tertiary); padding: 8px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--text-primary); cursor: pointer; margin-bottom: 0;">
+              <input type="radio" name="enterprise-option" value="new" checked onchange="toggleEnterpriseOption('new')" style="width: 16px; height: 16px; cursor: pointer;">
+              Doanh nghiệp MỚI
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--text-primary); cursor: pointer; margin-bottom: 0;">
+              <input type="radio" name="enterprise-option" value="existing" onchange="toggleEnterpriseOption('existing')" style="width: 16px; height: 16px; cursor: pointer;">
+              Thêm Công trình (DN cũ)
+            </label>
+          </div>
+
+          <!-- Dropdown to select Parent Enterprise -->
+          <div id="group-partner-parent" class="form-group" style="display: none;">
+            <label class="form-label">Chọn Doanh nghiệp mẹ <span style="color:var(--color-danger)">*</span></label>
+            <select id="partner-parent-select" class="form-control" style="height: 36px; font-size: 13px;"></select>
+          </div>
+
+          <div class="form-group" id="group-partner-id">
+            <label class="form-label" id="label-partner-id">Mã Doanh nghiệp</label>
             <input type="text" id="partner-id" class="form-control" placeholder="Hệ thống tự sinh nếu để trống">
           </div>
-          <div class="form-group">
-            <label class="form-label">Tên đối tác (Tên khách hàng / nhà cung cấp)</label>
-            <input type="text" id="partner-name" class="form-control" required
-              placeholder="Ví dụ: Đại lý Thiết bị Điện Đông Á">
+
+          <div class="form-group" id="group-partner-name">
+            <label class="form-label" id="label-partner-name">Tên Doanh nghiệp <span style="color:var(--color-danger)">*</span></label>
+            <input type="text" id="partner-name" class="form-control" required placeholder="Nhập tên...">
           </div>
-          <div class="form-group">
-            <label class="form-label">Phân loại</label>
-            <select id="partner-type" class="form-control" required>
-              <option value="customer">Khách hàng (KH)</option>
-              <option value="supplier">Nhà cung cấp (NCC)</option>
-            </select>
+
+          <!-- Project name input for new enterprise -->
+          <div class="form-group" id="group-partner-project-name">
+            <label class="form-label">Tên công trình đi kèm (Không bắt buộc)</label>
+            <input type="text" id="partner-project-name" class="form-control" placeholder="Ví dụ: Công trình biệt thự Ánh Dương">
           </div>
-          <div class="form-group">
+
+          <div class="form-group" id="group-partner-phone">
             <label class="form-label">Số điện thoại</label>
             <input type="text" id="partner-phone" class="form-control" placeholder="Ví dụ: 0912345678">
           </div>
-          <div class="form-group">
-            <label class="form-label">Địa chỉ</label>
+
+          <div class="form-group" id="group-partner-address">
+            <label class="form-label" id="label-partner-address">Địa chỉ trụ sở</label>
             <input type="text" id="partner-address" class="form-control" placeholder="Số nhà, đường phố, tỉnh/thành...">
           </div>
-          <div class="form-group">
+
+          <div class="form-group" id="group-partner-taxcode">
             <label class="form-label">Mã số thuế</label>
-            <input type="text" id="partner-taxcode" class="form-control" placeholder="MST doanh nghiệp (nếu có)">
+            <input type="text" id="partner-taxcode" class="form-control" placeholder="Mã số thuế doanh nghiệp...">
           </div>
+
           <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
             <input type="checkbox" id="partner-inactive" style="width: 18px; height: 18px; cursor: pointer;">
-            <label class="form-label" for="partner-inactive" style="margin-bottom: 0; cursor: pointer;">Ngừng theo
-              dõi</label>
+            <label class="form-label" for="partner-inactive" style="margin-bottom: 0; cursor: pointer;">Ngừng theo dõi</label>
           </div>
+
           <div class="form-actions" style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 12px;">
             <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-partner')">Hủy</button>
             <button type="submit" class="btn btn-primary">Lưu lại</button>

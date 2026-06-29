@@ -96,7 +96,7 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
 
     v.entries.forEach(e => {
       // Khách hàng (customer): chỉ đọc TK 131
-      if (d.type === "customer") {
+      if (d.type !== "supplier") {
         if (e.debit && e.debit.startsWith("131")) {
           if (isPrior) d.priorDebit += e.amount;
           else d.debitTrans += e.amount; // Tăng phải thu (bán chịu)
@@ -144,7 +144,7 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
     const rawOpeningDebit = d.initialOpeningDebit + d.priorDebit;
     const rawOpeningCredit = d.initialOpeningCredit + d.priorCredit;
 
-    if (d.type === "customer") {
+    if (d.type !== "supplier") {
       const opBalance = rawOpeningDebit - rawOpeningCredit;
       if (opBalance >= 0) {
         d.openingDebit = opBalance;
@@ -353,7 +353,7 @@ function filterDebts() {
     const debtVal = Math.max(d.closingDebit || 0, d.closingCredit || 0);
     const matchesQuery = matchAdvancedQuery(combined, query, debtVal);
     let matchesType = true;
-    if (filterType === "131") matchesType = d.type === "customer";
+    if (filterType === "131") matchesType = d.type !== "supplier";
     else if (filterType === "331") matchesType = d.type === "supplier";
     let matchesActive = true;
     if (activeOnly) matchesActive = (d.closingDebit > 0 || d.closingCredit > 0);
@@ -368,7 +368,7 @@ function filterDebts() {
   if (currentDebtsViewTab === 'project') {
     // Tab "Khách Cá Nhân" = tất cả customer (gộp cả cá nhân và công trình)
     filteredDebtsList = allDebts.filter(d => {
-      if (d.type !== 'customer') return false;
+      if (d.type === 'supplier') return false;
       if (!makeFilter(d)) return false;
       return true;
     });
@@ -462,7 +462,7 @@ function calculatePartnerDebtsGrouped(fromDate = "", toDate = "") {
     g.childIds.push(d.id);
     g.childNames.push(d.id); // dùng mã để hiển thị
     // Nếu có nhiều loại, ưu tiên 'customer' rồi 'supplier' rồi 'both'
-    if (d.type === 'customer') g.primaryType = 'customer';
+    if (d.type !== 'supplier') g.primaryType = 'customer';
     else if (d.type === 'supplier' && g.primaryType !== 'customer') g.primaryType = 'supplier';
   });
 
@@ -641,8 +641,7 @@ function viewGroupedPartnerLedger(partnerName) {
   if (matchingPartners.length === 0) return;
 
   const matchingIds = new Set(matchingPartners.map(p => p.id));
-  const primaryType = matchingPartners.find(p => p.type === 'customer')?.type
-    || matchingPartners[0].type;
+  const primaryType = matchingPartners.find(p => p.type !== 'supplier') ? 'customer' : 'supplier';
 
   const { fromDate, toDate } = getDebtDateRange();
 
@@ -662,7 +661,7 @@ function viewGroupedPartnerLedger(partnerName) {
         if (!v.entries) return;
 
         v.entries.forEach(e => {
-          if (p.type === "customer") {
+          if (p.type !== "supplier") {
             if (e.debit && e.debit.startsWith("131")) priorDebit += e.amount;
             if (e.credit && e.credit.startsWith("131")) priorCredit += e.amount;
           } else if (p.type === "supplier") {
@@ -814,7 +813,7 @@ function viewLedgerByIds(partnerIds, groupName) {
     return;
   }
 
-  const primaryType = matchingPartners.find(p => p.type === 'customer')?.type || matchingPartners[0].type;
+  const primaryType = matchingPartners.find(p => p.type !== 'supplier') ? 'customer' : 'supplier';
   const { fromDate, toDate } = getDebtDateRange();
 
   // Tính tổng số dư đầu kỳ
@@ -830,7 +829,7 @@ function viewLedgerByIds(partnerIds, groupName) {
         if (v.date >= fromDate) return;
         if (!v.entries) return;
         v.entries.forEach(e => {
-          if (p.type === 'customer') {
+          if (p.type !== 'supplier') {
             if (e.debit && e.debit.startsWith('131')) priorDebit += e.amount;
             if (e.credit && e.credit.startsWith('131')) priorCredit += e.amount;
           } else if (p.type === 'supplier') {
@@ -975,7 +974,7 @@ function viewPartnerLedger(partnerId) {
       if (!v.entries) return;
 
       v.entries.forEach(e => {
-        if (p.type === "customer") {
+        if (p.type !== "supplier") {
           if (e.debit && e.debit.startsWith("131")) priorDebit += e.amount;
           if (e.credit && e.credit.startsWith("131")) priorCredit += e.amount;
         } else if (p.type === "supplier") {
@@ -996,7 +995,7 @@ function viewPartnerLedger(partnerId) {
 
   let openingVal = 0;
   let openingText = "";
-  if (p.type === "customer") {
+  if (p.type !== "supplier") {
     openingVal = openingDebit - openingCredit;
     openingText = openingVal >= 0 ? `${formatVND(openingVal)} (Nợ)` : `${formatVND(-openingVal)} (Có)`;
   } else {
@@ -1004,7 +1003,7 @@ function viewPartnerLedger(partnerId) {
     openingText = openingVal >= 0 ? `${formatVND(openingVal)} (Có)` : `${formatVND(-openingVal)} (Nợ)`;
   }
 
-  let subtitle = `Đối tác: ${p.id} - ${p.name} | Loại: ${p.type === 'customer' ? 'Khách hàng' : 'Nhà cung cấp'}`;
+  let subtitle = `Đối tác: ${p.id} - ${p.name} | Loại: ${p.type !== 'supplier' ? 'Khách hàng' : 'Nhà cung cấp'}`;
   if (fromDate || toDate) {
     const formatD = (dStr) => {
       if (!dStr) return "";
@@ -1036,7 +1035,7 @@ function viewPartnerLedger(partnerId) {
 
     v.entries.forEach(e => {
       let isRelevant = false;
-      if (p.type === "customer") {
+      if (p.type !== "supplier") {
         isRelevant = e.debit.startsWith("131") || e.credit.startsWith("131");
       } else if (p.type === "supplier") {
         isRelevant = e.debit.startsWith("331") || e.credit.startsWith("331");
@@ -1113,7 +1112,7 @@ function viewPartnerLedger(partnerId) {
 
   let closingVal = 0;
   let closingText = "";
-  if (p.type === "customer") {
+  if (p.type !== "supplier") {
     closingVal = openingVal + debitSum - creditSum;
     closingText = closingVal >= 0 ? `${formatVND(closingVal)} (Nợ)` : `${formatVND(-closingVal)} (Có)`;
   } else {
@@ -1151,7 +1150,7 @@ async function exportPartnerDebtExcel(partnerId) {
       );
     }
     const matchingIds = new Set(matchingPartners.map(item => item.id));
-    const primaryType = matchingPartners.find(item => item.type === 'customer')?.type || p.type;
+    const primaryType = matchingPartners.find(item => item.type !== 'supplier') ? 'customer' : 'supplier';
 
     const { fromDate, toDate } = getDebtDateRange();
 
@@ -1171,7 +1170,7 @@ async function exportPartnerDebtExcel(partnerId) {
           if (!v.entries) return;
 
           v.entries.forEach(e => {
-            if (item.type === "customer") {
+            if (item.type !== "supplier") {
               if (e.debit && e.debit.startsWith("131")) priorDebit += e.amount;
               if (e.credit && e.credit.startsWith("131")) priorCredit += e.amount;
             } else if (item.type === "supplier") {
@@ -1549,7 +1548,7 @@ function previewPartnerDebtNotice(partnerId) {
     );
   }
   const matchingIds = new Set(matchingPartners.map(item => item.id));
-  const primaryType = matchingPartners.find(item => item.type === 'customer')?.type || p.type;
+  const primaryType = matchingPartners.find(item => item.type !== 'supplier') ? 'customer' : 'supplier';
 
   const { fromDate, toDate } = getDebtDateRange();
 
@@ -1569,7 +1568,7 @@ function previewPartnerDebtNotice(partnerId) {
         if (!v.entries) return;
 
         v.entries.forEach(e => {
-          if (item.type === "customer") {
+          if (item.type !== "supplier") {
             if (e.debit && e.debit.startsWith("131")) priorDebit += e.amount;
             if (e.credit && e.credit.startsWith("131")) priorCredit += e.amount;
           } else if (item.type === "supplier") {
@@ -1992,7 +1991,7 @@ function promptEditPartnerOpeningDebt(partnerId) {
     document.getElementById("edit-debt-target-id").value = partnerId;
     document.getElementById("edit-debt-type").value = "partner";
 
-    const typeLabel = p.type === "customer" ? "Khách hàng" : "Nhà cung cấp";
+    const typeLabel = p.type !== "supplier" ? "Khách hàng" : "Nhà cung cấp";
     document.getElementById("edit-debt-info-text").innerHTML = `
       <strong>Mã đối tác:</strong> ${p.id}<br>
       <strong>Tên đối tác:</strong> ${p.name}<br>
@@ -2145,7 +2144,7 @@ function exportDebtsToExcel() {
     let totalClosingDebitKH = 0, totalClosingCreditKH = 0, totalClosingDebitNCC = 0, totalClosingCreditNCC = 0;
 
     calculatedDebts.forEach((d, idx) => {
-      const isKH = d.type === "customer";
+      const isKH = d.type !== "supplier";
 
       const bg = idx % 2 === 0 ? (isKH ? null : { patternType: "solid", fgColor: { rgb: "FFFAF5" } }) : (isKH ? altBg : { patternType: "solid", fgColor: { rgb: "FFF0E0" } });
       const bs = (al) => ({ font: fntN, fill: bg, alignment: al, border: border4 });
@@ -2479,6 +2478,11 @@ window.previewCurrentPartnerDebtNotice = previewCurrentPartnerDebtNotice;
  * Company keywords take priority. Then individual honorifics. Else 'project'.
  */
 function classifyPartnerCategory(partner) {
+  if (partner) {
+    if (partner.type === 'enterprise' || partner.type === 'supplier') return 'company';
+    if (partner.type === 'retail') return 'individual';
+    if (partner.type === 'project') return 'project';
+  }
   const name = (partner ? partner.name || '' : '').toLowerCase();
   const companyKw = [
     'công ty', 'cty ', 'cty.', 'cty,', 'cửa hàng', '(ch)', ' (ch',
@@ -2510,7 +2514,7 @@ function renderDebtOverview(allDebts) {
   (state.partners || []).forEach(p => partnerMap[p.id] = p);
 
   allDebts.forEach(d => {
-    if (d.type === 'customer' || d.type === 'both') {
+    if (d.type !== 'supplier' || d.type === 'both') {
       const net = (d.closingDebit || 0) - (d.closingCredit || 0);
       if (d.closingDebit > 0) { totalRec += d.closingDebit; partnersWithDebt++; }
       if (d.closingCredit > 0) { partnersOverpaid++; }

@@ -388,7 +388,7 @@ function recalculateAccounting(shouldSave = true) {
     state.partners.forEach(p => {
       const op = state.partnerOpeningBalances[p.id];
       if (op) {
-        if (p.type === 'customer') {
+        if (p.type !== 'supplier') {
           customerNetOpen += (op.debit || 0) - (op.credit || 0);
         } else if (p.type === 'supplier') {
           supplierNetOpen += (op.credit || 0) - (op.debit || 0);
