@@ -1060,7 +1060,11 @@
             <button id="tab-btn-sales-quotation" class="sub-tab-btn" onclick="switchSalesSubTab('quotation')">
               Báo giá
             </button>
+            <button id="tab-btn-sales-template" class="sub-tab-btn" onclick="switchSalesSubTab('template')">
+              Phiếu mẫu
+            </button>
           </div>
+
 
           <!-- Tab Panel 1: Hóa đơn bán hàng -->
           <div id="sales-subtab-invoice" class="sales-subtab-content">
@@ -1569,7 +1573,44 @@
               </div>
             </div>
           </div>
+
+          <!-- Tab Panel 4: Phiếu mẫu -->
+          <div id="sales-subtab-template" class="sales-subtab-content" style="display: none;">
+            <div class="actions-bar" style="margin-bottom: 20px;">
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;">
+                <div class="search-input-wrapper" style="min-width: 260px;">
+                  <svg class="search-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                  </svg>
+                  <input type="text" id="search-sales-template" class="search-input"
+                    style="height: 36px; padding-top: 0; padding-bottom: 0; font-size: 13px;"
+                    placeholder="Tìm tên phiếu mẫu..." oninput="filterSalesTemplateTable()">
+                </div>
+              </div>
+            </div>
+
+            <div class="card" style="padding: 0; overflow: hidden; border-radius: var(--radius-lg);">
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 50px; text-align: center;">STT</th>
+                      <th>Tên file phiếu mẫu</th>
+                      <th>Tên phiếu mẫu (Diễn giải)</th>
+                      <th style="width: 150px; text-align: center;">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sales-template-table-body">
+                    <!-- Dữ liệu bảng phiếu mẫu sẽ được Javascript tải và render ở đây -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </section>
+
 
         <!-- ==========================================================
              4. TAB: KHO HÀNG (INVENTORY)

@@ -723,22 +723,27 @@ function switchSalesSubTab(subTabId) {
   const btnInvoice = document.getElementById("tab-btn-sales-invoice");
   const btnReturn = document.getElementById("tab-btn-sales-return");
   const btnQuotation = document.getElementById("tab-btn-sales-quotation");
+  const btnTemplate = document.getElementById("tab-btn-sales-template");
 
   if (btnInvoice) btnInvoice.classList.remove("active");
   if (btnReturn) btnReturn.classList.remove("active");
   if (btnQuotation) btnQuotation.classList.remove("active");
+  if (btnTemplate) btnTemplate.classList.remove("active");
 
   if (subTabId === "invoice" && btnInvoice) btnInvoice.classList.add("active");
   if (subTabId === "return" && btnReturn) btnReturn.classList.add("active");
   if (subTabId === "quotation" && btnQuotation) btnQuotation.classList.add("active");
+  if (subTabId === "template" && btnTemplate) btnTemplate.classList.add("active");
 
   const panelInvoice = document.getElementById("sales-subtab-invoice");
   const panelReturn = document.getElementById("sales-subtab-return");
   const panelQuotation = document.getElementById("sales-subtab-quotation");
+  const panelTemplate = document.getElementById("sales-subtab-template");
 
   if (panelInvoice) panelInvoice.style.display = "none";
   if (panelReturn) panelReturn.style.display = "none";
   if (panelQuotation) panelQuotation.style.display = "none";
+  if (panelTemplate) panelTemplate.style.display = "none";
 
   if (subTabId === "invoice" && panelInvoice) {
     panelInvoice.style.display = "block";
@@ -749,8 +754,12 @@ function switchSalesSubTab(subTabId) {
   } else if (subTabId === "quotation" && panelQuotation) {
     panelQuotation.style.display = "block";
     renderQuotationTable();
+  } else if (subTabId === "template" && panelTemplate) {
+    panelTemplate.style.display = "block";
+    renderSalesTemplateTable();
   }
 }
+
 
 // renderSalesReturnTable
 function renderSalesReturnTable() {
@@ -2196,3 +2205,207 @@ window.onSalesReturnFilterChange = onSalesReturnFilterChange;
 window.clearSalesReturnColumnFilters = clearSalesReturnColumnFilters;
 window.onQuotationFilterChange = onQuotationFilterChange;
 window.clearQuotationColumnFilters = clearQuotationColumnFilters;
+
+// ----------------------------------------------------
+// PHIẾU MẪU (SALES TEMPLATE) IMPLEMENTATION
+// ----------------------------------------------------
+let allTemplateFiles = []; // To cache template file info
+
+async function renderSalesTemplateTable() {
+  const tbody = document.getElementById("sales-template-table-body");
+  if (!tbody) return;
+  tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px;">Đang tải danh sách phiếu mẫu...</td></tr>`;
+
+  try {
+    const res = await window.electronAPI.listTemplateFiles();
+    if (!res.ok) {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--color-danger); padding: 20px;">Lỗi: ${res.error}</td></tr>`;
+      return;
+    }
+
+    const files = res.files || [];
+    allTemplateFiles = [];
+
+    // Đọc không đồng bộ diễn giải của từng file mẫu
+    for (const file of files) {
+      let docDesc = "Chưa rõ";
+      try {
+        const fileRes = await window.electronAPI.readExcelFile('phieu mau/' + file);
+        if (fileRes.ok && fileRes.data) {
+          const workbook = XLSX.read(new Uint8Array(fileRes.data), { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+          if (rows[10] && rows[10][4]) {
+            docDesc = rows[10][4];
+          }
+        }
+      } catch (err) {
+        console.error('Lỗi đọc diễn giải file:', file, err);
+      }
+      allTemplateFiles.push({ filename: file, desc: docDesc });
+    }
+
+    displaySalesTemplateTable(allTemplateFiles);
+  } catch (err) {
+    console.error('Lỗi render table phiếu mẫu:', err);
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--color-danger); padding: 20px;">Lỗi: ${err.message}</td></tr>`;
+  }
+}
+
+function displaySalesTemplateTable(list) {
+  const tbody = document.getElementById("sales-template-table-body");
+  if (!tbody) return;
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px;">Không tìm thấy phiếu mẫu nào.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.map((item, idx) => `
+    <tr>
+      <td style="text-align: center; font-weight: 600;">${idx + 1}</td>
+      <td style="font-weight: 600; color: var(--color-primary);">${escapeHtml(item.filename)}</td>
+      <td>${escapeHtml(item.desc)}</td>
+      <td style="text-align: center;">
+        <button class="btn btn-primary btn-sm" onclick="modifySalesTemplate('${escapeHtmlAttr(item.filename)}')">
+          Xem / Sửa
+        </button>
+      </td>
+    </tr>
+  `).join("");
+}
+
+function filterSalesTemplateTable() {
+  const query = (document.getElementById("search-sales-template")?.value || "").trim().toLowerCase();
+  if (!query) {
+    displaySalesTemplateTable(allTemplateFiles);
+    return;
+  }
+
+  const filtered = allTemplateFiles.filter(item => 
+    item.filename.toLowerCase().includes(query) || 
+    item.desc.toLowerCase().includes(query)
+  );
+  displaySalesTemplateTable(filtered);
+}
+
+async function modifySalesTemplate(filename) {
+  showLoading();
+  try {
+    const fileRes = await window.electronAPI.readExcelFile('phieu mau/' + filename);
+    if (!fileRes.ok) {
+      alert(`Không thể đọc file: ${fileRes.error}`);
+      hideLoading();
+      return;
+    }
+
+    const workbook = XLSX.read(new Uint8Array(fileRes.data), { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+    // 1. Reset form bán hàng hiện tại
+    resetSalesForm();
+
+    // 2. Clear tbody của mặt hàng để add từ template
+    const tbody = document.getElementById("sales-form-items-body");
+    if (tbody) tbody.innerHTML = "";
+
+    // 3. Đọc thông tin mô tả/diễn giải
+    let explanation = "Bán hàng theo mẫu";
+    if (rows[10] && rows[10][4]) {
+      explanation = rows[10][4];
+    }
+    document.getElementById("sale-desc").value = explanation;
+
+    // Đặt khách hàng mặc định là Khách lẻ
+    document.getElementById("sale-partner").value = "Khách lẻ";
+
+    // 4. Duyệt các mặt hàng bắt đầu từ dòng 12 (chỉ số 12 là dòng 13 của Excel)
+    // Dừng lại khi gặp Cộng tiền hàng
+    let matchedProductsCount = 0;
+    let totalProductsCount = 0;
+
+    for (let i = 12; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || r.length === 0) continue;
+      
+      // Nếu cột 12 (chỉ số 12) là "Cộng tiền hàng :" hoặc hàng hóa rỗng
+      if (r[12] && r[12].toString().toLowerCase().includes("cong tien hang")) {
+        break;
+      }
+      
+      const tt = r[1];
+      const itemName = r[2];
+      const unit = r[11];
+      let qtyStr = r[14];
+      let priceStr = r[15];
+
+      if (!itemName) continue;
+      totalProductsCount++;
+
+      // Parse qty và price
+      let qty = 1;
+      if (qtyStr !== undefined && qtyStr !== null) {
+        qty = parseFloat(qtyStr.toString().replace(",", "."));
+        if (isNaN(qty)) qty = 1;
+      }
+      let price = 0;
+      if (priceStr !== undefined && priceStr !== null) {
+        price = parseFloat(priceStr.toString().replace(/\./g, "").replace(",", "."));
+        if (isNaN(price)) price = 0;
+      }
+
+      // Đối sánh mặt hàng trong cơ sở dữ liệu
+      const prod = findProductByName(itemName);
+      let productId = "";
+      let finalDesc = itemName;
+      if (prod) {
+        productId = prod.id;
+        finalDesc = prod.name;
+        matchedProductsCount++;
+      } else {
+        console.warn(`Không khớp sản phẩm: "${itemName}"`);
+      }
+
+      // Thêm dòng vào form bán hàng
+      addSalesFormRow(productId, finalDesc, qty, price, 0);
+    }
+
+    recalculateSalesTotals();
+    hideLoading();
+
+    // Mở modal bán hàng
+    openModal('modal-add-sales');
+    showNotification(`Đã tải mẫu ${filename}. Khớp ${matchedProductsCount}/${totalProductsCount} sản phẩm.`);
+  } catch (err) {
+    console.error('Lỗi sửa phiếu mẫu:', err);
+    hideLoading();
+    alert(`Lỗi: ${err.message}`);
+  }
+}
+
+function findProductByName(name) {
+  if (!name) return null;
+  const clean = name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, 'd').replace(/[\s\(\)\-\/\.,_]/g, '');
+  
+  // 1. Khớp chính xác tuyệt đối sau khi chuẩn hóa
+  let match = state.products.find(p => {
+    const pClean = p.name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, 'd').replace(/[\s\(\)\-\/\.,_]/g, '');
+    return pClean === clean;
+  });
+  if (match) return match;
+  
+  // 2. Khớp tương tự (chứa nhau)
+  match = state.products.find(p => {
+    const pClean = p.name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, 'd').replace(/[\s\(\)\-\/\.,_]/g, '');
+    return clean.includes(pClean) || pClean.includes(clean);
+  });
+  if (match) return match;
+
+  return null;
+}
+
+// Register template functions on window
+window.renderSalesTemplateTable = renderSalesTemplateTable;
+window.filterSalesTemplateTable = filterSalesTemplateTable;
+window.modifySalesTemplate = modifySalesTemplate;
+

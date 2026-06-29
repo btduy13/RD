@@ -30,4 +30,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readStateFile: () => ipcRenderer.invoke('read-state-file'),
   // Đọc file backup gần nhất để phục hồi khi state bị hỏng
   readLatestBackup: () => ipcRenderer.invoke('read-latest-backup'),
+  listTemplateFiles: () => ipcRenderer.invoke('list-template-files'),
 });
+

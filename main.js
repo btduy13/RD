@@ -196,7 +196,20 @@ function createWindow() {
 // IPC HANDLERS GIAO TIẾP ĐỂ TỰ ĐỘNG CẬP NHẬT
 // ===========================================================================
 
-// 0. Đọc file Excel từ thư mục excel/ bằng fs (tránh lỗi fetch với file:// protocol trong Electron)
+ipcMain.handle('list-template-files', async () => {
+  try {
+    const templateDir = path.join(__dirname, 'excel', 'phieu mau');
+    if (!fs.existsSync(templateDir)) {
+      return { ok: false, error: 'Thư mục phiếu mẫu không tồn tại.' };
+    }
+    const files = fs.readdirSync(templateDir).filter(f => f.endsWith('.xlsx') || f.endsWith('.xls'));
+    return { ok: true, files };
+  } catch (err) {
+    console.error('Lỗi đọc danh sách file mẫu:', err);
+    return { ok: false, error: err.message };
+  }
+});
+
 ipcMain.handle('read-excel-file', async (event, filename) => {
   try {
     const filePath = path.join(__dirname, 'excel', filename);
