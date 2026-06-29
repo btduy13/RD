@@ -797,6 +797,10 @@ function viewGroupedPartnerLedger(partnerName) {
   // Sử dụng lại môđan sẵn có
   activePartnerIdForLedger = matchingPartners[0].id;
   activePartnerNameForGroupedLedger = partnerName;
+  activeLedgerCombined = false;
+  activeLedgerTargetId = "";
+  const projTabsDiv = document.getElementById('partner-ledger-projects-tabs');
+  if (projTabsDiv) projTabsDiv.style.display = 'none';
   switchPartnerLedgerTab('entries');
   openModal('modal-view-partner-ledger');
 }
@@ -950,6 +954,8 @@ function viewLedgerByIds(partnerIds, groupName) {
 
 let currentPartnerLedgerTab = "entries";
 let activePartnerIdForLedger = "";
+let activeLedgerCombined = false;
+let activeLedgerTargetId = "";
 
 function viewPartnerLedger(partnerId) {
   const p = state.partners.find(item => item.id === partnerId);
@@ -958,52 +964,146 @@ function viewPartnerLedger(partnerId) {
   activePartnerIdForLedger = partnerId;
   activePartnerNameForGroupedLedger = "";
 
-  const { fromDate, toDate } = getDebtDateRange();
+  let parentEnterprise = null;
+  let projects = [];
 
-  // Calculate rolling opening balance if fromDate is active
-  const op = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
-  let initialDebit = op.debit || 0;
-  let initialCredit = op.credit || 0;
-  let priorDebit = 0;
-  let priorCredit = 0;
-
-  if (fromDate) {
-    state.vouchers.forEach(v => {
-      if (v.partnerId !== p.id) return;
-      if (v.date >= fromDate) return; // only prior
-      if (!v.entries) return;
-
-      v.entries.forEach(e => {
-        if (p.type !== "supplier") {
-          if (e.debit && e.debit.startsWith("131")) priorDebit += e.amount;
-          if (e.credit && e.credit.startsWith("131")) priorCredit += e.amount;
-        } else if (p.type === "supplier") {
-          if (e.credit && e.credit.startsWith("331")) priorCredit += e.amount;
-          if (e.debit && e.debit.startsWith("331")) priorDebit += e.amount;
-        } else {
-          if (e.debit && e.debit.startsWith("131")) priorDebit += e.amount;
-          if (e.credit && e.credit.startsWith("131")) priorCredit += e.amount;
-          if (e.credit && e.credit.startsWith("331")) priorCredit += e.amount;
-          if (e.debit && e.debit.startsWith("331")) priorDebit += e.amount;
-        }
-      });
-    });
+  if (p.type === 'enterprise') {
+    parentEnterprise = p;
+    projects = state.partners.filter(item => item.type === 'project' && item.parentId === p.id);
+  } else if (p.type === 'project') {
+    parentEnterprise = state.partners.find(item => item.id === p.parentId);
+    if (parentEnterprise) {
+      projects = state.partners.filter(item => item.type === 'project' && item.parentId === parentEnterprise.id);
+    }
   }
 
-  const openingDebit = initialDebit + priorDebit;
-  const openingCredit = initialCredit + priorCredit;
+  const projTabsDiv = document.getElementById('partner-ledger-projects-tabs');
+  if (parentEnterprise && projects.length > 0) {
+    if (projTabsDiv) {
+      projTabsDiv.style.display = 'flex';
+      
+      let tabsHTML = `
+        <button type="button" class="btn btn-secondary btn-sm" data-target-id="${parentEnterprise.id}" data-combined="true" onclick="switchLedgerProjectTarget('${parentEnterprise.id}', true)" style="padding: 4px 10px; font-size:12px; border-radius: var(--radius-sm); border:1px solid var(--border-color); cursor:pointer;">
+          Tổng hợp (Tất cả công trình)
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" data-target-id="${parentEnterprise.id}" data-combined="false" onclick="switchLedgerProjectTarget('${parentEnterprise.id}', false)" style="padding: 4px 10px; font-size:12px; border-radius: var(--radius-sm); border:1px solid var(--border-color); cursor:pointer;">
+          Direct (DN mẹ)
+        </button>
+      `;
+      
+      projects.forEach(proj => {
+        tabsHTML += `
+          <button type="button" class="btn btn-secondary btn-sm" data-target-id="${proj.id}" data-combined="false" onclick="switchLedgerProjectTarget('${proj.id}', false)" style="padding: 4px 10px; font-size:12px; border-radius: var(--radius-sm); border:1px solid var(--border-color); cursor:pointer;">
+            ${proj.name}
+          </button>
+        `;
+      });
+      projTabsDiv.innerHTML = tabsHTML;
+    }
+    
+    const initialTargetId = p.id;
+    const initialCombined = (p.type === 'enterprise');
+    switchLedgerProjectTarget(initialTargetId, initialCombined);
+  } else {
+    if (projTabsDiv) projTabsDiv.style.display = 'none';
+    activeLedgerCombined = false;
+    activeLedgerTargetId = partnerId;
+    renderLedgerForTarget(partnerId, false);
+  }
+
+  switchPartnerLedgerTab("entries");
+  openModal("modal-view-partner-ledger");
+}
+
+window.switchLedgerProjectTarget = function(targetId, isCombined) {
+  activeLedgerCombined = isCombined;
+  activeLedgerTargetId = targetId;
+
+  const buttons = document.querySelectorAll('#partner-ledger-projects-tabs button');
+  buttons.forEach(btn => {
+    const btnId = btn.getAttribute('data-target-id');
+    const btnComb = btn.getAttribute('data-combined') === 'true';
+    if (btnId === targetId && btnComb === isCombined) {
+      btn.style.backgroundColor = 'var(--color-primary)';
+      btn.style.color = 'white';
+      btn.style.fontWeight = '700';
+    } else {
+      btn.style.backgroundColor = 'var(--bg-secondary)';
+      btn.style.color = 'var(--text-primary)';
+      btn.style.fontWeight = '500';
+    }
+  });
+
+  renderLedgerForTarget(targetId, isCombined);
+};
+
+function renderLedgerForTarget(targetId, isCombined) {
+  const p = state.partners.find(item => item.id === targetId);
+  if (!p) return;
+
+  const { fromDate, toDate } = getDebtDateRange();
+
+  let matchingPartners = [];
+  if (isCombined) {
+    matchingPartners.push(p);
+    const childProjects = state.partners.filter(item => item.type === 'project' && item.parentId === p.id);
+    matchingPartners.push(...childProjects);
+  } else {
+    matchingPartners.push(p);
+  }
+  const matchingIds = new Set(matchingPartners.map(item => item.id));
+  const primaryType = p.type !== 'supplier' ? 'customer' : 'supplier';
+
+  let totalOpeningDebit = 0;
+  let totalOpeningCredit = 0;
+
+  matchingPartners.forEach(item => {
+    const op = state.partnerOpeningBalances[item.id] || { debit: 0, credit: 0 };
+    let initialDebit = op.debit || 0;
+    let initialCredit = op.credit || 0;
+    let priorDebit = 0;
+    let priorCredit = 0;
+
+    if (fromDate) {
+      state.vouchers.forEach(v => {
+        if (v.partnerId !== item.id) return;
+        if (v.date >= fromDate) return;
+        if (!v.entries) return;
+
+        v.entries.forEach(e => {
+          if (item.type !== "supplier") {
+            if (e.debit && e.debit.startsWith("131")) priorDebit += e.amount;
+            if (e.credit && e.credit.startsWith("131")) priorCredit += e.amount;
+          } else if (item.type === "supplier") {
+            if (e.credit && e.credit.startsWith("331")) priorCredit += e.amount;
+            if (e.debit && e.debit.startsWith("331")) priorDebit += e.amount;
+          } else {
+            if (e.debit && e.debit.startsWith("131")) priorDebit += e.amount;
+            if (e.credit && e.credit.startsWith("131")) priorCredit += e.amount;
+            if (e.credit && e.credit.startsWith("331")) priorCredit += e.amount;
+            if (e.debit && e.debit.startsWith("331")) priorDebit += e.amount;
+          }
+        });
+      });
+    }
+    totalOpeningDebit += (initialDebit + priorDebit);
+    totalOpeningCredit += (initialCredit + priorCredit);
+  });
 
   let openingVal = 0;
   let openingText = "";
-  if (p.type !== "supplier") {
-    openingVal = openingDebit - openingCredit;
+  if (primaryType !== "supplier") {
+    openingVal = totalOpeningDebit - totalOpeningCredit;
     openingText = openingVal >= 0 ? `${formatVND(openingVal)} (Nợ)` : `${formatVND(-openingVal)} (Có)`;
   } else {
-    openingVal = openingCredit - openingDebit;
+    openingVal = totalOpeningCredit - totalOpeningDebit;
     openingText = openingVal >= 0 ? `${formatVND(openingVal)} (Có)` : `${formatVND(-openingVal)} (Nợ)`;
   }
 
-  let subtitle = `Đối tác: ${p.id} - ${p.name} | Loại: ${p.type !== 'supplier' ? 'Khách hàng' : 'Nhà cung cấp'}`;
+  let subtitle = isCombined 
+    ? `Doanh nghiệp: ${p.name} [Tổng hợp ${matchingPartners.length} công trình]`
+    : `Đối tác: ${p.id} - ${p.name} | Loại: ${p.type === 'project' ? 'Công trình' : (p.type === 'enterprise' ? 'Doanh nghiệp' : (p.type === 'supplier' ? 'Nhà cung cấp' : 'Khách lẻ'))}`;
+
   if (fromDate || toDate) {
     const formatD = (dStr) => {
       if (!dStr) return "";
@@ -1024,7 +1124,7 @@ function viewPartnerLedger(partnerId) {
 
   const ledgerEntries = [];
   state.vouchers.forEach(v => {
-    if (v.partnerId !== p.id) return;
+    if (!matchingIds.has(v.partnerId)) return;
     if (fromDate && v.date < fromDate) return;
     if (toDate && v.date > toDate) return;
     if (!v.entries) return;
@@ -1035,13 +1135,10 @@ function viewPartnerLedger(partnerId) {
 
     v.entries.forEach(e => {
       let isRelevant = false;
-      if (p.type !== "supplier") {
+      if (primaryType !== "supplier") {
         isRelevant = e.debit.startsWith("131") || e.credit.startsWith("131");
-      } else if (p.type === "supplier") {
-        isRelevant = e.debit.startsWith("331") || e.credit.startsWith("331");
       } else {
-        isRelevant = (e.debit.startsWith("131") || e.credit.startsWith("131"))
-          || (e.debit.startsWith("331") || e.credit.startsWith("331"));
+        isRelevant = e.debit.startsWith("331") || e.credit.startsWith("331");
       }
       if (!isRelevant) return;
 
@@ -1058,6 +1155,7 @@ function viewPartnerLedger(partnerId) {
       ledgerEntries.push({
         date: v.date,
         id: v.id,
+        partnerId: v.partnerId,
         desc: v.description,
         offsetAccount: Array.from(offsetAccountSet).join(", "),
         debit: debitAmount,
@@ -1077,12 +1175,11 @@ function viewPartnerLedger(partnerId) {
     ledgerEntries.forEach(le => {
       const tr = document.createElement("tr");
 
-      // Tìm chứng từ bán hàng liên quan nếu đây là một phiếu thu công nợ
       let viewId = le.id;
       let displayId = le.id;
 
       if (le.id.startsWith("PT") || le.id.startsWith("PC") || le.credit > 0) {
-        const relatedSales = findRelatedSalesVoucher(le.id, le.desc, p.id, le.credit || le.debit);
+        const relatedSales = findRelatedSalesVoucher(le.id, le.desc, le.partnerId, le.credit || le.debit);
         if (relatedSales) {
           viewId = relatedSales.id;
           displayId = `${le.id} (${relatedSales.id})`;
@@ -1098,9 +1195,11 @@ function viewPartnerLedger(partnerId) {
       tr.setAttribute("data-subtype", vType);
       tr.setAttribute("data-id", escapeHtmlAttr(le.id));
 
+      const partnerNote = isCombined ? ` <span style="font-size:11px; color:var(--text-muted); font-style:italic;">[${le.partnerId}]</span>` : '';
+
       tr.innerHTML = `
         <td>${le.date}</td>
-        <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${displayId}</a></td>
+        <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${displayId}</a>${partnerNote}</td>
         <td>${le.desc}</td>
         <td style="text-align:center; font-weight:700;">${le.offsetAccount}</td>
         <td style="text-align:right; font-weight:500;">${le.debit > 0 ? formatVND(le.debit).replace("đ", "") : "-"}</td>
@@ -1112,7 +1211,7 @@ function viewPartnerLedger(partnerId) {
 
   let closingVal = 0;
   let closingText = "";
-  if (p.type !== "supplier") {
+  if (primaryType !== "supplier") {
     closingVal = openingVal + debitSum - creditSum;
     closingText = closingVal >= 0 ? `${formatVND(closingVal)} (Nợ)` : `${formatVND(-closingVal)} (Có)`;
   } else {
@@ -1122,10 +1221,40 @@ function viewPartnerLedger(partnerId) {
 
   document.getElementById("partner-ledger-closing").innerText = closingText;
 
-  // Reset về tab Lịch sử công nợ mặc định
-  switchPartnerLedgerTab("entries");
+  renderLedgerOrdersForTarget(matchingIds);
+}
 
-  openModal("modal-view-partner-ledger");
+function renderLedgerOrdersForTarget(matchingIds) {
+  const tbody = document.getElementById("partner-ledger-orders-body");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  const { fromDate, toDate } = getDebtDateRange();
+  let salesVouchers = state.vouchers.filter(v => v.type === "sales" && matchingIds.has(v.partnerId));
+  if (fromDate) salesVouchers = salesVouchers.filter(v => v.date >= fromDate);
+  if (toDate) salesVouchers = salesVouchers.filter(v => v.date <= toDate);
+
+  if (salesVouchers.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px;">Không có đơn hàng nào trong kỳ</td></tr>`;
+  } else {
+    salesVouchers.forEach(v => {
+      const tr = document.createElement("tr");
+      const escapedId = escapeHtmlAttr(v.id);
+      ensureRemainingDebt(v);
+
+      tr.innerHTML = `
+        <td style="font-weight:bold;"><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedId}'); return false;" style="color:var(--color-primary);">${v.id}</a></td>
+        <td>${v.date}</td>
+        <td>${v.description || ""}</td>
+        <td style="text-align:right;" class="font-numeric">${formatVND(v.totalAmount).replace("đ", "")}</td>
+        <td style="text-align:right; font-weight:700; color:var(--color-warning);" class="font-numeric">${formatVND(v.remainingDebt).replace("đ", "")}</td>
+        <td style="text-align:center;">
+          <button class="btn btn-secondary btn-sm" onclick="promptEditOrderDebt('${escapedId}')" style="padding: 2px 6px; font-size:11px;">Sửa nợ</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
 }
 
 async function exportPartnerDebtExcel(partnerId) {
@@ -1142,12 +1271,25 @@ async function exportPartnerDebtExcel(partnerId) {
 
   try {
     // 1. Get ledger data (supporting grouped accounts)
-    let matchingPartners = [p];
-    if (activePartnerNameForGroupedLedger) {
+    let matchingPartners = [];
+    if (activeLedgerCombined) {
+      const parent = state.partners.find(item => item.id === activeLedgerTargetId);
+      if (parent) {
+        matchingPartners.push(parent);
+        const childProjects = state.partners.filter(item => item.type === 'project' && item.parentId === parent.id);
+        matchingPartners.push(...childProjects);
+      }
+    } else if (activeLedgerTargetId) {
+      const activeP = state.partners.find(item => item.id === activeLedgerTargetId);
+      if (activeP) matchingPartners.push(activeP);
+    } else if (activePartnerNameForGroupedLedger) {
       const normalizedName = activePartnerNameForGroupedLedger.trim().toLowerCase().replace(/\s+/g, ' ');
       matchingPartners = state.partners.filter(item =>
         (item.name || '').trim().toLowerCase().replace(/\s+/g, ' ') === normalizedName
       );
+    }
+    if (matchingPartners.length === 0) {
+      matchingPartners = [p];
     }
     const matchingIds = new Set(matchingPartners.map(item => item.id));
     const primaryType = matchingPartners.find(item => item.type !== 'supplier') ? 'customer' : 'supplier';
@@ -1540,12 +1682,25 @@ function previewPartnerDebtNotice(partnerId) {
   }
 
   // Get ledger data (supporting grouped accounts)
-  let matchingPartners = [p];
-  if (activePartnerNameForGroupedLedger) {
+  let matchingPartners = [];
+  if (activeLedgerCombined) {
+    const parent = state.partners.find(item => item.id === activeLedgerTargetId);
+    if (parent) {
+      matchingPartners.push(parent);
+      const childProjects = state.partners.filter(item => item.type === 'project' && item.parentId === parent.id);
+      matchingPartners.push(...childProjects);
+    }
+  } else if (activeLedgerTargetId) {
+    const activeP = state.partners.find(item => item.id === activeLedgerTargetId);
+    if (activeP) matchingPartners.push(activeP);
+  } else if (activePartnerNameForGroupedLedger) {
     const normalizedName = activePartnerNameForGroupedLedger.trim().toLowerCase().replace(/\s+/g, ' ');
     matchingPartners = state.partners.filter(item =>
       (item.name || '').trim().toLowerCase().replace(/\s+/g, ' ') === normalizedName
     );
+  }
+  if (matchingPartners.length === 0) {
+    matchingPartners = [p];
   }
   const matchingIds = new Set(matchingPartners.map(item => item.id));
   const primaryType = matchingPartners.find(item => item.type !== 'supplier') ? 'customer' : 'supplier';
