@@ -597,6 +597,8 @@ async function resolveConflictedVouchers(rescuedVouchers) {
       newId = generateNextSalesVoucherId(rescued.paymentMethod);
     } else if (rescued.type === "sales_return") {
       newId = typeof generateNextSalesReturnVoucherId === "function" ? generateNextSalesReturnVoucherId() : `BTL${Date.now()}`;
+    } else if (rescued.type === "sales_quotation") {
+      newId = typeof generateNextQuotationVoucherId === "function" ? generateNextQuotationVoucherId() : `BG${Date.now()}`;
     } else if (rescued.type === "purchase" || rescued.type === "purchase_order" || rescued.type === "purchase_return") {
       newId = rescued.type === "purchase"
         ? (typeof generateNextPurchaseVoucherId === "function" ? generateNextPurchaseVoucherId(rescued.paymentMethod) : `NK${Date.now()}`)
