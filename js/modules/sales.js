@@ -2290,12 +2290,10 @@ function filterSalesTemplateTable() {
 }
 
 async function modifySalesTemplate(filename) {
-  showLoading();
   try {
     const fileRes = await window.electronAPI.readExcelFile('phieu mau/' + filename);
     if (!fileRes.ok) {
       alert(`Không thể đọc file: ${fileRes.error}`);
-      hideLoading();
       return;
     }
 
@@ -2372,17 +2370,20 @@ async function modifySalesTemplate(filename) {
     }
 
     recalculateSalesTotals();
-    hideLoading();
 
     // Mở modal bán hàng
     openModal('modal-add-sales');
-    showNotification(`Đã tải mẫu ${filename}. Khớp ${matchedProductsCount}/${totalProductsCount} sản phẩm.`);
+    if (typeof showToast === "function") {
+      showToast(`Đã tải mẫu ${filename}. Khớp ${matchedProductsCount}/${totalProductsCount} sản phẩm.`, "success");
+    } else {
+      alert(`Đã tải mẫu ${filename}. Khớp ${matchedProductsCount}/${totalProductsCount} sản phẩm.`);
+    }
   } catch (err) {
     console.error('Lỗi sửa phiếu mẫu:', err);
-    hideLoading();
     alert(`Lỗi: ${err.message}`);
   }
 }
+
 
 function findProductByName(name) {
   if (!name) return null;
