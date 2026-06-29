@@ -963,21 +963,24 @@ function switchPurchaseSubTab(subTabId) {
 
 function generateNextPurchaseOrderVoucherId() {
   const currentYear = new Date().getFullYear().toString().substring(2);
-  const prefix = `ĐMH-${currentYear}-`;
-  const regex = new RegExp(`^ĐMH-${currentYear}-(\\d+)$`);
+  const regex = new RegExp(`^(ĐMH|DMH)-${currentYear}-(\\d+)$`, 'i');
   let maxNum = 0;
+  let detectedPrefix = `ĐMH-${currentYear}-`; // default
 
   state.vouchers.forEach(v => {
-    if (v.type === 'purchase_order') {
+    if (v.type === 'purchase_order' && v.id) {
       const match = v.id.match(regex);
       if (match) {
-        const num = parseInt(match[1]);
-        if (num > maxNum) maxNum = num;
+        const num = parseInt(match[2]);
+        if (num > maxNum) {
+          maxNum = num;
+          detectedPrefix = `${match[1].toUpperCase()}-${currentYear}-`;
+        }
       }
     }
   });
 
-  return `${prefix}${(maxNum + 1).toString().padStart(4, '0')}`;
+  return `${detectedPrefix}${(maxNum + 1).toString().padStart(4, '0')}`;
 }
 
 function addPurchaseOrderFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
@@ -1119,10 +1122,10 @@ function handlePurchaseOrderSubmit(e) {
     }
   }
 
-  // Kiểm tra trùng số chứng từ
+  // Kiểm tra trùng số chứng từ (không phân biệt ĐMH và DMH)
   const isDuplicate = state.vouchers.some(v => {
-    if (editingPurchaseOrderId && v.id.toLowerCase() === editingPurchaseOrderId.toLowerCase()) return false;
-    return v.id.toLowerCase() === voucherId.toLowerCase();
+    if (editingPurchaseOrderId && removeAccents(v.id).toLowerCase() === removeAccents(editingPurchaseOrderId).toLowerCase()) return false;
+    return removeAccents(v.id).toLowerCase() === removeAccents(voucherId).toLowerCase();
   });
 
   if (isDuplicate) {
