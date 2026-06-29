@@ -325,6 +325,7 @@ function addSalesFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVal =
     </td>
     <td>
       <input type="text" class="form-control item-desc" placeholder="Mô tả..." value="${escapeHtmlAttr(descVal)}"
+        ${descVal ? 'data-user-edited="1"' : ''}
         oninput="this.dataset.userEdited='1'">
     </td>
     <td>
@@ -1658,6 +1659,7 @@ function addQuotationFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceV
     </td>
     <td>
       <input type="text" class="form-control item-desc" placeholder="Mô tả..." value="${escapeHtmlAttr(descVal)}"
+        ${descVal ? 'data-user-edited="1"' : ''}
         oninput="this.dataset.userEdited='1'">
     </td>
     <td>
