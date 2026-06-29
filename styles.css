@@ -1353,6 +1353,36 @@ body.light-theme .form-control:disabled {
 }
 
 /* Bảng động cho hàng hóa trong form Mua/Bán */
+.dynamic-items-table-wrapper {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-top: 12px;
+  position: relative;
+}
+
+body.light-theme .dynamic-items-table-wrapper {
+  border-color: #e2e8f0;
+}
+
+.dynamic-items-table-wrapper .dynamic-items-table {
+  margin-top: 0;
+}
+
+.dynamic-items-table-wrapper thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-tertiary);
+  z-index: 5;
+  box-shadow: inset 0 -1px 0 var(--border-color);
+}
+
+body.light-theme .dynamic-items-table-wrapper thead th {
+  background: #f8fafc;
+  box-shadow: inset 0 -1px 0 #e5e7eb;
+}
+
 .dynamic-items-table {
   width: 100%;
   margin-top: 12px;

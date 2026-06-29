@@ -1316,6 +1316,16 @@ document.addEventListener("DOMContentLoaded", () => {
   if (selectEl) {
     selectEl.value = currentFontScale === 1 ? "1" : currentFontScale.toString();
   }
+
+  // Tự động bọc các bảng dynamic-items-table bằng wrapper cuộn khi quá cao
+  document.querySelectorAll('.dynamic-items-table').forEach(table => {
+    if (table.parentNode && !table.parentNode.classList.contains('dynamic-items-table-wrapper')) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'dynamic-items-table-wrapper';
+      table.parentNode.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+    }
+  });
 });
 
 window.applyFontSizeScale = applyFontSizeScale;
