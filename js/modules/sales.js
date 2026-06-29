@@ -2211,45 +2211,13 @@ window.clearQuotationColumnFilters = clearQuotationColumnFilters;
 // ----------------------------------------------------
 let allTemplateFiles = []; // To cache template file info
 
-async function renderSalesTemplateTable() {
+function renderSalesTemplateTable() {
   const tbody = document.getElementById("sales-template-table-body");
   if (!tbody) return;
-  tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px;">Đang tải danh sách phiếu mẫu...</td></tr>`;
-
-  try {
-    const res = await window.electronAPI.listTemplateFiles();
-    if (!res.ok) {
-      tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--color-danger); padding: 20px;">Lỗi: ${res.error}</td></tr>`;
-      return;
-    }
-
-    const files = res.files || [];
-    allTemplateFiles = [];
-
-    // Đọc không đồng bộ diễn giải của từng file mẫu
-    for (const file of files) {
-      let docDesc = "Chưa rõ";
-      try {
-        const fileRes = await window.electronAPI.readExcelFile('phieu mau/' + file);
-        if (fileRes.ok && fileRes.data) {
-          const workbook = XLSX.read(new Uint8Array(fileRes.data), { type: 'array' });
-          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-          if (rows[10] && rows[10][4]) {
-            docDesc = rows[10][4];
-          }
-        }
-      } catch (err) {
-        console.error('Lỗi đọc diễn giải file:', file, err);
-      }
-      allTemplateFiles.push({ filename: file, desc: docDesc });
-    }
-
-    displaySalesTemplateTable(allTemplateFiles);
-  } catch (err) {
-    console.error('Lỗi render table phiếu mẫu:', err);
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--color-danger); padding: 20px;">Lỗi: ${err.message}</td></tr>`;
-  }
+  
+  // Sử dụng dữ liệu tĩnh được biên dịch sẵn
+  allTemplateFiles = window.salesTemplatesData || [];
+  displaySalesTemplateTable(allTemplateFiles);
 }
 
 function displaySalesTemplateTable(list) {
@@ -2272,7 +2240,6 @@ function displaySalesTemplateTable(list) {
       </td>
     </tr>
   `).join("");
-
 }
 
 let currentTemplateCategory = 'all';
@@ -2325,17 +2292,13 @@ function filterSalesTemplateTable() {
 }
 
 
-async function modifySalesTemplate(filename) {
+function modifySalesTemplate(filename) {
   try {
-    const fileRes = await window.electronAPI.readExcelFile('phieu mau/' + filename);
-    if (!fileRes.ok) {
-      alert(`Không thể đọc file: ${fileRes.error}`);
+    const template = (window.salesTemplatesData || []).find(t => t.filename === filename);
+    if (!template) {
+      alert(`Không tìm thấy mẫu: ${filename}`);
       return;
     }
-
-    const workbook = XLSX.read(new Uint8Array(fileRes.data), { type: 'array' });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
     // 1. Reset form bán hàng hiện tại
     resetSalesForm();
@@ -2345,49 +2308,19 @@ async function modifySalesTemplate(filename) {
     if (tbody) tbody.innerHTML = "";
 
     // 3. Đọc thông tin mô tả/diễn giải
-    let explanation = "Bán hàng theo mẫu";
-    if (rows[10] && rows[10][4]) {
-      explanation = rows[10][4];
-    }
-    document.getElementById("sale-desc").value = explanation;
+    document.getElementById("sale-desc").value = template.desc || "Bán hàng theo mẫu";
 
     // Đặt khách hàng mặc định là Khách lẻ
     document.getElementById("sale-partner").value = "Khách lẻ";
 
-    // 4. Duyệt các mặt hàng bắt đầu từ dòng 12 (chỉ số 12 là dòng 13 của Excel)
-    // Dừng lại khi gặp Cộng tiền hàng
+    // 4. Duyệt các mặt hàng có sẵn trong template
     let matchedProductsCount = 0;
-    let totalProductsCount = 0;
+    const totalProductsCount = template.items.length;
 
-    for (let i = 12; i < rows.length; i++) {
-      const r = rows[i];
-      if (!r || r.length === 0) continue;
-      
-      // Nếu cột 12 (chỉ số 12) là "Cộng tiền hàng :" hoặc hàng hóa rỗng
-      if (r[12] && r[12].toString().toLowerCase().includes("cong tien hang")) {
-        break;
-      }
-      
-      const tt = r[1];
-      const itemName = r[2];
-      const unit = r[11];
-      let qtyStr = r[14];
-      let priceStr = r[15];
-
-      if (!itemName) continue;
-      totalProductsCount++;
-
-      // Parse qty và price
-      let qty = 1;
-      if (qtyStr !== undefined && qtyStr !== null) {
-        qty = parseFloat(qtyStr.toString().replace(",", "."));
-        if (isNaN(qty)) qty = 1;
-      }
-      let price = 0;
-      if (priceStr !== undefined && priceStr !== null) {
-        price = parseFloat(priceStr.toString().replace(/\./g, "").replace(",", "."));
-        if (isNaN(price)) price = 0;
-      }
+    for (const item of template.items) {
+      const itemName = item.name;
+      const qty = item.qty;
+      const price = item.price;
 
       // Đối sánh mặt hàng trong cơ sở dữ liệu
       const prod = findProductByName(itemName);
