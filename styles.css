@@ -790,6 +790,8 @@ body.light-theme ::-webkit-scrollbar-thumb:hover {
   border: 1px solid transparent;
   position: relative;
   overflow: hidden;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .btn::after {
