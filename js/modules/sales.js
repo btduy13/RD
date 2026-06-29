@@ -2263,8 +2263,8 @@ function displaySalesTemplateTable(list) {
   tbody.innerHTML = list.map((item, idx) => `
     <tr>
       <td style="text-align: center; font-weight: 600;">${idx + 1}</td>
-      <td style="font-weight: 600; color: var(--color-primary);">${escapeHtml(item.filename)}</td>
-      <td>${escapeHtml(item.desc)}</td>
+      <td style="font-weight: 600; color: var(--color-primary);">${escapeHtmlAttr(item.filename)}</td>
+      <td>${escapeHtmlAttr(item.desc)}</td>
       <td style="text-align: center;">
         <button class="btn btn-primary btn-sm" onclick="modifySalesTemplate('${escapeHtmlAttr(item.filename)}')">
           Xem / Sửa
@@ -2272,6 +2272,7 @@ function displaySalesTemplateTable(list) {
       </td>
     </tr>
   `).join("");
+
 }
 
 function filterSalesTemplateTable() {
