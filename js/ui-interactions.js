@@ -1283,20 +1283,26 @@ function applyFontSizeScale(scale) {
   currentFontScale = scale;
   localStorage.setItem('rd_font_scale', scale);
   document.body.style.zoom = scale;
+  document.body.style.height = (100 / scale) + 'vh';
+  document.body.style.width = (100 / scale) + 'vw';
   
   // Đồng bộ giá trị với dropdown nếu tồn tại
   const selectEl = document.getElementById("font-scale-select");
   if (selectEl) {
-    selectEl.value = scale.toString();
+    selectEl.value = scale === 1 ? "1" : scale.toString();
   }
 }
 
 // Khởi chạy ngay khi script được nạp để tránh giật lag layout
 if (document.body) {
   document.body.style.zoom = currentFontScale;
+  document.body.style.height = (100 / currentFontScale) + 'vh';
+  document.body.style.width = (100 / currentFontScale) + 'vw';
 } else {
   document.addEventListener("DOMContentLoaded", () => {
     document.body.style.zoom = currentFontScale;
+    document.body.style.height = (100 / currentFontScale) + 'vh';
+    document.body.style.width = (100 / currentFontScale) + 'vw';
   });
 }
 
@@ -1304,7 +1310,7 @@ if (document.body) {
 document.addEventListener("DOMContentLoaded", () => {
   const selectEl = document.getElementById("font-scale-select");
   if (selectEl) {
-    selectEl.value = currentFontScale.toString();
+    selectEl.value = currentFontScale === 1 ? "1" : currentFontScale.toString();
   }
 });
 
@@ -1359,6 +1365,21 @@ window.toggleSalesExportDropdown = toggleSalesExportDropdown;
 window.hideSalesExportDropdown = hideSalesExportDropdown;
 window.toggleDebtsExportDropdown = toggleDebtsExportDropdown;
 window.hideDebtsExportDropdown = hideDebtsExportDropdown;
+
+// ── Global Header Search Propagation ─────────────────────────────────────────
+function handleHeaderGlobalSearch(value) {
+  const activeSearchInputId = getActiveSearchInputId();
+  if (activeSearchInputId) {
+    const tabSearchInput = document.getElementById(activeSearchInputId);
+    if (tabSearchInput) {
+      tabSearchInput.value = value;
+      // Dispatch input event to trigger filter functions
+      tabSearchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }
+}
+window.handleHeaderGlobalSearch = handleHeaderGlobalSearch;
+
 
 
 

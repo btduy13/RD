@@ -1,6 +1,116 @@
+// State variables for column filters
+let purchaseColumnFilters = {
+  id: "", date: "", partner: "", description: "", paymentMethod: "",
+  totalMin: "", totalMax: "", entries: ""
+};
 
-// 6. REN
-// 6. RENDER DỮ LIỆU PHÂN HỆ MUA HÀNG (PURCHASING)
+let purchaseOrderColumnFilters = {
+  id: "", date: "", partner: "", description: "", paymentMethod: "",
+  totalMin: "", totalMax: "", entries: ""
+};
+
+let purchaseReturnColumnFilters = {
+  id: "", date: "", partner: "", description: "", paymentMethod: "",
+  totalMin: "", totalMax: "", entries: ""
+};
+
+// Debounce helper
+function debounce(func, wait) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+}
+
+// Debounced render triggers
+const debouncedRenderPurchaseTable = debounce(renderPurchaseTable, 300);
+const debouncedRenderPurchaseOrderTable = debounce(renderPurchaseOrderTable, 300);
+const debouncedRenderPurchaseReturnTable = debounce(renderPurchaseReturnTable, 300);
+
+function onPurchaseFilterChange() {
+  purchaseColumnFilters.id = document.getElementById("filter-purchase-id")?.value || "";
+  purchaseColumnFilters.date = document.getElementById("filter-purchase-date")?.value || "";
+  purchaseColumnFilters.partner = document.getElementById("filter-purchase-partner")?.value || "";
+  purchaseColumnFilters.description = document.getElementById("filter-purchase-desc")?.value || "";
+  purchaseColumnFilters.paymentMethod = document.getElementById("filter-purchase-payment")?.value || "";
+  purchaseColumnFilters.totalMin = document.getElementById("filter-purchase-total-min")?.value || "";
+  purchaseColumnFilters.totalMax = document.getElementById("filter-purchase-total-max")?.value || "";
+  purchaseColumnFilters.entries = document.getElementById("filter-purchase-entries")?.value || "";
+  
+  purchaseCurrentPage = 1;
+  debouncedRenderPurchaseTable();
+}
+
+function onPurchaseOrderFilterChange() {
+  purchaseOrderColumnFilters.id = document.getElementById("filter-purchase-order-id")?.value || "";
+  purchaseOrderColumnFilters.date = document.getElementById("filter-purchase-order-date")?.value || "";
+  purchaseOrderColumnFilters.partner = document.getElementById("filter-purchase-order-partner")?.value || "";
+  purchaseOrderColumnFilters.description = document.getElementById("filter-purchase-order-desc")?.value || "";
+  purchaseOrderColumnFilters.paymentMethod = document.getElementById("filter-purchase-order-payment")?.value || "";
+  purchaseOrderColumnFilters.totalMin = document.getElementById("filter-purchase-order-total-min")?.value || "";
+  purchaseOrderColumnFilters.totalMax = document.getElementById("filter-purchase-order-total-max")?.value || "";
+  purchaseOrderColumnFilters.entries = document.getElementById("filter-purchase-order-entries")?.value || "";
+
+  purchaseOrderCurrentPage = 1;
+  debouncedRenderPurchaseOrderTable();
+}
+
+function onPurchaseReturnFilterChange() {
+  purchaseReturnColumnFilters.id = document.getElementById("filter-purchase-return-id")?.value || "";
+  purchaseReturnColumnFilters.date = document.getElementById("filter-purchase-return-date")?.value || "";
+  purchaseReturnColumnFilters.partner = document.getElementById("filter-purchase-return-partner")?.value || "";
+  purchaseReturnColumnFilters.description = document.getElementById("filter-purchase-return-desc")?.value || "";
+  purchaseReturnColumnFilters.paymentMethod = document.getElementById("filter-purchase-return-payment")?.value || "";
+  purchaseReturnColumnFilters.totalMin = document.getElementById("filter-purchase-return-total-min")?.value || "";
+  purchaseReturnColumnFilters.totalMax = document.getElementById("filter-purchase-return-total-max")?.value || "";
+  purchaseReturnColumnFilters.entries = document.getElementById("filter-purchase-return-entries")?.value || "";
+
+  purchaseReturnCurrentPage = 1;
+  debouncedRenderPurchaseReturnTable();
+}
+
+function clearPurchaseColumnFilters() {
+  purchaseColumnFilters = {
+    id: "", date: "", partner: "", description: "", paymentMethod: "", totalMin: "", totalMax: "", entries: ""
+  };
+  const ids = ["filter-purchase-id", "filter-purchase-date", "filter-purchase-partner", 
+               "filter-purchase-desc", "filter-purchase-payment", "filter-purchase-total-min", 
+               "filter-purchase-total-max", "filter-purchase-entries"];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  renderPurchaseTable();
+}
+
+function clearPurchaseOrderColumnFilters() {
+  purchaseOrderColumnFilters = {
+    id: "", date: "", partner: "", description: "", paymentMethod: "", totalMin: "", totalMax: "", entries: ""
+  };
+  const ids = ["filter-purchase-order-id", "filter-purchase-order-date", "filter-purchase-order-partner", 
+               "filter-purchase-order-desc", "filter-purchase-order-payment", "filter-purchase-order-total-min", 
+               "filter-purchase-order-total-max", "filter-purchase-order-entries"];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  renderPurchaseOrderTable();
+}
+
+function clearPurchaseReturnColumnFilters() {
+  purchaseReturnColumnFilters = {
+    id: "", date: "", partner: "", description: "", paymentMethod: "", totalMin: "", totalMax: "", entries: ""
+  };
+  const ids = ["filter-purchase-return-id", "filter-purchase-return-date", "filter-purchase-return-partner", 
+               "filter-purchase-return-desc", "filter-purchase-return-payment", "filter-purchase-return-total-min", 
+               "filter-purchase-return-total-max", "filter-purchase-return-entries"];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  renderPurchaseReturnTable();
+}
 function renderPurchaseTable() {
   const tbody = document.getElementById("purchase-table-body");
   if (!tbody) return;
@@ -32,6 +142,45 @@ function renderPurchaseTable() {
 
   if (advPayment) {
     purchases = purchases.filter(v => v.paymentMethod === advPayment);
+  }
+
+  // Lọc theo từng cột (Column Filters)
+  if (purchaseColumnFilters.id) {
+    const val = purchaseColumnFilters.id.toLowerCase();
+    purchases = purchases.filter(v => v.id.toLowerCase().includes(val));
+  }
+  if (purchaseColumnFilters.date) {
+    const val = purchaseColumnFilters.date.toLowerCase();
+    purchases = purchases.filter(v => {
+      const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
+      return formattedDate.includes(val) || v.date.includes(val);
+    });
+  }
+  if (purchaseColumnFilters.partner) {
+    const val = purchaseColumnFilters.partner.toLowerCase();
+    purchases = purchases.filter(v => getPartnerNameForVoucher(v).toLowerCase().includes(val));
+  }
+  if (purchaseColumnFilters.description) {
+    const val = purchaseColumnFilters.description.toLowerCase();
+    purchases = purchases.filter(v => (v.description || "").toLowerCase().includes(val));
+  }
+  if (purchaseColumnFilters.paymentMethod) {
+    purchases = purchases.filter(v => v.paymentMethod === purchaseColumnFilters.paymentMethod);
+  }
+  if (purchaseColumnFilters.totalMin !== "") {
+    purchases = purchases.filter(v => v.totalAmount >= parseFloat(purchaseColumnFilters.totalMin));
+  }
+  if (purchaseColumnFilters.totalMax !== "") {
+    purchases = purchases.filter(v => v.totalAmount <= parseFloat(purchaseColumnFilters.totalMax));
+  }
+  if (purchaseColumnFilters.entries) {
+    const val = purchaseColumnFilters.entries.toLowerCase();
+    purchases = purchases.filter(v => 
+      v.entries && v.entries.some(e => 
+        e.debit.toLowerCase().includes(val) || 
+        e.credit.toLowerCase().includes(val)
+      )
+    );
   }
 
   // Sắp xếp số chứng từ giảm dần (to nhất lên trước)
@@ -222,7 +371,8 @@ function recalculatePurchaseTotals() {
   rows.forEach(row => {
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
+    const discountStr = row.querySelector(".item-discount").value.replace(/,/g, ".");
+    const discount = parseFloat(discountStr.replace(/[^\d.]/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
     subtotal += amount;
 
@@ -333,7 +483,7 @@ function handlePurchaseSubmit(e) {
     const productId = resolvedProduct.id;
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
 
     voucherItems.push({
@@ -899,7 +1049,7 @@ function recalculatePurchaseOrderTotals() {
   rows.forEach(row => {
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
     subtotal += amount;
 
@@ -1007,7 +1157,7 @@ function handlePurchaseOrderSubmit(e) {
     const productId = resolvedProduct.id;
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
 
     voucherItems.push({
@@ -1139,6 +1289,45 @@ function renderPurchaseOrderTable() {
 
   if (advPayment) {
     orders = orders.filter(v => v.paymentMethod === advPayment);
+  }
+
+  // Lọc theo từng cột (Column Filters)
+  if (purchaseOrderColumnFilters.id) {
+    const val = purchaseOrderColumnFilters.id.toLowerCase();
+    orders = orders.filter(v => v.id.toLowerCase().includes(val));
+  }
+  if (purchaseOrderColumnFilters.date) {
+    const val = purchaseOrderColumnFilters.date.toLowerCase();
+    orders = orders.filter(v => {
+      const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
+      return formattedDate.includes(val) || v.date.includes(val);
+    });
+  }
+  if (purchaseOrderColumnFilters.partner) {
+    const val = purchaseOrderColumnFilters.partner.toLowerCase();
+    orders = orders.filter(v => getPartnerNameForVoucher(v).toLowerCase().includes(val));
+  }
+  if (purchaseOrderColumnFilters.description) {
+    const val = purchaseOrderColumnFilters.description.toLowerCase();
+    orders = orders.filter(v => (v.description || "").toLowerCase().includes(val));
+  }
+  if (purchaseOrderColumnFilters.paymentMethod) {
+    orders = orders.filter(v => v.paymentMethod === purchaseOrderColumnFilters.paymentMethod);
+  }
+  if (purchaseOrderColumnFilters.totalMin !== "") {
+    orders = orders.filter(v => v.totalAmount >= parseFloat(purchaseOrderColumnFilters.totalMin));
+  }
+  if (purchaseOrderColumnFilters.totalMax !== "") {
+    orders = orders.filter(v => v.totalAmount <= parseFloat(purchaseOrderColumnFilters.totalMax));
+  }
+  if (purchaseOrderColumnFilters.entries) {
+    const val = purchaseOrderColumnFilters.entries.toLowerCase();
+    orders = orders.filter(v => 
+      v.entries && v.entries.some(e => 
+        e.debit.toLowerCase().includes(val) || 
+        e.credit.toLowerCase().includes(val)
+      )
+    );
   }
 
   // Sắp xếp số đơn hàng giảm dần
@@ -1549,6 +1738,45 @@ function renderPurchaseReturnTable() {
     returns = returns.filter(v => v.paymentMethod === advPayment);
   }
 
+  // Lọc theo từng cột (Column Filters)
+  if (purchaseReturnColumnFilters.id) {
+    const val = purchaseReturnColumnFilters.id.toLowerCase();
+    returns = returns.filter(v => v.id.toLowerCase().includes(val));
+  }
+  if (purchaseReturnColumnFilters.date) {
+    const val = purchaseReturnColumnFilters.date.toLowerCase();
+    returns = returns.filter(v => {
+      const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
+      return formattedDate.includes(val) || v.date.includes(val);
+    });
+  }
+  if (purchaseReturnColumnFilters.partner) {
+    const val = purchaseReturnColumnFilters.partner.toLowerCase();
+    returns = returns.filter(v => getPartnerNameForVoucher(v).toLowerCase().includes(val));
+  }
+  if (purchaseReturnColumnFilters.description) {
+    const val = purchaseReturnColumnFilters.description.toLowerCase();
+    returns = returns.filter(v => (v.description || "").toLowerCase().includes(val));
+  }
+  if (purchaseReturnColumnFilters.paymentMethod) {
+    returns = returns.filter(v => v.paymentMethod === purchaseReturnColumnFilters.paymentMethod);
+  }
+  if (purchaseReturnColumnFilters.totalMin !== "") {
+    returns = returns.filter(v => v.totalAmount >= parseFloat(purchaseReturnColumnFilters.totalMin));
+  }
+  if (purchaseReturnColumnFilters.totalMax !== "") {
+    returns = returns.filter(v => v.totalAmount <= parseFloat(purchaseReturnColumnFilters.totalMax));
+  }
+  if (purchaseReturnColumnFilters.entries) {
+    const val = purchaseReturnColumnFilters.entries.toLowerCase();
+    returns = returns.filter(v => 
+      v.entries && v.entries.some(e => 
+        e.debit.toLowerCase().includes(val) || 
+        e.credit.toLowerCase().includes(val)
+      )
+    );
+  }
+
   // Sắp xếp số chứng từ giảm dần (mới nhất lên trước)
   returns.sort((a, b) => {
     if (b.date !== a.date) {
@@ -1762,7 +1990,7 @@ function recalculatePurchaseReturnTotals() {
   rows.forEach(row => {
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
     subtotal += amount;
 
@@ -1872,7 +2100,7 @@ function handlePurchaseReturnSubmit(e) {
     const productId = resolvedProduct.id;
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
 
     voucherItems.push({
@@ -2196,4 +2424,12 @@ function resetEditingPurchaseIds() {
 window.resetEditingPurchaseIds = resetEditingPurchaseIds;
 window.renderPurchaseTable = renderPurchaseTable;
 window.filterPurchaseTable = filterPurchaseTable;
+
+// Column filter triggers
+window.onPurchaseFilterChange = onPurchaseFilterChange;
+window.clearPurchaseColumnFilters = clearPurchaseColumnFilters;
+window.onPurchaseOrderFilterChange = onPurchaseOrderFilterChange;
+window.clearPurchaseOrderColumnFilters = clearPurchaseOrderColumnFilters;
+window.onPurchaseReturnFilterChange = onPurchaseReturnFilterChange;
+window.clearPurchaseReturnColumnFilters = clearPurchaseReturnColumnFilters;
 

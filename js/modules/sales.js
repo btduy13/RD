@@ -1,4 +1,123 @@
 
+// State variables for column filters
+let salesColumnFilters = {
+  id: "", date: "", partner: "", description: "", paymentMethod: "",
+  revMin: "", revMax: "", cogsMin: "", cogsMax: "", totalMin: "", totalMax: "", entries: ""
+};
+
+let salesReturnColumnFilters = {
+  id: "", date: "", partner: "", description: "", paymentMethod: "",
+  totalMin: "", totalMax: "", entries: ""
+};
+
+let quotationColumnFilters = {
+  id: "", date: "", partner: "", description: "", paymentMethod: "",
+  totalMin: "", totalMax: ""
+};
+
+// Debounce helper
+function debounce(func, wait) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+}
+
+// Debounced render triggers
+const debouncedRenderSalesTable = debounce(renderSalesTable, 300);
+const debouncedRenderSalesReturnTable = debounce(renderSalesReturnTable, 300);
+const debouncedRenderQuotationTable = debounce(renderQuotationTable, 300);
+
+function onSalesFilterChange() {
+  salesColumnFilters.id = document.getElementById("filter-sales-id")?.value || "";
+  salesColumnFilters.date = document.getElementById("filter-sales-date")?.value || "";
+  salesColumnFilters.partner = document.getElementById("filter-sales-partner")?.value || "";
+  salesColumnFilters.description = document.getElementById("filter-sales-desc")?.value || "";
+  salesColumnFilters.paymentMethod = document.getElementById("filter-sales-payment")?.value || "";
+  salesColumnFilters.revMin = document.getElementById("filter-sales-rev-min")?.value || "";
+  salesColumnFilters.revMax = document.getElementById("filter-sales-rev-max")?.value || "";
+  salesColumnFilters.cogsMin = document.getElementById("filter-sales-cogs-min")?.value || "";
+  salesColumnFilters.cogsMax = document.getElementById("filter-sales-cogs-max")?.value || "";
+  salesColumnFilters.totalMin = document.getElementById("filter-sales-total-min")?.value || "";
+  salesColumnFilters.totalMax = document.getElementById("filter-sales-total-max")?.value || "";
+  salesColumnFilters.entries = document.getElementById("filter-sales-entries")?.value || "";
+  
+  salesCurrentPage = 1;
+  debouncedRenderSalesTable();
+}
+
+function onSalesReturnFilterChange() {
+  salesReturnColumnFilters.id = document.getElementById("filter-sales-return-id")?.value || "";
+  salesReturnColumnFilters.date = document.getElementById("filter-sales-return-date")?.value || "";
+  salesReturnColumnFilters.partner = document.getElementById("filter-sales-return-partner")?.value || "";
+  salesReturnColumnFilters.description = document.getElementById("filter-sales-return-desc")?.value || "";
+  salesReturnColumnFilters.paymentMethod = document.getElementById("filter-sales-return-payment")?.value || "";
+  salesReturnColumnFilters.totalMin = document.getElementById("filter-sales-return-total-min")?.value || "";
+  salesReturnColumnFilters.totalMax = document.getElementById("filter-sales-return-total-max")?.value || "";
+  salesReturnColumnFilters.entries = document.getElementById("filter-sales-return-entries")?.value || "";
+
+  salesReturnCurrentPage = 1;
+  debouncedRenderSalesReturnTable();
+}
+
+function onQuotationFilterChange() {
+  quotationColumnFilters.id = document.getElementById("filter-quotation-id")?.value || "";
+  quotationColumnFilters.date = document.getElementById("filter-quotation-date")?.value || "";
+  quotationColumnFilters.partner = document.getElementById("filter-quotation-partner")?.value || "";
+  quotationColumnFilters.description = document.getElementById("filter-quotation-desc")?.value || "";
+  quotationColumnFilters.paymentMethod = document.getElementById("filter-quotation-payment")?.value || "";
+  quotationColumnFilters.totalMin = document.getElementById("filter-quotation-total-min")?.value || "";
+  quotationColumnFilters.totalMax = document.getElementById("filter-quotation-total-max")?.value || "";
+
+  quotationCurrentPage = 1;
+  debouncedRenderQuotationTable();
+}
+
+function clearSalesColumnFilters() {
+  salesColumnFilters = {
+    id: "", date: "", partner: "", description: "", paymentMethod: "",
+    revMin: "", revMax: "", cogsMin: "", cogsMax: "", totalMin: "", totalMax: "", entries: ""
+  };
+  const ids = ["filter-sales-id", "filter-sales-date", "filter-sales-partner", "filter-sales-desc", 
+               "filter-sales-payment", "filter-sales-rev-min", "filter-sales-rev-max", 
+               "filter-sales-cogs-min", "filter-sales-cogs-max", "filter-sales-total-min", 
+               "filter-sales-total-max", "filter-sales-entries"];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  renderSalesTable();
+}
+
+function clearSalesReturnColumnFilters() {
+  salesReturnColumnFilters = {
+    id: "", date: "", partner: "", description: "", paymentMethod: "", totalMin: "", totalMax: "", entries: ""
+  };
+  const ids = ["filter-sales-return-id", "filter-sales-return-date", "filter-sales-return-partner", 
+               "filter-sales-return-desc", "filter-sales-return-payment", "filter-sales-return-total-min", 
+               "filter-sales-return-total-max", "filter-sales-return-entries"];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  renderSalesReturnTable();
+}
+
+function clearQuotationColumnFilters() {
+  quotationColumnFilters = {
+    id: "", date: "", partner: "", description: "", paymentMethod: "", totalMin: "", totalMax: ""
+  };
+  const ids = ["filter-quotation-id", "filter-quotation-date", "filter-quotation-partner", 
+               "filter-quotation-desc", "filter-quotation-payment", "filter-quotation-total-min", 
+               "filter-quotation-total-max"];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  renderQuotationTable();
+}
+
 let salesCurrentPage = 1;
 
 // 7. RENDER DỮ LIỆU PHÂN HỆ BÁN HÀNG (SALES)
@@ -33,6 +152,57 @@ function renderSalesTable() {
 
   if (advPayment) {
     sales = sales.filter(v => v.paymentMethod === advPayment);
+  }
+
+  // Lọc theo từng cột (Column Filters)
+  if (salesColumnFilters.id) {
+    const val = salesColumnFilters.id.toLowerCase();
+    sales = sales.filter(v => v.id.toLowerCase().includes(val));
+  }
+  if (salesColumnFilters.date) {
+    const val = salesColumnFilters.date.toLowerCase();
+    sales = sales.filter(v => {
+      const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
+      return formattedDate.includes(val) || v.date.includes(val);
+    });
+  }
+  if (salesColumnFilters.partner) {
+    const val = salesColumnFilters.partner.toLowerCase();
+    sales = sales.filter(v => getPartnerNameForVoucher(v).toLowerCase().includes(val));
+  }
+  if (salesColumnFilters.description) {
+    const val = salesColumnFilters.description.toLowerCase();
+    sales = sales.filter(v => (v.description || "").toLowerCase().includes(val));
+  }
+  if (salesColumnFilters.paymentMethod) {
+    sales = sales.filter(v => v.paymentMethod === salesColumnFilters.paymentMethod);
+  }
+  if (salesColumnFilters.revMin !== "") {
+    sales = sales.filter(v => v.totalAmount >= parseFloat(salesColumnFilters.revMin));
+  }
+  if (salesColumnFilters.revMax !== "") {
+    sales = sales.filter(v => v.totalAmount <= parseFloat(salesColumnFilters.revMax));
+  }
+  if (salesColumnFilters.cogsMin !== "") {
+    sales = sales.filter(v => v.cogsAmount >= parseFloat(salesColumnFilters.cogsMin));
+  }
+  if (salesColumnFilters.cogsMax !== "") {
+    sales = sales.filter(v => v.cogsAmount <= parseFloat(salesColumnFilters.cogsMax));
+  }
+  if (salesColumnFilters.totalMin !== "") {
+    sales = sales.filter(v => v.totalAmount >= parseFloat(salesColumnFilters.totalMin));
+  }
+  if (salesColumnFilters.totalMax !== "") {
+    sales = sales.filter(v => v.totalAmount <= parseFloat(salesColumnFilters.totalMax));
+  }
+  if (salesColumnFilters.entries) {
+    const val = salesColumnFilters.entries.toLowerCase();
+    sales = sales.filter(v => 
+      v.entries && v.entries.some(e => 
+        e.debit.toLowerCase().includes(val) || 
+        e.credit.toLowerCase().includes(val)
+      )
+    );
   }
 
   // Sắp xếp GIẢM DẦN theo ngày chứng từ (mới nhất lên trước), nếu cùng ngày thì sắp xếp theo số chứng từ giảm dần
@@ -224,7 +394,7 @@ function recalculateSalesTotals() {
   rows.forEach(row => {
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
     subtotal += amount;
 
@@ -352,7 +522,7 @@ function handleSalesSubmit(e) {
     const itemDesc = row.querySelector(".item-desc") ? row.querySelector(".item-desc").value.trim() : "";
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
 
     // Kiểm tra hàng tồn kho khả dụng (Cộng lại lượng đã bán cũ của chứng từ này nếu đang edit)
@@ -610,6 +780,45 @@ function renderSalesReturnTable() {
     returns = returns.filter(v => v.paymentMethod === advPayment);
   }
 
+  // Lọc theo từng cột (Column Filters)
+  if (salesReturnColumnFilters.id) {
+    const val = salesReturnColumnFilters.id.toLowerCase();
+    returns = returns.filter(v => v.id.toLowerCase().includes(val));
+  }
+  if (salesReturnColumnFilters.date) {
+    const val = salesReturnColumnFilters.date.toLowerCase();
+    returns = returns.filter(v => {
+      const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
+      return formattedDate.includes(val) || v.date.includes(val);
+    });
+  }
+  if (salesReturnColumnFilters.partner) {
+    const val = salesReturnColumnFilters.partner.toLowerCase();
+    returns = returns.filter(v => getPartnerNameForVoucher(v).toLowerCase().includes(val));
+  }
+  if (salesReturnColumnFilters.description) {
+    const val = salesReturnColumnFilters.description.toLowerCase();
+    returns = returns.filter(v => (v.description || "").toLowerCase().includes(val));
+  }
+  if (salesReturnColumnFilters.paymentMethod) {
+    returns = returns.filter(v => v.paymentMethod === salesReturnColumnFilters.paymentMethod);
+  }
+  if (salesReturnColumnFilters.totalMin !== "") {
+    returns = returns.filter(v => v.totalAmount >= parseFloat(salesReturnColumnFilters.totalMin));
+  }
+  if (salesReturnColumnFilters.totalMax !== "") {
+    returns = returns.filter(v => v.totalAmount <= parseFloat(salesReturnColumnFilters.totalMax));
+  }
+  if (salesReturnColumnFilters.entries) {
+    const val = salesReturnColumnFilters.entries.toLowerCase();
+    returns = returns.filter(v => 
+      v.entries && v.entries.some(e => 
+        e.debit.toLowerCase().includes(val) || 
+        e.credit.toLowerCase().includes(val)
+      )
+    );
+  }
+
   // Sắp xếp số chứng từ giảm dần (mới nhất lên trước)
   returns.sort((a, b) => {
     if (b.date !== a.date) {
@@ -826,7 +1035,7 @@ function recalculateSalesReturnTotals() {
   rows.forEach(row => {
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
     subtotal += amount;
 
@@ -949,7 +1158,7 @@ function handleSalesReturnSubmit(e) {
     const productId = resolvedProduct.id;
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
 
     voucherItems.push({
@@ -1305,6 +1514,36 @@ function renderQuotationTable() {
     quotations = quotations.filter(v => v.paymentMethod === advPayment);
   }
 
+  // Lọc theo từng cột (Column Filters)
+  if (quotationColumnFilters.id) {
+    const val = quotationColumnFilters.id.toLowerCase();
+    quotations = quotations.filter(v => v.id.toLowerCase().includes(val));
+  }
+  if (quotationColumnFilters.date) {
+    const val = quotationColumnFilters.date.toLowerCase();
+    quotations = quotations.filter(v => {
+      const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
+      return formattedDate.includes(val) || v.date.includes(val);
+    });
+  }
+  if (quotationColumnFilters.partner) {
+    const val = quotationColumnFilters.partner.toLowerCase();
+    quotations = quotations.filter(v => getPartnerNameForVoucher(v).toLowerCase().includes(val));
+  }
+  if (quotationColumnFilters.description) {
+    const val = quotationColumnFilters.description.toLowerCase();
+    quotations = quotations.filter(v => (v.description || "").toLowerCase().includes(val));
+  }
+  if (quotationColumnFilters.paymentMethod) {
+    quotations = quotations.filter(v => v.paymentMethod === quotationColumnFilters.paymentMethod);
+  }
+  if (quotationColumnFilters.totalMin !== "") {
+    quotations = quotations.filter(v => v.totalAmount >= parseFloat(quotationColumnFilters.totalMin));
+  }
+  if (quotationColumnFilters.totalMax !== "") {
+    quotations = quotations.filter(v => v.totalAmount <= parseFloat(quotationColumnFilters.totalMax));
+  }
+
   // Sắp xếp GIẢM DẦN theo ngày chứng từ (mới nhất lên trước), nếu cùng ngày thì theo số chứng từ giảm dần
   quotations.sort((a, b) => {
     if (b.date !== a.date) {
@@ -1467,7 +1706,7 @@ function recalculateQuotationTotals() {
   rows.forEach(row => {
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
     subtotal += amount;
 
@@ -1584,7 +1823,7 @@ function handleQuotationSubmit(e) {
     const productId = resolvedProduct.id;
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
     const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/[^\d.]/g, "")) || 0;
+    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
     const amount = Math.round(qty * price * (1 - discount / 100));
 
     voucherItems.push({
@@ -1874,3 +2113,11 @@ window.toggleSelectAllSalesReturns = toggleSelectAllSalesReturns;
 window.updateBatchSalesReturnsUI = updateBatchSalesReturnsUI;
 window.batchDeleteSalesReturns = batchDeleteSalesReturns;
 window.exportSalesReturnsToExcel = exportSalesReturnsToExcel;
+
+// Column filter triggers
+window.onSalesFilterChange = onSalesFilterChange;
+window.clearSalesColumnFilters = clearSalesColumnFilters;
+window.onSalesReturnFilterChange = onSalesReturnFilterChange;
+window.clearSalesReturnColumnFilters = clearSalesReturnColumnFilters;
+window.onQuotationFilterChange = onQuotationFilterChange;
+window.clearQuotationColumnFilters = clearQuotationColumnFilters;

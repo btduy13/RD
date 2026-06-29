@@ -28,7 +28,7 @@
         </div>
         <div class="brand-info">
           <span class="brand-name">RẠNG ĐÔNG</span>
-          <span class="brand-subtitle" id="brand-version-display">RD Accounting v1.0</span>
+          <span class="brand-subtitle" id="brand-version-display">RD Accounting v2.4.8</span>
         </div>
         <button class="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Thu gọn/Mở rộng sidebar" title="Thu gọn sidebar">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
@@ -161,116 +161,117 @@
           <h1 id="page-display-title" class="header-title">Tổng quan</h1>
           <div id="header-breadcrumb" class="breadcrumb">
             <span class="breadcrumb-item" onclick="switchTab('dashboard')">Trang chủ</span>
-            <span class="breadcrumb-separator">›</span>
+            <span class="breadcrumb-separator">/</span>
             <span class="breadcrumb-item active">Tổng quan</span>
           </div>
         </div>
 
         <div class="header-actions">
-          <div class="header-company-badge">
-            <div class="pulse-indicator"></div>
+          <!-- Chip Đơn vị (Rạng Đông) -->
+          <div class="header-status-chip company-chip">
+            <span class="chip-dot dot-success"></span>
             <span id="header-company-name">CÔNG TY CP RẠNG ĐÔNG</span>
           </div>
 
           <!-- Chỉ báo đồng bộ Đám mây trực tuyến -->
-          <div id="cloud-sync-badge" class="header-company-badge"
-            style="background-color: rgba(71, 85, 105, 0.15); border-color: var(--border-color); display: flex;">
-            <div id="cloud-sync-indicator" class="pulse-indicator" style="background-color: #64748b;"></div>
-            <span id="cloud-sync-status-text"
-              style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">Mây: Tắt</span>
+          <div id="cloud-sync-badge" class="header-status-chip sync-chip">
+            <span id="cloud-sync-indicator" class="chip-dot dot-muted"></span>
+            <span id="cloud-sync-status-text">Mây: Tắt</span>
           </div>
 
           <!-- Nút đồng bộ lại dữ liệu (Reset/Sync) -->
-          <button class="icon-btn" onclick="manualIncrementalSync()" title="Đồng bộ nhanh dữ liệu mới từ Đám mây">
-            <svg id="cloud-sync-refresh-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
-              style="width: 20px; height: 20px; transition: transform 0.2s;">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17"></path>
+          <button class="icon-btn" onclick="manualIncrementalSync()" title="Đồng bộ dữ liệu Đám mây">
+            <svg id="cloud-sync-refresh-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17"></path>
             </svg>
           </button>
 
+          <!-- Nút chọn kiểu xem Bảng/Danh sách (Layout Selector) -->
+          <button class="icon-btn" onclick="if (typeof showToast === 'function') showToast('Đang ở chế độ xem bảng tiêu chuẩn', 'info');" title="Chế độ hiển thị">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7M17 18h3M17 14h3"></path>
+            </svg>
+          </button>
 
           <!-- Nút xem phím tắt dưới dạng Dropdown Menu -->
           <div class="dropdown" style="position: relative; display: inline-block;">
             <button class="icon-btn" onclick="toggleShortcutDropdown(event)" title="Danh sách phím tắt">
-              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
               </svg>
             </button>
-            <div id="shortcut-dropdown-menu" class="dropdown-content" style="display: none; position: absolute; right: 0; top: 46px; background-color: var(--bg-secondary); min-width: 320px; box-shadow: 0px 8px 24px rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; z-index: 1000; font-size: 13px; color: var(--text-primary);">
+            <div id="shortcut-dropdown-menu" class="dropdown-content" style="display: none; position: absolute; right: 0; top: 40px; background-color: var(--bg-secondary); min-width: 320px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 16px; z-index: 1000; font-size: 13px; color: var(--text-primary);">
               <h4 style="margin: 0 0 12px 0; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
-                <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                 </svg>
                 Phím tắt hệ thống
               </h4>
-              <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; flex-direction: column; gap: 8px;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-tertiary); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">Ctrl + F</span>
+                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-primary); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">Ctrl + F</span>
                   <span style="color: var(--text-secondary); font-weight: 500;">Tìm kiếm nhanh</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-tertiary); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">ESC</span>
+                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-primary); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">ESC</span>
                   <span style="color: var(--text-secondary); font-weight: 500;">Đóng cửa sổ (Modal)</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-tertiary); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F1</span>
+                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-primary); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F1</span>
                   <span style="color: var(--text-secondary); font-weight: 500;">Ô tiếp theo trong modal</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-tertiary); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F2</span>
+                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-primary); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F2</span>
                   <span style="color: var(--text-secondary); font-weight: 500;">Ô trước đó trong modal</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-tertiary); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F4</span>
+                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-primary); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F4</span>
                   <span style="color: var(--text-secondary); font-weight: 500;">Thêm dòng hàng mới</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-tertiary); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F5</span>
+                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-primary); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F5</span>
                   <span style="color: var(--text-secondary); font-weight: 500;">Khôi phục đơn giá gốc</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-tertiary); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F6</span>
+                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-primary); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F6</span>
                   <span style="color: var(--text-secondary); font-weight: 500;">Di chuyển xuống dòng dưới</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-tertiary); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F7</span>
+                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-primary); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F7</span>
                   <span style="color: var(--text-secondary); font-weight: 500;">Di chuyển lên dòng trên</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-tertiary); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F8</span>
+                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-primary); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">F8</span>
                   <span style="color: var(--text-secondary); font-weight: 500;">Xóa dòng mặt hàng</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-tertiary); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">Tab / Shift+Tab</span>
-                  <span style="color: var(--text-secondary); font-weight: 500;">Di chuyển ngang ô trong dòng</span>
+                  <span style="font-weight: 700; color: var(--color-primary); background: var(--bg-primary); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); font-family: monospace; font-size: 11px;">Tab / Shift+Tab</span>
+                  <span style="color: var(--text-secondary); font-weight: 500;">Di chuyển ngang ô</span>
                 </div>
               </div>
             </div>
           </div>
 
           <!-- Bộ chỉnh cỡ chữ -->
-          <div style="display: flex; align-items: center; margin-right: 8px;">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
-              style="width: 16px; height: 16px; margin-right: 6px; color: var(--text-secondary);">
+          <div class="header-font-select-wrapper">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 14px; height: 14px; color: var(--text-secondary);">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 18l4-12h2l4 12M5 13h5m3 5l2.5-7.5h1l2.5 7.5M14 15h3.5"></path>
             </svg>
-            <select id="font-scale-select" onchange="applyFontSizeScale(parseFloat(this.value)); if (typeof showToast === 'function') showToast('Kích thước chữ: ' + Math.round(this.value * 100) + '%', 'info');"
-              style="background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: var(--radius-sm); padding: 2px 24px 2px 8px; font-size: 12px; height: 32px; cursor: pointer; outline: none; -webkit-appearance: none; appearance: none; background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%239ca3af%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 8px top 50%25; background-size: 8px auto;">
-              <option value="0.9">Chữ nhỏ (90%)</option>
-              <option value="1.0">Chữ vừa (100%)</option>
-              <option value="1.1">Chữ lớn (110%)</option>
-              <option value="1.2">Chữ rất lớn (120%)</option>
-              <option value="1.3">Chữ cực lớn (130%)</option>
+            <select id="font-scale-select" onchange="applyFontSizeScale(parseFloat(this.value)); if (typeof showToast === 'function') showToast('Kích thước chữ: ' + Math.round(this.value * 100) + '%', 'info');">
+              <option value="0.9">90%</option>
+              <option value="1">100%</option>
+              <option value="1.1">110%</option>
+              <option value="1.2">120%</option>
+              <option value="1.3">130%</option>
             </select>
           </div>
 
+
+
           <!-- Nút đổi Theme -->
           <button class="icon-btn" onclick="toggleTheme()" title="Đổi giao diện Tối/Sáng">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
-              style="width: 20px; height: 20px;">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
             </svg>
           </button>
         </div>
@@ -543,7 +544,7 @@
           <div id="purchase-subtab-invoice" class="purchase-subtab-content">
             <div class="actions-bar" style="margin-bottom: 20px;">
               <!-- Cụm bên trái: Tìm kiếm và bộ lọc ngày -->
-              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;">
                 <div class="search-input-wrapper" style="min-width: 260px;">
                   <svg class="search-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                     xmlns="http://www.w3.org/2000/svg">
@@ -578,16 +579,7 @@
                   </button>
                 </div>
 
-                <select id="adv-filter-purchase-payment" class="form-control" 
-                  style="height: 36px; padding: 0 12px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; min-width: 170px;"
-                  onmouseover="this.style.borderColor='var(--color-primary)'"
-                  onmouseout="this.style.borderColor='var(--border-color)'"
-                  onchange="filterPurchaseTable()">
-                  <option value="">-- Tất cả PTTT --</option>
-                  <option value="111">Tiền mặt (111)</option>
-                  <option value="112">Ngân hàng (112)</option>
-                  <option value="331">Công nợ (331)</option>
-                </select>
+
               </div>
 
               <!-- Cụm bên phải: Các nút hành động -->
@@ -694,6 +686,33 @@
                       <th>Định khoản</th>
                       <th style="text-align: center;">Thao tác</th>
                     </tr>
+                    <tr class="filter-row">
+                      <th></th>
+                      <th><input type="text" class="table-filter-input" id="filter-purchase-id" placeholder="Lọc số..." oninput="onPurchaseFilterChange()"></th>
+                      <th><input type="text" class="table-filter-input" id="filter-purchase-date" placeholder="Lọc ngày..." oninput="onPurchaseFilterChange()"></th>
+                      <th><input type="text" class="table-filter-input" id="filter-purchase-partner" placeholder="Lọc NCC..." oninput="onPurchaseFilterChange()"></th>
+                      <th><input type="text" class="table-filter-input" id="filter-purchase-desc" placeholder="Lọc diễn giải..." oninput="onPurchaseFilterChange()"></th>
+                      <th>
+                        <select class="table-filter-select" id="filter-purchase-payment" onchange="onPurchaseFilterChange()">
+                          <option value="">Tất cả</option>
+                          <option value="331">Công nợ</option>
+                          <option value="111">Tiền mặt</option>
+                          <option value="112">Ngân hàng</option>
+                        </select>
+                      </th>
+                      <th>
+                        <div class="range-filter">
+                          <input type="number" class="table-filter-input number-filter" id="filter-purchase-total-min" placeholder="Từ..." oninput="onPurchaseFilterChange()">
+                          <input type="number" class="table-filter-input number-filter" id="filter-purchase-total-max" placeholder="Đến..." oninput="onPurchaseFilterChange()">
+                        </div>
+                      </th>
+                      <th><input type="text" class="table-filter-input" id="filter-purchase-entries" placeholder="Lọc định khoản..." oninput="onPurchaseFilterChange()"></th>
+                      <th style="text-align: center;">
+                        <button class="clear-filters-btn" onclick="clearPurchaseColumnFilters()" title="Xóa tất cả lọc">
+                          Xóa lọc
+                        </button>
+                      </th>
+                    </tr>
                   </thead>
                   <tbody id="purchase-table-body">
                     <!-- Dữ liệu bảng mua hàng -->
@@ -713,7 +732,7 @@
           <div id="purchase-subtab-order" class="purchase-subtab-content" style="display: none;">
             <div class="actions-bar" style="margin-bottom: 20px;">
               <!-- Cụm bên trái: Tìm kiếm và bộ lọc ngày -->
-              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;">
                 <div class="search-input-wrapper" style="min-width: 260px;">
                   <svg class="search-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                     xmlns="http://www.w3.org/2000/svg">
@@ -748,16 +767,7 @@
                   </button>
                 </div>
 
-                <select id="adv-filter-purchase-order-payment" class="form-control" 
-                  style="height: 36px; padding: 0 12px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; min-width: 170px;"
-                  onmouseover="this.style.borderColor='var(--color-primary)'"
-                  onmouseout="this.style.borderColor='var(--border-color)'"
-                  onchange="filterPurchaseOrderTable()">
-                  <option value="">-- Tất cả PTTT --</option>
-                  <option value="111">Tiền mặt (111)</option>
-                  <option value="112">Ngân hàng (112)</option>
-                  <option value="331">Công nợ (331)</option>
-                </select>
+
               </div>
 
               <!-- Cụm bên phải: Các nút hành động -->
@@ -834,6 +844,33 @@
                       <th>Định khoản</th>
                       <th style="text-align: center;">Thao tác</th>
                     </tr>
+                    <tr class="filter-row">
+                      <th></th>
+                      <th><input type="text" class="table-filter-input" id="filter-purchase-order-id" placeholder="Lọc số..." oninput="onPurchaseOrderFilterChange()"></th>
+                      <th><input type="text" class="table-filter-input" id="filter-purchase-order-date" placeholder="Lọc ngày..." oninput="onPurchaseOrderFilterChange()"></th>
+                      <th><input type="text" class="table-filter-input" id="filter-purchase-order-partner" placeholder="Lọc NCC..." oninput="onPurchaseOrderFilterChange()"></th>
+                      <th><input type="text" class="table-filter-input" id="filter-purchase-order-desc" placeholder="Lọc diễn giải..." oninput="onPurchaseOrderFilterChange()"></th>
+                      <th>
+                        <select class="table-filter-select" id="filter-purchase-order-payment" onchange="onPurchaseOrderFilterChange()">
+                          <option value="">Tất cả</option>
+                          <option value="331">Công nợ</option>
+                          <option value="111">Tiền mặt</option>
+                          <option value="112">Ngân hàng</option>
+                        </select>
+                      </th>
+                      <th>
+                        <div class="range-filter">
+                          <input type="number" class="table-filter-input number-filter" id="filter-purchase-order-total-min" placeholder="Từ..." oninput="onPurchaseOrderFilterChange()">
+                          <input type="number" class="table-filter-input number-filter" id="filter-purchase-order-total-max" placeholder="Đến..." oninput="onPurchaseOrderFilterChange()">
+                        </div>
+                      </th>
+                      <th><input type="text" class="table-filter-input" id="filter-purchase-order-entries" placeholder="Lọc định khoản..." oninput="onPurchaseOrderFilterChange()"></th>
+                      <th style="text-align: center;">
+                        <button class="clear-filters-btn" onclick="clearPurchaseOrderColumnFilters()" title="Xóa tất cả lọc">
+                          Xóa lọc
+                        </button>
+                      </th>
+                    </tr>
                   </thead>
                   <tbody id="purchase-order-table-body">
                     <!-- Dữ liệu bảng đơn đặt hàng -->
@@ -853,7 +890,7 @@
           <div id="purchase-subtab-return" class="purchase-subtab-content" style="display: none;">
             <div class="actions-bar" style="margin-bottom: 20px;">
               <!-- Cụm bên trái: Tìm kiếm và bộ lọc ngày -->
-              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;">
                 <div class="search-input-wrapper" style="min-width: 260px;">
                   <svg class="search-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                     xmlns="http://www.w3.org/2000/svg">
@@ -888,16 +925,7 @@
                   </button>
                 </div>
 
-                <select id="adv-filter-purchase-return-payment" class="form-control" 
-                  style="height: 36px; padding: 0 12px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; min-width: 170px;"
-                  onmouseover="this.style.borderColor='var(--color-primary)'"
-                  onmouseout="this.style.borderColor='var(--border-color)'"
-                  onchange="filterPurchaseReturnTable()">
-                  <option value="">-- Tất cả PTTT --</option>
-                  <option value="111">Tiền mặt (111)</option>
-                  <option value="112">Ngân hàng (112)</option>
-                  <option value="131">Công nợ (131)</option>
-                </select>
+
               </div>
 
               <!-- Cụm bên phải: Các nút hành động -->
@@ -973,6 +1001,33 @@
                       <th>Định khoản</th>
                       <th style="text-align: center;">Thao tác</th>
                     </tr>
+                    <tr class="filter-row">
+                      <th></th>
+                      <th><input type="text" class="table-filter-input" id="filter-purchase-return-id" placeholder="Lọc số..." oninput="onPurchaseReturnFilterChange()"></th>
+                      <th><input type="text" class="table-filter-input" id="filter-purchase-return-date" placeholder="Lọc ngày..." oninput="onPurchaseReturnFilterChange()"></th>
+                      <th><input type="text" class="table-filter-input" id="filter-purchase-return-partner" placeholder="Lọc NCC..." oninput="onPurchaseReturnFilterChange()"></th>
+                      <th><input type="text" class="table-filter-input" id="filter-purchase-return-desc" placeholder="Lọc diễn giải..." oninput="onPurchaseReturnFilterChange()"></th>
+                      <th>
+                        <select class="table-filter-select" id="filter-purchase-return-payment" onchange="onPurchaseReturnFilterChange()">
+                          <option value="">Tất cả</option>
+                          <option value="331">Công nợ</option>
+                          <option value="111">Tiền mặt</option>
+                          <option value="112">Ngân hàng</option>
+                        </select>
+                      </th>
+                      <th>
+                        <div class="range-filter">
+                          <input type="number" class="table-filter-input number-filter" id="filter-purchase-return-total-min" placeholder="Từ..." oninput="onPurchaseReturnFilterChange()">
+                          <input type="number" class="table-filter-input number-filter" id="filter-purchase-return-total-max" placeholder="Đến..." oninput="onPurchaseReturnFilterChange()">
+                        </div>
+                      </th>
+                      <th><input type="text" class="table-filter-input" id="filter-purchase-return-entries" placeholder="Lọc định khoản..." oninput="onPurchaseReturnFilterChange()"></th>
+                      <th style="text-align: center;">
+                        <button class="clear-filters-btn" onclick="clearPurchaseReturnColumnFilters()" title="Xóa tất cả lọc">
+                          Xóa lọc
+                        </button>
+                      </th>
+                    </tr>
                   </thead>
                   <tbody id="purchase-return-table-body">
                     <!-- Dữ liệu bảng trả lại hàng -->
@@ -1011,7 +1066,7 @@
           <div id="sales-subtab-invoice" class="sales-subtab-content">
             <div class="actions-bar" style="margin-bottom: 20px;">
               <!-- Cụm bên trái: Tìm kiếm và bộ lọc ngày -->
-              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;">
                 <div class="search-input-wrapper" style="min-width: 260px;">
                   <svg class="search-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                     xmlns="http://www.w3.org/2000/svg">
@@ -1046,16 +1101,7 @@
                   </button>
                 </div>
 
-                <select id="adv-filter-sales-payment" class="form-control" 
-                  style="height: 36px; padding: 0 12px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; min-width: 170px;"
-                  onmouseover="this.style.borderColor='var(--color-primary)'"
-                  onmouseout="this.style.borderColor='var(--border-color)'"
-                  onchange="filterSalesTable()">
-                  <option value="">-- Tất cả PTTT --</option>
-                  <option value="111">Tiền mặt (111)</option>
-                  <option value="112">Ngân hàng (112)</option>
-                  <option value="131">Công nợ (131)</option>
-                </select>
+
               </div>
 
               <!-- Cụm bên phải: Các nút hành động -->
@@ -1162,6 +1208,45 @@
                       <th>Định khoản</th>
                       <th style="text-align: center;">Thao tác</th>
                     </tr>
+                    <tr class="filter-row">
+                      <th></th>
+                      <th><input type="text" class="table-filter-input" id="filter-sales-id" placeholder="Lọc số..." oninput="onSalesFilterChange()"></th>
+                      <th><input type="text" class="table-filter-input" id="filter-sales-date" placeholder="Lọc ngày..." oninput="onSalesFilterChange()"></th>
+                      <th><input type="text" class="table-filter-input" id="filter-sales-partner" placeholder="Lọc đối tác..." oninput="onSalesFilterChange()"></th>
+                      <th><input type="text" class="table-filter-input" id="filter-sales-desc" placeholder="Lọc diễn giải..." oninput="onSalesFilterChange()"></th>
+                      <th>
+                        <select class="table-filter-select" id="filter-sales-payment" onchange="onSalesFilterChange()">
+                          <option value="">Tất cả</option>
+                          <option value="131">Công nợ</option>
+                          <option value="111">Tiền mặt</option>
+                          <option value="112">Ngân hàng</option>
+                        </select>
+                      </th>
+                      <th>
+                        <div class="range-filter">
+                          <input type="number" class="table-filter-input number-filter" id="filter-sales-rev-min" placeholder="Từ..." oninput="onSalesFilterChange()">
+                          <input type="number" class="table-filter-input number-filter" id="filter-sales-rev-max" placeholder="Đến..." oninput="onSalesFilterChange()">
+                        </div>
+                      </th>
+                      <th>
+                        <div class="range-filter">
+                          <input type="number" class="table-filter-input number-filter" id="filter-sales-cogs-min" placeholder="Từ..." oninput="onSalesFilterChange()">
+                          <input type="number" class="table-filter-input number-filter" id="filter-sales-cogs-max" placeholder="Đến..." oninput="onSalesFilterChange()">
+                        </div>
+                      </th>
+                      <th>
+                        <div class="range-filter">
+                          <input type="number" class="table-filter-input number-filter" id="filter-sales-total-min" placeholder="Từ..." oninput="onSalesFilterChange()">
+                          <input type="number" class="table-filter-input number-filter" id="filter-sales-total-max" placeholder="Đến..." oninput="onSalesFilterChange()">
+                        </div>
+                      </th>
+                      <th><input type="text" class="table-filter-input" id="filter-sales-entries" placeholder="Tài khoản..." oninput="onSalesFilterChange()"></th>
+                      <th style="text-align: center;">
+                        <button class="clear-filters-btn" onclick="clearSalesColumnFilters()" title="Xóa tất cả lọc">
+                          Xóa lọc
+                        </button>
+                      </th>
+                    </tr>
                   </thead>
                   <tbody id="sales-table-body">
                     <!-- Dữ liệu bảng bán hàng -->
@@ -1181,7 +1266,7 @@
           <div id="sales-subtab-return" class="sales-subtab-content" style="display: none;">
             <div class="actions-bar" style="margin-bottom: 20px;">
               <!-- Cụm bên trái: Tìm kiếm và bộ lọc ngày -->
-              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;">
                 <div class="search-input-wrapper" style="min-width: 260px;">
                   <svg class="search-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                     xmlns="http://www.w3.org/2000/svg">
@@ -1216,16 +1301,7 @@
                   </button>
                 </div>
 
-                <select id="adv-filter-sales-return-payment" class="form-control" 
-                  style="height: 36px; padding: 0 12px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; min-width: 170px;"
-                  onmouseover="this.style.borderColor='var(--color-primary)'"
-                  onmouseout="this.style.borderColor='var(--border-color)'"
-                  onchange="filterSalesReturnTable()">
-                  <option value="">-- Tất cả PTTT --</option>
-                  <option value="111">Tiền mặt (111)</option>
-                  <option value="112">Ngân hàng (112)</option>
-                  <option value="131">Công nợ (131)</option>
-                </select>
+
               </div>
 
               <!-- Cụm bên phải: Các nút hành động -->
@@ -1299,6 +1375,33 @@
                       <th>Định khoản</th>
                       <th style="text-align: center;">Thao tác</th>
                     </tr>
+                    <tr class="filter-row">
+                      <th></th>
+                      <th><input type="text" class="table-filter-input" id="filter-sales-return-id" placeholder="Lọc số..." oninput="onSalesReturnFilterChange()"></th>
+                      <th><input type="text" class="table-filter-input" id="filter-sales-return-date" placeholder="Lọc ngày..." oninput="onSalesReturnFilterChange()"></th>
+                      <th><input type="text" class="table-filter-input" id="filter-sales-return-partner" placeholder="Lọc đối tác..." oninput="onSalesReturnFilterChange()"></th>
+                      <th><input type="text" class="table-filter-input" id="filter-sales-return-desc" placeholder="Lọc diễn giải..." oninput="onSalesReturnFilterChange()"></th>
+                      <th>
+                        <select class="table-filter-select" id="filter-sales-return-payment" onchange="onSalesReturnFilterChange()">
+                          <option value="">Tất cả</option>
+                          <option value="131">Công nợ</option>
+                          <option value="111">Tiền mặt</option>
+                          <option value="112">Ngân hàng</option>
+                        </select>
+                      </th>
+                      <th>
+                        <div class="range-filter">
+                          <input type="number" class="table-filter-input number-filter" id="filter-sales-return-total-min" placeholder="Từ..." oninput="onSalesReturnFilterChange()">
+                          <input type="number" class="table-filter-input number-filter" id="filter-sales-return-total-max" placeholder="Đến..." oninput="onSalesReturnFilterChange()">
+                        </div>
+                      </th>
+                      <th><input type="text" class="table-filter-input" id="filter-sales-return-entries" placeholder="Tài khoản..." oninput="onSalesReturnFilterChange()"></th>
+                      <th style="text-align: center;">
+                        <button class="clear-filters-btn" onclick="clearSalesReturnColumnFilters()" title="Xóa tất cả lọc">
+                          Xóa lọc
+                        </button>
+                      </th>
+                    </tr>
                   </thead>
                   <tbody id="sales-return-table-body">
                     <!-- Dữ liệu bảng trả lại hàng -->
@@ -1318,7 +1421,7 @@
           <div id="sales-subtab-quotation" class="sales-subtab-content" style="display: none;">
             <div class="actions-bar" style="margin-bottom: 20px;">
               <!-- Cụm bên trái: Tìm kiếm và bộ lọc ngày -->
-              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;">
                 <div class="search-input-wrapper" style="min-width: 260px;">
                   <svg class="search-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                     xmlns="http://www.w3.org/2000/svg">
@@ -1353,16 +1456,7 @@
                   </button>
                 </div>
 
-                <select id="adv-filter-quotation-payment" class="form-control" 
-                  style="height: 36px; padding: 0 12px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; min-width: 170px;"
-                  onmouseover="this.style.borderColor='var(--color-primary)'"
-                  onmouseout="this.style.borderColor='var(--border-color)'"
-                  onchange="filterQuotationTable()">
-                  <option value="">-- Tất cả PTTT --</option>
-                  <option value="111">Tiền mặt (111)</option>
-                  <option value="112">Ngân hàng (112)</option>
-                  <option value="131">Công nợ (131)</option>
-                </select>
+
               </div>
 
               <!-- Cụm bên phải: Các nút hành động -->
@@ -1435,6 +1529,32 @@
                       <th class="text-right">Tổng cộng thanh toán</th>
                       <th style="text-align: center;">Thao tác</th>
                     </tr>
+                    <tr class="filter-row">
+                      <th></th>
+                      <th><input type="text" class="table-filter-input" id="filter-quotation-id" placeholder="Lọc số..." oninput="onQuotationFilterChange()"></th>
+                      <th><input type="text" class="table-filter-input" id="filter-quotation-date" placeholder="Lọc ngày..." oninput="onQuotationFilterChange()"></th>
+                      <th><input type="text" class="table-filter-input" id="filter-quotation-partner" placeholder="Lọc đối tác..." oninput="onQuotationFilterChange()"></th>
+                      <th><input type="text" class="table-filter-input" id="filter-quotation-desc" placeholder="Lọc diễn giải..." oninput="onQuotationFilterChange()"></th>
+                      <th>
+                        <select class="table-filter-select" id="filter-quotation-payment" onchange="onQuotationFilterChange()">
+                          <option value="">Tất cả</option>
+                          <option value="131">Công nợ</option>
+                          <option value="111">Tiền mặt</option>
+                          <option value="112">Ngân hàng</option>
+                        </select>
+                      </th>
+                      <th>
+                        <div class="range-filter">
+                          <input type="number" class="table-filter-input number-filter" id="filter-quotation-total-min" placeholder="Từ..." oninput="onQuotationFilterChange()">
+                          <input type="number" class="table-filter-input number-filter" id="filter-quotation-total-max" placeholder="Đến..." oninput="onQuotationFilterChange()">
+                        </div>
+                      </th>
+                      <th style="text-align: center;">
+                        <button class="clear-filters-btn" onclick="clearQuotationColumnFilters()" title="Xóa tất cả lọc">
+                          Xóa lọc
+                        </button>
+                      </th>
+                    </tr>
                   </thead>
                   <tbody id="quotation-table-body">
                     <!-- Dữ liệu bảng báo giá -->
@@ -1470,7 +1590,7 @@
           <div id="inventory-subtab-summary" class="inventory-subtab-content">
             <div class="actions-bar" style="margin-bottom: 20px;">
               <!-- Cụm bên trái: Tìm kiếm -->
-              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;">
                 <div class="search-input-wrapper" style="min-width: 260px;">
                   <svg class="search-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                     xmlns="http://www.w3.org/2000/svg">
@@ -1967,7 +2087,7 @@
         <section id="view-partners" class="tab-view">
           <div class="actions-bar" style="margin-bottom: 20px;">
             <!-- Cụm bên trái: Tìm kiếm và bộ lọc loại -->
-            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;">
               <div class="search-input-wrapper" style="min-width: 260px;">
                 <svg class="search-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg">
@@ -2100,7 +2220,7 @@
         <section id="view-debts" class="tab-view">
           <div class="actions-bar" style="margin-bottom: 20px;">
             <!-- Cụm bên trái: Tìm kiếm và bộ lọc -->
-            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;">
               <div class="search-input-wrapper" style="min-width: 260px;">
                 <svg class="search-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg">
@@ -2459,7 +2579,7 @@
 
           <div class="actions-bar" style="margin-bottom: 20px;">
             <!-- Cụm bên trái: Tìm kiếm, bộ lọc loại, bộ lọc quỹ, bộ lọc ngày -->
-            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;">
               <div class="search-input-wrapper" style="min-width: 200px;">
                 <svg class="search-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg">

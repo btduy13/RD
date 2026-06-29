@@ -159,6 +159,24 @@ function switchTab(tabId) {
 
   // Scroll to top
   document.querySelector(".content-body").scrollTop = 0;
+
+  // Sync global header search input
+  if (typeof getActiveSearchInputId === "function") {
+    const activeSearchInputId = getActiveSearchInputId();
+    const headerSearch = document.getElementById('header-global-search');
+    if (headerSearch) {
+      if (activeSearchInputId) {
+        const tabSearchInput = document.getElementById(activeSearchInputId);
+        headerSearch.value = tabSearchInput ? tabSearchInput.value : '';
+        headerSearch.disabled = false;
+        headerSearch.placeholder = tabSearchInput ? tabSearchInput.placeholder : 'Tìm kiếm nhanh...';
+      } else {
+        headerSearch.value = '';
+        headerSearch.disabled = true;
+        headerSearch.placeholder = 'Không dùng ở tab này';
+      }
+    }
+  }
 }
 
 // 5. RENDER DỮ LIỆU PHÂN HỆ DASHBOARD (KPIs & OFFLINE CHART)
@@ -262,6 +280,19 @@ function viewVoucher(id) {
   // TIÊU ĐỀ CHỨNG TỪ THEO CHUẨN IN ẤN
   if (v.type === "purchase_order") {
     // Đơn đặt hàng (Mẫu đơn đặt hàng)
+    let grossTotal = 0;
+    let totalDiscount = 0;
+    (v.items || []).forEach(item => {
+      const itemGross = (item.qty || 0) * (item.price || 0);
+      let discountPercent = item.discount || 0;
+      if (discountPercent > 100) {
+        discountPercent = itemGross > 0 ? (discountPercent / itemGross) * 100 : 0;
+      }
+      const itemDiscountVal = itemGross * (discountPercent / 100);
+      grossTotal += itemGross;
+      totalDiscount += itemDiscountVal;
+    });
+
     content = `
       <div class="printable-voucher">
         <div class="voucher-header-top">
@@ -302,35 +333,55 @@ function viewVoucher(id) {
           </div>
         </div>
         
-        <table class="voucher-table">
+        <table class="voucher-table" style="width:100%; border-collapse:collapse; margin-bottom:10px; border:1.5px solid #000;">
           <thead>
-            <tr>
-              <th style="width:5%;">STT</th>
-              <th style="width:50%;">Tên, nhãn hiệu quy cách sản phẩm vật tư</th>
-              <th style="width:10%;">ĐVT</th>
-              <th style="width:10%;">Số lượng</th>
-              <th style="width:10%;">Đơn giá (đ)</th>
-              <th style="width:15%;">Thành tiền (đ)</th>
+            <tr style="background-color: #f3f4f6;">
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:5%;">STT</th>
+              <th style="border:1px solid #000; padding:4px 6px; text-align:left; width:45%;">Tên, nhãn hiệu quy cách sản phẩm vật tư</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:8%;">ĐVT</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:10%;">Số lượng</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:12%;">Đơn giá (đ)</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:15%;">Thành tiền (đ)</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:5%;">G.C</th>
             </tr>
           </thead>
           <tbody>
             ${v.items.map((item, idx) => {
               const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: "Sản phẩm" };
+              const itemGross = (item.qty || 0) * (item.price || 0);
+              let discountPercent = item.discount || 0;
+              if (discountPercent > 100) {
+                discountPercent = itemGross > 0 ? Math.round((discountPercent / itemGross) * 100 * 100) / 100 : 0;
+              }
+              const gcVal = discountPercent > 0 ? `${discountPercent}%` : "0";
+              const amt = item.amount || (itemGross - (itemGross * (discountPercent / 100)));
               return `
                 <tr>
-                  <td style="text-align:center;">${idx + 1}</td>
-                  <td>${prod.name}</td>
-                  <td style="text-align:center;">${prod.unit || "Cái"}</td>
-                  <td style="text-align:right;">${item.qty}</td>
-                  <td style="text-align:right;">${formatVND(item.price).replace("đ", "")}</td>
-                  <td style="text-align:right; font-weight:bold;">${formatVND(item.amount).replace("đ", "")}</td>
+                  <td style="border:1px solid #000; padding:4px; text-align:center;">${idx + 1}</td>
+                  <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${prod.name}</td>
+                  <td style="border:1px solid #000; padding:4px; text-align:center;">${prod.unit || "Cái"}</td>
+                  <td style="border:1px solid #000; padding:4px; text-align:right;">${item.qty}</td>
+                  <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVND(item.price).replace("đ", "")}</td>
+                  <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVND(amt).replace("đ", "")}</td>
+                  <td style="border:1px solid #000; padding:4px; text-align:center;">${gcVal}</td>
                 </tr>
               `;
             }).join("")}
             
+            <tr>
+              <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; border-top:1.5px solid #000;">Cộng tiền hàng:</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVND(grossTotal).replace("đ", "")}</td>
+              <td style="border:1px solid #000; border-top:1.5px solid #000;"></td>
+            </tr>
+            <tr>
+              <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">Số tiền chiết khấu:</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">${formatVND(totalDiscount).replace("đ", "")}</td>
+              <td style="border:1px solid #000;"></td>
+            </tr>
             <tr style="background-color:#e5e7eb;">
-              <td colspan="5" style="text-align:right; font-weight:bold; text-transform:uppercase;">Tổng cộng tiền đặt hàng:</td>
-              <td style="text-align:right; font-weight:bold; color:var(--color-primary);">${formatVND(v.totalAmount).replace("đ", "")}</td>
+              <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; text-transform:uppercase;">Tổng cộng tiền đặt hàng:</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; color:var(--color-primary);">${formatVND(v.totalAmount).replace("đ", "")}</td>
+              <td style="border:1px solid #000;"></td>
             </tr>
           </tbody>
         </table>
@@ -371,7 +422,18 @@ function viewVoucher(id) {
   } else if (v.type === "purchase") {
     // Mua hàng → Phiếu Nhập Kho theo style của Bán Hàng
     let grossTotal = 0;
-    (v.items || []).forEach(item => { grossTotal += item.amount || ((item.qty||0)*(item.price||0)); });
+    let totalDiscount = 0;
+    (v.items || []).forEach(item => {
+      const itemGross = (item.qty || 0) * (item.price || 0);
+      let discountPercent = item.discount || 0;
+      if (discountPercent > 100) {
+        discountPercent = itemGross > 0 ? (discountPercent / itemGross) * 100 : 0;
+      }
+      const itemDiscountVal = itemGross * (discountPercent / 100);
+      grossTotal += itemGross;
+      totalDiscount += itemDiscountVal;
+    });
+
     const partner_p = getPartnerForVoucher(v) || {};
     content = `
       <div class="printable-voucher" style="max-width:800px; padding:8px; font-family:'Times New Roman',Times,serif; font-size:11px; color:#000; line-height:1.25;">
@@ -421,7 +483,15 @@ function viewVoucher(id) {
             ${(v.items || []).map((item, idx) => {
               const prod = (state.products||[]).find(p=>String(p.id)===String(item.productId))||{name:item.productId||'SP'};
               const displayName = item.itemDesc || prod.name;
-              const amt = item.amount||((item.qty||0)*(item.price||0));
+              
+              const itemGross = (item.qty || 0) * (item.price || 0);
+              let discountPercent = item.discount || 0;
+              if (discountPercent > 100) {
+                discountPercent = itemGross > 0 ? Math.round((discountPercent / itemGross) * 100 * 100) / 100 : 0;
+              }
+              const gcVal = discountPercent > 0 ? `${discountPercent}%` : "0";
+              const amt = item.amount || (itemGross - (itemGross * (discountPercent / 100)));
+              
               return `<tr>
                 <td style="border:1px solid #000; padding:4px; text-align:center;">${idx+1}</td>
                 <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${displayName}</td>
@@ -429,13 +499,18 @@ function viewVoucher(id) {
                 <td style="border:1px solid #000; padding:4px; text-align:right;">${item.qty||0}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVND(item.price||0).replace('đ','')}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVND(amt).replace('đ','')}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:center;"></td>
+                <td style="border:1px solid #000; padding:4px; text-align:center;">${gcVal}</td>
               </tr>`;
             }).join('')}
             <tr>
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; border-top:1.5px solid #000;">Cộng tiền hàng:</td>
               <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVND(grossTotal).replace('đ','')}</td>
               <td style="border:1px solid #000; border-top:1.5px solid #000;"></td>
+            </tr>
+            <tr>
+              <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">Số tiền chiết khấu:</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">${formatVND(totalDiscount).replace('đ','')}</td>
+              <td style="border:1px solid #000;"></td>
             </tr>
             ${v.taxAmount > 0 ? `<tr>
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right;">Thuế GTGT (${v.taxRate||0}%):</td>
@@ -444,14 +519,14 @@ function viewVoucher(id) {
             </tr>` : ''}
             <tr style="background-color:#f9fafb;">
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; text-transform:uppercase;">Tổng tiền thanh toán:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVND(v.totalAmount||grossTotal).replace('đ','')}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVND(v.totalAmount).replace('đ','')}</td>
               <td style="border:1px solid #000;"></td>
             </tr>
           </tbody>
         </table>
         <!-- Chữ số tiền -->
         <div style="margin-bottom:6px; font-size:11px;">
-          <strong>Số tiền viết bằng chữ:</strong> <span style="font-style:italic;">${numberToVietnameseWords(v.totalAmount||grossTotal)}</span>
+          <strong>Số tiền viết bằng chữ:</strong> <span style="font-style:italic;">${numberToVietnameseWords(v.totalAmount)}</span>
         </div>
         ${v.note ? `<div style="margin-bottom:10px; font-size:11px; border:1px dashed #888; padding:5px 8px; border-radius:4px;"><strong>Ghi chú:</strong> ${v.note}</div>` : ''}
         <!-- Chữ ký -->
