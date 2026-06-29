@@ -453,7 +453,7 @@ function editPurchaseVoucher(id) {
     let discountPercent = item.discount || 0;
     if (discountPercent > 100) {
       const gross = (item.qty || 0) * (item.price || 0);
-      discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100 * 100) / 100 : 0;
+      discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100) : 0;
     }
     addPurchaseFormRow(prodVal, item.qty, item.price, discountPercent);
   });
@@ -1100,7 +1100,7 @@ function editPurchaseOrderVoucher(id) {
     let discountPercent = item.discount || 0;
     if (discountPercent > 100) {
       const gross = (item.qty || 0) * (item.price || 0);
-      discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100 * 100) / 100 : 0;
+      discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100) : 0;
     }
     addPurchaseOrderFormRow(prodVal, item.qty, item.price, discountPercent);
   });
@@ -1984,7 +1984,7 @@ function editPurchaseReturnVoucher(id) {
     let discountPercent = item.discount || 0;
     if (discountPercent > 100) {
       const gross = (item.qty || 0) * (item.price || 0);
-      discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100 * 100) / 100 : 0;
+      discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100) : 0;
     }
     addPurchaseReturnFormRow(prodVal, item.qty, item.price, discountPercent);
   });

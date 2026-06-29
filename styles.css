@@ -1,59 +1,96 @@
 /* ==========================================================================
    HỆ THỐNG CSS PHẦN MỀM KẾ TOÁN RẠNG ĐÔNG (RD ACCOUNTING)
-   Thiết kế dạng Premium Slate & Teal, hỗ trợ Dark/Light Theme & In ấn chứng từ
+   Thiết kế dạng Modern Glassmorphism, hỗ trợ Dark/Light Theme & In ấn chứng từ
    ========================================================================== */
 
 /* 1. KHỞI TẠO BIẾN CSS (DESIGN SYSTEM TOKEN) */
 :root {
-  /* Hắc sắc & Slate (Tông tối mặc định) */
-  --bg-primary: #0b0f19;
-  --bg-secondary: #111827;
-  --bg-tertiary: #1f2937;
-  --border-color: #374151;
-  --text-primary: #f9fafb;
-  --text-secondary: #9ca3af;
-  --text-muted: #6b7280;
+  /* Hắc sắc & Deep Space (Tông tối mặc định) */
+  --bg-primary: #070b14;
+  --bg-secondary: #0c1322;
+  --bg-tertiary: #141d30;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --text-primary: #f0f4fc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
 
-  /* Tông màu chủ đạo (Deep Teal & Cyan) */
+  /* Tông màu chủ đạo (Cyan & Violet dual accent) */
   --color-primary: #0ea5e9;
   --color-primary-hover: #0284c7;
   --color-primary-rgb: 14, 165, 233;
-  --color-accent: #0f766e;
-  --color-accent-hover: #115e59;
-  
+  --color-accent: #8b5cf6;
+  --color-accent-hover: #7c3aed;
+  --color-accent-rgb: 139, 92, 246;
+
   /* Các trạng thái kế toán */
   --color-success: #10b981;
+  --color-success-rgb: 16, 185, 129;
   --color-success-bg: rgba(16, 185, 129, 0.1);
   --color-warning: #f59e0b;
+  --color-warning-rgb: 245, 158, 11;
   --color-warning-bg: rgba(245, 158, 11, 0.1);
   --color-danger: #ef4444;
+  --color-danger-rgb: 239, 68, 68;
   --color-danger-bg: rgba(239, 68, 68, 0.1);
   --color-info: #6366f1;
+  --color-info-rgb: 99, 102, 241;
   --color-info-bg: rgba(99, 102, 241, 0.1);
 
+  /* Glass Design Tokens */
+  --glass-bg: rgba(12, 19, 34, 0.6);
+  --glass-bg-solid: rgba(12, 19, 34, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border-hover: rgba(255, 255, 255, 0.15);
+  --glass-blur: blur(20px);
+  --glass-blur-sm: blur(12px);
+  --glass-blur-lg: blur(32px);
+  --glass-shine: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 50%, rgba(255,255,255,0.02) 100%);
+
+  /* Glow Effects */
+  --glow-primary: 0 0 20px rgba(14, 165, 233, 0.25), 0 0 60px rgba(14, 165, 233, 0.08);
+  --glow-accent: 0 0 20px rgba(139, 92, 246, 0.25), 0 0 60px rgba(139, 92, 246, 0.08);
+  --glow-success: 0 0 20px rgba(16, 185, 129, 0.25);
+  --glow-danger: 0 0 20px rgba(239, 68, 68, 0.25);
+
   /* Hiệu ứng bóng & Bo tròn */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-premium: 0 0 20px rgba(14, 165, 233, 0.15);
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --transition-fast: 0.2s ease;
-  --transition-normal: 0.3s ease;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.12);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.2);
+  --shadow-premium: 0 8px 32px rgba(14, 165, 233, 0.15), 0 0 80px rgba(14, 165, 233, 0.05);
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* Biến màu cho Chế độ Sáng (Light Theme) */
 body.light-theme {
-  --bg-primary: #f3f4f6;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #f9fafb;
-  --border-color: #e5e7eb;
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --text-muted: #9ca3af;
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-premium: 0 4px 20px rgba(14, 165, 233, 0.08);
+  --bg-primary: #f0f2f8;
+  --bg-secondary: rgba(255, 255, 255, 0.85);
+  --bg-tertiary: rgba(241, 243, 249, 0.9);
+  --border-color: rgba(0, 0, 0, 0.08);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-bg-solid: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(0, 0, 0, 0.06);
+  --glass-border-hover: rgba(0, 0, 0, 0.12);
+  --glass-shine: linear-gradient(135deg, rgba(255,255,255,0.7) 0%, transparent 50%, rgba(255,255,255,0.3) 100%);
+
+  --glow-primary: 0 0 20px rgba(14, 165, 233, 0.15), 0 0 60px rgba(14, 165, 233, 0.05);
+  --glow-accent: 0 0 20px rgba(139, 92, 246, 0.15), 0 0 60px rgba(139, 92, 246, 0.05);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.1);
+  --shadow-premium: 0 8px 32px rgba(14, 165, 233, 0.08);
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 /* 2. THIẾT LẬP CHUNG & TYPOGRAPHY */
@@ -63,19 +100,41 @@ body.light-theme {
   padding: 0;
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   scrollbar-width: thin;
-  scrollbar-color: var(--border-color) transparent;
+  scrollbar-color: rgba(255,255,255,0.1) transparent;
 }
 
 body {
-  background-color: var(--bg-primary);
+  background: var(--bg-primary);
   color: var(--text-primary);
   display: flex;
   height: 100vh;
   overflow: hidden;
-  transition: background-color var(--transition-normal), color var(--transition-normal);
+  transition: background var(--transition-normal), color var(--transition-normal);
+  position: relative;
 }
 
-/* Custom Scrollbar */
+/* Animated gradient mesh background */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 15% 60%, rgba(14, 165, 233, 0.07), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 25%, rgba(139, 92, 246, 0.06), transparent 55%),
+    radial-gradient(ellipse 60% 80% at 50% 90%, rgba(16, 185, 129, 0.04), transparent 55%);
+  animation: meshShift 25s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 0;
+}
+
+body.light-theme::before {
+  background:
+    radial-gradient(ellipse 80% 60% at 15% 60%, rgba(14, 165, 233, 0.06), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 25%, rgba(139, 92, 246, 0.05), transparent 55%),
+    radial-gradient(ellipse 60% 80% at 50% 90%, rgba(16, 185, 129, 0.04), transparent 55%);
+}
+
+/* Custom Scrollbar — Glass */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -84,11 +143,17 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: rgba(255, 255, 255, 0.2);
+}
+body.light-theme ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+}
+body.light-theme ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.22);
 }
 
 /* 3. GIAO DIỆN KHUNG (APP LAYOUT & NAVIGATION) */
@@ -96,13 +161,17 @@ body {
   display: flex;
   width: 100%;
   height: 100%;
+  position: relative;
+  z-index: 1;
 }
 
-/* Sidebar Điều hướng Trái */
+/* Sidebar Điều hướng Trái — Glass */
 .sidebar {
   width: 260px;
-  background-color: var(--bg-secondary);
-  border-right: 1px solid var(--border-color);
+  background: var(--glass-bg-solid);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-right: 1px solid var(--glass-border);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -116,20 +185,25 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--glass-border);
 }
 
 .brand-logo {
   width: 42px;
   height: 42px;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.95);
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  box-shadow: 0 2px 12px rgba(14, 165, 233, 0.15);
   flex-shrink: 0;
+  transition: box-shadow var(--transition-normal);
+}
+
+.brand-logo:hover {
+  box-shadow: 0 2px 20px rgba(14, 165, 233, 0.35), 0 0 40px rgba(14, 165, 233, 0.1);
 }
 
 .brand-logo-img {
@@ -163,7 +237,7 @@ body {
   padding: 16px 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   overflow-y: auto;
   flex-grow: 1;
 }
@@ -172,7 +246,7 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 11px 16px;
   color: var(--text-secondary);
   text-decoration: none;
   border-radius: var(--radius-md);
@@ -181,34 +255,58 @@ body {
   transition: all var(--transition-fast);
   cursor: pointer;
   border: 1px solid transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.menu-item a::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--glass-shine);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
 }
 
 .menu-item a:hover {
-  background-color: var(--bg-tertiary);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text-primary);
+  border-color: var(--glass-border);
+}
+
+.menu-item a:hover::before {
+  opacity: 1;
 }
 
 .menu-item.active a {
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.15), rgba(15, 118, 110, 0.15));
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(139, 92, 246, 0.08));
   color: var(--color-primary);
   border-color: rgba(14, 165, 233, 0.2);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--glow-primary), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.menu-item.active a::before {
+  opacity: 1;
 }
 
 .menu-item a svg {
   width: 18px;
   height: 18px;
-  transition: transform var(--transition-fast);
+  transition: transform var(--transition-fast), filter var(--transition-fast);
 }
 
 .menu-item a:hover svg {
   transform: scale(1.1);
 }
 
+.menu-item.active a svg {
+  filter: drop-shadow(0 0 6px rgba(14, 165, 233, 0.5));
+}
+
 .sidebar-footer {
   padding: 16px;
-  border-top: 1px solid var(--border-color);
-  background-color: rgba(0, 0, 0, 0.05);
+  border-top: 1px solid var(--glass-border);
+  background: rgba(0, 0, 0, 0.1);
 }
 
 .sidebar-config {
@@ -220,10 +318,10 @@ body {
 /* Thiết lập Thông tư */
 .standard-switch {
   display: flex;
-  background-color: var(--bg-primary);
+  background: rgba(0, 0, 0, 0.2);
   padding: 4px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--glass-border);
 }
 
 .switch-btn {
@@ -235,14 +333,14 @@ body {
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
   transition: all var(--transition-fast);
 }
 
 .switch-btn.active {
-  background-color: var(--color-accent);
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover));
   color: #fff;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 2px 8px rgba(var(--color-accent-rgb), 0.3);
 }
 
 /* Khu vực nội dung chính */
@@ -254,11 +352,13 @@ body {
   overflow: hidden;
 }
 
-/* Thanh đầu trang (Header) */
+/* Thanh đầu trang (Header) — Glass */
 .header {
   height: 70px;
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  border-bottom: 1px solid var(--glass-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -274,6 +374,10 @@ body {
 .header-title {
   font-size: 18px;
   font-weight: 700;
+  background: linear-gradient(135deg, var(--text-primary), var(--color-primary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .header-subtitle {
@@ -284,12 +388,14 @@ body {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .header-company-badge {
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid var(--glass-border);
   padding: 8px 14px;
   border-radius: var(--radius-md);
   font-size: 12px;
@@ -305,13 +411,15 @@ body {
   height: 8px;
   background-color: var(--color-success);
   border-radius: 50%;
-  box-shadow: 0 0 8px var(--color-success);
+  box-shadow: 0 0 8px rgba(var(--color-success-rgb), 0.6), 0 0 20px rgba(var(--color-success-rgb), 0.2);
   animation: pulse 1.5s infinite;
 }
 
 .icon-btn {
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid var(--glass-border);
   color: var(--text-primary);
   width: 40px;
   height: 40px;
@@ -324,9 +432,11 @@ body {
 }
 
 .icon-btn:hover {
-  background-color: var(--border-color);
+  background: rgba(var(--color-primary-rgb), 0.1);
+  border-color: rgba(var(--color-primary-rgb), 0.3);
   color: var(--color-primary);
   transform: translateY(-2px);
+  box-shadow: var(--glow-primary);
 }
 
 /* 4. VÙNG NỘI DUNG CHUYỂN ĐỔI (CONTENT WRAPPERS) */
@@ -362,8 +472,10 @@ body {
 }
 
 .kpi-card {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   padding: 20px;
   display: flex;
@@ -371,24 +483,33 @@ body {
   justify-content: space-between;
   position: relative;
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-glass);
   transition: all var(--transition-normal);
 }
 
-.kpi-card:hover {
-  transform: translateY(-5px);
-  border-color: rgba(14, 165, 233, 0.4);
-  box-shadow: var(--shadow-premium);
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--glass-shine);
+  pointer-events: none;
 }
 
-.kpi-card::before {
+.kpi-card::after {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   width: 4px;
   height: 100%;
-  background: var(--card-accent, var(--color-primary));
+  background: linear-gradient(180deg, var(--card-accent, var(--color-primary)), transparent);
+  box-shadow: 0 0 12px var(--card-accent, rgba(var(--color-primary-rgb), 0.4));
+}
+
+.kpi-card:hover {
+  transform: translateY(-5px) scale(1.01);
+  border-color: var(--glass-border-hover);
+  box-shadow: var(--shadow-premium), var(--shadow-glass);
 }
 
 .kpi-info {
@@ -409,6 +530,7 @@ body {
   font-size: 22px;
   font-weight: 800;
   color: var(--text-primary);
+  text-shadow: 0 0 30px rgba(var(--color-primary-rgb), 0.15);
 }
 
 .kpi-trend {
@@ -425,17 +547,19 @@ body {
 .kpi-icon-wrapper {
   width: 48px;
   height: 48px;
-  background-color: var(--bg-tertiary);
+  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.12), rgba(var(--color-accent-rgb), 0.08));
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--card-accent, var(--color-primary));
+  border: 1px solid var(--glass-border);
 }
 
 .kpi-icon-wrapper svg {
   width: 24px;
   height: 24px;
+  filter: drop-shadow(0 0 4px currentColor);
 }
 
 /* Hàng biểu đồ và bảng phụ */
@@ -452,14 +576,26 @@ body {
 }
 
 .chart-card {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
   min-height: 380px;
+  position: relative;
+  overflow: hidden;
+}
+
+.chart-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--glass-shine);
+  pointer-events: none;
 }
 
 .card-header-bar {
@@ -507,8 +643,10 @@ body {
 
 /* List hoạt động nhanh */
 .list-card {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   padding: 24px;
   display: flex;
@@ -516,12 +654,21 @@ body {
   gap: 16px;
   max-height: 380px;
   overflow: hidden;
+  position: relative;
+}
+
+.list-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--glass-shine);
+  pointer-events: none;
 }
 
 .activity-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   overflow-y: auto;
   padding-right: 4px;
 }
@@ -531,16 +678,19 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  background-color: var(--bg-tertiary);
+  background: rgba(255, 255, 255, 0.03);
   border-radius: var(--radius-md);
-  border-left: 3px solid var(--border-color);
+  border-left: 3px solid var(--glass-border);
   font-size: 13px;
   transition: all var(--transition-fast);
+  border: 1px solid transparent;
+  border-left: 3px solid var(--glass-border);
 }
 
 .activity-item:hover {
   transform: translateX(4px);
-  background-color: var(--border-color);
+  background: rgba(var(--color-primary-rgb), 0.05);
+  border-color: var(--glass-border);
 }
 
 .activity-item.type-purchase { border-left-color: var(--color-info); }
@@ -588,18 +738,21 @@ body {
 
 .search-input {
   width: 100%;
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid var(--glass-border);
   color: var(--text-primary);
   padding: 10px 16px 10px 40px;
   border-radius: var(--radius-md);
   font-size: 14px;
   outline: none;
-  transition: border-color var(--transition-fast);
+  transition: all var(--transition-fast);
 }
 
 .search-input:focus {
-  border-color: var(--color-primary);
+  border-color: rgba(var(--color-primary-rgb), 0.4);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1), var(--glow-primary);
 }
 
 .search-icon-svg {
@@ -610,6 +763,11 @@ body {
   color: var(--text-muted);
   width: 18px;
   height: 18px;
+  transition: color var(--transition-fast);
+}
+
+.search-input:focus ~ .search-icon-svg {
+  color: var(--color-primary);
 }
 
 .action-btn-group {
@@ -617,7 +775,7 @@ body {
   gap: 10px;
 }
 
-/* Nút chuẩn */
+/* Nút chuẩn — Glass & Glow */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -630,39 +788,54 @@ body {
   cursor: pointer;
   transition: all var(--transition-fast);
   border: 1px solid transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--glass-shine);
+  pointer-events: none;
 }
 
 .btn-primary {
-  background-color: var(--color-primary);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
   color: #fff;
-  box-shadow: 0 4px 10px rgba(14, 165, 233, 0.3);
+  box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.3);
 }
 
 .btn-primary:hover {
-  background-color: var(--color-primary-hover);
+  background: linear-gradient(135deg, #38bdf8, var(--color-primary));
   transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(var(--color-primary-rgb), 0.4), var(--glow-primary);
 }
 
 .btn-secondary {
-  background-color: var(--bg-secondary);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
   color: var(--text-primary);
-  border-color: var(--border-color);
+  border-color: var(--glass-border);
 }
 
 .btn-secondary:hover {
-  background-color: var(--bg-tertiary);
-  border-color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--glass-border-hover);
+  transform: translateY(-1px);
 }
 
 .btn-success {
-  background-color: var(--color-success);
+  background: linear-gradient(135deg, var(--color-success), #059669);
   color: #fff;
-  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 15px rgba(var(--color-success-rgb), 0.3);
 }
 
 .btn-success:hover {
-  background-color: #059669;
+  background: linear-gradient(135deg, #34d399, var(--color-success));
   transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(var(--color-success-rgb), 0.4), var(--glow-success);
 }
 
 .btn-sm {
@@ -671,18 +844,32 @@ body {
   border-radius: var(--radius-sm);
 }
 
-/* Bảng dữ liệu Premium */
+/* Bảng dữ liệu — Glass */
 .table-card {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-glass);
+  position: relative;
+}
+
+.table-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--glass-shine);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .table-responsive {
   width: 100%;
   overflow-x: auto;
+  position: relative;
+  z-index: 1;
 }
 
 .data-table {
@@ -693,11 +880,11 @@ body {
 }
 
 .data-table th {
-  background-color: var(--bg-tertiary);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--text-secondary);
   font-weight: 700;
   padding: 14px 18px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--glass-border);
   text-transform: uppercase;
   font-size: 11px;
   letter-spacing: 0.5px;
@@ -705,17 +892,17 @@ body {
 
 .data-table td {
   padding: 14px 18px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   color: var(--text-primary);
   vertical-align: middle;
 }
 
 .data-table tbody tr {
-  transition: background-color var(--transition-fast);
+  transition: all var(--transition-fast);
 }
 
 .data-table tbody tr:hover {
-  background-color: rgba(14, 165, 233, 0.03);
+  background: rgba(var(--color-primary-rgb), 0.04);
 }
 
 .data-table tbody tr:last-child td {
@@ -778,8 +965,9 @@ body {
   left: 260px;
   width: calc(100% - 260px);
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
+  background-color: rgba(3, 7, 18, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   z-index: 1000;
   display: none;
   align-items: center;
@@ -789,37 +977,58 @@ body {
 }
 
 .modal-content-container {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background: var(--glass-bg-solid);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   width: 100%;
   max-width: 1150px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-lg), var(--shadow-glass);
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.modal-content-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--glass-shine);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .modal-header {
   padding: 20px 24px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--glass-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  position: relative;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .modal-body {
   padding: 24px;
   flex-grow: 1;
+  position: relative;
+  z-index: 1;
 }
 
 .modal-footer {
   padding: 16px 24px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--glass-border);
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+  position: relative;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 /* Thiết kế biểu mẫu kế toán in ấn */
@@ -971,7 +1180,8 @@ body {
   font-weight: bold;
 }
 
-/* 8. THIẾT KẾ PHÂN HỆ NHẬP FORM (FORMS & INPUTS) */
+
+/* 8. THIẾT KẾ PHÂN HỆ NHẬP FORM (FORMS & INPUTS) — Glass */
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -992,11 +1202,14 @@ body {
   font-size: 12px;
   font-weight: 700;
   color: var(--text-secondary);
+  letter-spacing: 0.3px;
 }
 
 .form-control {
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid var(--glass-border);
   color: var(--text-primary);
   padding: 10px 14px;
   border-radius: var(--radius-md);
@@ -1006,13 +1219,15 @@ body {
 }
 
 .form-control:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.15);
+  border-color: rgba(var(--color-primary-rgb), 0.4);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1), inset 0 1px 1px rgba(0,0,0,0.1);
+  background: var(--glass-bg-solid);
 }
 
 .form-control:disabled {
-  background-color: var(--bg-tertiary);
-  opacity: 0.6;
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.04);
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -1029,18 +1244,17 @@ body {
   color: var(--text-secondary);
   padding: 8px;
   text-align: left;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--glass-border);
 }
 
 .dynamic-items-table td {
   padding: 6px 4px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .dynamic-items-table .form-control {
   width: 100%;
 }
-
 
 .trash-btn {
   background: none;
@@ -1052,11 +1266,13 @@ body {
   justify-content: center;
   padding: 8px;
   border-radius: var(--radius-sm);
-  transition: background var(--transition-fast);
+  transition: all var(--transition-fast);
 }
 
 .trash-btn:hover {
-  background-color: var(--color-danger-bg);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  box-shadow: var(--glow-danger);
 }
 
 .print-btn {
@@ -1088,7 +1304,7 @@ body {
   border: 1px solid var(--border-color);
 }
 
-/* 10. THÔNG BÁO POPUP (TOAST NOTIFICATIONS) */
+/* 10. THÔNG BÁO POPUP (TOAST NOTIFICATIONS) — Glass */
 .toast-container {
   position: fixed;
   top: 24px;
@@ -1100,45 +1316,76 @@ body {
 }
 
 .toast {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background: var(--glass-bg-solid);
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid var(--glass-border);
   border-left: 4px solid var(--toast-color, var(--color-primary));
   border-radius: var(--radius-md);
   padding: 16px 20px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-lg), var(--shadow-glass);
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 300px;
   max-width: 450px;
-  animation: slideInLeft 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  animation: slideInLeft 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  position: relative;
+  overflow: hidden;
+}
+
+.toast::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--glass-shine);
+  pointer-events: none;
 }
 
 .toast-message {
   font-size: 13px;
   font-weight: 600;
+  position: relative;
+  z-index: 1;
 }
 
 /* 11. KEYFRAME ANIMATIONS */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slideInLeft {
-  from { opacity: 0; transform: translateX(50px); }
+  from { opacity: 0; transform: translateX(60px); }
   to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes pulse {
-  0% { transform: scale(0.9); opacity: 0.8; }
-  50% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 12px var(--color-success); }
-  100% { transform: scale(0.9); opacity: 0.8; }
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.08); opacity: 1; box-shadow: 0 0 15px rgba(var(--color-success-rgb), 0.5); }
+  100% { transform: scale(0.95); opacity: 0.8; }
 }
 
 @keyframes logo-glow {
-  from { box-shadow: 0 4px 10px rgba(14, 165, 233, 0.4); }
-  to { box-shadow: 0 4px 18px rgba(14, 165, 233, 0.7); }
+  from { box-shadow: 0 4px 10px rgba(14, 165, 233, 0.25); }
+  to { box-shadow: 0 4px 20px rgba(14, 165, 233, 0.5), 0 0 40px rgba(14, 165, 233, 0.1); }
+}
+
+@keyframes meshShift {
+  0% {
+    background-position: 0% 0%, 100% 100%, 50% 50%;
+  }
+  50% {
+    background-position: 50% 100%, 0% 50%, 100% 0%;
+  }
+  100% {
+    background-position: 100% 50%, 50% 0%, 0% 100%;
+  }
+}
+
+@keyframes floatUp {
+  0% { transform: translateY(0px); }
+  100% { transform: translateY(-4px); }
 }
 
 /* 12. CSS IN ẤN CHỨNG TỪ (MEDIA PRINT) */
@@ -1362,10 +1609,9 @@ body {
 .badge-secondary { background-color: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color); }
 .badge-muted { background-color: rgba(100, 116, 139, 0.1); color: rgb(100, 116, 139); }
 
-/* --- CSS CHO MENU CHUỘT PHẢI & THAO TÁC HIGHLIGHT DÒNG --- */
-
+/* --- CSS CHO MENU CHUỘT PHẢI & THAO TÁC HIGHLIGHT DÒNG — Glass --- */
 tr.active-row {
-  background-color: rgba(14, 165, 233, 0.07) !important;
+  background: rgba(var(--color-primary-rgb), 0.1) !important;
   border-left: 3px solid var(--color-primary) !important;
 }
 
@@ -1374,15 +1620,27 @@ tr.clickable-row {
 }
 
 .custom-context-menu {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background: var(--glass-bg-solid);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg), 0 10px 30px rgba(0, 0, 0, 0.5), var(--shadow-premium);
+  box-shadow: var(--shadow-lg), var(--shadow-glass);
   min-width: 190px;
   padding: 6px 0;
   display: flex;
   flex-direction: column;
-  backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
+  z-index: 9999;
+}
+
+.custom-context-menu::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--glass-shine);
+  pointer-events: none;
 }
 
 .context-menu-item {
@@ -1399,29 +1657,33 @@ tr.clickable-row {
   background: none;
   width: 100%;
   text-align: left;
+  position: relative;
+  z-index: 1;
 }
 
 .context-menu-item:hover {
-  background-color: var(--bg-tertiary);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--color-primary);
 }
 
 .context-menu-item.item-danger:hover {
   color: var(--color-danger);
-  background-color: var(--color-danger-bg);
+  background: var(--color-danger-bg);
 }
 
 .context-menu-divider {
   height: 1px;
-  background-color: var(--border-color);
+  background-color: var(--glass-border);
   margin: 4px 0;
+  position: relative;
+  z-index: 1;
 }
 
-/* Sub-tab styling for inner views (e.g. Warehouse/Inventory) */
+/* Sub-tab styling for inner views (e.g. Warehouse/Inventory) — Glass */
 .sub-tabs-bar {
   display: flex;
   gap: 8px;
-  border-bottom: 2px solid var(--border-color);
+  border-bottom: 2px solid var(--glass-border);
   margin-bottom: 16px;
   background-color: transparent;
 }
@@ -1435,7 +1697,7 @@ tr.clickable-row {
   font-weight: 600;
   cursor: pointer;
   position: relative;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
   font-family: inherit;
   outline: none;
 }
@@ -1446,6 +1708,7 @@ tr.clickable-row {
 
 .sub-tab-btn.active {
   color: var(--color-primary);
+  text-shadow: 0 0 10px rgba(var(--color-primary-rgb), 0.3);
 }
 
 .sub-tab-btn.active::after {
@@ -1455,11 +1718,12 @@ tr.clickable-row {
   left: 0;
   right: 0;
   height: 3px;
-  background-color: var(--color-primary);
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
   border-radius: 3px 3px 0 0;
+  box-shadow: 0 -1px 8px rgba(var(--color-primary-rgb), 0.4);
 }
 
-/* 18. GIAO DIỆN CHIA ĐÔI THẺ KHO CHI TIẾT (MASTER-DETAIL SPLIT VIEW) */
+/* 18. GIAO DIỆN CHIA ĐÔI THẺ KHO CHI TIẾT (MASTER-DETAIL SPLIT VIEW) — Glass */
 .ledger-split-layout {
   display: flex;
   gap: 20px;
@@ -1471,9 +1735,11 @@ tr.clickable-row {
   flex: 0 0 320px;
   display: flex;
   flex-direction: column;
-  background-color: var(--bg-secondary);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
   border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--glass-border);
   overflow: hidden;
   max-height: 800px;
 }
@@ -1482,9 +1748,11 @@ tr.clickable-row {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background-color: var(--bg-secondary);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
   border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--glass-border);
   overflow: hidden;
   max-height: 800px;
 }
@@ -1492,27 +1760,27 @@ tr.clickable-row {
 .ledger-product-list {
   flex: 1;
   overflow-y: auto;
-  background-color: var(--bg-secondary);
+  background: transparent;
 }
 
 .ledger-product-item {
   padding: 12px 16px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--glass-border);
   cursor: pointer;
-  transition: all var(--transition-fast) ease;
+  transition: all var(--transition-fast);
 }
 
 .ledger-product-item:hover {
-  background-color: var(--bg-tertiary);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .ledger-product-item.active {
-  background-color: rgba(14, 165, 233, 0.08) !important;
+  background: rgba(var(--color-primary-rgb), 0.08) !important;
   border-left: 4px solid var(--color-primary);
 }
 
 .ledger-product-item.active * {
-  color: var(--text-primary);
+  color: var(--color-primary);
 }
 
 .spinning {

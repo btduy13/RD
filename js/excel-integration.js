@@ -417,7 +417,7 @@ async function autoIntegrateSalesExcel() {
             productId: "SP_GENERIC",
             qty: 1,
             price: H,
-            discount: H > 0 ? Math.round((C / H) * 100 * 100) / 100 : 0,
+            discount: H > 0 ? Math.round((C / H) * 100) : 0,
             amount: H - C
           }
         ],
@@ -567,7 +567,7 @@ async function autoIntegrateSoChiTietBanHangExcel() {
 
         const grossAmount = qty * price;
         const amount = grossAmount - discountVal;
-        const discountPercent = grossAmount > 0 ? Math.round((discountVal / grossAmount) * 100 * 100) / 100 : 0;
+        const discountPercent = grossAmount > 0 ? Math.round((discountVal / grossAmount) * 100) : 0;
 
         if (qty !== 0 || amount !== 0) {
           itemsArray.push({
@@ -804,7 +804,7 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
         const amount = grossAmount - discountVal;
         
         const finalPrice = price || (qty > 0 ? Math.round(grossAmount / qty) : 0);
-        const discountPercent = (qty * finalPrice) > 0 ? Math.round((discountVal / (qty * finalPrice)) * 100 * 100) / 100 : 0;
+        const discountPercent = (qty * finalPrice) > 0 ? Math.round((discountVal / (qty * finalPrice)) * 100) : 0;
 
         if (qty === 0 && amount === 0) continue; // bỏ qua dòng trống
 
@@ -2411,7 +2411,7 @@ function parseExcelFile(file, type) {
 
               const grossAmount = qty * price;
               const amount = grossAmount - discountVal;
-              const discountPercent = grossAmount > 0 ? Math.round((discountVal / grossAmount) * 100 * 100) / 100 : 0;
+              const discountPercent = grossAmount > 0 ? Math.round((discountVal / grossAmount) * 100) : 0;
 
               if (qty !== 0 || amount !== 0) {
                 itemsArray.push({ productId, qty, price, discount: discountPercent, amount });
@@ -2694,7 +2694,7 @@ function parseExcelFile(file, type) {
 
               const grossAmount = qty * price;
               const amount = grossAmount - discountVal;
-              const discountPercent = grossAmount > 0 ? Math.round((discountVal / grossAmount) * 100 * 100) / 100 : 0;
+              const discountPercent = grossAmount > 0 ? Math.round((discountVal / grossAmount) * 100) : 0;
 
               itemsArray.push({
                 productId: productId,
@@ -2814,7 +2814,7 @@ function parseExcelFile(file, type) {
                   productId: "SP_GENERIC",
                   qty: 1,
                   price: H,
-                  discount: H > 0 ? Math.round((C / H) * 100 * 100) / 100 : 0,
+                  discount: H > 0 ? Math.round((C / H) * 100) : 0,
                   amount: H - C
                 }
               ],
@@ -2973,7 +2973,7 @@ function parseExcelFile(file, type) {
             const discountVal = colDiscount !== -1 ? Math.abs(safeParseFloat(row[colDiscount])) : 0;
             const grossAmount = safeParseFloat(row[colAmount]) || (qty * price);
             const amount = grossAmount - discountVal;
-            const discountPercent = grossAmount > 0 ? Math.round((discountVal / grossAmount) * 100 * 100) / 100 : 0;
+            const discountPercent = grossAmount > 0 ? Math.round((discountVal / grossAmount) * 100) : 0;
 
             if (qty !== 0 || amount !== 0) {
               itemsArray.push({ productId, qty, price, discount: discountPercent, amount });

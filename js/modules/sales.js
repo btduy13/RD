@@ -461,7 +461,7 @@ function editSalesVoucher(id) {
     let discountPercent = item.discount || 0;
     if (discountPercent > 100) {
       const gross = (item.qty || 0) * (item.price || 0);
-      discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100 * 100) / 100 : 0;
+      discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100) : 0;
     }
     addSalesFormRow(prodId, itemDesc, item.qty, item.price, discountPercent);
     // Đánh dấu mô tả đã được điền sẵn → không bị ghi đè bởi autoFill khi blur
@@ -1041,7 +1041,7 @@ function editSalesReturnVoucher(id) {
     let discountPercent = item.discount || 0;
     if (discountPercent > 100) {
       const gross = (item.qty || 0) * (item.price || 0);
-      discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100 * 100) / 100 : 0;
+      discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100) : 0;
     }
     addSalesReturnFormRow(prodVal, item.qty, item.price, discountPercent);
   });
@@ -1665,7 +1665,7 @@ function editQuotationVoucher(id) {
     let discountPercent = item.discount || 0;
     if (discountPercent > 100) {
       const gross = (item.qty || 0) * (item.price || 0);
-      discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100 * 100) / 100 : 0;
+      discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100) : 0;
     }
     addQuotationFormRow(prodVal, item.qty, item.price, discountPercent);
   });

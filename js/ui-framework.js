@@ -556,8 +556,13 @@ function viewVoucher(id) {
 
   } else if (v.type === "sales_return") {
     // Hàng bán trả lại → PHIẾU NHẬP KHO HÀNG BÁN TRẢ LẠI (hàng ĐI VÀO kho)
-    let grossTotal = 0;
-    (v.items || []).forEach(item => { grossTotal += item.amount || ((item.qty||0)*(item.price||0)); });
+    let grossTotal = 0; // Tổng cộng trước chiết khấu
+    let totalDiscount = 0; // Tổng chiết khấu
+    (v.items || []).forEach(item => {
+      const itemGross = (item.qty || 0) * (item.price || 0);
+      grossTotal += itemGross;
+      totalDiscount += (itemGross - (item.amount || 0));
+    });
     const partner_sr = getPartnerForVoucher(v) || {};
     const creditAccSR = (v.paymentMethod && v.paymentMethod !== '131') ? v.paymentMethod : '131';
     content = `
@@ -609,7 +614,8 @@ function viewVoucher(id) {
             ${(v.items || []).map((item, idx) => {
               const prod = (state.products||[]).find(p=>String(p.id)===String(item.productId))||{name:item.productId||'SP'};
               const amt = item.amount||((item.qty||0)*(item.price||0));
-              const disc = item.discount > 0 ? (item.discount > 100 ? Math.round((item.discount/amt)*100)+'%' : item.discount+'%') : '0';
+              const discPercent = Math.round(item.discount || 0);
+              const disc = discPercent > 0 ? discPercent + '%' : '0';
               return `<tr>
                 <td style="border:1px solid #000; padding:4px; text-align:center;">${idx+1}</td>
                 <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${prod.name}</td>
@@ -625,9 +631,14 @@ function viewVoucher(id) {
               <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVND(grossTotal).replace('đ','')}</td>
               <td style="border:1px solid #000; border-top:1.5px solid #000;"></td>
             </tr>
+            <tr>
+              <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">Số tiền chiết khấu:</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">${formatVND(totalDiscount).replace('đ','')}</td>
+              <td style="border:1px solid #000;"></td>
+            </tr>
             <tr style="background-color:#f9fafb;">
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; text-transform:uppercase;">Tổng tiền trả lại khách:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; color:#dc2626;">${formatVND(v.totalAmount||grossTotal).replace('đ','')}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; color:#dc2626;">${formatVND(v.totalAmount||(grossTotal - totalDiscount)).replace('đ','')}</td>
               <td style="border:1px solid #000;"></td>
             </tr>
           </tbody>
