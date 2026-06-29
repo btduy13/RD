@@ -1598,6 +1598,9 @@ function renderQuotationTable() {
             <button class="print-btn" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')" title="Xem và In mẫu báo giá" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-success); cursor: pointer; transition: all 0.2s;">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
             </button>
+            <button class="convert-btn" onclick="convertQuotationToOrder('${escapeHtmlAttr(v.id)}')" title="Chuyển thành Đơn bán hàng" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-warning); cursor: pointer; transition: all 0.2s;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+            </button>
             <button class="edit-btn" onclick="editQuotationVoucher('${escapeHtmlAttr(v.id)}')" title="Chỉnh sửa báo giá" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-primary); cursor: pointer; transition: all 0.2s;">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
             </button>
@@ -1911,6 +1914,52 @@ function editQuotationVoucher(id) {
 
   openModal("modal-add-sales-quotation");
 }
+
+window.convertQuotationToOrder = function(id) {
+  const qIdx = state.vouchers.findIndex(v => v.id === id && v.type === "sales_quotation");
+  if (qIdx === -1) {
+    if (typeof showToast === "function") showToast("Không tìm thấy báo giá!", "danger");
+    return;
+  }
+  
+  if (!confirm(`Bạn có chắc muốn chuyển báo giá ${id} thành Đơn bán hàng?\nBáo giá này sẽ bị xóa sau khi chuyển đổi thành công.`)) {
+    return;
+  }
+  
+  const quotation = state.vouchers[qIdx];
+  const paymentMethod = quotation.paymentMethod || '131';
+  let orderId = `BH${Date.now()}`;
+  if (typeof generateNextSalesVoucherId === "function") {
+    orderId = generateNextSalesVoucherId(paymentMethod);
+  }
+  
+  const newOrder = JSON.parse(JSON.stringify(quotation));
+  newOrder.id = orderId;
+  newOrder.type = "sales";
+  
+  if (newOrder.description) {
+    newOrder.description = newOrder.description.replace(/báo giá/gi, "Đơn hàng");
+  } else {
+    newOrder.description = "Đơn hàng từ báo giá";
+  }
+  
+  state.vouchers.splice(qIdx, 1);
+  if (typeof trackDeletedIds === "function") trackDeletedIds([id]);
+  
+  state.vouchers.unshift(newOrder); 
+  
+  if (typeof showToast === "function") {
+    showToast(`Đã chuyển báo giá ${id} thành đơn hàng ${orderId}!`, "success");
+  }
+  
+  if (typeof recalculateAccounting === "function") recalculateAccounting();
+  if (typeof renderSalesTable === "function") renderSalesTable();
+  if (typeof renderQuotationTable === "function") renderQuotationTable();
+  
+  if (typeof switchSalesSubTab === "function") {
+    switchSalesSubTab('invoice');
+  }
+};
 
 function toggleSelectAllQuotations(masterCheckbox) {
   const checkboxes = document.querySelectorAll(".quotation-checkbox");
