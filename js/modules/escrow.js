@@ -264,6 +264,7 @@ function handleEscrowSubmit(e) {
     expectedReturnDate: document.getElementById("esc-return-date") ? document.getElementById("esc-return-date").value : "",
     escrowRefId: type.includes("refund") ? refId : null, // Liên kết đến chứng từ ký quỹ gốc
     isManual: true,
+    _updatedAt: Date.now(),
     _sessionId: clientSessionId
   };
 

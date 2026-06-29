@@ -341,6 +341,7 @@ function handleReceiptSubmit(e) {
     description: desc,
     amount,
     isManual: true,
+    _updatedAt: Date.now(),
     _sessionId: clientSessionId,
     entries: [
       { debit, credit, amount, desc }
@@ -388,6 +389,7 @@ function handlePaymentSubmit(e) {
     description: desc,
     amount,
     isManual: true,
+    _updatedAt: Date.now(),
     _sessionId: clientSessionId,
     entries: [
       { debit, credit, amount, desc }

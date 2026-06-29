@@ -890,9 +890,10 @@ function mergeArrayById(localArr, cloudArr, deletedIds) {
       const localItem = map.get(item.id);
       const localTs = localItem._updatedAt || 0;
       const cloudTs = item._updatedAt || 0;
-      if (cloudTs >= localTs) {
-        map.set(item.id, item); // cloud mới hơn → thay thế
+      if (cloudTs > localTs) {
+        map.set(item.id, item); // cloud mới hơn rõ ràng → thay thế
       }
+      // Nếu bằng nhau (cả 2 = 0) → giữ local (đã nạp trước, tránh ghi đè data mới)
     }
   });
 
@@ -921,9 +922,10 @@ function mergeStates(localState, cloudState) {
   const cloudTs = cloudState._lastModified || 0;
   const localTs = localState._lastModified || 0;
 
-  // Nếu cloud cũ hơn local quá 5 phút → local wins hoàn toàn
-  if (localTs - cloudTs > 5 * 60 * 1000) {
-    console.log("[SmartMerge] Local mới hơn cloud >5 phút → local wins.");
+  // Nếu cloud cũ hơn local quá 30 phút → local wins hoàn toàn (tăng từ 5 lên 30 phút để an toàn hơn)
+  // Chú ý: KHÔNG shortcircuit khi chênh lệch nhỏ vì local có thể có voucher mới chưa kịp push
+  if (localTs - cloudTs > 30 * 60 * 1000) {
+    console.log("[SmartMerge] Local mới hơn cloud >30 phút → local wins.");
     return { ...localState };
   }
 
@@ -1290,10 +1292,15 @@ async function pullAndMergeFromCloud() {
         return;
       }
 
-      console.log("[Supabase] Nhận được thay đổi mới từ cloud, đang tải về...");
-      state = cloudData;
+      console.log("[Supabase] Nhận được thay đổi mới từ cloud, đang tải về và merge...");
+
+      // QUAN TRỌNG: Không ghi đè thẳng state = cloudData vì sẽ mất các chứng từ
+      // mới tạo chưa kịp push lên cloud (do saveState có 2s debounce).
+      // Thay vào đó, dùng mergeStates() để gộp an toàn.
+      const mergedState = mergeStates(state, cloudData);
+      state = mergedState;
       updateLastSyncState(state);
-      lastSyncedCloudTs = state._lastModified || 0;
+      lastSyncedCloudTs = cloudData._lastModified || 0;
 
       // Ghi cache cục bộ
       try {

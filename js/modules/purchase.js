@@ -510,6 +510,7 @@ function handlePurchaseSubmit(e) {
     taxRate: 0,
     taxAmount: 0,
     isManual: true,
+    _updatedAt: Date.now(),
     _sessionId: clientSessionId
   };
 
@@ -1184,6 +1185,7 @@ function handlePurchaseOrderSubmit(e) {
     taxRate: 0,
     taxAmount: 0,
     isManual: true,
+    _updatedAt: Date.now(),
     _sessionId: clientSessionId
   };
 
@@ -2127,6 +2129,7 @@ function handlePurchaseReturnSubmit(e) {
     taxRate: 0,
     taxAmount: 0,
     isManual: true,
+    _updatedAt: Date.now(),
     _sessionId: clientSessionId
   };
 

@@ -563,6 +563,7 @@ function handleSalesSubmit(e) {
     items: voucherItems,
     taxRate: parseInt(document.getElementById("sale-tax-rate").value),
     isManual: true,
+    _updatedAt: Date.now(),
     _sessionId: clientSessionId
   };
 
@@ -1187,6 +1188,7 @@ function handleSalesReturnSubmit(e) {
     items: voucherItems,
     taxRate: parseInt(document.getElementById("sales-ret-tax-rate").value) || 0,
     isManual: true,
+    _updatedAt: Date.now(),
     _sessionId: clientSessionId
   };
 
@@ -1868,6 +1870,7 @@ function handleQuotationSubmit(e) {
     items: voucherItems,
     taxRate: parseInt(document.getElementById("quotation-tax-rate").value),
     isManual: true,
+    _updatedAt: Date.now(),
     _sessionId: clientSessionId
   };
 
