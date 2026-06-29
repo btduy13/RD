@@ -391,10 +391,9 @@ function filterDebts() {
 
   if (currentDebtsViewTab === 'company') {
     const companyDebts = allDebts.filter(d => {
-      if (d.type !== 'customer') return false; // Only show customers
+      if (d.type !== 'project' && d.type !== 'enterprise') return false;
       if (!makeFilter(d)) return false;
-      const p = (state.partners || []).find(x => x.id === d.id);
-      return classifyPartnerCategory(p || { name: d.name }) === 'company';
+      return true;
     });
     filteredCompanyGroupedList = buildCompanyGroupedList(companyDebts);
     debtsCompanyPage = 1;
@@ -945,8 +944,11 @@ function viewLedgerByIds(partnerIds, groupName) {
     : (closingVal >= 0 ? `${formatVND(closingVal)} (Có)` : `${formatVND(-closingVal)} (Nợ)`);
   document.getElementById('partner-ledger-closing').innerText = closingText;
 
-  activePartnerIdForLedger = matchingPartners[0].id;
+  const parent = matchingPartners.find(p => p.type === 'enterprise');
+  activePartnerIdForLedger = parent ? parent.id : matchingPartners[0].id;
   activePartnerNameForGroupedLedger = groupName;
+  activeLedgerCombined = true;
+  activeLedgerTargetId = parent ? parent.id : matchingPartners[0].id;
   switchPartnerLedgerTab('entries');
   openModal('modal-view-partner-ledger');
 }
@@ -981,24 +983,25 @@ function viewPartnerLedger(partnerId) {
   if (parentEnterprise && projects.length > 0) {
     if (projTabsDiv) {
       projTabsDiv.style.display = 'flex';
+      projTabsDiv.style.alignItems = 'center';
       
-      let tabsHTML = `
-        <button type="button" class="btn btn-secondary btn-sm" data-target-id="${parentEnterprise.id}" data-combined="true" onclick="switchLedgerProjectTarget('${parentEnterprise.id}', true)" style="padding: 4px 10px; font-size:12px; border-radius: var(--radius-sm); border:1px solid var(--border-color); cursor:pointer;">
-          Tổng hợp (Tất cả công trình)
-        </button>
-        <button type="button" class="btn btn-secondary btn-sm" data-target-id="${parentEnterprise.id}" data-combined="false" onclick="switchLedgerProjectTarget('${parentEnterprise.id}', false)" style="padding: 4px 10px; font-size:12px; border-radius: var(--radius-sm); border:1px solid var(--border-color); cursor:pointer;">
-          Direct (DN mẹ)
-        </button>
+      let optionsHTML = `
+        <option value="combined:${parentEnterprise.id}">Tổng hợp (Tất cả công trình)</option>
+        <option value="direct:${parentEnterprise.id}">Direct (DN mẹ)</option>
       `;
       
       projects.forEach(proj => {
-        tabsHTML += `
-          <button type="button" class="btn btn-secondary btn-sm" data-target-id="${proj.id}" data-combined="false" onclick="switchLedgerProjectTarget('${proj.id}', false)" style="padding: 4px 10px; font-size:12px; border-radius: var(--radius-sm); border:1px solid var(--border-color); cursor:pointer;">
-            ${proj.name}
-          </button>
+        optionsHTML += `
+          <option value="project:${proj.id}">${proj.name}</option>
         `;
       });
-      projTabsDiv.innerHTML = tabsHTML;
+      
+      projTabsDiv.innerHTML = `
+        <label style="font-size:12px; font-weight:600; color:var(--text-secondary); margin-right:12px; margin-bottom:0;">Chọn công trình/báo cáo:</label>
+        <select id="ledger-project-select" onchange="onLedgerProjectSelectChange(this.value)" style="flex:1; max-width:400px; padding:6px 12px; font-size:13px; border-radius:var(--radius-sm); border:1px solid var(--border-color); background:var(--bg-secondary); color:var(--text-primary); cursor:pointer; font-weight:600;">
+          ${optionsHTML}
+        </select>
+      `;
     }
     
     const initialTargetId = p.id;
@@ -1015,24 +1018,30 @@ function viewPartnerLedger(partnerId) {
   openModal("modal-view-partner-ledger");
 }
 
+window.onLedgerProjectSelectChange = function(value) {
+  const parts = value.split(':');
+  const type = parts[0];
+  const id = parts[1];
+  switchLedgerProjectTarget(id, type === 'combined');
+};
+
 window.switchLedgerProjectTarget = function(targetId, isCombined) {
   activeLedgerCombined = isCombined;
   activeLedgerTargetId = targetId;
 
-  const buttons = document.querySelectorAll('#partner-ledger-projects-tabs button');
-  buttons.forEach(btn => {
-    const btnId = btn.getAttribute('data-target-id');
-    const btnComb = btn.getAttribute('data-combined') === 'true';
-    if (btnId === targetId && btnComb === isCombined) {
-      btn.style.backgroundColor = 'var(--color-primary)';
-      btn.style.color = 'white';
-      btn.style.fontWeight = '700';
-    } else {
-      btn.style.backgroundColor = 'var(--bg-secondary)';
-      btn.style.color = 'var(--text-primary)';
-      btn.style.fontWeight = '500';
+  // Sync dropdown value if needed
+  const selectEl = document.getElementById('ledger-project-select');
+  if (selectEl) {
+    const targetVal = isCombined ? `combined:${targetId}` : `project:${targetId}`;
+    const directVal = `direct:${targetId}`;
+    
+    for (const opt of selectEl.options) {
+      if (opt.value === targetVal || opt.value === directVal) {
+        selectEl.value = opt.value;
+        break;
+      }
     }
-  });
+  }
 
   renderLedgerForTarget(targetId, isCombined);
 };
@@ -1684,7 +1693,10 @@ function previewPartnerDebtNotice(partnerId) {
   // Get ledger data (supporting grouped accounts)
   let matchingPartners = [];
   if (activeLedgerCombined) {
-    const parent = state.partners.find(item => item.id === activeLedgerTargetId);
+    let parent = state.partners.find(item => item.id === activeLedgerTargetId);
+    if (parent && parent.type === 'project') {
+      parent = state.partners.find(item => item.id === parent.parentId);
+    }
     if (parent) {
       matchingPartners.push(parent);
       const childProjects = state.partners.filter(item => item.type === 'project' && item.parentId === parent.id);
@@ -1694,10 +1706,20 @@ function previewPartnerDebtNotice(partnerId) {
     const activeP = state.partners.find(item => item.id === activeLedgerTargetId);
     if (activeP) matchingPartners.push(activeP);
   } else if (activePartnerNameForGroupedLedger) {
-    const normalizedName = activePartnerNameForGroupedLedger.trim().toLowerCase().replace(/\s+/g, ' ');
-    matchingPartners = state.partners.filter(item =>
-      (item.name || '').trim().toLowerCase().replace(/\s+/g, ' ') === normalizedName
+    const parent = state.partners.find(item => 
+      item.type === 'enterprise' && 
+      (item.name || '').trim().toLowerCase() === activePartnerNameForGroupedLedger.trim().toLowerCase()
     );
+    if (parent) {
+      matchingPartners.push(parent);
+      const childProjects = state.partners.filter(item => item.type === 'project' && item.parentId === parent.id);
+      matchingPartners.push(...childProjects);
+    } else {
+      const normalizedName = activePartnerNameForGroupedLedger.trim().toLowerCase().replace(/\s+/g, ' ');
+      matchingPartners = state.partners.filter(item =>
+        (item.name || '').trim().toLowerCase().replace(/\s+/g, ' ') === normalizedName
+      );
+    }
   }
   if (matchingPartners.length === 0) {
     matchingPartners = [p];
@@ -1766,16 +1788,16 @@ function previewPartnerDebtNotice(partnerId) {
     v.entries.forEach(e => {
       let isRelevant = false;
       if (primaryType === "customer") {
-        isRelevant = e.debit.startsWith("131") || e.credit.startsWith("131");
+        isRelevant = (e.debit && e.debit.startsWith("131")) || (e.credit && e.credit.startsWith("131"));
       } else if (primaryType === "supplier") {
-        isRelevant = e.debit.startsWith("331") || e.credit.startsWith("331");
+        isRelevant = (e.debit && e.debit.startsWith("331")) || (e.credit && e.credit.startsWith("331"));
       } else {
-        isRelevant = (e.debit.startsWith("131") || e.credit.startsWith("131"))
-          || (e.debit.startsWith("331") || e.credit.startsWith("331"));
+        isRelevant = ((e.debit && e.debit.startsWith("131")) || (e.credit && e.credit.startsWith("131")))
+          || ((e.debit && e.debit.startsWith("331")) || (e.credit && e.credit.startsWith("331")));
       }
       if (!isRelevant) return;
 
-      if (e.debit.startsWith("131") || e.debit.startsWith("331")) {
+      if (e.debit && (e.debit.startsWith("131") || e.debit.startsWith("331"))) {
         debitAmount += e.amount;
         offsetAccountSet.add(e.credit);
       } else {
@@ -1844,9 +1866,18 @@ function previewPartnerDebtNotice(partnerId) {
     return clean;
   };
 
+  const isGrouped = matchingPartners.length > 1 || activePartnerNameForGroupedLedger;
   const idList = matchingPartners.map(item => item.id).join(', ');
-  const unitText = `${p.name} (${idList})`;
-  const address = matchingPartners.map(item => item.address).filter(Boolean)[0] || p.address || "";
+  
+  let recipientName = p.name;
+  let unitTextValue = `${p.name} (${idList})`;
+  let addressText = matchingPartners.map(item => item.address).filter(Boolean)[0] || p.address || "";
+  
+  if (isGrouped) {
+    recipientName = activePartnerNameForGroupedLedger || p.name;
+    unitTextValue = activePartnerNameForGroupedLedger || p.name;
+    addressText = ""; // Leave blank for company because there are multiple addresses
+  }
 
   let tableRowsHtml = "";
   let currentBalance = openingVal;
@@ -1945,16 +1976,16 @@ function previewPartnerDebtNotice(partnerId) {
 
       <!-- Info -->
       <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 3px 12px; margin-bottom: 8px; font-size: 10.5px;">
-        <div><strong>Kính gửi:</strong></div>
+        <div><strong>Kính gửi:</strong> ${recipientName}</div>
         <div><strong>Kỳ:</strong> Từ ngày ${fromDateStr} đến ngày ${toDateStr}</div>
         
-        <div><strong>Đơn vị:</strong> ${unitText}</div>
+        <div><strong>Đơn vị:</strong> ${unitTextValue}</div>
         <div><strong>Số dư đầu kỳ:</strong> <span style="font-weight: bold;">${formatDebtAmount(openingVal)} đ</span></div>
         
-        <div><strong>Địa chỉ:</strong> ${address}</div>
+        <div><strong>Địa chỉ:</strong> ${addressText}</div>
         <div><strong>Số dư cuối kỳ:</strong> <span style="font-weight: bold; color: var(--color-primary);">${formatDebtAmount(closingVal)} đ</span></div>
         
-        <div><strong>Mã số thuế:</strong> ${p.taxCode || ""}</div>
+        <div><strong>Mã số thuế:</strong> ${isGrouped ? "" : (p.taxCode || "")}</div>
         <div></div>
       </div>
 
@@ -2634,9 +2665,8 @@ window.previewCurrentPartnerDebtNotice = previewCurrentPartnerDebtNotice;
  */
 function classifyPartnerCategory(partner) {
   if (partner) {
-    if (partner.type === 'enterprise' || partner.type === 'supplier') return 'company';
+    if (partner.type === 'enterprise' || partner.type === 'project' || partner.type === 'supplier') return 'company';
     if (partner.type === 'retail') return 'individual';
-    if (partner.type === 'project') return 'project';
   }
   const name = (partner ? partner.name || '' : '').toLowerCase();
   const companyKw = [
@@ -2649,7 +2679,7 @@ function classifyPartnerCategory(partner) {
   if (companyKw.some(kw => name.includes(kw))) return 'company';
   const individualKw = ['anh ', 'chị ', 'ông ', 'bà ', 'em ', 'cô ', 'chú ', 'dì ', 'thầy '];
   if (individualKw.some(kw => name.startsWith(kw))) return 'individual';
-  return 'project';
+  return 'company'; // Default to company B2B
 }
 
 // =====================================================================
@@ -2716,10 +2746,10 @@ function renderDebtOverview(allDebts) {
     const nonCompanyOvp = cats.individual.overpaid + cats.project.overpaid + cats.company.overpaid;
     const nonCompanyNet = nonCompanyRec - nonCompanyOvp;
     const nonCompanyCount = cats.individual.count + cats.project.count + cats.company.count;
-    const compRec = cats.company.rec;
-    const compOvp = cats.company.overpaid;
+    const compRec = cats.company.rec + cats.project.rec;
+    const compOvp = cats.company.overpaid + cats.project.overpaid;
     const compNet = compRec - compOvp;
-    const compCount = cats.company.count;
+    const compCount = cats.company.count + cats.project.count;
     const totalRowRec = nonCompanyRec;
     const totalRowOvp = nonCompanyOvp;
     const totalRowNet = nonCompanyNet;
@@ -2843,13 +2873,26 @@ function changeDebtsIndividualPage(p) { debtsIndividualPage = p; renderDebtsIndi
 function buildCompanyGroupedList(companyDebts) {
   const groups = {};
   companyDebts.forEach(d => {
-    let key = (d.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
-    key = key.replace(/^(công ty tnhh sx tm dv|công ty tnhh sx tm|công ty tnhh tm dv|công ty tnhh dv|công ty tnhh|công ty cổ phần|công ty cp|công ty|cty tnhh sx tm dv|cty tnhh sx tm|cty tnhh tm dv|cty tnhh dv|cty tnhh|cty cp|cty)\s+/i, '');
-    key = key.replace(/\s*\([^)]*(?:kh|kht|ncc|dt|t\d|\d{2}\/\d{2}|\d{4})[^)]*\)$/i, '').trim();
+    const p = (state.partners || []).find(x => x.id === d.id);
+    if (!p) return;
 
+    let parentId = p.parentId;
+    let parentName = '';
+
+    if (p.type === 'enterprise') {
+      parentId = p.id;
+      parentName = p.name;
+    } else if (p.type === 'project') {
+      parentId = p.parentId;
+      const parentEnt = (state.partners || []).find(x => x.id === p.parentId);
+      parentName = parentEnt ? parentEnt.name : 'Doanh nghiệp chưa xác định';
+    } else {
+      return;
+    }
+
+    const key = parentId || 'unknown';
     if (!groups[key]) {
-      let displayName = d.name.trim().replace(/\s*\([^)]*(?:kh|kht|ncc|dt|t\d|\d{2}\/\d{2}|\d{4})[^)]*\)$/i, '').trim();
-      groups[key] = { displayName, key, openingDebit: 0, openingCredit: 0, debitTrans: 0, creditTrans: 0, closingDebit: 0, closingCredit: 0, childIds: [], childNames: [] };
+      groups[key] = { displayName: parentName, key: key, openingDebit: 0, openingCredit: 0, debitTrans: 0, creditTrans: 0, closingDebit: 0, closingCredit: 0, childIds: [], childNames: [], children: [] };
     }
     const g = groups[key];
     g.openingDebit += d.openingDebit || 0;
@@ -2860,6 +2903,7 @@ function buildCompanyGroupedList(companyDebts) {
     g.closingCredit += d.closingCredit || 0;
     g.childIds.push(d.id);
     g.childNames.push(d.name);
+    g.children.push(d);
   });
 
   return Object.values(groups)
@@ -2887,8 +2931,8 @@ function renderDebtsCompanyGroupedTable() {
   const startIdx = (debtsCompanyPage - 1) * perPage;
   const pageItems = filteredCompanyGroupedList.slice(startIdx, startIdx + perPage);
 
-  // Build global cache for safe onclick — index maps to {name, childIds}
-  _companyGroupCache = filteredCompanyGroupedList.map(g => ({ name: g.displayName, childIds: g.childIds }));
+  // Build global cache for safe onclick — index maps to {name, childIds, children}
+  _companyGroupCache = filteredCompanyGroupedList.map(g => ({ name: g.displayName, childIds: g.childIds, children: g.children }));
 
   if (infoEl) infoEl.innerText = `Công nợ Theo Công Ty — ${total} công ty (${startIdx + 1}–${Math.min(startIdx + perPage, total)})`;
 
@@ -2956,6 +3000,14 @@ function renderDebtsCompanyGroupedTable() {
       if (group) exportCompanyToExcel(group.name, group.childIds);
     });
 
+    // Add right-click listener to show inline child rows breakdown
+    tr.style.cursor = 'context-menu';
+    tr.title = 'Nhấp chuột phải để xem chi tiết công nợ từng công trình';
+    tr.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      toggleCompanyChildRows(globalIdx, tr);
+    });
+
     tbody.appendChild(tr);
   });
 
@@ -2975,6 +3027,78 @@ function renderDebtsCompanyGroupedTable() {
 }
 
 function changeDebtsCompanyPage(p) { debtsCompanyPage = p; renderDebtsCompanyGroupedTable(); }
+
+window.toggleCompanyChildRows = function(globalIdx, trElement) {
+  const existingRow = document.getElementById(`child-row-expanded-${globalIdx}`);
+  if (existingRow) {
+    existingRow.remove();
+    return;
+  }
+
+  // Close any other expanded child rows first
+  const openedRows = document.querySelectorAll('[id^="child-row-expanded-"]');
+  openedRows.forEach(r => r.remove());
+
+  const group = _companyGroupCache[globalIdx];
+  if (!group || !group.children || group.children.length === 0) return;
+
+  const childTr = document.createElement('tr');
+  childTr.id = `child-row-expanded-${globalIdx}`;
+  childTr.style.backgroundColor = 'var(--bg-secondary)';
+
+  let subRowsHtml = '';
+  // Sort projects alphabetically by name
+  const sortedChildren = [...group.children].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'vi'));
+  
+  sortedChildren.forEach(child => {
+    subRowsHtml += `
+      <tr style="border-bottom: 1px solid var(--border-color); background: var(--bg-primary);">
+        <td style="padding: 8px 12px; font-weight: 500; color: var(--text-primary); text-align: left;">${child.name}</td>
+        <td style="padding: 8px 12px; font-size:11px; text-align:center; font-family: monospace; color: var(--text-secondary);">${child.id}</td>
+        <td style="padding: 8px 12px; text-align:right; font-family: monospace;" class="font-numeric">${child.openingDebit > 0 ? formatVND(child.openingDebit).replace('đ', '') : '-'}</td>
+        <td style="padding: 8px 12px; text-align:right; font-family: monospace;" class="font-numeric">${child.openingCredit > 0 ? formatVND(child.openingCredit).replace('đ', '') : '-'}</td>
+        <td style="padding: 8px 12px; text-align:right; color:var(--color-primary); font-family: monospace;" class="font-numeric">${child.debitTrans > 0 ? formatVND(child.debitTrans).replace('đ', '') : '-'}</td>
+        <td style="padding: 8px 12px; text-align:right; color:var(--color-warning); font-family: monospace;" class="font-numeric">${child.creditTrans > 0 ? formatVND(child.creditTrans).replace('đ', '') : '-'}</td>
+        <td style="padding: 8px 12px; text-align:right; color:var(--color-success); font-family: monospace; font-weight: 700;" class="font-numeric">${child.closingDebit > 0 ? formatVND(child.closingDebit).replace('đ', '') : '-'}</td>
+        <td style="padding: 8px 12px; text-align:right; color:var(--color-warning); font-family: monospace; font-weight: 700;" class="font-numeric">${child.closingCredit > 0 ? formatVND(child.closingCredit).replace('đ', '') : '-'}</td>
+        <td style="padding: 8px 12px; text-align:center;">
+          <button class="btn btn-secondary btn-sm" onclick="viewPartnerLedger('${child.id}')" style="padding: 2px 8px; font-size: 10px;">Xem Sổ</button>
+        </td>
+      </tr>
+    `;
+  });
+
+  childTr.innerHTML = `
+    <td colspan="9" style="padding: 12px 24px; background: var(--bg-tertiary);">
+      <div style="border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sm);">
+        <div style="padding: 10px 16px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); font-weight: 700; font-size: 12px; color: var(--color-primary); display:flex; align-items:center; justify-content:space-between;">
+          <span>🏢 Chi tiết công nợ các công trình thuộc: <strong>${group.name}</strong></span>
+          <span style="font-size:11px; font-weight:500; color:var(--text-muted);">Nhấp chuột phải lần nữa vào dòng công ty để đóng</span>
+        </div>
+        <table style="width:100%; border-collapse: collapse; font-size: 11px;">
+          <thead>
+            <tr style="background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); font-weight: bold; color: var(--text-secondary);">
+              <th style="padding: 8px 12px; text-align: left;">Tên công trình</th>
+              <th style="padding: 8px 12px; text-align: center; width: 12%;">Mã công trình</th>
+              <th style="padding: 8px 12px; text-align: right; width: 11%;">Đầu kỳ (Nợ)</th>
+              <th style="padding: 8px 12px; text-align: right; width: 11%;">Đầu kỳ (Có)</th>
+              <th style="padding: 8px 12px; text-align: right; width: 11%;">Phát sinh (Nợ)</th>
+              <th style="padding: 8px 12px; text-align: right; width: 11%;">Phát sinh (Có)</th>
+              <th style="padding: 8px 12px; text-align: right; width: 11%;">Cuối kỳ (Nợ)</th>
+              <th style="padding: 8px 12px; text-align: right; width: 11%;">Cuối kỳ (Có)</th>
+              <th style="padding: 8px 12px; text-align: center; width: 10%;">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${subRowsHtml}
+          </tbody>
+        </table>
+      </div>
+    </td>
+  `;
+
+  trElement.parentNode.insertBefore(childTr, trElement.nextSibling);
+};
 
 // =====================================================================
 // XUẤT EXCEL CÔNG TY — multi-sheet workbook

@@ -2985,10 +2985,11 @@
             </label>
           </div>
 
-          <!-- Dropdown to select Parent Enterprise -->
+          <!-- Autocomplete Search Input to select Parent Enterprise -->
           <div id="group-partner-parent" class="form-group" style="display: none;">
             <label class="form-label">Chọn Doanh nghiệp mẹ <span style="color:var(--color-danger)">*</span></label>
-            <select id="partner-parent-select" class="form-control" style="height: 36px; font-size: 13px;"></select>
+            <input type="text" id="partner-parent-search" class="form-control" style="height: 36px; font-size: 13px;" placeholder="Gõ mã hoặc tên doanh nghiệp..." autocomplete="off" list="partner-parent-datalist">
+            <datalist id="partner-parent-datalist"></datalist>
           </div>
 
           <div class="form-group" id="group-partner-id">

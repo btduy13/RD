@@ -217,13 +217,14 @@ window.toggleEnterpriseOption = function(option) {
     if (lblAddress) lblAddress.innerText = 'Địa chỉ công trình';
     if (lblId) lblId.innerText = 'Mã Công trình';
 
-    const select = document.getElementById('partner-parent-select');
-    if (select) {
+    const datalist = document.getElementById('partner-parent-datalist');
+    if (datalist) {
       const enterprises = state.partners.filter(p => p.type === 'enterprise');
-      select.innerHTML = enterprises.map(e => `<option value="${e.id}">${e.name} (${e.id})</option>`).join('');
-      if (enterprises.length === 0) {
-        select.innerHTML = '<option value="">(Chưa có doanh nghiệp nào, vui lòng tạo mới)</option>';
-      }
+      datalist.innerHTML = enterprises.map(e => `<option value="${e.name} (${e.id})"></option>`).join('');
+    }
+    const searchInput = document.getElementById('partner-parent-search');
+    if (searchInput) {
+      searchInput.value = '';
     }
   }
 };
@@ -518,9 +519,16 @@ function handlePartnerSubmit(e) {
       const option = radio ? radio.value : 'new';
       if (option === 'existing') {
         type = "project";
-        parentId = document.getElementById("partner-parent-select").value;
-        if (!parentId) {
+        const parentInputVal = document.getElementById("partner-parent-search").value.trim();
+        if (!parentInputVal) {
           showToast("Vui lòng chọn Doanh nghiệp mẹ!", "danger");
+          return;
+        }
+        const resolvedParent = resolvePartner(parentInputVal);
+        parentId = resolvedParent.id;
+        const parentP = state.partners.find(p => p.id === parentId && p.type === 'enterprise');
+        if (!parentP) {
+          showToast("Doanh nghiệp mẹ không hợp lệ hoặc không tồn tại!", "danger");
           return;
         }
       } else {

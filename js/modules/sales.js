@@ -596,6 +596,9 @@ function handleSalesSubmit(e) {
 
   closeModal("modal-add-sales");
   showToast("Lập hóa đơn bán hàng thành công!", "success");
+  if (typeof viewVoucher === "function") {
+    viewVoucher(newVoucher.id || voucherId);
+  }
 }
 
 function editSalesVoucher(id) {
@@ -1218,6 +1221,9 @@ function handleSalesReturnSubmit(e) {
 
   closeModal("modal-add-sales-return");
   showToast(isEdit ? "Cập nhật chứng từ trả lại thành công!" : "Lập chứng từ trả lại hàng thành công!", "success");
+  if (typeof viewVoucher === "function") {
+    viewVoucher(newVoucher.id || voucherId);
+  }
 }
 
 // editSalesReturnVoucher
@@ -1876,6 +1882,9 @@ function handleQuotationSubmit(e) {
 
   closeModal("modal-add-sales-quotation");
   showToast("Lập phiếu báo giá thành công!", "success");
+  if (typeof viewVoucher === "function") {
+    viewVoucher(newVoucher.id || voucherId);
+  }
 }
 
 function editQuotationVoucher(id) {
