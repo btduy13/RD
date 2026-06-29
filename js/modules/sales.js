@@ -2275,19 +2275,55 @@ function displaySalesTemplateTable(list) {
 
 }
 
+let currentTemplateCategory = 'all';
+
+function filterTemplateCategory(category) {
+  currentTemplateCategory = category;
+  
+  // Cập nhật trạng thái active cho các pill buttons
+  const categories = ['all', 'daubon', 'rapbcn', 'khac'];
+  categories.forEach(cat => {
+    const btn = document.getElementById(`filter-pill-${cat}`);
+    if (btn) {
+      if (cat === category) {
+        btn.classList.remove('btn-secondary');
+        btn.classList.add('btn-primary');
+      } else {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-secondary');
+      }
+    }
+  });
+
+  // Gọi lại hàm filter
+  filterSalesTemplateTable();
+}
+
 function filterSalesTemplateTable() {
   const query = (document.getElementById("search-sales-template")?.value || "").trim().toLowerCase();
-  if (!query) {
-    displaySalesTemplateTable(allTemplateFiles);
-    return;
+  
+  let filtered = allTemplateFiles;
+
+  // 1. Lọc theo danh mục
+  if (currentTemplateCategory === 'daubon') {
+    filtered = filtered.filter(item => item.filename.toLowerCase().includes('dau bon'));
+  } else if (currentTemplateCategory === 'rapbcn') {
+    filtered = filtered.filter(item => item.filename.toLowerCase().includes('rap bcn'));
+  } else if (currentTemplateCategory === 'khac') {
+    filtered = filtered.filter(item => !item.filename.toLowerCase().includes('dau bon') && !item.filename.toLowerCase().includes('rap bcn'));
   }
 
-  const filtered = allTemplateFiles.filter(item => 
-    item.filename.toLowerCase().includes(query) || 
-    item.desc.toLowerCase().includes(query)
-  );
+  // 2. Lọc theo ô tìm kiếm
+  if (query) {
+    filtered = filtered.filter(item => 
+      item.filename.toLowerCase().includes(query) || 
+      item.desc.toLowerCase().includes(query)
+    );
+  }
+
   displaySalesTemplateTable(filtered);
 }
+
 
 async function modifySalesTemplate(filename) {
   try {
@@ -2457,4 +2493,6 @@ function findProductByName(name) {
 window.renderSalesTemplateTable = renderSalesTemplateTable;
 window.filterSalesTemplateTable = filterSalesTemplateTable;
 window.modifySalesTemplate = modifySalesTemplate;
+window.filterTemplateCategory = filterTemplateCategory;
+
 

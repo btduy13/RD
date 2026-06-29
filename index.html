@@ -1588,13 +1588,21 @@
                     style="height: 36px; padding-top: 0; padding-bottom: 0; font-size: 13px;"
                     placeholder="Tìm tên phiếu mẫu..." oninput="filterSalesTemplateTable()">
                 </div>
+
+                <!-- Bộ lọc phân loại nhanh -->
+                <div class="filter-group-pills" style="display: flex; gap: 8px;">
+                  <button class="btn btn-primary btn-sm" id="filter-pill-all" onclick="filterTemplateCategory('all')" style="height: 36px; padding: 0 16px; border-radius: 20px; font-weight: 600;">Tất cả</button>
+                  <button class="btn btn-secondary btn-sm" id="filter-pill-daubon" onclick="filterTemplateCategory('daubon')" style="height: 36px; padding: 0 16px; border-radius: 20px; font-weight: 600;">Đấu bồn</button>
+                  <button class="btn btn-secondary btn-sm" id="filter-pill-rapbcn" onclick="filterTemplateCategory('rapbcn')" style="height: 36px; padding: 0 16px; border-radius: 20px; font-weight: 600;">Ráp BCN</button>
+                  <button class="btn btn-secondary btn-sm" id="filter-pill-khac" onclick="filterTemplateCategory('khac')" style="height: 36px; padding: 0 16px; border-radius: 20px; font-weight: 600;">Khác</button>
+                </div>
               </div>
             </div>
 
             <div class="card" style="padding: 0; overflow: hidden; border-radius: var(--radius-lg);">
-              <div class="table-responsive">
+              <div class="table-responsive" style="max-height: calc(100vh - 280px); overflow-y: auto;">
                 <table class="data-table">
-                  <thead>
+                  <thead class="sticky">
                     <tr>
                       <th style="width: 50px; text-align: center;">STT</th>
                       <th>Tên file phiếu mẫu</th>
