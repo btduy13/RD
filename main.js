@@ -202,7 +202,8 @@ ipcMain.handle('list-template-files', async () => {
     if (!fs.existsSync(templateDir)) {
       return { ok: false, error: 'Thư mục phiếu mẫu không tồn tại.' };
     }
-    const files = fs.readdirSync(templateDir).filter(f => f.endsWith('.xlsx') || f.endsWith('.xls'));
+    const files = fs.readdirSync(templateDir)
+      .filter(f => (f.endsWith('.xlsx') || f.endsWith('.xls')) && !f.startsWith('~$'));
     return { ok: true, files };
   } catch (err) {
     console.error('Lỗi đọc danh sách file mẫu:', err);
