@@ -231,6 +231,10 @@ function initMouseInteractions() {
       const isPurchaseOrderVisible = purchaseOrderModal && (purchaseOrderModal.style.display === "flex" || window.getComputedStyle(purchaseOrderModal).display === "flex");
       const purchaseReturnModal = document.getElementById("modal-add-purchase-return");
       const isPurchaseReturnVisible = purchaseReturnModal && (purchaseReturnModal.style.display === "flex" || window.getComputedStyle(purchaseReturnModal).display === "flex");
+      const salesReturnModal = document.getElementById("modal-add-sales-return");
+      const isSalesReturnVisible = salesReturnModal && (salesReturnModal.style.display === "flex" || window.getComputedStyle(salesReturnModal).display === "flex");
+      const salesQuotationModal = document.getElementById("modal-add-sales-quotation");
+      const isSalesQuotationVisible = salesQuotationModal && (salesQuotationModal.style.display === "flex" || window.getComputedStyle(salesQuotationModal).display === "flex");
 
       if (isSalesVisible) {
         if (typeof addSalesFormRow === "function") {
@@ -252,6 +256,16 @@ function initMouseInteractions() {
           addPurchaseReturnFormRow();
         }
         e.preventDefault();
+      } else if (isSalesReturnVisible) {
+        if (typeof addSalesReturnFormRow === "function") {
+          addSalesReturnFormRow();
+        }
+        e.preventDefault();
+      } else if (isSalesQuotationVisible) {
+        if (typeof addQuotationFormRow === "function") {
+          addQuotationFormRow();
+        }
+        e.preventDefault();
       }
     } else if (e.key === "F8") {
       const salesModal = document.getElementById("modal-add-sales");
@@ -262,6 +276,10 @@ function initMouseInteractions() {
       const isPurchaseOrderVisible = purchaseOrderModal && (purchaseOrderModal.style.display === "flex" || window.getComputedStyle(purchaseOrderModal).display === "flex");
       const purchaseReturnModal = document.getElementById("modal-add-purchase-return");
       const isPurchaseReturnVisible = purchaseReturnModal && (purchaseReturnModal.style.display === "flex" || window.getComputedStyle(purchaseReturnModal).display === "flex");
+      const salesReturnModal = document.getElementById("modal-add-sales-return");
+      const isSalesReturnVisible = salesReturnModal && (salesReturnModal.style.display === "flex" || window.getComputedStyle(salesReturnModal).display === "flex");
+      const salesQuotationModal = document.getElementById("modal-add-sales-quotation");
+      const isSalesQuotationVisible = salesQuotationModal && (salesQuotationModal.style.display === "flex" || window.getComputedStyle(salesQuotationModal).display === "flex");
 
       if (isSalesVisible) {
         const activeEl = document.activeElement;
@@ -331,6 +349,42 @@ function initMouseInteractions() {
             trToDelete.remove();
             if (typeof recalculatePurchaseReturnTotals === "function") {
               recalculatePurchaseReturnTotals();
+            }
+          }
+        }
+        e.preventDefault();
+      } else if (isSalesReturnVisible) {
+        const activeEl = document.activeElement;
+        const itemsBody = document.getElementById("sales-return-form-items-body");
+        if (itemsBody) {
+          let trToDelete = null;
+          if (activeEl && itemsBody.contains(activeEl)) {
+            trToDelete = activeEl.closest("tr");
+          } else {
+            trToDelete = itemsBody.querySelector("tr:last-child");
+          }
+          if (trToDelete) {
+            trToDelete.remove();
+            if (typeof recalculateSalesReturnTotals === "function") {
+              recalculateSalesReturnTotals();
+            }
+          }
+        }
+        e.preventDefault();
+      } else if (isSalesQuotationVisible) {
+        const activeEl = document.activeElement;
+        const itemsBody = document.getElementById("quotation-form-items-body");
+        if (itemsBody) {
+          let trToDelete = null;
+          if (activeEl && itemsBody.contains(activeEl)) {
+            trToDelete = activeEl.closest("tr");
+          } else {
+            trToDelete = itemsBody.querySelector("tr:last-child");
+          }
+          if (trToDelete) {
+            trToDelete.remove();
+            if (typeof recalculateQuotationTotals === "function") {
+              recalculateQuotationTotals();
             }
           }
         }
