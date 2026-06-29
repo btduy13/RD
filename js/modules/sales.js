@@ -2387,22 +2387,69 @@ async function modifySalesTemplate(filename) {
 
 function findProductByName(name) {
   if (!name) return null;
-  const clean = name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, 'd').replace(/[\s\(\)\-\/\.,_]/g, '');
   
-  // 1. Khớp chính xác tuyệt đối sau khi chuẩn hóa
-  let match = state.products.find(p => {
-    const pClean = p.name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, 'd').replace(/[\s\(\)\-\/\.,_]/g, '');
-    return pClean === clean;
-  });
-  if (match) return match;
-  
-  // 2. Khớp tương tự (chứa nhau)
-  match = state.products.find(p => {
-    const pClean = p.name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, 'd').replace(/[\s\(\)\-\/\.,_]/g, '');
-    return clean.includes(pClean) || pClean.includes(clean);
-  });
-  if (match) return match;
+  // Helper to normalize strings
+  const normalize = (str) => {
+    if (!str) return '';
+    return str.toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, 'd').replace(/[\s\(\)\-\/\.,_]/g, '');
+  };
 
+  // Tokenize and filter out noise
+  const tokenize = (str) => {
+    if (!str) return [];
+    let s = str.toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, 'd');
+    s = s.replace(/ø/g, '').replace(/phi/g, '').replace(/day/g, '').replace(/ly/g, '').replace(/x\d+([.,]\d+)?mm/g, '');
+    return s.split(/[\s\(\)\-\/\.,_]+/).filter(x => x.length > 0 && x !== 'bm' && x !== 'binh' && x !== 'minh');
+  };
+
+  const nameTokens = tokenize(name);
+  if (nameTokens.length === 0) return null;
+
+  // 1. Khớp chính xác tuyệt đối sau khi chuẩn hóa
+  const cleanName = normalize(name);
+  let exact = state.products.find(p => normalize(p.name) === cleanName);
+  if (exact) return exact;
+
+  // 2. Khớp theo token giao nhau thông minh
+  let bestMatch = null;
+  let maxIntersection = 0;
+
+  for (const p of state.products) {
+    const pTokens = tokenize(p.name);
+    const intersection = nameTokens.filter(t => pTokens.includes(t));
+    if (intersection.length > 0) {
+      // Tránh khớp lệch kích thước (ví dụ 34 và 27)
+      const templateSize = nameTokens.find(t => /^\d+$/.test(t));
+      const productSize = pTokens.find(t => /^\d+$/.test(t));
+      if (templateSize && productSize && templateSize !== productSize) {
+        continue;
+      }
+
+      // Tránh khớp lệch loại sản phẩm (ví dụ co, te, ong, loi, van, keo)
+      const types = ['co', 'te', 'ong', 'loi', 'chech', 'racco', 'van', 'bit', 'kép', 'mang song', 'noi', 'nut'];
+      let typeMismatch = false;
+      for (const t of types) {
+        if (nameTokens.includes(t) && !pTokens.includes(t)) {
+          typeMismatch = true;
+          break;
+        }
+        if (pTokens.includes(t) && !nameTokens.includes(t)) {
+          typeMismatch = true;
+          break;
+        }
+      }
+      if (typeMismatch) continue;
+
+      if (intersection.length > maxIntersection) {
+        maxIntersection = intersection.length;
+        bestMatch = p;
+      }
+    }
+  }
+
+  if (maxIntersection >= 1) {
+    return bestMatch;
+  }
   return null;
 }
 
