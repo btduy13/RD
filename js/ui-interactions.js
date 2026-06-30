@@ -236,6 +236,13 @@ function initMouseInteractions() {
           }
         }
       }
+    } else if (e.key === "F3") {
+      const activeEl = document.activeElement;
+      const type = getActiveLookupType(activeEl);
+      if (type) {
+        e.preventDefault();
+        showF3LookupModal(activeEl, type);
+      }
     } else if (e.key === "Escape") {
       const visibleOverlays = Array.from(document.querySelectorAll(".modal-overlay")).filter(
         el => el.style.display === "flex" || window.getComputedStyle(el).display === "flex"
@@ -1421,6 +1428,392 @@ function handleHeaderGlobalSearch(value) {
   }
 }
 window.handleHeaderGlobalSearch = handleHeaderGlobalSearch;
+
+// ── F3 FILTER LOOKUP TABLE FOR ACTIVE INPUT CELL ─────────────────────────────────
+function getActiveLookupType(activeEl) {
+  if (!activeEl || activeEl.tagName !== 'INPUT') return null;
+  
+  const listAttr = activeEl.getAttribute('list') || '';
+  const idAttr = (activeEl.id || '').toLowerCase();
+  const nameAttr = (activeEl.name || '').toLowerCase();
+  
+  if (activeEl.classList.contains('item-productId') || 
+      listAttr === 'datalist-sales-products' || 
+      listAttr === 'datalist-purchase-products' ||
+      idAttr.includes('productid') ||
+      idAttr.includes('prodid') ||
+      nameAttr.includes('productid') ||
+      nameAttr.includes('prodid')) {
+    return 'product';
+  }
+  
+  if (listAttr === 'datalist-partners' || 
+      listAttr === 'partner-parent-datalist' || 
+      idAttr.includes('partner') || 
+      idAttr.includes('customer') || 
+      idAttr.includes('supplier') ||
+      nameAttr.includes('partner') ||
+      nameAttr.includes('customer') ||
+      nameAttr.includes('supplier')) {
+    return 'partner';
+  }
+  
+  return null;
+}
+
+function showF3LookupModal(activeInput, type) {
+  if (document.getElementById('f3-lookup-overlay')) return;
+
+  if (!document.getElementById('f3-lookup-styles')) {
+    const f3Style = document.createElement('style');
+    f3Style.id = 'f3-lookup-styles';
+    f3Style.textContent = `
+      .f3-lookup-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(4px);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 999999;
+      }
+      .f3-lookup-container {
+        width: 800px;
+        max-height: 80vh;
+        background: var(--bg-secondary, #1e293b);
+        border: 1px solid var(--border-color, #334155);
+        border-radius: var(--radius-lg, 12px);
+        box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(0,0,0,0.3));
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        color: var(--text-primary, #f8fafc);
+      }
+      .f3-lookup-header {
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--border-color, #334155);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: var(--bg-primary, #0f172a);
+      }
+      .f3-lookup-title {
+        font-size: 16px;
+        font-weight: 700;
+        margin: 0;
+        color: var(--color-primary, #0ea5e9);
+      }
+      .f3-lookup-close-btn {
+        background: none;
+        border: none;
+        color: var(--text-primary, #f8fafc);
+        font-size: 24px;
+        cursor: pointer;
+        line-height: 1;
+        padding: 0;
+        opacity: 0.8;
+      }
+      .f3-lookup-close-btn:hover {
+        color: var(--color-danger, #ef4444);
+        opacity: 1;
+      }
+      .f3-lookup-search-container {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border-color, #334155);
+        background: var(--bg-secondary, #1e293b);
+      }
+      .f3-lookup-search-input {
+        width: 100%;
+        padding: 10px 14px;
+        font-size: 14px;
+        border: 1px solid var(--border-color, #334155);
+        border-radius: var(--radius-sm, 6px);
+        background: var(--bg-primary, #0f172a);
+        color: var(--text-primary, #f8fafc);
+        outline: none;
+      }
+      .f3-lookup-search-input:focus {
+        border-color: var(--color-primary, #0ea5e9);
+        box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
+      }
+      .f3-lookup-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0;
+        background: var(--bg-secondary, #1e293b);
+      }
+      .f3-lookup-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        table-layout: fixed;
+      }
+      .f3-lookup-table th, .f3-lookup-table td {
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color, #334155);
+        word-wrap: break-word;
+        word-break: break-word;
+        white-space: normal;
+      }
+      .f3-lookup-table th {
+        background: var(--bg-primary, #0f172a);
+        font-weight: 700;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        color: var(--text-primary, #f8fafc);
+      }
+      .f3-lookup-row {
+        cursor: pointer;
+        transition: background 0.15s ease;
+        background: var(--bg-secondary, #1e293b);
+        color: var(--text-primary, #f8fafc);
+      }
+      .f3-lookup-row:hover {
+        background: rgba(14, 165, 233, 0.08);
+      }
+      .f3-lookup-row.selected {
+        background: rgba(14, 165, 233, 0.18) !important;
+        outline: 1.5px solid var(--color-primary, #0ea5e9);
+        color: var(--text-primary, #f8fafc) !important;
+      }
+      .f3-lookup-footer {
+        padding: 12px 20px;
+        border-top: 1px solid var(--border-color, #334155);
+        background: var(--bg-primary, #0f172a);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        color: var(--text-secondary, #cbd5e1);
+      }
+      .f3-lookup-kbd {
+        background: var(--bg-secondary, #1e293b);
+        border: 1px solid var(--border-color, #334155);
+        border-radius: 3px;
+        padding: 1px 5px;
+        font-family: monospace;
+        font-size: 11px;
+        margin: 0 2px;
+        color: var(--text-primary, #f8fafc);
+      }
+    `;
+    document.head.appendChild(f3Style);
+  }
+
+  let items = [];
+  let title = '';
+  let columnsHTML = '';
+  
+  if (type === 'product') {
+    items = state.products || [];
+    title = 'Tra cứu nhanh sản phẩm';
+    columnsHTML = `
+      <tr>
+        <th style="width: 15%;">Mã SP</th>
+        <th style="width: 44%;">Tên sản phẩm</th>
+        <th style="width: 11%;">ĐVT</th>
+        <th style="width: 14%; text-align: right;">Tồn kho</th>
+        <th style="width: 16%; text-align: right;">Đơn giá vốn</th>
+      </tr>
+    `;
+  } else {
+    items = state.partners || [];
+    title = 'Tra cứu nhanh đối tác';
+    columnsHTML = `
+      <tr>
+        <th style="width: 15%;">Mã ĐT</th>
+        <th style="width: 28%;">Tên đối tác</th>
+        <th style="width: 15%;">Phân loại</th>
+        <th style="width: 15%;">Số điện thoại</th>
+        <th style="width: 27%;">Địa chỉ</th>
+      </tr>
+    `;
+  }
+
+  let filteredItems = [...items];
+  let selectedIndex = 0;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'f3-lookup-overlay';
+  overlay.className = 'f3-lookup-overlay';
+  
+  overlay.innerHTML = `
+    <div class="f3-lookup-container" onclick="event.stopPropagation()">
+      <div class="f3-lookup-header">
+        <h3 class="f3-lookup-title">${title}</h3>
+        <button class="f3-lookup-close-btn" id="f3-lookup-close">×</button>
+      </div>
+      <div class="f3-lookup-search-container">
+        <input type="text" class="f3-lookup-search-input" id="f3-lookup-search" placeholder="Nhập từ khóa tìm kiếm (AND/OR, viết không dấu...)" autocomplete="off">
+      </div>
+      <div class="f3-lookup-body">
+        <table class="f3-lookup-table">
+          <thead>
+            ${columnsHTML}
+          </thead>
+          <tbody id="f3-lookup-tbody">
+            <!-- Rows injected dynamically -->
+          </tbody>
+        </table>
+      </div>
+      <div class="f3-lookup-footer">
+        <div>Dùng phím <span class="f3-lookup-kbd">↑</span> <span class="f3-lookup-kbd">↓</span> để di chuyển, <span class="f3-lookup-kbd">Enter</span> để chọn, <span class="f3-lookup-kbd">Esc</span> để đóng</div>
+        <div id="f3-lookup-count">Đang hiển thị 0 dòng</div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const searchInput = overlay.querySelector('#f3-lookup-search');
+  const tbody = overlay.querySelector('#f3-lookup-tbody');
+  const countDisplay = overlay.querySelector('#f3-lookup-count');
+  const closeBtn = overlay.querySelector('#f3-lookup-close');
+
+  setTimeout(() => { searchInput.focus(); }, 50);
+
+  function renderTable() {
+    tbody.innerHTML = '';
+    if (filteredItems.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Không tìm thấy dữ liệu phù hợp</td></tr>`;
+      countDisplay.textContent = 'Đang hiển thị 0 dòng';
+      return;
+    }
+
+    tbody.innerHTML = filteredItems.map((item, idx) => {
+      const isSelected = idx === selectedIndex ? 'selected' : '';
+      if (type === 'product') {
+        const costStr = typeof formatVND === 'function' ? formatVND(item.avgCost) : item.avgCost.toLocaleString() + ' đ';
+        const stockVal = item.actualStock !== undefined ? item.actualStock : (item.stock || 0);
+        return `
+          <tr class="f3-lookup-row ${isSelected}" data-index="${idx}">
+            <td style="font-weight: 600;">${escapeHtmlAttr(item.id)}</td>
+            <td>${escapeHtmlAttr(item.name)}</td>
+            <td>${escapeHtmlAttr(item.unit || 'Cái')}</td>
+            <td style="text-align: right; font-weight: 500;">${stockVal.toLocaleString('vi-VN')}</td>
+            <td style="text-align: right; color: var(--text-secondary);">${costStr}</td>
+          </tr>
+        `;
+      } else {
+        const typeLabels = {
+          enterprise: 'Doanh nghiệp',
+          retail: 'Khách lẻ',
+          supplier: 'Nhà cung cấp',
+          project: 'Công trình'
+        };
+        const label = typeLabels[item.type] || item.type || 'Khách hàng';
+        return `
+          <tr class="f3-lookup-row ${isSelected}" data-index="${idx}">
+            <td style="font-weight: 600;">${escapeHtmlAttr(item.id)}</td>
+            <td>${escapeHtmlAttr(item.name)}</td>
+            <td>${label}</td>
+            <td>${escapeHtmlAttr(item.phone || '')}</td>
+            <td style="color: var(--text-secondary);">${escapeHtmlAttr(item.address || '')}</td>
+          </tr>
+        `;
+      }
+    }).join('');
+
+    countDisplay.textContent = `Đang hiển thị ${filteredItems.length} dòng`;
+
+    const selectedRow = tbody.querySelector('.f3-lookup-row.selected');
+    if (selectedRow) {
+      selectedRow.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  function filterList() {
+    const query = searchInput.value.trim();
+    if (!query) {
+      filteredItems = [...items];
+    } else {
+      filteredItems = items.filter(item => {
+        let searchString = '';
+        if (type === 'product') {
+          searchString = `${item.id}\t${item.name}\t${item.unit || ''}`;
+        } else {
+          searchString = `${item.id}\t${item.name}\t${item.phone || ''}\t${item.address || ''}`;
+        }
+        return typeof matchAdvancedQuery === 'function' 
+          ? matchAdvancedQuery(searchString, query)
+          : searchString.toLowerCase().includes(query.toLowerCase());
+      });
+    }
+    selectedIndex = 0;
+    renderTable();
+  }
+
+  renderTable();
+
+  searchInput.addEventListener('input', filterList);
+
+  function confirmSelection() {
+    const selectedItem = filteredItems[selectedIndex];
+    if (selectedItem) {
+      activeInput.value = `${selectedItem.name} (${selectedItem.id})`;
+      activeInput.focus();
+      
+      activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+      activeInput.dispatchEvent(new Event('change', { bubbles: true }));
+      activeInput.dispatchEvent(new Event('blur', { bubbles: true }));
+      
+      closeLookup();
+    }
+  }
+
+  function closeLookup() {
+    overlay.remove();
+    document.removeEventListener('keydown', handleGlobalKeydown);
+  }
+
+  closeBtn.addEventListener('click', closeLookup);
+  overlay.addEventListener('click', closeLookup);
+
+  tbody.addEventListener('click', (e) => {
+    const row = e.target.closest('.f3-lookup-row');
+    if (row) {
+      selectedIndex = parseInt(row.dataset.index);
+      tbody.querySelectorAll('.f3-lookup-row').forEach(r => r.classList.remove('selected'));
+      row.classList.add('selected');
+      confirmSelection();
+    }
+  });
+
+  function handleGlobalKeydown(e) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeLookup();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (filteredItems.length > 0) {
+        selectedIndex = (selectedIndex + 1) % filteredItems.length;
+        renderTable();
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (filteredItems.length > 0) {
+        selectedIndex = (selectedIndex - 1 + filteredItems.length) % filteredItems.length;
+        renderTable();
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      confirmSelection();
+    } else {
+      if (document.activeElement !== searchInput && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
+        searchInput.focus();
+      }
+    }
+  }
+
+  document.addEventListener('keydown', handleGlobalKeydown);
+}
+
 
 
 

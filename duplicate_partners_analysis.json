@@ -1,0 +1,1580 @@
+[
+  {
+    "key": "congtya&actythienhai",
+    "list": [
+      {
+        "id": "100NAMKY(CH)",
+        "name": "Công Ty A & A (Cty Thiên Hải)",
+        "type": "project",
+        "phone": "",
+        "address": "Số 100 Nam Kỳ Khởi Nghĩa",
+        "taxCode": "",
+        "parentId": "DN_THINHIAA",
+        "excelRow": [
+          "100NAMKY(CH)",
+          "Công Ty A & A (Cty Thiên Hải)",
+          "Số 100 Nam Kỳ Khởi Nghĩa",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ]
+      },
+      {
+        "id": "117/10/2HUYENTRAN(CH)",
+        "name": "Công Ty A & A ( Cty Thiên Hải)",
+        "type": "project",
+        "phone": "",
+        "address": "Hẻm 117/10/2 Huyền Trân Công Chúa",
+        "taxCode": "",
+        "parentId": "DN_THINHIAA",
+        "excelRow": [
+          "117/10/2HUYENTRAN(CH)",
+          "Công Ty A & A ( Cty Thiên Hải)",
+          "Hẻm 117/10/2 Huyền Trân Công Chúa",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ]
+      },
+      {
+        "id": "378/1/4TRUONGCONGDINH(CH)",
+        "name": "Công ty  A & A ( Cty Thiên Hải )",
+        "type": "project",
+        "phone": "",
+        "address": "Hẻm 378/1/4 Trương Công Định",
+        "taxCode": "",
+        "parentId": "DN_THINHIAA",
+        "excelRow": [
+          "378/1/4TRUONGCONGDINH(CH)",
+          "Công ty  A & A ( Cty Thiên Hải )",
+          "Hẻm 378/1/4 Trương Công Định",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ]
+      },
+      {
+        "id": "56HANMACTU(CH)",
+        "name": "Công ty  A & A (CTy Thiên Hải)",
+        "type": "project",
+        "phone": "",
+        "address": "Số 56 Hàn Mặc Tử",
+        "taxCode": "",
+        "parentId": "DN_THINHIAA",
+        "excelRow": [
+          "56HANMACTU(CH)",
+          "Công ty  A & A (CTy Thiên Hải)",
+          "Số 56 Hàn Mặc Tử",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ]
+      }
+    ]
+  },
+  {
+    "key": "congtya&athienhai",
+    "list": [
+      {
+        "id": "12NGUYENKIM(CH)",
+        "name": "CÔNG TY A & A ( Thiên Hải)",
+        "type": "project",
+        "phone": "",
+        "address": "Số 12 Nguyễn Kim",
+        "taxCode": "",
+        "parentId": "DN_THINHIAA",
+        "excelRow": [
+          "12NGUYENKIM(CH)",
+          "CÔNG TY A & A ( Thiên Hải)",
+          "Số 12 Nguyễn Kim",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ]
+      },
+      {
+        "id": "41KHUACHAU",
+        "name": "Công Ty A & A (Thiên hải)",
+        "type": "project",
+        "phone": "",
+        "address": "Số 41 Khu Á Châu",
+        "taxCode": "",
+        "parentId": "DN_THINHIAA",
+        "excelRow": [
+          "41KHUACHAU",
+          "Công Ty A & A (Thiên hải)",
+          "Số 41 Khu Á Châu",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ]
+      },
+      {
+        "id": "B3DOINGOCTUOC(ch)",
+        "name": "CÔNG TY A & A THIÊN HẢI",
+        "type": "project",
+        "phone": "",
+        "address": "B3 Đồi Ngọc Tước",
+        "taxCode": "",
+        "parentId": "DN_THINHIAA",
+        "excelRow": [
+          "B3DOINGOCTUOC(ch)",
+          "CÔNG TY A & A THIÊN HẢI",
+          "B3 Đồi Ngọc Tước",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ]
+      }
+    ]
+  },
+  {
+    "key": "vanchuyen",
+    "list": [
+      {
+        "id": "DT_1340",
+        "name": "vạn chuyển",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_1340",
+          "vạn chuyển",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_2499",
+        "name": "VẬN CHUYỂN",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_2499",
+          "VẬN CHUYỂN",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_3553",
+        "name": "vận chuyên",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_3553",
+          "vận chuyên",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "congtydatnui",
+    "list": [
+      {
+        "id": "279NGUYENHUUCANH(CH)",
+        "name": "Công Ty Đất Núi",
+        "type": "project",
+        "phone": "",
+        "address": "Số 279 Nguyễn Hữu Cảnh",
+        "taxCode": "",
+        "parentId": "DN_DATNUI",
+        "excelRow": [
+          "279NGUYENHUUCANH(CH)",
+          "Công Ty Đất Núi",
+          "Số 279 Nguyễn Hữu Cảnh",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ]
+      },
+      {
+        "id": "CONGTYDATNUI(CH)",
+        "name": "Công ty Đát Núi",
+        "type": "project",
+        "phone": "",
+        "address": "",
+        "taxCode": "",
+        "parentId": "DN_DATNUI",
+        "excelRow": [
+          "CONGTYDATNUI(CH)",
+          "Công ty Đát Núi",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ]
+      }
+    ]
+  },
+  {
+    "key": "congtya&a2019",
+    "list": [
+      {
+        "id": "11LEVANTAM(CH)",
+        "name": "Công Ty A & A (2019)",
+        "type": "project",
+        "phone": "",
+        "address": "Số 11 Lê Văn Tám",
+        "taxCode": "",
+        "parentId": "DN_THINHIAA",
+        "excelRow": [
+          "11LEVANTAM(CH)",
+          "Công Ty A & A (2019)",
+          "Số 11 Lê Văn Tám",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ]
+      },
+      {
+        "id": "12C5DUONGVANANCH)",
+        "name": "Công ty A & A(2019)",
+        "type": "project",
+        "phone": "",
+        "address": "12 C5 Dương Văn An",
+        "taxCode": "",
+        "parentId": "DN_THINHIAA",
+        "excelRow": [
+          "12C5DUONGVANANCH)",
+          "Công ty A & A(2019)",
+          "12 C5 Dương Văn An",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ]
+      }
+    ]
+  },
+  {
+    "key": "congtya&a2017",
+    "list": [
+      {
+        "id": "12C3DUONGVANAN(CH)",
+        "name": "Công ty A & A (2017)",
+        "type": "project",
+        "phone": "",
+        "address": "Số 12C3 Dương Văn An",
+        "taxCode": "",
+        "parentId": "DN_THINHIAA",
+        "excelRow": [
+          "12C3DUONGVANAN(CH)",
+          "Công ty A & A (2017)",
+          "Số 12C3 Dương Văn An",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ]
+      },
+      {
+        "id": "20TRANQUYCAP(CH)",
+        "name": "Công ty A & A(2017)",
+        "type": "project",
+        "phone": "",
+        "address": "Số 20 Trần Quý Cáp",
+        "taxCode": "",
+        "parentId": "DN_THINHIAA",
+        "excelRow": [
+          "20TRANQUYCAP(CH)",
+          "Công ty A & A(2017)",
+          "Số 20 Trần Quý Cáp",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ]
+      }
+    ]
+  },
+  {
+    "key": "congtythienhaictya&a",
+    "list": [
+      {
+        "id": "36/25NGUYENANNINH(CH)",
+        "name": "Công Ty Thiên Hải (CTy A & A)",
+        "type": "project",
+        "phone": "",
+        "address": "Hẻm 36/25 Nguyễn An Ninh",
+        "taxCode": "",
+        "parentId": "DN_THINHIAA",
+        "excelRow": [
+          "36/25NGUYENANNINH(CH)",
+          "Công Ty Thiên Hải (CTy A & A)",
+          "Hẻm 36/25 Nguyễn An Ninh",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ]
+      },
+      {
+        "id": "56TRANHUNGDAO",
+        "name": "Công Ty THiên Hải (Cty A&A)",
+        "type": "project",
+        "phone": "",
+        "address": "Số 56 Trần Hưng Đạo",
+        "taxCode": "",
+        "parentId": "DN_THINHIAA",
+        "excelRow": [
+          "56TRANHUNGDAO",
+          "Công Ty THiên Hải (Cty A&A)",
+          "Số 56 Trần Hưng Đạo",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ]
+      }
+    ]
+  },
+  {
+    "key": "ctya&actythienhai",
+    "list": [
+      {
+        "id": "40COGIANG(CH)",
+        "name": "CTy A & A ( CTy Thiên Hải)",
+        "type": "project",
+        "phone": "",
+        "address": "Số 40 (54) Cô Giang",
+        "taxCode": "",
+        "parentId": "DN_THINHIAA",
+        "excelRow": [
+          "40COGIANG(CH)",
+          "CTy A & A ( CTy Thiên Hải)",
+          "Số 40 (54) Cô Giang",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ]
+      },
+      {
+        "id": "7/2BINHGIA",
+        "name": "Cty A & A (Cty Thiên Hải)",
+        "type": "project",
+        "phone": "",
+        "address": "7/2 Bình Giã",
+        "taxCode": "",
+        "parentId": "DN_THINHIAA",
+        "excelRow": [
+          "7/2BINHGIA",
+          "Cty A & A (Cty Thiên Hải)",
+          "7/2 Bình Giã",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ]
+      }
+    ]
+  },
+  {
+    "key": "congtyminhhuychidung",
+    "list": [
+      {
+        "id": "DN_MINHHUYCHDUNG",
+        "name": "Công ty Minh Huy Chị Dung",
+        "type": "enterprise",
+        "phone": "0944.468.152",
+        "address": "Công Ty Minh Huy - (Anh Minh)",
+        "taxCode": "",
+        "parentId": null,
+        "excelRow": [
+          "DN_MINHHUYCHDUNG",
+          "Công ty Minh Huy Chị Dung",
+          "Công Ty Minh Huy - (Anh Minh)",
+          "KH",
+          "",
+          "0944.468.152",
+          "FALSE"
+        ]
+      },
+      {
+        "id": "CTYMINHHUY (2019)",
+        "name": "Công Ty Minh Huy - Chị Dung",
+        "type": "project",
+        "phone": "0944.468.152",
+        "address": "Công Ty Minh Huy - (Anh Minh)",
+        "taxCode": "",
+        "parentId": "DN_MINHHUYCHDUNG",
+        "excelRow": [
+          "CTYMINHHUY (2019)",
+          "Công Ty Minh Huy - Chị Dung",
+          "Công Ty Minh Huy - (Anh Minh)",
+          "KH",
+          "",
+          "0944.468.152",
+          "FALSE"
+        ]
+      }
+    ]
+  },
+  {
+    "key": "anhsonthonuoc",
+    "list": [
+      {
+        "id": "180/20BACU (CH)",
+        "name": "Anh Sơn Thợ nước",
+        "type": "retail",
+        "email": "",
+        "group": "",
+        "phone": "",
+        "address": "Số 180/20 Ba Cu",
+        "taxCode": "",
+        "excelRow": [
+          "180/20BACU (CH)",
+          "Anh Sơn Thợ nước",
+          "Số 180/20 Ba Cu",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "inactive": false,
+        "parentId": null
+      },
+      {
+        "id": "DT_5718",
+        "name": "Anh SơnThợ nước",
+        "type": "retail",
+        "email": "",
+        "phone": "0908.767.223",
+        "address": "",
+        "excelRow": [
+          "DT_5718",
+          "Anh SơnThợ nước - 0908.767.223",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "khachle",
+    "list": [
+      {
+        "id": "197/26/23NAMKY(CH)",
+        "name": "KHÁCH LẺ",
+        "type": "retail",
+        "email": "",
+        "group": "",
+        "phone": "",
+        "address": "197/26/22 Nam Kỳ",
+        "taxCode": "",
+        "excelRow": [
+          "197/26/23NAMKY(CH)",
+          "KHÁCH LẺ",
+          "197/26/22 Nam Kỳ",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "inactive": false,
+        "parentId": null
+      },
+      {
+        "id": "DT_1535",
+        "name": "Khách lẽ",
+        "type": "both",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_1535",
+          "Khách lẽ",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "chunhakht042020",
+    "list": [
+      {
+        "id": "210ALELOI(Mùi)",
+        "name": "Chủ nhà (KHT04/2020)",
+        "type": "retail",
+        "email": "",
+        "group": "",
+        "phone": "",
+        "address": "210A Lê Lợi -",
+        "taxCode": "",
+        "excelRow": [
+          "210ALELOI(Mùi)",
+          "Chủ nhà (KHT04/2020)",
+          "210A Lê Lợi -",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "inactive": false,
+        "parentId": null
+      },
+      {
+        "id": "780/BINHGIA(A.Nam)",
+        "name": "Chủ nhà. (KHT04/2020)",
+        "type": "retail",
+        "email": "",
+        "group": "",
+        "phone": "0523.921.223",
+        "address": "Hẻm 780/ Bình Gĩa - sát bờ sông, đi khang linh rẽ trái",
+        "taxCode": "",
+        "excelRow": [
+          "780/BINHGIA(A.Nam)",
+          "Chủ nhà. (KHT04/2020)",
+          "Hẻm 780/ Bình Gĩa - sát bờ sông, đi khang linh rẽ trái - 0523.921.223",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "inactive": false,
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "kht818",
+    "list": [
+      {
+        "id": "285/1BINHGIA(Ninh)",
+        "name": "KHT8/18",
+        "type": "retail",
+        "email": "",
+        "group": "",
+        "phone": "",
+        "address": "Hẻm 285/1 Bình Gĩa",
+        "taxCode": "",
+        "excelRow": [
+          "285/1BINHGIA(Ninh)",
+          "KHT8/18",
+          "Hẻm 285/1 Bình Gĩa",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "inactive": false,
+        "parentId": null
+      },
+      {
+        "id": "359TRUONGCONGDINH(CH)",
+        "name": "KH T8/18",
+        "type": "retail",
+        "email": "",
+        "group": "",
+        "phone": "0966.717.522",
+        "address": "Số 359 Trương Công Định",
+        "taxCode": "",
+        "excelRow": [
+          "359TRUONGCONGDINH(CH)",
+          "KH T8/18",
+          "Số 359 Trương Công Định - 0966.717.522",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "inactive": false,
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "anhthien",
+    "list": [
+      {
+        "id": "37THANGNHI (Mùi-thiện)",
+        "name": "anh thiện",
+        "type": "retail",
+        "email": "",
+        "group": "",
+        "phone": "",
+        "address": "Số 37 Thắng Nhì",
+        "taxCode": "",
+        "excelRow": [
+          "37THANGNHI (Mùi-thiện)",
+          "anh thiện",
+          "Số 37 Thắng Nhì",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "inactive": false,
+        "parentId": null
+      },
+      {
+        "id": "79/14ATIENCANG(MÙI)",
+        "name": "Anh Thiên",
+        "type": "retail",
+        "email": "",
+        "group": "",
+        "phone": "01.688.578.808",
+        "address": "Hẻm 79/14A Tiền Cảng",
+        "taxCode": "",
+        "excelRow": [
+          "79/14ATIENCANG(MÙI)",
+          "Anh Thiên",
+          "Hẻm 79/14A Tiền Cảng - 01.688.578.808",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "inactive": false,
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "anhbinhsaigon",
+    "list": [
+      {
+        "id": "ANHBINH",
+        "name": "Anh Bình - Sài Gòn",
+        "type": "retail",
+        "email": "",
+        "group": "",
+        "phone": "",
+        "address": "Anh Bình  -  Sải Gòn",
+        "taxCode": "",
+        "excelRow": [
+          "ANHBINH",
+          "Anh Bình - Sài Gòn",
+          "Anh Bình  -  Sải Gòn",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "inactive": false,
+        "parentId": null
+      },
+      {
+        "id": "ANHBINHSAIGON",
+        "name": "ANH BÌNH SÀI GÒN",
+        "type": "retail",
+        "email": "",
+        "group": "",
+        "phone": "",
+        "address": "SÀI GÒN",
+        "taxCode": "",
+        "excelRow": [
+          "ANHBINHSAIGON",
+          "ANH BÌNH SÀI GÒN",
+          "SÀI GÒN",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "inactive": false,
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "banlet022026anhlongtn",
+    "list": [
+      {
+        "id": "DT_1114",
+        "name": "Bán Lẻ T02/2026 anhlong TN",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_1114",
+          "Bán Lẻ T02/2026 anhlong TN",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_4750",
+        "name": "Bán Lẻ T02/2026 anh long TN",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_4750",
+          "Bán Lẻ T02/2026 anh long TN",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "noigiamø4025pprbmvn",
+    "list": [
+      {
+        "id": "DT_1435",
+        "name": "Nối giảm Ø 40/25 PP-R BM VN",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_1435",
+          "Nối giảm Ø 40/25 PP-R BM VN",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_5589",
+        "name": "Nối giảm Ø 40/25 PP-R BMVN",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_5589",
+          "Nối giảm Ø 40/25 PP-R BMVN",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "vanmotchieuloxo34miha",
+    "list": [
+      {
+        "id": "DT_1635",
+        "name": "Van một chiều lò xo 34 Miha",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_1635",
+          "Van một chiều lò xo 34 Miha",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_4552",
+        "name": "Van một chiều lò xo 34 mi ha",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_4552",
+          "Van một chiều lò xo 34 mi ha",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "raccokhopnoiø60bm",
+    "list": [
+      {
+        "id": "DT_1728",
+        "name": "Rắc co (khớp nối) Ø 60 BM",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_1728",
+          "Rắc co (khớp nối) Ø 60 BM",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_9786",
+        "name": "Racco (khớp nối) Ø 60 BM",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_9786",
+          "Racco (khớp nối) Ø 60 BM",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "co25pprden",
+    "list": [
+      {
+        "id": "DT_1733",
+        "name": "Co 25 PPR den",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_1733",
+          "Co 25 PPR den",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_4052",
+        "name": "Co 25 PPR đen",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_4052",
+          "Co 25 PPR đen",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "ocampana",
+    "list": [
+      {
+        "id": "DT_1980",
+        "name": "Ổ cắm Pana",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_1980",
+          "Ổ cắm Pana",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_2235",
+        "name": "Ô cắm Pana",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_2235",
+          "Ô cắm Pana",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "ongnongpprø32x54mmden",
+    "list": [
+      {
+        "id": "DT_2185",
+        "name": "Ống  nóng PP-R Ø 32 x5.4mm đen",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_2185",
+          "Ống  nóng PP-R Ø 32 x5.4mm đen",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_9188",
+        "name": "Ống  nóng PP-R Ø 32 x 5.4mm đen",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_9188",
+          "Ống  nóng PP-R Ø 32 x 5.4mm đen",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "satkemay",
+    "list": [
+      {
+        "id": "DT_2722",
+        "name": "Săt kê máy",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_2722",
+          "Săt kê máy",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_3899",
+        "name": "Sắt kê máy",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_3899",
+          "Sắt kê máy",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "raccokhopnoiø21bm",
+    "list": [
+      {
+        "id": "DT_2831",
+        "name": "Rac co (khớp nối) Ø 21  BM",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_2831",
+          "Rac co (khớp nối) Ø 21  BM",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_9380",
+        "name": "Rắc co (khớp nối) Ø 21  BM",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_9380",
+          "Rắc co (khớp nối) Ø 21  BM",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "noi25pprbmden",
+    "list": [
+      {
+        "id": "DT_2900",
+        "name": "Nối 25 PPR BM đen",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_2900",
+          "Nối 25 PPR BM đen",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_6773",
+        "name": "Nối 25 PPR BM den",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_6773",
+          "Nối 25 PPR BM den",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "maybomhreken200w",
+    "list": [
+      {
+        "id": "DT_3188",
+        "name": "Máy Bơm HREKEN 200W",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_3188",
+          "Máy Bơm HREKEN 200W",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_5578",
+        "name": "Máy Bơm (hreken) 200w",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_5578",
+          "Máy Bơm (hreken) 200w",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "nutbitrenngoai",
+    "list": [
+      {
+        "id": "DT_3239",
+        "name": "nút bịt ren ngoài",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_3239",
+          "nút bịt ren ngoài",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_3804",
+        "name": "nút bít ren ngoài",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_3804",
+          "nút bít ren ngoài",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "day10061kvcadivi100mcuonxanh",
+    "list": [
+      {
+        "id": "DT_3698",
+        "name": "Dây 10 - 0,6/1KV CADIVI (100m/cuộn) - Xanh",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_3698",
+          "Dây 10 - 0,6/1KV CADIVI (100m/cuộn) - Xanh",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_9563",
+        "name": "Dây 1.0 - 0,6/1KV CADIVI (100m/cuộn) - Xanh",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_9563",
+          "Dây 1.0 - 0,6/1KV CADIVI (100m/cuộn) - Xanh",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "ocamdonpana",
+    "list": [
+      {
+        "id": "DT_4162",
+        "name": "Ổ cắm đơn Pana",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_4162",
+          "Ổ cắm đơn Pana",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_6043",
+        "name": "ổ căm đơn pana",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_6043",
+          "ổ căm đơn pana",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "raccohanø32pprbmvn",
+    "list": [
+      {
+        "id": "DT_4186",
+        "name": "Rắc co hàn Ø 32 PP-R BMVN",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_4186",
+          "Rắc co hàn Ø 32 PP-R BMVN",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_9033",
+        "name": "Racco hàn Ø 32 PP-R BMVN",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_9033",
+          "Racco hàn Ø 32 PP-R BMVN",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "vanmotchieuloxo49miha",
+    "list": [
+      {
+        "id": "DT_4579",
+        "name": "Van một chiều lò xo 49 mi ha",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_4579",
+          "Van một chiều lò xo 49 mi ha",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_6673",
+        "name": "Van một chiều lò xo 49 Miha",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_6673",
+          "Van một chiều lò xo 49 Miha",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "day2x25cvv300500vcadivi",
+    "list": [
+      {
+        "id": "DT_4845",
+        "name": "Dây 2 x 2.5 CVV 300/500V CADIVI",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_4845",
+          "Dây 2 x 2.5 CVV 300/500V CADIVI",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_6816",
+        "name": "Dây 2x2.5 CVV 300/500V CADIVI",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_6816",
+          "Dây 2x2.5 CVV 300/500V CADIVI",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "raccohanø25pprbm",
+    "list": [
+      {
+        "id": "DT_5352",
+        "name": "Rắc co hàn Ø 25 PP-R BM",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_5352",
+          "Rắc co hàn Ø 25 PP-R BM",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_6248",
+        "name": "Racco hàn Ø 25 PP-R BM",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_6248",
+          "Racco hàn Ø 25 PP-R BM",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "khungsatkemaybom",
+    "list": [
+      {
+        "id": "DT_5812",
+        "name": "Khung sắt kê máy bơm",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_5812",
+          "Khung sắt kê máy bơm",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_6439",
+        "name": "khung săt kệ máy bơm",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_6439",
+          "khung săt kệ máy bơm",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "day10061kvcadivi100mcuondo",
+    "list": [
+      {
+        "id": "DT_7496",
+        "name": "Dây 10 - 0,6/1KV CADIVI (100m/cuộn) - Đỏ",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_7496",
+          "Dây 10 - 0,6/1KV CADIVI (100m/cuộn) - Đỏ",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_8753",
+        "name": "Dây 1.0 - 0,6/1KV CADIVI (100m/cuộn) - Đỏ",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_8753",
+          "Dây 1.0 - 0,6/1KV CADIVI (100m/cuộn) - Đỏ",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  },
+  {
+    "key": "day2x15cvv300500vcadivi",
+    "list": [
+      {
+        "id": "DT_8419",
+        "name": "Dây 2x1.5 CVV - 300/500V CADIVI",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_8419",
+          "Dây 2x1.5 CVV - 300/500V CADIVI",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      },
+      {
+        "id": "DT_9020",
+        "name": "Dây 2 x 1.5 CVV - 300/500V CADIVI",
+        "type": "retail",
+        "email": "",
+        "phone": "",
+        "address": "",
+        "excelRow": [
+          "DT_9020",
+          "Dây 2 x 1.5 CVV - 300/500V CADIVI",
+          "",
+          "KH",
+          "",
+          "",
+          "FALSE"
+        ],
+        "parentId": null
+      }
+    ]
+  }
+]
