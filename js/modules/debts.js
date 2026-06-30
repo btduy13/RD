@@ -2777,16 +2777,23 @@ function renderDebtOverview(allDebts) {
 
   // Audit section
   if (auditEl) {
+    // ① T-account closing: ĐầuKỳ + PhátSinhNợ(131) - PhátSinhCó(131) = Số dư ròng
     const closingCalc = totalInitOB + totalDebitTx - totalCreditTx;
-    const grossRec = totalRec;
+    // ② KPI approach: tổng closingDebit - tổng closingCredit = Số dư ròng
+    // Bất biến: closingCalc === (totalRec - totalRowOvp) -- nếu khác = có lỗi logic
+    const netRec = totalRec - totalRowOvp;
+    const diffOk = Math.abs(closingCalc - netRec) < 1;
     auditEl.innerHTML = `
       <table style="border-collapse:collapse; width:100%; font-size:12px;">
-        <tr><td style="padding:3px 8px; color:var(--text-muted);">Số dư đầu kỳ (từ opening balances)</td><td style="text-align:right; font-family:monospace; padding:3px 8px;">${formatVND(totalInitOB)}</td></tr>
+        <tr><td colspan="2" style="padding:4px 8px 2px; font-weight:700; color:var(--text-muted); font-size:11px; text-transform:uppercase; letter-spacing:0.4px;">① Kiểm toán T-tài khoản 131</td></tr>
+        <tr><td style="padding:3px 8px; color:var(--text-muted);">Số dư đầu kỳ</td><td style="text-align:right; font-family:monospace; padding:3px 8px;">${formatVND(totalInitOB)}</td></tr>
         <tr><td style="padding:3px 8px; color:var(--text-muted);">+ Phát sinh Nợ trong kỳ (bán chịu)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-success);">+${formatVND(totalDebitTx)}</td></tr>
-        <tr><td style="padding:3px 8px; color:var(--text-muted);">− Phát sinh Có trong kỳ (thu tiền/giảm)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-warning);">-${formatVND(totalCreditTx)}</td></tr>
-        <tr style="border-top:1px solid var(--border-color);"><td style="padding:3px 8px; font-weight:700; color:var(--text-primary);">= Số dư cuối kỳ Ròng (phải thu ròng)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; font-weight:700; color:var(--color-success);">${formatVND(closingCalc)}</td></tr>
-        <tr><td style="padding:3px 8px; color:var(--text-muted);">+ Khách hàng đã trả thừa/trả trước (Dư Có)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-warning);">+${formatVND(totalRowOvp)}</td></tr>
-        <tr style="border-top:1.5px double var(--border-color);"><td style="padding:4px 8px; font-weight:800; color:var(--text-primary);">= Tổng phải thu khách hàng (Khớp KPI)</td><td style="text-align:right; font-family:monospace; padding:4px 8px; font-weight:800; color:var(--color-success);">${formatVND(grossRec)}</td></tr>
+        <tr><td style="padding:3px 8px; color:var(--text-muted);">− Phát sinh Có trong kỳ (thu tiền/giảm giá)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-warning);">−${formatVND(totalCreditTx)}</td></tr>
+        <tr style="border-top:1px solid var(--border-color);"><td style="padding:4px 8px; font-weight:700; color:var(--text-primary);">= Số dư ròng cuối kỳ</td><td style="text-align:right; font-family:monospace; padding:4px 8px; font-weight:800; color:var(--color-success);">${formatVND(closingCalc)}</td></tr>
+        <tr><td colspan="2" style="padding:8px 8px 2px; font-weight:700; color:var(--text-muted); font-size:11px; text-transform:uppercase; letter-spacing:0.4px;">② Đối chiếu với KPI</td></tr>
+        <tr><td style="padding:3px 8px; color:var(--text-muted);">KPI Tổng phải thu (chỉ đối tác Dư Nợ)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-success);">${formatVND(totalRec)}</td></tr>
+        <tr><td style="padding:3px 8px; color:var(--text-muted);">− Khách trả thừa/trả trước (Dư Có, giảm phải thu)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-warning);">−${formatVND(totalRowOvp)}</td></tr>
+        <tr style="border-top:1.5px double var(--border-color);"><td style="padding:4px 8px; font-weight:800; color:var(--text-primary);">= Số dư ròng cuối kỳ (phải khớp ①)</td><td style="text-align:right; font-family:monospace; padding:4px 8px; font-weight:800; color:${diffOk ? 'var(--color-success)' : 'var(--color-danger)'};">${formatVND(netRec)} ${diffOk ? '✅ Khớp' : '⚠️ Lệch ' + formatVND(Math.abs(closingCalc - netRec))}</td></tr>
       </table>`;
   }
 }
