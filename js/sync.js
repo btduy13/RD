@@ -679,15 +679,15 @@ async function pullFromCloudOnStartup() {
       // Thực hiện dọn dẹp các đơn hàng có ID dạng số tự sinh
       cleanNumericVouchers();
 
-      // Nếu deduplication đã loại bỏ voucher trùng lặp → đẩy ngay lên cloud để sửa dữ liệu
+      // Nếu cleanNumericVouchers đã dọn dẹp voucher rác/test → đẩy ngay lên cloud để cập nhật
       const stateVoucherCount = (state.vouchers || []).length;
       if (stateVoucherCount < cloudVoucherCount) {
-        console.warn(`[Supabase] Phát hiện ${cloudVoucherCount - stateVoucherCount} voucher trùng lặp → tự động sửa và đẩy lên cloud...`);
+        console.log(`[Supabase] Đã dọn dẹp ${cloudVoucherCount - stateVoucherCount} chứng từ rác/test cũ → cập nhật lên cloud...`);
         setTimeout(() => {
           state._lastModified = Date.now();
           pushToCloud().then(() => {
-            showToast(`Đã tự động dọn dẹp ${cloudVoucherCount - stateVoucherCount} chứng từ bị trùng lặp trên cloud!`, "success");
-          }).catch(err => console.error("[Supabase] Lỗi tự sửa dedup:", err));
+            showToast(`Đã tự động dọn dẹp ${cloudVoucherCount - stateVoucherCount} chứng từ rác/test cũ lúc khởi động!`, "success");
+          }).catch(err => console.error("[Supabase] Lỗi tự sửa rác:", err));
         }, 3000);
       } else if (migrationPending) {
         console.log("[Migration] Kích hoạt tự động đẩy dữ liệu sang định dạng mới...");
@@ -947,8 +947,49 @@ function mergeStates(localState, cloudState) {
     localDeleted = localDeleted.filter(id => !activeCloud.has(id));
   }
 
-  // Gộp deletedIds từ cả 2 nguồn để không tái xuất hiện dữ liệu đã xóa
-  const mergedDeletedIds = Array.from(new Set([...localDeleted, ...cloudDeleted]));
+  // === LỌC LƯỢT 2: So sánh nhãn thời gian hoạt động của các đối tượng để tránh xóa nhầm ID tái sử dụng ===
+  const finalDeleted = new Set();
+  const CLOCK_TOLERANCE = 2000; // 2 giây dung sai đồng hồ
+
+  // Helper để tìm phần tử hoạt động trong một state theo ID
+  function findActiveItem(s, id) {
+    if (!s) return null;
+    let found = null;
+    if (Array.isArray(s.vouchers)) found = s.vouchers.find(v => v && v.id === id);
+    if (!found && Array.isArray(s.products)) found = s.products.find(p => p && p.id === id);
+    if (!found && Array.isArray(s.partners)) found = s.partners.find(pt => pt && pt.id === id);
+    if (!found && Array.isArray(s.cashEntries)) found = s.cashEntries.find(c => c && c.id === id);
+    if (!found && Array.isArray(s.escrowItems)) found = s.escrowItems.find(e => e && e.id === id);
+    return found;
+  }
+
+  // Lọc localDeleted: Máy này đã xóa trước đó, nhưng máy khác có bản hoạt động mới hơn bản lưu của máy này
+  localDeleted.forEach(id => {
+    const cloudItem = findActiveItem(cloudState, id);
+    if (cloudItem) {
+      const itemTs = cloudItem._updatedAt || cloudTs;
+      if (itemTs > localTs - CLOCK_TOLERANCE) {
+        console.log(`[SmartMerge] Bỏ qua local deletion của ID "${id}" vì có đối tượng cloud mới hơn (${itemTs} vs local state ${localTs})`);
+        return; // Bỏ qua deletion
+      }
+    }
+    finalDeleted.add(id);
+  });
+
+  // Lọc cloudDeleted: Máy khác đã xóa trước đó, nhưng máy này có bản hoạt động mới hơn bản lưu của cloud
+  cloudDeleted.forEach(id => {
+    const localItem = findActiveItem(localState, id);
+    if (localItem) {
+      const itemTs = localItem._updatedAt || localTs;
+      if (itemTs > cloudTs - CLOCK_TOLERANCE) {
+        console.log(`[SmartMerge] Bỏ qua cloud deletion của ID "${id}" vì có đối tượng local mới hơn (${itemTs} vs cloud state ${cloudTs})`);
+        return; // Bỏ qua deletion
+      }
+    }
+    finalDeleted.add(id);
+  });
+
+  const mergedDeletedIds = Array.from(finalDeleted);
 
   const merged = {
     // Cloud wins cho scalar fields (tên công ty, năm tài chính...)
