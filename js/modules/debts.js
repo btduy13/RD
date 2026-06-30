@@ -2778,13 +2778,15 @@ function renderDebtOverview(allDebts) {
   // Audit section
   if (auditEl) {
     const closingCalc = totalInitOB + totalDebitTx - totalCreditTx;
+    const grossRec = totalRec;
     auditEl.innerHTML = `
       <table style="border-collapse:collapse; width:100%; font-size:12px;">
         <tr><td style="padding:3px 8px; color:var(--text-muted);">Số dư đầu kỳ (từ opening balances)</td><td style="text-align:right; font-family:monospace; padding:3px 8px;">${formatVND(totalInitOB)}</td></tr>
         <tr><td style="padding:3px 8px; color:var(--text-muted);">+ Phát sinh Nợ trong kỳ (bán chịu)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-success);">+${formatVND(totalDebitTx)}</td></tr>
         <tr><td style="padding:3px 8px; color:var(--text-muted);">− Phát sinh Có trong kỳ (thu tiền/giảm)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-warning);">-${formatVND(totalCreditTx)}</td></tr>
-        <tr style="border-top:1px solid var(--border-color);"><td style="padding:4px 8px; font-weight:700; color:var(--text-primary);">= Số dư cuối kỳ (calculated)</td><td style="text-align:right; font-family:monospace; padding:4px 8px; font-weight:800; color:var(--color-success);">${formatVND(closingCalc)}</td></tr>
-        <tr><td colspan="2" style="padding:6px 8px; color:var(--color-success); font-size:11px;"></td></tr>
+        <tr style="border-top:1px solid var(--border-color);"><td style="padding:3px 8px; font-weight:700; color:var(--text-primary);">= Số dư cuối kỳ Ròng (phải thu ròng)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; font-weight:700; color:var(--color-success);">${formatVND(closingCalc)}</td></tr>
+        <tr><td style="padding:3px 8px; color:var(--text-muted);">+ Khách hàng đã trả thừa/trả trước (Dư Có)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-warning);">+${formatVND(totalRowOvp)}</td></tr>
+        <tr style="border-top:1.5px double var(--border-color);"><td style="padding:4px 8px; font-weight:800; color:var(--text-primary);">= Tổng phải thu khách hàng (Khớp KPI)</td><td style="text-align:right; font-family:monospace; padding:4px 8px; font-weight:800; color:var(--color-success);">${formatVND(grossRec)}</td></tr>
       </table>`;
   }
 }
