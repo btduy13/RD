@@ -1126,6 +1126,8 @@ body.light-theme .modal-header {
   flex-grow: 1;
   position: relative;
   z-index: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .modal-footer {
