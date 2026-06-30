@@ -16,6 +16,13 @@ function recalculateAccounting(shouldSave = true) {
       if (v.isManual === undefined && v.isImported === undefined) {
         v.isImported = true;
       }
+      // Tự động chuẩn hóa và làm sạch partnerId bị sai lệch hoặc lệch định dạng từ dữ liệu lịch sử
+      if (typeof getPartnerForVoucher === "function") {
+        const resolvedP = getPartnerForVoucher(v);
+        if (resolvedP && v.partnerId !== resolvedP.id) {
+          v.partnerId = resolvedP.id;
+        }
+      }
     });
   }
 

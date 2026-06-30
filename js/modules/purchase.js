@@ -590,7 +590,8 @@ function editPurchaseVoucher(id) {
   if (idEl) idEl.value = v.id;
 
   document.getElementById("pur-date").value = v.date;
-  document.getElementById("pur-partner").value = getPartnerNameForVoucher(v);
+  const pObj1 = getPartnerForVoucher(v);
+  document.getElementById("pur-partner").value = pObj1 ? `${pObj1.name} (${pObj1.id})` : (v.partnerName || "");
   document.getElementById("pur-desc").value = v.description;
   document.getElementById("pur-payment").value = v.paymentMethod;
   if (document.getElementById("pur-tax-rate")) {
@@ -1239,7 +1240,8 @@ function editPurchaseOrderVoucher(id) {
   if (idEl) idEl.value = v.id;
 
   document.getElementById("pur-order-date").value = v.date;
-  document.getElementById("pur-order-partner").value = getPartnerNameForVoucher(v);
+  const pObj2 = getPartnerForVoucher(v);
+  document.getElementById("pur-order-partner").value = pObj2 ? `${pObj2.name} (${pObj2.id})` : (v.partnerName || "");
   document.getElementById("pur-order-desc").value = v.description;
   document.getElementById("pur-order-payment").value = v.paymentMethod;
   if (document.getElementById("pur-order-tax-rate")) {
@@ -2207,7 +2209,8 @@ function editPurchaseReturnVoucher(id) {
   if (idEl) idEl.value = v.id;
 
   document.getElementById("ret-date").value = v.date;
-  document.getElementById("ret-partner").value = getPartnerNameForVoucher(v);
+  const pObj3 = getPartnerForVoucher(v);
+  document.getElementById("ret-partner").value = pObj3 ? `${pObj3.name} (${pObj3.id})` : (v.partnerName || "");
   document.getElementById("ret-desc").value = v.description;
   document.getElementById("ret-payment").value = v.paymentMethod;
 

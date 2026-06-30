@@ -618,7 +618,8 @@ function editSalesVoucher(id) {
   if (idEl) idEl.value = v.id;
 
   document.getElementById("sale-date").value = v.date;
-  document.getElementById("sale-partner").value = getPartnerNameForVoucher(v);
+  const pObj1 = getPartnerForVoucher(v);
+  document.getElementById("sale-partner").value = pObj1 ? `${pObj1.name} (${pObj1.id})` : (v.partnerName || "");
   document.getElementById("sale-desc").value = v.description;
   document.getElementById("sale-payment").value = v.paymentMethod;
   if (document.getElementById("sale-note")) {
@@ -1256,7 +1257,8 @@ function editSalesReturnVoucher(id) {
   if (idEl) idEl.value = v.id;
 
   document.getElementById("sales-ret-date").value = v.date;
-  document.getElementById("sales-ret-partner").value = getPartnerNameForVoucher(v);
+  const pObj2 = getPartnerForVoucher(v);
+  document.getElementById("sales-ret-partner").value = pObj2 ? `${pObj2.name} (${pObj2.id})` : (v.partnerName || "");
   document.getElementById("sales-ret-desc").value = v.description;
   document.getElementById("sales-ret-payment").value = v.paymentMethod;
   if (document.getElementById("sales-ret-tax-rate")) {
@@ -1931,7 +1933,8 @@ function editQuotationVoucher(id) {
   if (idEl) idEl.value = v.id;
 
   document.getElementById("quotation-date").value = v.date;
-  document.getElementById("quotation-partner").value = getPartnerNameForVoucher(v);
+  const pObj3 = getPartnerForVoucher(v);
+  document.getElementById("quotation-partner").value = pObj3 ? `${pObj3.name} (${pObj3.id})` : (v.partnerName || "");
   document.getElementById("quotation-desc").value = v.description;
   document.getElementById("quotation-payment").value = v.paymentMethod;
   if (document.getElementById("quotation-tax-rate")) {
