@@ -207,8 +207,36 @@ function initMouseInteractions() {
 
   // 4. Nhấn nút ESC để đóng cửa sổ/modal đang mở (Ưu tiên đóng modal trên cùng)
   //    Nhấn nút F4 để thêm dòng mới, F8 để xóa dòng trong form Mua hàng/Bán hàng đang mở
+  //    Nhấn tổ hợp Ctrl + S để ghi sổ/lưu chứng từ đang mở
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+      const visibleOverlays = Array.from(document.querySelectorAll(".modal-overlay")).filter(
+        el => el.style.display === "flex" || window.getComputedStyle(el).display === "flex"
+      );
+
+      if (visibleOverlays.length > 0) {
+        visibleOverlays.sort((a, b) => {
+          const zA = parseInt(window.getComputedStyle(a).zIndex) || 1000;
+          const zB = parseInt(window.getComputedStyle(b).zIndex) || 1000;
+          return zB - zA;
+        });
+
+        const form = visibleOverlays[0].querySelector("form");
+        if (form) {
+          e.preventDefault();
+          if (typeof form.requestSubmit === "function") {
+            form.requestSubmit();
+          } else {
+            const submitBtn = form.querySelector('button[type="submit"]') || form.querySelector('input[type="submit"]');
+            if (submitBtn) {
+              submitBtn.click();
+            } else {
+              form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            }
+          }
+        }
+      }
+    } else if (e.key === "Escape") {
       const visibleOverlays = Array.from(document.querySelectorAll(".modal-overlay")).filter(
         el => el.style.display === "flex" || window.getComputedStyle(el).display === "flex"
       );
