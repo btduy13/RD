@@ -412,12 +412,14 @@ function getPartnerForVoucher(v) {
           p = partnerCacheById[innerLower] || (state.partners || []).find(item => String(item.id).toLowerCase() === innerLower);
           if (p) break;
           
-          // Thử tìm theo ID/Tên chứa cụm từ này
-          p = (state.partners || []).find(item => 
-            (item.name && item.name.toLowerCase().includes(innerLower)) || 
-            (item.id && String(item.id).toLowerCase().includes(innerLower))
-          );
-          if (p) break;
+          // Thử tìm theo ID/Tên chứa cụm từ này (chỉ áp dụng nếu cụm từ >= 4 ký tự để tránh khớp nhầm các từ khóa chung chung)
+          if (innerLower.length >= 4) {
+            p = (state.partners || []).find(item => 
+              (item.name && item.name.toLowerCase().includes(innerLower)) || 
+              (item.id && String(item.id).toLowerCase().includes(innerLower))
+            );
+            if (p) break;
+          }
         }
       }
       if (p) break;
