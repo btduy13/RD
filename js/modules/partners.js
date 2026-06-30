@@ -1,4 +1,170 @@
 
+let isPartnerIdManuallyEdited = false;
+
+function generatePartnerIdClean(name, type) {
+  if (!name) return "";
+  let clean = removeAccents(name).toUpperCase();
+  
+  // Loại bỏ các từ khóa chung chung
+  clean = clean.replace(/^(CONG TY TNHH SX TM DV|CONG TY TNHH SX TM|CONG TY TNHH TM DV|CONG TY TNHH DV|CONG TY TNHH TM|CONG TY TNHH|CONG TY CO PHAN|CONG TY CP|CONG TY|CTY TNHH SX TM DV|CTY TNHH SX TM|CTY TNHH TM DV|CTY TNHH DV|CTY TNHH TM|CTY TNHH|CTY CP|CTY|DOANH NGHIEP|DN|CHI NHANH)\s+/g, "");
+  clean = clean.replace(/\s+(TNHH|CO PHAN|CP|SX|TM|DV)$/g, "");
+  
+  // Chỉ giữ lại chữ và số
+  clean = clean.replace(/[^A-Z0-9/]/g, " ");
+  // Thay thế nhiều khoảng trắng thành 1 khoảng trắng
+  clean = clean.trim().replace(/\s+/g, " ");
+  
+  const words = clean.split(" ");
+  let baseId = words.join("");
+  
+  if (type === "enterprise") {
+    return "DN_" + baseId;
+  } else if (type === "project") {
+    if (!baseId.endsWith("CH")) {
+      return baseId + "(CH)";
+    }
+    return baseId;
+  } else if (type === "supplier") {
+    return "NCC_" + baseId;
+  } else if (type === "retail") {
+    return "KL_" + baseId;
+  }
+  return baseId;
+}
+
+function getUniquePartnerId(name, type, excludeId = "") {
+  let base = generatePartnerIdClean(name, type);
+  if (!base) return "";
+  
+  let uniqueId = base;
+  let counter = 1;
+  while (state.partners.some(p => p.id === uniqueId && p.id !== excludeId)) {
+    if (type === "project" && base.endsWith("(CH)")) {
+      const baseWithoutCH = base.substring(0, base.length - 4);
+      uniqueId = `${baseWithoutCH}_${counter}(CH)`;
+    } else {
+      uniqueId = `${base}_${counter}`;
+    }
+    counter++;
+  }
+  return uniqueId;
+}
+
+function validatePartnerIdInput(id) {
+  const badge = document.getElementById("partner-id-validation-badge");
+  const warning = document.getElementById("partner-id-change-warning");
+  if (!badge) return;
+  
+  const editIndex = document.getElementById("edit-partner-index").value;
+  const idVal = (id || "").trim().toUpperCase();
+  
+  if (!idVal) {
+    badge.style.display = "none";
+    if (warning) warning.style.display = "none";
+    return;
+  }
+  
+  // Kiểm tra cảnh báo đổi mã đối tác đang sửa
+  if (editIndex !== "-1") {
+    if (idVal !== editIndex.toUpperCase()) {
+      if (warning) warning.style.display = "block";
+    } else {
+      if (warning) warning.style.display = "none";
+    }
+  } else {
+    if (warning) warning.style.display = "none";
+  }
+  
+  // Kiểm tra tính duy nhất (trừ đối tác đang sửa)
+  const isDuplicate = state.partners.some(p => p.id.toUpperCase() === idVal && p.id !== editIndex);
+  
+  badge.style.display = "inline-block";
+  if (isDuplicate) {
+    badge.style.backgroundColor = "rgba(239, 68, 68, 0.1)";
+    badge.style.color = "var(--color-danger)";
+    badge.style.border = "1px solid rgba(239, 68, 68, 0.2)";
+    badge.innerText = "Mã đã tồn tại!";
+  } else {
+    badge.style.backgroundColor = "rgba(16, 185, 129, 0.1)";
+    badge.style.color = "var(--color-success)";
+    badge.style.border = "1px solid rgba(16, 185, 129, 0.2)";
+    badge.innerText = "Mã hợp lệ!";
+  }
+}
+
+function updateSuggestedPartnerId() {
+  const editIndex = document.getElementById("edit-partner-index").value;
+  if (editIndex !== "-1" || isPartnerIdManuallyEdited) return;
+  
+  let type = document.getElementById('partner-modal-type').value;
+  if (type === 'enterprise') {
+    const radio = document.querySelector('input[name="enterprise-option"]:checked');
+    const option = radio ? radio.value : 'new';
+    if (option === 'existing') {
+      type = 'project';
+    }
+  }
+  
+  const name = document.getElementById("partner-name").value.trim();
+  const suggestedId = getUniquePartnerId(name, type);
+  
+  const partnerIdEl = document.getElementById("partner-id");
+  if (partnerIdEl) {
+    partnerIdEl.value = suggestedId;
+    validatePartnerIdInput(suggestedId);
+  }
+}
+
+window.generatePartnerIdFromForm = function() {
+  let type = document.getElementById('partner-modal-type').value;
+  if (type === 'enterprise') {
+    const radio = document.querySelector('input[name="enterprise-option"]:checked');
+    const option = radio ? radio.value : 'new';
+    if (option === 'existing') {
+      type = 'project';
+    }
+  }
+  
+  const name = document.getElementById("partner-name").value.trim();
+  if (!name) {
+    showToast("Vui lòng nhập tên đối tác trước để sinh mã!", "warning");
+    return;
+  }
+  
+  const editIndex = document.getElementById("edit-partner-index").value;
+  const suggestedId = getUniquePartnerId(name, type, editIndex !== "-1" ? editIndex : "");
+  
+  const partnerIdEl = document.getElementById("partner-id");
+  if (partnerIdEl) {
+    partnerIdEl.value = suggestedId;
+    validatePartnerIdInput(suggestedId);
+    isPartnerIdManuallyEdited = false;
+    showToast("Sinh mã thành công!", "success");
+  }
+};
+
+// Đăng ký event listeners
+document.addEventListener("DOMContentLoaded", () => {
+  const partnerIdEl = document.getElementById("partner-id");
+  const partnerNameEl = document.getElementById("partner-name");
+  
+  if (partnerIdEl) {
+    partnerIdEl.addEventListener("input", (e) => {
+      isPartnerIdManuallyEdited = true;
+      let val = e.target.value.toUpperCase().replace(/\s+/g, "");
+      val = val.replace(/[^A-Z0-9_()/-]/g, "");
+      e.target.value = val;
+      validatePartnerIdInput(val);
+    });
+  }
+  
+  if (partnerNameEl) {
+    partnerNameEl.addEventListener("input", () => {
+      updateSuggestedPartnerId();
+    });
+  }
+});
+
 let quickAddPartnerType = "customer";
 
 function openQuickAddPartnerModal(type = "customer") {
@@ -191,6 +357,9 @@ window.switchPartnerModalTab = function(type) {
       if (lblId) lblId.innerText = 'Mã Nhà cung cấp';
     }
   }
+
+  // Tự động cập nhật lại gợi ý mã đối tác khi đổi Tab phân loại
+  updateSuggestedPartnerId();
 };
 
 window.toggleEnterpriseOption = function(option) {
@@ -227,6 +396,9 @@ window.toggleEnterpriseOption = function(option) {
       searchInput.value = '';
     }
   }
+
+  // Tự động cập nhật lại gợi ý mã đối tác khi chuyển đổi tùy chọn doanh nghiệp mới / công trình cũ
+  updateSuggestedPartnerId();
 };
 
 function renderPartnersTable() {
@@ -416,8 +588,15 @@ function filterPartners() {
 }
 
 function openAddPartnerModal() {
+  isPartnerIdManuallyEdited = false;
   document.getElementById("edit-partner-index").value = "-1";
   document.getElementById("form-partner").reset();
+  
+  // Ẩn badge và warning
+  const badge = document.getElementById("partner-id-validation-badge");
+  if (badge) badge.style.display = "none";
+  const warning = document.getElementById("partner-id-change-warning");
+  if (warning) warning.style.display = "none";
   
   const radioNew = document.querySelector('input[name="enterprise-option"][value="new"]');
   if (radioNew) radioNew.checked = true;
@@ -488,6 +667,10 @@ function openEditPartnerModal(id) {
     if (lblId) lblId.innerText = 'Mã Nhà cung cấp';
     if (groupTaxcode) groupTaxcode.style.display = 'block';
   }
+
+  isPartnerIdManuallyEdited = false;
+  // Khởi chạy kiểm tra mã hiện tại khi sửa
+  validatePartnerIdInput(p.id);
 
   openModal("modal-add-partner");
 }
