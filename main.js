@@ -465,8 +465,16 @@ ipcMain.handle('print-to-pdf', async (event, filename) => {
 // IPC HANDLERS: LƯU/ĐỌC STATE FILE (thay thế localStorage để tránh giới hạn 5MB)
 // ===========================================================================
 
+// ===========================================================================
+// IPC HANDLERS: LƯU/ĐỌC STATE FILE BẰNG SQLITE CỤC BỘ (THAY THẾ JSON FILE)
+// ===========================================================================
+
 const STATE_FILE_PATH = path.join(__dirname, 'data', 'rd_state.json');
 const STATE_DIR_PATH = path.join(__dirname, 'data');
+const STATE_DB_PATH = path.join(STATE_DIR_PATH, 'rd_local.db');
+
+const Database = require('better-sqlite3');
+let db = null;
 
 // Đảm bảo thư mục data/ tồn tại
 function ensureStateDir() {
@@ -475,28 +483,241 @@ function ensureStateDir() {
   }
 }
 
-// Ghi state ra file JSON (không giới hạn kích thước)
-ipcMain.handle('write-state-file', async (event, jsonData) => {
+// Khởi tạo SQLite database cục bộ
+function initDatabase() {
   try {
     ensureStateDir();
-    fs.writeFileSync(STATE_FILE_PATH, jsonData, 'utf8');
+    db = new Database(STATE_DB_PATH);
+    
+    // Tạo bảng nếu chưa tồn tại
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS metadata (
+        key TEXT PRIMARY KEY,
+        value TEXT
+      );
+      CREATE TABLE IF NOT EXISTS vouchers (
+        id TEXT PRIMARY KEY,
+        type TEXT,
+        date TEXT,
+        data TEXT,
+        _updatedAt INTEGER,
+        _sessionId TEXT
+      );
+      CREATE TABLE IF NOT EXISTS products (
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        unit TEXT,
+        stock REAL,
+        avgCost REAL,
+        data TEXT,
+        _updatedAt INTEGER
+      );
+      CREATE TABLE IF NOT EXISTS partners (
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        type TEXT,
+        data TEXT,
+        _updatedAt INTEGER
+      );
+    `);
+    
+    console.log('[SQLiteStore] Cơ sở dữ liệu SQLite đã được khởi tạo thành công.');
+    
+    // Tự động di trú từ rd_state.json cũ sang SQLite nếu có
+    migrateFromJsonIfNecessary();
+  } catch (err) {
+    console.error('[SQLiteStore] Lỗi khởi tạo SQLite:', err);
+  }
+}
+
+// Hàm di trú dữ liệu từ file JSON cũ sang SQLite
+function migrateFromJsonIfNecessary() {
+  if (fs.existsSync(STATE_FILE_PATH)) {
+    try {
+      console.log('[SQLiteStore] Phát hiện file rd_state.json cũ. Bắt đầu di trú sang SQLite...');
+      const rawData = fs.readFileSync(STATE_FILE_PATH, 'utf8');
+      const stateObj = JSON.parse(rawData);
+      
+      if (stateObj && Array.isArray(stateObj.vouchers)) {
+        saveStateToSQLite(stateObj);
+        console.log('[SQLiteStore] Di trú sang SQLite thành công!');
+        
+        // Đổi tên file cũ để tránh di trú lại lần sau
+        const bakPath = STATE_FILE_PATH + '.bak_migrated';
+        if (fs.existsSync(bakPath)) {
+          fs.unlinkSync(bakPath);
+        }
+        fs.renameSync(STATE_FILE_PATH, bakPath);
+        console.log(`[SQLiteStore] Đã đổi tên file cũ thành: ${path.basename(bakPath)}`);
+      }
+    } catch (err) {
+      console.error('[SQLiteStore] Lỗi khi di trú dữ liệu:', err);
+    }
+  }
+}
+
+// Lưu toàn bộ state đối tượng vào SQLite
+function saveStateToSQLite(stateObj) {
+  if (!db) return;
+  
+  const transaction = db.transaction(() => {
+    // 1. Lưu metadata
+    const stmtMetadata = db.prepare('INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)');
+    stmtMetadata.run('companyName', JSON.stringify(stateObj.companyName || ''));
+    stmtMetadata.run('address', JSON.stringify(stateObj.address || ''));
+    stmtMetadata.run('taxCode', JSON.stringify(stateObj.taxCode || ''));
+    stmtMetadata.run('accountingStandard', JSON.stringify(stateObj.accountingStandard || 'TT200'));
+    stmtMetadata.run('initialBalances', JSON.stringify(stateObj.initialBalances || {}));
+    stmtMetadata.run('deletedIds', JSON.stringify(stateObj.deletedIds || []));
+    stmtMetadata.run('_lastModified', JSON.stringify(stateObj._lastModified || Date.now()));
+    if (stateObj.cashEntries) {
+      stmtMetadata.run('cashEntries', JSON.stringify(stateObj.cashEntries));
+    }
+    if (stateObj.escrowItems) {
+      stmtMetadata.run('escrowItems', JSON.stringify(stateObj.escrowItems));
+    }
+
+    // 2. Lưu vouchers
+    db.prepare('DELETE FROM vouchers').run();
+    if (Array.isArray(stateObj.vouchers)) {
+      const stmtVoucher = db.prepare('INSERT OR REPLACE INTO vouchers (id, type, date, data, _updatedAt, _sessionId) VALUES (?, ?, ?, ?, ?, ?)');
+      for (const v of stateObj.vouchers) {
+        stmtVoucher.run(
+          v.id,
+          v.type || '',
+          v.date || '',
+          JSON.stringify(v),
+          v._updatedAt || 0,
+          v._sessionId || ''
+        );
+      }
+    }
+
+    // 3. Lưu products
+    db.prepare('DELETE FROM products').run();
+    if (Array.isArray(stateObj.products)) {
+      const stmtProduct = db.prepare('INSERT OR REPLACE INTO products (id, name, unit, stock, avgCost, data, _updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)');
+      for (const p of stateObj.products) {
+        stmtProduct.run(
+          p.id,
+          p.name || '',
+          p.unit || '',
+          p.stock || 0,
+          p.avgCost || 0,
+          JSON.stringify(p),
+          p._updatedAt || 0
+        );
+      }
+    }
+
+    // 4. Lưu partners
+    db.prepare('DELETE FROM partners').run();
+    if (Array.isArray(stateObj.partners)) {
+      const stmtPartner = db.prepare('INSERT OR REPLACE INTO partners (id, name, type, data, _updatedAt) VALUES (?, ?, ?, ?, ?)');
+      for (const p of stateObj.partners) {
+        stmtPartner.run(
+          p.id,
+          p.name || '',
+          p.type || '',
+          JSON.stringify(p),
+          p._updatedAt || 0
+        );
+      }
+    }
+  });
+
+  transaction();
+}
+
+// Đọc toàn bộ state đối tượng từ SQLite
+function readStateFromSQLite() {
+  if (!db) return null;
+  
+  const stateObj = {
+    companyName: "",
+    address: "",
+    taxCode: "",
+    accountingStandard: "TT200",
+    initialBalances: {},
+    deletedIds: [],
+    products: [],
+    partners: [],
+    vouchers: []
+  };
+
+  // 1. Đọc metadata
+  const metadataRows = db.prepare('SELECT key, value FROM metadata').all();
+  for (const row of metadataRows) {
+    try {
+      const parsedVal = JSON.parse(row.value);
+      if (row.key === 'companyName') stateObj.companyName = parsedVal;
+      else if (row.key === 'address') stateObj.address = parsedVal;
+      else if (row.key === 'taxCode') stateObj.taxCode = parsedVal;
+      else if (row.key === 'accountingStandard') stateObj.accountingStandard = parsedVal;
+      else if (row.key === 'initialBalances') stateObj.initialBalances = parsedVal;
+      else if (row.key === 'deletedIds') stateObj.deletedIds = parsedVal;
+      else if (row.key === '_lastModified') stateObj._lastModified = parsedVal;
+      else if (row.key === 'cashEntries') stateObj.cashEntries = parsedVal;
+      else if (row.key === 'escrowItems') stateObj.escrowItems = parsedVal;
+    } catch (e) {
+      console.error(`[SQLiteStore] Lỗi parse metadata key ${row.key}:`, e);
+    }
+  }
+
+  // 2. Đọc vouchers
+  const voucherRows = db.prepare('SELECT data FROM vouchers').all();
+  for (const row of voucherRows) {
+    try {
+      stateObj.vouchers.push(JSON.parse(row.data));
+    } catch (e) {
+      console.error('[SQLiteStore] Lỗi parse voucher data:', e);
+    }
+  }
+
+  // 3. Đọc products
+  const productRows = db.prepare('SELECT data FROM products').all();
+  for (const row of productRows) {
+    try {
+      stateObj.products.push(JSON.parse(row.data));
+    } catch (e) {
+      console.error('[SQLiteStore] Lỗi parse product data:', e);
+    }
+  }
+
+  // 4. Đọc partners
+  const partnerRows = db.prepare('SELECT data FROM partners').all();
+  for (const row of partnerRows) {
+    try {
+      stateObj.partners.push(JSON.parse(row.data));
+    } catch (e) {
+      console.error('[SQLiteStore] Lỗi parse partner data:', e);
+    }
+  }
+
+  return stateObj;
+}
+
+// Đăng ký các IPC handlers
+ipcMain.handle('write-state-file', async (event, jsonData) => {
+  try {
+    const stateObj = JSON.parse(jsonData);
+    saveStateToSQLite(stateObj);
     return { ok: true };
   } catch (err) {
-    console.error('[StateFile] Lỗi ghi state file:', err);
+    console.error('[SQLiteStore] Lỗi ghi state vào SQLite:', err);
     return { ok: false, error: err.message };
   }
 });
 
-// Đọc state từ file JSON
 ipcMain.handle('read-state-file', async (event) => {
   try {
-    if (!fs.existsSync(STATE_FILE_PATH)) {
-      return { ok: false, error: 'State file chưa tồn tại' };
+    const stateObj = readStateFromSQLite();
+    if (!stateObj || (stateObj.vouchers.length === 0 && stateObj.products.length === 0)) {
+      return { ok: false, error: 'SQLite rỗng hoặc chưa được khởi tạo' };
     }
-    const data = fs.readFileSync(STATE_FILE_PATH, 'utf8');
-    return { ok: true, data };
+    return { ok: true, data: JSON.stringify(stateObj) };
   } catch (err) {
-    console.error('[StateFile] Lỗi đọc state file:', err);
+    console.error('[SQLiteStore] Lỗi đọc state từ SQLite:', err);
     return { ok: false, error: err.message };
   }
 });
@@ -546,6 +767,7 @@ ipcMain.on('show-confirm-dialog', (event, message) => {
 
 // Khởi chạy khi Electron sẵn sàng
 app.whenReady().then(() => {
+  initDatabase(); // Khởi tạo SQLite database cục bộ
   createWindow();
 
   app.on('activate', () => {

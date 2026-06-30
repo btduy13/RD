@@ -1361,9 +1361,14 @@ async function pullAndMergeFromCloud() {
       updateLastSyncState(state);
       lastSyncedCloudTs = cloudData._lastModified || 0;
 
-      // Ghi cache cục bộ
+      // Ghi cache cục bộ (cập nhật SQLite cache qua Electron IPC)
       try {
-        localStorage.setItem("rd_accounting_online_cache", JSON.stringify(state));
+        const stateJson = JSON.stringify(state);
+        if (window.electronAPI && typeof window.electronAPI.writeStateFile === 'function') {
+          window.electronAPI.writeStateFile(stateJson).catch(err => console.error('[StateFile] Lỗi ghi sau realtime pull:', err));
+        } else {
+          localStorage.setItem("rd_accounting_online_cache", stateJson);
+        }
       } catch (cacheErr) {
         console.error("[Cache] Lỗi ghi cache cục bộ:", cacheErr);
       }
