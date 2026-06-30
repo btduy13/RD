@@ -328,13 +328,15 @@ function addPurchaseFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discoun
 
   tbody.appendChild(tr);
 
-  // Auto-focus vào ô sản phẩm của dòng vừa tạo
-  const allRows = tbody.querySelectorAll("tr");
-  const newRow = allRows[allRows.length - 1];
-  if (newRow) {
-    const firstInput = newRow.querySelector(".item-productId");
-    if (firstInput) {
-      setTimeout(() => { firstInput.focus(); }, 30);
+  // Auto-focus vào ô sản phẩm của dòng vừa tạo khi add tay
+  if (!productIdVal) {
+    const allRows = tbody.querySelectorAll("tr");
+    const newRow = allRows[allRows.length - 1];
+    if (newRow) {
+      const firstInput = newRow.querySelector(".item-productId");
+      if (firstInput) {
+        setTimeout(() => { firstInput.focus(); }, 30);
+      }
     }
   }
 
@@ -1008,13 +1010,15 @@ function addPurchaseOrderFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, di
 
   tbody.appendChild(tr);
 
-  // Auto-focus vào ô sản phẩm của dòng vừa tạo
-  const allRows = tbody.querySelectorAll("tr");
-  const newRow = allRows[allRows.length - 1];
-  if (newRow) {
-    const firstInput = newRow.querySelector(".item-productId");
-    if (firstInput) {
-      setTimeout(() => { firstInput.focus(); }, 30);
+  // Auto-focus vào ô sản phẩm của dòng vừa tạo khi add tay
+  if (!productIdVal) {
+    const allRows = tbody.querySelectorAll("tr");
+    const newRow = allRows[allRows.length - 1];
+    if (newRow) {
+      const firstInput = newRow.querySelector(".item-productId");
+      if (firstInput) {
+        setTimeout(() => { firstInput.focus(); }, 30);
+      }
     }
   }
 
@@ -1951,12 +1955,14 @@ function addPurchaseReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, d
 
   tbody.appendChild(tr);
 
-  const allRows = tbody.querySelectorAll("tr");
-  const newRow = allRows[allRows.length - 1];
-  if (newRow) {
-    const firstInput = newRow.querySelector(".item-productId");
-    if (firstInput) {
-      setTimeout(() => { firstInput.focus(); }, 30);
+  if (!productIdVal) {
+    const allRows = tbody.querySelectorAll("tr");
+    const newRow = allRows[allRows.length - 1];
+    if (newRow) {
+      const firstInput = newRow.querySelector(".item-productId");
+      if (firstInput) {
+        setTimeout(() => { firstInput.focus(); }, 30);
+      }
     }
   }
 

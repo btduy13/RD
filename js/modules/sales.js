@@ -346,13 +346,15 @@ function addSalesFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVal =
   tbody.appendChild(tr);
   recalculateSalesTotals();
 
-  // Auto-focus vào ô sản phẩm của dòng vừa tạo
-  const allRows = tbody.querySelectorAll("tr");
-  const newRow = allRows[allRows.length - 1];
-  if (newRow) {
-    const firstInput = newRow.querySelector(".item-productId");
-    if (firstInput) {
-      setTimeout(() => { firstInput.focus(); }, 30);
+  // Auto-focus vào ô sản phẩm của dòng vừa tạo khi add tay
+  if (!productIdVal) {
+    const allRows = tbody.querySelectorAll("tr");
+    const newRow = allRows[allRows.length - 1];
+    if (newRow) {
+      const firstInput = newRow.querySelector(".item-productId");
+      if (firstInput) {
+        setTimeout(() => { firstInput.focus(); }, 30);
+      }
     }
   }
 }
@@ -1008,13 +1010,15 @@ function addSalesReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, disc
   tbody.appendChild(tr);
   recalculateSalesReturnTotals();
 
-  // Auto-focus vào ô sản phẩm của dòng vừa tạo
-  const allRows = tbody.querySelectorAll("tr");
-  const newRow = allRows[allRows.length - 1];
-  if (newRow) {
-    const firstInput = newRow.querySelector(".item-productId");
-    if (firstInput) {
-      setTimeout(() => { firstInput.focus(); }, 30);
+  // Auto-focus vào ô sản phẩm của dòng vừa tạo khi add tay
+  if (!productIdVal) {
+    const allRows = tbody.querySelectorAll("tr");
+    const newRow = allRows[allRows.length - 1];
+    if (newRow) {
+      const firstInput = newRow.querySelector(".item-productId");
+      if (firstInput) {
+        setTimeout(() => { firstInput.focus(); }, 30);
+      }
     }
   }
 }
@@ -1691,13 +1695,15 @@ function addQuotationFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceV
   tbody.appendChild(tr);
   recalculateQuotationTotals();
 
-  // Auto-focus vào ô sản phẩm của dòng vừa tạo
-  const allRows = tbody.querySelectorAll("tr");
-  const newRow = allRows[allRows.length - 1];
-  if (newRow) {
-    const firstInput = newRow.querySelector(".item-productId");
-    if (firstInput) {
-      setTimeout(() => { firstInput.focus(); }, 30);
+  // Auto-focus vào ô sản phẩm của dòng vừa tạo khi add tay
+  if (!productIdVal) {
+    const allRows = tbody.querySelectorAll("tr");
+    const newRow = allRows[allRows.length - 1];
+    if (newRow) {
+      const firstInput = newRow.querySelector(".item-productId");
+      if (firstInput) {
+        setTimeout(() => { firstInput.focus(); }, 30);
+      }
     }
   }
 }
