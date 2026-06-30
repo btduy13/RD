@@ -646,9 +646,10 @@ async function pullFromCloudOnStartup() {
   if (!cloudSyncActive || !supabaseClient) return;
 
   try {
-    // Luôn kéo đầy đủ từ cloud khi khởi động (truyền 0 = full pull)
-    // để đảm bảo partnerOpeningBalances và mọi metadata luôn là bản mới nhất từ cloud
-    const result = await fetchCloudData(0);
+    // Tải dữ liệu thay đổi (incremental) kể từ lần đồng bộ cuối cùng của cache cục bộ.
+    // Nếu chưa có cache cục bộ (state rỗng) hoặc không có timestamp, sẽ tự động thực hiện full pull (truyền 0).
+    const localTs = (state && state._lastModified) ? state._lastModified : 0;
+    const result = await fetchCloudData(localTs);
     if (!result) return;
     const { newState: cloudData, rescuedVouchers } = result;
     const hasCloudProducts = cloudData && cloudData.products && cloudData.products.length > 0;
