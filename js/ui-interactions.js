@@ -1814,6 +1814,130 @@ function showF3LookupModal(activeInput, type) {
   document.addEventListener('keydown', handleGlobalKeydown);
 }
 
+// ── EXCEL-LIKE CELL NAVIGATION AND BULK EDITING ──────────────────────────────────
+let bulkSelectionStartRow = null;
+let bulkSelectionColumnIndex = null;
+let bulkSelectedInputs = [];
+
+function clearBulkSelection() {
+  document.querySelectorAll('.cell-bulk-selected').forEach(el => {
+    el.classList.remove('cell-bulk-selected');
+  });
+  bulkSelectedInputs = [];
+}
+
+document.addEventListener('keydown', (e) => {
+  const activeEl = document.activeElement;
+  if (!activeEl || activeEl.tagName !== 'INPUT') return;
+  
+  const td = activeEl.closest('td');
+  const tr = activeEl.closest('tr');
+  const table = activeEl.closest('.dynamic-items-table');
+  if (!table || !td || !tr) return;
+  
+  const tbody = tr.parentNode;
+  const rows = Array.from(tbody.rows);
+  const rowIndex = rows.indexOf(tr);
+  const cellIndex = Array.from(tr.cells).indexOf(td);
+  
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+    e.preventDefault(); // Ngăn cuộn trang web mặc định
+    
+    let targetRowIndex = e.key === 'ArrowUp' ? rowIndex - 1 : rowIndex + 1;
+    if (targetRowIndex < 0 || targetRowIndex >= rows.length) return;
+    
+    const targetRow = rows[targetRowIndex];
+    const targetTd = targetRow.cells[cellIndex];
+    if (!targetTd) return;
+    
+    const targetInput = targetTd.querySelector('input');
+    if (!targetInput) return;
+    
+    if (e.shiftKey) {
+      // Bắt đầu bulk selection nếu chưa có
+      if (bulkSelectionStartRow === null) {
+        bulkSelectionStartRow = rowIndex;
+        bulkSelectionColumnIndex = cellIndex;
+        activeEl.classList.add('cell-bulk-selected');
+        if (!bulkSelectedInputs.includes(activeEl)) {
+          bulkSelectedInputs.push(activeEl);
+        }
+      }
+      
+      // Focus vào ô đích
+      targetInput.focus();
+      
+      // Tìm tất cả các hàng từ startRowIndex tới targetRowIndex
+      clearBulkSelection();
+      const minRow = Math.min(bulkSelectionStartRow, targetRowIndex);
+      const maxRow = Math.max(bulkSelectionStartRow, targetRowIndex);
+      
+      for (let r = minRow; r <= maxRow; r++) {
+        const inputInRow = rows[r].cells[bulkSelectionColumnIndex].querySelector('input');
+        if (inputInRow) {
+          inputInRow.classList.add('cell-bulk-selected');
+          bulkSelectedInputs.push(inputInRow);
+        }
+      }
+    } else {
+      // Di chuyển bình thường không giữ Shift
+      clearBulkSelection();
+      bulkSelectionStartRow = null;
+      bulkSelectionColumnIndex = null;
+      targetInput.focus();
+      targetInput.select(); // Tiện lợi để bôi đen ghi đè luôn
+    }
+  } else if (e.key === 'Escape') {
+    clearBulkSelection();
+    bulkSelectionStartRow = null;
+    bulkSelectionColumnIndex = null;
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.dynamic-items-table') || e.target.tagName !== 'INPUT') {
+    clearBulkSelection();
+    bulkSelectionStartRow = null;
+    bulkSelectionColumnIndex = null;
+  }
+});
+
+document.addEventListener('input', (e) => {
+  const activeEl = e.target;
+  if (!activeEl || activeEl.tagName !== 'INPUT') return;
+  
+  const table = activeEl.closest('.dynamic-items-table');
+  if (!table) return;
+  
+  if (activeEl.classList.contains('cell-bulk-selected') && bulkSelectedInputs.length > 0) {
+    const val = activeEl.value;
+    
+    // Lưu các input được chỉnh sửa cùng lúc để tránh vòng lặp đệ quy vô hạn
+    if (activeEl._isBulkUpdating) return;
+    
+    bulkSelectedInputs.forEach(input => {
+      if (input !== activeEl) {
+        input._isBulkUpdating = true;
+        input.value = val;
+        
+        // Dispatch các sự kiện cần thiết để kích hoạt tính toán tự động
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        input.dispatchEvent(new Event('blur', { bubbles: true }));
+        
+        if (typeof input.oninput === 'function') {
+          input.oninput();
+        }
+        if (typeof input.onblur === 'function') {
+          input.onblur();
+        }
+        
+        delete input._isBulkUpdating;
+      }
+    });
+  }
+});
+
 
 
 
