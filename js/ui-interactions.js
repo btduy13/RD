@@ -1895,7 +1895,59 @@ document.addEventListener('keydown', (e) => {
 });
 
 document.addEventListener('click', (e) => {
-  if (!e.target.closest('.dynamic-items-table') || e.target.tagName !== 'INPUT') {
+  const activeEl = e.target;
+  if (activeEl.tagName === 'INPUT' && activeEl.closest('.dynamic-items-table')) {
+    const td = activeEl.closest('td');
+    const tr = activeEl.closest('tr');
+    if (!td || !tr) return;
+    
+    const tbody = tr.parentNode;
+    const rowIndex = Array.from(tbody.rows).indexOf(tr);
+    const cellIndex = Array.from(tr.cells).indexOf(td);
+    
+    if (e.ctrlKey) {
+      e.preventDefault();
+      
+      // Toggle selection trên ô vừa click
+      if (activeEl.classList.contains('cell-bulk-selected')) {
+        activeEl.classList.remove('cell-bulk-selected');
+        bulkSelectedInputs = bulkSelectedInputs.filter(input => input !== activeEl);
+      } else {
+        activeEl.classList.add('cell-bulk-selected');
+        if (!bulkSelectedInputs.includes(activeEl)) {
+          bulkSelectedInputs.push(activeEl);
+        }
+      }
+      
+      // Đặt neo (anchor) cho lần bấm Shift sau đó
+      bulkSelectionStartRow = rowIndex;
+      bulkSelectionColumnIndex = cellIndex;
+      activeEl.focus();
+    } else if (e.shiftKey) {
+      // Shift+Click chọn dải ô liên tiếp từ neo
+      if (bulkSelectionStartRow !== null && bulkSelectionColumnIndex === cellIndex) {
+        clearBulkSelection();
+        const rows = Array.from(tbody.rows);
+        const minRow = Math.min(bulkSelectionStartRow, rowIndex);
+        const maxRow = Math.max(bulkSelectionStartRow, rowIndex);
+        
+        for (let r = minRow; r <= maxRow; r++) {
+          const inputInRow = rows[r].cells[bulkSelectionColumnIndex].querySelector('input');
+          if (inputInRow) {
+            inputInRow.classList.add('cell-bulk-selected');
+            bulkSelectedInputs.push(inputInRow);
+          }
+        }
+        activeEl.focus();
+      }
+    } else {
+      // Click bình thường không đè Ctrl/Shift
+      clearBulkSelection();
+      bulkSelectionStartRow = rowIndex;
+      bulkSelectionColumnIndex = cellIndex;
+    }
+  } else {
+    // Click ra ngoài bảng
     clearBulkSelection();
     bulkSelectionStartRow = null;
     bulkSelectionColumnIndex = null;
