@@ -396,6 +396,34 @@ function getPartnerForVoucher(v) {
     p = partnerCacheByName[idLower] || partnerCacheById[idLower];
   }
 
+  // 3. Fallback nâng cao: Tìm kiếm theo các cụm từ nằm trong ngoặc (...)
+  if (!p) {
+    const searchStrings = [partnerIdStr, partnerNameStr];
+    for (const str of searchStrings) {
+      if (!str) continue;
+      const matches = str.match(/\(([^)]+)\)/g);
+      if (matches) {
+        for (const match of matches) {
+          const inner = match.substring(1, match.length - 1).trim();
+          if (!inner) continue;
+          
+          // Thử tìm theo ID khớp hoàn toàn
+          const innerLower = inner.toLowerCase();
+          p = partnerCacheById[innerLower] || (state.partners || []).find(item => String(item.id).toLowerCase() === innerLower);
+          if (p) break;
+          
+          // Thử tìm theo ID/Tên chứa cụm từ này
+          p = (state.partners || []).find(item => 
+            (item.name && item.name.toLowerCase().includes(innerLower)) || 
+            (item.id && String(item.id).toLowerCase().includes(innerLower))
+          );
+          if (p) break;
+        }
+      }
+      if (p) break;
+    }
+  }
+
   return p;
 }
 
