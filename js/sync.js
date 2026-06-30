@@ -425,13 +425,16 @@ function applyDeltaToState(changedRows, cloudTs) {
         if (idx !== -1) {
           const localVoucher = baseState.vouchers[idx];
           // === PHÁT HIỆN XUNG ĐỘT ID SONG SONG ===
-          // Cả hai bên đều có _sessionId, khác nhau, và bản cục bộ là của máy này
+          // Cả hai bên đều có _sessionId, khác nhau, và bản cục bộ chưa từng được đồng bộ lên cloud trước đó
+          const wasNeverSynced = !lastSyncState ||
+                                 !Array.isArray(lastSyncState.vouchers) ||
+                                 !lastSyncState.vouchers.some(v => v && v.id === localVoucher.id);
           if (
             localVoucher &&
             localVoucher._sessionId &&
             cloudVoucher._sessionId &&
             localVoucher._sessionId !== cloudVoucher._sessionId &&
-            localVoucher._sessionId === clientSessionId
+            wasNeverSynced
           ) {
             console.warn(`[ConflictDetect] Xung đột ID "${cloudVoucher.id}": máy này và máy khác cùng tạo. Đang cứu bản cục bộ...`);
             rescuedVouchers.push({ ...localVoucher }); // lưu bản cục bộ bị đẩy ra
