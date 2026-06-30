@@ -281,7 +281,7 @@ function handleQuickAddPartnerSubmit(e) {
     const datalist = document.getElementById("datalist-partners");
     if (datalist && state.partners) {
       datalist.innerHTML = state.partners.map(p => {
-        const typeLabel = p.type === 'supplier' ? 'NCC' : (p.type === 'enterprise' ? 'DN' : (p.type === 'project' ? 'CT' : (p.type === 'both' ? 'KH/NCC' : 'KL')));
+        const typeLabel = p.type === 'supplier' ? 'NCC' : (p.type === 'enterprise' ? 'DN' : (p.type === 'project' ? 'CT' : 'KL'));
         let parentInfo = "";
         if (p.type === 'project' && p.parentId) {
           const parent = state.partners.find(parent => parent.id === p.parentId);
@@ -494,8 +494,6 @@ function renderPartnersTable() {
         typeBadge = `<span class="badge" style="background-color: #10b981; color: white;">Khách lẻ</span>`;
       } else if (p.type === 'supplier') {
         typeBadge = `<span class="badge" style="background-color: #3b82f6; color: white;">Nhà cung cấp</span>`;
-      } else if (p.type === 'both') {
-        typeBadge = `<span class="badge" style="background-color: #8b5cf6; color: white;">KH & NCC</span>`;
       } else {
         typeBadge = `<span class="badge badge-info">${p.type}</span>`;
       }
@@ -598,9 +596,7 @@ function filterPartners() {
     if (filterType === "all") {
       matchesType = true;
     } else if (filterType === "customer") {
-      matchesType = (p.type === "retail" || p.type === "enterprise" || p.type === "project" || p.type === "both");
-    } else if (filterType === "supplier") {
-      matchesType = (p.type === "supplier" || p.type === "both");
+      matchesType = (p.type === "retail" || p.type === "enterprise" || p.type === "project");
     } else {
       matchesType = p.type === filterType;
     }

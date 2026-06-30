@@ -106,26 +106,7 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
           else d.debitTrans += e.amount; // Giảm phải trả (thanh toán / trả hàng)
         }
       }
-      // Đối tác cả 2 loại (both): đọc cả 131 lẫn 331, nhưng theo đúng chiều
-      else if (d.type === "both") {
-        if (e.debit && e.debit.startsWith("131")) {
-          if (isPrior) d.priorDebit += e.amount;
-          else d.debitTrans += e.amount;
-        }
-        if (e.credit && e.credit.startsWith("131")) {
-          if (isPrior) d.priorCredit += e.amount;
-          else d.creditTrans += e.amount;
-        }
-        if (e.credit && e.credit.startsWith("331")) {
-          if (isPrior) d.priorCredit += e.amount;
-          else d.creditTrans += e.amount;
-        }
-        if (e.debit && e.debit.startsWith("331")) {
-          if (isPrior) d.priorDebit += e.amount;
-          else d.debitTrans += e.amount;
-        }
-      }
-      // Khách hàng (customer / retail / project / enterprise): chỉ đọc TK 131
+      // Khách hàng (retail / project / enterprise): chỉ đọc TK 131
       else {
         if (e.debit && e.debit.startsWith("131")) {
           if (isPrior) d.priorDebit += e.amount;
