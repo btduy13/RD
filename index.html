@@ -2968,101 +2968,190 @@
 
   <!-- A-1. MODAL: THÊM/SỬA ĐỐI TÁC -->
   <div id="modal-add-partner" class="modal-overlay">
-    <div class="modal-content-container" style="max-width: 500px;">
-      <div class="modal-header">
-        <h3 class="card-title" id="modal-partner-title">Khai báo Đối tác</h3>
-        <button class="icon-btn" onclick="closeModal('modal-add-partner')" style="width: 32px; height: 32px;">×</button>
+    <div class="modal-content-container" style="max-width: 620px; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04);">
+      <style>
+        .switch-container input:checked + .switch-slider {
+          background-color: var(--color-primary) !important;
+        }
+        .switch-container input:checked + .switch-slider::before {
+          transform: translateX(20px) !important;
+        }
+        .switch-slider::before {
+          position: absolute;
+          content: "";
+          height: 18px;
+          width: 18px;
+          left: 3px;
+          bottom: 3px;
+          background-color: white;
+          transition: .3s;
+          border-radius: 50%;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        }
+        
+        .partner-type-card {
+          flex: 1;
+          padding: 12px 16px;
+          border-radius: 12px;
+          border: 1px solid var(--border-color);
+          background: var(--bg-secondary);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          transition: all 0.2s ease;
+        }
+        .partner-type-card:hover {
+          border-color: var(--color-primary-light);
+          background: var(--bg-tertiary);
+        }
+        .partner-type-card.active {
+          border-color: var(--color-primary);
+          background: rgba(2, 132, 199, 0.04);
+          box-shadow: 0 0 0 1px var(--color-primary);
+        }
+        
+        .sub-tab-btn-pill {
+          flex: 1;
+          padding: 8px 12px;
+          font-size: 13px;
+          font-weight: 600;
+          border: none;
+          border-radius: 8px;
+          background: transparent;
+          color: var(--text-secondary);
+          cursor: pointer;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+        }
+      </style>
+      <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding: 18px 24px; background: var(--bg-secondary);">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="background: rgba(2, 132, 199, 0.1); color: var(--color-primary); padding: 8px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
+          </div>
+          <h3 class="card-title" id="modal-partner-title" style="margin: 0; font-size: 16px; font-weight: 700; color: var(--text-primary);">Khai báo Đối tác</h3>
+        </div>
+        <button class="icon-btn" onclick="closeModal('modal-add-partner')" style="width: 32px; height: 32px; border-radius: 50%; font-size: 18px;">×</button>
       </div>
-      <div class="modal-body" style="padding-top: 10px;">
+      <div class="modal-body" style="padding: 20px 24px; background: var(--bg-primary);">
         <!-- Modal Tabs -->
-        <div class="sub-tabs-bar" style="margin-bottom: 16px; border-bottom: 1px solid var(--border-color); display: flex; gap: 8px;">
-          <button type="button" id="partner-tab-enterprise" class="sub-tab-btn active" onclick="switchPartnerModalTab('enterprise')" style="padding: 8px 12px; font-size: 13px; font-weight: 600; border: none; background: none; border-bottom: 2px solid var(--color-primary); color: var(--text-primary); cursor: pointer;">
+        <div class="sub-tabs-bar" style="margin-bottom: 20px; background: var(--bg-tertiary); padding: 4px; border-radius: 10px; display: flex; gap: 4px; border: 1px solid var(--border-color);">
+          <button type="button" id="partner-tab-enterprise" class="sub-tab-btn-pill active" onclick="switchPartnerModalTab('enterprise')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/><line x1="17" y1="17" x2="22" y2="17"/></svg>
             Khách Doanh nghiệp
           </button>
-          <button type="button" id="partner-tab-retail" class="sub-tab-btn" onclick="switchPartnerModalTab('retail')" style="padding: 8px 12px; font-size: 13px; font-weight: 500; border: none; background: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">
+          <button type="button" id="partner-tab-retail" class="sub-tab-btn-pill" onclick="switchPartnerModalTab('retail')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             Khách Lẻ
           </button>
-          <button type="button" id="partner-tab-supplier" class="sub-tab-btn" onclick="switchPartnerModalTab('supplier')" style="padding: 8px 12px; font-size: 13px; font-weight: 500; border: none; background: none; border-bottom: 2px solid transparent; color: var(--text-secondary); cursor: pointer;">
+          <button type="button" id="partner-tab-supplier" class="sub-tab-btn-pill" onclick="switchPartnerModalTab('supplier')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
             Nhà Cung Cấp
           </button>
         </div>
 
-        <form id="form-partner" class="form-grid" style="grid-template-columns: 1fr; gap: 12px;" onsubmit="handlePartnerSubmit(event)">
+        <form id="form-partner" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;" onsubmit="handlePartnerSubmit(event)">
           <input type="hidden" id="edit-partner-index" value="-1">
           <input type="hidden" id="partner-modal-type" value="enterprise">
 
-          <!-- Enterprise Radio Options -->
-          <div id="group-enterprise-options" class="form-group" style="display: flex; gap: 16px; align-items: center; background: var(--bg-tertiary); padding: 8px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
-            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--text-primary); cursor: pointer; margin-bottom: 0;">
-              <input type="radio" name="enterprise-option" value="new" checked onchange="toggleEnterpriseOption('new')" style="width: 16px; height: 16px; cursor: pointer;">
-              Doanh nghiệp MỚI
-            </label>
-            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--text-primary); cursor: pointer; margin-bottom: 0;">
-              <input type="radio" name="enterprise-option" value="existing" onchange="toggleEnterpriseOption('existing')" style="width: 16px; height: 16px; cursor: pointer;">
-              Thêm Công trình (DN cũ)
-            </label>
+          <!-- Enterprise Card Options -->
+          <div id="group-enterprise-options" style="grid-column: span 2; display: flex; gap: 12px; margin-bottom: 4px;">
+            <div class="partner-type-card active" id="card-option-new" onclick="selectEnterpriseOption('new')">
+              <input type="radio" name="enterprise-option" value="new" checked style="display: none;">
+              <div style="background: rgba(2, 132, 199, 0.1); color: var(--color-primary); padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="9" y1="22" x2="9" y2="16"/><line x1="15" y1="22" x2="15" y2="16"/><line x1="9" y1="16" x2="15" y2="16"/><path d="M8 6h8M8 10h8"/></svg>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">Doanh nghiệp MỚI</span>
+                <span style="font-size: 11.5px; color: var(--text-secondary);">Tạo công ty mẹ và công trình chính</span>
+              </div>
+            </div>
+            <div class="partner-type-card" id="card-option-existing" onclick="selectEnterpriseOption('existing')">
+              <input type="radio" name="enterprise-option" value="existing" style="display: none;">
+              <div style="background: rgba(16, 185, 129, 0.1); color: var(--color-success); padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">Thêm Công trình (DN cũ)</span>
+                <span style="font-size: 11.5px; color: var(--text-secondary);">Gắn công trình con vào công ty mẹ đã có</span>
+              </div>
+            </div>
           </div>
 
           <!-- Autocomplete Search Input to select Parent Enterprise -->
-          <div id="group-partner-parent" class="form-group" style="display: none;">
+          <div id="group-partner-parent" class="form-group" style="grid-column: span 2; display: none;">
             <label class="form-label">Chọn Doanh nghiệp mẹ <span style="color:var(--color-danger)">*</span></label>
-            <input type="text" id="partner-parent-search" class="form-control" style="height: 36px; font-size: 13px;" placeholder="Gõ mã hoặc tên doanh nghiệp..." autocomplete="off" list="partner-parent-datalist">
+            <input type="text" id="partner-parent-search" class="form-control" style="height: 38px; font-size: 13px;" placeholder="Gõ mã hoặc tên doanh nghiệp..." autocomplete="off" list="partner-parent-datalist">
             <datalist id="partner-parent-datalist"></datalist>
           </div>
 
-          <div class="form-group" id="group-partner-id">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <label class="form-label" id="label-partner-id" style="margin-bottom: 0;">Mã Doanh nghiệp</label>
+          <div class="form-group" id="group-partner-id" style="grid-column: span 2;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label class="form-label" id="label-partner-id" style="margin-bottom: 0; font-weight: 600; font-size: 13px;">Mã Doanh nghiệp</label>
               <span id="partner-id-validation-badge" style="font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px; display: none;"></span>
             </div>
             <div style="display: flex; gap: 8px;">
-              <input type="text" id="partner-id" class="form-control" placeholder="Nhập mã hoặc tự động sinh" style="flex: 1; text-transform: uppercase;">
-              <button type="button" class="btn btn-secondary" onclick="generatePartnerIdFromForm()" style="height: 36px; padding: 0 12px; font-size: 12px; display: flex; align-items: center; gap: 4px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              <input type="text" id="partner-id" class="form-control" placeholder="Nhập mã hoặc tự động sinh" style="flex: 1; height: 38px; font-size: 13px; text-transform: uppercase;">
+              <button type="button" class="btn btn-secondary" onclick="generatePartnerIdFromForm()" style="height: 38px; padding: 0 14px; font-size: 12px; display: flex; align-items: center; gap: 6px; border-radius: 8px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
                 Sinh mã
               </button>
             </div>
-            <div id="partner-id-change-warning" style="display: none; margin-top: 6px; font-size: 11.5px; color: var(--color-warning); background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); padding: 6px 10px; border-radius: var(--radius-sm);">
+            <div id="partner-id-change-warning" style="display: none; margin-top: 6px; font-size: 11.5px; color: #d97706; background: rgba(217, 119, 6, 0.08); border: 1px solid rgba(217, 119, 6, 0.15); padding: 8px 12px; border-radius: 8px;">
               ⚠️ <strong>Lưu ý:</strong> Thay đổi Mã đối tác sẽ tự động cập nhật lại mã trên toàn bộ các chứng từ lịch sử và liên kết liên quan.
             </div>
           </div>
 
-          <div class="form-group" id="group-partner-name">
-            <label class="form-label" id="label-partner-name">Tên Doanh nghiệp <span style="color:var(--color-danger)">*</span></label>
-            <input type="text" id="partner-name" class="form-control" required placeholder="Nhập tên...">
+          <div class="form-group" id="group-partner-name" style="grid-column: span 2;">
+            <label class="form-label" id="label-partner-name" style="font-weight: 600; font-size: 13px;">Tên Doanh nghiệp <span style="color:var(--color-danger)">*</span></label>
+            <input type="text" id="partner-name" class="form-control" required placeholder="Nhập tên..." style="height: 38px; font-size: 13px;">
           </div>
 
           <!-- Project name input for new enterprise -->
-          <div class="form-group" id="group-partner-project-name">
-            <label class="form-label">Tên công trình đi kèm (Không bắt buộc)</label>
-            <input type="text" id="partner-project-name" class="form-control" placeholder="Ví dụ: Công trình biệt thự Ánh Dương">
+          <div class="form-group" id="group-partner-project-name" style="grid-column: span 2;">
+            <label class="form-label" style="font-weight: 600; font-size: 13px;">Tên công trình đi kèm (Không bắt buộc)</label>
+            <input type="text" id="partner-project-name" class="form-control" placeholder="Ví dụ: Công trình biệt thự Ánh Dương" style="height: 38px; font-size: 13px;">
           </div>
 
           <div class="form-group" id="group-partner-phone">
-            <label class="form-label">Số điện thoại</label>
-            <input type="text" id="partner-phone" class="form-control" placeholder="Ví dụ: 0912345678">
-          </div>
-
-          <div class="form-group" id="group-partner-address">
-            <label class="form-label" id="label-partner-address">Địa chỉ trụ sở</label>
-            <input type="text" id="partner-address" class="form-control" placeholder="Số nhà, đường phố, tỉnh/thành...">
+            <label class="form-label" style="font-weight: 600; font-size: 13px;">Số điện thoại</label>
+            <input type="text" id="partner-phone" class="form-control" placeholder="Ví dụ: 0912345678" style="height: 38px; font-size: 13px;">
           </div>
 
           <div class="form-group" id="group-partner-taxcode">
-            <label class="form-label">Mã số thuế</label>
-            <input type="text" id="partner-taxcode" class="form-control" placeholder="Mã số thuế doanh nghiệp...">
+            <label class="form-label" style="font-weight: 600; font-size: 13px;">Mã số thuế</label>
+            <input type="text" id="partner-taxcode" class="form-control" placeholder="Mã số thuế..." style="height: 38px; font-size: 13px;">
           </div>
 
-          <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
-            <input type="checkbox" id="partner-inactive" style="width: 18px; height: 18px; cursor: pointer;">
-            <label class="form-label" for="partner-inactive" style="margin-bottom: 0; cursor: pointer;">Ngừng theo dõi</label>
+          <div class="form-group" id="group-partner-address" style="grid-column: span 2;">
+            <label class="form-label" id="label-partner-address" style="font-weight: 600; font-size: 13px;">Địa chỉ trụ sở</label>
+            <input type="text" id="partner-address" class="form-control" placeholder="Số nhà, đường phố, tỉnh/thành..." style="height: 38px; font-size: 13px;">
           </div>
 
-          <div class="form-actions" style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 12px;">
-            <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-partner')">Hủy</button>
-            <button type="submit" class="btn btn-primary">Lưu lại</button>
+          <!-- Toggle switch for inactive -->
+          <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-tertiary); padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border-color); grid-column: span 2;">
+            <div>
+              <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">Trạng thái hoạt động</span>
+              <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 2px;">Ngừng theo dõi đối tác nếu không còn giao dịch</div>
+            </div>
+            <label class="switch-container" style="position: relative; display: inline-block; width: 44px; height: 24px; cursor: pointer; margin-bottom: 0;">
+              <input type="checkbox" id="partner-inactive" style="opacity: 0; width: 0; height: 0;">
+              <span class="switch-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .3s; border-radius: 24px;"></span>
+            </label>
+          </div>
+
+          <div class="form-actions" style="margin-top: 8px; grid-column: span 2; display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-partner')" style="height: 38px; padding: 0 18px; font-size: 13px; border-radius: 8px;">Hủy</button>
+            <button type="submit" class="btn btn-primary" style="height: 38px; padding: 0 20px; font-size: 13px; border-radius: 8px; background: linear-gradient(135deg, var(--color-primary) 0%, #0369a1 100%); border: none; box-shadow: 0 4px 6px -1px rgba(2, 132, 199, 0.25);">Lưu lại</button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
       </div>
     </div>
   </div>

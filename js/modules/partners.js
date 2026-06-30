@@ -143,6 +143,26 @@ window.generatePartnerIdFromForm = function() {
   }
 };
 
+window.selectEnterpriseOption = function(option) {
+  const radio = document.querySelector(`input[name="enterprise-option"][value="${option}"]`);
+  if (radio) {
+    radio.checked = true;
+    
+    // Cập nhật class active cho các card tương ứng
+    const cardNew = document.getElementById('card-option-new');
+    const cardExist = document.getElementById('card-option-existing');
+    if (option === 'new') {
+      if (cardNew) cardNew.classList.add('active');
+      if (cardExist) cardExist.classList.remove('active');
+    } else {
+      if (cardNew) cardNew.classList.remove('active');
+      if (cardExist) cardExist.classList.add('active');
+    }
+    
+    toggleEnterpriseOption(option);
+  }
+};
+
 // Đăng ký event listeners
 document.addEventListener("DOMContentLoaded", () => {
   const partnerIdEl = document.getElementById("partner-id");
@@ -311,14 +331,14 @@ window.switchPartnerModalTab = function(type) {
     if (btn) {
       if (t === type) {
         btn.classList.add('active');
-        btn.style.borderBottom = '2px solid var(--color-primary)';
-        btn.style.color = 'var(--text-primary)';
-        btn.style.fontWeight = '600';
+        btn.style.background = 'var(--color-primary)';
+        btn.style.color = '#ffffff';
+        btn.style.boxShadow = '0 4px 10px rgba(2, 132, 199, 0.25)';
       } else {
         btn.classList.remove('active');
-        btn.style.borderBottom = '2px solid transparent';
+        btn.style.background = 'transparent';
         btn.style.color = 'var(--text-secondary)';
-        btn.style.fontWeight = '500';
+        btn.style.boxShadow = 'none';
       }
     }
   });
@@ -600,6 +620,11 @@ function openAddPartnerModal() {
   
   const radioNew = document.querySelector('input[name="enterprise-option"][value="new"]');
   if (radioNew) radioNew.checked = true;
+
+  const cardNew = document.getElementById('card-option-new');
+  const cardExist = document.getElementById('card-option-existing');
+  if (cardNew) cardNew.classList.add('active');
+  if (cardExist) cardExist.classList.remove('active');
 
   document.getElementById("partner-id").disabled = false;
   document.getElementById("modal-partner-title").innerText = "Khai báo Đối tác mới";
