@@ -185,19 +185,19 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-let quickAddPartnerType = "customer";
+let quickAddPartnerType = "retail";
 
-function openQuickAddPartnerModal(type = "customer") {
+function openQuickAddPartnerModal(type = "retail") {
   quickAddPartnerType = type;
   const modalTitle = document.querySelector("#modal-quick-add-partner .card-title");
   if (modalTitle) {
-    modalTitle.innerHTML = type === "customer"
+    modalTitle.innerHTML = type === "retail"
       ? `<svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg> Thêm nhanh Khách hàng mới`
       : `<svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 18px; height: 18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg> Thêm nhanh Nhà cung cấp mới`;
   }
   const labelName = document.getElementById("quick-partner-label-name");
   if (labelName) {
-    labelName.innerHTML = type === "customer"
+    labelName.innerHTML = type === "retail"
       ? `Tên đối tác (Khách hàng) <span style="color:var(--color-danger)">*</span>`
       : `Tên đối tác (Nhà cung cấp) <span style="color:var(--color-danger)">*</span>`;
   }
@@ -281,7 +281,7 @@ function handleQuickAddPartnerSubmit(e) {
     const datalist = document.getElementById("datalist-partners");
     if (datalist && state.partners) {
       datalist.innerHTML = state.partners.map(p => {
-        const typeLabel = p.type === 'supplier' ? 'NCC' : (p.type === 'enterprise' ? 'DN' : (p.type === 'project' ? 'CT' : 'KL'));
+        const typeLabel = p.type === 'supplier' ? 'NCC' : (p.type === 'enterprise' ? 'DN' : (p.type === 'project' ? 'CT' : (p.type === 'both' ? 'KH/NCC' : 'KL')));
         let parentInfo = "";
         if (p.type === 'project' && p.parentId) {
           const parent = state.partners.find(parent => parent.id === p.parentId);
@@ -494,6 +494,8 @@ function renderPartnersTable() {
         typeBadge = `<span class="badge" style="background-color: #10b981; color: white;">Khách lẻ</span>`;
       } else if (p.type === 'supplier') {
         typeBadge = `<span class="badge" style="background-color: #3b82f6; color: white;">Nhà cung cấp</span>`;
+      } else if (p.type === 'both') {
+        typeBadge = `<span class="badge" style="background-color: #8b5cf6; color: white;">KH & NCC</span>`;
       } else {
         typeBadge = `<span class="badge badge-info">${p.type}</span>`;
       }
@@ -596,7 +598,9 @@ function filterPartners() {
     if (filterType === "all") {
       matchesType = true;
     } else if (filterType === "customer") {
-      matchesType = (p.type === "retail" || p.type === "enterprise" || p.type === "project");
+      matchesType = (p.type === "retail" || p.type === "enterprise" || p.type === "project" || p.type === "both");
+    } else if (filterType === "supplier") {
+      matchesType = (p.type === "supplier" || p.type === "both");
     } else {
       matchesType = p.type === filterType;
     }
