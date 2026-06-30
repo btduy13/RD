@@ -261,14 +261,15 @@ function renderDashboardDebts() {
     let totalPay = 0;
     kpiDebts.forEach(d => {
       if (d.type !== 'supplier' || d.type === 'both') {
-        // NET: phải thu (closingDebit) trừ khách hàng trả thừa (closingCredit)
-        totalRec += (d.closingDebit || 0) - (d.closingCredit || 0);
+        // Chỉ cộng các dư nợ thực tế (d.closingDebit > 0), không bù trừ chéo với khách trả thừa của khách khác
+        if (d.closingDebit > 0) {
+          totalRec += d.closingDebit;
+        }
       }
       if (d.type === 'supplier' || d.type === 'both') {
         totalPay += d.closingCredit || 0;
       }
     });
-    if (totalRec < 0) totalRec = 0; // không hiện số âm trên KPI
     if (kpiReceivable) kpiReceivable.innerText = formatVND(totalRec);
     if (kpiPayable) kpiPayable.innerText = formatVND(totalPay);
   }
