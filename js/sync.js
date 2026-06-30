@@ -1016,31 +1016,35 @@ function areVouchersEqual(v1, v2) {
   return true;
 }
 
-function areProductsEqual(p1, p2) {
-  if (p1 === p2) return true;
-  if (!p1 || !p2) return false;
-  if (p1.id !== p2.id) return false;
-  if (p1.name !== p2.name) return false;
-  if (p1.unit !== p2.unit) return false;
-  if (p1.stock !== p2.stock) return false;
-  if (p1.avgCost !== p2.avgCost) return false;
-  if (p1.totalValue !== p2.totalValue) return false;
-  if (p1.initialStock !== p2.initialStock) return false;
-  if (p1.initialCost !== p2.initialCost) return false;
-  if (p1.actualStock !== p2.actualStock) return false;
-  if (p1.lastPurchasePrice !== p2.lastPurchasePrice) return false;
+function areObjectsShallowEqual(o1, o2) {
+  if (o1 === o2) return true;
+  if (!o1 || !o2) return false;
+  const keys = new Set([...Object.keys(o1), ...Object.keys(o2)]);
+  for (const k of keys) {
+    const v1 = o1[k];
+    const v2 = o2[k];
+    const isPrimitive1 = v1 !== Object(v1);
+    const isPrimitive2 = v2 !== Object(v2);
+    if (isPrimitive1 && isPrimitive2) {
+      if (v1 !== v2) return false;
+    } else if (isPrimitive1 !== isPrimitive2) {
+      return false;
+    } else if (Array.isArray(v1) && Array.isArray(v2)) {
+      if (v1.length !== v2.length) return false;
+      for (let i = 0; i < v1.length; i++) {
+        if (v1[i] !== v2[i]) return false;
+      }
+    }
+  }
   return true;
 }
 
+function areProductsEqual(p1, p2) {
+  return areObjectsShallowEqual(p1, p2);
+}
+
 function arePartnersEqual(pa1, pa2) {
-  if (pa1 === pa2) return true;
-  if (!pa1 || !pa2) return false;
-  if (pa1.id !== pa2.id) return false;
-  if (pa1.name !== pa2.name) return false;
-  if (pa1.type !== pa2.type) return false;
-  if (pa1.phone !== pa2.phone) return false;
-  if (pa1.address !== pa2.address) return false;
-  return true;
+  return areObjectsShallowEqual(pa1, pa2);
 }
 
 function computeDelta() {
