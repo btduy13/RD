@@ -568,7 +568,7 @@ function handlePartnerSubmit(e) {
         }
       }
 
-      state.partners[idx] = { id: newId, name, type, parentId, phone, email: "", address, taxCode, inactive };
+      state.partners[idx] = { id: newId, name, type, parentId, phone, email: "", address, taxCode, inactive, _updatedAt: Date.now() };
       showToast("Cập nhật đối tác thành công!", "success");
     }
   } else {
@@ -586,7 +586,7 @@ function handlePartnerSubmit(e) {
       return;
     }
 
-    state.partners.push({ id, name, type, parentId, phone, email: "", address, taxCode, inactive });
+    state.partners.push({ id, name, type, parentId, phone, email: "", address, taxCode, inactive, _updatedAt: Date.now() });
     showToast("Thêm đối tác mới thành công!", "success");
 
     if (type === "enterprise" && projectName) {
@@ -602,7 +602,8 @@ function handlePartnerSubmit(e) {
         email: "",
         address,
         taxCode: "",
-        inactive
+        inactive,
+        _updatedAt: Date.now()
       });
       showToast(`Tạo thành công công trình "${projectName}" thuộc doanh nghiệp này!`, "success");
     }

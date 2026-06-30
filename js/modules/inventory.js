@@ -530,7 +530,8 @@ function handleProductSubmit(e) {
     minStock,
     nature,
     group,
-    inactive
+    inactive,
+    _updatedAt: Date.now()
   };
 
   // Tạo excelRow ngay cho sản phẩm mới (tự động phân bổ Tài khoản & Kho theo chuẩn VN)
@@ -782,6 +783,7 @@ function handleEditProductPriceSubmit(e) {
     p.nature = nature;
     p.group = group;
     p.inactive = inactive;
+    p._updatedAt = Date.now();
 
     // Cập nhật giá trị tồn ban đầu
     p.stock = initialStock;

@@ -1101,6 +1101,7 @@ function computeDelta() {
       if (p && p.id) {
         const oldP = lastProductsMap.get(p.id);
         if (!oldP || !areProductsEqual(oldP, p)) {
+          p._updatedAt = Date.now(); // Set updated timestamp so other machines overwrite
           rowsToUpsert.push(makeRow(`p_${p.id}`, p));
         }
       }
@@ -1121,6 +1122,7 @@ function computeDelta() {
       if (part && part.id) {
         const oldPart = lastPartnersMap.get(part.id);
         if (!oldPart || !arePartnersEqual(oldPart, part)) {
+          part._updatedAt = Date.now(); // Set updated timestamp so other machines overwrite
           rowsToUpsert.push(makeRow(`part_${part.id}`, part));
         }
       }
