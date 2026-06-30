@@ -4,6 +4,7 @@
 
 let supabaseClient = null;
 let cloudSyncActive = false;
+let isStartupPullCompleted = false;
 let realtimeChannel = null;
 let lastSyncState = null;
 function updateLastSyncState(newState) {
@@ -735,6 +736,9 @@ async function pullFromCloudOnStartup() {
     }
     showToast("Không thể tải dữ liệu đám mây khi khởi động. Hãy kiểm tra Internet hoặc máy chủ.", "danger");
     updateCloudSyncBadge(false, "Mây: Lỗi kết nối", "#ef4444");
+  } finally {
+    isStartupPullCompleted = true;
+    console.log("[CloudSync] Khởi chạy hoàn tất. Đã bật quyền pushToCloud.");
   }
 }
 
@@ -1140,6 +1144,10 @@ function computeDelta() {
 
 async function pushToCloud() {
   if (!cloudSyncActive || !supabaseClient) return;
+  if (!isStartupPullCompleted) {
+    console.log("[CloudSync] Bỏ qua pushToCloud vì quá trình startup pull chưa hoàn tất.");
+    return;
+  }
   if (isPushing) {
     pushPending = true;
     return;
