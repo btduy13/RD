@@ -1,3 +1,10 @@
+// Ghi đè hộp thoại confirm bằng hộp thoại native an toàn của Electron để tránh lỗi treo UI/brick
+if (window.electronAPI && typeof window.electronAPI.confirm === 'function') {
+  window.confirm = (message) => {
+    return window.electronAPI.confirm(message);
+  };
+}
+
 function safeParseFloat(val) {
   if (val === undefined || val === null || val === "") return 0;
   if (typeof val === "number") return val;

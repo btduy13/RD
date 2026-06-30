@@ -31,5 +31,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Đọc file backup gần nhất để phục hồi khi state bị hỏng
   readLatestBackup: () => ipcRenderer.invoke('read-latest-backup'),
   listTemplateFiles: () => ipcRenderer.invoke('list-template-files'),
+  confirm: (message) => ipcRenderer.sendSync('show-confirm-dialog', message),
 });
 

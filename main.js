@@ -521,6 +521,25 @@ ipcMain.handle('read-latest-backup', async (event) => {
   }
 });
 
+// Hiển thị hộp thoại xác nhận native đồng bộ của hệ điều hành
+ipcMain.on('show-confirm-dialog', (event, message) => {
+  try {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const result = dialog.showMessageBoxSync(win, {
+      type: 'question',
+      buttons: ['Hủy', 'Đồng ý'],
+      defaultId: 1,
+      cancelId: 0,
+      title: 'Xác nhận',
+      message: message
+    });
+    event.returnValue = (result === 1);
+  } catch (err) {
+    console.error('Lỗi khi hiển thị hộp thoại xác nhận:', err);
+    event.returnValue = false;
+  }
+});
+
 // ===========================================================================
 // VÒNG ĐỜI ỨNG DỤNG
 // ===========================================================================
