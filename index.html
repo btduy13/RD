@@ -1669,18 +1669,7 @@
                   Xóa đã chọn (<span id="selected-products-count">0</span>)
                 </button>
 
-                <button class="btn btn-danger" onclick="clearAllProducts()"
-                  style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; background-color: #dc3545; border-color: #dc3545; color: white;"
-                  onmouseover="this.style.backgroundColor='#bd2130'; this.style.borderColor='#b3d7ff';"
-                  onmouseout="this.style.backgroundColor='#dc3545'; this.style.borderColor='#dc3545';">
-                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                    </path>
-                  </svg>
-                  Xóa sạch toàn bộ
-                </button>
+
 
                 <button class="btn btn-secondary" onclick="triggerFileInput('excel-file-products-view')"
                   style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
@@ -2839,31 +2828,7 @@
 
                 <hr style="border: none; border-top: 1px solid var(--border-color); margin: 8px 0;">
 
-                <div style="display: flex; gap: 10px;">
-                  <button class="btn btn-danger" onclick="resetDatabase()"
-                    style="flex: 1; background-color: var(--color-danger); border-color: var(--color-danger);">
-                    Khôi phục dữ liệu mẫu
-                  </button>
-                  <button class="btn btn-secondary" onclick="clearAllData()"
-                    style="flex: 1; color: var(--color-danger);">
-                    Xóa sạch dữ liệu trắng
-                  </button>
-                </div>
 
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px;">
-                  <button class="btn btn-secondary" onclick="clearAllVouchers()"
-                    style="color: var(--color-danger); border-color: rgba(239, 68, 68, 0.2); font-size: 11.5px; padding: 8px 4px; font-weight: 600;">
-                    🗑️ Xóa hết Chứng từ
-                  </button>
-                  <button class="btn btn-secondary" onclick="clearAllProducts()"
-                    style="color: var(--color-danger); border-color: rgba(239, 68, 68, 0.2); font-size: 11.5px; padding: 8px 4px; font-weight: 600;">
-                    🗑️ Xóa hết Sản phẩm
-                  </button>
-                  <button class="btn btn-secondary" onclick="clearAllPartners()"
-                    style="color: var(--color-danger); border-color: rgba(239, 68, 68, 0.2); font-size: 11.5px; padding: 8px 4px; font-weight: 600;">
-                    🗑️ Xóa hết Đối tác
-                  </button>
-                </div>
 
 
               </div>

@@ -117,73 +117,7 @@ function importData(event) {
   reader.readAsText(file);
 }
 
-// Khôi phục dữ liệu mẫu
-function resetDatabase() {
-  if (confirm("Bạn có chắc muốn khôi phục dữ liệu mẫu ban đầu? Toàn bộ giao dịch hiện tại của bạn sẽ bị thay thế bằng dữ liệu demo của Rạng Đông.")) {
-    state = JSON.parse(JSON.stringify(DEFAULT_DATA));
-    saveState();
-    updateCompanyUI();
-    recalculateAccounting();
-    showToast("Đã khôi phục cơ sở dữ liệu mẫu Rạng Đông!", "success");
-  }
-}
 
-// Xóa trắng dữ liệu
-function clearAllData() {
-  if (confirm("CẢNH BÁO: Bạn đang xóa toàn bộ cơ sở dữ liệu về trắng! Tất cả giao dịch, sản phẩm, và số dư đầu kỳ sẽ biến mất.")) {
-    state = {
-      companyName: "CÔNG TY TNHH KẾ TOÁN RẠNG ĐÔNG",
-      address: "Hà Nội, Việt Nam",
-      taxCode: "0100000000",
-      accountingStandard: "TT200",
-      products: [],
-      partners: [],
-      initialBalances: JSON.parse(JSON.stringify(DEFAULT_DATA.initialBalances)),
-      vouchers: []
-    };
-
-    // Clear balances
-    Object.keys(state.initialBalances).forEach(k => {
-      state.initialBalances[k].balance = 0;
-    });
-
-    saveState();
-    updateCompanyUI();
-    recalculateAccounting();
-    showToast("Đã xóa sạch cơ sở dữ liệu về trắng!", "warning");
-  }
-}
-
-// Xóa sạch Chứng từ
-function clearAllVouchers() {
-  if (confirm("CẢNH BÁO: Bạn có chắc chắn muốn xóa sạch toàn bộ Chứng từ/Giao dịch? Hành động này không thể hoàn tác.")) {
-    state.vouchers = [];
-    saveState();
-    recalculateAccounting();
-    showToast("Đã xóa sạch toàn bộ chứng từ!", "success");
-  }
-}
-
-// Xóa sạch Sản phẩm
-function clearAllProducts() {
-  if (confirm("CẢNH BÁO: Bạn có chắc chắn muốn xóa sạch toàn bộ danh mục Sản phẩm? Hành động này không thể hoàn tác.")) {
-    state.products = [];
-    saveState();
-    recalculateAccounting();
-    showToast("Đã xóa sạch danh mục sản phẩm!", "success");
-  }
-}
-
-// Xóa sạch Đối tác
-function clearAllPartners() {
-  if (confirm("CẢNH BÁO: Bạn có chắc chắn muốn xóa sạch toàn bộ danh sách Đối tác và Số dư đầu kỳ đối tác? Hành động này không thể hoàn tác.")) {
-    state.partners = [];
-    state.partnerOpeningBalances = {};
-    saveState();
-    recalculateAccounting();
-    showToast("Đã xóa sạch danh sách đối tác!", "success");
-  }
-}
 let lastSyncedCloudTs = 0; // Timestamp cloud đã đồng bộ thành công lần cuối (tách biệt khỏi state._lastModified)
 let foundOldChunkIds = [];
 let migrationPending = false;
