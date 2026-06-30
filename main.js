@@ -568,6 +568,7 @@ function saveStateToSQLite(stateObj) {
     stmtMetadata.run('taxCode', JSON.stringify(stateObj.taxCode || ''));
     stmtMetadata.run('accountingStandard', JSON.stringify(stateObj.accountingStandard || 'TT200'));
     stmtMetadata.run('initialBalances', JSON.stringify(stateObj.initialBalances || {}));
+    stmtMetadata.run('partnerOpeningBalances', JSON.stringify(stateObj.partnerOpeningBalances || {}));
     stmtMetadata.run('deletedIds', JSON.stringify(stateObj.deletedIds || []));
     stmtMetadata.run('_lastModified', JSON.stringify(stateObj._lastModified || Date.now()));
     if (stateObj.cashEntries) {
@@ -655,6 +656,7 @@ function readStateFromSQLite() {
       else if (row.key === 'taxCode') stateObj.taxCode = parsedVal;
       else if (row.key === 'accountingStandard') stateObj.accountingStandard = parsedVal;
       else if (row.key === 'initialBalances') stateObj.initialBalances = parsedVal;
+      else if (row.key === 'partnerOpeningBalances') stateObj.partnerOpeningBalances = parsedVal;
       else if (row.key === 'deletedIds') stateObj.deletedIds = parsedVal;
       else if (row.key === '_lastModified') stateObj._lastModified = parsedVal;
       else if (row.key === 'cashEntries') stateObj.cashEntries = parsedVal;

@@ -260,11 +260,8 @@ function renderDashboardDebts() {
     let totalRec = 0;
     let totalPay = 0;
     kpiDebts.forEach(d => {
-      if (d.type !== 'supplier' || d.type === 'both') {
-        // Chỉ cộng các dư nợ thực tế (d.closingDebit > 0), không bù trừ chéo với khách trả thừa của khách khác
-        if (d.closingDebit > 0) {
-          totalRec += d.closingDebit;
-        }
+      if (d.type !== 'supplier') {
+        totalRec += (d.closingDebit || 0);
       }
       if (d.type === 'supplier' || d.type === 'both') {
         totalPay += d.closingCredit || 0;
