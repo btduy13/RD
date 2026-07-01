@@ -203,6 +203,9 @@ function saveCloudConfig(e) {
         supabaseClient.removeChannel(realtimeChannel);
         realtimeChannel = null;
       }
+      if (typeof stopCloudMetadataPolling === "function") {
+        stopCloudMetadataPolling();
+      }
       cloudSyncActive = false;
       const forcePullBtn = document.getElementById("btn-force-pull");
       if (forcePullBtn) forcePullBtn.style.display = "none";

@@ -11,7 +11,12 @@ let isPulling = false;
 let pullPending = false;
 let deferredCloudPull = false;
 let deferredCloudPullReason = "";
+let cloudMetadataPollTimer = null;
+let lastCloudMetadataPollAt = 0;
+let cloudFocusCheckAttached = false;
 const LAST_PULLED_CLOUD_TS_KEY = "rd_accounting_last_pulled_cloud_ts";
+const CLOUD_METADATA_POLL_INTERVAL_MS = 3000;
+const CLOUD_METADATA_POLL_MIN_GAP_MS = 1500;
 
 function getStoredLastPulledCloudTs() {
   try {
@@ -84,6 +89,73 @@ function scheduleCloudPull(reason) {
   pullAndMergeFromCloud();
 }
 
+function stopCloudMetadataPolling() {
+  if (cloudMetadataPollTimer) {
+    clearInterval(cloudMetadataPollTimer);
+    cloudMetadataPollTimer = null;
+  }
+}
+
+function startCloudMetadataPolling() {
+  stopCloudMetadataPolling();
+  if (!cloudSyncActive || !supabaseClient) return;
+
+  attachCloudFocusCheck();
+  cloudMetadataPollTimer = setInterval(() => {
+    checkCloudMetadataForChanges("poll");
+  }, CLOUD_METADATA_POLL_INTERVAL_MS);
+
+  setTimeout(() => {
+    checkCloudMetadataForChanges("poll-initial");
+  }, 1000);
+}
+
+function attachCloudFocusCheck() {
+  if (cloudFocusCheckAttached) return;
+  cloudFocusCheckAttached = true;
+
+  if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+    window.addEventListener("focus", () => {
+      checkCloudMetadataForChanges("focus");
+    });
+  }
+
+  if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        checkCloudMetadataForChanges("visible");
+      }
+    });
+  }
+}
+
+async function checkCloudMetadataForChanges(reason = "poll") {
+  if (!cloudSyncActive || !supabaseClient || isPulling || isPushing) return;
+
+  const now = Date.now();
+  if (now - lastCloudMetadataPollAt < CLOUD_METADATA_POLL_MIN_GAP_MS) return;
+  lastCloudMetadataPollAt = now;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from("rd_accounting_data")
+      .select("last_modified, is_syncing")
+      .eq("id", "metadata")
+      .maybeSingle();
+
+    if (error || !data || data.is_syncing) return;
+
+    const cloudTs = Number(data.last_modified) || 0;
+    const localCheckpointTs = getPullCheckpointTs();
+    if (cloudTs > 0 && cloudTs > localCheckpointTs) {
+      console.log(`[CloudSync] Phat hien cloud moi hon qua ${reason}: cloud=${cloudTs}, local=${localCheckpointTs}. Dang pull...`);
+      scheduleCloudPull(reason);
+    }
+  } catch (err) {
+    console.warn("[CloudSync] Khong the kiem tra metadata cloud:", err);
+  }
+}
+
 async function flushDeferredCloudSync() {
   if (!deferredCloudPull || isVoucherEntryModalOpen()) return;
   deferredCloudPull = false;
@@ -144,6 +216,7 @@ function initCloudSync() {
 
 async function startSupabaseClient() {
   try {
+    stopCloudMetadataPolling();
     // Đóng kênh realtime cũ nếu có
     if (realtimeChannel && supabaseClient) {
       supabaseClient.removeChannel(realtimeChannel);
@@ -187,6 +260,7 @@ async function startSupabaseClient() {
 
     // Đăng ký lắng nghe thay đổi realtime
     listenToCloudChanges();
+    startCloudMetadataPolling();
 
     const forcePullBtn = document.getElementById("btn-force-pull");
     if (forcePullBtn) forcePullBtn.style.display = "inline-block";
@@ -197,6 +271,7 @@ async function startSupabaseClient() {
       addErrorLog("startSupabaseClient", err.message, err);
     }
     updateCloudSyncBadge(false, "Mây: Lỗi khởi tạo", "#ef4444");
+    stopCloudMetadataPolling();
     cloudSyncActive = false;
   }
 }
@@ -1865,6 +1940,9 @@ window.__syncInternals__ = {
   persistLastPulledCloudTs,
   getPullCheckpointTs,
   isVoucherEntryModalOpen,
+  startCloudMetadataPolling,
+  stopCloudMetadataPolling,
+  checkCloudMetadataForChanges,
   fetchExistingCloudIdsByKeysFromClient
 };
 

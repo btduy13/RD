@@ -50,7 +50,7 @@ function loadSyncInternals() {
   vm.runInContext(`var lastSyncedCloudTs = 0;\n${syncSource}`, sandbox, { filename: syncPath });
 
   assert.ok(sandbox.window.__syncInternals__, "sync internals should be exposed for regression tests");
-  return { internals: sandbox.window.__syncInternals__, store, elements };
+  return { internals: sandbox.window.__syncInternals__, store, elements, sandbox };
 }
 
 async function testDeepComparators() {
@@ -103,6 +103,55 @@ async function testEntryModalDetection() {
   assert.equal(internals.isVoucherEntryModalOpen(), true, "visible sales modal should defer cloud pull");
   elements.set("modal-add-sales", { style: { display: "none" } });
   assert.equal(internals.isVoucherEntryModalOpen(), false);
+}
+
+async function testMetadataPollingDetectsRemoteChanges() {
+  const { internals, store, sandbox } = loadSyncInternals();
+  store.set("rd_accounting_last_pulled_cloud_ts", "100");
+
+  sandbox.__metadataRow = { last_modified: 200, is_syncing: false };
+  sandbox.__pullCount = 0;
+  sandbox.__fakeClient = {
+    from(table) {
+      assert.equal(table, "rd_accounting_data");
+      return {
+        select(columns) {
+          assert.equal(columns, "last_modified, is_syncing");
+          return {
+            eq(column, id) {
+              assert.equal(column, "id");
+              assert.equal(id, "metadata");
+              return {
+                maybeSingle() {
+                  return Promise.resolve({ data: sandbox.__metadataRow, error: null });
+                }
+              };
+            }
+          };
+        }
+      };
+    }
+  };
+
+  vm.runInContext(`
+    cloudSyncActive = true;
+    supabaseClient = __fakeClient;
+    pullAndMergeFromCloud = function() { __pullCount += 1; };
+  `, sandbox);
+
+  await internals.checkCloudMetadataForChanges("test");
+  assert.equal(sandbox.__pullCount, 1, "polling should pull when cloud metadata is newer than local checkpoint");
+
+  sandbox.__metadataRow = { last_modified: 100, is_syncing: false };
+  sandbox.__pullCount = 0;
+  vm.runInContext("lastCloudMetadataPollAt = 0;", sandbox);
+  await internals.checkCloudMetadataForChanges("test-noop");
+  assert.equal(sandbox.__pullCount, 0, "polling should not pull when cloud metadata is not newer");
+
+  sandbox.__metadataRow = { last_modified: 300, is_syncing: true };
+  vm.runInContext("lastCloudMetadataPollAt = 0;", sandbox);
+  await internals.checkCloudMetadataForChanges("test-syncing");
+  assert.equal(sandbox.__pullCount, 0, "polling should not pull while another machine is still pushing");
 }
 
 async function testRescueLookupIsBatchedAndExact() {
@@ -188,6 +237,7 @@ async function run() {
   await testDeepComparators();
   await testPullCheckpointStorage();
   await testEntryModalDetection();
+  await testMetadataPollingDetectsRemoteChanges();
   await testRescueLookupIsBatchedAndExact();
   await testStaticSafetyChecks();
   await testBatchSelectionResetUI();

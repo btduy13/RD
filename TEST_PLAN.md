@@ -36,6 +36,8 @@ Chuan bi:
 | SYNC-07 | Dataset lon | Dung data co hon 20.000 cloud rows, khoi dong may moi hoac xoa checkpoint pull roi sync lai. | Neu cham gioi han trang, app bao loi va khong cap nhat checkpoint bang du lieu ban phan; neu du lieu trong gioi han thi sync du. |
 | SYNC-08 | Rescue local-only | Tao don offline/local-only tren A, dam bao cloud chua co key do, khoi dong lai A. | Rescue chi kiem tra cac key local theo batch; khong push nham hang loat do Supabase row cap. |
 | SYNC-09 | Tat cloud sync | Bo tick cloud sync, luu config, khoi dong lai. | Checkbox van tat, app khong tu bat lai sync. |
+| SYNC-10 | May B tu thay don moi khong restart | Mo app tren ca 2 may. May A lap va luu 1 hoa don ban hang moi. Giu may B dang mo o tab Ban hang, khong restart. | Sau khi may A push xong, may B tu phat hien metadata cloud moi va hien don moi trong vai giay; khong can reset phan mem. |
+| SYNC-11 | Realtime bi loi/khong bat tren Supabase | Tam thoi chan realtime hoac quan sat khi kenh realtime loi, sau do may A tao don moi. | Vong polling metadata van tu kich hoat pull tren may B; badge khong bi treo o trang thai loi ma khong dong bo. |
 
 ## 3. Test cong no va so lieu
 
