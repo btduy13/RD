@@ -153,8 +153,10 @@
       });
     }
 
-    // Chỉ lưu nháp nếu thực sự có nội dung
-    const hasContent = draft.fields.partner || draft.items.length > 0;
+    // Chỉ lưu nháp nếu thực sự có nội dung nhập liệu ý nghĩa
+    const hasPartner = draft.fields.partner && draft.fields.partner.trim() !== "";
+    const hasItems = draft.items.some(item => item.productId && item.productId.trim() !== "");
+    const hasContent = hasPartner || hasItems;
     if (hasContent) {
       localStorage.setItem(`rd_draft_${formId}`, JSON.stringify(draft));
     } else {
@@ -395,8 +397,8 @@
     if (draftStr) {
       try {
         const draft = JSON.parse(draftStr);
-        const hasItems = draft.items && draft.items.length > 0;
-        const hasPartner = draft.fields && draft.fields.partner;
+        const hasItems = draft.items && draft.items.some(item => item.productId && item.productId.trim() !== "");
+        const hasPartner = draft.fields && draft.fields.partner && draft.fields.partner.trim() !== "";
 
         if (hasItems || hasPartner) {
           // Hỏi người dùng bằng confirm tiếng Việt rõ ràng
