@@ -453,7 +453,7 @@ function rebalanceEquity() {
 function deleteVoucher(id) {
   if (confirm(`Bạn có chắc chắn muốn xóa và hủy ghi sổ chứng từ "${id}"? Việc này sẽ tính toán lại toàn bộ giá trị tồn kho và công nợ.`)) {
     try {
-      trackDeletedIds([id]);
+      trackDeletedIds([id], 'voucher');
       state.vouchers = state.vouchers.filter(v => v.id !== id);
 
       // Nếu có các khoản tất toán gắn liền với nó, xóa liên kết hoặc cảnh báo

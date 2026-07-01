@@ -417,17 +417,30 @@ function applyDeltaToState(changedRows, cloudTs) {
     } else if (row.id.startsWith("v_")) {
       const cloudVoucher = row.data;
       if (cloudVoucher && cloudVoucher.id) {
-        // Nếu voucher tồn tại rõ ràng trên cloud (do máy khác tạo lại),
-        // tự động xóa nó khỏi deletedIds để Safety Net không lọc ra nhầm
+        // Kiểm tra xem voucher này có trong danh sách đã xóa cục bộ không.
+        // CHỈ khôi phục (xóa khỏi deletedIds) nếu bản ghi cloud mới hơn timestamp
+        // của state cục bộ tại thời điểm xóa — tức là máy khác đã tạo lại sau khi xóa.
+        // Không tự động khôi phục chỉ vì cloud vẫn còn bản ghi (đó là tình huống delete chưa sync).
         if (Array.isArray(baseState.deletedIds) && baseState.deletedIds.includes(cloudVoucher.id)) {
-          baseState.deletedIds = baseState.deletedIds.filter(id => id !== cloudVoucher.id);
-          console.log(`[applyDelta] Voucher ${cloudVoucher.id} được khôi phục: xóa khỏi deletedIds vì có trên cloud.`);
+          const localStateTs = (baseState._lastModified || 0);
+          const cloudItemTs = cloudVoucher._updatedAt || cloudTs;
+          if (cloudItemTs > localStateTs) {
+            // Cloud có bản ghi MỚI HƠN local state → máy khác đã tạo lại sau khi xóa → khôi phục
+            baseState.deletedIds = baseState.deletedIds.filter(id => id !== cloudVoucher.id);
+            if (Array.isArray(baseState.deletedCloudKeys)) {
+              baseState.deletedCloudKeys = baseState.deletedCloudKeys.filter(k => k !== `v_${cloudVoucher.id}`);
+            }
+            console.log(`[applyDelta] Voucher ${cloudVoucher.id} được khôi phục từ cloud (cloud mới hơn local: ${cloudItemTs} > ${localStateTs}).`);
+          } else {
+            // Cloud có bản cũ chưa bị xóa → bỏ qua (deletion của local sẽ được push lên cloud)
+            console.log(`[applyDelta] Bỏ qua voucher ${cloudVoucher.id} từ cloud: đã bị xóa cục bộ và cloud không có bản mới hơn.`);
+            return;
+          }
         }
         const idx = voucherIndexMap.has(cloudVoucher.id) ? voucherIndexMap.get(cloudVoucher.id) : -1;
         if (idx !== -1) {
           const localVoucher = baseState.vouchers[idx];
           // === PHÁT HIỆN XUNG ĐỘT ID SONG SONG ===
-          // Cả hai bên đều có _sessionId, khác nhau, và bản cục bộ chưa từng được đồng bộ lên cloud trước đó
           const wasNeverSynced = !lastSyncState ||
                                  !Array.isArray(lastSyncState.vouchers) ||
                                  !lastSyncState.vouchers.some(v => v && v.id === localVoucher.id);
@@ -439,9 +452,14 @@ function applyDeltaToState(changedRows, cloudTs) {
             wasNeverSynced
           ) {
             console.warn(`[ConflictDetect] Xung đột ID "${cloudVoucher.id}": máy này và máy khác cùng tạo. Đang cứu bản cục bộ...`);
-            rescuedVouchers.push({ ...localVoucher }); // lưu bản cục bộ bị đẩy ra
+            rescuedVouchers.push({ ...localVoucher });
           }
-          baseState.vouchers[idx] = cloudVoucher; // cloud thắng
+          // Cloud thắng chỉ khi cloud mới hơn (hoặc bằng timestamp)
+          const localTs2 = localVoucher._updatedAt || 0;
+          const cloudTs2 = cloudVoucher._updatedAt || cloudTs;
+          if (cloudTs2 >= localTs2) {
+            baseState.vouchers[idx] = cloudVoucher;
+          }
         } else {
           baseState.vouchers.push(cloudVoucher);
           voucherIndexMap.set(cloudVoucher.id, baseState.vouchers.length - 1);
@@ -450,15 +468,24 @@ function applyDeltaToState(changedRows, cloudTs) {
     } else if (row.id.startsWith("p_")) {
       const product = row.data;
       if (product && product.id) {
-        // Nếu sản phẩm tồn tại rõ ràng trên cloud (do máy khác tạo lại),
-        // tự động xóa nó khỏi deletedIds để Safety Net không lọc ra nhầm
         if (Array.isArray(baseState.deletedIds) && baseState.deletedIds.includes(product.id)) {
-          baseState.deletedIds = baseState.deletedIds.filter(id => id !== product.id);
-          console.log(`[applyDelta] Sản phẩm ${product.id} được khôi phục: xóa khỏi deletedIds vì có trên cloud.`);
+          const localStateTs = (baseState._lastModified || 0);
+          const cloudItemTs = product._updatedAt || cloudTs;
+          if (cloudItemTs > localStateTs) {
+            baseState.deletedIds = baseState.deletedIds.filter(id => id !== product.id);
+            if (Array.isArray(baseState.deletedCloudKeys)) {
+              baseState.deletedCloudKeys = baseState.deletedCloudKeys.filter(k => k !== `p_${product.id}`);
+            }
+          } else {
+            return; // bỏ qua - deletion local chưa kịp sync lên cloud
+          }
         }
         const idx = productIndexMap.has(product.id) ? productIndexMap.get(product.id) : -1;
         if (idx !== -1) {
-          baseState.products[idx] = product;
+          const localProd = baseState.products[idx];
+          const localTs2 = localProd._updatedAt || 0;
+          const cloudTs2 = product._updatedAt || cloudTs;
+          if (cloudTs2 >= localTs2) baseState.products[idx] = product;
         } else {
           baseState.products.push(product);
           productIndexMap.set(product.id, baseState.products.length - 1);
@@ -467,15 +494,24 @@ function applyDeltaToState(changedRows, cloudTs) {
     } else if (row.id.startsWith("part_")) {
       const partner = row.data;
       if (partner && partner.id) {
-        // Nếu đối tác tồn tại rõ ràng trên cloud (do máy khác tạo lại),
-        // tự động xóa nó khỏi deletedIds để Safety Net không lọc ra nhầm
         if (Array.isArray(baseState.deletedIds) && baseState.deletedIds.includes(partner.id)) {
-          baseState.deletedIds = baseState.deletedIds.filter(id => id !== partner.id);
-          console.log(`[applyDelta] Đối tác ${partner.id} được khôi phục: xóa khỏi deletedIds vì có trên cloud.`);
+          const localStateTs = (baseState._lastModified || 0);
+          const cloudItemTs = partner._updatedAt || cloudTs;
+          if (cloudItemTs > localStateTs) {
+            baseState.deletedIds = baseState.deletedIds.filter(id => id !== partner.id);
+            if (Array.isArray(baseState.deletedCloudKeys)) {
+              baseState.deletedCloudKeys = baseState.deletedCloudKeys.filter(k => k !== `part_${partner.id}`);
+            }
+          } else {
+            return; // bỏ qua - deletion local chưa kịp sync lên cloud
+          }
         }
         const idx = partnerIndexMap.has(partner.id) ? partnerIndexMap.get(partner.id) : -1;
         if (idx !== -1) {
-          baseState.partners[idx] = partner;
+          const localPart = baseState.partners[idx];
+          const localTs2 = localPart._updatedAt || 0;
+          const cloudTs2 = partner._updatedAt || cloudTs;
+          if (cloudTs2 >= localTs2) baseState.partners[idx] = partner;
         } else {
           baseState.partners.push(partner);
           partnerIndexMap.set(partner.id, baseState.partners.length - 1);
@@ -651,11 +687,60 @@ async function pullFromCloudOnStartup() {
   if (!cloudSyncActive || !supabaseClient) return;
 
   try {
-    // Tải dữ liệu thay đổi (incremental) kể từ lần đồng bộ cuối cùng của cache cục bộ.
-    // Nếu chưa có cache cục bộ (state rỗng) hoặc không có timestamp, sẽ tự động thực hiện full pull (truyền 0).
+    // === TỐI ƯU HÓA KHỞI ĐỘNG: Kiểm tra metadata trước để tránh tải dữ liệu không cần thiết ===
+    // Lấy timestamp của cloud từ bản ghi metadata (chỉ 1 row, cực nhanh)
     const localTs = (state && state._lastModified) ? state._lastModified : 0;
+
+    if (localTs > 0) {
+      // Đã có cache cục bộ → Kiểm tra nhanh xem cloud có gì mới hơn không
+      const { data: metaCheck, error: metaErr } = await supabaseClient
+        .from("rd_accounting_data")
+        .select("last_modified, is_syncing")
+        .eq("id", "metadata")
+        .single();
+
+      if (!metaErr && metaCheck) {
+        const cloudTs = metaCheck.last_modified || 0;
+
+        // CHỐNG ĐỒNG BỘ NGƯỢC: Nếu local MỚI HƠN cloud, bỏ qua pull hoàn toàn
+        // (Tình huống: máy vừa push, hoặc cloud chứa dữ liệu cũ hơn)
+        if (cloudTs <= localTs) {
+          console.log(`[Startup] Dữ liệu cục bộ đã mới nhất hoặc mới hơn cloud. (Local: ${localTs}, Cloud: ${cloudTs}) → Bỏ qua tải về.`);
+          logToDebugFile(`[pullFromCloudOnStartup] Bỏ qua pull: local (${localTs}) >= cloud (${cloudTs})`);
+          updateLastSyncState(state);
+          lastSyncedCloudTs = localTs; // Đặt mốc sync = local timestamp để delta sync hoạt động đúng
+          isStartupPullCompleted = true;
+          if (typeof recalculateAccounting === "function") recalculateAccounting(false);
+          if (typeof filterDebts === "function") filterDebts();
+          if (typeof filterPartners === "function") filterPartners();
+          if (typeof filterCash === "function") filterCash();
+          updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
+          console.log("[CloudSync] Khởi chạy hoàn tất (dữ liệu local đã mới nhất). Đã bật quyền pushToCloud.");
+          return;
+        }
+
+        // Nếu máy khác đang trong quá trình push (is_syncing = true), chờ 3 giây rồi thử lại
+        if (metaCheck.is_syncing) {
+          console.log("[Startup] Máy khác đang đồng bộ (is_syncing=true), chờ 3 giây...");
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+
+        logToDebugFile(`[pullFromCloudOnStartup] Cloud mới hơn local (${cloudTs} > ${localTs}). Tiến hành tải incremental.`);
+      }
+    }
+
+    // Tải dữ liệu thay đổi (incremental) kể từ lần đồng bộ cuối cùng của cache cục bộ.
+    // Nếu chưa có cache cục bộ (localTs = 0), sẽ tự động thực hiện full pull.
     const result = await fetchCloudData(localTs);
-    if (!result) return;
+    if (!result) {
+      // fetchCloudData trả về null → dữ liệu đã mới nhất (cloudTs <= localTs)
+      updateLastSyncState(state);
+      lastSyncedCloudTs = localTs;
+      isStartupPullCompleted = true;
+      updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
+      console.log("[CloudSync] Khởi chạy hoàn tất (không cần tải thêm). Đã bật quyền pushToCloud.");
+      return;
+    }
     const { newState: cloudData, rescuedVouchers } = result;
     const hasCloudProducts = cloudData && cloudData.products && cloudData.products.length > 0;
 
@@ -666,14 +751,12 @@ async function pullFromCloudOnStartup() {
       lastSyncedCloudTs = state._lastModified || 0;
       console.log(`[Supabase] Tải dữ liệu đám mây thành công! (${cloudVoucherCount} chứng từ)`);
 
-      // Ghi cache cục bộ (localStorage fallback + file-based primary)
+      // Ghi cache cục bộ
       try {
         const stateJson = JSON.stringify(state);
-        // Ghi ra file (Electron IPC) - không giới hạn kích thước
         if (window.electronAPI && typeof window.electronAPI.writeStateFile === 'function') {
           window.electronAPI.writeStateFile(stateJson).catch(err => console.error('[StateFile] Lỗi ghi sau cloud pull:', err));
         }
-        // Fallback localStorage (chỉ nếu < 4MB)
         if (!window.electronAPI) {
           try { localStorage.setItem("rd_accounting_online_cache", stateJson); } catch(e) {}
         }
@@ -684,7 +767,7 @@ async function pullFromCloudOnStartup() {
       // Thực hiện dọn dẹp các đơn hàng có ID dạng số tự sinh
       cleanNumericVouchers();
 
-      // Nếu cleanNumericVouchers đã dọn dẹp voucher rác/test → đẩy ngay lên cloud để cập nhật
+      // Nếu cleanNumericVouchers đã dọn dẹp voucher rác/test → đẩy ngay lên cloud
       const stateVoucherCount = (state.vouchers || []).length;
       if (stateVoucherCount < cloudVoucherCount) {
         console.log(`[Supabase] Đã dọn dẹp ${cloudVoucherCount - stateVoucherCount} chứng từ rác/test cũ → cập nhật lên cloud...`);
@@ -703,12 +786,10 @@ async function pullFromCloudOnStartup() {
         }, 5000);
       }
 
-      // Giải quyết xung đột ID nếu có
       if (rescuedVouchers.length > 0) {
         setTimeout(() => resolveConflictedVouchers(rescuedVouchers), 2000);
       }
 
-      // Cập nhật giao diện
       if (typeof recalculateAccounting === "function") recalculateAccounting(false);
       if (typeof filterDebts === "function") filterDebts();
       if (typeof filterPartners === "function") filterPartners();
@@ -744,6 +825,8 @@ async function pullFromCloudOnStartup() {
     }
     showToast("Không thể tải dữ liệu đám mây khi khởi động. Hãy kiểm tra Internet hoặc máy chủ.", "danger");
     updateCloudSyncBadge(false, "Mây: Lỗi kết nối", "#ef4444");
+    // Vẫn bật isStartupPullCompleted để cho phép push hoạt động (dùng dữ liệu local)
+    isStartupPullCompleted = true;
   }
 }
 
@@ -856,22 +939,38 @@ function manualIncrementalSync() {
 // ==========================================================================
 
 /**
- * Ghi nhận các ID vừa bị xóa vào state.deletedIds
- * để cơ chế Smart Merge không kéo lại dữ liệu đã xóa từ máy khác.
+ * Ghi nhận các ID vừa bị xóa vào state.deletedIds (raw ID) VÀ
+ * state.deletedCloudKeys (prefixed cloud row ID như v_NK001, part_NCC01, p_SP001).
+ * @param {string[]} ids - Mảng các ID raw cần xóa
+ * @param {'voucher'|'product'|'partner'|'cashEntry'|'escrowItem'} entityType - Loại thực thể
  */
-function trackDeletedIds(ids) {
+function trackDeletedIds(ids, entityType = 'voucher') {
   if (!ids || ids.length === 0) return;
+  const prefix = entityType === 'product' ? 'p_'
+               : entityType === 'partner' ? 'part_'
+               : entityType === 'cashEntry' ? 'cash_'
+               : entityType === 'escrowItem' ? 'escrow_'
+               : 'v_'; // voucher (mặc định)
+
   if (!Array.isArray(state.deletedIds)) state.deletedIds = [];
+  if (!Array.isArray(state.deletedCloudKeys)) state.deletedCloudKeys = [];
+
+  const now = Date.now();
   ids.forEach(id => {
     if (!state.deletedIds.includes(id)) {
       state.deletedIds.push(id);
     }
+    const cloudKey = `${prefix}${id}`;
+    if (!state.deletedCloudKeys.includes(cloudKey)) {
+      state.deletedCloudKeys.push(cloudKey);
+    }
   });
-  // Giới hạn deletedIds tối đa 2000 phần tử (FIFO) để tránh đầy localStorage
-  if (state.deletedIds.length > 2000) {
-    state.deletedIds = state.deletedIds.slice(-2000);
-  }
-  state._lastModified = Date.now();
+
+  // Giới hạn tối đa 2000 phần tử mỗi mảng (FIFO) để tránh phình dữ liệu
+  if (state.deletedIds.length > 2000) state.deletedIds = state.deletedIds.slice(-2000);
+  if (state.deletedCloudKeys.length > 2000) state.deletedCloudKeys = state.deletedCloudKeys.slice(-2000);
+
+  state._lastModified = now;
 }
 
 /**
@@ -1112,14 +1211,33 @@ function computeDelta() {
   const forceFullSync = migrationPending || !lastSyncState;
 
   if (forceFullSync) {
+    // Khi không có lastSyncState: dùng _updatedAt để chỉ push các item
+    // thực sự thay đổi kể từ lần đồng bộ thành công cuối cùng (lastSyncedCloudTs).
+    // Nếu lastSyncedCloudTs = 0 (lần đầu tiên), push toàn bộ.
+    const threshold = (typeof lastSyncedCloudTs !== 'undefined') ? (lastSyncedCloudTs || 0) : 0;
+    const pushAll = threshold === 0 || migrationPending;
     (state.vouchers || []).forEach(v => {
-      if (v && v.id) rowsToUpsert.push(makeRow(`v_${v.id}`, v));
+      if (v && v.id) {
+        // Push nếu không có threshold, hoặc item được cập nhật sau threshold,
+        // hoặc item chưa có _updatedAt (legacy data chưa từng sync)
+        if (pushAll || !v._updatedAt || v._updatedAt >= threshold) {
+          rowsToUpsert.push(makeRow(`v_${v.id}`, v));
+        }
+      }
     });
     (state.products || []).forEach(p => {
-      if (p && p.id) rowsToUpsert.push(makeRow(`p_${p.id}`, p));
+      if (p && p.id) {
+        if (pushAll || !p._updatedAt || p._updatedAt >= threshold) {
+          rowsToUpsert.push(makeRow(`p_${p.id}`, p));
+        }
+      }
     });
     (state.partners || []).forEach(part => {
-      if (part && part.id) rowsToUpsert.push(makeRow(`part_${part.id}`, part));
+      if (part && part.id) {
+        if (pushAll || !part._updatedAt || part._updatedAt >= threshold) {
+          rowsToUpsert.push(makeRow(`part_${part.id}`, part));
+        }
+      }
     });
   } else {
     // 1. Vouchers
@@ -1185,13 +1303,20 @@ function computeDelta() {
     });
   }
 
-  // Luôn đưa toàn bộ IDs trong state.deletedIds vào danh sách cần xóa trên cloud để bảo đảm đồng bộ xóa triệt để
-  if (Array.isArray(state.deletedIds)) {
+  // === DELETION PUSH: Ưu tiên dùng deletedCloudKeys (có prefix chính xác);
+  // fallback sang deletedIds (chỉ push prefix voucher v_) nếu dữ liệu cũ chưa có deletedCloudKeys.
+  if (Array.isArray(state.deletedCloudKeys) && state.deletedCloudKeys.length > 0) {
+    state.deletedCloudKeys.forEach(cloudKey => {
+      if (cloudKey && !idsToDelete.includes(cloudKey)) {
+        idsToDelete.push(cloudKey);
+      }
+    });
+  } else if (Array.isArray(state.deletedIds) && state.deletedIds.length > 0) {
+    // Dữ liệu cũ: chỉ có deletedIds không có prefix → giả định là voucher
     state.deletedIds.forEach(id => {
       if (id) {
-        idsToDelete.push(`v_${id}`);
-        idsToDelete.push(`p_${id}`);
-        idsToDelete.push(`part_${id}`);
+        const vKey = `v_${id}`;
+        if (!idsToDelete.includes(vKey)) idsToDelete.push(vKey);
       }
     });
   }

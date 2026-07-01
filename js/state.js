@@ -359,6 +359,16 @@ function executeSaveState(sync = false) {
         if (Array.isArray(state.escrowItems)) state.escrowItems.forEach(e => e && e.id && activeIds.add(e.id));
 
         state.deletedIds = state.deletedIds.filter(id => !activeIds.has(id));
+
+        // Đồng bộ dọn deletedCloudKeys theo deletedIds để tránh gửi delete request cho item đang sống
+        if (Array.isArray(state.deletedCloudKeys)) {
+          state.deletedCloudKeys = state.deletedCloudKeys.filter(cloudKey => {
+            if (!cloudKey) return false;
+            // Lấy raw ID từ cloud key (bỏ prefix như v_, p_, part_)
+            const rawId = cloudKey.replace(/^(v_|p_|part_|cash_|escrow_)/, '');
+            return !activeIds.has(rawId);
+          });
+        }
       }
       
       // === [01] GHI RA FILE JSON QUA ELECTRON IPC (không giới hạn kích thước) ===

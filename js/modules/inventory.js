@@ -842,6 +842,8 @@ function batchDeleteProducts() {
 
   if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} sản phẩm đã chọn? Các chứng từ liên quan có thể bị ảnh hưởng.`)) {
     const idsToDelete = checked.map(cb => cb.value);
+    // Đưa các ID vào danh sách xóa cloud (prefix 'p_') trước khi xóa khỏi state
+    trackDeletedIds(idsToDelete, 'product');
     state.products = state.products.filter(p => !idsToDelete.includes(p.id));
 
     const master = document.getElementById("check-all-products");
@@ -862,7 +864,7 @@ function batchDeleteProducts() {
 
 function deleteProduct(prodId) {
   if (confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${prodId}"? Dữ liệu tồn kho liên quan có thể bị ảnh hưởng.`)) {
-    trackDeletedIds([prodId]);
+    trackDeletedIds([prodId], 'product');
     state.products = state.products.filter(p => p.id !== prodId);
     showToast(`Đã xóa sản phẩm ${prodId}!`, "success");
 

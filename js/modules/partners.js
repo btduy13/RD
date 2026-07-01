@@ -826,7 +826,7 @@ function handlePartnerSubmit(e) {
 
 function deletePartner(id) {
   if (confirm(`Bạn có chắc chắn muốn xóa đối tác "${id}" không?`)) {
-    trackDeletedIds([id]);
+    trackDeletedIds([id], 'partner');
     state.partners = state.partners.filter(p => p.id !== id);
     if (state.partnerOpeningBalances && state.partnerOpeningBalances[id]) {
       delete state.partnerOpeningBalances[id];
@@ -1022,6 +1022,8 @@ function batchDeletePartners() {
 
   if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} đối tác đã chọn?`)) {
     const idsToDelete = checked.map(cb => cb.value);
+    // Đưa các ID vào danh sách xóa cloud (prefix 'part_') trước khi xóa khỏi state
+    trackDeletedIds(idsToDelete, 'partner');
     state.partners = state.partners.filter(p => !idsToDelete.includes(p.id));
 
     saveState();
