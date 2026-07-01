@@ -2088,7 +2088,7 @@ async function pushToCloud() {
     console.log(`[pushToCloud] Delta: Cần upsert ${rowsToUpsert.length} dòng, delete ${idsToDelete.length} dòng.`);
 
     // 3. Upsert các dòng mới/thay đổi theo lô 1000 dòng
-    const BATCH_SIZE = 100;
+    const BATCH_SIZE = 1000;
     for (let i = 0; i < rowsToUpsert.length; i += BATCH_SIZE) {
       const batch = rowsToUpsert.slice(i, i + BATCH_SIZE);
       const { error: batchError } = await supabaseClient
@@ -2377,15 +2377,21 @@ function updateCloudSyncBadge(connected, text, color = "#64748b") {
 async function fetchExistingCloudIdsByKeysFromClient(client, keys) {
   const existing = new Set();
   const uniqueKeys = Array.from(new Set((keys || []).filter(Boolean)));
-  const BATCH_SIZE = 200;
+  const BATCH_SIZE = 2000;
+  const promises = [];
 
   for (let i = 0; i < uniqueKeys.length; i += BATCH_SIZE) {
     const batch = uniqueKeys.slice(i, i + BATCH_SIZE);
-    const { data, error } = await client
-      .from("rd_accounting_data")
-      .select("id")
-      .in("id", batch);
+    promises.push(
+      client
+        .from("rd_accounting_data")
+        .select("id")
+        .in("id", batch)
+    );
+  }
 
+  const results = await Promise.all(promises);
+  for (const { data, error } of results) {
     if (error) throw error;
     (data || []).forEach(row => {
       if (row && row.id) existing.add(row.id);
