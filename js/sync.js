@@ -1452,11 +1452,6 @@ async function pullFromCloudOnStartup() {
       recalculateAccounting(false);
       updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
     }
-    if (typeof rescueLocalOnlyItems === "function") {
-      setTimeout(() => {
-        rescueLocalOnlyItems().catch(err => console.error("[Rescue] Background error:", err));
-      }, 10000);
-    }
     finishStartupPull();
     console.log("[CloudSync] Khởi chạy hoàn tất. Đã bật quyền pushToCloud.");
   } catch (err) {
