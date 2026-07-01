@@ -529,6 +529,7 @@ async function persistStateCacheAfterCloudPull(cacheState = state) {
 
 function finishStartupPull() {
   isStartupPullCompleted = true;
+  isPulling = false; // Reset cờ kéo dữ liệu
   hideStartupOverlay();
   if (pushAfterStartupPull) {
     pushAfterStartupPull = false;
@@ -667,10 +668,10 @@ function logToDebugFile(msg) {
 async function fetchCloudDelta(localTs) {
   logToDebugFile(`[fetchCloudDelta] Bắt đầu. localTs = ${localTs}`);
   
-  // 1. Tải dòng metadata trước để lấy last_modified mới nhất trên đám mây
-  const { data: metadataRow, error: metaError } = await supabaseClient
+  // 1. Tải dòng metadata trước để lấy last_modified mới nhất trên đám mây (Tránh tải data 2MB)
+  const { data: metadataRowSummary, error: metaError } = await supabaseClient
     .from("rd_accounting_data")
-    .select("data, last_modified, is_syncing, updated_at")
+    .select("last_modified, is_syncing, updated_at")
     .eq("id", "metadata")
     .single();
     
@@ -678,25 +679,36 @@ async function fetchCloudDelta(localTs) {
     logToDebugFile(`[fetchCloudDelta] LỖI khi tải metadata: ${JSON.stringify(metaError)}`);
     throw metaError;
   }
-  if (!metadataRow) {
+  if (!metadataRowSummary) {
     logToDebugFile(`[fetchCloudDelta] Không tìm thấy dòng metadata trên Cloud.`);
     return null;
   }
 
-  // Chốt chặn 2.8.10: Nếu cloud metadata đang ghi nhận đẩy dữ liệu (is_syncing = true), 
-  // hủy bỏ pull ngay để tránh kéo dữ liệu dở dang hoặc nhảy checkpoint sai lệch.
-  if (isCloudSyncLockActive(metadataRow, "fetch")) {
+  // Chốt chặn 2.8.10
+  if (isCloudSyncLockActive(metadataRowSummary, "fetch")) {
     logToDebugFile(`[fetchCloudDelta] Hủy pull: Cloud đang trong tiến trình đồng bộ (is_syncing = true).`);
     return null;
   }
 
-  const cloudTs = metadataRow.last_modified || 0;
-  logToDebugFile(`[fetchCloudDelta] Tải metadata thành công. cloudTs = ${cloudTs}, localTs = ${localTs}`);
+  const cloudTs = metadataRowSummary.last_modified || 0;
+  logToDebugFile(`[fetchCloudDelta] Tải metadata summary thành công. cloudTs = ${cloudTs}, localTs = ${localTs}`);
   
   if (localTs > 0 && cloudTs <= localTs) {
     console.log(`[Supabase] Dữ liệu cục bộ đã mới nhất hoặc trùng khớp. (Cloud: ${cloudTs}, Local: ${localTs})`);
     logToDebugFile(`[fetchCloudDelta] Kết thúc sớm: Dữ liệu đã mới nhất.`);
     return null; // Không cần tải thêm
+  }
+
+  // Tải data 2MB thực tế khi thực sự có thay đổi
+  const { data: fullMetadataRow, error: fullMetaError } = await supabaseClient
+    .from("rd_accounting_data")
+    .select("data")
+    .eq("id", "metadata")
+    .single();
+
+  if (fullMetaError) {
+    logToDebugFile(`[fetchCloudDelta] LỖI khi tải chi tiết metadata: ${JSON.stringify(fullMetaError)}`);
+    throw fullMetaError;
   }
 
   // 2. TỐI ƯU HÓA TẢI MỚI TOÀN BỘ (localTs === 0): Tải dữ liệu trực tiếp theo trang dùng Keyset Pagination
@@ -764,7 +776,7 @@ async function fetchCloudDelta(localTs) {
     if (!changedRows.some(r => r.id === "metadata")) {
       changedRows.push({
         id: "metadata",
-        data: metadataRow.data,
+        data: fullMetadataRow.data,
         last_modified: cloudTs
       });
     }
@@ -843,7 +855,7 @@ async function fetchCloudDelta(localTs) {
     return {
       changedRows: [{
         id: "metadata",
-        data: metadataRow.data,
+        data: fullMetadataRow.data,
         last_modified: cloudTs
       }],
       cloudTs
@@ -902,7 +914,7 @@ async function fetchCloudDelta(localTs) {
   if (!changedRows.some(r => r.id === "metadata")) {
     changedRows.push({
       id: "metadata",
-      data: metadataRow.data,
+      data: fullMetadataRow.data,
       last_modified: cloudTs
     });
   }
@@ -1248,6 +1260,7 @@ async function fetchCloudData(localTs = 0) {
 
 async function pullFromCloudOnStartup() {
   if (!cloudSyncActive || !supabaseClient) return;
+  isPulling = true; // Chặn các tiến trình pull khác chạy song song
 
   updateStartupStatus("Kiểm tra trạng thái đồng bộ đám mây...");
   try {
@@ -1403,7 +1416,9 @@ async function pullFromCloudOnStartup() {
       updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
     }
     if (typeof rescueLocalOnlyItems === "function") {
-      await rescueLocalOnlyItems();
+      setTimeout(() => {
+        rescueLocalOnlyItems().catch(err => console.error("[Rescue] Background error:", err));
+      }, 10000);
     }
     finishStartupPull();
     console.log("[CloudSync] Khởi chạy hoàn tất. Đã bật quyền pushToCloud.");
