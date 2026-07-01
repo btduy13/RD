@@ -491,7 +491,7 @@ function migrateFromOldPathsIfNecessary() {
 
     // 1. Di trú CSDL SQLite (rd_local.db)
     const oldDbPath = path.join(__dirname, 'data', 'rd_local.db');
-    if (fs.existsSync(oldDbPath) && !fs.existsSync(STATE_DB_PATH)) {
+    if (fs.existsSync(oldDbPath) && !fs.existsSync(STATE_DB_PATH) && !oldDbPath.includes('.asar')) {
       console.log('[SQLiteStore] Phát hiện CSDL cũ tại thư mục cài đặt. Di chuyển sang AppData...');
       fs.copyFileSync(oldDbPath, STATE_DB_PATH);
       console.log('[SQLiteStore] Đã sao chép rd_local.db sang AppData thành công.');
@@ -499,7 +499,7 @@ function migrateFromOldPathsIfNecessary() {
 
     // 2. Di trú file state JSON cũ (rd_state.json)
     const oldJsonPath = path.join(__dirname, 'data', 'rd_state.json');
-    if (fs.existsSync(oldJsonPath) && !fs.existsSync(STATE_FILE_PATH)) {
+    if (fs.existsSync(oldJsonPath) && !fs.existsSync(STATE_FILE_PATH) && !oldJsonPath.includes('.asar')) {
       console.log('[SQLiteStore] Phát hiện file rd_state.json cũ tại thư mục cài đặt. Di chuyển sang AppData...');
       fs.copyFileSync(oldJsonPath, STATE_FILE_PATH);
       console.log('[SQLiteStore] Đã sao chép rd_state.json sang AppData thành công.');
@@ -507,7 +507,7 @@ function migrateFromOldPathsIfNecessary() {
 
     // 3. Di trú các bản sao lưu từ thư mục cài đặt/backup cũ sang AppData/backup mới
     const oldBackupDir = path.join(__dirname, 'backup');
-    if (fs.existsSync(oldBackupDir)) {
+    if (fs.existsSync(oldBackupDir) && !oldBackupDir.includes('.asar')) {
       const files = fs.readdirSync(oldBackupDir);
       files.forEach(f => {
         const oldF = path.join(oldBackupDir, f);
