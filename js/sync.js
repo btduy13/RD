@@ -665,20 +665,40 @@ function logToDebugFile(msg) {
   }
 }
 
+function withTimeout(promise, ms = 8000) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`Mạng kết nối đám mây phản hồi chậm quá ${ms}ms. Vui lòng kiểm tra đường truyền.`));
+    }, ms);
+  });
+  return Promise.race([
+    promise.finally(() => clearTimeout(timeoutId)),
+    timeoutPromise
+  ]);
+}
+
 async function fetchCloudDelta(localTs) {
   logToDebugFile(`[fetchCloudDelta] Bắt đầu. localTs = ${localTs}`);
   
   // 1. Tải dòng metadata trước để lấy last_modified mới nhất trên đám mây (Tránh tải data 2MB)
-  const { data: metadataRowSummary, error: metaError } = await supabaseClient
-    .from("rd_accounting_data")
-    .select("last_modified, is_syncing, updated_at")
-    .eq("id", "metadata")
-    .single();
-    
-  if (metaError) {
-    logToDebugFile(`[fetchCloudDelta] LỖI khi tải metadata: ${JSON.stringify(metaError)}`);
+  let metadataRowSummary;
+  try {
+    const response = await withTimeout(
+      supabaseClient
+        .from("rd_accounting_data")
+        .select("last_modified, is_syncing, updated_at")
+        .eq("id", "metadata")
+        .single(),
+      6000
+    );
+    metadataRowSummary = response.data;
+    if (response.error) throw response.error;
+  } catch (metaError) {
+    logToDebugFile(`[fetchCloudDelta] LỖI khi tải metadata: ${metaError.message || JSON.stringify(metaError)}`);
     throw metaError;
   }
+
   if (!metadataRowSummary) {
     logToDebugFile(`[fetchCloudDelta] Không tìm thấy dòng metadata trên Cloud.`);
     return null;
@@ -700,14 +720,20 @@ async function fetchCloudDelta(localTs) {
   }
 
   // Tải data 2MB thực tế khi thực sự có thay đổi
-  const { data: fullMetadataRow, error: fullMetaError } = await supabaseClient
-    .from("rd_accounting_data")
-    .select("data")
-    .eq("id", "metadata")
-    .single();
-
-  if (fullMetaError) {
-    logToDebugFile(`[fetchCloudDelta] LỖI khi tải chi tiết metadata: ${JSON.stringify(fullMetaError)}`);
+  let fullMetadataRow;
+  try {
+    const response = await withTimeout(
+      supabaseClient
+        .from("rd_accounting_data")
+        .select("data")
+        .eq("id", "metadata")
+        .single(),
+      15000
+    );
+    fullMetadataRow = response.data;
+    if (response.error) throw response.error;
+  } catch (fullMetaError) {
+    logToDebugFile(`[fetchCloudDelta] LỖI khi tải chi tiết metadata: ${fullMetaError.message || JSON.stringify(fullMetaError)}`);
     throw fullMetaError;
   }
 
@@ -1272,13 +1298,23 @@ async function pullFromCloudOnStartup() {
 
     if (metadataCheckTs > 0) {
       // Đã có cache cục bộ → Kiểm tra nhanh xem cloud có gì mới hơn không
-      const { data: metaCheck, error: metaErr } = await supabaseClient
-        .from("rd_accounting_data")
-        .select("last_modified, is_syncing, updated_at")
-        .eq("id", "metadata")
-        .single();
+      let metaCheck;
+      try {
+        const response = await withTimeout(
+          supabaseClient
+            .from("rd_accounting_data")
+            .select("last_modified, is_syncing, updated_at")
+            .eq("id", "metadata")
+            .single(),
+          6000
+        );
+        metaCheck = response.data;
+        if (response.error) throw response.error;
+      } catch (metaErr) {
+        console.warn("[Startup] Lỗi kiểm tra nhanh metadata:", metaErr.message || metaErr);
+      }
 
-      if (!metaErr && metaCheck) {
+      if (metaCheck) {
         const cloudTs = metaCheck.last_modified || 0;
 
         // CHỐNG ĐỒNG BỘ NGƯỢC: Nếu local MỚI HƠN cloud, bỏ qua pull hoàn toàn
@@ -2059,16 +2095,17 @@ async function pushToCloud() {
     finalMetadata._lastModified = pushTs;
     finalMetadata.lastModifiedBy = clientSessionId;
 
-    // 1. Đẩy cờ is_syncing = true lên metadata trước
-    await supabaseClient
+    // 1. Đặt cờ khóa is_syncing = true lên metadata (Chỉ cập nhật điều khiển, KHÔNG truyền data 2MB)
+    const { error: lockErr } = await supabaseClient
       .from("rd_accounting_data")
-      .upsert({
-        id: "metadata",
-        data: finalMetadata,
+      .update({
         last_modified: state._lastModified,
         is_syncing: true,
         updated_at: new Date().toISOString()
-      });
+      })
+      .eq("id", "metadata");
+    
+    if (lockErr) throw lockErr;
 
     // 2. Tính toán Delta
     const { rowsToUpsert: rawRowsToUpsert, idsToDelete: rawIdsToDelete } = computeDelta();
