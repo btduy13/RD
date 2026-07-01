@@ -1026,6 +1026,75 @@ function getActiveIds(s) {
  * Merge thông minh: gộp localState và cloudState, giữ lại tất cả dữ liệu.
  * Trả về state đã merge sẵn sàng để lưu và push lên cloud.
  */
+/**
+ * Hợp nhất metadata (partnerOpeningBalances, initialBalances, scalar fields)
+ * giữa local và cloud một cách thông minh, tránh đè mất các key được chỉnh sửa độc lập.
+ */
+function mergeMetadata(localMeta, cloudMeta, localTs, cloudTs) {
+  const merged = { ...cloudMeta, ...localMeta }; // fallback mặc định
+
+  // 1. Hợp nhất partnerOpeningBalances (số dư công nợ đầu kỳ đối tác)
+  const localOP = localMeta.partnerOpeningBalances || {};
+  const cloudOP = cloudMeta.partnerOpeningBalances || {};
+  const mergedOP = { ...cloudOP };
+  
+  const allPartnerIds = new Set([...Object.keys(localOP), ...Object.keys(cloudOP)]);
+  allPartnerIds.forEach(id => {
+    const locVal = localOP[id];
+    const cldVal = cloudOP[id];
+    if (locVal && cldVal) {
+      // Nếu khác nhau, bên nào có state timestamp mới hơn sẽ thắng
+      if (JSON.stringify(locVal) !== JSON.stringify(cldVal)) {
+        mergedOP[id] = localTs >= cloudTs ? locVal : cldVal;
+      } else {
+        mergedOP[id] = locVal;
+      }
+    } else if (locVal) {
+      mergedOP[id] = locVal;
+    } else if (cldVal) {
+      mergedOP[id] = cldVal;
+    }
+  });
+  merged.partnerOpeningBalances = mergedOP;
+
+  // 2. Hợp nhất initialBalances (số dư đầu kỳ các tài khoản kế toán)
+  const localIB = localMeta.initialBalances || {};
+  const cloudIB = cloudMeta.initialBalances || {};
+  const mergedIB = { ...cloudIB };
+  
+  const allAccountCodes = new Set([...Object.keys(localIB), ...Object.keys(cloudIB)]);
+  allAccountCodes.forEach(code => {
+    const locVal = localIB[code];
+    const cldVal = cloudIB[code];
+    if (locVal && cldVal) {
+      if (JSON.stringify(locVal) !== JSON.stringify(cldVal)) {
+        mergedIB[code] = localTs >= cloudTs ? locVal : cldVal;
+      } else {
+        mergedIB[code] = locVal;
+      }
+    } else if (locVal) {
+      mergedIB[code] = locVal;
+    } else if (cldVal) {
+      mergedIB[code] = cldVal;
+    }
+  });
+  merged.initialBalances = mergedIB;
+
+  // 3. Hợp nhất các trường cấu hình đơn giản
+  const scalarKeys = ['companyName', 'address', 'taxCode', 'accountingStandard'];
+  scalarKeys.forEach(key => {
+    if (localMeta[key] !== undefined && cloudMeta[key] !== undefined) {
+      merged[key] = localTs >= cloudTs ? localMeta[key] : cloudMeta[key];
+    }
+  });
+
+  return merged;
+}
+
+/**
+ * Merge thông minh: gộp localState và cloudState, giữ lại tất cả dữ liệu.
+ * Trả về state đã merge sẵn sàng để lưu và push lên cloud.
+ */
 function mergeStates(localState, cloudState) {
   if (!localState) return cloudState;
   if (!cloudState) return localState;
@@ -1039,6 +1108,13 @@ function mergeStates(localState, cloudState) {
     console.log("[SmartMerge] Local mới hơn cloud >30 phút → local wins.");
     return { ...localState };
   }
+
+  // Tách metadata và các mảng thực thể
+  const { vouchers: lV, cashEntries: lC, partners: lP, escrowItems: lE, products: lPr, ...localMeta } = localState;
+  const { vouchers: cV, cashEntries: cC, partners: cP, escrowItems: cE, products: cPr, ...cloudMeta } = cloudState;
+
+  // Gộp metadata một cách thông minh
+  const mergedMeta = mergeMetadata(localMeta, cloudMeta, localTs, cloudTs);
 
   let localDeleted = Array.isArray(localState.deletedIds) ? [...localState.deletedIds] : [];
   let cloudDeleted = Array.isArray(cloudState.deletedIds) ? [...cloudState.deletedIds] : [];
@@ -1098,8 +1174,7 @@ function mergeStates(localState, cloudState) {
   const mergedDeletedIds = Array.from(finalDeleted);
 
   const merged = {
-    // Cloud wins cho scalar fields (tên công ty, năm tài chính...)
-    ...cloudState,
+    ...mergedMeta,
 
     // Merge arrays theo ID — giữ tất cả, loại bỏ deletedIds
     vouchers: mergeArrayById(localState.vouchers, cloudState.vouchers, mergedDeletedIds),
@@ -1353,15 +1428,45 @@ async function pushToCloud() {
       state._lastModified = Date.now();
     }
 
-    const { products, partners, vouchers, ...metadata } = state;
-    metadata.lastModifiedBy = clientSessionId;
+    const { products, partners, vouchers, ...localMeta } = state;
+    localMeta.lastModifiedBy = clientSessionId;
+
+    // Lấy metadata hiện tại trên cloud để gộp tránh ghi đè các thay đổi song song
+    let finalMetadata = localMeta;
+    try {
+      const { data: cloudMetaRow, error: cloudMetaErr } = await supabaseClient
+        .from("rd_accounting_data")
+        .select("data, last_modified")
+        .eq("id", "metadata")
+        .single();
+      
+      if (!cloudMetaErr && cloudMetaRow && cloudMetaRow.data) {
+        const cloudMeta = cloudMetaRow.data;
+        const cloudTs = cloudMetaRow.last_modified || 0;
+        const localTs = state._lastModified || Date.now();
+        finalMetadata = mergeMetadata(localMeta, cloudMeta, localTs, cloudTs);
+        
+        // Cập nhật lại vào state cục bộ để đồng nhất và ghi vào SQLite
+        if (finalMetadata.partnerOpeningBalances) {
+          state.partnerOpeningBalances = finalMetadata.partnerOpeningBalances;
+        }
+        if (finalMetadata.initialBalances) {
+          state.initialBalances = finalMetadata.initialBalances;
+        }
+        ['companyName', 'address', 'taxCode', 'accountingStandard'].forEach(key => {
+          if (finalMetadata[key] !== undefined) state[key] = finalMetadata[key];
+        });
+      }
+    } catch (metaFetchErr) {
+      console.warn("[pushToCloud] Không thể đọc/gộp metadata từ cloud, sẽ ghi đè trực tiếp:", metaFetchErr);
+    }
 
     // 1. Đẩy cờ is_syncing = true lên metadata trước
     await supabaseClient
       .from("rd_accounting_data")
       .upsert({
         id: "metadata",
-        data: metadata,
+        data: finalMetadata,
         last_modified: state._lastModified,
         is_syncing: true,
         updated_at: new Date().toISOString()
@@ -1426,7 +1531,7 @@ async function pushToCloud() {
       .from("rd_accounting_data")
       .upsert({
         id: "metadata",
-        data: metadata,
+        data: finalMetadata,
         last_modified: state._lastModified,
         is_syncing: false,
         updated_at: new Date().toISOString()
