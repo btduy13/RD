@@ -44,6 +44,7 @@ async function initApp() {
         const parsed = (typeof result.data === 'string') ? JSON.parse(result.data) : result.data;
         if (parsed && Array.isArray(parsed.products) && Array.isArray(parsed.vouchers)) {
           state = parsed;
+          window.originalStateLastModified = Number(parsed._lastModified) || 0;
           window.lastSyncState = JSON.parse(JSON.stringify(parsed));
           if (typeof lastSyncedCloudTs !== 'undefined') {
             const pulledTs = Number(localStorage.getItem("rd_accounting_last_pulled_cloud_ts") || parsed._lastPulledCloudTs || 0) || 0;
@@ -70,6 +71,7 @@ async function initApp() {
         const parsed = JSON.parse(cache);
         if (parsed && Array.isArray(parsed.products) && Array.isArray(parsed.vouchers)) {
           state = parsed;
+          window.originalStateLastModified = Number(parsed._lastModified) || 0;
           let loadedLastSyncState = null;
           try {
             const syncCache = localStorage.getItem("rd_accounting_last_sync_cache");
@@ -94,6 +96,7 @@ async function initApp() {
   }
 
   if (!hasCache) {
+    window.originalStateLastModified = 0;
     // Khởi tạo state trống ban đầu (sẽ được tải từ Cloud khi Supabase Client kết nối thành công)
     state = {
       companyName: "",

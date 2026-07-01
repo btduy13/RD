@@ -65,7 +65,7 @@ function getPullCheckpointTs() {
 
 function getLegacyStartupCheckpointTs() {
   const currentState = typeof state !== "undefined" ? state : null;
-  const stateTs = Number(currentState && currentState._lastModified);
+  const stateTs = Number((typeof window !== "undefined" && window.originalStateLastModified) || (currentState && currentState._lastModified) || 0);
   const hasCachedEntities = !!(currentState && (
     (Array.isArray(currentState.vouchers) && currentState.vouchers.length > 0) ||
     (Array.isArray(currentState.products) && currentState.products.length > 0) ||

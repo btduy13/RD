@@ -228,6 +228,21 @@ async function testLegacyStartupCheckpointDetectsCachedState() {
   assert.equal(store.has("rd_accounting_last_pulled_cloud_ts"), false);
 }
 
+async function testLegacyStartupCheckpointUsesOriginalStateLastModified() {
+  const { internals, sandbox } = loadSyncInternals();
+  sandbox.state = {
+    _lastModified: 9999, // Simulate update during startup migrations/calculations
+    vouchers: [{ id: "LOCAL-1" }],
+    products: [],
+    partners: []
+  };
+  sandbox.window.originalStateLastModified = 789; // Original unmodified timestamp
+  sandbox.window.lastSyncState = JSON.parse(JSON.stringify(sandbox.state));
+  vm.runInContext("lastSyncState = window.lastSyncState; lastSyncedCloudTs = 0;", sandbox);
+
+  assert.equal(internals.getLegacyStartupCheckpointTs(), 789, "startup must prioritize original unmodified state timestamp from window.originalStateLastModified");
+}
+
 async function testEntryModalDetection() {
   const { internals, elements } = loadSyncInternals();
 
@@ -516,6 +531,7 @@ async function run() {
   await testCloudSafeVoucherIdSupportsPurchaseOrderAliases();
   await testStartupCheckpointReadsPersistedStateMarker();
   await testLegacyStartupCheckpointDetectsCachedState();
+  await testLegacyStartupCheckpointUsesOriginalStateLastModified();
   await testEntryModalDetection();
   await testMetadataPollingDetectsRemoteChanges();
   await testRealtimeMetadataEventTriggersPull();
