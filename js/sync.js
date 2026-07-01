@@ -2135,32 +2135,50 @@ async function pushToCloud() {
       if (batchError) throw batchError;
     }
 
-    // 4. Thực hiện xóa các dòng bị loại bỏ theo lô 100 dòng (DELETE request - giới hạn URI)
+    // 4. Thực hiện xóa các dòng bị loại bỏ theo lô 100 dòng song song (DELETE request - giới hạn URI)
     const DELETE_BATCH_SIZE = 100;
+    const DELETE_CONCURRENCY = 10;
     if (idsToDelete.length > 0) {
+      const deleteBatches = [];
       for (let i = 0; i < idsToDelete.length; i += DELETE_BATCH_SIZE) {
-        const batch = idsToDelete.slice(i, i + DELETE_BATCH_SIZE);
-        const { error: deleteError } = await supabaseClient
-          .from("rd_accounting_data")
-          .delete()
-          .in("id", batch);
-        if (deleteError) throw deleteError;
+        deleteBatches.push(idsToDelete.slice(i, i + DELETE_BATCH_SIZE));
+      }
+
+      for (let i = 0; i < deleteBatches.length; i += DELETE_CONCURRENCY) {
+        const slice = deleteBatches.slice(i, i + DELETE_CONCURRENCY);
+        const promises = slice.map(batch =>
+          withTimeout(
+            supabaseClient
+              .from("rd_accounting_data")
+              .delete()
+              .in("id", batch),
+            10000
+          )
+        );
+        const results = await Promise.all(promises);
+        for (const { error } of results) {
+          if (error) throw error;
+        }
       }
     }
 
-    // 4.5. Xóa các dòng khóa (lock) tương ứng với các voucher được thêm/sửa hoặc xóa (Fix 2.8.11)
-    const lockIdsToDelete = [
-      ...rowsToUpsert.filter(row => row.id && row.id.startsWith("v_")).map(row => `lock_${row.id}`),
-      ...idsToDelete.filter(id => id && id.startsWith("v_")).map(id => `lock_${id}`)
-    ];
+    // 4.5. Xóa các dòng khóa (lock) tương ứng với các voucher được thêm/sửa (Fix 2.8.11)
+    // KHÔNG cần xóa locks của idsToDelete vì các locks đó đã được dọn dẹp xong từ trước khi chứng từ được lưu/đẩy lần đầu.
+    const lockIdsToDelete = rowsToUpsert
+      .filter(row => row.id && row.id.startsWith("v_"))
+      .map(row => `lock_${row.id}`);
+
     if (lockIdsToDelete.length > 0) {
       console.log(`[CloudSync] Dọn dẹp ${lockIdsToDelete.length} locks tương ứng khỏi Supabase...`);
       for (let i = 0; i < lockIdsToDelete.length; i += DELETE_BATCH_SIZE) {
         const batch = lockIdsToDelete.slice(i, i + DELETE_BATCH_SIZE);
-        const { error: lockDeleteError } = await supabaseClient
-          .from("rd_accounting_data")
-          .delete()
-          .in("id", batch);
+        const { error: lockDeleteError } = await withTimeout(
+          supabaseClient
+            .from("rd_accounting_data")
+            .delete()
+            .in("id", batch),
+          8000
+        );
         if (lockDeleteError) {
           console.warn("[CloudSync] Không thể dọn dẹp lock rows:", lockDeleteError.message);
         }
