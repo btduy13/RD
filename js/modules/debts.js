@@ -2700,6 +2700,8 @@ function renderDebtOverview(allDebts) {
     }
   });
 
+  const totalRowOvp = cats.individual.overpaid + cats.project.overpaid + cats.company.overpaid;
+
   // KPI cards
   if (kpiEl) {
     const kpiData = [
@@ -2724,7 +2726,7 @@ function renderDebtOverview(allDebts) {
   // Breakdown table — 2 rows: Khách Cá Nhân (gộp toàn bộ cá nhân + công trình) + Trong đó: Công nợ theo Công ty
   if (breakdownEl) {
     const nonCompanyRec = cats.individual.rec + cats.project.rec + cats.company.rec;
-    const nonCompanyOvp = cats.individual.overpaid + cats.project.overpaid + cats.company.overpaid;
+    const nonCompanyOvp = totalRowOvp;
     const nonCompanyNet = nonCompanyRec - nonCompanyOvp;
     const nonCompanyCount = cats.individual.count + cats.project.count + cats.company.count;
     const compRec = cats.company.rec + cats.project.rec;
@@ -2732,7 +2734,6 @@ function renderDebtOverview(allDebts) {
     const compNet = compRec - compOvp;
     const compCount = cats.company.count + cats.project.count;
     const totalRowRec = nonCompanyRec;
-    const totalRowOvp = nonCompanyOvp;
     const totalRowNet = nonCompanyNet;
     const totalRowCount = nonCompanyCount;
     const catRows = [
