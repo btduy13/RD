@@ -6,7 +6,7 @@ let tabDirtyStates = {
   sales: true,
   inventory: true,
   escrow: true,
-  reports: true,
+  logs: true,
   partners: true,
   debts: true,
   cash: true,
@@ -51,9 +51,10 @@ function renderTabIfNeeded(tabId) {
       renderStockLedger();
     } else if (tabId === "escrow") {
       renderEscrowTable();
-    } else if (tabId === "reports") {
-      populateReportAccountDropdown();
-      generateReport();
+    } else if (tabId === "logs") {
+      if (typeof renderActivityLogTable === "function") {
+        renderActivityLogTable();
+      }
     } else if (tabId === "partners") {
       filterPartners();
     } else if (tabId === "debts") {
@@ -126,7 +127,7 @@ function switchTab(tabId) {
     sales: { title: "Quản lý bán hàng", sub: "Hóa đơn bán hàng và công nợ khách hàng" },
     inventory: { title: "Quản lý kho hàng", sub: "Theo dõi thẻ kho và giá trị tồn kho theo phương pháp bình quân liên hoàn" },
     escrow: { title: "Ký quỹ & Ký cược", sub: "Theo dõi các khoản đặt cọc mang đi và nhận bảo lãnh từ đại lý" },
-    reports: { title: "Hệ thống báo cáo kế toán", sub: "Nhật ký chung, Sổ cái tài khoản và Bảng cân đối phát sinh" },
+    logs: { title: "Nhật ký hoạt động hệ thống", sub: "Theo dõi lịch sử các hành động mấu chốt của nhân viên" },
     "excel-hub": { title: "Tích hợp Excel", sub: "Nạp và kết xuất dữ liệu tự động giữa phần mềm và file Excel" },
     partners: { title: "Danh mục Đối tác", sub: "Quản lý hồ sơ khách hàng, nhà cung cấp và thông tin liên hệ" },
     debts: { title: "Quản lý Công nợ", sub: "Sổ tổng hợp chi tiết công nợ phải thu (TK 131) và phải trả (TK 331)" },

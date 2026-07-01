@@ -6,15 +6,6 @@
 // Trạng thái phiên làm việc hiện tại
 window.currentUser = null;
 
-// Hàm băm mật khẩu bảo mật (SHA-256 kèm salt dựa trên username)
-async function hashPassword(password, salt) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password + salt);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
 // Khởi chạy hệ thống Auth khi ứng dụng nạp xong dữ liệu
 async function initAuth() {
   let users = state.users || [];
@@ -24,12 +15,10 @@ async function initAuth() {
     console.log('[Auth] CSDL chưa có tài khoản nào. Đang tạo tài khoản admin mặc định...');
     const defaultAdminUsername = 'admin';
     const defaultAdminPassword = 'admin';
-    const salt = defaultAdminUsername;
-    const defaultHash = await hashPassword(defaultAdminPassword, salt);
     
     const defaultAdmin = {
       username: defaultAdminUsername,
-      passwordHash: defaultHash,
+      password: defaultAdminPassword,
       name: "Administrator",
       role: "admin"
     };
@@ -37,6 +26,18 @@ async function initAuth() {
     state.users = [defaultAdmin];
     saveState(); // Lưu SQLite & Sync Cloud
     users = state.users;
+  }
+  
+  // Đảm bảo mọi người dùng đều có mật khẩu thô dạng plain text
+  let migrated = false;
+  users.forEach(u => {
+    if (!u.password) {
+      u.password = u.passwordHash ? "admin" : u.username;
+      migrated = true;
+    }
+  });
+  if (migrated) {
+    saveState();
   }
   
   // Hiển thị màn hình đăng nhập tiêu chuẩn
@@ -64,12 +65,12 @@ function showLoginForm() {
       <form id="login-form-submit" onsubmit="submitLogin(event)">
         <div class="form-group" style="margin-bottom: 14px;">
           <label class="form-label" style="color: rgba(255,255,255,0.7);">Tên đăng nhập</label>
-          <input type="text" id="login-username" class="form-control login-input" required placeholder="User ID..." autofocus>
+          <input type="text" id="login-username" class="form-control login-input" required placeholder="User ID..." autofocus style="background: rgba(255,255,255,0.08); color: white; border-color: rgba(255,255,255,0.15);">
         </div>
         
         <div class="form-group" style="margin-bottom: 24px;">
           <label class="form-label" style="color: rgba(255,255,255,0.7);">Mật khẩu</label>
-          <input type="password" id="login-password" class="form-control login-input" required placeholder="Mật khẩu...">
+          <input type="password" id="login-password" class="form-control login-input" required placeholder="Mật khẩu..." style="background: rgba(255,255,255,0.08); color: white; border-color: rgba(255,255,255,0.15);">
         </div>
         
         <button type="submit" class="btn btn-primary" style="width: 100%; height: 42px; font-weight: 600;">
@@ -104,7 +105,7 @@ function showRegisterError(msg) {
 }
 
 // Xử lý sự kiện đăng nhập
-async function submitLogin(event) {
+function submitLogin(event) {
   if (event) event.preventDefault();
   
   const usernameEl = document.getElementById('login-username');
@@ -122,13 +123,14 @@ async function submitLogin(event) {
     return;
   }
   
-  const salt = user.username.toLowerCase();
-  const enteredHash = await hashPassword(password, salt);
-  
-  if (enteredHash === user.passwordHash) {
+  if (user.password === password) {
     window.currentUser = user;
     hideLoginOverlay();
     applyRolePermissions();
+    
+    // Ghi nhật ký đăng nhập mấu chốt
+    logUserAction("Đăng nhập", `Người dùng ${user.name} (${user.username}) đã đăng nhập thành công.`);
+    
     if (typeof showToast === 'function') {
       showToast(`Đăng nhập thành công! Chào mừng ${user.name}`, 'success');
     }
@@ -139,6 +141,10 @@ async function submitLogin(event) {
 
 
 function logoutUser() {
+  if (window.currentUser) {
+    // Ghi nhật ký đăng xuất mấu chốt
+    logUserAction("Đăng xuất", `Người dùng ${window.currentUser.name} (${window.currentUser.username}) đã đăng xuất.`);
+  }
   window.currentUser = null;
   showLoginForm();
   applyRolePermissions();
@@ -167,7 +173,8 @@ function applyRolePermissions() {
       userInfoDisplay.innerHTML = `
         <span class="chip-dot" style="background-color: var(--color-primary);"></span>
         <span>${window.currentUser.name} (${roleName})</span>
-        <a onclick="logoutUser()" style="margin-left: 6px; color: #ef4444; cursor: pointer; font-size: 11px; text-decoration: underline;">Thoát</a>
+        <a onclick="showChangePasswordModal()" style="margin-left: 10px; color: var(--color-primary-light); cursor: pointer; font-size: 11px; text-decoration: underline;">Đổi mật khẩu</a>
+        <a onclick="logoutUser()" style="margin-left: 10px; color: #ef4444; cursor: pointer; font-size: 11px; text-decoration: underline;">Thoát</a>
       `;
       userInfoDisplay.style.display = 'inline-flex';
     } else {
@@ -178,6 +185,9 @@ function applyRolePermissions() {
   // 3. Tải danh sách người dùng lên bảng UI nếu là admin
   if (role === 'admin') {
     renderUserListTable();
+    if (typeof renderActivityLogTable === 'function') {
+      renderActivityLogTable();
+    }
   }
 }
 
@@ -224,7 +234,6 @@ function renderUserListTable() {
 
 // Hiển thị modal thêm người dùng mới
 function showAddUserModal() {
-  // Reset form
   document.getElementById('user-modal-title').textContent = "Thêm người dùng mới";
   document.getElementById('user-edit-username').value = "";
   document.getElementById('user-edit-username').disabled = false;
@@ -245,10 +254,10 @@ function showEditUserModal(username) {
   
   document.getElementById('user-modal-title').textContent = `Chỉnh sửa: ${user.name}`;
   document.getElementById('user-edit-username').value = user.username;
-  document.getElementById('user-edit-username').disabled = true; // Không được sửa username (khóa chính)
+  document.getElementById('user-edit-username').disabled = true;
   document.getElementById('user-edit-name').value = user.name;
-  document.getElementById('user-edit-password').value = "";
-  document.getElementById('user-edit-password').placeholder = "Để trống nếu không muốn đổi mật khẩu";
+  document.getElementById('user-edit-password').value = user.password || "";
+  document.getElementById('user-edit-password').placeholder = "Mật khẩu...";
   document.getElementById('user-edit-role').value = user.role;
   document.getElementById('user-edit-mode').value = "edit";
   
@@ -256,11 +265,11 @@ function showEditUserModal(username) {
 }
 
 // Lưu người dùng (Cả Add và Edit)
-async function saveUserFromModal() {
+function saveUserFromModal() {
   const mode = document.getElementById('user-edit-mode').value;
   const username = document.getElementById('user-edit-username').value.trim();
   const name = document.getElementById('user-edit-name').value.trim();
-  const password = document.getElementById('user-edit-password').value;
+  const password = document.getElementById('user-edit-password').value.trim();
   const role = document.getElementById('user-edit-role').value;
   
   if (!username || !name) {
@@ -271,7 +280,6 @@ async function saveUserFromModal() {
   state.users = state.users || [];
   
   if (mode === "add") {
-    // Kiểm tra trùng username
     if (state.users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
       alert("Tên đăng nhập đã tồn tại trên hệ thống.");
       return;
@@ -281,18 +289,15 @@ async function saveUserFromModal() {
       return;
     }
     
-    const salt = username.toLowerCase();
-    const passwordHash = await hashPassword(password, salt);
-    
     state.users.push({
       username: username,
       name: name,
-      passwordHash: passwordHash,
+      password: password,
       role: role
     });
     
+    logUserAction("Thêm tài khoản", `Đã tạo tài khoản mới: ${username} (${name}), vai trò: ${role}`);
   } else {
-    // Sửa thông tin
     const idx = state.users.findIndex(u => u.username === username);
     if (idx === -1) return;
     
@@ -300,21 +305,20 @@ async function saveUserFromModal() {
     user.name = name;
     user.role = role;
     
-    // Nếu có nhập mật khẩu mới thì băm và lưu
-    if (password.trim().length > 0) {
-      const salt = username.toLowerCase();
-      user.passwordHash = await hashPassword(password, salt);
+    if (password) {
+      user.password = password;
     }
     
     state.users[idx] = user;
     
-    // Cập nhật lại phiên làm việc nếu admin tự sửa thông tin của chính mình
     if (window.currentUser && window.currentUser.username === username) {
       window.currentUser = user;
     }
+    
+    logUserAction("Sửa tài khoản", `Đã cập nhật tài khoản: ${username} (${name})`);
   }
   
-  saveState(); // Lưu SQLite & Sync Cloud
+  saveState();
   closeModal('modal-edit-user');
   applyRolePermissions();
   if (typeof showToast === 'function') {
@@ -331,12 +335,140 @@ function deleteUser(username) {
   
   if (confirm(`Bạn có chắc chắn muốn xóa tài khoản "${username}" không?`)) {
     state.users = (state.users || []).filter(u => u.username !== username);
-    saveState(); // Lưu SQLite & Sync Cloud
+    saveState();
+    logUserAction("Xóa tài khoản", `Đã xóa tài khoản nhân viên: ${username}`);
     applyRolePermissions();
     if (typeof showToast === 'function') {
       showToast("Đã xóa tài khoản thành công!", "success");
     }
   }
+}
+
+// ===========================================================================
+// ĐỔI MẬT KHẨU CÁ NHÂN & NHẬT KÝ HOẠT ĐỘNG MẤU CHỐT (AUDIT LOG)
+// ===========================================================================
+
+// Đổi mật khẩu cá nhân
+function showChangePasswordModal() {
+  const errDiv = document.getElementById('change-pwd-error');
+  if (errDiv) errDiv.style.display = 'none';
+  
+  document.getElementById('change-pwd-current').value = '';
+  document.getElementById('change-pwd-new').value = '';
+  document.getElementById('change-pwd-confirm').value = '';
+  
+  openModal('modal-change-password');
+}
+
+function submitChangePassword() {
+  const currentPassword = document.getElementById('change-pwd-current').value;
+  const newPassword = document.getElementById('change-pwd-new').value;
+  const confirmPassword = document.getElementById('change-pwd-confirm').value;
+  const errDiv = document.getElementById('change-pwd-error');
+  
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    if (errDiv) {
+      errDiv.textContent = 'Vui lòng điền đầy đủ các trường.';
+      errDiv.style.display = 'block';
+    }
+    return;
+  }
+  
+  if (!window.currentUser) return;
+  
+  if (currentPassword !== window.currentUser.password) {
+    if (errDiv) {
+      errDiv.textContent = 'Mật khẩu hiện tại không chính xác.';
+      errDiv.style.display = 'block';
+    }
+    return;
+  }
+  
+  if (newPassword.length < 4) {
+    if (errDiv) {
+      errDiv.textContent = 'Mật khẩu mới phải dài tối thiểu 4 ký tự.';
+      errDiv.style.display = 'block';
+    }
+    return;
+  }
+  
+  if (newPassword !== confirmPassword) {
+    if (errDiv) {
+      errDiv.textContent = 'Mật khẩu xác nhận không trùng khớp.';
+      errDiv.style.display = 'block';
+    }
+    return;
+  }
+  
+  const idx = state.users.findIndex(u => u.username === window.currentUser.username);
+  if (idx !== -1) {
+    state.users[idx].password = newPassword;
+    window.currentUser.password = newPassword;
+    
+    saveState();
+    logUserAction("Đổi mật khẩu", `Đã tự thay đổi mật khẩu của tài khoản: ${window.currentUser.username}`);
+    
+    closeModal('modal-change-password');
+    if (typeof showToast === 'function') {
+      showToast("Đã thay đổi mật khẩu thành công!", "success");
+    }
+  }
+}
+
+// Ghi nhật ký hoạt động
+function logUserAction(actionType, description) {
+  if (!window.currentUser) return;
+  
+  const newLog = {
+    timestamp: Date.now(),
+    username: window.currentUser.username,
+    name: window.currentUser.name,
+    action: actionType,
+    description: description
+  };
+  
+  state.actionLogs = state.actionLogs || [];
+  state.actionLogs.unshift(newLog);
+  
+  if (state.actionLogs.length > 1000) {
+    state.actionLogs = state.actionLogs.slice(0, 1000);
+  }
+  
+  saveState();
+}
+
+// Nạp nhật ký lên bảng UI
+function renderActivityLogTable() {
+  const tbody = document.getElementById('activity-log-tbody');
+  if (!tbody) return;
+  
+  const logs = state.actionLogs || [];
+  if (logs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Không có hoạt động nào được ghi nhận.</td></tr>';
+    return;
+  }
+  
+  let html = '';
+  logs.forEach(log => {
+    const formattedTime = formatDateAndTime(log.timestamp);
+    html += `
+      <tr>
+        <td style="color: var(--text-secondary);">${formattedTime}</td>
+        <td><code>${log.username}</code></td>
+        <td style="font-weight: 500;">${log.name}</td>
+        <td><span class="badge badge-info" style="font-weight: 600; background-color: var(--color-primary-light); color: white; padding: 2px 6px; border-radius: 4px;">${log.action}</span></td>
+        <td style="color: var(--text-primary);">${log.description}</td>
+      </tr>
+    `;
+  });
+  tbody.innerHTML = html;
+}
+
+function formatDateAndTime(timestamp) {
+  if (!timestamp) return '';
+  const d = new Date(timestamp);
+  const pad = n => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 // Tự động gắn nhãn vai trò dựa trên văn bản và hành động
@@ -389,3 +521,7 @@ window.showEditUserModal = showEditUserModal;
 window.saveUserFromModal = saveUserFromModal;
 window.deleteUser = deleteUser;
 window.autoTagRoleButtons = autoTagRoleButtons;
+window.showChangePasswordModal = showChangePasswordModal;
+window.submitChangePassword = submitChangePassword;
+window.logUserAction = logUserAction;
+window.renderActivityLogTable = renderActivityLogTable;

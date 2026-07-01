@@ -967,11 +967,16 @@ function trackDeletedIds(ids, entityType = 'voucher') {
     }
   });
 
-  // Giới hạn tối đa 2000 phần tử mỗi mảng (FIFO) để tránh phình dữ liệu
-  if (state.deletedIds.length > 2000) state.deletedIds = state.deletedIds.slice(-2000);
-  if (state.deletedCloudKeys.length > 2000) state.deletedCloudKeys = state.deletedCloudKeys.slice(-2000);
-
   state._lastModified = now;
+
+  if (typeof logUserAction === "function") {
+    const typeLabel = entityType === 'product' ? 'vật tư hàng hóa'
+                    : entityType === 'partner' ? 'đối tác'
+                    : entityType === 'cashEntry' ? 'phiếu thu/chi'
+                    : entityType === 'escrowItem' ? 'khoản ký quỹ'
+                    : 'chứng từ';
+    logUserAction(`Xóa ${typeLabel}`, `Đã xóa danh sách ${typeLabel} ID: ${ids.join(', ')}`);
+  }
 }
 
 /**

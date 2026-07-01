@@ -391,6 +391,23 @@ function saveStateSync() {
   executeSaveState(true);
 }
 
+// Helper to push logs directly to state.actionLogs without triggering saveState loop
+function pushActivityLogDirectly(actionType, description) {
+  if (typeof window.currentUser === 'undefined' || !window.currentUser) return;
+  const newLog = {
+    timestamp: Date.now(),
+    username: window.currentUser.username,
+    name: window.currentUser.name,
+    action: actionType,
+    description: description
+  };
+  state.actionLogs = state.actionLogs || [];
+  state.actionLogs.unshift(newLog);
+  if (state.actionLogs.length > 1000) {
+    state.actionLogs = state.actionLogs.slice(0, 1000);
+  }
+}
+
 function executeSaveState(sync = false) {
   if (!saveStateIsDirty) return;
 
@@ -399,7 +416,7 @@ function executeSaveState(sync = false) {
       // Luôn cập nhật timestamp trước khi lưu và push
       state._lastModified = Date.now();
 
-      // Dọn dẹp deletedIds: Loại bỏ bất kỳ ID nào hiện đang hoạt động trong hệ thống (vouchers, products, partners, cashEntries, escrowItems)
+      // Dọn dẹp deletedIds: Loại bỏ bất kỳ ID nào hiện đang hoạt động trong hệ thống
       if (Array.isArray(state.deletedIds)) {
         const activeIds = new Set();
         if (Array.isArray(state.vouchers)) state.vouchers.forEach(v => v && v.id && activeIds.add(v.id));
@@ -414,7 +431,6 @@ function executeSaveState(sync = false) {
         if (Array.isArray(state.deletedCloudKeys)) {
           state.deletedCloudKeys = state.deletedCloudKeys.filter(cloudKey => {
             if (!cloudKey) return false;
-            // Lấy raw ID từ cloud key (bỏ prefix như v_, p_, part_)
             const rawId = cloudKey.replace(/^(v_|p_|part_|cash_|escrow_)/, '');
             return !activeIds.has(rawId);
           });
@@ -446,11 +462,172 @@ function executeSaveState(sync = false) {
           partners: { upsert: [], deleteIds: [] }
         };
 
-        // A. So sánh metadata các cấu hình hệ thống
+        let hasVoucherChanges = false;
+        let hasProductChanges = false;
+        let hasPartnerChanges = false;
+
+        // B. So sánh Vouchers & Ghi nhận Log hoạt động mấu chốt
+        const currentVouchers = state.vouchers || [];
+        const currentVoucherIds = new Set();
+        let addedVouchers = [];
+        let updatedVouchers = [];
+
+        currentVouchers.forEach(v => {
+          if (!v || !v.id) return;
+          currentVoucherIds.add(v.id);
+          const prev = lastSavedState.vouchers.get(v.id);
+          if (!prev) {
+            delta.vouchers.upsert.push(v);
+            addedVouchers.push(v.id);
+            hasVoucherChanges = true;
+          } else if (JSON.stringify(prev) !== JSON.stringify(v)) {
+            delta.vouchers.upsert.push(v);
+            updatedVouchers.push(v.id);
+            hasVoucherChanges = true;
+          }
+        });
+
+        for (const id of lastSavedState.vouchers.keys()) {
+          if (!currentVoucherIds.has(id)) {
+            delta.vouchers.deleteIds.push(id);
+            hasVoucherChanges = true;
+          }
+        }
+
+        if (addedVouchers.length > 0) {
+          if (addedVouchers.length <= 5) {
+            addedVouchers.forEach(id => {
+              const v = currentVouchers.find(x => x.id === id);
+              const typeLabel = v && v.type === 'sales' ? 'Hóa đơn bán hàng' : (v && v.type === 'purchase' ? 'Hóa đơn mua hàng' : 'Chứng từ');
+              pushActivityLogDirectly("Thêm chứng từ", `Đã lập ${typeLabel} mới: ${id}`);
+            });
+          } else {
+            pushActivityLogDirectly("Thêm chứng từ", `Đã lập/nhập khẩu hàng loạt ${addedVouchers.length} chứng từ mới.`);
+          }
+        }
+        if (updatedVouchers.length > 0) {
+          if (updatedVouchers.length <= 5) {
+            updatedVouchers.forEach(id => {
+              const v = currentVouchers.find(x => x.id === id);
+              const typeLabel = v && v.type === 'sales' ? 'Hóa đơn bán hàng' : (v && v.type === 'purchase' ? 'Hóa đơn mua hàng' : 'Chứng từ');
+              pushActivityLogDirectly("Sửa chứng từ", `Đã cập nhật ${typeLabel}: ${id}`);
+            });
+          } else {
+            pushActivityLogDirectly("Sửa chứng từ", `Đã cập nhật hàng loạt ${updatedVouchers.length} chứng từ.`);
+          }
+        }
+
+        // C. So sánh Products & Ghi nhận Log
+        const currentProducts = state.products || [];
+        const currentProductIds = new Set();
+        let addedProducts = [];
+        let updatedProducts = [];
+
+        currentProducts.forEach(p => {
+          if (!p || !p.id) return;
+          currentProductIds.add(p.id);
+          const prev = lastSavedState.products.get(p.id);
+          if (!prev) {
+            delta.products.upsert.push(p);
+            addedProducts.push(p.id);
+            hasProductChanges = true;
+          } else if (JSON.stringify(prev) !== JSON.stringify(p)) {
+            delta.products.upsert.push(p);
+            updatedProducts.push(p.id);
+            hasProductChanges = true;
+          }
+        });
+
+        for (const id of lastSavedState.products.keys()) {
+          if (!currentProductIds.has(id)) {
+            delta.products.deleteIds.push(id);
+            hasProductChanges = true;
+          }
+        }
+
+        if (addedProducts.length > 0) {
+          if (addedProducts.length <= 5) {
+            addedProducts.forEach(id => {
+              const p = currentProducts.find(x => x.id === id);
+              pushActivityLogDirectly("Thêm hàng hóa", `Đã thêm vật tư hàng hóa mới: ${id} - ${p ? p.name : ''}`);
+            });
+          } else {
+            pushActivityLogDirectly("Thêm hàng hóa", `Đã thêm hàng loạt ${addedProducts.length} vật tư hàng hóa.`);
+          }
+        }
+        if (updatedProducts.length > 0) {
+          if (updatedProducts.length <= 5) {
+            updatedProducts.forEach(id => {
+              const p = currentProducts.find(x => x.id === id);
+              pushActivityLogDirectly("Sửa hàng hóa", `Đã cập nhật vật tư hàng hóa: ${id} - ${p ? p.name : ''}`);
+            });
+          } else {
+            pushActivityLogDirectly("Sửa hàng hóa", `Đã cập nhật hàng loạt ${updatedProducts.length} vật tư hàng hóa.`);
+          }
+        }
+
+        // D. So sánh Partners & Ghi nhận Log
+        const currentPartners = state.partners || [];
+        const currentPartnerIds = new Set();
+        let addedPartners = [];
+        let updatedPartners = [];
+
+        currentPartners.forEach(p => {
+          if (!p || !p.id) return;
+          currentPartnerIds.add(p.id);
+          const prev = lastSavedState.partners.get(p.id);
+          if (!prev) {
+            delta.partners.upsert.push(p);
+            addedPartners.push(p.id);
+            hasPartnerChanges = true;
+          } else if (JSON.stringify(prev) !== JSON.stringify(p)) {
+            delta.partners.upsert.push(p);
+            updatedPartners.push(p.id);
+            hasPartnerChanges = true;
+          }
+        });
+
+        for (const id of lastSavedState.partners.keys()) {
+          if (!currentPartnerIds.has(id)) {
+            delta.partners.deleteIds.push(id);
+            hasPartnerChanges = true;
+          }
+        }
+
+        if (addedPartners.length > 0) {
+          if (addedPartners.length <= 5) {
+            addedPartners.forEach(id => {
+              const p = currentPartners.find(x => x.id === id);
+              pushActivityLogDirectly("Thêm đối tác", `Đã thêm đối tác mới: ${id} - ${p ? p.name : ''}`);
+            });
+          } else {
+            pushActivityLogDirectly("Thêm đối tác", `Đã thêm hàng loạt ${addedPartners.length} đối tác.`);
+          }
+        }
+        if (updatedPartners.length > 0) {
+          if (updatedPartners.length <= 5) {
+            updatedPartners.forEach(id => {
+              const p = currentPartners.find(x => x.id === id);
+              pushActivityLogDirectly("Sửa đối tác", `Đã cập nhật đối tác: ${id} - ${p ? p.name : ''}`);
+            });
+          } else {
+            pushActivityLogDirectly("Sửa đối tác", `Đã cập nhật hàng loạt ${updatedPartners.length} đối tác.`);
+          }
+        }
+
+        // E. So sánh Cấu hình doanh nghiệp
+        if (state.companyName !== lastSavedState.companyName || state.taxCode !== lastSavedState.taxCode || state.address !== lastSavedState.address) {
+          pushActivityLogDirectly("Thay đổi cấu hình", `Đã cập nhật thông tin doanh nghiệp (Tên: ${state.companyName})`);
+        }
+        if (state.accountingStandard !== lastSavedState.accountingStandard) {
+          pushActivityLogDirectly("Thay đổi cấu hình", `Đã chuyển chế độ kế toán sang ${state.accountingStandard}`);
+        }
+
+        // A. So sánh metadata các cấu hình hệ thống (So sánh cuối cùng để ăn được actionLogs mới push)
         const metadataKeys = [
           'companyName', 'address', 'taxCode', 'accountingStandard',
           'initialBalances', 'partnerOpeningBalances', 'deletedIds', 'deletedCloudKeys',
-          'cashEntries', 'escrowItems', 'salesTemplatesData', 'users'
+          'cashEntries', 'escrowItems', 'salesTemplatesData', 'users', 'actionLogs'
         ];
         
         let hasMetaChanges = false;
@@ -463,97 +640,27 @@ function executeSaveState(sync = false) {
           }
         });
 
-        // B. So sánh Vouchers
-        const currentVouchers = state.vouchers || [];
-        const currentVoucherIds = new Set();
-        let hasVoucherChanges = false;
-        
-        currentVouchers.forEach(v => {
-          if (!v || !v.id) return;
-          currentVoucherIds.add(v.id);
-          const prev = lastSavedState.vouchers.get(v.id);
-          if (!prev || JSON.stringify(prev) !== JSON.stringify(v)) {
-            delta.vouchers.upsert.push(v);
-            hasVoucherChanges = true;
-          }
-        });
-        
-        for (const id of lastSavedState.vouchers.keys()) {
-          if (!currentVoucherIds.has(id)) {
-            delta.vouchers.deleteIds.push(id);
-            hasVoucherChanges = true;
-          }
-        }
-
-        // C. So sánh Products
-        const currentProducts = state.products || [];
-        const currentProductIds = new Set();
-        let hasProductChanges = false;
-        
-        currentProducts.forEach(p => {
-          if (!p || !p.id) return;
-          currentProductIds.add(p.id);
-          const prev = lastSavedState.products.get(p.id);
-          if (!prev || JSON.stringify(prev) !== JSON.stringify(p)) {
-            delta.products.upsert.push(p);
-            hasProductChanges = true;
-          }
-        });
-        
-        for (const id of lastSavedState.products.keys()) {
-          if (!currentProductIds.has(id)) {
-            delta.products.deleteIds.push(id);
-            hasProductChanges = true;
-          }
-        }
-
-        // D. So sánh Partners
-        const currentPartners = state.partners || [];
-        const currentPartnerIds = new Set();
-        let hasPartnerChanges = false;
-        
-        currentPartners.forEach(p => {
-          if (!p || !p.id) return;
-          currentPartnerIds.add(p.id);
-          const prev = lastSavedState.partners.get(p.id);
-          if (!prev || JSON.stringify(prev) !== JSON.stringify(p)) {
-            delta.partners.upsert.push(p);
-            hasPartnerChanges = true;
-          }
-        });
-        
-        for (const id of lastSavedState.partners.keys()) {
-          if (!currentPartnerIds.has(id)) {
-            delta.partners.deleteIds.push(id);
-            hasPartnerChanges = true;
-          }
-        }
-
         // Nếu thực sự có thay đổi -> Ghi nhận delta
         if (hasMetaChanges || hasVoucherChanges || hasProductChanges || hasPartnerChanges) {
           if (window.electronAPI && typeof window.electronAPI.writeStateDelta === 'function') {
             window.electronAPI.writeStateDelta(delta).then(result => {
               if (result && result.ok) {
                 // Ghi thành công -> cập nhật SQLite Snapshot (lastSavedState) bằng cách áp dụng delta
-                // Metadata
                 Object.keys(delta.metadata).forEach(key => {
                   lastSavedState[key] = JSON.parse(delta.metadata[key]);
                 });
-                // Vouchers
                 delta.vouchers.upsert.forEach(v => {
                   lastSavedState.vouchers.set(v.id, JSON.parse(JSON.stringify(v)));
                 });
                 delta.vouchers.deleteIds.forEach(id => {
                   lastSavedState.vouchers.delete(id);
                 });
-                // Products
                 delta.products.upsert.forEach(p => {
                   lastSavedState.products.set(p.id, JSON.parse(JSON.stringify(p)));
                 });
                 delta.products.deleteIds.forEach(id => {
                   lastSavedState.products.delete(id);
                 });
-                // Partners
                 delta.partners.upsert.forEach(p => {
                   lastSavedState.partners.set(p.id, JSON.parse(JSON.stringify(p)));
                 });
@@ -567,6 +674,7 @@ function executeSaveState(sync = false) {
           } else {
             // Trình duyệt web fallback
             localStorage.setItem("rd_accounting_online_cache", JSON.stringify(state));
+            initializeLastSavedState(state);
           }
         }
       }
