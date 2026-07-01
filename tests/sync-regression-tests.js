@@ -116,7 +116,7 @@ function createVoucherSequenceFakeClient(rows) {
           return Promise.resolve({ data: [row], error: null });
         },
         select(columns) {
-          assert.equal(columns, "id");
+          assert.ok(columns.includes("id"));
           const query = {
             lower: "",
             upper: "",
@@ -478,39 +478,6 @@ async function testRescueLookupIsBatchedAndExact() {
 }
 
 
-async function testRescueLookupIsBatchedAndExact() {
-  const { internals } = loadSyncInternals();
-  const keys = Array.from({ length: 405 }, (_, index) => `v_${index}`);
-  const calls = [];
-
-  const fakeClient = {
-    from(table) {
-      assert.equal(table, "rd_accounting_data");
-      return {
-        select(columns) {
-          assert.equal(columns, "id");
-          return {
-            in(column, batch) {
-              assert.equal(column, "id");
-              calls.push(batch.slice());
-              return Promise.resolve({
-                data: batch.filter(id => id.endsWith("0")).map(id => ({ id })),
-                error: null
-              });
-            }
-          };
-        }
-      };
-    }
-  };
-
-  const found = await internals.fetchExistingCloudIdsByKeysFromClient(fakeClient, keys);
-  assert.equal(calls.length, 3, "405 keys should be fetched in 3 exact-key batches");
-  assert.ok(calls.every(batch => batch.length <= 200), "rescue batches must stay within the configured size");
-  assert.ok(found.has("v_0"));
-  assert.ok(found.has("v_400"));
-  assert.equal(found.has("v_401"), false);
-}
 
 async function testStaticSafetyChecks() {
   assert.ok(syncSource.includes("Cloud full pull reached pagination safety limit"));
@@ -632,6 +599,19 @@ async function testFetchCloudDeltaAbortsOnActiveLock() {
   assert.ok(deltaResult2 !== null, "fetchCloudDelta should proceed when cloud is not syncing");
 }
 
+async function testLockRowsExpiryAndCleanup() {
+  const { internals } = loadSyncInternals();
+
+  const now = Date.now();
+  const rows = [
+    { id: "lock_v_HD-0000102", last_modified: now - 5 * 60 * 1000 },  // 5 mins ago (active)
+    { id: "lock_v_HD-0000103", last_modified: now - 20 * 60 * 1000 } // 20 mins ago (stale)
+  ];
+
+  const maxSeq = internals.getMaxVoucherSequenceFromRows(rows, "HD-", "lock_v_");
+  assert.equal(maxSeq, 102, "should only read sequence from active locks, ignoring the stale lock of 103");
+}
+
 async function run() {
   await testDeepComparators();
   await testPullCheckpointStorage();
@@ -645,6 +625,7 @@ async function run() {
   await testMetadataPollingDetectsRemoteChanges();
   await testRealtimeMetadataEventTriggersPull();
   await testFetchCloudDeltaAbortsOnActiveLock();
+  await testLockRowsExpiryAndCleanup();
   await testStartupCloudPullPreservesLocalEdits();
   await testPushDuringStartupIsQueued();
   await testRescueLookupIsBatchedAndExact();

@@ -282,9 +282,21 @@ function getNextStringBoundary(value) {
 function getMaxVoucherSequenceFromRows(rows, prefix, rowPrefix = "v_") {
   let maxNum = 0;
   const cloudPrefix = `${rowPrefix}${prefix}`;
+  const isLockRow = rowPrefix.startsWith("lock_");
+  const now = Date.now();
+
   (rows || []).forEach(row => {
     const id = typeof row === "string" ? row : row && row.id;
     if (!id || !String(id).startsWith(cloudPrefix)) return;
+
+    // Chốt chặn 2.8.11: Nếu là dòng lock, kiểm tra xem có bị quá hạn (stale) quá 15 phút không
+    if (isLockRow && row && typeof row === "object") {
+      const lastMod = Number(row.last_modified) || 0;
+      if (lastMod > 0 && now - lastMod > 15 * 60 * 1000) {
+        return; // Bỏ qua lock đã hết hạn
+      }
+    }
+
     const rawVoucherId = String(id).slice(rowPrefix.length);
     const num = parseVoucherSequenceNumber(rawVoucherId, prefix);
     if (num > maxNum) maxNum = num;
@@ -317,7 +329,7 @@ async function fetchCloudMaxVoucherSequence(prefix, options = {}) {
   for (let page = 0; page < maxPages; page++) {
     let query = client
       .from("rd_accounting_data")
-      .select("id")
+      .select("id, last_modified")
       .gte("id", lower);
 
     if (upper) {
@@ -2041,6 +2053,25 @@ async function pushToCloud() {
           .delete()
           .in("id", batch);
         if (deleteError) throw deleteError;
+      }
+    }
+
+    // 4.5. Xóa các dòng khóa (lock) tương ứng với các voucher được thêm/sửa hoặc xóa (Fix 2.8.11)
+    const lockIdsToDelete = [
+      ...rowsToUpsert.filter(row => row.id && row.id.startsWith("v_")).map(row => `lock_${row.id}`),
+      ...idsToDelete.filter(id => id && id.startsWith("v_")).map(id => `lock_${id}`)
+    ];
+    if (lockIdsToDelete.length > 0) {
+      console.log(`[CloudSync] Dọn dẹp ${lockIdsToDelete.length} locks tương ứng khỏi Supabase...`);
+      for (let i = 0; i < lockIdsToDelete.length; i += BATCH_SIZE) {
+        const batch = lockIdsToDelete.slice(i, i + BATCH_SIZE);
+        const { error: lockDeleteError } = await supabaseClient
+          .from("rd_accounting_data")
+          .delete()
+          .in("id", batch);
+        if (lockDeleteError) {
+          console.warn("[CloudSync] Không thể dọn dẹp lock rows:", lockDeleteError.message);
+        }
       }
     }
 
