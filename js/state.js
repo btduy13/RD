@@ -42,9 +42,7 @@ async function initApp() {
         const parsed = JSON.parse(result.data);
         if (parsed && Array.isArray(parsed.products) && Array.isArray(parsed.vouchers)) {
           state = parsed;
-          if (typeof lastSyncState !== 'undefined') {
-            lastSyncState = JSON.parse(JSON.stringify(parsed));
-          }
+          window.lastSyncState = JSON.parse(JSON.stringify(parsed));
           if (typeof lastSyncedCloudTs !== 'undefined') {
             lastSyncedCloudTs = state._lastModified || 0;
           }
@@ -77,7 +75,7 @@ async function initApp() {
           } catch (e) {
             console.error("[Cache] Lỗi đọc cache đồng bộ cũ:", e);
           }
-          lastSyncState = loadedLastSyncState || JSON.parse(JSON.stringify(parsed));
+          window.lastSyncState = loadedLastSyncState || JSON.parse(JSON.stringify(parsed));
           hasCache = true;
           lastSyncedCloudTs = state._lastModified || 0;
           console.log(`[Cache] Khởi tạo dữ liệu từ cache cục bộ thành công! (${(state.vouchers || []).length} chứng từ, ${(state.partners || []).length} đối tác)`);

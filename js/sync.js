@@ -6,16 +6,18 @@ let supabaseClient = null;
 let cloudSyncActive = false;
 let isStartupPullCompleted = false;
 let realtimeChannel = null;
-let lastSyncState = null;
+let lastSyncState = window.lastSyncState || null;
 function updateLastSyncState(newState) {
   if (!newState) {
     lastSyncState = null;
+    window.lastSyncState = null;
     try {
       localStorage.removeItem("rd_accounting_last_sync_cache");
     } catch (e) {}
     return;
   }
   lastSyncState = JSON.parse(JSON.stringify(newState));
+  window.lastSyncState = lastSyncState;
   try {
     localStorage.setItem("rd_accounting_last_sync_cache", JSON.stringify(lastSyncState));
   } catch (err) {
@@ -1179,6 +1181,17 @@ function computeDelta() {
     (lastSyncState.partners || []).forEach(part => {
       if (part && part.id && !localPartnersMap.has(part.id)) {
         idsToDelete.push(`part_${part.id}`);
+      }
+    });
+  }
+
+  // Luôn đưa toàn bộ IDs trong state.deletedIds vào danh sách cần xóa trên cloud để bảo đảm đồng bộ xóa triệt để
+  if (Array.isArray(state.deletedIds)) {
+    state.deletedIds.forEach(id => {
+      if (id) {
+        idsToDelete.push(`v_${id}`);
+        idsToDelete.push(`p_${id}`);
+        idsToDelete.push(`part_${id}`);
       }
     });
   }
