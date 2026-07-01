@@ -634,6 +634,95 @@ function saveStateToSQLite(stateObj) {
   transaction();
 }
 
+// Lưu phần chênh lệch dữ liệu (delta) vào SQLite
+function saveStateDeltaToSQLite(delta) {
+  if (!db) return;
+
+  const transaction = db.transaction(() => {
+    // 1. Lưu metadata
+    if (delta.metadata) {
+      const stmtMetadata = db.prepare('INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)');
+      for (const [key, val] of Object.entries(delta.metadata)) {
+        stmtMetadata.run(key, val);
+      }
+    }
+
+    // 2. Lưu/Xóa vouchers
+    if (delta.vouchers) {
+      if (Array.isArray(delta.vouchers.upsert) && delta.vouchers.upsert.length > 0) {
+        const stmtVoucher = db.prepare('INSERT OR REPLACE INTO vouchers (id, type, date, data, _updatedAt, _sessionId) VALUES (?, ?, ?, ?, ?, ?)');
+        for (const v of delta.vouchers.upsert) {
+          if (!v || !v.id) continue;
+          stmtVoucher.run(
+            v.id,
+            v.type || '',
+            v.date || '',
+            JSON.stringify(v),
+            v._updatedAt || 0,
+            v._sessionId || ''
+          );
+        }
+      }
+      if (Array.isArray(delta.vouchers.deleteIds) && delta.vouchers.deleteIds.length > 0) {
+        const stmtDeleteVoucher = db.prepare('DELETE FROM vouchers WHERE id = ?');
+        for (const id of delta.vouchers.deleteIds) {
+          if (id) stmtDeleteVoucher.run(id);
+        }
+      }
+    }
+
+    // 3. Lưu/Xóa products
+    if (delta.products) {
+      if (Array.isArray(delta.products.upsert) && delta.products.upsert.length > 0) {
+        const stmtProduct = db.prepare('INSERT OR REPLACE INTO products (id, name, unit, stock, avgCost, data, _updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        for (const p of delta.products.upsert) {
+          if (!p || !p.id) continue;
+          stmtProduct.run(
+            p.id,
+            p.name || '',
+            p.unit || '',
+            p.stock || 0,
+            p.avgCost || 0,
+            JSON.stringify(p),
+            p._updatedAt || 0
+          );
+        }
+      }
+      if (Array.isArray(delta.products.deleteIds) && delta.products.deleteIds.length > 0) {
+        const stmtDeleteProduct = db.prepare('DELETE FROM products WHERE id = ?');
+        for (const id of delta.products.deleteIds) {
+          if (id) stmtDeleteProduct.run(id);
+        }
+      }
+    }
+
+    // 4. Lưu/Xóa partners
+    if (delta.partners) {
+      if (Array.isArray(delta.partners.upsert) && delta.partners.upsert.length > 0) {
+        const stmtPartner = db.prepare('INSERT OR REPLACE INTO partners (id, name, type, data, _updatedAt) VALUES (?, ?, ?, ?, ?)');
+        for (const p of delta.partners.upsert) {
+          if (!p || !p.id) continue;
+          stmtPartner.run(
+            p.id,
+            p.name || '',
+            p.type || '',
+            JSON.stringify(p),
+            p._updatedAt || 0
+          );
+        }
+      }
+      if (Array.isArray(delta.partners.deleteIds) && delta.partners.deleteIds.length > 0) {
+        const stmtDeletePartner = db.prepare('DELETE FROM partners WHERE id = ?');
+        for (const id of delta.partners.deleteIds) {
+          if (id) stmtDeletePartner.run(id);
+        }
+      }
+    }
+  });
+
+  transaction();
+}
+
 // Đọc toàn bộ state đối tượng từ SQLite
 function readStateFromSQLite() {
   if (!db) return null;
@@ -713,6 +802,16 @@ ipcMain.handle('write-state-file', async (event, jsonData) => {
     return { ok: true };
   } catch (err) {
     console.error('[SQLiteStore] Lỗi ghi state vào SQLite:', err);
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('write-state-delta', async (event, delta) => {
+  try {
+    saveStateDeltaToSQLite(delta);
+    return { ok: true };
+  } catch (err) {
+    console.error('[SQLiteStore] Lỗi ghi delta vào SQLite:', err);
     return { ok: false, error: err.message };
   }
 });

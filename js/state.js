@@ -15,6 +15,8 @@ let state = {
   vouchers: []
 };
 
+let lastSavedState = null;
+
 // 2. KHỞI CHẠY KHI TRANG ĐƯỢC TẢI
 document.addEventListener("DOMContentLoaded", async () => {
   await initApp();
@@ -261,6 +263,11 @@ async function initApp() {
   if (typeof initOrderFormKeyboardNavigation === "function") {
     initOrderFormKeyboardNavigation();
   }
+
+  // Khởi tạo trạng thái Snapshot SQLite của dữ liệu
+  if (typeof initializeLastSavedState === "function") {
+    initializeLastSavedState(state);
+  }
 }
 
 // Hàm dọn dẹp các đơn hàng tự sinh (ID là số thứ tự) và chứng từ rác/test cũ
@@ -341,6 +348,32 @@ function saveState() {
   }, 2000);
 }
 
+// Khởi tạo snapshot để so sánh chênh lệch (delta) khi lưu
+function initializeLastSavedState(loadedState) {
+  if (!loadedState) return;
+  lastSavedState = {
+    companyName: loadedState.companyName || "",
+    address: loadedState.address || "",
+    taxCode: loadedState.taxCode || "",
+    accountingStandard: loadedState.accountingStandard || "TT200",
+    initialBalances: JSON.parse(JSON.stringify(loadedState.initialBalances || {})),
+    partnerOpeningBalances: JSON.parse(JSON.stringify(loadedState.partnerOpeningBalances || {})),
+    deletedIds: [...(loadedState.deletedIds || [])],
+    deletedCloudKeys: [...(loadedState.deletedCloudKeys || [])],
+    cashEntries: JSON.parse(JSON.stringify(loadedState.cashEntries || [])),
+    escrowItems: JSON.parse(JSON.stringify(loadedState.escrowItems || [])),
+    salesTemplatesData: JSON.parse(JSON.stringify(loadedState.salesTemplatesData || [])),
+    vouchers: new Map((loadedState.vouchers || []).map(v => [v.id, JSON.parse(JSON.stringify(v))])),
+    products: new Map((loadedState.products || []).map(p => [p.id, JSON.parse(JSON.stringify(p))])),
+    partners: new Map((loadedState.partners || []).map(p => [p.id, JSON.parse(JSON.stringify(p))])),
+  };
+}
+
+function saveStateSync() {
+  saveStateIsDirty = true;
+  executeSaveState(true);
+}
+
 function executeSaveState(sync = false) {
   if (!saveStateIsDirty) return;
 
@@ -370,34 +403,153 @@ function executeSaveState(sync = false) {
           });
         }
       }
-      
-      // === [01] GHI RA FILE JSON QUA ELECTRON IPC (không giới hạn kích thước) ===
-      const jsonString = JSON.stringify(state);
-      if (window.electronAPI && typeof window.electronAPI.writeStateFile === 'function') {
-        window.electronAPI.writeStateFile(jsonString).then(result => {
-          if (!result || !result.ok) {
-            console.error('[StateFile] Ghi file thất bại:', result && result.error);
-          }
-        }).catch(err => console.error('[StateFile] Lỗi IPC writeStateFile:', err));
-      }
 
-      // === [02] FALLBACK: GHI VÀO LOCALSTORAGE (đối với trình duyệt web, không phải Electron) ===
-      // Bật cơ chế bảo vệ: chỉ ghi localStorage nếu < 4MB để tránh QuotaExceededError
-      if (!window.electronAPI) {
-        try {
-          if (jsonString.length < 4 * 1024 * 1024) { // < 4MB mới ghi localStorage
-            localStorage.setItem("rd_accounting_online_cache", jsonString);
-          } else {
-            console.warn(`[Cache] Dữ liệu (${(jsonString.length/1024/1024).toFixed(1)}MB) vượt ngưỡng localStorage 4MB, bỏ qua ghi cache cục bộ.`);
+      // === TÍNH TOÁN PHẦN CHÊNH LỆCH (DELTA) SO VỚI SQLite Snapshot ===
+      if (!lastSavedState) {
+        // Fallback: Nếu chưa có SQLite Snapshot, thực hiện lưu toàn bộ
+        const jsonString = JSON.stringify(state);
+        if (window.electronAPI && typeof window.electronAPI.writeStateFile === 'function') {
+          window.electronAPI.writeStateFile(jsonString).then(result => {
+            if (result && result.ok) {
+              initializeLastSavedState(state);
+            } else {
+              console.error('[StateFile] Ghi file full thất bại:', result && result.error);
+            }
+          }).catch(err => console.error('[StateFile] Lỗi IPC writeStateFile:', err));
+        } else {
+          // Trình duyệt web fallback
+          localStorage.setItem("rd_accounting_online_cache", jsonString);
+        }
+      } else {
+        // Có lastSavedState -> Tính toán delta
+        const delta = {
+          metadata: {},
+          vouchers: { upsert: [], deleteIds: [] },
+          products: { upsert: [], deleteIds: [] },
+          partners: { upsert: [], deleteIds: [] }
+        };
+
+        // A. So sánh metadata các cấu hình hệ thống
+        const metadataKeys = [
+          'companyName', 'address', 'taxCode', 'accountingStandard',
+          'initialBalances', 'partnerOpeningBalances', 'deletedIds', 'deletedCloudKeys',
+          'cashEntries', 'escrowItems', 'salesTemplatesData'
+        ];
+        
+        let hasMetaChanges = false;
+        metadataKeys.forEach(key => {
+          const currentValStr = JSON.stringify(state[key] !== undefined ? state[key] : null);
+          const prevValStr = JSON.stringify(lastSavedState[key] !== undefined ? lastSavedState[key] : null);
+          if (currentValStr !== prevValStr) {
+            delta.metadata[key] = currentValStr;
+            hasMetaChanges = true;
           }
-        } catch (cacheErr) {
-          if (cacheErr.name === 'QuotaExceededError' || cacheErr.code === 22) {
-            console.warn('[Cache] localStorage đầy (QuotaExceededError). Dữ liệu quá lớn để lưu vào local cache.');
-            // Xóa cache cũ để giải phóng chỗ
-            try { localStorage.removeItem('rd_accounting_online_cache'); } catch(e) {}
-            try { localStorage.removeItem('rd_accounting_last_sync_cache'); } catch(e) {}
+        });
+
+        // B. So sánh Vouchers
+        const currentVouchers = state.vouchers || [];
+        const currentVoucherIds = new Set();
+        let hasVoucherChanges = false;
+        
+        currentVouchers.forEach(v => {
+          if (!v || !v.id) return;
+          currentVoucherIds.add(v.id);
+          const prev = lastSavedState.vouchers.get(v.id);
+          if (!prev || JSON.stringify(prev) !== JSON.stringify(v)) {
+            delta.vouchers.upsert.push(v);
+            hasVoucherChanges = true;
+          }
+        });
+        
+        for (const id of lastSavedState.vouchers.keys()) {
+          if (!currentVoucherIds.has(id)) {
+            delta.vouchers.deleteIds.push(id);
+            hasVoucherChanges = true;
+          }
+        }
+
+        // C. So sánh Products
+        const currentProducts = state.products || [];
+        const currentProductIds = new Set();
+        let hasProductChanges = false;
+        
+        currentProducts.forEach(p => {
+          if (!p || !p.id) return;
+          currentProductIds.add(p.id);
+          const prev = lastSavedState.products.get(p.id);
+          if (!prev || JSON.stringify(prev) !== JSON.stringify(p)) {
+            delta.products.upsert.push(p);
+            hasProductChanges = true;
+          }
+        });
+        
+        for (const id of lastSavedState.products.keys()) {
+          if (!currentProductIds.has(id)) {
+            delta.products.deleteIds.push(id);
+            hasProductChanges = true;
+          }
+        }
+
+        // D. So sánh Partners
+        const currentPartners = state.partners || [];
+        const currentPartnerIds = new Set();
+        let hasPartnerChanges = false;
+        
+        currentPartners.forEach(p => {
+          if (!p || !p.id) return;
+          currentPartnerIds.add(p.id);
+          const prev = lastSavedState.partners.get(p.id);
+          if (!prev || JSON.stringify(prev) !== JSON.stringify(p)) {
+            delta.partners.upsert.push(p);
+            hasPartnerChanges = true;
+          }
+        });
+        
+        for (const id of lastSavedState.partners.keys()) {
+          if (!currentPartnerIds.has(id)) {
+            delta.partners.deleteIds.push(id);
+            hasPartnerChanges = true;
+          }
+        }
+
+        // Nếu thực sự có thay đổi -> Ghi nhận delta
+        if (hasMetaChanges || hasVoucherChanges || hasProductChanges || hasPartnerChanges) {
+          if (window.electronAPI && typeof window.electronAPI.writeStateDelta === 'function') {
+            window.electronAPI.writeStateDelta(delta).then(result => {
+              if (result && result.ok) {
+                // Ghi thành công -> cập nhật SQLite Snapshot (lastSavedState) bằng cách áp dụng delta
+                // Metadata
+                Object.keys(delta.metadata).forEach(key => {
+                  lastSavedState[key] = JSON.parse(delta.metadata[key]);
+                });
+                // Vouchers
+                delta.vouchers.upsert.forEach(v => {
+                  lastSavedState.vouchers.set(v.id, JSON.parse(JSON.stringify(v)));
+                });
+                delta.vouchers.deleteIds.forEach(id => {
+                  lastSavedState.vouchers.delete(id);
+                });
+                // Products
+                delta.products.upsert.forEach(p => {
+                  lastSavedState.products.set(p.id, JSON.parse(JSON.stringify(p)));
+                });
+                delta.products.deleteIds.forEach(id => {
+                  lastSavedState.products.delete(id);
+                });
+                // Partners
+                delta.partners.upsert.forEach(p => {
+                  lastSavedState.partners.set(p.id, JSON.parse(JSON.stringify(p)));
+                });
+                delta.partners.deleteIds.forEach(id => {
+                  lastSavedState.partners.delete(id);
+                });
+              } else {
+                console.error('[StateFile] Ghi delta thất bại:', result && result.error);
+              }
+            }).catch(err => console.error('[StateFile] Lỗi IPC writeStateDelta:', err));
           } else {
-            console.error('[Cache] Lỗi ghi cache cục bộ:', cacheErr);
+            // Trình duyệt web fallback
+            localStorage.setItem("rd_accounting_online_cache", JSON.stringify(state));
           }
         }
       }
@@ -426,6 +578,9 @@ function executeSaveState(sync = false) {
     }
   }
 }
+
+window.initializeLastSavedState = initializeLastSavedState;
+window.saveStateSync = saveStateSync;
 
 /**
  * Gọi từ main.js khi cửa sổ sắp đóng.

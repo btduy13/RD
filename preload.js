@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readStateFile: () => ipcRenderer.invoke('read-state-file'),
   // Đọc file backup gần nhất để phục hồi khi state bị hỏng
   readLatestBackup: () => ipcRenderer.invoke('read-latest-backup'),
+  // Ghi phần chênh lệch (delta) ra SQLite
+  writeStateDelta: (delta) => ipcRenderer.invoke('write-state-delta', delta),
   listTemplateFiles: () => ipcRenderer.invoke('list-template-files'),
   confirm: (message) => ipcRenderer.sendSync('show-confirm-dialog', message),
 });

@@ -1114,7 +1114,7 @@ window.changeInventoryPage = changeInventoryPage;
 
 
 // --- PHÂN HỆ KIỂM TRA & TỰ ĐỘNG CẬP NHẬT PHẦN MỀM ---
-let appLocalVersion = "2.7.8";
+let appLocalVersion = "2.7.9";
 let remoteVersionGlobal = "";
 
 // Hiển thị hộp thoại cập nhật: mời tải bộ cài mới

@@ -756,12 +756,10 @@ async function pullFromCloudOnStartup() {
 
       // Ghi cache cục bộ
       try {
-        const stateJson = JSON.stringify(state);
-        if (window.electronAPI && typeof window.electronAPI.writeStateFile === 'function') {
-          window.electronAPI.writeStateFile(stateJson).catch(err => console.error('[StateFile] Lỗi ghi sau cloud pull:', err));
-        }
-        if (!window.electronAPI) {
-          try { localStorage.setItem("rd_accounting_online_cache", stateJson); } catch(e) {}
+        if (typeof saveStateSync === "function") {
+          saveStateSync();
+        } else {
+          localStorage.setItem("rd_accounting_online_cache", JSON.stringify(state));
         }
       } catch (cacheErr) {
         console.error("[Cache] Lỗi ghi cache cục bộ:", cacheErr);
@@ -1611,11 +1609,10 @@ async function pullAndMergeFromCloud() {
 
       // Ghi cache cục bộ (cập nhật SQLite cache qua Electron IPC)
       try {
-        const stateJson = JSON.stringify(state);
-        if (window.electronAPI && typeof window.electronAPI.writeStateFile === 'function') {
-          window.electronAPI.writeStateFile(stateJson).catch(err => console.error('[StateFile] Lỗi ghi sau realtime pull:', err));
+        if (typeof saveStateSync === "function") {
+          saveStateSync();
         } else {
-          localStorage.setItem("rd_accounting_online_cache", stateJson);
+          localStorage.setItem("rd_accounting_online_cache", JSON.stringify(state));
         }
       } catch (cacheErr) {
         console.error("[Cache] Lỗi ghi cache cục bộ:", cacheErr);
