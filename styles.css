@@ -1150,7 +1150,7 @@ body.light-theme .modal-footer {
 .printable-voucher {
   background-color: #ffffff;
   color: #000000;
-  padding: 40px;
+  padding: 20px;
   border-radius: var(--radius-sm);
   font-family: "Times New Roman", Times, serif;
   font-size: 14px;
