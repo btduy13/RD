@@ -1028,13 +1028,29 @@ function batchDeletePartners() {
 
     saveState();
 
-    const master = document.getElementById("check-all-partners");
-    if (master) master.checked = false;
-
-    updateBatchPartnersUI();
+    if (typeof resetBatchSelectionUI === "function") {
+      resetBatchSelectionUI({
+        checkboxSelector: ".partner-checkbox",
+        masterId: "check-all-partners",
+        buttonId: "btn-batch-delete-partners",
+        countId: "selected-partners-count"
+      });
+    } else {
+      const master = document.getElementById("check-all-partners");
+      if (master) master.checked = false;
+      updateBatchPartnersUI();
+    }
 
     filterPartners();
     if (typeof filterDebts === "function") filterDebts();
+    if (typeof resetBatchSelectionUI === "function") {
+      resetBatchSelectionUI({
+        checkboxSelector: ".partner-checkbox",
+        masterId: "check-all-partners",
+        buttonId: "btn-batch-delete-partners",
+        countId: "selected-partners-count"
+      });
+    }
 
     showToast(`Đã xóa thành công ${checked.length} đối tác!`, "success");
   }
@@ -1046,4 +1062,4 @@ window.filterPartners = filterPartners;
 window.changePartnersPage = changePartnersPage;
 window.toggleSelectAllPartners = toggleSelectAllPartners;
 window.updateBatchPartnersUI = updateBatchPartnersUI;
-window.batchDeletePartners = batchDeletePartners;
+window.batchDeletePartners = batchDeletePartners;

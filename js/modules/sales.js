@@ -699,16 +699,32 @@ function batchDeleteSales() {
       }
     });
 
-    const master = document.getElementById("check-all-sales");
-    if (master) master.checked = false;
-
-    updateBatchSalesUI();
+    if (typeof resetBatchSelectionUI === "function") {
+      resetBatchSelectionUI({
+        checkboxSelector: ".sale-checkbox",
+        masterId: "check-all-sales",
+        buttonId: "btn-batch-delete-sales",
+        countId: "selected-sales-count"
+      });
+    } else {
+      const master = document.getElementById("check-all-sales");
+      if (master) master.checked = false;
+      updateBatchSalesUI();
+    }
     showToast(`Đã xóa thành công ${checked.length} chứng từ bán hàng!`, "success");
 
     // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
     setTimeout(() => {
       saveState();
       recalculateAccounting();
+      if (typeof resetBatchSelectionUI === "function") {
+        resetBatchSelectionUI({
+          checkboxSelector: ".sale-checkbox",
+          masterId: "check-all-sales",
+          buttonId: "btn-batch-delete-sales",
+          countId: "selected-sales-count"
+        });
+      }
       // recalculateAccounting đã gọi refreshUI() bên trong
     }, 0);
   }
@@ -749,16 +765,16 @@ function switchSalesSubTab(subTabId) {
   if (panelTemplate) panelTemplate.style.display = "none";
 
   if (subTabId === "invoice" && panelInvoice) {
-    panelInvoice.style.display = "block";
+    panelInvoice.style.display = "flex";
     renderSalesTable();
   } else if (subTabId === "return" && panelReturn) {
-    panelReturn.style.display = "block";
+    panelReturn.style.display = "flex";
     renderSalesReturnTable();
   } else if (subTabId === "quotation" && panelQuotation) {
-    panelQuotation.style.display = "block";
+    panelQuotation.style.display = "flex";
     renderQuotationTable();
   } else if (subTabId === "template" && panelTemplate) {
-    panelTemplate.style.display = "block";
+    panelTemplate.style.display = "flex";
     renderSalesTemplateTable();
   }
 }
@@ -1327,16 +1343,32 @@ function batchDeleteSalesReturns() {
       }
     });
 
-    const master = document.getElementById("check-all-sales-return");
-    if (master) master.checked = false;
-
-    updateBatchSalesReturnsUI();
+    if (typeof resetBatchSelectionUI === "function") {
+      resetBatchSelectionUI({
+        checkboxSelector: ".sales-return-checkbox",
+        masterId: "check-all-sales-return",
+        buttonId: "btn-batch-delete-sales-return",
+        countId: "selected-sales-returns-count"
+      });
+    } else {
+      const master = document.getElementById("check-all-sales-return");
+      if (master) master.checked = false;
+      updateBatchSalesReturnsUI();
+    }
     showToast(`Đã xóa thành công ${checked.length} chứng từ trả lại hàng!`, "success");
 
     // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
     setTimeout(() => {
       saveState();
       recalculateAccounting();
+      if (typeof resetBatchSelectionUI === "function") {
+        resetBatchSelectionUI({
+          checkboxSelector: ".sales-return-checkbox",
+          masterId: "check-all-sales-return",
+          buttonId: "btn-batch-delete-sales-return",
+          countId: "selected-sales-returns-count"
+        });
+      }
     }, 0);
   }
 }
@@ -2036,9 +2068,27 @@ function batchDeleteQuotations() {
     try {
       trackDeletedIds(ids);
       state.vouchers = state.vouchers.filter(v => !ids.includes(v.id));
+      if (typeof resetBatchSelectionUI === "function") {
+        resetBatchSelectionUI({
+          checkboxSelector: ".quotation-checkbox",
+          masterId: "check-all-quotation",
+          buttonId: "btn-batch-delete-quotation",
+          countId: "selected-quotations-count"
+        });
+      } else {
+        updateBatchQuotationsUI();
+      }
       showToast(`Đã xóa thành công ${ids.length} báo giá!`, "success");
       saveState();
       recalculateAccounting();
+      if (typeof resetBatchSelectionUI === "function") {
+        resetBatchSelectionUI({
+          checkboxSelector: ".quotation-checkbox",
+          masterId: "check-all-quotation",
+          buttonId: "btn-batch-delete-quotation",
+          countId: "selected-quotations-count"
+        });
+      }
     } catch (err) {
       console.error(err);
       showToast(`Lỗi khi xóa hàng loạt báo giá: ${err.message}`, "danger");

@@ -659,16 +659,32 @@ function batchDeletePurchases() {
     trackDeletedIds(idsToDelete);
     state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
 
-    const master = document.getElementById("check-all-purchase");
-    if (master) master.checked = false;
-
-    updateBatchPurchasesUI();
+    if (typeof resetBatchSelectionUI === "function") {
+      resetBatchSelectionUI({
+        checkboxSelector: ".purchase-checkbox",
+        masterId: "check-all-purchase",
+        buttonId: "btn-batch-delete-purchase",
+        countId: "selected-purchases-count"
+      });
+    } else {
+      const master = document.getElementById("check-all-purchase");
+      if (master) master.checked = false;
+      updateBatchPurchasesUI();
+    }
     showToast(`Đã xóa thành công ${checked.length} chứng từ mua hàng!`, "success");
 
     // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
     setTimeout(() => {
       saveState();
       recalculateAccounting();
+      if (typeof resetBatchSelectionUI === "function") {
+        resetBatchSelectionUI({
+          checkboxSelector: ".purchase-checkbox",
+          masterId: "check-all-purchase",
+          buttonId: "btn-batch-delete-purchase",
+          countId: "selected-purchases-count"
+        });
+      }
     }, 0);
   }
 }
@@ -953,13 +969,13 @@ function switchPurchaseSubTab(subTabId) {
   if (panelReturn) panelReturn.style.display = "none";
 
   if (subTabId === "invoice" && panelInvoice) {
-    panelInvoice.style.display = "block";
+    panelInvoice.style.display = "flex";
     renderPurchaseTable();
   } else if (subTabId === "order" && panelOrder) {
-    panelOrder.style.display = "block";
+    panelOrder.style.display = "flex";
     renderPurchaseOrderTable();
   } else if (subTabId === "return" && panelReturn) {
-    panelReturn.style.display = "block";
+    panelReturn.style.display = "flex";
     renderPurchaseReturnTable();
   }
 }
@@ -1513,16 +1529,32 @@ function batchDeletePurchaseOrders() {
     trackDeletedIds(idsToDelete);
     state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
 
-    const master = document.getElementById("check-all-purchase-order");
-    if (master) master.checked = false;
-
-    updateBatchPurchaseOrdersUI();
+    if (typeof resetBatchSelectionUI === "function") {
+      resetBatchSelectionUI({
+        checkboxSelector: ".purchase-order-checkbox",
+        masterId: "check-all-purchase-order",
+        buttonId: "btn-batch-delete-purchase-order",
+        countId: "selected-purchase-orders-count"
+      });
+    } else {
+      const master = document.getElementById("check-all-purchase-order");
+      if (master) master.checked = false;
+      updateBatchPurchaseOrdersUI();
+    }
     showToast(`Đã xóa thành công ${checked.length} đơn đặt hàng!`, "success");
 
     // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
     setTimeout(() => {
       saveState();
       recalculateAccounting();
+      if (typeof resetBatchSelectionUI === "function") {
+        resetBatchSelectionUI({
+          checkboxSelector: ".purchase-order-checkbox",
+          masterId: "check-all-purchase-order",
+          buttonId: "btn-batch-delete-purchase-order",
+          countId: "selected-purchase-orders-count"
+        });
+      }
     }, 0);
   }
 }
@@ -2268,16 +2300,32 @@ function batchDeletePurchaseReturns() {
     trackDeletedIds(idsToDelete);
     state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
 
-    const master = document.getElementById("check-all-purchase-return");
-    if (master) master.checked = false;
-
-    updateBatchPurchaseReturnsUI();
+    if (typeof resetBatchSelectionUI === "function") {
+      resetBatchSelectionUI({
+        checkboxSelector: ".purchase-return-checkbox",
+        masterId: "check-all-purchase-return",
+        buttonId: "btn-batch-delete-purchase-return",
+        countId: "selected-purchase-returns-count"
+      });
+    } else {
+      const master = document.getElementById("check-all-purchase-return");
+      if (master) master.checked = false;
+      updateBatchPurchaseReturnsUI();
+    }
     showToast(`Đã xóa thành công ${checked.length} chứng từ trả lại hàng!`, "success");
 
     // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
     setTimeout(() => {
       saveState();
       recalculateAccounting();
+      if (typeof resetBatchSelectionUI === "function") {
+        resetBatchSelectionUI({
+          checkboxSelector: ".purchase-return-checkbox",
+          masterId: "check-all-purchase-return",
+          buttonId: "btn-batch-delete-purchase-return",
+          countId: "selected-purchase-returns-count"
+        });
+      }
     }, 0);
   }
 }

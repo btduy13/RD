@@ -7,6 +7,92 @@ let cloudSyncActive = false;
 let isStartupPullCompleted = false;
 let realtimeChannel = null;
 let lastSyncState = window.lastSyncState || null;
+let isPulling = false;
+let pullPending = false;
+let deferredCloudPull = false;
+let deferredCloudPullReason = "";
+const LAST_PULLED_CLOUD_TS_KEY = "rd_accounting_last_pulled_cloud_ts";
+
+function getStoredLastPulledCloudTs() {
+  try {
+    const raw = localStorage.getItem(LAST_PULLED_CLOUD_TS_KEY);
+    const parsed = raw ? Number(raw) : 0;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  } catch (err) {
+    return 0;
+  }
+}
+
+function persistLastPulledCloudTs(ts) {
+  const safeTs = Number(ts) || 0;
+  lastSyncedCloudTs = safeTs;
+  try {
+    if (safeTs > 0) {
+      localStorage.setItem(LAST_PULLED_CLOUD_TS_KEY, String(safeTs));
+    } else {
+      localStorage.removeItem(LAST_PULLED_CLOUD_TS_KEY);
+    }
+  } catch (err) {
+    console.warn("[CloudSync] Khong the luu checkpoint pull cloud:", err);
+  }
+}
+
+function getPullCheckpointTs() {
+  const storedTs = getStoredLastPulledCloudTs();
+  if (storedTs > 0) {
+    lastSyncedCloudTs = storedTs;
+    return storedTs;
+  }
+  return Number(lastSyncedCloudTs) || 0;
+}
+
+function isElementVisible(el) {
+  if (!el) return false;
+  const style = window.getComputedStyle ? window.getComputedStyle(el) : null;
+  return el.style.display === "flex" || el.style.display === "block" || (style && (style.display === "flex" || style.display === "block"));
+}
+
+function isVoucherEntryModalOpen() {
+  const entryModalIds = [
+    "modal-add-sales",
+    "modal-add-purchase",
+    "modal-add-purchase-order",
+    "modal-add-purchase-return",
+    "modal-add-sales-return",
+    "modal-add-sales-quotation",
+    "modal-add-receipt",
+    "modal-add-payment",
+    "modal-add-escrow",
+    "modal-edit-debt"
+  ];
+  return entryModalIds.some(id => isElementVisible(document.getElementById(id)));
+}
+
+function deferCloudPull(reason) {
+  deferredCloudPull = true;
+  deferredCloudPullReason = reason || "editing";
+  if (typeof updateCloudSyncBadge === "function") {
+    updateCloudSyncBadge(false, "May: Cho luu phieu de dong bo", "#f59e0b");
+  }
+}
+
+function scheduleCloudPull(reason) {
+  if (isVoucherEntryModalOpen()) {
+    deferCloudPull(reason);
+    return;
+  }
+  pullAndMergeFromCloud();
+}
+
+async function flushDeferredCloudSync() {
+  if (!deferredCloudPull || isVoucherEntryModalOpen()) return;
+  deferredCloudPull = false;
+  const reason = deferredCloudPullReason;
+  deferredCloudPullReason = "";
+  console.log(`[CloudSync] Thuc hien pull bi hoan sau khi ket thuc nhap lieu (${reason}).`);
+  await pullAndMergeFromCloud({ force: true });
+}
+
 function updateLastSyncState(newState) {
   if (!newState) {
     lastSyncState = null;
@@ -205,6 +291,10 @@ async function fetchCloudDelta(localTs) {
       lastSeenId = data[data.length - 1].id;
       page++;
     }
+
+    if (page >= MAX_PAGES) {
+      throw new Error("Cloud full pull reached pagination safety limit; refusing to use partial data.");
+    }
     
     // Luôn đảm bảo có hàng metadata trong changedRows để cập nhật deletedIds
     if (!changedRows.some(r => r.id === "metadata")) {
@@ -276,6 +366,10 @@ async function fetchCloudDelta(localTs) {
     if (data.length < step) break;
     lastSeenId = data[data.length - 1].id;
     page++;
+  }
+
+  if (page >= MAX_PAGES) {
+    throw new Error("Cloud incremental pull reached pagination safety limit; refusing to advance checkpoint with partial data.");
   }
 
   logToDebugFile(`[fetchCloudDelta] Kết thúc quét danh sách. Tổng số dòng có thay đổi (allItems): ${allItems.length}`);
@@ -692,7 +786,7 @@ async function pullFromCloudOnStartup() {
   try {
     // === TỐI ƯU HÓA KHỞI ĐỘNG: Kiểm tra metadata trước để tránh tải dữ liệu không cần thiết ===
     // Lấy timestamp của cloud từ bản ghi metadata (chỉ 1 row, cực nhanh)
-    const localTs = (state && state._lastModified) ? state._lastModified : 0;
+    const localTs = getPullCheckpointTs();
 
     if (localTs > 0) {
       // Đã có cache cục bộ → Kiểm tra nhanh xem cloud có gì mới hơn không
@@ -711,7 +805,10 @@ async function pullFromCloudOnStartup() {
           console.log(`[Startup] Dữ liệu cục bộ đã mới nhất hoặc mới hơn cloud. (Local: ${localTs}, Cloud: ${cloudTs}) → Bỏ qua tải về.`);
           logToDebugFile(`[pullFromCloudOnStartup] Bỏ qua pull: local (${localTs}) >= cloud (${cloudTs})`);
           updateLastSyncState(state);
-          lastSyncedCloudTs = localTs; // Đặt mốc sync = local timestamp để delta sync hoạt động đúng
+          persistLastPulledCloudTs(localTs);
+          if (typeof rescueLocalOnlyItems === "function") {
+            await rescueLocalOnlyItems();
+          }
           isStartupPullCompleted = true;
           if (typeof recalculateAccounting === "function") recalculateAccounting(false);
           if (typeof filterDebts === "function") filterDebts();
@@ -738,7 +835,10 @@ async function pullFromCloudOnStartup() {
     if (!result) {
       // fetchCloudData trả về null → dữ liệu đã mới nhất (cloudTs <= localTs)
       updateLastSyncState(state);
-      lastSyncedCloudTs = localTs;
+      persistLastPulledCloudTs(localTs);
+      if (typeof rescueLocalOnlyItems === "function") {
+        await rescueLocalOnlyItems();
+      }
       isStartupPullCompleted = true;
       updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
       console.log("[CloudSync] Khởi chạy hoàn tất (không cần tải thêm). Đã bật quyền pushToCloud.");
@@ -751,13 +851,14 @@ async function pullFromCloudOnStartup() {
       const cloudVoucherCount = (cloudData.vouchers || []).length;
       state = cloudData;
       updateLastSyncState(state);
-      lastSyncedCloudTs = state._lastModified || 0;
+      persistLastPulledCloudTs(state._lastModified || 0);
       console.log(`[Supabase] Tải dữ liệu đám mây thành công! (${cloudVoucherCount} chứng từ)`);
 
       // Ghi cache cục bộ
       try {
-        if (typeof saveStateSync === "function") {
-          saveStateSync();
+        const saveFn = typeof saveStateSync === "function" ? saveStateSync : (typeof window.saveStateSync === "function" ? window.saveStateSync : null);
+        if (saveFn) {
+          saveFn();
         } else {
           localStorage.setItem("rd_accounting_online_cache", JSON.stringify(state));
         }
@@ -814,9 +915,12 @@ async function pullFromCloudOnStartup() {
         };
       }
       updateLastSyncState(state);
-      lastSyncedCloudTs = state._lastModified || 0;
+      persistLastPulledCloudTs(state._lastModified || 0);
       recalculateAccounting(false);
       updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
+    }
+    if (typeof rescueLocalOnlyItems === "function") {
+      await rescueLocalOnlyItems();
     }
     isStartupPullCompleted = true;
     console.log("[CloudSync] Khởi chạy hoàn tất. Đã bật quyền pushToCloud.");
@@ -834,6 +938,11 @@ async function pullFromCloudOnStartup() {
 function forcePushToCloud() {
   if (!cloudSyncActive || !supabaseClient) {
     showToast("Ứng dụng chưa kết nối đám mây!", "danger");
+    return;
+  }
+
+  if (isVoucherEntryModalOpen()) {
+    showToast("Hay luu hoac dong phieu dang nhap truoc khi day du lieu len cloud.", "warning");
     return;
   }
 
@@ -866,6 +975,12 @@ function forcePullFromCloud() {
     return;
   }
 
+  if (isVoucherEntryModalOpen()) {
+    deferCloudPull("manual-force-pull");
+    showToast("Dang co phieu mo. Hay luu hoac dong phieu truoc khi tai lai cloud.", "warning");
+    return;
+  }
+
   updateCloudSyncBadge(false, "Mây: Đang tải...", "#f59e0b");
 
   fetchCloudData(0)
@@ -879,7 +994,7 @@ function forcePullFromCloud() {
       if (cloudData) {
         state = cloudData;
         updateLastSyncState(state);
-        lastSyncedCloudTs = state._lastModified || 0;
+        persistLastPulledCloudTs(state._lastModified || 0);
         
         // Ghi cache cục bộ
         try {
@@ -1202,79 +1317,32 @@ let pushPending = false;
 let _isMergePushing = false;
 let pushRetryTimeout = null;
 
-function areVouchersEqual(v1, v2) {
-  if (v1 === v2) return true;
-  if (!v1 || !v2) return false;
-  if (v1.id !== v2.id) return false;
-  if (v1.date !== v2.date) return false;
-  if (v1.partnerId !== v2.partnerId) return false;
-  if (v1.amount !== v2.amount) return false;
-  if (v1.totalAmount !== v2.totalAmount) return false;
-  if (v1.type !== v2.type) return false;
-  if (v1.description !== v2.description) return false;
-  if (v1.paymentMethod !== v2.paymentMethod) return false;
-  if (v1.isManual !== v2.isManual) return false;
-  if (v1.isImported !== v2.isImported) return false;
-  if (v1.escrowRefId !== v2.escrowRefId) return false;
-  
-  const items1 = v1.items || [];
-  const items2 = v2.items || [];
-  if (items1.length !== items2.length) return false;
-  for (let i = 0; i < items1.length; i++) {
-    const it1 = items1[i];
-    const it2 = items2[i];
-    if (it1.productId !== it2.productId) return false;
-    if (it1.qty !== it2.qty) return false;
-    if (it1.price !== it2.price) return false;
-    if (it1.amount !== it2.amount) return false;
-    if (it1.cogsUnit !== it2.cogsUnit) return false;
-    if (it1.cogsAmount !== it2.cogsAmount) return false;
+function stableStringifyForSync(value) {
+  if (value === undefined) return "__undefined__";
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
   }
-
-  const ent1 = v1.entries || [];
-  const ent2 = v2.entries || [];
-  if (ent1.length !== ent2.length) return false;
-  for (let i = 0; i < ent1.length; i++) {
-    const e1 = ent1[i];
-    const e2 = ent2[i];
-    if (e1.debit !== e2.debit) return false;
-    if (e1.credit !== e2.credit) return false;
-    if (e1.amount !== e2.amount) return false;
-    if (e1.desc !== e2.desc) return false;
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringifyForSync).join(",")}]`;
   }
-
-  return true;
+  const keys = Object.keys(value).sort();
+  return `{${keys.map(key => `${JSON.stringify(key)}:${stableStringifyForSync(value[key])}`).join(",")}}`;
 }
 
-function areObjectsShallowEqual(o1, o2) {
-  if (o1 === o2) return true;
-  if (!o1 || !o2) return false;
-  const keys = new Set([...Object.keys(o1), ...Object.keys(o2)]);
-  for (const k of keys) {
-    const v1 = o1[k];
-    const v2 = o2[k];
-    const isPrimitive1 = v1 !== Object(v1);
-    const isPrimitive2 = v2 !== Object(v2);
-    if (isPrimitive1 && isPrimitive2) {
-      if (v1 !== v2) return false;
-    } else if (isPrimitive1 !== isPrimitive2) {
-      return false;
-    } else if (Array.isArray(v1) && Array.isArray(v2)) {
-      if (v1.length !== v2.length) return false;
-      for (let i = 0; i < v1.length; i++) {
-        if (v1[i] !== v2[i]) return false;
-      }
-    }
-  }
-  return true;
+function areObjectsDeepEqual(o1, o2) {
+  return stableStringifyForSync(o1) === stableStringifyForSync(o2);
+}
+
+function areVouchersEqual(v1, v2) {
+  return areObjectsDeepEqual(v1, v2);
 }
 
 function areProductsEqual(p1, p2) {
-  return areObjectsShallowEqual(p1, p2);
+  return areObjectsDeepEqual(p1, p2);
 }
 
 function arePartnersEqual(pa1, pa2) {
-  return areObjectsShallowEqual(pa1, pa2);
+  return areObjectsDeepEqual(pa1, pa2);
 }
 
 function computeDelta() {
@@ -1583,11 +1651,25 @@ async function pushToCloud() {
   }
 }
 
-async function pullAndMergeFromCloud() {
+async function pullAndMergeFromCloud(options = {}) {
   if (!cloudSyncActive || !supabaseClient) return;
 
+  if (!options.force && isVoucherEntryModalOpen()) {
+    deferCloudPull(options.reason || "editing");
+    return;
+  }
+
+  if (isPulling) {
+    pullPending = true;
+    return;
+  }
+
+  isPulling = true;
+  pullPending = false;
+
   try {
-    const result = await fetchCloudData(lastSyncedCloudTs);
+    const checkpointTs = getPullCheckpointTs();
+    const result = await fetchCloudData(checkpointTs);
     if (!result) {
       updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
       return; // không có gì mới
@@ -1598,6 +1680,7 @@ async function pullAndMergeFromCloud() {
       const localTs = state._lastModified || 0;
       if (cloudTs > 0 && localTs > 0 && cloudTs === localTs) {
         console.log("[Supabase] Trùng timestamp, không cần tải lại.");
+        persistLastPulledCloudTs(cloudTs);
         updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
         return;
       }
@@ -1608,14 +1691,16 @@ async function pullAndMergeFromCloud() {
       // mới tạo chưa kịp push lên cloud (do saveState có 2s debounce).
       // Thay vào đó, dùng mergeStates() để gộp an toàn.
       const mergedState = mergeStates(state, cloudData);
+      const newLastSyncState = mergeStates(lastSyncState || state, cloudData);
       state = mergedState;
-      updateLastSyncState(state);
-      lastSyncedCloudTs = cloudData._lastModified || 0;
+      updateLastSyncState(newLastSyncState);
+      persistLastPulledCloudTs(cloudData._lastModified || checkpointTs);
 
       // Ghi cache cục bộ (cập nhật SQLite cache qua Electron IPC)
       try {
-        if (typeof saveStateSync === "function") {
-          saveStateSync();
+        const saveFn = typeof saveStateSync === "function" ? saveStateSync : (typeof window.saveStateSync === "function" ? window.saveStateSync : null);
+        if (saveFn) {
+          saveFn();
         } else {
           localStorage.setItem("rd_accounting_online_cache", JSON.stringify(state));
         }
@@ -1642,6 +1727,18 @@ async function pullAndMergeFromCloud() {
       addErrorLog("pullAndMergeFromCloud", err.message, err);
     }
     updateCloudSyncBadge(false, "Mây: Lỗi kết nối", "#ef4444");
+  } finally {
+    isPulling = false;
+    if (pullPending) {
+      pullPending = false;
+      setTimeout(() => {
+        if (isVoucherEntryModalOpen()) {
+          deferCloudPull("pending");
+        } else {
+          pullAndMergeFromCloud({ reason: "pending" });
+        }
+      }, 250);
+    }
   }
 }
 
@@ -1679,7 +1776,7 @@ function listenToCloudChanges() {
         if (row.is_syncing) return;
 
         const cloudTs = row.last_modified || 0;
-        const localTs = state._lastModified || 0;
+        const localTs = getPullCheckpointTs();
         const CLOCK_TOLERANCE_MS = 2000; // 2 giây dung sai đồng hồ giữa các máy
         if (cloudTs > 0 && localTs > 0 && cloudTs < localTs - CLOCK_TOLERANCE_MS) {
           // Cloud thực sự cũ hơn local rõ ràng (cách nhau > 2s), bỏ qua
@@ -1687,7 +1784,7 @@ function listenToCloudChanges() {
         }
 
         // Kéo toàn bộ dữ liệu mới từ cloud về để merge
-        pullAndMergeFromCloud();
+        scheduleCloudPull("realtime");
       }
     )
     .subscribe((status) => {
@@ -1726,7 +1823,129 @@ function updateCloudSyncBadge(connected, text, color = "#64748b") {
     }
   }
 }
+
+async function fetchExistingCloudIdsByKeysFromClient(client, keys) {
+  const existing = new Set();
+  const uniqueKeys = Array.from(new Set((keys || []).filter(Boolean)));
+  const BATCH_SIZE = 200;
+
+  for (let i = 0; i < uniqueKeys.length; i += BATCH_SIZE) {
+    const batch = uniqueKeys.slice(i, i + BATCH_SIZE);
+    const { data, error } = await client
+      .from("rd_accounting_data")
+      .select("id")
+      .in("id", batch);
+
+    if (error) throw error;
+    (data || []).forEach(row => {
+      if (row && row.id) existing.add(row.id);
+    });
+  }
+
+  return existing;
+}
+
+async function fetchExistingCloudIdsByKeys(keys) {
+  if (!supabaseClient) return new Set();
+  return fetchExistingCloudIdsByKeysFromClient(supabaseClient, keys);
+}
+
 window.initCloudSync = initCloudSync;
 window.forcePullFromCloud = forcePullFromCloud;
 window.manualIncrementalSync = manualIncrementalSync;
-window.updateCloudSyncBadge = updateCloudSyncBadge;
+window.updateCloudSyncBadge = updateCloudSyncBadge;
+window.flushDeferredCloudSync = flushDeferredCloudSync;
+window.isVoucherEntryModalOpen = isVoucherEntryModalOpen;
+window.__syncInternals__ = {
+  stableStringifyForSync,
+  areVouchersEqual,
+  areProductsEqual,
+  arePartnersEqual,
+  getStoredLastPulledCloudTs,
+  persistLastPulledCloudTs,
+  getPullCheckpointTs,
+  isVoucherEntryModalOpen,
+  fetchExistingCloudIdsByKeysFromClient
+};
+
+async function rescueLocalOnlyItems() {
+  if (!cloudSyncActive || !supabaseClient) return;
+  console.log("[Rescue] Đang quét tìm các chứng từ/vật tư/đối tác bị kẹt cục bộ chưa đẩy lên đám mây...");
+  try {
+    const localKeys = [
+      ...(state.vouchers || []).filter(v => v && v.id).map(v => `v_${v.id}`),
+      ...(state.products || []).filter(p => p && p.id).map(p => `p_${p.id}`),
+      ...(state.partners || []).filter(pt => pt && pt.id).map(pt => `part_${pt.id}`)
+    ];
+    const cloudIds = await fetchExistingCloudIdsByKeys(localKeys);
+
+    /* obsolete unpaginated rescue query removed
+      console.error("[Rescue] Lỗi tải ID từ đám mây:", error);
+      return;
+    */
+
+    // Cloud IDs are fetched by exact local keys above to avoid unpaginated full-table reads.
+    let changed = false;
+
+    // Vouchers
+    (state.vouchers || []).forEach(v => {
+      if (v && v.id) {
+        const cloudKey = `v_${v.id}`;
+        if (!cloudIds.has(cloudKey)) {
+          v._updatedAt = Date.now();
+          console.warn(`[Rescue] Phát hiện chứng từ chỉ có cục bộ (chưa có trên mây): ${v.id}. Đang đánh dấu để đẩy lên...`);
+          changed = true;
+          if (lastSyncState && Array.isArray(lastSyncState.vouchers)) {
+            lastSyncState.vouchers = lastSyncState.vouchers.filter(x => x.id !== v.id);
+          }
+        }
+      }
+    });
+
+    // Products
+    (state.products || []).forEach(p => {
+      if (p && p.id) {
+        const cloudKey = `p_${p.id}`;
+        if (!cloudIds.has(cloudKey)) {
+          p._updatedAt = Date.now();
+          console.warn(`[Rescue] Phát hiện hàng hóa chỉ có cục bộ (chưa có trên mây): ${p.id}. Đang đánh dấu để đẩy lên...`);
+          changed = true;
+          if (lastSyncState && Array.isArray(lastSyncState.products)) {
+            lastSyncState.products = lastSyncState.products.filter(x => x.id !== p.id);
+          }
+        }
+      }
+    });
+
+    // Partners
+    (state.partners || []).forEach(pt => {
+      if (pt && pt.id) {
+        const cloudKey = `part_${pt.id}`;
+        if (!cloudIds.has(cloudKey)) {
+          pt._updatedAt = Date.now();
+          console.warn(`[Rescue] Phát hiện đối tác chỉ có cục bộ (chưa có trên mây): ${pt.id}. Đang đánh dấu để đẩy lên...`);
+          changed = true;
+          if (lastSyncState && Array.isArray(lastSyncState.partners)) {
+            lastSyncState.partners = lastSyncState.partners.filter(x => x.id !== pt.id);
+          }
+        }
+      }
+    });
+
+    if (changed) {
+      console.log("[Rescue] Đang lưu trữ và kích hoạt đẩy dữ liệu lên đám mây...");
+      state._lastModified = Date.now();
+      const saveFn = typeof saveStateSync === "function" ? saveStateSync : (typeof window.saveStateSync === "function" ? window.saveStateSync : null);
+      if (saveFn) {
+        saveFn();
+      } else {
+        localStorage.setItem("rd_accounting_online_cache", JSON.stringify(state));
+      }
+      setTimeout(() => pushToCloud(), 1000);
+    } else {
+      console.log("[Rescue] Không phát hiện đối tượng nào bị kẹt cục bộ.");
+    }
+  } catch (err) {
+    console.error("[Rescue] Lỗi trong quá trình cứu hộ dữ liệu kẹt cục bộ:", err);
+  }
+}

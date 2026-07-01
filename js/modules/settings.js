@@ -135,8 +135,11 @@ function loadCloudSettings() {
       const parsed = JSON.parse(saved);
       // Chấp nhận cấu hình Supabase mới (có supabaseUrl)
       if (parsed && parsed.supabaseUrl) {
-        cloudSyncSettings = parsed;
-        cloudSyncSettings.enabled = true;
+        cloudSyncSettings = {
+          ...cloudSyncSettings,
+          ...parsed,
+          enabled: parsed.enabled !== false
+        };
       } else {
         // Cấu hình cũ (Firebase) hoặc không hợp lệ → ghi đè bằng cấu hình Supabase mặc định
         cloudSyncSettings.enabled = true;
@@ -149,7 +152,7 @@ function loadCloudSettings() {
     }
 
     const chk = document.getElementById("setting-cloud-enabled");
-    if (chk) chk.checked = true;
+    if (chk) chk.checked = cloudSyncSettings.enabled !== false;
 
     const urlInput = document.getElementById("setting-cloud-supabase-url");
     if (urlInput) urlInput.value = cloudSyncSettings.supabaseUrl || "";
@@ -216,4 +219,4 @@ function saveCloudConfig(e) {
 }
 window.loadCloudSettings = loadCloudSettings;
 window.saveCloudConfig = saveCloudConfig;
-window.toggleCloudSyncInputs = toggleCloudSyncInputs;
+window.toggleCloudSyncInputs = toggleCloudSyncInputs;

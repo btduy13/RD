@@ -591,8 +591,17 @@
 
               <!-- Cụm bên phải: Các nút hành động -->
               <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="resetPurchaseForm(); openModal('modal-add-purchase')"
+                  style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25); cursor: pointer; transition: all 0.2s;">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
+                    style="width: 16px; height: 16px; stroke-width: 2.5;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+                  </svg>
+                  Lập hóa đơn mua hàng
+                </button>
+
                 <button id="btn-batch-delete-purchase" class="btn btn-danger" onclick="batchDeletePurchases()"
-                  style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
+                  style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
                   <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
                     xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
                     <path stroke-linecap="round" stroke-linejoin="round"
@@ -657,15 +666,6 @@
                     </button>
                   </div>
                 </div>
-
-                <button class="btn btn-primary" onclick="resetPurchaseForm(); openModal('modal-add-purchase')"
-                  style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25); cursor: pointer; transition: all 0.2s;">
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
-                    style="width: 16px; height: 16px; stroke-width: 2.5;">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
-                  </svg>
-                  Lập hóa đơn mua hàng
-                </button>
               </div>
             </div>
 
@@ -1117,8 +1117,17 @@
 
               <!-- Cụm bên phải: Các nút hành động -->
               <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <button class="btn btn-success" onclick="resetSalesForm(); openModal('modal-add-sales')"
+                  style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25); cursor: pointer; transition: all 0.2s;">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
+                    style="width: 16px; height: 16px; stroke-width: 2.5;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+                  </svg>
+                  Lập hóa đơn bán hàng
+                </button>
+
                 <button id="btn-batch-delete-sales" class="btn btn-danger" onclick="batchDeleteSales()"
-                  style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
+                  style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
                   <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
                     xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
                     <path stroke-linecap="round" stroke-linejoin="round"
@@ -1183,15 +1192,6 @@
                     </button>
                   </div>
                 </div>
-
-                <button class="btn btn-success" onclick="resetSalesForm(); openModal('modal-add-sales')"
-                  style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25); cursor: pointer; transition: all 0.2s;">
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
-                    style="width: 16px; height: 16px; stroke-width: 2.5;">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
-                  </svg>
-                  Lập hóa đơn bán hàng
-                </button>
               </div>
             </div>
 

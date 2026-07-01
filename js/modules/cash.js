@@ -798,16 +798,32 @@ function batchDeleteCash() {
     trackDeletedIds(idsToDelete);
     state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
 
-    const master = document.getElementById("check-all-cash");
-    if (master) master.checked = false;
-
-    updateBatchCashUI();
+    if (typeof resetBatchSelectionUI === "function") {
+      resetBatchSelectionUI({
+        checkboxSelector: ".cash-checkbox",
+        masterId: "check-all-cash",
+        buttonId: "btn-batch-delete-cash",
+        countId: "selected-cash-count"
+      });
+    } else {
+      const master = document.getElementById("check-all-cash");
+      if (master) master.checked = false;
+      updateBatchCashUI();
+    }
     showToast(`Đã xóa thành công ${checked.length} chứng từ thu chi!`, "success");
 
     // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
     setTimeout(() => {
       saveState();
       recalculateAccounting();
+      if (typeof resetBatchSelectionUI === "function") {
+        resetBatchSelectionUI({
+          checkboxSelector: ".cash-checkbox",
+          masterId: "check-all-cash",
+          buttonId: "btn-batch-delete-cash",
+          countId: "selected-cash-count"
+        });
+      }
     }, 0);
   }
 }
@@ -819,4 +835,4 @@ window.clearCashDateFilter = clearCashDateFilter;
 window.toggleSelectAllCash = toggleSelectAllCash;
 window.updateBatchCashUI = updateBatchCashUI;
 window.batchDeleteCash = batchDeleteCash;
-window.exportCashToExcel = exportCashToExcel;
+window.exportCashToExcel = exportCashToExcel;

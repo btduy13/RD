@@ -19,6 +19,21 @@ function markAllTabsDirty() {
   }
 }
 
+function resetBatchSelectionUI({ checkboxSelector, masterId, buttonId, countId }) {
+  document.querySelectorAll(checkboxSelector).forEach(cb => {
+    cb.checked = false;
+  });
+
+  const master = document.getElementById(masterId);
+  if (master) master.checked = false;
+
+  const button = document.getElementById(buttonId);
+  if (button) button.style.display = "none";
+
+  const count = document.getElementById(countId);
+  if (count) count.innerText = "0";
+}
+
 function renderTabIfNeeded(tabId) {
   if (!tabDirtyStates[tabId]) return;
 
@@ -74,11 +89,23 @@ function renderTabIfNeeded(tabId) {
 }
 
 // Cập nhật toàn bộ giao diện dựa trên tab đang hiển thị
+let pendingRefreshUI = false;
+
 function refreshUI() {
   markAllTabsDirty();
-  const activeMenuItem = document.querySelector(".sidebar-menu .menu-item.active");
-  const tabId = activeMenuItem ? activeMenuItem.getAttribute("data-tab") : "dashboard";
-  renderTabIfNeeded(tabId);
+  if (pendingRefreshUI) return;
+
+  pendingRefreshUI = true;
+  const schedule = typeof requestAnimationFrame === "function"
+    ? requestAnimationFrame
+    : callback => setTimeout(callback, 16);
+
+  schedule(() => {
+    pendingRefreshUI = false;
+    const activeMenuItem = document.querySelector(".sidebar-menu .menu-item.active");
+    const tabId = activeMenuItem ? activeMenuItem.getAttribute("data-tab") : "dashboard";
+    renderTabIfNeeded(tabId);
+  });
 }
 
 // Biến toàn cục lưu trữ trạng thái các modal đang mở theo từng tab
@@ -327,7 +354,7 @@ function viewVoucher(id) {
         
         <div class="voucher-entries-note">
           <span>Số: <span class="template-bold">${v.id}</span></span><br>
-          <span style="font-size: 11px; color: #666; font-style: italic;">(Không hạch toán kho & kế toán)</span>
+          <span style="font-size: 13px; color: #666; font-style: italic;">(Không hạch toán kho & kế toán)</span>
         </div>
         
         <div style="margin-top:20px;">
@@ -399,28 +426,28 @@ function viewVoucher(id) {
         </div>
         
         <!-- Chữ ký và dấu (Đơn đặt hàng) -->
-        <div style="display: flex; justify-content: space-between; text-align: center; margin-top: 30px; font-size: 11px; page-break-inside: avoid; break-inside: avoid;">
+        <div style="display: flex; justify-content: space-between; text-align: center; margin-top: 30px; font-size: 13px; page-break-inside: avoid; break-inside: avoid;">
           <div style="width: 23%; page-break-inside: avoid; break-inside: avoid;">
             <strong>Người lập phiếu</strong><br>
-            <span style="font-style: italic; font-size: 10px; color: #555;">(Ký, họ tên)</span>
+            <span style="font-style: italic; font-size: 11.5px; color: #555;">(Ký, họ tên)</span>
             <div style="height: 60px;"></div>
           </div>
           
           <div style="width: 23%; page-break-inside: avoid; break-inside: avoid;">
             <strong>Kế toán trưởng</strong><br>
-            <span style="font-style: italic; font-size: 10px; color: #555;">(Ký, họ tên)</span>
+            <span style="font-style: italic; font-size: 11.5px; color: #555;">(Ký, họ tên)</span>
             <div style="height: 60px;"></div>
           </div>
           
           <div style="width: 23%; page-break-inside: avoid; break-inside: avoid;">
             <strong>Đại diện nhà cung cấp</strong><br>
-            <span style="font-style: italic; font-size: 10px; color: #555;">(Ký, họ tên)</span>
+            <span style="font-style: italic; font-size: 11.5px; color: #555;">(Ký, họ tên)</span>
             <div style="height: 60px;"></div>
           </div>
           
           <div style="width: 23%; page-break-inside: avoid; break-inside: avoid;">
             <strong>Giám đốc</strong><br>
-            <span style="font-style: italic; font-size: 10px; color: #555;">(Ký, họ tên, đóng dấu)</span>
+            <span style="font-style: italic; font-size: 11.5px; color: #555;">(Ký, họ tên, đóng dấu)</span>
             <div style="height: 60px;"></div>
           </div>
         </div>
@@ -444,33 +471,33 @@ function viewVoucher(id) {
 
     const partner_p = getPartnerForVoucher(v) || {};
     content = `
-      <div class="printable-voucher" style="max-width:800px; padding:8px; font-family:'Times New Roman',Times,serif; font-size:11px; color:#000; line-height:1.25;">
+      <div class="printable-voucher" style="max-width:800px; padding:8px; font-family:'Times New Roman',Times,serif; font-size: 13px; color:#000; line-height:1.25;">
         <!-- Header -->
         <div style="position:relative; border-bottom:2px solid #000; padding-bottom:6px; margin-bottom:8px; text-align:center; min-height:50px;">
           <div style="position:absolute; left:0; top:50%; transform:translateY(-50%); width:80px; display:flex; align-items:center; justify-content:center;">
             <img src="logo.jpg" style="max-height:45px; max-width:75px; object-fit:contain;" alt="Logo" />
           </div>
           <div style="padding:0 10px 0 90px; color:#000;">
-            <div style="font-weight:bold; font-size:12px; text-transform:uppercase; white-space:nowrap;">${companyName}</div>
-            <div style="font-size:9.5px; margin-top:2px; white-space:nowrap;">Mật số: ${state.accountingStandard === 'TT133' ? 'Mẫu số C21-DN (TT133)' : 'Mẫu số 01-VT (TT200)'}</div>
-            <div style="font-size:9.5px; margin-top:2px; white-space:nowrap;">Địa chỉ: ${companyAddr}</div>
-            <div style="font-size:9.5px; margin-top:1px; white-space:nowrap;">MST: ${companyTax}</div>
+            <div style="font-weight:bold; font-size: 14px; text-transform:uppercase; white-space:nowrap;">${companyName}</div>
+            <div style="font-size: 11.5px; margin-top:2px; white-space:nowrap;">Mật số: ${state.accountingStandard === 'TT133' ? 'Mẫu số C21-DN (TT133)' : 'Mẫu số 01-VT (TT200)'}</div>
+            <div style="font-size: 11.5px; margin-top:2px; white-space:nowrap;">Địa chỉ: ${companyAddr}</div>
+            <div style="font-size: 11.5px; margin-top:1px; white-space:nowrap;">MST: ${companyTax}</div>
           </div>
         </div>
         <!-- Tiêu đề -->
         <div style="text-align:center; margin-bottom:10px;">
-          <div style="font-size:18px; font-weight:bold; letter-spacing:1.2px; text-transform:uppercase;">PHIẾU NHẬP KHO</div>
-          <div style="font-size:10.5px; font-style:italic;">Ngày ${v.date.substring(8,10)} tháng ${v.date.substring(5,7)} năm ${v.date.substring(0,4)}</div>
+          <div style="font-size: 21px; font-weight:bold; letter-spacing:1.2px; text-transform:uppercase;">PHIẾU NHẬP KHO</div>
+          <div style="font-size: 12.5px; font-style:italic;">Ngày ${v.date.substring(8,10)} tháng ${v.date.substring(5,7)} năm ${v.date.substring(0,4)}</div>
         </div>
         <!-- Thông tin -->
-        <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size:10.5px;">
-          <div><strong>Nhà cung cấp:</strong> <span style="font-size:12px; font-weight:bold;">${partnerName}</span></div>
+        <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size: 12.5px;">
+          <div><strong>Nhà cung cấp:</strong> <span style="font-size: 14px; font-weight:bold;">${partnerName}</span></div>
           <div style="text-align:right;"><strong>Ngày:</strong> ${v.date.substring(8,10)}/${v.date.substring(5,7)}/${v.date.substring(0,4)}</div>
           <div><strong>Điện thoại:</strong> <span>${partner_p.phone || '-'}</span></div>
-          <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size:13px;">${v.id}</span></div>
+          <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size: 13px;">${v.id}</span></div>
           <div style="grid-column:span 2;"><strong>Địa chỉ NCC:</strong> <span>${partner_p.address || '-'}</span></div>
           <div style="grid-column:span 2;"><strong>Diễn giải:</strong> ${v.description || `Nhập kho hàng mua`}</div>
-          <div style="grid-column:span 2; font-size:10px; color:#555;">
+          <div style="grid-column:span 2; font-size: 14px; color:#555;">
             Nợ TK: <strong>156</strong>${v.taxAmount > 0 && state.accountingStandard !== 'TT133' ? ' / Nợ TK: <strong>1331</strong>' : ''} &nbsp;|&nbsp; Có TK: <strong>${v.paymentMethod || '331'}</strong>
           </div>
         </div>
@@ -533,16 +560,16 @@ function viewVoucher(id) {
           </tbody>
         </table>
         <!-- Chữ số tiền -->
-        <div style="margin-bottom:6px; font-size:11px;">
+        <div style="margin-bottom:6px; font-size: 13px;">
           <strong>Số tiền viết bằng chữ:</strong> <span style="font-style:italic;">${numberToVietnameseWords(v.totalAmount)}</span>
         </div>
-        ${v.note ? `<div style="margin-bottom:10px; font-size:11px; border:1px dashed #888; padding:5px 8px; border-radius:4px;"><strong>Ghi chú:</strong> ${v.note}</div>` : ''}
+        ${v.note ? `<div style="margin-bottom:10px; font-size: 13px; border:1px dashed #888; padding:5px 8px; border-radius:4px;"><strong>Ghi chú:</strong> ${v.note}</div>` : ''}
         <!-- Chữ ký -->
-        <div style="display:flex; justify-content:space-between; text-align:center; margin-top:12px; font-size:10.5px;">
+        <div style="display:flex; justify-content:space-between; text-align:center; margin-top:12px; font-size: 12.5px;">
           ${['Người lập phiếu','Người giao hàng','Thủ kho','Kế toán trưởng','Giám đốc'].map((s,i)=>`
           <div style="width:18%;">
             <strong>${s}</strong><br>
-            <span style="font-style:italic; font-size:9.5px; color:#555;">(Ký, họ tên${i===4?', đóng dấu':''})</span>
+            <span style="font-style:italic; font-size: 11.5px; color:#555;">(Ký, họ tên${i===4?', đóng dấu':''})</span>
             <div style="height:55px;"></div>
           </div>`).join('')}
         </div>
@@ -558,33 +585,33 @@ function viewVoucher(id) {
     const partner_pr = getPartnerForVoucher(v) || {};
     const isTT133pr = std === 'TT133';
     content = `
-      <div class="printable-voucher" style="max-width:800px; padding:8px; font-family:'Times New Roman',Times,serif; font-size:11px; color:#000; line-height:1.25;">
+      <div class="printable-voucher" style="max-width:800px; padding:8px; font-family:'Times New Roman',Times,serif; font-size: 13px; color:#000; line-height:1.25;">
         <!-- Header -->
         <div style="position:relative; border-bottom:2px solid #000; padding-bottom:6px; margin-bottom:8px; text-align:center; min-height:50px;">
           <div style="position:absolute; left:0; top:50%; transform:translateY(-50%); width:80px; display:flex; align-items:center; justify-content:center;">
             <img src="logo.jpg" style="max-height:45px; max-width:75px; object-fit:contain;" alt="Logo" />
           </div>
           <div style="padding:0 10px 0 90px; color:#000;">
-            <div style="font-weight:bold; font-size:12px; text-transform:uppercase; white-space:nowrap;">${companyName}</div>
-            <div style="font-size:9.5px; margin-top:2px; white-space:nowrap;">${isTT133pr ? 'Mẫu số C21-DN (TT133)' : 'Mẫu số 02-VT (TT200)'}</div>
-            <div style="font-size:9.5px; margin-top:2px; white-space:nowrap;">Địa chỉ: ${companyAddr}</div>
-            <div style="font-size:9.5px; margin-top:1px; white-space:nowrap;">MST: ${companyTax}</div>
+            <div style="font-weight:bold; font-size: 14px; text-transform:uppercase; white-space:nowrap;">${companyName}</div>
+            <div style="font-size: 11.5px; margin-top:2px; white-space:nowrap;">${isTT133pr ? 'Mẫu số C21-DN (TT133)' : 'Mẫu số 02-VT (TT200)'}</div>
+            <div style="font-size: 11.5px; margin-top:2px; white-space:nowrap;">Địa chỉ: ${companyAddr}</div>
+            <div style="font-size: 11.5px; margin-top:1px; white-space:nowrap;">MST: ${companyTax}</div>
           </div>
         </div>
         <!-- Tiêu đề -->
         <div style="text-align:center; margin-bottom:10px;">
-          <div style="font-size:18px; font-weight:bold; letter-spacing:1.2px; text-transform:uppercase;">PHIẾU XUẤT KHO TRẢ NHÀ CUNG CẤP</div>
-          <div style="font-size:10.5px; font-style:italic;">Ngày ${v.date.substring(8,10)} tháng ${v.date.substring(5,7)} năm ${v.date.substring(0,4)}</div>
+          <div style="font-size: 21px; font-weight:bold; letter-spacing:1.2px; text-transform:uppercase;">PHIẾU XUẤT KHO TRẢ NHÀ CUNG CẤP</div>
+          <div style="font-size: 12.5px; font-style:italic;">Ngày ${v.date.substring(8,10)} tháng ${v.date.substring(5,7)} năm ${v.date.substring(0,4)}</div>
         </div>
         <!-- Thông tin -->
-        <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size:10.5px;">
-          <div><strong>Nhà cung cấp:</strong> <span style="font-size:12px; font-weight:bold;">${partnerName}</span></div>
+        <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size: 12.5px;">
+          <div><strong>Nhà cung cấp:</strong> <span style="font-size: 14px; font-weight:bold;">${partnerName}</span></div>
           <div style="text-align:right;"><strong>Ngày:</strong> ${v.date.substring(8,10)}/${v.date.substring(5,7)}/${v.date.substring(0,4)}</div>
           <div><strong>Điện thoại:</strong> <span>${partner_pr.phone || '-'}</span></div>
-          <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size:13px;">${v.id}</span></div>
+          <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size: 13px;">${v.id}</span></div>
           <div style="grid-column:span 2;"><strong>Địa chỉ NCC:</strong> <span>${partner_pr.address || '-'}</span></div>
           <div style="grid-column:span 2;"><strong>Lý do trả:</strong> ${v.description}</div>
-          <div style="grid-column:span 2; font-size:10px; color:#555;">
+          <div style="grid-column:span 2; font-size: 14px; color:#555;">
             Nợ TK: <strong>331</strong>${!isTT133pr && v.taxAmount > 0 ? ' / Nợ TK: <strong>1331</strong>' : ''} &nbsp;|&nbsp; Có TK: <strong>156</strong>
           </div>
         </div>
@@ -622,15 +649,15 @@ function viewVoucher(id) {
             </tr>
           </tbody>
         </table>
-        <div style="margin-bottom:12px; font-size:11px;">
+        <div style="margin-bottom:12px; font-size: 13px;">
           <strong>Số tiền viết bằng chữ:</strong> <span style="font-style:italic;">${numberToVietnameseWords(v.totalAmount||grossTotal)}</span>
         </div>
         <!-- Chữ ký -->
-        <div style="display:flex; justify-content:space-between; text-align:center; margin-top:12px; font-size:10.5px;">
+        <div style="display:flex; justify-content:space-between; text-align:center; margin-top:12px; font-size: 12.5px;">
           ${['Người lập phiếu','Người giao hàng','Thủ kho','Kế toán trưởng','Giám đốc'].map((s,i)=>`
           <div style="width:18%;">
             <strong>${s}</strong><br>
-            <span style="font-style:italic; font-size:9.5px; color:#555;">(Ký, họ tên${i===4?', đóng dấu':''})</span>
+            <span style="font-style:italic; font-size: 11.5px; color:#555;">(Ký, họ tên${i===4?', đóng dấu':''})</span>
             <div style="height:55px;"></div>
           </div>`).join('')}
         </div>
@@ -649,33 +676,33 @@ function viewVoucher(id) {
     const partner_sr = getPartnerForVoucher(v) || {};
     const creditAccSR = (v.paymentMethod && v.paymentMethod !== '131') ? v.paymentMethod : '131';
     content = `
-      <div class="printable-voucher" style="max-width:800px; padding:8px; font-family:'Times New Roman',Times,serif; font-size:11px; color:#000; line-height:1.25;">
+      <div class="printable-voucher" style="max-width:800px; padding:8px; font-family:'Times New Roman',Times,serif; font-size: 13px; color:#000; line-height:1.25;">
         <!-- Header -->
         <div style="position:relative; border-bottom:2px solid #000; padding-bottom:6px; margin-bottom:8px; text-align:center; min-height:50px;">
           <div style="position:absolute; left:0; top:50%; transform:translateY(-50%); width:80px; display:flex; align-items:center; justify-content:center;">
             <img src="logo.jpg" style="max-height:45px; max-width:75px; object-fit:contain;" alt="Logo" />
           </div>
           <div style="padding:0 10px 0 90px; color:#000;">
-            <div style="font-weight:bold; font-size:12px; text-transform:uppercase; white-space:nowrap;">${companyName}</div>
-            <div style="font-size:9.5px; margin-top:2px; white-space:nowrap;">Mẫu số 01-VT (TT200) — Phục hồi hàng bán trả lại</div>
-            <div style="font-size:9.5px; margin-top:2px; white-space:nowrap;">Địa chỉ: ${companyAddr}</div>
-            <div style="font-size:9.5px; margin-top:1px; white-space:nowrap;">MST: ${companyTax}</div>
+            <div style="font-weight:bold; font-size: 14px; text-transform:uppercase; white-space:nowrap;">${companyName}</div>
+            <div style="font-size: 11.5px; margin-top:2px; white-space:nowrap;">Mẫu số 01-VT (TT200) — Phục hồi hàng bán trả lại</div>
+            <div style="font-size: 11.5px; margin-top:2px; white-space:nowrap;">Địa chỉ: ${companyAddr}</div>
+            <div style="font-size: 11.5px; margin-top:1px; white-space:nowrap;">MST: ${companyTax}</div>
           </div>
         </div>
         <!-- Tiêu đề -->
         <div style="text-align:center; margin-bottom:10px;">
-          <div style="font-size:18px; font-weight:bold; letter-spacing:1.2px; text-transform:uppercase;">PHIẾU NHẬP KHO HÀNG BÁN TRẢ LẠI</div>
-          <div style="font-size:10.5px; font-style:italic;">Ngày ${v.date.substring(8,10)} tháng ${v.date.substring(5,7)} năm ${v.date.substring(0,4)}</div>
+          <div style="font-size: 21px; font-weight:bold; letter-spacing:1.2px; text-transform:uppercase;">PHIẾU NHẬP KHO HÀNG BÁN TRẢ LẠI</div>
+          <div style="font-size: 12.5px; font-style:italic;">Ngày ${v.date.substring(8,10)} tháng ${v.date.substring(5,7)} năm ${v.date.substring(0,4)}</div>
         </div>
         <!-- Thông tin -->
-        <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size:10.5px;">
-          <div><strong>Khách hàng trả lại:</strong> <span style="font-size:12px; font-weight:bold;">${partnerName}</span></div>
+        <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size: 12.5px;">
+          <div><strong>Khách hàng trả lại:</strong> <span style="font-size: 14px; font-weight:bold;">${partnerName}</span></div>
           <div style="text-align:right;"><strong>Ngày:</strong> ${v.date.substring(8,10)}/${v.date.substring(5,7)}/${v.date.substring(0,4)}</div>
           <div><strong>Điện thoại:</strong> <span>${partner_sr.phone || '-'}</span></div>
-          <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size:13px;">${v.id}</span></div>
+          <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size: 13px;">${v.id}</span></div>
           <div style="grid-column:span 2;"><strong>Địa chỉ:</strong> <span>${partner_sr.address || '-'}</span></div>
           <div style="grid-column:span 2;"><strong>Lý do trả:</strong> ${v.description}</div>
-          <div style="grid-column:span 2; font-size:10px; color:#555;">
+          <div style="grid-column:span 2; font-size: 14px; color:#555;">
             Nợ TK: <strong>511</strong>${v.taxAmount > 0 ? ', <strong>3331</strong>' : ''} &nbsp;|&nbsp; Có TK: <strong>${creditAccSR}</strong>
             &nbsp;&nbsp; Nợ TK: <strong>156</strong> / Có TK: <strong>632</strong> (nhập lại kho)
           </div>
@@ -726,15 +753,15 @@ function viewVoucher(id) {
             </tr>
           </tbody>
         </table>
-        <div style="margin-bottom:12px; font-size:11px;">
+        <div style="margin-bottom:12px; font-size: 13px;">
           <strong>Số tiền viết bằng chữ:</strong> <span style="font-style:italic;">${numberToVietnameseWords(v.totalAmount||grossTotal)}</span>
         </div>
         <!-- Chữ ký -->
-        <div style="display:flex; justify-content:space-between; text-align:center; margin-top:12px; font-size:10.5px;">
+        <div style="display:flex; justify-content:space-between; text-align:center; margin-top:12px; font-size: 12.5px;">
           ${['Người lập phiếu','Khách hàng trả','Thủ kho','Kế toán trưởng','Giám đốc'].map((s,i)=>`
           <div style="width:18%;">
             <strong>${s}</strong><br>
-            <span style="font-style:italic; font-size:9.5px; color:#555;">(Ký, họ tên${i===4?', đóng dấu':''})</span>
+            <span style="font-style:italic; font-size: 11.5px; color:#555;">(Ký, họ tên${i===4?', đóng dấu':''})</span>
             <div style="height:55px;"></div>
           </div>`).join('')}
         </div>
@@ -758,7 +785,7 @@ function viewVoucher(id) {
     });
 
     content = `
-      <div class="printable-voucher" style="max-width: 800px; padding: 8px; font-family: 'Times New Roman', Times, serif; font-size: 11px; color: #000; line-height: 1.25;">
+      <div class="printable-voucher" style="max-width: 800px; padding: 8px; font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #000; line-height: 1.25;">
         
         <!-- Header: Logo Rạng Đông bên trái, Thông tin công ty ở giữa, Mã QR ở bên phải (Cân đối hoàn hảo) -->
         <div style="position: relative; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 8px; text-align: center; min-height: 110px;">
@@ -769,27 +796,27 @@ function viewVoucher(id) {
 
           <!-- Thông tin công ty chính xác theo mẫu giấy (Tránh wrap lỗi căn lề và không bị tràn) -->
           <div style="color: #000; padding: 15px 125px 0 85px;">
-            <div style="font-weight: bold; font-size: 12px; text-transform: uppercase; letter-spacing: 0.2px; white-space: nowrap;">CÔNG TY CỔ PHẦN RẠNG ĐÔNG</div>
-            <div style="font-weight: bold; font-size: 9.5px; text-transform: uppercase; margin-top: 2px; white-space: nowrap;">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY</div>
-            <div style="font-size: 9.5px; margin-top: 2px; white-space: nowrap;">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh</div>
-            <div style="font-size: 9.5px; margin-top: 1px; font-weight: 500; white-space: nowrap;">Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074</div>
+            <div style="font-weight: bold; font-size: 14px; text-transform: uppercase; letter-spacing: 0.2px; white-space: nowrap;">CÔNG TY CỔ PHẦN RẠNG ĐÔNG</div>
+            <div style="font-weight: bold; font-size: 11.5px; text-transform: uppercase; margin-top: 2px; white-space: nowrap;">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY</div>
+            <div style="font-size: 11.5px; margin-top: 2px; white-space: nowrap;">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh</div>
+            <div style="font-size: 11.5px; margin-top: 1px; font-weight: 500; white-space: nowrap;">Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074</div>
           </div>
 
           <!-- Mã QR thanh toán ở góc bên phải (Cân đối hoàn hảo) -->
           <div style="position: absolute; right: 0; top: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 120px; padding: 2px; background: #fff;">
-            <span style="font-size: 6px; font-weight: bold; text-transform: uppercase; color: #000; margin-bottom: 2px; letter-spacing: 0.1px;">Quét Mã QR Thanh Toán</span>
+            <span style="font-size: 8px; font-weight: bold; text-transform: uppercase; color: #000; margin-bottom: 2px; letter-spacing: 0.1px;">Quét Mã QR Thanh Toán</span>
             <img src="https://img.vietqr.io/image/sacombank-050033493999-qr_only.png?amount=${Math.round(v.totalAmount || (grossTotal - totalDiscount) || 0)}&addInfo=${encodeURIComponent('thanh toan mua hang')}&accountName=${encodeURIComponent('CTY CP SX DT PHAT TRIEN RANG DONG')}" style="width: 90px; height: 90px; display: block;" alt="VietQR" />
-            <span style="font-size: 6.5px; color: #000; margin-top: 2px; font-family: monospace; font-weight: bold;">STK: 050033493999</span>
+            <span style="font-size: 9px; color: #000; margin-top: 2px; font-family: monospace; font-weight: bold;">STK: 050033493999</span>
           </div>
         </div>
 
         <!-- Tiêu đề Phiếu giao hàng -->
         <div style="text-align: center; margin-bottom: 10px;">
-          <div style="font-size: 18px; font-weight: bold; letter-spacing: 1.2px; text-transform: uppercase;">PHIẾU GIAO HÀNG</div>
+          <div style="font-size: 21px; font-weight: bold; letter-spacing: 1.2px; text-transform: uppercase;">PHIẾU GIAO HÀNG</div>
         </div>
 
         <!-- Phần thông tin khách hàng và ngày hóa đơn (chia cột giống giấy) -->
-        <div style="display: grid; grid-template-columns: 2fr 1fr; row-gap: 3px; column-gap: 12px; margin-bottom: 8px; font-size: 10.5px;">
+        <div style="display: grid; grid-template-columns: 2fr 1fr; row-gap: 3px; column-gap: 12px; margin-bottom: 8px; font-size: 12.5px;">
           <div>
             <strong>Tên khách hàng:</strong> <span style="font-size: 12.5px; font-weight: bold;">${partnerName}</span>
           </div>
@@ -870,7 +897,7 @@ function viewVoucher(id) {
         </table>
 
         <!-- Chữ số tiền viết bằng chữ, ghi chú (Không có QR ở dưới nữa vì đã đưa lên đầu) -->
-        <div style="margin-bottom: 12px; font-size: 11px; line-height: 1.4; page-break-inside: avoid; break-inside: avoid;">
+        <div style="margin-bottom: 12px; font-size: 13px; line-height: 1.4; page-break-inside: avoid; break-inside: avoid;">
           <div style="margin-bottom: 3px;">
             <strong>Số tiền viết bằng chữ:</strong> <span style="font-style: italic;">${numberToVietnameseWords(v.totalAmount)}</span>
           </div>
@@ -880,22 +907,22 @@ function viewVoucher(id) {
         </div>
 
         <!-- Chữ ký và dấu (Nhiệm vụ người lập, giao, nhận) -->
-        <div style="display: flex; justify-content: space-between; text-align: center; margin-top: 12px; font-size: 10.5px; page-break-inside: avoid; break-inside: avoid;">
+        <div style="display: flex; justify-content: space-between; text-align: center; margin-top: 12px; font-size: 12.5px; page-break-inside: avoid; break-inside: avoid;">
           <div style="width: 30%; page-break-inside: avoid; break-inside: avoid;">
             <strong>Người nhận hàng</strong><br>
-            <span style="font-style: italic; font-size: 9.5px; color: #555;">(Ký, họ tên)</span>
+            <span style="font-style: italic; font-size: 11.5px; color: #555;">(Ký, họ tên)</span>
             <div style="height: 50px;"></div>
           </div>
           
           <div style="width: 30%; page-break-inside: avoid; break-inside: avoid;">
             <strong>Người giao hàng</strong><br>
-            <span style="font-style: italic; font-size: 9.5px; color: #555;">(Ký, họ tên)</span>
+            <span style="font-style: italic; font-size: 11.5px; color: #555;">(Ký, họ tên)</span>
             <div style="height: 50px;"></div>
           </div>
           
           <div style="width: 30%; page-break-inside: avoid; break-inside: avoid;">
             <strong>Người lập phiếu</strong><br>
-            <span style="font-style: italic; font-size: 9.5px; color: #555;">(Ký, họ tên)</span>
+            <span style="font-style: italic; font-size: 11.5px; color: #555;">(Ký, họ tên)</span>
             <div style="height: 50px;"></div>
           </div>
         </div>
@@ -919,7 +946,7 @@ function viewVoucher(id) {
     });
 
     content = `
-      <div class="printable-voucher" style="max-width: 800px; padding: 8px; font-family: 'Times New Roman', Times, serif; font-size: 11px; color: #000; line-height: 1.25;">
+      <div class="printable-voucher" style="max-width: 800px; padding: 8px; font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #000; line-height: 1.25;">
         
         <!-- Header: Logo Rạng Đông bên trái, Thông tin công ty ở giữa, QR Code bên phải (Cân đối hoàn hảo) -->
         <div style="position: relative; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 8px; text-align: center; min-height: 110px;">
@@ -930,28 +957,28 @@ function viewVoucher(id) {
 
           <!-- Thông tin công ty chính xác theo mẫu giấy (Tránh wrap lỗi căn lề và không bị tràn) -->
           <div style="color: #000; padding: 15px 125px 0 85px;">
-            <div style="font-weight: bold; font-size: 12px; text-transform: uppercase; letter-spacing: 0.2px; white-space: nowrap;">CÔNG TY CỔ PHẦN RẠNG ĐÔNG</div>
-            <div style="font-weight: bold; font-size: 9.5px; text-transform: uppercase; margin-top: 2px; white-space: nowrap;">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY</div>
-            <div style="font-size: 9.5px; margin-top: 2px; white-space: nowrap;">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh</div>
-            <div style="font-size: 9.5px; margin-top: 1px; font-weight: 500; white-space: nowrap;">Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074</div>
+            <div style="font-weight: bold; font-size: 14px; text-transform: uppercase; letter-spacing: 0.2px; white-space: nowrap;">CÔNG TY CỔ PHẦN RẠNG ĐÔNG</div>
+            <div style="font-weight: bold; font-size: 11.5px; text-transform: uppercase; margin-top: 2px; white-space: nowrap;">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY</div>
+            <div style="font-size: 11.5px; margin-top: 2px; white-space: nowrap;">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh</div>
+            <div style="font-size: 11.5px; margin-top: 1px; font-weight: 500; white-space: nowrap;">Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074</div>
           </div>
 
           <!-- Mã QR thanh toán ở góc bên phải (Cân đối hoàn hảo) -->
           <div style="position: absolute; right: 0; top: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 120px; padding: 2px; background: #fff;">
-            <span style="font-size: 6px; font-weight: bold; text-transform: uppercase; color: #000; margin-bottom: 2px; letter-spacing: 0.1px;">Quét Mã QR Thanh Toán</span>
+            <span style="font-size: 8px; font-weight: bold; text-transform: uppercase; color: #000; margin-bottom: 2px; letter-spacing: 0.1px;">Quét Mã QR Thanh Toán</span>
             <img src="https://img.vietqr.io/image/sacombank-050033493999-qr_only.png?amount=${Math.round(v.totalAmount || (grossTotal - totalDiscount) || 0)}&addInfo=${encodeURIComponent('thanh toan mua hang')}&accountName=${encodeURIComponent('CTY CP SX DT PHAT TRIEN RANG DONG')}" style="width: 90px; height: 90px; display: block;" alt="VietQR" />
-            <span style="font-size: 6.5px; color: #000; margin-top: 2px; font-family: monospace; font-weight: bold;">STK: 050033493999</span>
+            <span style="font-size: 9px; color: #000; margin-top: 2px; font-family: monospace; font-weight: bold;">STK: 050033493999</span>
           </div>
         </div>
 
         <!-- Tiêu đề Phiếu báo giá -->
         <div style="text-align: center; margin-bottom: 10px;">
-          <div style="font-size: 18px; font-weight: bold; letter-spacing: 1.2px; text-transform: uppercase;">BẢNG BÁO GIÁ</div>
-          <span style="font-size: 10px; color: #666; font-style: italic;">(Số: ${v.id} - Không hạch toán kho & kế toán)</span>
+          <div style="font-size: 21px; font-weight: bold; letter-spacing: 1.2px; text-transform: uppercase;">BẢNG BÁO GIÁ</div>
+          <span style="font-size: 14px; color: #666; font-style: italic;">(Số: ${v.id} - Không hạch toán kho & kế toán)</span>
         </div>
 
         <!-- Phần thông tin khách hàng và ngày hóa đơn -->
-        <div style="display: grid; grid-template-columns: 2fr 1fr; row-gap: 3px; column-gap: 12px; margin-bottom: 8px; font-size: 10.5px;">
+        <div style="display: grid; grid-template-columns: 2fr 1fr; row-gap: 3px; column-gap: 12px; margin-bottom: 8px; font-size: 12.5px;">
           <div>
             <strong>Kính gửi khách hàng:</strong> <span style="font-size: 12.5px; font-weight: bold;">${partnerName}</span>
           </div>
@@ -1032,7 +1059,7 @@ function viewVoucher(id) {
         </table>
 
         <!-- Chữ số tiền viết bằng chữ, ghi chú (Không có QR ở dưới nữa vì đã đưa lên đầu) -->
-        <div style="margin-bottom: 12px; font-size: 11px; line-height: 1.4; page-break-inside: avoid; break-inside: avoid;">
+        <div style="margin-bottom: 12px; font-size: 13px; line-height: 1.4; page-break-inside: avoid; break-inside: avoid;">
           <div style="margin-bottom: 3px;">
             <strong>Số tiền viết bằng chữ:</strong> <span style="font-style: italic;">${numberToVietnameseWords(v.totalAmount)}</span>
           </div>
@@ -1042,16 +1069,16 @@ function viewVoucher(id) {
         </div>
 
         <!-- Chữ ký và dấu (Báo giá) -->
-        <div style="display: flex; justify-content: space-between; text-align: center; margin-top: 12px; font-size: 10.5px; page-break-inside: avoid; break-inside: avoid;">
+        <div style="display: flex; justify-content: space-between; text-align: center; margin-top: 12px; font-size: 12.5px; page-break-inside: avoid; break-inside: avoid;">
           <div style="width: 45%; page-break-inside: avoid; break-inside: avoid;">
             <strong>Đại diện khách hàng</strong><br>
-            <span style="font-style: italic; font-size: 9.5px; color: #555;">(Ký, họ tên)</span>
+            <span style="font-style: italic; font-size: 11.5px; color: #555;">(Ký, họ tên)</span>
             <div style="height: 50px;"></div>
           </div>
           
           <div style="width: 45%; page-break-inside: avoid; break-inside: avoid;">
             <strong>Người báo giá</strong><br>
-            <span style="font-style: italic; font-size: 9.5px; color: #555;">(Ký, họ tên)</span>
+            <span style="font-style: italic; font-size: 11.5px; color: #555;">(Ký, họ tên)</span>
             <div style="height: 50px;"></div>
           </div>
         </div>
@@ -1083,20 +1110,20 @@ function viewVoucher(id) {
       : ["Ký, họ tên, đóng dấu", "Ký, họ tên", "Ký, họ tên", "Ký, họ tên", "Ký, họ tên"];
 
     content = `
-      <div class="printable-voucher" style="max-width:780px; padding:10px; font-family:'Times New Roman',Times,serif; font-size:11px; color:#000; line-height:1.4;">
+      <div class="printable-voucher" style="max-width:780px; padding:10px; font-family:'Times New Roman',Times,serif; font-size: 13px; color:#000; line-height:1.4;">
 
         <!-- HEADER: Logo trái + Tên công ty | Quyển số / Số / Nợ / Có bên phải -->
         <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #000; padding-bottom:6px; margin-bottom:10px;">
           <div style="display:flex; align-items:center; gap:10px; flex:1;">
             <img src="logo.jpg" style="max-height:44px; max-width:100px; object-fit:contain;" alt="Logo" />
             <div>
-              <div style="font-weight:bold; font-size:11.5px; text-transform:uppercase;">${companyName}</div>
-              <div style="font-size:9.5px;">Địa chỉ: ${companyAddr}</div>
-              <div style="font-size:9.5px;">MST: ${companyTax}</div>
+              <div style="font-weight:bold; font-size: 11.5px; text-transform:uppercase;">${companyName}</div>
+              <div style="font-size: 11.5px;">Địa chỉ: ${companyAddr}</div>
+              <div style="font-size: 11.5px;">MST: ${companyTax}</div>
             </div>
           </div>
-          <div style="text-align:right; font-size:10px; min-width:160px; flex-shrink:0;">
-            <div style="font-size:8.5px; color:#555;">${templateCode} &nbsp;(TT 200/2014/TT-BTC)</div>
+          <div style="text-align:right; font-size: 14px; min-width:160px; flex-shrink:0;">
+            <div style="font-size: 14px; color:#555;">${templateCode} &nbsp;(TT 200/2014/TT-BTC)</div>
             <div style="margin-top:3px;">Quyển số: <span style="border-bottom:1px dotted #000; display:inline-block; min-width:50px;">&nbsp;</span></div>
             <div>Số: <strong>${v.id}</strong></div>
             <div>Nợ: <strong>${e.debit}</strong></div>
@@ -1106,12 +1133,12 @@ function viewVoucher(id) {
 
         <!-- TIÊU ĐỀ -->
         <div style="text-align:center; margin-bottom:12px;">
-          <div style="font-size:22px; font-weight:bold; letter-spacing:1px; text-transform:uppercase;">${title}</div>
-          <div style="font-size:11px; font-style:italic;">Ngày ${v.date.substring(8,10)} tháng ${v.date.substring(5,7)} năm ${v.date.substring(0,4)}</div>
+          <div style="font-size: 25px; font-weight:bold; letter-spacing:1px; text-transform:uppercase;">${title}</div>
+          <div style="font-size: 13px; font-style:italic;">Ngày ${v.date.substring(8,10)} tháng ${v.date.substring(5,7)} năm ${v.date.substring(0,4)}</div>
         </div>
 
         <!-- THÔNG TIN PHIẾU -->
-        <table style="width:100%; border-collapse:collapse; font-size:11px; margin-bottom:6px;">
+        <table style="width:100%; border-collapse:collapse; font-size: 13px; margin-bottom:6px;">
           <tr>
             <td style="padding:3px 0; white-space:nowrap; width:220px;"><strong>Họ và tên người ${isReceipt ? "nộp" : "nhận"} tiền:</strong></td>
             <td style="padding:3px 6px; border-bottom:1px dotted #999;">${partnerName}</td>
@@ -1141,28 +1168,28 @@ function viewVoucher(id) {
         ${relatedSalesVoucherHtml}
 
         <!-- DÒNG NGÀY KÝ -->
-        <div style="text-align:right; font-style:italic; font-size:10.5px; margin:10px 20px 6px 0;">
+        <div style="text-align:right; font-style:italic; font-size: 12.5px; margin:10px 20px 6px 0;">
           ngày...... tháng ...... năm..............
         </div>
 
         <!-- CHỮ KÝ -->
-        <table style="width:100%; border-collapse:collapse; text-align:center; font-size:10.5px; margin-top:4px;">
+        <table style="width:100%; border-collapse:collapse; text-align:center; font-size: 12.5px; margin-top:4px;">
           <tr>
             ${sigRow.map(s => `<td style="width:20%; padding:4px 2px; font-weight:bold;">${s}</td>`).join("")}
           </tr>
           <tr>
-            ${sigSub.map(s => `<td style="font-style:italic; font-size:9.5px; color:#555;">(${s})</td>`).join("")}
+            ${sigSub.map(s => `<td style="font-style:italic; font-size: 11.5px; color:#555;">(${s})</td>`).join("")}
           </tr>
           <tr>
             ${sigRow.map(() => `<td style="height:70px; border-bottom:1px dotted #bbb;"></td>`).join("")}
           </tr>
           <tr>
-            ${sigRow.map(() => `<td style="padding:2px; font-size:10px; color:#333;"></td>`).join("")}
+            ${sigRow.map(() => `<td style="padding:2px; font-size: 14px; color:#333;"></td>`).join("")}
           </tr>
         </table>
 
         <!-- FOOTER -->
-        <div style="margin-top:16px; padding-top:8px; border-top:1px solid #ddd; font-size:10.5px;">
+        <div style="margin-top:16px; padding-top:8px; border-top:1px solid #ddd; font-size: 12.5px;">
           <strong>Đã nhận đủ số tiền (Viết bằng chữ):</strong>
           <span style="font-style:italic;"> ${numberToVietnameseWords(amount)}</span>
         </div>
@@ -1241,6 +1268,9 @@ function animateCountUp(element, targetValue, duration) {
 // Enhanced openModal with animation
 var _origOpenModal = openModal;
 openModal = function(modalId) {
+  if (typeof _origOpenModal === 'function') {
+    _origOpenModal(modalId);
+  }
   var modal = document.getElementById(modalId);
   if (modal) {
     modal.classList.add('modal-animated');
@@ -1270,11 +1300,19 @@ openModal = function(modalId) {
 
 var _origCloseModal = closeModal;
 closeModal = function(modalId) {
+  if (typeof _origCloseModal === 'function') {
+    _origCloseModal(modalId);
+  }
   var modal = document.getElementById(modalId);
   if (modal) {
     modal.classList.remove('modal-animated');
     modal.style.display = 'none';
   }
+  setTimeout(function() {
+    if (window.flushDeferredCloudSync) {
+      window.flushDeferredCloudSync();
+    }
+  }, 0);
 };
 
 window.renderPagination = renderPagination;

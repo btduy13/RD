@@ -1876,7 +1876,7 @@ function previewPartnerDebtNotice(partnerId) {
     const dateFormatted = `${pad(dVal.getDate())}/${pad(dVal.getMonth() + 1)}/${dVal.getFullYear()}`;
 
     const subCodeStr = matchingPartners.length > 1
-      ? `<br><span style="font-size:8.5px; color:#555; font-style:italic;">[${le.partnerId}]</span>`
+      ? `<br><span style="font-size: 10.5px; color:#555; font-style:italic;">[${le.partnerId}]</span>`
       : "";
 
     tableRowsHtml += `
@@ -1904,7 +1904,7 @@ function previewPartnerDebtNotice(partnerId) {
   if (!printArea) return;
 
   const content = `
-    <div class="printable-voucher" style="max-width: 800px; padding: 10px; font-family: 'Times New Roman', Times, serif; font-size: 11px; color: #000; line-height: 1.25; background-color: #fff; margin: 0 auto; box-sizing: border-box;">
+    <div class="printable-voucher" style="max-width: 800px; padding: 10px; font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #000; line-height: 1.25; background-color: #fff; margin: 0 auto; box-sizing: border-box;">
       <style>
         .debt-notice-table th {
           border: 1px solid #000 !important;
@@ -1924,11 +1924,11 @@ function previewPartnerDebtNotice(partnerId) {
             margin: 0 !important;
             width: 100% !important;
             max-width: 100% !important;
-            font-size: 10px !important;
+            font-size: 14px !important;
           }
           .debt-notice-table th, .debt-notice-table td {
             padding: 3px 5px !important;
-            font-size: 9.5px !important;
+            font-size: 11.5px !important;
           }
         }
       </style>
@@ -1942,21 +1942,21 @@ function previewPartnerDebtNotice(partnerId) {
 
         <!-- Thông tin công ty chính xác theo mẫu giấy (Tránh wrap lỗi căn lề và không bị tràn) -->
         <div style="color: #000; padding: 0 10px 0 90px;">
-          <div style="font-weight: bold; font-size: 12px; text-transform: uppercase; letter-spacing: 0.2px; white-space: nowrap;">CÔNG TY CỔ PHẦN RẠNG ĐÔNG</div>
-          <div style="font-weight: bold; font-size: 9.5px; text-transform: uppercase; margin-top: 2px; white-space: nowrap;">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY</div>
-          <div style="font-size: 9.5px; margin-top: 2px; white-space: nowrap;">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh</div>
-          <div style="font-size: 9.5px; margin-top: 1px; font-weight: 500; white-space: nowrap;">Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074</div>
+          <div style="font-weight: bold; font-size: 14px; text-transform: uppercase; letter-spacing: 0.2px; white-space: nowrap;">CÔNG TY CỔ PHẦN RẠNG ĐÔNG</div>
+          <div style="font-weight: bold; font-size: 11.5px; text-transform: uppercase; margin-top: 2px; white-space: nowrap;">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY</div>
+          <div style="font-size: 11.5px; margin-top: 2px; white-space: nowrap;">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh</div>
+          <div style="font-size: 11.5px; margin-top: 1px; font-weight: 500; white-space: nowrap;">Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074</div>
         </div>
       </div>
 
       <!-- Title -->
       <div style="text-align: center; margin-bottom: 12px;">
-        <div style="font-size: 17px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase;">THÔNG BÁO CÔNG NỢ</div>
-        <div style="font-size: 9.5px; font-style: italic; margin-top: 2px;">Ngày in: ${new Date().toLocaleDateString('vi-VN')}</div>
+        <div style="font-size: 20px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase;">THÔNG BÁO CÔNG NỢ</div>
+        <div style="font-size: 11.5px; font-style: italic; margin-top: 2px;">Ngày in: ${new Date().toLocaleDateString('vi-VN')}</div>
       </div>
 
       <!-- Info -->
-      <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 3px 12px; margin-bottom: 8px; font-size: 10.5px;">
+      <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 3px 12px; margin-bottom: 8px; font-size: 12.5px;">
         <div><strong>Kính gửi:</strong> ${recipientName}</div>
         <div><strong>Kỳ:</strong> Từ ngày ${fromDateStr} đến ngày ${toDateStr}</div>
         
@@ -1972,7 +1972,7 @@ function previewPartnerDebtNotice(partnerId) {
 
 
       <!-- Table -->
-      <table class="debt-notice-table" style="width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 10px;">
+      <table class="debt-notice-table" style="width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 14px;">
         <thead>
           <tr style="background-color: #f3f4f6;">
             <th style="width: 13%; text-align: center;">Ngày</th>
@@ -1989,9 +1989,9 @@ function previewPartnerDebtNotice(partnerId) {
 
       <!-- Footer -->
       <div style="display: flex; justify-content: flex-end; margin-top: 10px; page-break-inside: avoid; break-inside: avoid;">
-        <div style="width: 200px; text-align: center; font-size: 11px; page-break-inside: avoid; break-inside: avoid;">
+        <div style="width: 200px; text-align: center; font-size: 13px; page-break-inside: avoid; break-inside: avoid;">
           <strong>Người lập phiếu</strong><br>
-          <span style="font-style: italic; font-size: 9.5px; color: #555;">(Ký, họ tên)</span>
+          <span style="font-style: italic; font-size: 11.5px; color: #555;">(Ký, họ tên)</span>
           <div style="height: 38px;"></div>
         </div>
       </div>
@@ -2621,16 +2621,32 @@ function batchDeleteDebts() {
       state.partnerOpeningBalances[id] = { debit: 0, credit: 0 };
     });
 
-    const master = document.getElementById("check-all-debts");
-    if (master) master.checked = false;
-
-    updateBatchDebtsUI();
+    if (typeof resetBatchSelectionUI === "function") {
+      resetBatchSelectionUI({
+        checkboxSelector: ".debt-checkbox",
+        masterId: "check-all-debts",
+        buttonId: "btn-batch-delete-debts",
+        countId: "selected-debts-count"
+      });
+    } else {
+      const master = document.getElementById("check-all-debts");
+      if (master) master.checked = false;
+      updateBatchDebtsUI();
+    }
     showToast(`Đã reset số dư đầu kỳ cho ${checked.length} đối tác!`, "success");
 
     // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
     setTimeout(() => {
       saveState();
       recalculateAccounting();
+      if (typeof resetBatchSelectionUI === "function") {
+        resetBatchSelectionUI({
+          checkboxSelector: ".debt-checkbox",
+          masterId: "check-all-debts",
+          buttonId: "btn-batch-delete-debts",
+          countId: "selected-debts-count"
+        });
+      }
     }, 0);
   }
 }

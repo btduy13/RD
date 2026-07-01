@@ -530,7 +530,7 @@ function formatDateAndTime(timestamp) {
 
 // Tự động gắn nhãn vai trò dựa trên văn bản và hành động
 function autoTagRoleButtons() {
-  const writeKeywords = ["thêm", "sửa", "xóa", "nhập excel", "lưu", "ghi sổ", "bỏ ghi", "trộn", "revert"];
+  const writeKeywords = ["lập", "thêm", "sửa", "xóa", "nhập excel", "lưu", "ghi sổ", "bỏ ghi", "trộn", "revert"];
   const adminKeywords = ["sao lưu", "khôi phục", "tính lại", "cấu hình", "thiết lập", "reset", "đồng bộ lại"];
 
   document.querySelectorAll("button, a.btn, .btn, .icon-btn").forEach(btn => {
@@ -541,7 +541,7 @@ function autoTagRoleButtons() {
 
     const isAdmin = adminKeywords.some(kw => text.includes(kw)) ||
                     onclick.includes("recalibrate") ||
-                    onclick.includes("reset") ||
+                    (onclick.includes("reset") && !onclick.includes("form")) ||
                     onclick.includes("backup");
                     
     if (isAdmin) {

@@ -5,6 +5,8 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "test": "npm run test:sync",
+    "test:sync": "node tests/sync-regression-tests.js",
     "package-win": "electron-packager . rd-accounting --platform=win32 --arch=x64 --out=dist --overwrite --ignore=dist",
     "build-win": "electron-builder build --win --x64"
   },

@@ -846,16 +846,32 @@ function batchDeleteProducts() {
     trackDeletedIds(idsToDelete, 'product');
     state.products = state.products.filter(p => !idsToDelete.includes(p.id));
 
-    const master = document.getElementById("check-all-products");
-    if (master) master.checked = false;
-
-    updateBatchProductsUI();
+    if (typeof resetBatchSelectionUI === "function") {
+      resetBatchSelectionUI({
+        checkboxSelector: ".product-checkbox",
+        masterId: "check-all-products",
+        buttonId: "btn-batch-delete-products",
+        countId: "selected-products-count"
+      });
+    } else {
+      const master = document.getElementById("check-all-products");
+      if (master) master.checked = false;
+      updateBatchProductsUI();
+    }
     showToast(`Đã xóa thành công ${checked.length} sản phẩm!`, "success");
 
     // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
     setTimeout(() => {
       saveState();
       recalculateAccounting();
+      if (typeof resetBatchSelectionUI === "function") {
+        resetBatchSelectionUI({
+          checkboxSelector: ".product-checkbox",
+          masterId: "check-all-products",
+          buttonId: "btn-batch-delete-products",
+          countId: "selected-products-count"
+        });
+      }
     }, 0);
   }
 }
@@ -896,11 +912,11 @@ function switchInventorySubTab(subTabId) {
   const panelLedger = document.getElementById("inventory-subtab-ledger");
   if (panelSummary && panelLedger) {
     if (subTabId === "summary") {
-      panelSummary.style.display = "block";
+      panelSummary.style.display = "flex";
       panelLedger.style.display = "none";
     } else {
       panelSummary.style.display = "none";
-      panelLedger.style.display = "block";
+      panelLedger.style.display = "flex";
       // Render stock ledger when switching to it, in case it wasn't rendered
       renderStockLedger();
     }
@@ -1466,4 +1482,4 @@ async function triggerUpdateFlow(auto = false) {
 window.renderInventoryTable = renderInventoryTable;
 window.initLocalVersionDisplay = initLocalVersionDisplay;
 window.checkForUpdates = checkForUpdates;
-window.triggerUpdateFlow = triggerUpdateFlow;
+window.triggerUpdateFlow = triggerUpdateFlow;

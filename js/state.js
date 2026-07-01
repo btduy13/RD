@@ -46,7 +46,7 @@ async function initApp() {
           state = parsed;
           window.lastSyncState = JSON.parse(JSON.stringify(parsed));
           if (typeof lastSyncedCloudTs !== 'undefined') {
-            lastSyncedCloudTs = state._lastModified || 0;
+            lastSyncedCloudTs = Number(localStorage.getItem("rd_accounting_last_pulled_cloud_ts") || 0) || 0;
           }
           console.log(`[StateFile] Nạp từ file thành công! (${parsed.vouchers.length} chứng từ, ${(parsed.partners || []).length} đối tác)`);
           hasCache = true;
@@ -79,7 +79,7 @@ async function initApp() {
           }
           window.lastSyncState = loadedLastSyncState || JSON.parse(JSON.stringify(parsed));
           hasCache = true;
-          lastSyncedCloudTs = state._lastModified || 0;
+          lastSyncedCloudTs = Number(localStorage.getItem("rd_accounting_last_pulled_cloud_ts") || 0) || 0;
           console.log(`[Cache] Khởi tạo dữ liệu từ cache cục bộ thành công! (${(state.vouchers || []).length} chứng từ, ${(state.partners || []).length} đối tác)`);
           cleanNumericVouchers();
         }
@@ -764,4 +764,4 @@ async function autoSaveBeforeClose() {
     console.error("[AutoSave] Lỗi khi lưu trước khi đóng:", err);
     return false;
   }
-}
+}

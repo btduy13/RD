@@ -313,16 +313,32 @@ function batchDeleteEscrows() {
     trackDeletedIds(idsToDelete);
     state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
 
-    const master = document.getElementById("check-all-escrow");
-    if (master) master.checked = false;
-
-    updateBatchEscrowsUI();
+    if (typeof resetBatchSelectionUI === "function") {
+      resetBatchSelectionUI({
+        checkboxSelector: ".escrow-checkbox",
+        masterId: "check-all-escrow",
+        buttonId: "btn-batch-delete-escrow",
+        countId: "selected-escrows-count"
+      });
+    } else {
+      const master = document.getElementById("check-all-escrow");
+      if (master) master.checked = false;
+      updateBatchEscrowsUI();
+    }
     showToast(`Đã xóa thành công ${checked.length} chứng từ ký quỹ!`, "success");
 
     // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
     setTimeout(() => {
       saveState();
       recalculateAccounting();
+      if (typeof resetBatchSelectionUI === "function") {
+        resetBatchSelectionUI({
+          checkboxSelector: ".escrow-checkbox",
+          masterId: "check-all-escrow",
+          buttonId: "btn-batch-delete-escrow",
+          countId: "selected-escrows-count"
+        });
+      }
     }, 0);
   }
 }
@@ -459,4 +475,4 @@ window.clearEscrowDateFilter = clearEscrowDateFilter;
 window.toggleSelectAllEscrows = toggleSelectAllEscrows;
 window.updateBatchEscrowsUI = updateBatchEscrowsUI;
 window.batchDeleteEscrows = batchDeleteEscrows;
-window.exportEscrowsToExcel = exportEscrowsToExcel;
+window.exportEscrowsToExcel = exportEscrowsToExcel;
