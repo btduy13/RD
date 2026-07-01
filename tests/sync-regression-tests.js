@@ -304,7 +304,7 @@ async function testMetadataPollingDetectsRemoteChanges() {
   sandbox.__metadataRow = {
     last_modified: 400,
     is_syncing: true,
-    updated_at: new Date(Date.now() - 11 * 60 * 1000).toISOString()
+    updated_at: new Date(Date.now() - 31 * 60 * 1000).toISOString()
   };
   vm.runInContext("lastCloudMetadataPollAt = 0;", sandbox);
   await internals.checkCloudMetadataForChanges("test-stale-syncing");
@@ -375,7 +375,7 @@ async function testRealtimeMetadataEventTriggersPull() {
     new: {
       last_modified: 400,
       is_syncing: true,
-      updated_at: new Date(Date.now() - 11 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 31 * 60 * 1000).toISOString(),
       data: { lastModifiedBy: "other-client" }
     }
   });
@@ -477,6 +477,41 @@ async function testRescueLookupIsBatchedAndExact() {
   assert.equal(found.has("v_401"), false);
 }
 
+
+async function testRescueLookupIsBatchedAndExact() {
+  const { internals } = loadSyncInternals();
+  const keys = Array.from({ length: 405 }, (_, index) => `v_${index}`);
+  const calls = [];
+
+  const fakeClient = {
+    from(table) {
+      assert.equal(table, "rd_accounting_data");
+      return {
+        select(columns) {
+          assert.equal(columns, "id");
+          return {
+            in(column, batch) {
+              assert.equal(column, "id");
+              calls.push(batch.slice());
+              return Promise.resolve({
+                data: batch.filter(id => id.endsWith("0")).map(id => ({ id })),
+                error: null
+              });
+            }
+          };
+        }
+      };
+    }
+  };
+
+  const found = await internals.fetchExistingCloudIdsByKeysFromClient(fakeClient, keys);
+  assert.equal(calls.length, 3, "405 keys should be fetched in 3 exact-key batches");
+  assert.ok(calls.every(batch => batch.length <= 200), "rescue batches must stay within the configured size");
+  assert.ok(found.has("v_0"));
+  assert.ok(found.has("v_400"));
+  assert.equal(found.has("v_401"), false);
+}
+
 async function testStaticSafetyChecks() {
   assert.ok(syncSource.includes("Cloud full pull reached pagination safety limit"));
   assert.ok(syncSource.includes("Cloud incremental pull reached pagination safety limit"));
@@ -523,6 +558,80 @@ async function testBatchSelectionResetUI() {
   assert.equal(elements.get("selected-sales-count").innerText, "0", "selected count should return to zero");
 }
 
+async function testFetchCloudDeltaAbortsOnActiveLock() {
+  const { internals, sandbox } = loadSyncInternals();
+  
+  // 1. Mock supabaseClient returning an active lock metadata
+  sandbox.__metadataRow = { 
+    id: "metadata", 
+    last_modified: 200, 
+    is_syncing: true, 
+    updated_at: new Date().toISOString() 
+  };
+  sandbox.__fakeClient = {
+    from(table) {
+      assert.equal(table, "rd_accounting_data");
+      return {
+        select(columns) {
+          assert.ok(columns.includes("is_syncing"));
+          return {
+            eq(column, id) {
+              assert.equal(column, "id");
+              assert.equal(id, "metadata");
+              return {
+                single() {
+                  return Promise.resolve({ data: sandbox.__metadataRow, error: null });
+                }
+              };
+            }
+          };
+        }
+      };
+    }
+  };
+  
+  vm.runInContext(`
+    cloudSyncActive = true;
+    supabaseClient = __fakeClient;
+  `, sandbox);
+  
+  // 2. Call fetchCloudDelta and verify it returns null (aborted)
+  const deltaResult = await internals.fetchCloudDelta(100);
+  assert.equal(deltaResult, null, "fetchCloudDelta should abort and return null when cloud is syncing");
+  
+  // 3. Mock metadata with is_syncing = false
+  sandbox.__metadataRow.is_syncing = false;
+  
+  // Mock the rest of query to prevent errors when it queries changes
+  sandbox.__fakeClient.from = function(table) {
+    return {
+      select(columns) {
+        return {
+          eq(column, id) {
+            return {
+              single() {
+                return Promise.resolve({ data: sandbox.__metadataRow, error: null });
+              }
+            };
+          },
+          gt(column, value) {
+            return this;
+          },
+          order(column) {
+            return this;
+          },
+          limit(step) {
+            return Promise.resolve({ data: [], error: null });
+          }
+        };
+      }
+    };
+  };
+  
+  const deltaResult2 = await internals.fetchCloudDelta(100);
+  assert.ok(deltaResult2 !== null, "fetchCloudDelta should proceed when cloud is not syncing");
+}
+
 async function run() {
   await testDeepComparators();
   await testPullCheckpointStorage();
@@ -535,6 +644,7 @@ async function run() {
   await testEntryModalDetection();
   await testMetadataPollingDetectsRemoteChanges();
   await testRealtimeMetadataEventTriggersPull();
+  await testFetchCloudDeltaAbortsOnActiveLock();
   await testStartupCloudPullPreservesLocalEdits();
   await testPushDuringStartupIsQueued();
   await testRescueLookupIsBatchedAndExact();

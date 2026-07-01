@@ -19,7 +19,7 @@ let realtimeReconnectTimer = null;
 const LAST_PULLED_CLOUD_TS_KEY = "rd_accounting_last_pulled_cloud_ts";
 const CLOUD_METADATA_POLL_INTERVAL_MS = 3000;
 const CLOUD_METADATA_POLL_MIN_GAP_MS = 1500;
-const CLOUD_SYNC_STALE_LOCK_MS = 10 * 60 * 1000;
+const CLOUD_SYNC_STALE_LOCK_MS = 30 * 60 * 1000;
 const REALTIME_RECONNECT_DELAY_MS = 5000;
 
 function getStoredLastPulledCloudTs() {
@@ -628,7 +628,7 @@ async function fetchCloudDelta(localTs) {
   // 1. Tải dòng metadata trước để lấy last_modified mới nhất trên đám mây
   const { data: metadataRow, error: metaError } = await supabaseClient
     .from("rd_accounting_data")
-    .select("data, last_modified")
+    .select("data, last_modified, is_syncing, updated_at")
     .eq("id", "metadata")
     .single();
     
@@ -638,6 +638,13 @@ async function fetchCloudDelta(localTs) {
   }
   if (!metadataRow) {
     logToDebugFile(`[fetchCloudDelta] Không tìm thấy dòng metadata trên Cloud.`);
+    return null;
+  }
+
+  // Chốt chặn 2.8.10: Nếu cloud metadata đang ghi nhận đẩy dữ liệu (is_syncing = true), 
+  // hủy bỏ pull ngay để tránh kéo dữ liệu dở dang hoặc nhảy checkpoint sai lệch.
+  if (isCloudSyncLockActive(metadataRow, "fetch")) {
+    logToDebugFile(`[fetchCloudDelta] Hủy pull: Cloud đang trong tiến trình đồng bộ (is_syncing = true).`);
     return null;
   }
 
@@ -2339,7 +2346,8 @@ window.__syncInternals__ = {
   checkCloudMetadataForChanges,
   isCloudSyncLockActive,
   listenToCloudChanges,
-  fetchExistingCloudIdsByKeysFromClient
+  fetchExistingCloudIdsByKeysFromClient,
+  fetchCloudDelta
 };
 
 async function rescueLocalOnlyItems() {
