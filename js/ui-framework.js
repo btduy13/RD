@@ -245,6 +245,10 @@ function openModal(modalId) {
 function closeModal(modalId) {
   const modal = document.getElementById(modalId);
   if (modal) {
+    const form = modal.querySelector('form');
+    if (form && typeof window.saveFormDraftImmediately === "function") {
+      window.saveFormDraftImmediately(form.id);
+    }
     modal.style.display = "none";
   }
 }

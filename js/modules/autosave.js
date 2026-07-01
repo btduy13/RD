@@ -16,6 +16,20 @@
     }, 1000);
   }
 
+  // Thực hiện lưu nháp ngay lập tức (hủy bỏ debounce)
+  function saveFormDraftImmediately(formId) {
+    if (draftSaveTimeouts[formId]) {
+      clearTimeout(draftSaveTimeouts[formId]);
+      delete draftSaveTimeouts[formId];
+    }
+    if (window.preventDraftSaveOnce) {
+      window.preventDraftSaveOnce = false;
+      localStorage.removeItem(`rd_draft_${formId}`);
+      return;
+    }
+    saveFormDraftDirect(formId);
+  }
+
   // Thực hiện lưu nháp trực tiếp vào localStorage
   function saveFormDraftDirect(formId) {
     const form = document.getElementById(formId);
@@ -153,9 +167,16 @@
       });
     }
 
-    // Chỉ lưu nháp nếu thực sự có nội dung nhập liệu ý nghĩa
+    // Kiểm tra xem thực sự có nội dung do người dùng nhập hay không
     const hasPartner = draft.fields.partner && draft.fields.partner.trim() !== "";
-    const hasItems = draft.items.some(item => item.productId && item.productId.trim() !== "");
+    const hasItems = draft.items.some(item => {
+      const hasProd = item.productId && item.productId.trim() !== "";
+      const hasQty = item.qty && item.qty.trim() !== "" && item.qty !== "1" && item.qty !== "1,00" && item.qty !== "1.00";
+      const hasPrice = item.price && item.price.trim() !== "" && item.price !== "0" && item.price !== "0đ";
+      const hasDesc = item.desc && item.desc.trim() !== "";
+      return hasProd || hasQty || hasPrice || hasDesc;
+    });
+
     const hasContent = hasPartner || hasItems;
     if (hasContent) {
       localStorage.setItem(`rd_draft_${formId}`, JSON.stringify(draft));
@@ -397,8 +418,8 @@
     if (draftStr) {
       try {
         const draft = JSON.parse(draftStr);
-        const hasItems = draft.items && draft.items.some(item => item.productId && item.productId.trim() !== "");
-        const hasPartner = draft.fields && draft.fields.partner && draft.fields.partner.trim() !== "";
+        const hasItems = draft.items && draft.items.length > 0;
+        const hasPartner = draft.fields && draft.fields.partner;
 
         if (hasItems || hasPartner) {
           // Hỏi người dùng bằng confirm tiếng Việt rõ ràng
@@ -419,6 +440,7 @@
 
   // Tự động xóa nháp khi lưu phiếu thành công
   function clearActiveFormDraft() {
+    window.preventDraftSaveOnce = true;
     const activeModal = document.querySelector('#modal-add-sales, #modal-add-purchase, #modal-add-purchase-order, #modal-add-purchase-return, #modal-add-sales-return, #modal-add-quotation');
     if (activeModal && (activeModal.style.display === 'flex' || window.getComputedStyle(activeModal).display === 'flex')) {
       const form = activeModal.querySelector('form');
@@ -448,4 +470,5 @@
   window.checkAndRestoreDraft = checkAndRestoreDraft;
   window.clearActiveFormDraft = clearActiveFormDraft;
   window.restoreFormDraft = restoreFormDraft;
+  window.saveFormDraftImmediately = saveFormDraftImmediately;
 })();
