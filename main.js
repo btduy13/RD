@@ -152,21 +152,21 @@ function createWindow() {
 
     _isClosing = true;
 
-    // Timeout fallback: nếu quá 45 giây vẫn chưa xong thì buộc đóng
-    // (upload song song cải thiện tốc độ, nhưng cần dự phòng cho mạng chậm)
+    // Timeout fallback: nếu quá 5 giây vẫn chưa xong thì buộc đóng
     const forceCloseTimer = setTimeout(() => {
-      console.warn('[AutoSave] Timeout 45s, buộc đóng ứng dụng.');
+      console.warn('[AutoSave] Timeout 5s, buộc đóng ứng dụng.');
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.destroy();
-    }, 45000);
+    }, 5000);
 
     try {
+      let wasDirty = false;
       // Bước 1: Gọi renderer thực hiện saveState() + pushToCloud() và chờ
       if (mainWindow && !mainWindow.isDestroyed()) {
-        await mainWindow.webContents.executeJavaScript('autoSaveBeforeClose()');
+        wasDirty = await mainWindow.webContents.executeJavaScript('autoSaveBeforeClose()');
       }
 
-      // Bước 2: Ghi file backup cục bộ từ in-memory state
-      if (mainWindow && !mainWindow.isDestroyed()) {
+      // Bước 2: Chỉ ghi file backup cục bộ từ in-memory state nếu có thay đổi trong phiên làm việc
+      if (wasDirty && mainWindow && !mainWindow.isDestroyed()) {
         const jsonData = await mainWindow.webContents.executeJavaScript(
           "JSON.stringify(state) || ''"
         );

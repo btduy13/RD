@@ -593,6 +593,17 @@ function executeSaveState(sync = false) {
 window.initializeLastSavedState = initializeLastSavedState;
 window.saveStateSync = saveStateSync;
 
+async function waitForPushToComplete(maxWaitMs = 3000) {
+  const startTime = Date.now();
+  while (typeof isPushing !== 'undefined' && isPushing) {
+    if (Date.now() - startTime > maxWaitMs) {
+      console.warn('[AutoSave] Hết thời gian chờ đồng bộ đám mây.');
+      break;
+    }
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+}
+
 /**
  * Gọi từ main.js khi cửa sổ sắp đóng.
  * Đảm bảo dữ liệu được lưu localStorage VÀ đẩy lên Cloud (nếu kết nối).
@@ -606,23 +617,34 @@ async function autoSaveBeforeClose() {
       saveStateTimeout = null;
     }
 
+    const wasDirty = saveStateIsDirty;
+
     // 2. Chạy đồng bộ ghi cache cục bộ lập tức
     executeSaveState(true);
 
-    // 3. Nếu Cloud đang kết nối → đẩy trạng thái cuối cùng lên Cloud
+    // 3. Nếu Cloud đang kết nối VÀ có thay đổi cần đẩy -> đồng bộ lên Cloud
     // H6 Fix: Guard against sync.js variables being undefined if sync.js failed to load
     if (typeof cloudSyncActive !== 'undefined' && cloudSyncActive && typeof supabaseClient !== 'undefined' && supabaseClient) {
-      // LƯU Ý: KHÔNG reset isPushing ở đây!
-      // Việc reset isPushing khi đang có push chạy sẽ gây ra CONCURRENT PUSH,
-      // dẫn đến race condition và dữ liệu bị trùng lặp trên cloud!
-      // pushToCloud() tự quản lý với isPushing/pushPending.
-      state._lastModified = Date.now();
-      await pushToCloud();
-      console.log("[AutoSave] Đã đẩy dữ liệu lên Cloud trước khi đóng.");
+      const alreadyPushing = typeof isPushing !== 'undefined' && isPushing;
+      
+      if (wasDirty) {
+        state._lastModified = Date.now();
+        if (alreadyPushing) {
+          pushPending = true;
+        } else {
+          await pushToCloud();
+        }
+      }
+      
+      // Chờ cho tất cả tiến trình đẩy đang chạy hoàn tất (tối đa 3 giây)
+      await waitForPushToComplete(3000);
+      console.log("[AutoSave] Đã đảm bảo tất cả dữ liệu được đẩy lên Cloud trước khi đóng.");
     } else {
-      console.log("[AutoSave] Cloud không kết nối, chỉ lưu cục bộ.");
+      console.log("[AutoSave] Cloud không kết nối hoặc không có thay đổi mới, chỉ lưu cục bộ.");
     }
+    return wasDirty;
   } catch (err) {
     console.error("[AutoSave] Lỗi khi lưu trước khi đóng:", err);
+    return false;
   }
 }
