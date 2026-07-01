@@ -734,15 +734,14 @@ async function pullFromCloudOnStartup() {
       recalculateAccounting(false);
       updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
     }
+    isStartupPullCompleted = true;
+    console.log("[CloudSync] Khởi chạy hoàn tất. Đã bật quyền pushToCloud.");
   } catch (err) {
     if (typeof addErrorLog === "function") {
       addErrorLog("pullFromCloudOnStartup", err.message, err);
     }
     showToast("Không thể tải dữ liệu đám mây khi khởi động. Hãy kiểm tra Internet hoặc máy chủ.", "danger");
     updateCloudSyncBadge(false, "Mây: Lỗi kết nối", "#ef4444");
-  } finally {
-    isStartupPullCompleted = true;
-    console.log("[CloudSync] Khởi chạy hoàn tất. Đã bật quyền pushToCloud.");
   }
 }
 
