@@ -41,7 +41,7 @@ async function initApp() {
     try {
       const result = await window.electronAPI.readStateFile();
       if (result && result.ok && result.data) {
-        const parsed = JSON.parse(result.data);
+        const parsed = (typeof result.data === 'string') ? JSON.parse(result.data) : result.data;
         if (parsed && Array.isArray(parsed.products) && Array.isArray(parsed.vouchers)) {
           state = parsed;
           window.lastSyncState = JSON.parse(JSON.stringify(parsed));
@@ -116,83 +116,90 @@ async function initApp() {
     initExcelIntegration();
   }
 
-  // Khởi tạo các thuộc tính ban đầu cho các mặt hàng cũ nếu bị thiếu
-  if (state.products) {
-    state.products.forEach(p => {
-      if (p.initialStock === undefined) {
-        p.initialStock = p.stock !== undefined ? p.stock : 0;
-      }
-      if (p.initialCost === undefined) {
-        p.initialCost = p.avgCost !== undefined ? p.avgCost : 0;
-      }
-      if (p.actualStock === undefined && p.initialStock !== undefined) {
-        p.actualStock = p.initialStock;
-      }
-    });
-  }
-
-  // Đánh dấu các chứng từ cũ từ database là imported (trừ khi đã có isManual)
-  if (state.vouchers) {
-    let hasRepaired = false;
-    state.vouchers.forEach(v => {
-      if (v.isManual === undefined && v.isImported === undefined) {
-        v.isImported = true;
-      }
-      // Sửa chữa các chứng từ có type bị null/undefined
-      if (!v.type) {
-        const u = (v.id || "").toUpperCase().trim();
-        let detected = null;
-        if (u.startsWith('BTL') || u.startsWith('BHTL')) detected = 'sales_return';
-        else if (u.startsWith('BH') || u.startsWith('HD')) detected = 'sales';
-        else if (u.startsWith('PTL') || u.startsWith('MHTL') || u.startsWith('TRH')) detected = 'purchase_return';
-        else if (u.startsWith('PN') || u.startsWith('MH') || u.startsWith('NK')) detected = 'purchase';
-        else if (u.startsWith('PT')) detected = 'receipt';
-        else if (u.startsWith('PC')) detected = 'payment';
-        
-        // Nếu excelRow chỉ ra loại chứng từ
-        if (!detected && v.excelRow && v.excelRow[8]) {
-          const lbl = v.excelRow[8].toLowerCase();
-          if (lbl.includes("thu")) detected = "receipt";
-          else if (lbl.includes("chi")) detected = "payment";
-          else if (lbl.includes("bán")) detected = "sales";
-          else if (lbl.includes("mua")) detected = "purchase";
+  // Chạy các di trú dữ liệu lịch sử một lần duy nhất để tối ưu hóa tốc độ khởi động
+  if (localStorage.getItem('rd_migrations_279_done') !== 'true') {
+    console.log('[Migration] Thực thi di trú dữ liệu cũ...');
+    
+    // Khởi tạo các thuộc tính ban đầu cho các mặt hàng cũ nếu bị thiếu
+    if (state.products) {
+      state.products.forEach(p => {
+        if (p.initialStock === undefined) {
+          p.initialStock = p.stock !== undefined ? p.stock : 0;
         }
-        
-        v.type = detected || "purchase";
-        hasRepaired = true;
-        console.log(`[State] Tự động sửa type cho chứng từ ${v.id} thành: ${v.type}`);
-      }
-    });
-
-    if (hasRepaired) {
-      setTimeout(() => {
-        saveState();
-      }, 0);
+        if (p.initialCost === undefined) {
+          p.initialCost = p.avgCost !== undefined ? p.avgCost : 0;
+        }
+        if (p.actualStock === undefined && p.initialStock !== undefined) {
+          p.actualStock = p.initialStock;
+        }
+      });
     }
-  }
 
-  // Di chuyển loại đối tác từ 'customer' sang 'retail'
-  if (state.partners) {
-    let hasPartnerMigrated = false;
-    state.partners.forEach(p => {
-      if (p.type === "customer") {
-        p.type = "retail";
-        hasPartnerMigrated = true;
+    // Đánh dấu các chứng từ cũ từ database là imported (trừ khi đã có isManual)
+    if (state.vouchers) {
+      let hasRepaired = false;
+      state.vouchers.forEach(v => {
+        if (v.isManual === undefined && v.isImported === undefined) {
+          v.isImported = true;
+        }
+        // Sửa chữa các chứng từ có type bị null/undefined
+        if (!v.type) {
+          const u = (v.id || "").toUpperCase().trim();
+          let detected = null;
+          if (u.startsWith('BTL') || u.startsWith('BHTL')) detected = 'sales_return';
+          else if (u.startsWith('BH') || u.startsWith('HD')) detected = 'sales';
+          else if (u.startsWith('PTL') || u.startsWith('MHTL') || u.startsWith('TRH')) detected = 'purchase_return';
+          else if (u.startsWith('PN') || u.startsWith('MH') || u.startsWith('NK')) detected = 'purchase';
+          else if (u.startsWith('PT')) detected = 'receipt';
+          else if (u.startsWith('PC')) detected = 'payment';
+          
+          // Nếu excelRow chỉ ra loại chứng từ
+          if (!detected && v.excelRow && v.excelRow[8]) {
+            const lbl = v.excelRow[8].toLowerCase();
+            if (lbl.includes("thu")) detected = "receipt";
+            else if (lbl.includes("chi")) detected = "payment";
+            else if (lbl.includes("bán")) detected = "sales";
+            else if (lbl.includes("mua")) detected = "purchase";
+          }
+          
+          v.type = detected || "purchase";
+          hasRepaired = true;
+          console.log(`[State] Tự động sửa type cho chứng từ ${v.id} thành: ${v.type}`);
+        }
+      });
+
+      if (hasRepaired) {
+        setTimeout(() => {
+          saveState();
+        }, 0);
       }
-    });
-    if (hasPartnerMigrated) {
-      setTimeout(() => { saveState(); }, 0);
     }
-  }
 
-  // Dọn dẹp dữ liệu rác đối tác đầu kỳ không hợp lệ
-  if (state.partnerOpeningBalances) {
-    const validPartnerIds = new Set(state.partners.map(p => p.id));
-    Object.keys(state.partnerOpeningBalances).forEach(key => {
-      if (!validPartnerIds.has(key)) {
-        delete state.partnerOpeningBalances[key];
+    // Di chuyển loại đối tác từ 'customer' sang 'retail'
+    if (state.partners) {
+      let hasPartnerMigrated = false;
+      state.partners.forEach(p => {
+        if (p.type === "customer") {
+          p.type = "retail";
+          hasPartnerMigrated = true;
+        }
+      });
+      if (hasPartnerMigrated) {
+        setTimeout(() => { saveState(); }, 0);
       }
-    });
+    }
+
+    // Dọn dẹp dữ liệu rác đối tác đầu kỳ không hợp lệ
+    if (state.partnerOpeningBalances) {
+      const validPartnerIds = new Set(state.partners.map(p => p.id));
+      Object.keys(state.partnerOpeningBalances).forEach(key => {
+        if (!validPartnerIds.has(key)) {
+          delete state.partnerOpeningBalances[key];
+        }
+      });
+    }
+
+    localStorage.setItem('rd_migrations_279_done', 'true');
   }
 
 
@@ -222,8 +229,12 @@ async function initApp() {
   // Cập nhật thông tin công ty lên giao diện
   updateCompanyUI();
 
-  // Chạy lại thuật toán tính toán kế toán & giá vốn để đồng bộ
-  recalculateAccounting();
+  // Chạy lại thuật toán tính toán kế toán & giá vốn để đồng bộ (chạy bất đồng bộ để tránh chặn UI lúc mở app)
+  if (window.requestIdleCallback) {
+    window.requestIdleCallback(() => recalculateAccounting(false), { timeout: 2000 });
+  } else {
+    setTimeout(() => recalculateAccounting(false), 50);
+  }
 
   // Tách số điện thoại từ địa chỉ tự động nếu có
   if (typeof autoExtractPhonesAndCleanAddresses === "function") {

@@ -822,7 +822,7 @@ ipcMain.handle('read-state-file', async (event) => {
     if (!stateObj || (stateObj.vouchers.length === 0 && stateObj.products.length === 0)) {
       return { ok: false, error: 'SQLite rỗng hoặc chưa được khởi tạo' };
     }
-    return { ok: true, data: JSON.stringify(stateObj) };
+    return { ok: true, data: stateObj };
   } catch (err) {
     console.error('[SQLiteStore] Lỗi đọc state từ SQLite:', err);
     return { ok: false, error: err.message };
