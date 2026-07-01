@@ -3,12 +3,14 @@ const { app, BrowserWindow, Menu, ipcMain, shell, dialog } = require('electron')
 const path = require('path');
 const { exec } = require('child_process');
 const fs = require('fs');
+const os = require('os');
 
 // Tăng giới hạn heap V8 lên 4 GB để xử lý tập dữ liệu lớn (7000+ chứng từ, 1600+ sản phẩm)
 // Ngăn chặn lỗi "FATAL ERROR: Oilpan: Large allocation" khi ghi nhớ vượt ngưỡng mặc định ~1.5 GB
 app.commandLine.appendSwitch('js-flags', '--max-old-space-size=8192');
 
 let mainWindow;
+const bootSessionId = String(Math.floor((Date.now() - os.uptime() * 1000) / 60000));
 
 // ===========================================================================
 // AUTO-BACKUP: Tự động lưu file backup JSON vào thư mục backup/ khi đóng app
@@ -270,6 +272,10 @@ ipcMain.handle('get-local-version', () => {
     console.error("Lỗi đọc phiên bản package.json:", err);
   }
   return app.getVersion() || '1.0.0';
+});
+
+ipcMain.handle('get-boot-session-id', () => {
+  return bootSessionId;
 });
 
 // 2. Mở URL bằng trình duyệt mặc định của hệ thống
@@ -616,6 +622,7 @@ function saveStateToSQLite(stateObj) {
     stmtMetadata.run('deletedIds', JSON.stringify(stateObj.deletedIds || []));
     stmtMetadata.run('deletedCloudKeys', JSON.stringify(stateObj.deletedCloudKeys || []));
     stmtMetadata.run('_lastModified', JSON.stringify(stateObj._lastModified || Date.now()));
+    stmtMetadata.run('_lastPulledCloudTs', JSON.stringify(stateObj._lastPulledCloudTs || 0));
     if (stateObj.cashEntries) {
       stmtMetadata.run('cashEntries', JSON.stringify(stateObj.cashEntries));
     }
@@ -803,6 +810,7 @@ function readStateFromSQLite() {
       else if (row.key === 'deletedIds') stateObj.deletedIds = parsedVal;
       else if (row.key === 'deletedCloudKeys') stateObj.deletedCloudKeys = parsedVal;
       else if (row.key === '_lastModified') stateObj._lastModified = parsedVal;
+      else if (row.key === '_lastPulledCloudTs') stateObj._lastPulledCloudTs = parsedVal;
       else if (row.key === 'cashEntries') stateObj.cashEntries = parsedVal;
       else if (row.key === 'escrowItems') stateObj.escrowItems = parsedVal;
       else if (row.key === 'salesTemplatesData') stateObj.salesTemplatesData = parsedVal;

@@ -47,7 +47,7 @@ function loadSyncInternals() {
   sandbox.window.getComputedStyle = el => ({ display: el.style && el.style.display ? el.style.display : "none" });
 
   vm.createContext(sandbox);
-  vm.runInContext(`var lastSyncedCloudTs = 0;\n${syncSource}`, sandbox, { filename: syncPath });
+  vm.runInContext(`var lastSyncedCloudTs = 0;\nvar clientSessionId = "test-client";\n${syncSource}`, sandbox, { filename: syncPath });
 
   assert.ok(sandbox.window.__syncInternals__, "sync internals should be exposed for regression tests");
   return { internals: sandbox.window.__syncInternals__, store, elements, sandbox };
@@ -95,6 +95,139 @@ async function testPullCheckpointStorage() {
   assert.equal(store.has("rd_accounting_last_pulled_cloud_ts"), false, "zero checkpoint should clear stored pull marker");
 }
 
+async function testMonotonicCloudPushTimestamp() {
+  const { internals } = loadSyncInternals();
+
+  assert.equal(internals.getMonotonicCloudPushTs(100, 200, 150), 201);
+  assert.equal(internals.getMonotonicCloudPushTs(300, 200, 250), 300);
+  assert.equal(internals.getMonotonicCloudPushTs(100, 200, 500), 500);
+}
+
+function createVoucherSequenceFakeClient(rows) {
+  return {
+    from(table) {
+      assert.equal(table, "rd_accounting_data");
+      return {
+        insert(row) {
+          if (rows.some(existing => existing.id === row.id)) {
+            return Promise.resolve({ data: null, error: { code: "23505", message: "duplicate key value" } });
+          }
+          rows.push({ id: row.id });
+          return Promise.resolve({ data: [row], error: null });
+        },
+        select(columns) {
+          assert.equal(columns, "id");
+          const query = {
+            lower: "",
+            upper: "",
+            gte(column, value) {
+              assert.equal(column, "id");
+              this.lower = value;
+              return this;
+            },
+            lt(column, value) {
+              assert.equal(column, "id");
+              this.upper = value;
+              return this;
+            },
+            order(column) {
+              assert.equal(column, "id");
+              return this;
+            },
+            range(from, to) {
+              const data = rows
+                .filter(row => row.id >= this.lower && (!this.upper || row.id < this.upper))
+                .sort((a, b) => a.id.localeCompare(b.id))
+                .slice(from, to + 1)
+                .map(row => ({ id: row.id }));
+              return Promise.resolve({ data, error: null });
+            }
+          };
+          return query;
+        }
+      };
+    }
+  };
+}
+
+async function testCloudSafeVoucherIdUsesCloudMaxAndReservation() {
+  const { internals, sandbox } = loadSyncInternals();
+  const rows = [
+    { id: "v_BH44701" },
+    { id: "lock_v_BH44702" }
+  ];
+  sandbox.__fakeClient = createVoucherSequenceFakeClient(rows);
+  sandbox.state = { vouchers: [{ id: "BH44700" }] };
+
+  vm.runInContext(`
+    cloudSyncActive = true;
+    supabaseClient = __fakeClient;
+  `, sandbox);
+
+  const safeId = await internals.getCloudSafeVoucherId({
+    currentId: "BH44701",
+    prefix: "BH",
+    fallbackBase: 44340
+  });
+
+  assert.equal(safeId, "BH44703");
+  assert.ok(rows.some(row => row.id === "lock_v_BH44703"), "safe voucher id should be reserved on cloud before local save");
+}
+
+async function testCloudSafeVoucherIdSupportsPurchaseOrderAliases() {
+  const { internals, sandbox } = loadSyncInternals();
+  const rows = [
+    { id: "v_DMH00012" },
+    { id: "lock_v_ĐMH00013" }
+  ];
+  sandbox.__fakeClient = createVoucherSequenceFakeClient(rows);
+  sandbox.state = { vouchers: [{ id: "ĐMH00011" }] };
+
+  vm.runInContext(`
+    cloudSyncActive = true;
+    supabaseClient = __fakeClient;
+  `, sandbox);
+
+  const safeId = await internals.getCloudSafeVoucherId({
+    currentId: "ĐMH00001",
+    prefix: "ĐMH",
+    prefixes: ["ĐMH", "DMH"],
+    padLength: 5
+  });
+
+  assert.equal(safeId, "ĐMH00014");
+  assert.ok(rows.some(row => row.id === "lock_v_ĐMH00014"), "purchase order aliases should share the same cloud sequence");
+}
+
+async function testStartupCheckpointReadsPersistedStateMarker() {
+  const { internals, sandbox } = loadSyncInternals();
+  sandbox.state = {
+    _lastPulledCloudTs: 456,
+    _lastModified: 789,
+    vouchers: [{ id: "LOCAL-1" }],
+    products: [],
+    partners: []
+  };
+
+  assert.equal(internals.getStartupPullCheckpointTs(), 456, "startup should use persisted pull checkpoint from cached state when localStorage is missing");
+}
+
+async function testLegacyStartupCheckpointDetectsCachedState() {
+  const { internals, store, sandbox } = loadSyncInternals();
+  sandbox.state = {
+    _lastModified: 789,
+    vouchers: [{ id: "LOCAL-1" }],
+    products: [],
+    partners: []
+  };
+  sandbox.window.lastSyncState = JSON.parse(JSON.stringify(sandbox.state));
+  vm.runInContext("lastSyncState = window.lastSyncState; lastSyncedCloudTs = 0;", sandbox);
+
+  assert.equal(internals.getStartupPullCheckpointTs(), 0, "legacy _lastModified is not a real pull checkpoint");
+  assert.equal(internals.getLegacyStartupCheckpointTs(), 789, "startup can still use legacy cache timestamp for metadata skip checks");
+  assert.equal(store.has("rd_accounting_last_pulled_cloud_ts"), false);
+}
+
 async function testEntryModalDetection() {
   const { internals, elements } = loadSyncInternals();
 
@@ -116,7 +249,7 @@ async function testMetadataPollingDetectsRemoteChanges() {
       assert.equal(table, "rd_accounting_data");
       return {
         select(columns) {
-          assert.equal(columns, "last_modified, is_syncing");
+          assert.equal(columns, "last_modified, is_syncing, updated_at");
           return {
             eq(column, id) {
               assert.equal(column, "id");
@@ -152,6 +285,147 @@ async function testMetadataPollingDetectsRemoteChanges() {
   vm.runInContext("lastCloudMetadataPollAt = 0;", sandbox);
   await internals.checkCloudMetadataForChanges("test-syncing");
   assert.equal(sandbox.__pullCount, 0, "polling should not pull while another machine is still pushing");
+
+  sandbox.__metadataRow = {
+    last_modified: 400,
+    is_syncing: true,
+    updated_at: new Date(Date.now() - 11 * 60 * 1000).toISOString()
+  };
+  vm.runInContext("lastCloudMetadataPollAt = 0;", sandbox);
+  await internals.checkCloudMetadataForChanges("test-stale-syncing");
+  assert.equal(sandbox.__pullCount, 1, "polling should pull when an is_syncing lock is stale");
+}
+
+async function testRealtimeMetadataEventTriggersPull() {
+  const { internals, store, sandbox } = loadSyncInternals();
+  store.set("rd_accounting_last_pulled_cloud_ts", "100");
+
+  sandbox.__pullCount = 0;
+  sandbox.__pullArgs = [];
+  sandbox.__realtime = {};
+  sandbox.__fakeRealtimeClient = {
+    removeChannel(channel) {
+      this.removed = channel;
+    },
+    channel(name) {
+      sandbox.__realtime.channelName = name;
+      return {
+        on(eventType, config, callback) {
+          sandbox.__realtime.eventType = eventType;
+          sandbox.__realtime.config = config;
+          sandbox.__realtime.callback = callback;
+          return this;
+        },
+        subscribe(callback) {
+          sandbox.__realtime.subscribeCallback = callback;
+          return this;
+        }
+      };
+    }
+  };
+
+  vm.runInContext(`
+    cloudSyncActive = true;
+    supabaseClient = __fakeRealtimeClient;
+    pullAndMergeFromCloud = function(options) { __pullCount += 1; __pullArgs.push(options || {}); };
+  `, sandbox);
+
+  internals.listenToCloudChanges();
+  assert.equal(sandbox.__realtime.channelName, "rd-accounting-changes");
+  assert.equal(sandbox.__realtime.eventType, "postgres_changes");
+  assert.equal(sandbox.__realtime.config.event, "*");
+  assert.equal(sandbox.__realtime.config.filter, "id=eq.metadata");
+
+  sandbox.__realtime.callback({
+    new: {
+      last_modified: 200,
+      is_syncing: false,
+      updated_at: new Date().toISOString(),
+      data: { lastModifiedBy: "other-client" }
+    }
+  });
+  assert.equal(sandbox.__pullCount, 1, "realtime metadata event from another machine should trigger pull");
+
+  sandbox.__realtime.callback({
+    new: {
+      last_modified: 300,
+      is_syncing: true,
+      updated_at: new Date().toISOString(),
+      data: { lastModifiedBy: "other-client" }
+    }
+  });
+  assert.equal(sandbox.__pullCount, 1, "active is_syncing realtime event should not pull partial data");
+
+  sandbox.__realtime.callback({
+    new: {
+      last_modified: 400,
+      is_syncing: true,
+      updated_at: new Date(Date.now() - 11 * 60 * 1000).toISOString(),
+      data: { lastModifiedBy: "other-client" }
+    }
+  });
+  assert.equal(sandbox.__pullCount, 2, "stale is_syncing realtime event should recover by pulling");
+
+  store.set("rd_accounting_last_pulled_cloud_ts", "500");
+  vm.runInContext("lastSyncedCloudTs = 0;", sandbox);
+  sandbox.__realtime.callback({
+    new: {
+      last_modified: 450,
+      is_syncing: false,
+      updated_at: new Date().toISOString(),
+      data: { lastModifiedBy: "other-client" }
+    }
+  });
+  assert.equal(sandbox.__pullCount, 3, "realtime should still pull when local checkpoint is ahead of remote metadata");
+  assert.equal(sandbox.__pullArgs.at(-1).forceFull, true, "checkpoint-skew realtime recovery should force a full pull");
+}
+
+async function testStartupCloudPullPreservesLocalEdits() {
+  const { internals, sandbox } = loadSyncInternals();
+  const startupSnapshot = {
+    _lastModified: 100,
+    vouchers: [],
+    products: [{ id: "P1", name: "Product" }],
+    partners: []
+  };
+  const cloudData = {
+    _lastModified: 200,
+    vouchers: [{ id: "CLOUD-1", _updatedAt: 200 }],
+    products: [{ id: "P1", name: "Product" }],
+    partners: []
+  };
+  sandbox.state = {
+    _lastModified: 200 + 31 * 60 * 1000,
+    vouchers: [{ id: "LOCAL-1", _updatedAt: 200 + 31 * 60 * 1000 }],
+    products: [{ id: "P1", name: "Product" }],
+    partners: []
+  };
+
+  const result = internals.prepareStartupCloudState(cloudData, startupSnapshot);
+  assert.equal(result.localChangedDuringStartup, true);
+  assert.deepEqual(
+    result.stateToUse.vouchers.map(v => v.id).sort(),
+    ["CLOUD-1", "LOCAL-1"],
+    "startup pull should merge local vouchers created while cloud data was loading"
+  );
+  assert.deepEqual(
+    result.lastSyncStateToUse.vouchers.map(v => v.id),
+    ["CLOUD-1"],
+    "local-only startup edits must not be marked as already synced"
+  );
+}
+
+async function testPushDuringStartupIsQueued() {
+  const { sandbox } = loadSyncInternals();
+  const result = vm.runInContext(`
+    cloudSyncActive = true;
+    supabaseClient = {};
+    isStartupPullCompleted = false;
+    pushAfterStartupPull = false;
+    pushToCloud().then(() => pushAfterStartupPull);
+  `, sandbox);
+
+  assert.equal(await result, true, "pushes attempted during startup pull should be queued");
 }
 
 async function testRescueLookupIsBatchedAndExact() {
@@ -192,6 +466,7 @@ async function testStaticSafetyChecks() {
   assert.ok(syncSource.includes("Cloud full pull reached pagination safety limit"));
   assert.ok(syncSource.includes("Cloud incremental pull reached pagination safety limit"));
   assert.ok(syncSource.includes("LAST_PULLED_CLOUD_TS_KEY"));
+  assert.ok(syncSource.includes("retryFullIfNoChanges"), "manual sync should be able to recover from a bad checkpoint");
   assert.ok(!syncSource.includes("const { data: cloudRows"), "rescue must not use unpaginated full-table id select");
 }
 
@@ -236,8 +511,16 @@ async function testBatchSelectionResetUI() {
 async function run() {
   await testDeepComparators();
   await testPullCheckpointStorage();
+  await testMonotonicCloudPushTimestamp();
+  await testCloudSafeVoucherIdUsesCloudMaxAndReservation();
+  await testCloudSafeVoucherIdSupportsPurchaseOrderAliases();
+  await testStartupCheckpointReadsPersistedStateMarker();
+  await testLegacyStartupCheckpointDetectsCachedState();
   await testEntryModalDetection();
   await testMetadataPollingDetectsRemoteChanges();
+  await testRealtimeMetadataEventTriggersPull();
+  await testStartupCloudPullPreservesLocalEdits();
+  await testPushDuringStartupIsQueued();
   await testRescueLookupIsBatchedAndExact();
   await testStaticSafetyChecks();
   await testBatchSelectionResetUI();

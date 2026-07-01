@@ -414,6 +414,7 @@ function recalculateSalesTotals() {
 }
 
 let editingSalesId = null;
+let salesSubmitInProgress = false;
 
 // Reset form bán hàng
 function resetSalesForm() {
@@ -462,7 +463,7 @@ function generateNextSalesVoucherId(paymentMethod) {
 }
 
 // Xử lý nộp form Bán hàng (Có xác thực kiểm kho hàng tồn)
-function handleSalesSubmit(e) {
+async function handleSalesSubmit(e) {
   e.preventDefault();
 
   const modal = document.getElementById("modal-add-sales");
@@ -552,6 +553,50 @@ function handleSalesSubmit(e) {
   }
 
   if (isStockInsufficient) return;
+
+  if (!editingSalesId || voucherId !== editingSalesId) {
+    if (salesSubmitInProgress) {
+      showToast("Đang kiểm tra số chứng từ trên cloud, vui lòng chờ...", "info");
+      return;
+    }
+
+    salesSubmitInProgress = true;
+    try {
+      if (typeof getCloudSafeVoucherId === "function") {
+        const safeVoucherId = await getCloudSafeVoucherId({
+          currentId: voucherId,
+          editingId: editingSalesId,
+          prefix: "BH",
+          fallbackBase: 44340
+        });
+
+        if (safeVoucherId && safeVoucherId !== voucherId) {
+          voucherId = safeVoucherId;
+          if (inputIdEl) inputIdEl.value = voucherId;
+          showToast(`Đã cấp số chứng từ an toàn theo cloud: ${voucherId}`, "info");
+        }
+      }
+    } catch (err) {
+      console.error("[Sales] Không thể kiểm tra số chứng từ trên cloud:", err);
+      if (typeof addErrorLog === "function") {
+        addErrorLog("handleSalesSubmit.cloudSafeId", err.message, err);
+      }
+      showToast("Không thể kiểm tra số chứng từ trên cloud. Vui lòng thử lại trước khi ghi sổ.", "danger");
+      return;
+    } finally {
+      salesSubmitInProgress = false;
+    }
+
+    const isDuplicateAfterCloudCheck = state.vouchers.some(v => {
+      if (editingSalesId && v.id.toLowerCase() === editingSalesId.toLowerCase()) return false;
+      return v.id.toLowerCase() === voucherId.toLowerCase();
+    });
+
+    if (isDuplicateAfterCloudCheck) {
+      showToast("Số chứng từ đã tồn tại, vui lòng thử ghi sổ lại để cấp số mới!", "danger");
+      return;
+    }
+  }
 
   const newVoucher = {
     id: voucherId,
@@ -736,6 +781,7 @@ function resetEditingSalesId() {
 
 let salesReturnCurrentPage = 1;
 let editingSalesReturnId = null;
+let salesReturnSubmitInProgress = false;
 
 // switchSalesSubTab
 function switchSalesSubTab(subTabId) {
@@ -1131,7 +1177,7 @@ function resetSalesReturnForm() {
 }
 
 // handleSalesReturnSubmit
-function handleSalesReturnSubmit(e) {
+async function handleSalesReturnSubmit(e) {
   e.preventDefault();
 
   const modal = document.getElementById("modal-add-sales-return");
@@ -1206,6 +1252,35 @@ function handleSalesReturnSubmit(e) {
   }
 
   if (hasError) return;
+
+  if (!editingSalesReturnId || voucherId !== editingSalesReturnId) {
+    if (salesReturnSubmitInProgress) {
+      showToast("Đang kiểm tra số chứng từ trên cloud, vui lòng chờ...", "info");
+      return;
+    }
+
+    salesReturnSubmitInProgress = true;
+    try {
+      if (typeof ensureCloudSafeVoucherIdForSave === "function") {
+        voucherId = await ensureCloudSafeVoucherIdForSave({
+          currentId: voucherId,
+          editingId: editingSalesReturnId,
+          prefix: "BTL",
+          fallbackBase: 1000,
+          inputEl: inputIdEl
+        });
+      }
+    } catch (err) {
+      console.error("[SalesReturn] Không thể kiểm tra số chứng từ trên cloud:", err);
+      if (typeof addErrorLog === "function") {
+        addErrorLog("handleSalesReturnSubmit.cloudSafeId", err.message, err);
+      }
+      showToast("Không thể kiểm tra số chứng từ trên cloud. Vui lòng thử lại trước khi ghi sổ.", "danger");
+      return;
+    } finally {
+      salesReturnSubmitInProgress = false;
+    }
+  }
 
   const newVoucher = {
     id: voucherId,
@@ -1534,6 +1609,7 @@ function exportSalesReturnsToExcel() {
 
 let quotationCurrentPage = 1;
 let editingQuotationId = null;
+let quotationSubmitInProgress = false;
 
 function resetEditingQuotationId() {
   editingQuotationId = null;
@@ -1834,7 +1910,7 @@ function generateNextQuotationVoucherId() {
 }
 
 // Xử lý nộp form Báo giá
-function handleQuotationSubmit(e) {
+async function handleQuotationSubmit(e) {
   e.preventDefault();
 
   const modal = document.getElementById("modal-add-sales-quotation");
@@ -1906,6 +1982,35 @@ function handleQuotationSubmit(e) {
       discount,
       amount
     });
+  }
+
+  if (!editingQuotationId || voucherId !== editingQuotationId) {
+    if (quotationSubmitInProgress) {
+      showToast("Đang kiểm tra số chứng từ trên cloud, vui lòng chờ...", "info");
+      return;
+    }
+
+    quotationSubmitInProgress = true;
+    try {
+      if (typeof ensureCloudSafeVoucherIdForSave === "function") {
+        voucherId = await ensureCloudSafeVoucherIdForSave({
+          currentId: voucherId,
+          editingId: editingQuotationId,
+          prefix: "BG",
+          fallbackBase: 10000,
+          inputEl: inputIdEl
+        });
+      }
+    } catch (err) {
+      console.error("[Quotation] Không thể kiểm tra số chứng từ trên cloud:", err);
+      if (typeof addErrorLog === "function") {
+        addErrorLog("handleQuotationSubmit.cloudSafeId", err.message, err);
+      }
+      showToast("Không thể kiểm tra số chứng từ trên cloud. Vui lòng thử lại trước khi ghi sổ.", "danger");
+      return;
+    } finally {
+      quotationSubmitInProgress = false;
+    }
   }
 
   const newVoucher = {
@@ -1991,7 +2096,7 @@ function editQuotationVoucher(id) {
   openModal("modal-add-sales-quotation");
 }
 
-window.convertQuotationToOrder = function(id) {
+window.convertQuotationToOrder = async function(id) {
   const qIdx = state.vouchers.findIndex(v => v.id === id && v.type === "sales_quotation");
   if (qIdx === -1) {
     if (typeof showToast === "function") showToast("Không tìm thấy báo giá!", "danger");
@@ -2007,6 +2112,28 @@ window.convertQuotationToOrder = function(id) {
   let orderId = `BH${Date.now()}`;
   if (typeof generateNextSalesVoucherId === "function") {
     orderId = generateNextSalesVoucherId(paymentMethod);
+  }
+
+  try {
+    if (typeof getCloudSafeVoucherId === "function") {
+      const safeOrderId = await getCloudSafeVoucherId({
+        currentId: orderId,
+        prefix: "BH",
+        fallbackBase: 44340
+      });
+      if (safeOrderId && safeOrderId !== orderId) {
+        orderId = safeOrderId;
+      }
+    }
+  } catch (err) {
+    console.error("[Sales] Không thể kiểm tra số đơn bán hàng trên cloud:", err);
+    if (typeof addErrorLog === "function") {
+      addErrorLog("convertQuotationToOrder.cloudSafeId", err.message, err);
+    }
+    if (typeof showToast === "function") {
+      showToast("Không thể kiểm tra số chứng từ trên cloud. Vui lòng thử lại trước khi chuyển báo giá.", "danger");
+    }
+    return;
   }
   
   const newOrder = JSON.parse(JSON.stringify(quotation));

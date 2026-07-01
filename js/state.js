@@ -46,7 +46,9 @@ async function initApp() {
           state = parsed;
           window.lastSyncState = JSON.parse(JSON.stringify(parsed));
           if (typeof lastSyncedCloudTs !== 'undefined') {
-            lastSyncedCloudTs = Number(localStorage.getItem("rd_accounting_last_pulled_cloud_ts") || 0) || 0;
+            const pulledTs = Number(localStorage.getItem("rd_accounting_last_pulled_cloud_ts") || parsed._lastPulledCloudTs || 0) || 0;
+            lastSyncedCloudTs = pulledTs;
+            if (pulledTs > 0) localStorage.setItem("rd_accounting_last_pulled_cloud_ts", String(pulledTs));
           }
           console.log(`[StateFile] Nạp từ file thành công! (${parsed.vouchers.length} chứng từ, ${(parsed.partners || []).length} đối tác)`);
           hasCache = true;
@@ -79,7 +81,9 @@ async function initApp() {
           }
           window.lastSyncState = loadedLastSyncState || JSON.parse(JSON.stringify(parsed));
           hasCache = true;
-          lastSyncedCloudTs = Number(localStorage.getItem("rd_accounting_last_pulled_cloud_ts") || 0) || 0;
+          const pulledTs = Number(localStorage.getItem("rd_accounting_last_pulled_cloud_ts") || parsed._lastPulledCloudTs || 0) || 0;
+          lastSyncedCloudTs = pulledTs;
+          if (pulledTs > 0) localStorage.setItem("rd_accounting_last_pulled_cloud_ts", String(pulledTs));
           console.log(`[Cache] Khởi tạo dữ liệu từ cache cục bộ thành công! (${(state.vouchers || []).length} chứng từ, ${(state.partners || []).length} đối tác)`);
           cleanNumericVouchers();
         }
@@ -629,7 +633,7 @@ function executeSaveState(sync = false) {
         // A. So sánh metadata các cấu hình hệ thống (So sánh cuối cùng để ăn được actionLogs mới push)
         const metadataKeys = [
           'companyName', 'address', 'taxCode', 'accountingStandard',
-          'initialBalances', 'partnerOpeningBalances', 'deletedIds', 'deletedCloudKeys',
+          'initialBalances', 'partnerOpeningBalances', 'deletedIds', 'deletedCloudKeys', '_lastPulledCloudTs',
           'cashEntries', 'escrowItems', 'salesTemplatesData', 'users', 'actionLogs'
         ];
         

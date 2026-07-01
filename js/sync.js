@@ -9,28 +9,40 @@ let realtimeChannel = null;
 let lastSyncState = window.lastSyncState || null;
 let isPulling = false;
 let pullPending = false;
+let pushAfterStartupPull = false;
 let deferredCloudPull = false;
 let deferredCloudPullReason = "";
 let cloudMetadataPollTimer = null;
 let lastCloudMetadataPollAt = 0;
 let cloudFocusCheckAttached = false;
+let realtimeReconnectTimer = null;
 const LAST_PULLED_CLOUD_TS_KEY = "rd_accounting_last_pulled_cloud_ts";
 const CLOUD_METADATA_POLL_INTERVAL_MS = 3000;
 const CLOUD_METADATA_POLL_MIN_GAP_MS = 1500;
+const CLOUD_SYNC_STALE_LOCK_MS = 10 * 60 * 1000;
+const REALTIME_RECONNECT_DELAY_MS = 5000;
 
 function getStoredLastPulledCloudTs() {
+  let storedTs = 0;
   try {
     const raw = localStorage.getItem(LAST_PULLED_CLOUD_TS_KEY);
     const parsed = raw ? Number(raw) : 0;
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    storedTs = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   } catch (err) {
-    return 0;
+    // Continue to state fallback below.
   }
+  if (storedTs > 0) return storedTs;
+
+  const stateTs = Number(typeof state !== "undefined" && state ? state._lastPulledCloudTs : 0);
+  return Number.isFinite(stateTs) && stateTs > 0 ? stateTs : 0;
 }
 
 function persistLastPulledCloudTs(ts) {
   const safeTs = Number(ts) || 0;
   lastSyncedCloudTs = safeTs;
+  if (typeof state !== "undefined" && state) {
+    state._lastPulledCloudTs = safeTs;
+  }
   try {
     if (safeTs > 0) {
       localStorage.setItem(LAST_PULLED_CLOUD_TS_KEY, String(safeTs));
@@ -49,6 +61,23 @@ function getPullCheckpointTs() {
     return storedTs;
   }
   return Number(lastSyncedCloudTs) || 0;
+}
+
+function getLegacyStartupCheckpointTs() {
+  const currentState = typeof state !== "undefined" ? state : null;
+  const stateTs = Number(currentState && currentState._lastModified);
+  const hasCachedEntities = !!(currentState && (
+    (Array.isArray(currentState.vouchers) && currentState.vouchers.length > 0) ||
+    (Array.isArray(currentState.products) && currentState.products.length > 0) ||
+    (Array.isArray(currentState.partners) && currentState.partners.length > 0)
+  ));
+  const hasSyncSnapshot = !!(lastSyncState || (typeof window !== "undefined" && window.lastSyncState));
+
+  return hasCachedEntities && hasSyncSnapshot && Number.isFinite(stateTs) && stateTs > 0 ? stateTs : 0;
+}
+
+function getStartupPullCheckpointTs() {
+  return getPullCheckpointTs();
 }
 
 function isElementVisible(el) {
@@ -81,12 +110,12 @@ function deferCloudPull(reason) {
   }
 }
 
-function scheduleCloudPull(reason) {
+function scheduleCloudPull(reason, options = {}) {
   if (isVoucherEntryModalOpen()) {
     deferCloudPull(reason);
     return;
   }
-  pullAndMergeFromCloud();
+  pullAndMergeFromCloud({ reason, ...options });
 }
 
 function stopCloudMetadataPolling() {
@@ -108,6 +137,43 @@ function startCloudMetadataPolling() {
   setTimeout(() => {
     checkCloudMetadataForChanges("poll-initial");
   }, 1000);
+}
+
+function stopRealtimeReconnect() {
+  if (realtimeReconnectTimer) {
+    clearTimeout(realtimeReconnectTimer);
+    realtimeReconnectTimer = null;
+  }
+}
+
+function reconnectRealtimeLater(reason) {
+  if (!cloudSyncActive || !supabaseClient || realtimeReconnectTimer) return;
+
+  console.warn(`[Supabase Realtime] Channel ${reason || "disconnected"}; reconnecting in ${REALTIME_RECONNECT_DELAY_MS}ms.`);
+  realtimeReconnectTimer = setTimeout(() => {
+    realtimeReconnectTimer = null;
+    if (cloudSyncActive && supabaseClient) {
+      listenToCloudChanges();
+      checkCloudMetadataForChanges("realtime-reconnect");
+    }
+  }, REALTIME_RECONNECT_DELAY_MS);
+}
+
+function isCloudSyncLockActive(row, reason = "") {
+  if (!row || !row.is_syncing) return false;
+
+  const updatedAtMs = row.updated_at ? Date.parse(row.updated_at) : NaN;
+  if (!Number.isFinite(updatedAtMs)) {
+    return true;
+  }
+
+  const ageMs = Date.now() - updatedAtMs;
+  if (ageMs >= CLOUD_SYNC_STALE_LOCK_MS) {
+    console.warn(`[CloudSync] Ignoring stale is_syncing lock from ${reason || "metadata"}; age=${ageMs}ms.`);
+    return false;
+  }
+
+  return true;
 }
 
 function attachCloudFocusCheck() {
@@ -139,11 +205,11 @@ async function checkCloudMetadataForChanges(reason = "poll") {
   try {
     const { data, error } = await supabaseClient
       .from("rd_accounting_data")
-      .select("last_modified, is_syncing")
+      .select("last_modified, is_syncing, updated_at")
       .eq("id", "metadata")
       .maybeSingle();
 
-    if (error || !data || data.is_syncing) return;
+    if (error || !data || isCloudSyncLockActive(data, reason)) return;
 
     const cloudTs = Number(data.last_modified) || 0;
     const localCheckpointTs = getPullCheckpointTs();
@@ -183,6 +249,277 @@ function updateLastSyncState(newState) {
   }
 }
 
+function cloneSyncState(sourceState) {
+  return JSON.parse(JSON.stringify(sourceState || {}));
+}
+
+function getMonotonicCloudPushTs(localTs, cloudTs, nowTs = Date.now()) {
+  return Math.max(Number(nowTs) || 0, Number(localTs) || 0, (Number(cloudTs) || 0) + 1);
+}
+
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function parseVoucherSequenceNumber(voucherId, prefix) {
+  const match = String(voucherId || "").match(new RegExp(`^${escapeRegExp(prefix)}(\\d+)$`, "i"));
+  return match ? Number(match[1]) || 0 : 0;
+}
+
+function formatVoucherSequenceId(prefix, number, padLength = 0) {
+  const raw = String(Math.max(0, Number(number) || 0));
+  return `${prefix}${padLength > 0 ? raw.padStart(padLength, "0") : raw}`;
+}
+
+function getNextStringBoundary(value) {
+  const chars = Array.from(String(value || ""));
+  if (chars.length === 0) return "";
+  const last = chars.pop();
+  const next = String.fromCodePoint(last.codePointAt(0) + 1);
+  return `${chars.join("")}${next}`;
+}
+
+function getMaxVoucherSequenceFromRows(rows, prefix, rowPrefix = "v_") {
+  let maxNum = 0;
+  const cloudPrefix = `${rowPrefix}${prefix}`;
+  (rows || []).forEach(row => {
+    const id = typeof row === "string" ? row : row && row.id;
+    if (!id || !String(id).startsWith(cloudPrefix)) return;
+    const rawVoucherId = String(id).slice(rowPrefix.length);
+    const num = parseVoucherSequenceNumber(rawVoucherId, prefix);
+    if (num > maxNum) maxNum = num;
+  });
+  return maxNum;
+}
+
+function getMaxLocalVoucherSequence(prefix, excludeId = null) {
+  let maxNum = 0;
+  (state.vouchers || []).forEach(v => {
+    if (!v || !v.id || (excludeId && String(v.id).toLowerCase() === String(excludeId).toLowerCase())) return;
+    const num = parseVoucherSequenceNumber(v.id, prefix);
+    if (num > maxNum) maxNum = num;
+  });
+  return maxNum;
+}
+
+async function fetchCloudMaxVoucherSequence(prefix, options = {}) {
+  const client = options.client || supabaseClient;
+  const rowPrefix = options.rowPrefix || "v_";
+  if (!client) return 0;
+
+  const lower = `${rowPrefix}${prefix}`;
+  const upper = getNextStringBoundary(lower);
+  const pageSize = options.pageSize || 1000;
+  const maxPages = options.maxPages || 30;
+  let from = 0;
+  let maxNum = 0;
+
+  for (let page = 0; page < maxPages; page++) {
+    let query = client
+      .from("rd_accounting_data")
+      .select("id")
+      .gte("id", lower);
+
+    if (upper) {
+      query = query.lt("id", upper);
+    }
+
+    const { data, error } = await query
+      .order("id")
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+    const rows = data || [];
+    maxNum = Math.max(maxNum, getMaxVoucherSequenceFromRows(rows, prefix, rowPrefix));
+    if (rows.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return maxNum;
+}
+
+async function fetchCloudMaxVoucherSequenceForPrefixes(prefixes, options = {}) {
+  const uniquePrefixes = Array.from(new Set((prefixes || []).filter(Boolean)));
+  let maxNum = 0;
+  for (const prefix of uniquePrefixes) {
+    maxNum = Math.max(maxNum, await fetchCloudMaxVoucherSequence(prefix, options));
+  }
+  return maxNum;
+}
+
+function isCloudDuplicateKeyError(error) {
+  if (!error) return false;
+  return error.code === "23505" || String(error.message || "").toLowerCase().includes("duplicate");
+}
+
+async function tryReserveCloudVoucherId(voucherId, options = {}) {
+  const client = options.client || supabaseClient;
+  const rowPrefix = options.rowPrefix || "v_";
+  if (!client || !voucherId) return true;
+
+  const now = Date.now();
+  const lockId = `lock_${rowPrefix}${voucherId}`;
+  const { error } = await client
+    .from("rd_accounting_data")
+    .insert({
+      id: lockId,
+      data: {
+        voucherId,
+        rowPrefix,
+        reservedBy: typeof clientSessionId !== "undefined" ? clientSessionId : "unknown",
+        reservedAt: now
+      },
+      last_modified: now,
+      is_syncing: false,
+      updated_at: new Date().toISOString()
+    });
+
+  if (!error) return true;
+  if (isCloudDuplicateKeyError(error)) return false;
+  throw error;
+}
+
+async function getCloudSafeVoucherId(options = {}) {
+  const prefix = options.prefix || "";
+  if (!prefix) throw new Error("Missing voucher prefix");
+  const prefixes = options.prefixes && options.prefixes.length ? options.prefixes : [prefix];
+
+  const currentId = options.currentId || "";
+  const editingId = options.editingId || null;
+  const padLength = options.padLength || 0;
+  const fallbackBase = Number(options.fallbackBase) || 0;
+  const rowPrefix = options.rowPrefix || "v_";
+
+  const localMax = Math.max(...prefixes.map(p => getMaxLocalVoucherSequence(p, editingId)), 0);
+  const shouldUseCloud = cloudSyncActive && supabaseClient;
+  const cloudMax = shouldUseCloud
+    ? await fetchCloudMaxVoucherSequenceForPrefixes(prefixes, { rowPrefix })
+    : 0;
+  const cloudLockMax = shouldUseCloud
+    ? await fetchCloudMaxVoucherSequenceForPrefixes(prefixes, { rowPrefix: `lock_${rowPrefix}` })
+    : 0;
+  const safeBase = Math.max(localMax, cloudMax, cloudLockMax, fallbackBase);
+  const currentNumber = Math.max(...prefixes.map(p => parseVoucherSequenceNumber(currentId, p)), 0);
+  let candidateNumber = currentNumber > safeBase ? currentNumber : safeBase + 1;
+  let candidateId = formatVoucherSequenceId(prefix, candidateNumber, padLength);
+
+  if (!shouldUseCloud || options.reserveCloud === false) {
+    return candidateId;
+  }
+
+  const maxReserveAttempts = options.maxReserveAttempts || 25;
+  for (let attempt = 0; attempt < maxReserveAttempts; attempt++) {
+    const reserved = await tryReserveCloudVoucherId(candidateId, { rowPrefix });
+    if (reserved) return candidateId;
+    candidateNumber += 1;
+    candidateId = formatVoucherSequenceId(prefix, candidateNumber, padLength);
+  }
+
+  throw new Error(`Không thể giữ số chứng từ ${prefix} sau ${maxReserveAttempts} lần thử.`);
+}
+
+async function ensureCloudSafeVoucherIdForSave(options = {}) {
+  const currentId = options.currentId || "";
+  const editingId = options.editingId || null;
+  if (editingId && String(currentId).toLowerCase() === String(editingId).toLowerCase()) {
+    return currentId;
+  }
+
+  const safeId = await getCloudSafeVoucherId(options);
+  if (safeId && safeId !== currentId && options.inputEl) {
+    options.inputEl.value = safeId;
+  }
+  if (safeId && safeId !== currentId && typeof showToast === "function") {
+    showToast(`Đã cấp số chứng từ an toàn theo cloud: ${safeId}`, "info");
+  }
+
+  const duplicate = (state.vouchers || []).some(v => {
+    if (!v || !v.id) return false;
+    if (editingId && String(v.id).toLowerCase() === String(editingId).toLowerCase()) return false;
+    return String(v.id).toLowerCase() === String(safeId).toLowerCase();
+  });
+
+  if (duplicate) {
+    throw new Error(`Số chứng từ ${safeId} đã tồn tại cục bộ.`);
+  }
+
+  return safeId;
+}
+
+function mergeStartupLocalWithCloud(localState, cloudState) {
+  const localCopy = cloneSyncState(localState);
+  const cloudCopy = cloneSyncState(cloudState);
+  const localTs = Number(localCopy._lastModified) || 0;
+  const cloudTs = Number(cloudCopy._lastModified) || 0;
+  const mergeTs = Math.max(localTs, cloudTs);
+
+  localCopy._lastModified = mergeTs;
+  cloudCopy._lastModified = mergeTs;
+
+  const merged = mergeStates(localCopy, cloudCopy);
+  merged._lastModified = mergeTs;
+  return merged;
+}
+
+function prepareStartupCloudState(cloudData, startupStateSnapshot) {
+  if (!cloudData) {
+    return {
+      stateToUse: state,
+      lastSyncStateToUse: state,
+      localChangedDuringStartup: false
+    };
+  }
+
+  const localChangedDuringStartup = !!startupStateSnapshot && !areObjectsDeepEqual(state, startupStateSnapshot);
+  if (!localChangedDuringStartup) {
+    return {
+      stateToUse: cloudData,
+      lastSyncStateToUse: cloudData,
+      localChangedDuringStartup: false
+    };
+  }
+
+  return {
+    stateToUse: mergeStartupLocalWithCloud(state, cloudData),
+    lastSyncStateToUse: cloudData,
+    localChangedDuringStartup: true
+  };
+}
+
+async function persistStateCacheAfterCloudPull(cacheState = state) {
+  try {
+    const jsonString = JSON.stringify(cacheState);
+    if (window.electronAPI && typeof window.electronAPI.writeStateFile === "function") {
+      const result = await window.electronAPI.writeStateFile(jsonString);
+      if (result && result.ok && typeof initializeLastSavedState === "function") {
+        initializeLastSavedState(cacheState);
+      } else if (result && !result.ok) {
+        console.error("[StateFile] Ghi cache sau pull that bai:", result.error);
+      }
+    } else {
+      localStorage.setItem("rd_accounting_online_cache", jsonString);
+      if (typeof initializeLastSavedState === "function") {
+        initializeLastSavedState(cacheState);
+      }
+    }
+  } catch (cacheErr) {
+    console.error("[Cache] Loi ghi cache cuc bo sau pull:", cacheErr);
+  }
+}
+
+function finishStartupPull() {
+  isStartupPullCompleted = true;
+  if (pushAfterStartupPull) {
+    pushAfterStartupPull = false;
+    setTimeout(() => {
+      if (cloudSyncActive && supabaseClient) {
+        console.log("[CloudSync] Day cac thay doi da luu trong luc startup pull.");
+        pushToCloud();
+      }
+    }, 100);
+  }
+}
+
 function initCloudSync() {
   if (!cloudSyncSettings.enabled) {
     updateCloudSyncBadge(false, "Mây: Tắt", "#64748b");
@@ -217,6 +554,7 @@ function initCloudSync() {
 async function startSupabaseClient() {
   try {
     stopCloudMetadataPolling();
+    stopRealtimeReconnect();
     // Đóng kênh realtime cũ nếu có
     if (realtimeChannel && supabaseClient) {
       supabaseClient.removeChannel(realtimeChannel);
@@ -272,6 +610,7 @@ async function startSupabaseClient() {
     }
     updateCloudSyncBadge(false, "Mây: Lỗi khởi tạo", "#ef4444");
     stopCloudMetadataPolling();
+    stopRealtimeReconnect();
     cloudSyncActive = false;
   }
 }
@@ -861,13 +1200,15 @@ async function pullFromCloudOnStartup() {
   try {
     // === TỐI ƯU HÓA KHỞI ĐỘNG: Kiểm tra metadata trước để tránh tải dữ liệu không cần thiết ===
     // Lấy timestamp của cloud từ bản ghi metadata (chỉ 1 row, cực nhanh)
-    const localTs = getPullCheckpointTs();
+    let localTs = getStartupPullCheckpointTs();
+    const legacyStartupTs = localTs > 0 ? 0 : getLegacyStartupCheckpointTs();
+    const metadataCheckTs = localTs > 0 ? localTs : legacyStartupTs;
 
-    if (localTs > 0) {
+    if (metadataCheckTs > 0) {
       // Đã có cache cục bộ → Kiểm tra nhanh xem cloud có gì mới hơn không
       const { data: metaCheck, error: metaErr } = await supabaseClient
         .from("rd_accounting_data")
-        .select("last_modified, is_syncing")
+        .select("last_modified, is_syncing, updated_at")
         .eq("id", "metadata")
         .single();
 
@@ -876,15 +1217,16 @@ async function pullFromCloudOnStartup() {
 
         // CHỐNG ĐỒNG BỘ NGƯỢC: Nếu local MỚI HƠN cloud, bỏ qua pull hoàn toàn
         // (Tình huống: máy vừa push, hoặc cloud chứa dữ liệu cũ hơn)
-        if (cloudTs <= localTs) {
-          console.log(`[Startup] Dữ liệu cục bộ đã mới nhất hoặc mới hơn cloud. (Local: ${localTs}, Cloud: ${cloudTs}) → Bỏ qua tải về.`);
-          logToDebugFile(`[pullFromCloudOnStartup] Bỏ qua pull: local (${localTs}) >= cloud (${cloudTs})`);
+        if (cloudTs <= metadataCheckTs) {
+          console.log(`[Startup] Dữ liệu cục bộ đã mới nhất hoặc mới hơn cloud. (Local: ${metadataCheckTs}, Cloud: ${cloudTs}) → Bỏ qua tải về.`);
+          logToDebugFile(`[pullFromCloudOnStartup] Bỏ qua pull: local (${metadataCheckTs}) >= cloud (${cloudTs})`);
           updateLastSyncState(state);
-          persistLastPulledCloudTs(localTs);
+          persistLastPulledCloudTs(cloudTs);
+          await persistStateCacheAfterCloudPull(state);
           if (typeof rescueLocalOnlyItems === "function") {
             await rescueLocalOnlyItems();
           }
-          isStartupPullCompleted = true;
+          finishStartupPull();
           if (typeof recalculateAccounting === "function") recalculateAccounting(false);
           if (typeof filterDebts === "function") filterDebts();
           if (typeof filterPartners === "function") filterPartners();
@@ -895,26 +1237,33 @@ async function pullFromCloudOnStartup() {
         }
 
         // Nếu máy khác đang trong quá trình push (is_syncing = true), chờ 3 giây rồi thử lại
-        if (metaCheck.is_syncing) {
+        if (isCloudSyncLockActive(metaCheck, "startup")) {
           console.log("[Startup] Máy khác đang đồng bộ (is_syncing=true), chờ 3 giây...");
           await new Promise(resolve => setTimeout(resolve, 3000));
         }
 
-        logToDebugFile(`[pullFromCloudOnStartup] Cloud mới hơn local (${cloudTs} > ${localTs}). Tiến hành tải incremental.`);
+        if (localTs > 0) {
+          logToDebugFile(`[pullFromCloudOnStartup] Cloud mới hơn local (${cloudTs} > ${localTs}). Tiến hành tải incremental.`);
+        } else {
+          console.log(`[Startup] Cloud mới hơn cache cũ nhưng chưa có checkpoint pull thật. Sẽ full pull một lần để tránh bỏ sót dữ liệu. (Cache: ${legacyStartupTs}, Cloud: ${cloudTs})`);
+          logToDebugFile(`[pullFromCloudOnStartup] Không có checkpoint pull thật; full pull vì cloud (${cloudTs}) > cache (${legacyStartupTs}).`);
+        }
       }
     }
 
     // Tải dữ liệu thay đổi (incremental) kể từ lần đồng bộ cuối cùng của cache cục bộ.
     // Nếu chưa có cache cục bộ (localTs = 0), sẽ tự động thực hiện full pull.
+    const startupStateSnapshot = cloneSyncState(state);
     const result = await fetchCloudData(localTs);
     if (!result) {
       // fetchCloudData trả về null → dữ liệu đã mới nhất (cloudTs <= localTs)
       updateLastSyncState(state);
       persistLastPulledCloudTs(localTs);
+      await persistStateCacheAfterCloudPull(state);
       if (typeof rescueLocalOnlyItems === "function") {
         await rescueLocalOnlyItems();
       }
-      isStartupPullCompleted = true;
+      finishStartupPull();
       updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
       console.log("[CloudSync] Khởi chạy hoàn tất (không cần tải thêm). Đã bật quyền pushToCloud.");
       return;
@@ -924,22 +1273,17 @@ async function pullFromCloudOnStartup() {
 
     if (cloudData && hasCloudProducts) {
       const cloudVoucherCount = (cloudData.vouchers || []).length;
-      state = cloudData;
-      updateLastSyncState(state);
-      persistLastPulledCloudTs(state._lastModified || 0);
+      const startupApply = prepareStartupCloudState(cloudData, startupStateSnapshot);
+      state = startupApply.stateToUse;
+      updateLastSyncState(startupApply.lastSyncStateToUse);
+      persistLastPulledCloudTs(cloudData._lastModified || localTs);
+      if (startupApply.localChangedDuringStartup) {
+        pushAfterStartupPull = true;
+        console.warn("[CloudSync] Phat hien thay doi local trong luc startup pull; da merge voi cloud va se push sau khi khoi dong xong.");
+      }
       console.log(`[Supabase] Tải dữ liệu đám mây thành công! (${cloudVoucherCount} chứng từ)`);
 
-      // Ghi cache cục bộ
-      try {
-        const saveFn = typeof saveStateSync === "function" ? saveStateSync : (typeof window.saveStateSync === "function" ? window.saveStateSync : null);
-        if (saveFn) {
-          saveFn();
-        } else {
-          localStorage.setItem("rd_accounting_online_cache", JSON.stringify(state));
-        }
-      } catch (cacheErr) {
-        console.error("[Cache] Lỗi ghi cache cục bộ:", cacheErr);
-      }
+      await persistStateCacheAfterCloudPull(state);
 
       // Thực hiện dọn dẹp các đơn hàng có ID dạng số tự sinh
       cleanNumericVouchers();
@@ -976,7 +1320,13 @@ async function pullFromCloudOnStartup() {
     } else {
       console.log("Cơ sở dữ liệu đám mây trống hoặc chưa có sản phẩm. Khởi tạo dữ liệu trắng ban đầu.");
       if (cloudData) {
-        state = cloudData;
+        const startupApply = prepareStartupCloudState(cloudData, startupStateSnapshot);
+        state = startupApply.stateToUse;
+        updateLastSyncState(startupApply.lastSyncStateToUse);
+        if (startupApply.localChangedDuringStartup) {
+          pushAfterStartupPull = true;
+          console.warn("[CloudSync] Phat hien thay doi local trong luc startup pull rong; da giu lai va se push sau khi khoi dong xong.");
+        }
       } else {
         state = {
           companyName: "",
@@ -988,16 +1338,17 @@ async function pullFromCloudOnStartup() {
           initialBalances: JSON.parse(JSON.stringify(DEFAULT_DATA.initialBalances)),
           vouchers: []
         };
+        updateLastSyncState(state);
       }
-      updateLastSyncState(state);
-      persistLastPulledCloudTs(state._lastModified || 0);
+      persistLastPulledCloudTs((cloudData && cloudData._lastModified) || localTs);
+      await persistStateCacheAfterCloudPull(state);
       recalculateAccounting(false);
       updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
     }
     if (typeof rescueLocalOnlyItems === "function") {
       await rescueLocalOnlyItems();
     }
-    isStartupPullCompleted = true;
+    finishStartupPull();
     console.log("[CloudSync] Khởi chạy hoàn tất. Đã bật quyền pushToCloud.");
   } catch (err) {
     if (typeof addErrorLog === "function") {
@@ -1006,7 +1357,7 @@ async function pullFromCloudOnStartup() {
     showToast("Không thể tải dữ liệu đám mây khi khởi động. Hãy kiểm tra Internet hoặc máy chủ.", "danger");
     updateCloudSyncBadge(false, "Mây: Lỗi kết nối", "#ef4444");
     // Vẫn bật isStartupPullCompleted để cho phép push hoạt động (dùng dữ liệu local)
-    isStartupPullCompleted = true;
+    finishStartupPull();
   }
 }
 
@@ -1112,7 +1463,7 @@ function manualIncrementalSync() {
 
   updateCloudSyncBadge(false, "Mây: Đang tải...", "#f59e0b");
 
-  pullAndMergeFromCloud()
+  pullAndMergeFromCloud({ reason: "manual", retryFullIfNoChanges: true })
     .then(() => {
       showToast("Đồng bộ dữ liệu mới thành công!", "success");
     })
@@ -1554,7 +1905,8 @@ function computeDelta() {
 async function pushToCloud() {
   if (!cloudSyncActive || !supabaseClient) return;
   if (!isStartupPullCompleted) {
-    console.log("[CloudSync] Bỏ qua pushToCloud vì quá trình startup pull chưa hoàn tất.");
+    pushAfterStartupPull = true;
+    console.log("[CloudSync] Hoan pushToCloud vi startup pull chua hoan tat; se day sau khi pull xong.");
     return;
   }
   if (isPushing) {
@@ -1574,11 +1926,12 @@ async function pushToCloud() {
       state._lastModified = Date.now();
     }
 
-    const { products, partners, vouchers, ...localMeta } = state;
+    const { products, partners, vouchers, _lastPulledCloudTs, ...localMeta } = state;
     localMeta.lastModifiedBy = clientSessionId;
 
     // Lấy metadata hiện tại trên cloud để gộp tránh ghi đè các thay đổi song song
     let finalMetadata = localMeta;
+    let currentCloudMetadataTs = 0;
     try {
       const { data: cloudMetaRow, error: cloudMetaErr } = await supabaseClient
         .from("rd_accounting_data")
@@ -1589,6 +1942,7 @@ async function pushToCloud() {
       if (!cloudMetaErr && cloudMetaRow && cloudMetaRow.data) {
         const cloudMeta = cloudMetaRow.data;
         const cloudTs = cloudMetaRow.last_modified || 0;
+        currentCloudMetadataTs = Number(cloudTs) || 0;
         const localTs = state._lastModified || Date.now();
         finalMetadata = mergeMetadata(localMeta, cloudMeta, localTs, cloudTs);
         
@@ -1606,6 +1960,12 @@ async function pushToCloud() {
     } catch (metaFetchErr) {
       console.warn("[pushToCloud] Không thể đọc/gộp metadata từ cloud, sẽ ghi đè trực tiếp:", metaFetchErr);
     }
+
+    const pushTs = getMonotonicCloudPushTs(state._lastModified, currentCloudMetadataTs);
+    state._lastModified = pushTs;
+    localMeta._lastModified = pushTs;
+    finalMetadata._lastModified = pushTs;
+    finalMetadata.lastModifiedBy = clientSessionId;
 
     // 1. Đẩy cờ is_syncing = true lên metadata trước
     await supabaseClient
@@ -1743,8 +2103,12 @@ async function pullAndMergeFromCloud(options = {}) {
   pullPending = false;
 
   try {
-    const checkpointTs = getPullCheckpointTs();
-    const result = await fetchCloudData(checkpointTs);
+    const checkpointTs = options.forceFull ? 0 : getPullCheckpointTs();
+    let result = await fetchCloudData(checkpointTs);
+    if (!result && options.retryFullIfNoChanges && checkpointTs > 0) {
+      console.warn("[CloudSync] Incremental sync khong co thay doi; thu full pull de sua checkpoint co the bi lech.");
+      result = await fetchCloudData(0);
+    }
     if (!result) {
       updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
       return; // không có gì mới
@@ -1771,17 +2135,7 @@ async function pullAndMergeFromCloud(options = {}) {
       updateLastSyncState(newLastSyncState);
       persistLastPulledCloudTs(cloudData._lastModified || checkpointTs);
 
-      // Ghi cache cục bộ (cập nhật SQLite cache qua Electron IPC)
-      try {
-        const saveFn = typeof saveStateSync === "function" ? saveStateSync : (typeof window.saveStateSync === "function" ? window.saveStateSync : null);
-        if (saveFn) {
-          saveFn();
-        } else {
-          localStorage.setItem("rd_accounting_online_cache", JSON.stringify(state));
-        }
-      } catch (cacheErr) {
-        console.error("[Cache] Lỗi ghi cache cục bộ:", cacheErr);
-      }
+      await persistStateCacheAfterCloudPull(state);
 
       // Giải quyết xung đột ID nếu có
       if (rescuedVouchers.length > 0) {
@@ -1820,6 +2174,8 @@ async function pullAndMergeFromCloud(options = {}) {
 function listenToCloudChanges() {
   if (!cloudSyncActive || !supabaseClient) return;
 
+  stopRealtimeReconnect();
+
   // Đóng kênh cũ nếu có
   if (realtimeChannel) {
     supabaseClient.removeChannel(realtimeChannel);
@@ -1830,7 +2186,7 @@ function listenToCloudChanges() {
     .on(
       "postgres_changes",
       {
-        event: "UPDATE",
+        event: "*",
         schema: "public",
         table: "rd_accounting_data",
         filter: "id=eq.metadata"
@@ -1848,26 +2204,28 @@ function listenToCloudChanges() {
         }
 
         // Bỏ qua nếu máy trạm khác đang đẩy dữ liệu (tránh đọc dữ liệu dở dang)
-        if (row.is_syncing) return;
+        if (isCloudSyncLockActive(row, "realtime")) return;
 
         const cloudTs = row.last_modified || 0;
         const localTs = getPullCheckpointTs();
-        const CLOCK_TOLERANCE_MS = 2000; // 2 giây dung sai đồng hồ giữa các máy
-        if (cloudTs > 0 && localTs > 0 && cloudTs < localTs - CLOCK_TOLERANCE_MS) {
-          // Cloud thực sự cũ hơn local rõ ràng (cách nhau > 2s), bỏ qua
-          return;
+        const forceFull = cloudTs > 0 && localTs > 0 && cloudTs <= localTs;
+        if (forceFull) {
+          console.warn(`[Supabase Realtime] Cloud metadata (${cloudTs}) khong vuot checkpoint local (${localTs}); full pull de phuc hoi checkpoint/realtime.`);
         }
 
         // Kéo toàn bộ dữ liệu mới từ cloud về để merge
-        scheduleCloudPull("realtime");
+        scheduleCloudPull("realtime", { forceFull });
       }
     )
     .subscribe((status) => {
       if (status === "SUBSCRIBED") {
         console.log("[Supabase Realtime] Đã đăng ký lắng nghe thay đổi thành công!");
-      } else if (status === "CHANNEL_ERROR") {
-        console.error("[Supabase Realtime] Lỗi kênh realtime!");
-        updateCloudSyncBadge(false, "Mây: Lỗi realtime", "#ef4444");
+        checkCloudMetadataForChanges("realtime-subscribed");
+      } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+        console.error(`[Supabase Realtime] Channel status: ${status}`);
+        updateCloudSyncBadge(false, "May: Realtime fallback polling", "#f59e0b");
+        startCloudMetadataPolling();
+        reconnectRealtimeLater(status);
       }
     });
 }
@@ -1931,6 +2289,8 @@ window.manualIncrementalSync = manualIncrementalSync;
 window.updateCloudSyncBadge = updateCloudSyncBadge;
 window.flushDeferredCloudSync = flushDeferredCloudSync;
 window.isVoucherEntryModalOpen = isVoucherEntryModalOpen;
+window.getCloudSafeVoucherId = getCloudSafeVoucherId;
+window.ensureCloudSafeVoucherIdForSave = ensureCloudSafeVoucherIdForSave;
 window.__syncInternals__ = {
   stableStringifyForSync,
   areVouchersEqual,
@@ -1939,10 +2299,26 @@ window.__syncInternals__ = {
   getStoredLastPulledCloudTs,
   persistLastPulledCloudTs,
   getPullCheckpointTs,
+  getStartupPullCheckpointTs,
+  getLegacyStartupCheckpointTs,
+  getMonotonicCloudPushTs,
+  parseVoucherSequenceNumber,
+  formatVoucherSequenceId,
+  getMaxVoucherSequenceFromRows,
+  fetchCloudMaxVoucherSequence,
+  fetchCloudMaxVoucherSequenceForPrefixes,
+  tryReserveCloudVoucherId,
+  getCloudSafeVoucherId,
+  ensureCloudSafeVoucherIdForSave,
   isVoucherEntryModalOpen,
+  prepareStartupCloudState,
+  finishStartupPull,
   startCloudMetadataPolling,
   stopCloudMetadataPolling,
+  stopRealtimeReconnect,
   checkCloudMetadataForChanges,
+  isCloudSyncLockActive,
+  listenToCloudChanges,
   fetchExistingCloudIdsByKeysFromClient
 };
 

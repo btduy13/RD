@@ -5,6 +5,54 @@
 
 // Trạng thái phiên làm việc hiện tại
 window.currentUser = null;
+const AUTH_SESSION_KEY = "rd_accounting_auth_session";
+let authBootSessionIdCache = null;
+
+async function getAuthBootSessionId() {
+  if (authBootSessionIdCache) return authBootSessionIdCache;
+  try {
+    if (window.electronAPI && typeof window.electronAPI.getBootSessionId === "function") {
+      authBootSessionIdCache = await window.electronAPI.getBootSessionId();
+      return authBootSessionIdCache;
+    }
+  } catch (err) {
+    console.error("[Auth] Không thể đọc phiên khởi động máy:", err);
+  }
+  authBootSessionIdCache = "browser-session";
+  return authBootSessionIdCache;
+}
+
+function readSavedAuthSession() {
+  try {
+    const raw = localStorage.getItem(AUTH_SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    console.error("[Auth] Không thể đọc phiên đăng nhập:", err);
+    return null;
+  }
+}
+
+async function saveAuthSession(user) {
+  if (!user || !user.username) return;
+  try {
+    const bootSessionId = await getAuthBootSessionId();
+    localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({
+      username: user.username,
+      bootSessionId,
+      savedAt: Date.now()
+    }));
+  } catch (err) {
+    console.error("[Auth] Không thể lưu phiên đăng nhập:", err);
+  }
+}
+
+function clearAuthSession() {
+  try {
+    localStorage.removeItem(AUTH_SESSION_KEY);
+  } catch (err) {
+    console.error("[Auth] Không thể xóa phiên đăng nhập:", err);
+  }
+}
 
 // Khởi chạy hệ thống Auth khi ứng dụng nạp xong dữ liệu
 async function initAuth() {
@@ -40,6 +88,21 @@ async function initAuth() {
     saveState();
   }
   
+  const savedSession = readSavedAuthSession();
+  const bootSessionId = await getAuthBootSessionId();
+  if (savedSession && savedSession.username && savedSession.bootSessionId === bootSessionId) {
+    const savedUser = users.find(u => u.username && u.username.toLowerCase() === String(savedSession.username).toLowerCase());
+    if (savedUser) {
+      window.currentUser = savedUser;
+      hideLoginOverlay();
+      applyRolePermissions();
+      return;
+    }
+    clearAuthSession();
+  } else if (savedSession) {
+    clearAuthSession();
+  }
+
   // Hiển thị màn hình đăng nhập tiêu chuẩn
   showLoginForm();
 }
@@ -71,26 +134,42 @@ function showLoginForm() {
   overlay.innerHTML = `
     <div class="login-card">
       <div class="login-header">
-        <img src="logo.jpg" alt="Logo" class="login-logo">
-        <h2 class="login-title">KẾ TOÁN RẠNG ĐÔNG</h2>
-        <p class="login-subtitle">Hệ thống Quản lý và Hạch toán độc lập</p>
+        <div class="login-logo-frame">
+          <img src="logo.jpg" alt="Logo Rạng Đông" class="login-logo">
+        </div>
+        <span class="login-eyebrow">RD Accounting</span>
+        <h2 class="login-title">Kế toán Rạng Đông</h2>
+        <p class="login-subtitle">Đăng nhập để tiếp tục phiên làm việc</p>
       </div>
       
       <div id="login-error" class="login-error-msg" style="display: none;"></div>
       
-      <form id="login-form-submit" onsubmit="submitLogin(event)">
-        <div class="form-group" style="margin-bottom: 14px;">
-          <label class="form-label" style="color: rgba(255,255,255,0.7);">Tên của bạn (Tên đăng nhập)</label>
-          <input type="text" id="login-username" class="form-control login-input" required placeholder="Nhập tên..." autofocus style="background: rgba(255,255,255,0.08); color: white; border-color: rgba(255,255,255,0.15);" oninput="handleUsernameInput(this)">
+      <form id="login-form-submit" class="login-form" onsubmit="submitLogin(event)">
+        <div class="login-field">
+          <label class="login-label" for="login-username">Tên đăng nhập</label>
+          <div class="login-input-shell">
+            <svg class="login-input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.75 7.5a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a8.25 8.25 0 0115 0"></path>
+            </svg>
+            <input type="text" id="login-username" class="login-input" required placeholder="Nhập tên đăng nhập" autocomplete="username" autofocus oninput="handleUsernameInput(this)">
+          </div>
         </div>
         
-        <div id="login-password-group" class="form-group" style="margin-bottom: 24px; display: none;">
-          <label class="form-label" style="color: rgba(255,255,255,0.7);">Mật khẩu Admin</label>
-          <input type="password" id="login-password" class="form-control login-input" placeholder="Mật khẩu..." style="background: rgba(255,255,255,0.08); color: white; border-color: rgba(255,255,255,0.15);">
+        <div id="login-password-group" class="login-field" style="display: none;">
+          <label class="login-label" for="login-password">Mật khẩu Admin</label>
+          <div class="login-input-shell">
+            <svg class="login-input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.5 10.5V7.75a4.5 4.5 0 00-9 0v2.75M6.75 10.5h10.5a1.5 1.5 0 011.5 1.5v6.25a1.5 1.5 0 01-1.5 1.5H6.75a1.5 1.5 0 01-1.5-1.5V12a1.5 1.5 0 011.5-1.5z"></path>
+            </svg>
+            <input type="password" id="login-password" class="login-input" placeholder="Nhập mật khẩu" autocomplete="current-password">
+          </div>
         </div>
         
-        <button type="submit" class="btn btn-primary" style="width: 100%; height: 42px; font-weight: 600;">
-          ĐĂNG NHẬP
+        <button type="submit" class="login-submit-btn">
+          <span>Đăng nhập</span>
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"></path>
+          </svg>
         </button>
       </form>
     </div>
@@ -121,7 +200,7 @@ function showRegisterError(msg) {
 }
 
 // Xử lý sự kiện đăng nhập
-function submitLogin(event) {
+async function submitLogin(event) {
   if (event) event.preventDefault();
   
   const usernameEl = document.getElementById('login-username');
@@ -150,6 +229,7 @@ function submitLogin(event) {
         state.users.push(defaultAdmin);
         saveState();
         window.currentUser = defaultAdmin;
+        await saveAuthSession(defaultAdmin);
         hideLoginOverlay();
         applyRolePermissions();
         logUserAction("Đăng nhập", "Người dùng Quản trị viên (admin) đã đăng nhập thành công.");
@@ -162,6 +242,7 @@ function submitLogin(event) {
 
     if (adminUser.password === password) {
       window.currentUser = adminUser;
+      await saveAuthSession(adminUser);
       hideLoginOverlay();
       applyRolePermissions();
       logUserAction("Đăng nhập", "Người dùng Quản trị viên (admin) đã đăng nhập thành công.");
@@ -187,6 +268,7 @@ function submitLogin(event) {
     }
     
     window.currentUser = user;
+    await saveAuthSession(user);
     hideLoginOverlay();
     applyRolePermissions();
     logUserAction("Đăng nhập", `Người dùng ${user.name} (${user.username}) đã đăng nhập thành công.`);
@@ -203,6 +285,7 @@ function logoutUser() {
     logUserAction("Đăng xuất", `Người dùng ${window.currentUser.name} (${window.currentUser.username}) đã đăng xuất.`);
   }
   window.currentUser = null;
+  clearAuthSession();
   showLoginForm();
   applyRolePermissions();
   if (typeof showToast === 'function') {
@@ -370,6 +453,7 @@ function saveUserFromModal() {
     
     if (window.currentUser && window.currentUser.username === username) {
       window.currentUser = user;
+      saveAuthSession(user);
     }
     
     logUserAction("Sửa tài khoản", `Đã cập nhật tài khoản: ${username} (${name})`);

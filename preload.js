@@ -4,6 +4,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   // Trả về phiên bản hiện tại từ package.json
   getLocalVersion: () => ipcRenderer.invoke('get-local-version'),
+  getBootSessionId: () => ipcRenderer.invoke('get-boot-session-id'),
   // Mở URL bên ngoài bằng trình duyệt mặc định
   openExternalUrl: (url) => ipcRenderer.invoke('open-external-url', url),
   // Mở trang tải bộ cài mới (GitHub Releases) trong trình duyệt

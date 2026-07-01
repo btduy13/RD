@@ -206,6 +206,9 @@ function saveCloudConfig(e) {
       if (typeof stopCloudMetadataPolling === "function") {
         stopCloudMetadataPolling();
       }
+      if (typeof stopRealtimeReconnect === "function") {
+        stopRealtimeReconnect();
+      }
       cloudSyncActive = false;
       const forcePullBtn = document.getElementById("btn-force-pull");
       if (forcePullBtn) forcePullBtn.style.display = "none";

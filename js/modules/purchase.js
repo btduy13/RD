@@ -422,7 +422,7 @@ function resetPurchaseForm() {
 }
 
 // Xử lý nộp form Mua hàng
-function handlePurchaseSubmit(e) {
+async function handlePurchaseSubmit(e) {
   e.preventDefault();
 
   const modal = document.getElementById("modal-add-purchase");
@@ -499,6 +499,36 @@ function handlePurchaseSubmit(e) {
 
   if (hasError) return;
 
+  if (!editingPurchaseId || voucherId !== editingPurchaseId) {
+    if (purchaseSubmitInProgress) {
+      showToast("Đang kiểm tra số chứng từ trên cloud, vui lòng chờ...", "info");
+      return;
+    }
+
+    purchaseSubmitInProgress = true;
+    try {
+      if (typeof ensureCloudSafeVoucherIdForSave === "function") {
+        voucherId = await ensureCloudSafeVoucherIdForSave({
+          currentId: voucherId,
+          editingId: editingPurchaseId,
+          prefix: "NK",
+          fallbackBase: 8459,
+          padLength: 5,
+          inputEl: inputIdEl
+        });
+      }
+    } catch (err) {
+      console.error("[Purchase] Không thể kiểm tra số chứng từ trên cloud:", err);
+      if (typeof addErrorLog === "function") {
+        addErrorLog("handlePurchaseSubmit.cloudSafeId", err.message, err);
+      }
+      showToast("Không thể kiểm tra số chứng từ trên cloud. Vui lòng thử lại trước khi ghi sổ.", "danger");
+      return;
+    } finally {
+      purchaseSubmitInProgress = false;
+    }
+  }
+
   const paymentMethod = document.getElementById("pur-payment").value;
   const newVoucher = {
     id: voucherId,
@@ -553,6 +583,8 @@ function handlePurchaseSubmit(e) {
 }
 let editingPurchaseId = null;
 let editingPurchaseOrderId = null;
+let purchaseSubmitInProgress = false;
+let purchaseOrderSubmitInProgress = false;
 
 function generateNextPurchaseVoucherId(paymentMethod) {
   const prefix = "NK";
@@ -1116,7 +1148,7 @@ function resetPurchaseOrderForm() {
   }, 60);
 }
 
-function handlePurchaseOrderSubmit(e) {
+async function handlePurchaseOrderSubmit(e) {
   e.preventDefault();
 
   const modal = document.getElementById("modal-add-purchase-order");
@@ -1191,6 +1223,37 @@ function handlePurchaseOrderSubmit(e) {
   }
 
   if (hasError) return;
+
+  if (!editingPurchaseOrderId || voucherId !== editingPurchaseOrderId) {
+    if (purchaseOrderSubmitInProgress) {
+      showToast("Đang kiểm tra số chứng từ trên cloud, vui lòng chờ...", "info");
+      return;
+    }
+
+    purchaseOrderSubmitInProgress = true;
+    try {
+      if (typeof ensureCloudSafeVoucherIdForSave === "function") {
+        voucherId = await ensureCloudSafeVoucherIdForSave({
+          currentId: voucherId,
+          editingId: editingPurchaseOrderId,
+          prefix: "ĐMH",
+          prefixes: ["ĐMH", "DMH"],
+          fallbackBase: 0,
+          padLength: 5,
+          inputEl: inputIdEl
+        });
+      }
+    } catch (err) {
+      console.error("[PurchaseOrder] Không thể kiểm tra số chứng từ trên cloud:", err);
+      if (typeof addErrorLog === "function") {
+        addErrorLog("handlePurchaseOrderSubmit.cloudSafeId", err.message, err);
+      }
+      showToast("Không thể kiểm tra số chứng từ trên cloud. Vui lòng thử lại trước khi ghi sổ.", "danger");
+      return;
+    } finally {
+      purchaseOrderSubmitInProgress = false;
+    }
+  }
 
   const paymentMethod = document.getElementById("pur-order-payment").value;
   const newVoucher = {
@@ -2078,8 +2141,9 @@ function resetPurchaseReturnForm() {
 }
 
 let editingPurchaseReturnId = null;
+let purchaseReturnSubmitInProgress = false;
 
-function handlePurchaseReturnSubmit(e) {
+async function handlePurchaseReturnSubmit(e) {
   e.preventDefault();
 
   const modal = document.getElementById("modal-add-purchase-return");
@@ -2154,6 +2218,36 @@ function handlePurchaseReturnSubmit(e) {
   }
 
   if (hasError) return;
+
+  if (!editingPurchaseReturnId || voucherId !== editingPurchaseReturnId) {
+    if (purchaseReturnSubmitInProgress) {
+      showToast("Đang kiểm tra số chứng từ trên cloud, vui lòng chờ...", "info");
+      return;
+    }
+
+    purchaseReturnSubmitInProgress = true;
+    try {
+      if (typeof ensureCloudSafeVoucherIdForSave === "function") {
+        voucherId = await ensureCloudSafeVoucherIdForSave({
+          currentId: voucherId,
+          editingId: editingPurchaseReturnId,
+          prefix: "MTL",
+          fallbackBase: 8459,
+          padLength: 5,
+          inputEl: inputIdEl
+        });
+      }
+    } catch (err) {
+      console.error("[PurchaseReturn] Không thể kiểm tra số chứng từ trên cloud:", err);
+      if (typeof addErrorLog === "function") {
+        addErrorLog("handlePurchaseReturnSubmit.cloudSafeId", err.message, err);
+      }
+      showToast("Không thể kiểm tra số chứng từ trên cloud. Vui lòng thử lại trước khi ghi sổ.", "danger");
+      return;
+    } finally {
+      purchaseReturnSubmitInProgress = false;
+    }
+  }
 
   const paymentMethod = document.getElementById("ret-payment").value;
   const newVoucher = {

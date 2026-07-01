@@ -5,7 +5,7 @@
 
 -- 1. Tạo bảng chính lưu trữ toàn bộ dữ liệu kế toán
 CREATE TABLE IF NOT EXISTS rd_accounting_data (
-  id TEXT PRIMARY KEY DEFAULT 'main',
+  id TEXT PRIMARY KEY DEFAULT 'metadata',
   data JSONB NOT NULL DEFAULT '{}',
   last_modified BIGINT DEFAULT 0,
   is_syncing BOOLEAN DEFAULT false,
@@ -13,11 +13,24 @@ CREATE TABLE IF NOT EXISTS rd_accounting_data (
 );
 
 -- 2. Bật Realtime cho bảng này (để đồng bộ thời gian thực giữa nhiều máy)
-ALTER PUBLICATION supabase_realtime ADD TABLE rd_accounting_data;
+ALTER TABLE rd_accounting_data REPLICA IDENTITY FULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'rd_accounting_data'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.rd_accounting_data;
+  END IF;
+END $$;
 
 -- 3. Tạo bản ghi chính đầu tiên (nếu chưa có)
 INSERT INTO rd_accounting_data (id, data, last_modified, is_syncing)
-VALUES ('main', '{}', 0, false)
+VALUES ('metadata', '{}', 0, false)
 ON CONFLICT (id) DO NOTHING;
 
 -- 4. Cấp quyền cho anon user (public access, tương tự Firebase open rules)
@@ -38,4 +51,3 @@ CREATE POLICY "Allow public delete" ON rd_accounting_data
 
 -- 5. Tạo index cho last_modified để tối ưu hóa truy vấn delta sync, tránh timeout
 CREATE INDEX IF NOT EXISTS idx_rd_accounting_data_last_modified ON rd_accounting_data(last_modified);
-
