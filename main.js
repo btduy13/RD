@@ -13,7 +13,7 @@ let mainWindow;
 // ===========================================================================
 // AUTO-BACKUP: Tự động lưu file backup JSON vào thư mục backup/ khi đóng app
 // ===========================================================================
-const BACKUP_DIR = path.join(__dirname, 'backup');
+const BACKUP_DIR = path.join(app.getPath('userData'), 'backup');
 const MAX_BACKUP_FILES = 30; // Giữ tối đa 30 bản sao lưu gần nhất
 
 function ensureBackupDir() {
@@ -249,7 +249,7 @@ ipcMain.handle('get-backup-dir', () => {
 
 ipcMain.handle('write-log', async (event, content) => {
   try {
-    const logPath = path.join(__dirname, 'sync_debug.log');
+    const logPath = path.join(app.getPath('userData'), 'sync_debug.log');
     fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${content}\n`, 'utf8');
     return { ok: true };
   } catch (err) {
@@ -469,9 +469,9 @@ ipcMain.handle('print-to-pdf', async (event, filename) => {
 // IPC HANDLERS: LƯU/ĐỌC STATE FILE BẰNG SQLITE CỤC BỘ (THAY THẾ JSON FILE)
 // ===========================================================================
 
-const STATE_FILE_PATH = path.join(__dirname, 'data', 'rd_state.json');
-const STATE_DIR_PATH = path.join(__dirname, 'data');
+const STATE_DIR_PATH = path.join(app.getPath('userData'), 'data');
 const STATE_DB_PATH = path.join(STATE_DIR_PATH, 'rd_local.db');
+const STATE_FILE_PATH = path.join(STATE_DIR_PATH, 'rd_state.json');
 
 const Database = require('better-sqlite3');
 let db = null;
@@ -483,9 +483,53 @@ function ensureStateDir() {
   }
 }
 
+// Di trú dữ liệu từ thư mục cài đặt cũ (nếu có) sang thư mục AppData mới
+function migrateFromOldPathsIfNecessary() {
+  try {
+    ensureStateDir();
+    ensureBackupDir();
+
+    // 1. Di trú CSDL SQLite (rd_local.db)
+    const oldDbPath = path.join(__dirname, 'data', 'rd_local.db');
+    if (fs.existsSync(oldDbPath) && !fs.existsSync(STATE_DB_PATH)) {
+      console.log('[SQLiteStore] Phát hiện CSDL cũ tại thư mục cài đặt. Di chuyển sang AppData...');
+      fs.copyFileSync(oldDbPath, STATE_DB_PATH);
+      console.log('[SQLiteStore] Đã sao chép rd_local.db sang AppData thành công.');
+    }
+
+    // 2. Di trú file state JSON cũ (rd_state.json)
+    const oldJsonPath = path.join(__dirname, 'data', 'rd_state.json');
+    if (fs.existsSync(oldJsonPath) && !fs.existsSync(STATE_FILE_PATH)) {
+      console.log('[SQLiteStore] Phát hiện file rd_state.json cũ tại thư mục cài đặt. Di chuyển sang AppData...');
+      fs.copyFileSync(oldJsonPath, STATE_FILE_PATH);
+      console.log('[SQLiteStore] Đã sao chép rd_state.json sang AppData thành công.');
+    }
+
+    // 3. Di trú các bản sao lưu từ thư mục cài đặt/backup cũ sang AppData/backup mới
+    const oldBackupDir = path.join(__dirname, 'backup');
+    if (fs.existsSync(oldBackupDir)) {
+      const files = fs.readdirSync(oldBackupDir);
+      files.forEach(f => {
+        const oldF = path.join(oldBackupDir, f);
+        const newF = path.join(BACKUP_DIR, f);
+        if (fs.existsSync(oldF) && !fs.existsSync(newF)) {
+          try {
+            fs.copyFileSync(oldF, newF);
+          } catch (e) {
+            console.error('[Migration] Không thể copy backup file:', f, e);
+          }
+        }
+      });
+    }
+  } catch (err) {
+    console.error('[Migration] Lỗi khi thực hiện di trú thư mục dữ liệu:', err);
+  }
+}
+
 // Khởi tạo SQLite database cục bộ
 function initDatabase() {
   try {
+    migrateFromOldPathsIfNecessary();
     ensureStateDir();
     db = new Database(STATE_DB_PATH);
     

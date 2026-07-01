@@ -60,8 +60,7 @@
       "xlsx.full.min.js",
       "prepopulated_database.js",
       "package.json",
-      "excel/**",
-      "data/**"
+      "excel/**"
     ]
   }
 }
