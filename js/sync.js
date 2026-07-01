@@ -1581,15 +1581,22 @@ function mergeMetadata(localMeta, cloudMeta, localTs, cloudTs) {
   const localOP = localMeta.partnerOpeningBalances || {};
   const cloudOP = cloudMeta.partnerOpeningBalances || {};
   const mergedOP = { ...cloudOP };
-  
+
+  // [Fix 2.8.9] Dùng originalStateLastModified (timestamp thực sự của dữ liệu local trước khi
+  // startup migration chạy và đẩy _lastModified lên) để so sánh partnerOpeningBalances.
+  // Nếu dữ liệu local thực sự cũ hơn cloud → cloud wins, tránh opening balances cũ ghi đè mới.
+  const safeLocalTs = (typeof window !== 'undefined' && window.originalStateLastModified)
+    ? window.originalStateLastModified
+    : localTs;
+
   const allPartnerIds = new Set([...Object.keys(localOP), ...Object.keys(cloudOP)]);
   allPartnerIds.forEach(id => {
     const locVal = localOP[id];
     const cldVal = cloudOP[id];
     if (locVal && cldVal) {
-      // Nếu khác nhau, bên nào có state timestamp mới hơn sẽ thắng
+      // Nếu khác nhau, bên nào có state timestamp gốc mới hơn sẽ thắng
       if (JSON.stringify(locVal) !== JSON.stringify(cldVal)) {
-        mergedOP[id] = localTs >= cloudTs ? locVal : cldVal;
+        mergedOP[id] = safeLocalTs >= cloudTs ? locVal : cldVal;
       } else {
         mergedOP[id] = locVal;
       }
@@ -1646,12 +1653,11 @@ function mergeStates(localState, cloudState) {
   const cloudTs = cloudState._lastModified || 0;
   const localTs = localState._lastModified || 0;
 
-  // Nếu cloud cũ hơn local quá 30 phút → local wins hoàn toàn (tăng từ 5 lên 30 phút để an toàn hơn)
-  // Chú ý: KHÔNG shortcircuit khi chênh lệch nhỏ vì local có thể có voucher mới chưa kịp push
-  if (localTs - cloudTs > 30 * 60 * 1000) {
-    console.log("[SmartMerge] Local mới hơn cloud >30 phút → local wins.");
-    return { ...localState };
-  }
+  // [Fix 2.8.9] Đã xóa shortcircuit "local > 30 phút → local wins hoàn toàn".
+  // Shortcircuit này nguy hiểm: máy phụ startup với dữ liệu cũ → startup migration
+  // đẩy _lastModified lên ngày hiện tại → localTs - cloudTs >> 30 phút
+  // → toàn bộ state cũ (sai) ghi đè cloud, bao gồm partnerOpeningBalances sai.
+  // Luôn merge từng entity theo _updatedAt riêng lẻ — an toàn hơn và đúng đắn hơn.
 
   // Tách metadata và các mảng thực thể
   const { vouchers: lV, cashEntries: lC, partners: lP, escrowItems: lE, products: lPr, ...localMeta } = localState;
@@ -1944,8 +1950,22 @@ async function pushToCloud() {
         const cloudTs = cloudMetaRow.last_modified || 0;
         currentCloudMetadataTs = Number(cloudTs) || 0;
         const localTs = state._lastModified || Date.now();
-        finalMetadata = mergeMetadata(localMeta, cloudMeta, localTs, cloudTs);
-        
+
+        // [Fix 2.8.9] Guard push: Nếu dữ liệu local CŨ HƠN cloud (máy này startup với dữ liệu cũ
+        // chưa pull về), đảm bảo partnerOpeningBalances của cloud (mới hơn) sẽ thắng.
+        // Dùng originalStateLastModified (timestamp trước startup) để phán xét đúng.
+        const originalLocalTs = (typeof window !== 'undefined' && window.originalStateLastModified)
+          ? window.originalStateLastModified
+          : localTs;
+        if (originalLocalTs > 0 && currentCloudMetadataTs > 0 && originalLocalTs < currentCloudMetadataTs) {
+          console.warn(`[pushToCloud] Local gốc (${originalLocalTs}) cũ hơn cloud (${currentCloudMetadataTs}): ` +
+            `sẽ dùng partnerOpeningBalances từ cloud để tránh ghi đè dữ liệu mới hơn.`);
+          // Merge với cloudTs cao hơn originalLocalTs → mergeMetadata sẽ cho cloud wins ở opening balances
+          finalMetadata = mergeMetadata(localMeta, cloudMeta, originalLocalTs, cloudTs);
+        } else {
+          finalMetadata = mergeMetadata(localMeta, cloudMeta, localTs, cloudTs);
+        }
+
         // Cập nhật lại vào state cục bộ để đồng nhất và ghi vào SQLite
         if (finalMetadata.partnerOpeningBalances) {
           state.partnerOpeningBalances = finalMetadata.partnerOpeningBalances;
