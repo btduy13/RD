@@ -2082,10 +2082,11 @@ async function pushToCloud() {
       if (batchError) throw batchError;
     }
 
-    // 4. Thực hiện xóa các dòng bị loại bỏ theo lô 1000 dòng
+    // 4. Thực hiện xóa các dòng bị loại bỏ theo lô 100 dòng (DELETE request - giới hạn URI)
+    const DELETE_BATCH_SIZE = 100;
     if (idsToDelete.length > 0) {
-      for (let i = 0; i < idsToDelete.length; i += BATCH_SIZE) {
-        const batch = idsToDelete.slice(i, i + BATCH_SIZE);
+      for (let i = 0; i < idsToDelete.length; i += DELETE_BATCH_SIZE) {
+        const batch = idsToDelete.slice(i, i + DELETE_BATCH_SIZE);
         const { error: deleteError } = await supabaseClient
           .from("rd_accounting_data")
           .delete()
@@ -2101,8 +2102,8 @@ async function pushToCloud() {
     ];
     if (lockIdsToDelete.length > 0) {
       console.log(`[CloudSync] Dọn dẹp ${lockIdsToDelete.length} locks tương ứng khỏi Supabase...`);
-      for (let i = 0; i < lockIdsToDelete.length; i += BATCH_SIZE) {
-        const batch = lockIdsToDelete.slice(i, i + BATCH_SIZE);
+      for (let i = 0; i < lockIdsToDelete.length; i += DELETE_BATCH_SIZE) {
+        const batch = lockIdsToDelete.slice(i, i + DELETE_BATCH_SIZE);
         const { error: lockDeleteError } = await supabaseClient
           .from("rd_accounting_data")
           .delete()
@@ -2362,25 +2363,29 @@ function updateCloudSyncBadge(connected, text, color = "#64748b") {
 async function fetchExistingCloudIdsByKeysFromClient(client, keys) {
   const existing = new Set();
   const uniqueKeys = Array.from(new Set((keys || []).filter(Boolean)));
-  const BATCH_SIZE = 2000;
-  const promises = [];
-
+  const BATCH_SIZE = 100;
+  const CONCURRENCY = 15;
+  
+  const batches = [];
   for (let i = 0; i < uniqueKeys.length; i += BATCH_SIZE) {
-    const batch = uniqueKeys.slice(i, i + BATCH_SIZE);
-    promises.push(
+    batches.push(uniqueKeys.slice(i, i + BATCH_SIZE));
+  }
+
+  for (let i = 0; i < batches.length; i += CONCURRENCY) {
+    const slice = batches.slice(i, i + CONCURRENCY);
+    const promises = slice.map(batch =>
       client
         .from("rd_accounting_data")
         .select("id")
         .in("id", batch)
     );
-  }
-
-  const results = await Promise.all(promises);
-  for (const { data, error } of results) {
-    if (error) throw error;
-    (data || []).forEach(row => {
-      if (row && row.id) existing.add(row.id);
-    });
+    const results = await Promise.all(promises);
+    for (const { data, error } of results) {
+      if (error) throw error;
+      (data || []).forEach(row => {
+        if (row && row.id) existing.add(row.id);
+      });
+    }
   }
 
   return existing;

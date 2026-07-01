@@ -470,8 +470,8 @@ async function testRescueLookupIsBatchedAndExact() {
   };
 
   const found = await internals.fetchExistingCloudIdsByKeysFromClient(fakeClient, keys);
-  assert.equal(calls.length, 1, "405 keys should be fetched in 1 exact-key batch");
-  assert.ok(calls.every(batch => batch.length <= 2000), "rescue batches must stay within the configured size");
+  assert.equal(calls.length, 5, "405 keys should be fetched in 5 exact-key batches");
+  assert.ok(calls.every(batch => batch.length <= 100), "rescue batches must stay within the configured size");
   assert.ok(found.has("v_0"));
   assert.ok(found.has("v_400"));
   assert.equal(found.has("v_401"), false);
