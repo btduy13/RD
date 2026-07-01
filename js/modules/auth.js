@@ -17,61 +17,35 @@ async function hashPassword(password, salt) {
 
 // Khởi chạy hệ thống Auth khi ứng dụng nạp xong dữ liệu
 async function initAuth() {
-  const users = state.users || [];
+  let users = state.users || [];
   
   if (users.length === 0) {
-    // Chưa có người dùng nào -> Hiển thị màn hình đăng ký tài khoản Admin tối cao
-    showRegisterAdminForm();
-  } else {
-    // Đã có người dùng -> Hiển thị màn hình đăng nhập tiêu chuẩn
-    showLoginForm();
+    // Tự động khởi tạo tài khoản admin mặc định nếu CSDL trống
+    console.log('[Auth] CSDL chưa có tài khoản nào. Đang tạo tài khoản admin mặc định...');
+    const defaultAdminUsername = 'admin';
+    const defaultAdminPassword = 'admin';
+    const salt = defaultAdminUsername;
+    const defaultHash = await hashPassword(defaultAdminPassword, salt);
+    
+    const defaultAdmin = {
+      username: defaultAdminUsername,
+      passwordHash: defaultHash,
+      name: "Administrator",
+      role: "admin"
+    };
+    
+    state.users = [defaultAdmin];
+    saveState(); // Lưu SQLite & Sync Cloud
+    users = state.users;
   }
+  
+  // Hiển thị màn hình đăng nhập tiêu chuẩn
+  showLoginForm();
 }
 
 // ===========================================================================
-// GIAO DIỆN MÀN HÌNH ĐĂNG NHẬP / ĐĂNG KÝ OVERLAY
+// GIAO DIỆN MÀN HÌNH ĐĂNG NHẬP OVERLAY
 // ===========================================================================
-
-function showRegisterAdminForm() {
-  const overlay = document.getElementById('login-overlay');
-  if (!overlay) return;
-  overlay.style.display = 'flex';
-  overlay.innerHTML = `
-    <div class="login-card">
-      <div class="login-header">
-        <img src="logo.jpg" alt="Logo" class="login-logo">
-        <h2 class="login-title">THIẾT LẬP HỆ THỐNG</h2>
-        <p class="login-subtitle">Vui lòng khởi tạo tài khoản quản trị tối cao (Admin)</p>
-      </div>
-      
-      <div id="register-error" class="login-error-msg" style="display: none;"></div>
-      
-      <div class="form-group" style="margin-bottom: 12px;">
-        <label class="form-label" style="color: rgba(255,255,255,0.7);">Họ và tên</label>
-        <input type="text" id="reg-fullname" class="form-control login-input" placeholder="Nhập họ và tên...">
-      </div>
-      
-      <div class="form-group" style="margin-bottom: 12px;">
-        <label class="form-label" style="color: rgba(255,255,255,0.7);">Tên đăng nhập (User ID)</label>
-        <input type="text" id="reg-username" class="form-control login-input" placeholder="Ví dụ: admin...">
-      </div>
-      
-      <div class="form-group" style="margin-bottom: 12px;">
-        <label class="form-label" style="color: rgba(255,255,255,0.7);">Mật khẩu</label>
-        <input type="password" id="reg-password" class="form-control login-input" placeholder="Nhập mật khẩu...">
-      </div>
-      
-      <div class="form-group" style="margin-bottom: 20px;">
-        <label class="form-label" style="color: rgba(255,255,255,0.7);">Xác nhận mật khẩu</label>
-        <input type="password" id="reg-confirm-password" class="form-control login-input" placeholder="Xác nhận mật khẩu...">
-      </div>
-      
-      <button class="btn btn-primary" onclick="submitRegisterAdmin()" style="width: 100%; height: 42px; font-weight: 600;">
-        KHỞI TẠO & ĐĂNG NHẬP
-      </button>
-    </div>
-  `;
-}
 
 function showLoginForm() {
   const overlay = document.getElementById('login-overlay');
@@ -163,60 +137,6 @@ async function submitLogin(event) {
   }
 }
 
-// Xử lý đăng ký Admin đầu tiên
-async function submitRegisterAdmin() {
-  const fullNameEl = document.getElementById('reg-fullname');
-  const usernameEl = document.getElementById('reg-username');
-  const passwordEl = document.getElementById('reg-password');
-  const confirmPasswordEl = document.getElementById('reg-confirm-password');
-  
-  if (!fullNameEl || !usernameEl || !passwordEl || !confirmPasswordEl) return;
-  
-  const fullName = fullNameEl.value.trim();
-  const username = usernameEl.value.trim();
-  const password = passwordEl.value;
-  const confirmPassword = confirmPasswordEl.value;
-  
-  if (!fullName || !username || !password) {
-    showRegisterError("Vui lòng điền đầy đủ thông tin.");
-    return;
-  }
-  
-  if (username.length < 3) {
-    showRegisterError("Tên đăng nhập phải dài tối thiểu 3 ký tự.");
-    return;
-  }
-  
-  if (password.length < 4) {
-    showRegisterError("Mật khẩu phải dài tối thiểu 4 ký tự.");
-    return;
-  }
-  
-  if (password !== confirmPassword) {
-    showRegisterError("Mật khẩu xác nhận không trùng khớp.");
-    return;
-  }
-  
-  const salt = username.toLowerCase();
-  const passwordHash = await hashPassword(password, salt);
-  
-  const adminUser = {
-    username: username,
-    passwordHash: passwordHash,
-    name: fullName,
-    role: 'admin'
-  };
-  
-  state.users = [adminUser];
-  saveState(); // Lưu database cục bộ & tự động sync mây
-  
-  window.currentUser = adminUser;
-  hideLoginOverlay();
-  applyRolePermissions();
-  if (typeof showToast === 'function') {
-    showToast("Đã khởi tạo tài khoản quản trị tối cao thành công!", "success");
-  }
-}
 
 function logoutUser() {
   window.currentUser = null;
@@ -463,7 +383,6 @@ setInterval(autoTagRoleButtons, 1000);
 // Đăng ký toàn cục các hàm để HTML onclick có thể gọi
 window.initAuth = initAuth;
 window.submitLogin = submitLogin;
-window.submitRegisterAdmin = submitRegisterAdmin;
 window.logoutUser = logoutUser;
 window.showAddUserModal = showAddUserModal;
 window.showEditUserModal = showEditUserModal;
