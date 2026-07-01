@@ -22,6 +22,29 @@ const CLOUD_METADATA_POLL_MIN_GAP_MS = 1500;
 const CLOUD_SYNC_STALE_LOCK_MS = 30 * 60 * 1000;
 const REALTIME_RECONNECT_DELAY_MS = 5000;
 
+function updateStartupStatus(text) {
+  if (typeof document !== "undefined") {
+    const el = document.getElementById("startup-status-text");
+    if (el) {
+      el.textContent = text;
+    }
+  }
+  console.log(`[StartupStatus] ${text}`);
+}
+
+function hideStartupOverlay() {
+  if (typeof document !== "undefined") {
+    const overlay = document.getElementById("app-startup-overlay");
+    if (overlay) {
+      overlay.style.opacity = "0";
+      overlay.style.pointerEvents = "none";
+      setTimeout(() => {
+        overlay.style.display = "none";
+      }, 400);
+    }
+  }
+}
+
 function getStoredLastPulledCloudTs() {
   let storedTs = 0;
   try {
@@ -521,6 +544,7 @@ async function persistStateCacheAfterCloudPull(cacheState = state) {
 
 function finishStartupPull() {
   isStartupPullCompleted = true;
+  hideStartupOverlay();
   if (pushAfterStartupPull) {
     pushAfterStartupPull = false;
     setTimeout(() => {
@@ -546,11 +570,15 @@ function finishStartupPull() {
 function initCloudSync() {
   if (!cloudSyncSettings.enabled) {
     updateCloudSyncBadge(false, "Mây: Tắt", "#64748b");
+    isStartupPullCompleted = true;
+    hideStartupOverlay();
     return;
   }
 
   if (!cloudSyncSettings.supabaseUrl || !cloudSyncSettings.supabaseAnonKey) {
     updateCloudSyncBadge(false, "Mây: Chưa cấu hình", "#ef4444");
+    isStartupPullCompleted = true;
+    hideStartupOverlay();
     return;
   }
 
@@ -562,6 +590,8 @@ function initCloudSync() {
         addErrorLog("initCloudSync", "Thư viện Supabase chưa được tải. Vui lòng kiểm tra Internet.");
       }
       updateCloudSyncBadge(false, "Mây: Không có mạng", "#ef4444");
+      isStartupPullCompleted = true;
+      hideStartupOverlay();
       return;
     }
 
@@ -571,6 +601,8 @@ function initCloudSync() {
       addErrorLog("initCloudSync", err.message, err);
     }
     updateCloudSyncBadge(false, "Mây: Lỗi kết nối", "#ef4444");
+    isStartupPullCompleted = true;
+    hideStartupOverlay();
   }
 }
 
@@ -632,6 +664,8 @@ async function startSupabaseClient() {
       addErrorLog("startSupabaseClient", err.message, err);
     }
     updateCloudSyncBadge(false, "Mây: Lỗi khởi tạo", "#ef4444");
+    isStartupPullCompleted = true;
+    hideStartupOverlay();
     stopCloudMetadataPolling();
     stopRealtimeReconnect();
     cloudSyncActive = false;
@@ -693,6 +727,7 @@ async function fetchCloudDelta(localTs) {
       if (typeof updateCloudSyncBadge === "function") {
         updateCloudSyncBadge(false, `Mây: Tải dữ liệu trang (${page + 1})...`, "#f59e0b");
       }
+      updateStartupStatus(`Đang tải dữ liệu ban đầu: Trang ${page + 1}...`);
       
       logToDebugFile(`[fetchCloudDelta] Tải mới toàn bộ: Bắt đầu tải trang ${page + 1}, lastSeenId = ${lastSeenId}`);
       let data = null, error = null;
@@ -765,6 +800,7 @@ async function fetchCloudDelta(localTs) {
     if (typeof updateCloudSyncBadge === "function") {
       updateCloudSyncBadge(false, `Mây: Quét danh sách (${page + 1})...`, "#f59e0b");
     }
+    updateStartupStatus(`Đang quét danh sách cập nhật: Trang ${page + 1}...`);
     
     logToDebugFile(`[fetchCloudDelta] Quét danh sách incremental: Trang ${page + 1}, lastSeenId = ${lastSeenId}`);
     let query = supabaseClient
@@ -846,6 +882,7 @@ async function fetchCloudDelta(localTs) {
     if (typeof updateCloudSyncBadge === "function") {
       updateCloudSyncBadge(false, `Mây: Tải dữ liệu (${batchNum}/${totalBatches})...`, "#f59e0b");
     }
+    updateStartupStatus(`Đang tải dữ liệu chi tiết: Lô ${batchNum}/${totalBatches}...`);
 
     logToDebugFile(`[fetchCloudDelta] Bắt đầu tải lô chi tiết ${batchNum}/${totalBatches}`);
     const slice = batches.slice(i, i + CONCURRENCY);
@@ -1227,6 +1264,7 @@ async function fetchCloudData(localTs = 0) {
 async function pullFromCloudOnStartup() {
   if (!cloudSyncActive || !supabaseClient) return;
 
+  updateStartupStatus("Kiểm tra trạng thái đồng bộ đám mây...");
   try {
     // === TỐI ƯU HÓA KHỞI ĐỘNG: Kiểm tra metadata trước để tránh tải dữ liệu không cần thiết ===
     // Lấy timestamp của cloud từ bản ghi metadata (chỉ 1 row, cực nhanh)
@@ -1248,6 +1286,7 @@ async function pullFromCloudOnStartup() {
         // CHỐNG ĐỒNG BỘ NGƯỢC: Nếu local MỚI HƠN cloud, bỏ qua pull hoàn toàn
         // (Tình huống: máy vừa push, hoặc cloud chứa dữ liệu cũ hơn)
         if (cloudTs <= metadataCheckTs) {
+          updateStartupStatus("Dữ liệu cục bộ đã mới nhất. Đang tải giao diện...");
           console.log(`[Startup] Dữ liệu cục bộ đã mới nhất hoặc mới hơn cloud. (Local: ${metadataCheckTs}, Cloud: ${cloudTs}) → Bỏ qua tải về.`);
           logToDebugFile(`[pullFromCloudOnStartup] Bỏ qua pull: local (${metadataCheckTs}) >= cloud (${cloudTs})`);
           updateLastSyncState(state);
@@ -1268,6 +1307,7 @@ async function pullFromCloudOnStartup() {
 
         // Nếu máy khác đang trong quá trình push (is_syncing = true), chờ 3 giây rồi thử lại
         if (isCloudSyncLockActive(metaCheck, "startup")) {
+          updateStartupStatus("Máy khác đang đồng bộ dữ liệu đám mây, đang chờ 3 giây...");
           console.log("[Startup] Máy khác đang đồng bộ (is_syncing=true), chờ 3 giây...");
           await new Promise(resolve => setTimeout(resolve, 3000));
         }
@@ -1284,6 +1324,7 @@ async function pullFromCloudOnStartup() {
     // Tải dữ liệu thay đổi (incremental) kể từ lần đồng bộ cuối cùng của cache cục bộ.
     // Nếu chưa có cache cục bộ (localTs = 0), sẽ tự động thực hiện full pull.
     const startupStateSnapshot = cloneSyncState(state);
+    updateStartupStatus("Đang đồng bộ hóa dữ liệu từ đám mây...");
     const result = await fetchCloudData(localTs);
     if (!result) {
       // fetchCloudData trả về null → dữ liệu đã mới nhất (cloudTs <= localTs)
@@ -1299,6 +1340,7 @@ async function pullFromCloudOnStartup() {
       return;
     }
     const { newState: cloudData, rescuedVouchers } = result;
+    updateStartupStatus("Đang xử lý dữ liệu và khởi tạo sổ sách...");
     const hasCloudProducts = cloudData && cloudData.products && cloudData.products.length > 0;
 
     if (cloudData && hasCloudProducts) {
