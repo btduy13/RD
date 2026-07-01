@@ -625,6 +625,9 @@ function saveStateToSQLite(stateObj) {
     if (stateObj.salesTemplatesData) {
       stmtMetadata.run('salesTemplatesData', JSON.stringify(stateObj.salesTemplatesData));
     }
+    if (stateObj.users) {
+      stmtMetadata.run('users', JSON.stringify(stateObj.users));
+    }
 
     // 2. Lưu vouchers
     db.prepare('DELETE FROM vouchers').run();
@@ -800,6 +803,7 @@ function readStateFromSQLite() {
       else if (row.key === 'cashEntries') stateObj.cashEntries = parsedVal;
       else if (row.key === 'escrowItems') stateObj.escrowItems = parsedVal;
       else if (row.key === 'salesTemplatesData') stateObj.salesTemplatesData = parsedVal;
+      else if (row.key === 'users') stateObj.users = parsedVal;
     } catch (e) {
       console.error(`[SQLiteStore] Lỗi parse metadata key ${row.key}:`, e);
     }

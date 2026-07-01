@@ -279,6 +279,11 @@ async function initApp() {
   if (typeof initializeLastSavedState === "function") {
     initializeLastSavedState(state);
   }
+
+  // Khởi tạo đăng nhập / phân quyền
+  if (typeof initAuth === "function") {
+    initAuth();
+  }
 }
 
 // Hàm dọn dẹp các đơn hàng tự sinh (ID là số thứ tự) và chứng từ rác/test cũ
@@ -374,6 +379,7 @@ function initializeLastSavedState(loadedState) {
     cashEntries: JSON.parse(JSON.stringify(loadedState.cashEntries || [])),
     escrowItems: JSON.parse(JSON.stringify(loadedState.escrowItems || [])),
     salesTemplatesData: JSON.parse(JSON.stringify(loadedState.salesTemplatesData || [])),
+    users: JSON.parse(JSON.stringify(loadedState.users || [])),
     vouchers: new Map((loadedState.vouchers || []).map(v => [v.id, JSON.parse(JSON.stringify(v))])),
     products: new Map((loadedState.products || []).map(p => [p.id, JSON.parse(JSON.stringify(p))])),
     partners: new Map((loadedState.partners || []).map(p => [p.id, JSON.parse(JSON.stringify(p))])),
@@ -444,7 +450,7 @@ function executeSaveState(sync = false) {
         const metadataKeys = [
           'companyName', 'address', 'taxCode', 'accountingStandard',
           'initialBalances', 'partnerOpeningBalances', 'deletedIds', 'deletedCloudKeys',
-          'cashEntries', 'escrowItems', 'salesTemplatesData'
+          'cashEntries', 'escrowItems', 'salesTemplatesData', 'users'
         ];
         
         let hasMetaChanges = false;

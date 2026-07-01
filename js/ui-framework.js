@@ -1237,6 +1237,26 @@ openModal = function(modalId) {
   if (modal) {
     modal.classList.add('modal-animated');
     modal.style.display = 'flex';
+    
+    // Tự động vô hiệu hóa các input trong modal đối với tài khoản chỉ xem
+    if (typeof window.currentUser !== 'undefined' && window.currentUser && window.currentUser.role === 'viewer') {
+      modal.querySelectorAll('input, select, textarea').forEach(el => {
+        el.disabled = true;
+      });
+    } else {
+      modal.querySelectorAll('input, select, textarea').forEach(el => {
+        // Trừ ô username của modal edit user khi đang ở chế độ edit
+        if (el.id === 'user-edit-username' && document.getElementById('user-edit-mode').value === 'edit') {
+          el.disabled = true;
+          return;
+        }
+        el.disabled = false;
+      });
+    }
+  }
+  
+  if (typeof autoTagRoleButtons === 'function') {
+    autoTagRoleButtons();
   }
 };
 
