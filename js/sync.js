@@ -1241,7 +1241,7 @@ async function pushToCloud() {
     console.log(`[pushToCloud] Delta: Cần upsert ${rowsToUpsert.length} dòng, delete ${idsToDelete.length} dòng.`);
 
     // 3. Upsert các dòng mới/thay đổi theo lô 1000 dòng
-    const BATCH_SIZE = 1000;
+    const BATCH_SIZE = 100;
     for (let i = 0; i < rowsToUpsert.length; i += BATCH_SIZE) {
       const batch = rowsToUpsert.slice(i, i + BATCH_SIZE);
       const { error: batchError } = await supabaseClient
