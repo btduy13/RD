@@ -667,13 +667,14 @@ function logToDebugFile(msg) {
 
 function withTimeout(promise, ms = 8000) {
   let timeoutId;
+  const nativePromise = Promise.resolve(promise);
   const timeoutPromise = new Promise((_, reject) => {
     timeoutId = setTimeout(() => {
       reject(new Error(`Mạng kết nối đám mây phản hồi chậm quá ${ms}ms. Vui lòng kiểm tra đường truyền.`));
     }, ms);
   });
   return Promise.race([
-    promise.finally(() => clearTimeout(timeoutId)),
+    nativePromise.finally(() => clearTimeout(timeoutId)),
     timeoutPromise
   ]);
 }
