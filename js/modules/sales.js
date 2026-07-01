@@ -2224,8 +2224,10 @@ function renderSalesTemplateTable() {
   const tbody = document.getElementById("sales-template-table-body");
   if (!tbody) return;
   
-  // Sử dụng dữ liệu tĩnh được biên dịch sẵn
-  allTemplateFiles = window.salesTemplatesData || [];
+  if (!state.salesTemplatesData || state.salesTemplatesData.length === 0) {
+    state.salesTemplatesData = JSON.parse(JSON.stringify(window.salesTemplatesData || []));
+  }
+  allTemplateFiles = state.salesTemplatesData;
   displaySalesTemplateTable(allTemplateFiles);
 }
 
@@ -2238,13 +2240,13 @@ function displaySalesTemplateTable(list) {
   }
 
   tbody.innerHTML = list.map((item, idx) => `
-    <tr>
+    <tr data-type="template" data-id="${escapeHtmlAttr(item.filename)}">
       <td style="text-align: center; font-weight: 600;">${idx + 1}</td>
       <td style="font-weight: 600; color: var(--color-primary);">${escapeHtmlAttr(item.filename)}</td>
       <td>${escapeHtmlAttr(item.desc)}</td>
       <td style="text-align: center;">
         <button class="btn btn-primary btn-sm" onclick="modifySalesTemplate('${escapeHtmlAttr(item.filename)}')">
-          Xem / Sửa
+          Lên đơn hàng
         </button>
       </td>
     </tr>
@@ -2303,7 +2305,7 @@ function filterSalesTemplateTable() {
 
 function modifySalesTemplate(filename) {
   try {
-    const template = (window.salesTemplatesData || []).find(t => t.filename === filename);
+    const template = (state.salesTemplatesData || window.salesTemplatesData || []).find(t => t.filename === filename);
     if (!template) {
       alert(`Không tìm thấy mẫu: ${filename}`);
       return;
@@ -2431,10 +2433,215 @@ function findProductByName(name) {
   return null;
 }
 
+// --- TEMPLATE EDITOR ACTIONS & FORMS ---
+function openAddTemplateModal() {
+  document.getElementById("template-modal-title").textContent = "Thêm phiếu mẫu mới";
+  document.getElementById("template-old-filename").value = "";
+  document.getElementById("template-filename").value = "";
+  document.getElementById("template-desc").value = "";
+  document.getElementById("template-filename").readOnly = false;
+  
+  const tbody = document.getElementById("template-form-items-body");
+  if (tbody) tbody.innerHTML = "";
+  
+  addTemplateFormRow(); // Add one empty row initially
+  openModal('modal-edit-template');
+}
+
+function openEditTemplateModal(filename) {
+  document.getElementById("template-modal-title").textContent = "Chỉnh sửa phiếu mẫu";
+  
+  const list = state.salesTemplatesData || [];
+  const template = list.find(t => t.filename === filename);
+  if (!template) {
+    alert(`Không tìm thấy phiếu mẫu: ${filename}`);
+    return;
+  }
+  
+  document.getElementById("template-old-filename").value = filename;
+  document.getElementById("template-filename").value = filename;
+  document.getElementById("template-desc").value = template.desc || "";
+  document.getElementById("template-filename").readOnly = true; // Don't allow changing filename directly to avoid key mismatches
+  
+  const tbody = document.getElementById("template-form-items-body");
+  if (tbody) tbody.innerHTML = "";
+  
+  if (Array.isArray(template.items) && template.items.length > 0) {
+    for (const item of template.items) {
+      // Find matching product code to display as "Product Name (ID)"
+      const prod = findProductByName(item.name);
+      const nameVal = prod ? `${prod.name} (${prod.id})` : item.name;
+      addTemplateFormRow(nameVal, item.qty, item.price);
+    }
+  } else {
+    addTemplateFormRow();
+  }
+  
+  openModal('modal-edit-template');
+}
+
+function addTemplateFormRow(nameVal = "", qtyVal = 1, priceVal = 0) {
+  const tbody = document.getElementById("template-form-items-body");
+  if (!tbody) return;
+  
+  const rowId = `template-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const tr = document.createElement("tr");
+  tr.id = rowId;
+  
+  tr.innerHTML = `
+    <td>
+      <input type="text" class="form-control item-productId" placeholder="Mã hoặc Tên SP..." required list="datalist-sales-products" oninput="autoFillTemplateProductPrice(this)" onblur="autoFillTemplateProductPrice(this)" value="${escapeHtmlAttr(nameVal)}">
+    </td>
+    <td>
+      <input type="text" class="form-control item-qty text-right qty-format" required value="${Number.isInteger(qtyVal) ? qtyVal : qtyVal.toString().replace(".", ",")}">
+    </td>
+    <td>
+      <input type="text" class="form-control item-price text-right number-format" required value="${Number(priceVal).toLocaleString("vi-VN")}">
+    </td>
+    <td style="text-align: center;">
+      <button type="button" class="trash-btn" onclick="document.getElementById('${rowId}').remove();">×</button>
+    </td>
+  `;
+  
+  tbody.appendChild(tr);
+}
+
+function autoFillTemplateProductPrice(selectEl) {
+  const prodVal = selectEl.value;
+  const prod = resolveProduct(prodVal);
+  const row = selectEl.closest("tr");
+  const isBlur = document.activeElement !== selectEl;
+
+  if (prod && row) {
+    if (isBlur) {
+      selectEl.value = `${prod.name} (${prod.id})`;
+    }
+    ensureProductExcelRow(prod);
+    const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
+      ? prod.salePrice1
+      : (prod.excelRow && prod.excelRow[21] !== undefined && Number(prod.excelRow[21]) > 0
+        ? Number(prod.excelRow[21])
+        : (Math.round(prod.avgCost * 1.35 / 1000) * 1000 || 50000));
+
+    row.querySelector(".item-price").value = Number(salePriceVal).toLocaleString("vi-VN");
+  }
+}
+
+function handleTemplateSubmit(event) {
+  event.preventDefault();
+  
+  const oldFilename = document.getElementById("template-old-filename").value;
+  let filename = document.getElementById("template-filename").value.trim();
+  const desc = document.getElementById("template-desc").value.trim();
+  
+  if (!filename) {
+    alert("Vui lòng nhập tên file phiếu mẫu.");
+    return;
+  }
+  
+  // Auto-append .xlsx extension if not present
+  if (!filename.toLowerCase().endsWith(".xlsx") && !filename.toLowerCase().endsWith(".xls")) {
+    filename += ".xlsx";
+  }
+  
+  const rows = document.querySelectorAll("#template-form-items-body tr");
+  const items = [];
+  let hasEmptyProduct = false;
+  
+  rows.forEach(row => {
+    let nameVal = row.querySelector(".item-productId").value.trim();
+    const qtyValStr = row.querySelector(".item-qty").value;
+    const priceValStr = row.querySelector(".item-price").value;
+    
+    if (!nameVal) {
+      hasEmptyProduct = true;
+      return;
+    }
+    
+    // Extract actual product name (without ID suffix if present)
+    const prod = resolveProduct(nameVal);
+    if (prod) {
+      nameVal = prod.name;
+    } else {
+      const parenIdx = nameVal.lastIndexOf("(");
+      if (parenIdx !== -1) {
+        nameVal = nameVal.substring(0, parenIdx).trim();
+      }
+    }
+    
+    const qty = safeParseFloat(qtyValStr) || 0;
+    const price = parseInt(priceValStr.replace(/\D/g, "")) || 0;
+    
+    items.push({ name: nameVal, qty, price });
+  });
+  
+  if (hasEmptyProduct) {
+    alert("Vui lòng nhập tên/mã sản phẩm cho tất cả các dòng.");
+    return;
+  }
+  
+  if (items.length === 0) {
+    alert("Vui lòng thêm ít nhất một sản phẩm vào phiếu mẫu.");
+    return;
+  }
+  
+  if (!state.salesTemplatesData) {
+    state.salesTemplatesData = JSON.parse(JSON.stringify(window.salesTemplatesData || []));
+  }
+  
+  const templateData = { filename, desc, items };
+  
+  if (oldFilename) {
+    const idx = state.salesTemplatesData.findIndex(t => t.filename === oldFilename);
+    if (idx !== -1) {
+      state.salesTemplatesData[idx] = templateData;
+    } else {
+      state.salesTemplatesData.push(templateData);
+    }
+  } else {
+    // Check duplicate filename
+    if (state.salesTemplatesData.some(t => t.filename.toLowerCase() === filename.toLowerCase())) {
+      alert("Tên file phiếu mẫu này đã tồn tại.");
+      return;
+    }
+    state.salesTemplatesData.push(templateData);
+  }
+  
+  saveState();
+  closeModal('modal-edit-template');
+  renderSalesTemplateTable();
+  
+  if (typeof showToast === "function") {
+    showToast("Đã lưu phiếu mẫu thành công!", "success");
+  } else {
+    alert("Đã lưu phiếu mẫu thành công!");
+  }
+}
+
+function deleteSalesTemplate(filename) {
+  if (confirm(`Bạn có chắc chắn muốn xóa phiếu mẫu "${filename}" không?`)) {
+    if (!state.salesTemplatesData) {
+      state.salesTemplatesData = JSON.parse(JSON.stringify(window.salesTemplatesData || []));
+    }
+    state.salesTemplatesData = state.salesTemplatesData.filter(t => t.filename !== filename);
+    saveState();
+    renderSalesTemplateTable();
+    if (typeof showToast === "function") {
+      showToast("Đã xóa phiếu mẫu thành công!", "success");
+    }
+  }
+}
+
 // Register template functions on window
 window.renderSalesTemplateTable = renderSalesTemplateTable;
 window.filterSalesTemplateTable = filterSalesTemplateTable;
 window.modifySalesTemplate = modifySalesTemplate;
 window.filterTemplateCategory = filterTemplateCategory;
+window.openAddTemplateModal = openAddTemplateModal;
+window.openEditTemplateModal = openEditTemplateModal;
+window.addTemplateFormRow = addTemplateFormRow;
+window.handleTemplateSubmit = handleTemplateSubmit;
+window.deleteSalesTemplate = deleteSalesTemplate;
+window.autoFillTemplateProductPrice = autoFillTemplateProductPrice;
 
 

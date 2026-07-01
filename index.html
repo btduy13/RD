@@ -1581,7 +1581,7 @@
           <!-- Tab Panel 4: Phiếu mẫu -->
           <div id="sales-subtab-template" class="sales-subtab-content" style="display: none;">
             <div class="actions-bar" style="margin-bottom: 20px;">
-              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;">
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: nowrap; width: 100%;">
                 <div class="search-input-wrapper" style="min-width: 260px;">
                   <svg class="search-icon-svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                     xmlns="http://www.w3.org/2000/svg">
@@ -1600,6 +1600,13 @@
                   <button class="btn btn-secondary btn-sm" id="filter-pill-rapbcn" onclick="filterTemplateCategory('rapbcn')" style="height: 36px; padding: 0 16px; border-radius: 20px; font-weight: 600;">Ráp BCN</button>
                   <button class="btn btn-secondary btn-sm" id="filter-pill-khac" onclick="filterTemplateCategory('khac')" style="height: 36px; padding: 0 16px; border-radius: 20px; font-weight: 600;">Khác</button>
                 </div>
+
+                <button class="btn btn-success btn-sm" onclick="openAddTemplateModal()" style="height: 36px; padding: 0 16px; border-radius: 6px; font-weight: 600; margin-left: auto; display: flex; align-items: center; gap: 5px;">
+                  <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 14px; height: 14px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+                  </svg>
+                  Thêm phiếu mẫu
+                </button>
               </div>
             </div>
 
@@ -4113,6 +4120,57 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal('modal-add-sales')">Hủy bỏ</button>
         <button type="submit" form="form-sales" class="btn btn-success">Ghi sổ chứng từ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CHỈNH SỬA / THÊM PHIẾU MẪU -->
+  <div id="modal-edit-template" class="modal-overlay" style="display: none;">
+    <div class="modal-content-container" style="max-width: 850px; width: 90%;">
+      <div class="modal-header">
+        <h3 class="card-title" id="template-modal-title">Chỉnh sửa phiếu mẫu</h3>
+        <button class="icon-btn" onclick="closeModal('modal-edit-template')" style="width: 32px; height: 32px;">×</button>
+      </div>
+      <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+        <form id="form-edit-template" class="form-grid" style="grid-template-columns: repeat(12, 1fr);" onsubmit="handleTemplateSubmit(event)">
+          <input type="hidden" id="template-old-filename">
+          
+          <div class="form-group" style="grid-column: span 6;">
+            <label class="form-label">Tên file phiếu mẫu (.xlsx / .xls)</label>
+            <input type="text" id="template-filename" class="form-control" required placeholder="Ví dụ: P-MAU DAU BON 34.xlsx">
+          </div>
+
+          <div class="form-group" style="grid-column: span 6;">
+            <label class="form-label">Tên phiếu mẫu (Diễn giải)</label>
+            <input type="text" id="template-desc" class="form-control" required placeholder="Ví dụ: P/mẫu Đấu bồn lạnh ra 34">
+          </div>
+
+          <!-- Danh sách mặt hàng của phiếu mẫu -->
+          <div class="form-group col-span-full" style="margin-top: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <label class="form-label" style="font-weight: 700; margin: 0;">Danh sách mặt hàng trong mẫu</label>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="addTemplateFormRow()">+ Thêm mặt hàng</button>
+            </div>
+
+            <table class="dynamic-items-table" style="width: 100%;">
+              <thead>
+                <tr>
+                  <th style="width: 50%;">Tên mặt hàng (Mã hoặc Tên SP)</th>
+                  <th style="width: 20%; text-align: right;">Số lượng</th>
+                  <th style="width: 20%; text-align: right;">Đơn giá bán</th>
+                  <th style="width: 10%; text-align: center;">Xóa</th>
+                </tr>
+              </thead>
+              <tbody id="template-form-items-body">
+                <!-- Sẽ được render động -->
+              </tbody>
+            </table>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('modal-edit-template')">Hủy bỏ</button>
+        <button type="submit" form="form-edit-template" class="btn btn-success" id="btn-save-template">Lưu phiếu mẫu</button>
       </div>
     </div>
   </div>
