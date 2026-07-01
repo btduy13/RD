@@ -768,7 +768,7 @@ function viewVoucher(id) {
           </div>
 
           <!-- Thông tin công ty chính xác theo mẫu giấy (Tránh wrap lỗi căn lề và không bị tràn) -->
-          <div style="color: #000; padding: 0 105px 0 85px;">
+          <div style="color: #000; padding: 0 125px 0 85px;">
             <div style="font-weight: bold; font-size: 12px; text-transform: uppercase; letter-spacing: 0.2px; white-space: nowrap;">CÔNG TY CỔ PHẦN RẠNG ĐÔNG</div>
             <div style="font-weight: bold; font-size: 9.5px; text-transform: uppercase; margin-top: 2px; white-space: nowrap;">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY</div>
             <div style="font-size: 9.5px; margin-top: 2px; white-space: nowrap;">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh</div>
@@ -776,9 +776,9 @@ function viewVoucher(id) {
           </div>
 
           <!-- Mã QR thanh toán ở góc bên phải (Cân đối hoàn hảo) -->
-          <div style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100px; padding: 2px; background: #fff;">
+          <div style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; justify-content: center; width: 120px; padding: 2px; background: #fff;">
             <span style="font-size: 6px; font-weight: bold; text-transform: uppercase; color: #000; margin-bottom: 2px; letter-spacing: 0.1px;">Quét Mã QR Thanh Toán</span>
-            <img src="https://img.vietqr.io/image/sacombank-050033493999-qr_only.png?amount=${v.totalAmount}&addInfo=${encodeURIComponent('thanh toan mua hang')}&accountName=${encodeURIComponent('CTY CP SX DT PHAT TRIEN RANG DONG')}" style="width: 50px; height: 50px; display: block;" alt="VietQR" />
+            <img src="https://img.vietqr.io/image/sacombank-050033493999-qr_only.png?amount=${v.totalAmount}&addInfo=${encodeURIComponent('thanh toan mua hang')}&accountName=${encodeURIComponent('CTY CP SX DT PHAT TRIEN RANG DONG')}" style="width: 90px; height: 90px; display: block;" alt="VietQR" />
             <span style="font-size: 6.5px; color: #000; margin-top: 2px; font-family: monospace; font-weight: bold;">STK: 050033493999</span>
           </div>
         </div>
@@ -929,7 +929,7 @@ function viewVoucher(id) {
           </div>
 
           <!-- Thông tin công ty chính xác theo mẫu giấy (Tránh wrap lỗi căn lề và không bị tràn) -->
-          <div style="color: #000; padding: 0 105px 0 85px;">
+          <div style="color: #000; padding: 0 125px 0 85px;">
             <div style="font-weight: bold; font-size: 12px; text-transform: uppercase; letter-spacing: 0.2px; white-space: nowrap;">CÔNG TY CỔ PHẦN RẠNG ĐÔNG</div>
             <div style="font-weight: bold; font-size: 9.5px; text-transform: uppercase; margin-top: 2px; white-space: nowrap;">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY</div>
             <div style="font-size: 9.5px; margin-top: 2px; white-space: nowrap;">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh</div>
@@ -937,9 +937,9 @@ function viewVoucher(id) {
           </div>
 
           <!-- Mã QR thanh toán ở góc bên phải (Cân đối hoàn hảo) -->
-          <div style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100px; padding: 2px; background: #fff;">
+          <div style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; justify-content: center; width: 120px; padding: 2px; background: #fff;">
             <span style="font-size: 6px; font-weight: bold; text-transform: uppercase; color: #000; margin-bottom: 2px; letter-spacing: 0.1px;">Quét Mã QR Thanh Toán</span>
-            <img src="https://img.vietqr.io/image/sacombank-050033493999-qr_only.png?amount=${v.totalAmount}&addInfo=${encodeURIComponent('thanh toan mua hang')}&accountName=${encodeURIComponent('CTY CP SX DT PHAT TRIEN RANG DONG')}" style="width: 50px; height: 50px; display: block;" alt="VietQR" />
+            <img src="https://img.vietqr.io/image/sacombank-050033493999-qr_only.png?amount=${v.totalAmount}&addInfo=${encodeURIComponent('thanh toan mua hang')}&accountName=${encodeURIComponent('CTY CP SX DT PHAT TRIEN RANG DONG')}" style="width: 90px; height: 90px; display: block;" alt="VietQR" />
             <span style="font-size: 6.5px; color: #000; margin-top: 2px; font-family: monospace; font-weight: bold;">STK: 050033493999</span>
           </div>
         </div>
