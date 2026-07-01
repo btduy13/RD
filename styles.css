@@ -3650,7 +3650,7 @@ body.light-theme .user-chip {
   height: 100vh;
   background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
   z-index: 999999;
-  display: flex;
+  display: none !important;
   justify-content: center;
   align-items: center;
   transition: opacity 0.4s ease, visibility 0.4s ease;
