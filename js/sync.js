@@ -352,6 +352,9 @@ async function fetchCloudDelta(localTs) {
 }
 
 function applyDeltaToState(changedRows, cloudTs) {
+  // Sync local variable with shared window state to prevent empty state overrides
+  lastSyncState = window.lastSyncState || lastSyncState;
+  
   let baseState;
   const rescuedVouchers = []; // Các voucher cục bộ bị cloud ghi đè do trùng ID
   
@@ -1197,6 +1200,9 @@ function arePartnersEqual(pa1, pa2) {
 }
 
 function computeDelta() {
+  // Sync local variable with shared window state to prevent empty state overrides
+  lastSyncState = window.lastSyncState || lastSyncState;
+
   const rowsToUpsert = [];
   const idsToDelete = [];
 
