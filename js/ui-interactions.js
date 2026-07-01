@@ -1165,13 +1165,17 @@ function showCustomDropdown(input) {
   filteredOptions = [];
 
   const options = datalist.querySelectorAll('option');
-  options.forEach(opt => {
+  for (let i = 0; i < options.length; i++) {
+    const opt = options[i];
     const val = opt.value || '';
     const text = opt.textContent || '';
     if (!query || val.toLowerCase().includes(query) || text.toLowerCase().includes(query)) {
       filteredOptions.push({ value: val, label: text });
+      if (filteredOptions.length >= 30) {
+        break; // Giới hạn tối đa 30 gợi ý để tránh quá tải DOM gây lag/văng ứng dụng
+      }
     }
-  });
+  }
 
   if (filteredOptions.length === 0) {
     closeCustomDropdown();

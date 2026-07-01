@@ -355,6 +355,9 @@ let saveStateIsDirty = false;
 
 function saveState() {
   saveStateIsDirty = true;
+  if (typeof window.clearActiveFormDraft === "function") {
+    window.clearActiveFormDraft();
+  }
   if (saveStateTimeout) {
     clearTimeout(saveStateTimeout);
   }

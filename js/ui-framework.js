@@ -236,6 +236,9 @@ function openModal(modalId) {
   const modal = document.getElementById(modalId);
   if (modal) {
     modal.style.display = "flex";
+    if (typeof window.checkAndRestoreDraft === "function") {
+      window.checkAndRestoreDraft(modalId);
+    }
   }
 }
 
