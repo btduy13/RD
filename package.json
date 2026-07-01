@@ -47,7 +47,8 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Kế toán Rạng Đông",
       "uninstallDisplayName": "Kế toán Rạng Đông",
-      "runAfterFinish": true
+      "runAfterFinish": true,
+      "include": "installer.nsh"
     },
     "files": [
       "index.html",
