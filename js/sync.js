@@ -23,26 +23,11 @@ const CLOUD_SYNC_STALE_LOCK_MS = 30 * 60 * 1000;
 const REALTIME_RECONNECT_DELAY_MS = 5000;
 
 function updateStartupStatus(text) {
-  if (typeof document !== "undefined") {
-    const el = document.getElementById("startup-status-text");
-    if (el) {
-      el.textContent = text;
-    }
-  }
   console.log(`[StartupStatus] ${text}`);
 }
 
 function hideStartupOverlay() {
-  if (typeof document !== "undefined") {
-    const overlay = document.getElementById("app-startup-overlay");
-    if (overlay) {
-      overlay.style.opacity = "0";
-      overlay.style.pointerEvents = "none";
-      setTimeout(() => {
-        overlay.style.display = "none";
-      }, 400);
-    }
-  }
+  // Splash overlay removed
 }
 
 function getStoredLastPulledCloudTs() {
