@@ -612,6 +612,53 @@ async function testLockRowsExpiryAndCleanup() {
   assert.equal(maxSeq, 102, "should only read sequence from active locks, ignoring the stale lock of 103");
 }
 
+async function testStartupPullDefersAndRunsPendingPulls() {
+  const { internals, sandbox } = loadSyncInternals();
+
+  sandbox.__pullCount = 0;
+  vm.runInContext(`
+    cloudSyncActive = true;
+    supabaseClient = {};
+    isStartupPullCompleted = false; // startup pending
+    pullPending = false;
+    isPulling = false;
+    isPushing = false;
+    lastSyncedCloudTs = 100;
+    
+    // Mock fetchCloudData
+    fetchCloudData = function() { __pullCount += 1; return Promise.resolve(null); };
+  `, sandbox);
+
+  sandbox.__metadataRow = { last_modified: 200, is_syncing: false };
+  sandbox.__fakeClient = {
+    from(table) {
+      return {
+        select(columns) {
+          return {
+            eq(column, id) {
+              return {
+                maybeSingle() {
+                  return Promise.resolve({ data: sandbox.__metadataRow, error: null });
+                }
+              };
+            }
+          };
+        }
+      };
+    }
+  };
+  vm.runInContext(`supabaseClient = __fakeClient;`, sandbox);
+
+  await internals.checkCloudMetadataForChanges("test-deferred");
+  
+  assert.equal(sandbox.__pullCount, 0, "pull should be deferred during startup pull");
+
+  internals.finishStartupPull();
+  
+  await new Promise(resolve => setTimeout(resolve, 300));
+  assert.equal(sandbox.__pullCount, 1, "deferred pull should be executed after startup pull finishes");
+}
+
 async function run() {
   await testDeepComparators();
   await testPullCheckpointStorage();
@@ -626,6 +673,7 @@ async function run() {
   await testRealtimeMetadataEventTriggersPull();
   await testFetchCloudDeltaAbortsOnActiveLock();
   await testLockRowsExpiryAndCleanup();
+  await testStartupPullDefersAndRunsPendingPulls();
   await testStartupCloudPullPreservesLocalEdits();
   await testPushDuringStartupIsQueued();
   await testRescueLookupIsBatchedAndExact();

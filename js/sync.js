@@ -530,6 +530,17 @@ function finishStartupPull() {
       }
     }, 100);
   }
+
+  // [Fix 2.8.12] Nếu có yêu cầu pull bị hoãn trong lúc startup pull, thực hiện pull ngay
+  if (pullPending) {
+    pullPending = false;
+    setTimeout(() => {
+      if (cloudSyncActive && supabaseClient && !isPulling) {
+        console.log("[CloudSync] Thực hiện pull bị hoãn trong lúc startup pull...");
+        pullAndMergeFromCloud();
+      }
+    }, 200);
+  }
 }
 
 function initCloudSync() {
@@ -2146,6 +2157,12 @@ async function pushToCloud() {
 
 async function pullAndMergeFromCloud(options = {}) {
   if (!cloudSyncActive || !supabaseClient) return;
+
+  if (!isStartupPullCompleted) {
+    pullPending = true;
+    console.log("[CloudSync] Hoan pullAndMergeFromCloud vi startup pull chua hoan tat; se pull sau khi hoan tat.");
+    return;
+  }
 
   if (!options.force && isVoucherEntryModalOpen()) {
     deferCloudPull(options.reason || "editing");
