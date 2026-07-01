@@ -44,6 +44,22 @@ async function initAuth() {
   showLoginForm();
 }
 
+function handleUsernameInput(el) {
+  const pwdGroup = document.getElementById('login-password-group');
+  const pwdInput = document.getElementById('login-password');
+  if (!pwdGroup || !pwdInput) return;
+  
+  if (el.value.trim().toLowerCase() === 'admin') {
+    pwdGroup.style.display = 'block';
+    pwdInput.setAttribute('required', 'required');
+  } else {
+    pwdGroup.style.display = 'none';
+    pwdInput.removeAttribute('required');
+    pwdInput.value = '';
+  }
+}
+window.handleUsernameInput = handleUsernameInput;
+
 // ===========================================================================
 // GIAO DIỆN MÀN HÌNH ĐĂNG NHẬP OVERLAY
 // ===========================================================================
@@ -64,13 +80,13 @@ function showLoginForm() {
       
       <form id="login-form-submit" onsubmit="submitLogin(event)">
         <div class="form-group" style="margin-bottom: 14px;">
-          <label class="form-label" style="color: rgba(255,255,255,0.7);">Tên đăng nhập</label>
-          <input type="text" id="login-username" class="form-control login-input" required placeholder="User ID..." autofocus style="background: rgba(255,255,255,0.08); color: white; border-color: rgba(255,255,255,0.15);">
+          <label class="form-label" style="color: rgba(255,255,255,0.7);">Tên của bạn (Tên đăng nhập)</label>
+          <input type="text" id="login-username" class="form-control login-input" required placeholder="Nhập tên..." autofocus style="background: rgba(255,255,255,0.08); color: white; border-color: rgba(255,255,255,0.15);" oninput="handleUsernameInput(this)">
         </div>
         
-        <div class="form-group" style="margin-bottom: 24px;">
-          <label class="form-label" style="color: rgba(255,255,255,0.7);">Mật khẩu</label>
-          <input type="password" id="login-password" class="form-control login-input" required placeholder="Mật khẩu..." style="background: rgba(255,255,255,0.08); color: white; border-color: rgba(255,255,255,0.15);">
+        <div id="login-password-group" class="form-group" style="margin-bottom: 24px; display: none;">
+          <label class="form-label" style="color: rgba(255,255,255,0.7);">Mật khẩu Admin</label>
+          <input type="password" id="login-password" class="form-control login-input" placeholder="Mật khẩu..." style="background: rgba(255,255,255,0.08); color: white; border-color: rgba(255,255,255,0.15);">
         </div>
         
         <button type="submit" class="btn btn-primary" style="width: 100%; height: 42px; font-weight: 600;">
@@ -110,32 +126,73 @@ function submitLogin(event) {
   
   const usernameEl = document.getElementById('login-username');
   const passwordEl = document.getElementById('login-password');
-  if (!usernameEl || !passwordEl) return;
+  if (!usernameEl) return;
   
   const username = usernameEl.value.trim();
-  const password = passwordEl.value;
+  const password = passwordEl ? passwordEl.value : '';
   
+  if (!username) return;
+
   const users = state.users || [];
-  const user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
   
-  if (!user) {
-    showLoginError("Tên đăng nhập không tồn tại.");
-    return;
-  }
-  
-  if (user.password === password) {
+  if (username.toLowerCase() === 'admin') {
+    const adminUser = users.find(u => u.username.toLowerCase() === 'admin');
+    if (!adminUser) {
+      // Fallback: nếu chưa có admin trong DB, cho phép admin/admin
+      if (password === 'admin') {
+        const defaultAdmin = {
+          username: 'admin',
+          name: 'Quản trị viên',
+          role: 'admin',
+          password: 'admin'
+        };
+        state.users = state.users || [];
+        state.users.push(defaultAdmin);
+        saveState();
+        window.currentUser = defaultAdmin;
+        hideLoginOverlay();
+        applyRolePermissions();
+        logUserAction("Đăng nhập", "Người dùng Quản trị viên (admin) đã đăng nhập thành công.");
+        if (typeof showToast === 'function') showToast("Đăng nhập thành công! Chào mừng Quản trị viên", 'success');
+      } else {
+        showLoginError("Mật khẩu Admin không chính xác.");
+      }
+      return;
+    }
+
+    if (adminUser.password === password) {
+      window.currentUser = adminUser;
+      hideLoginOverlay();
+      applyRolePermissions();
+      logUserAction("Đăng nhập", "Người dùng Quản trị viên (admin) đã đăng nhập thành công.");
+      if (typeof showToast === 'function') showToast("Đăng nhập thành công! Chào mừng Quản trị viên", 'success');
+    } else {
+      showLoginError("Mật khẩu Admin không chính xác.");
+    }
+  } else {
+    // Đăng nhập không cần mật khẩu cho các tài khoản khác
+    let user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
+    
+    if (!user) {
+      // Nếu chưa tồn tại -> Tự động đăng ký mới làm Kế toán viên (accountant)
+      user = {
+        username: username,
+        name: username,
+        role: 'accountant',
+        password: ''
+      };
+      state.users = state.users || [];
+      state.users.push(user);
+      saveState();
+    }
+    
     window.currentUser = user;
     hideLoginOverlay();
     applyRolePermissions();
-    
-    // Ghi nhật ký đăng nhập mấu chốt
     logUserAction("Đăng nhập", `Người dùng ${user.name} (${user.username}) đã đăng nhập thành công.`);
-    
     if (typeof showToast === 'function') {
       showToast(`Đăng nhập thành công! Chào mừng ${user.name}`, 'success');
     }
-  } else {
-    showLoginError("Mật khẩu không chính xác.");
   }
 }
 
