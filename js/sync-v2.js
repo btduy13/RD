@@ -444,7 +444,24 @@ function syncV2StateFromRows(rows, options = {}) {
 
     if (row.id === SYNC_V2_METADATA_ID) {
       metadataRow = row;
-      Object.assign(cloudState, syncV2Clone(row.data || {}));
+      const metaData = syncV2Clone(row.data || {});
+      const metaDeletedIds = metaData.deletedIds || [];
+      const metaDeletedKeys = metaData.deletedCloudKeys || [];
+      
+      delete metaData.deletedIds;
+      delete metaData.deletedCloudKeys;
+      
+      Object.assign(cloudState, metaData);
+      
+      if (!Array.isArray(cloudState.deletedIds)) cloudState.deletedIds = [];
+      if (!Array.isArray(cloudState.deletedCloudKeys)) cloudState.deletedCloudKeys = [];
+      
+      metaDeletedIds.forEach(id => {
+        if (id && !cloudState.deletedIds.includes(id)) cloudState.deletedIds.push(id);
+      });
+      metaDeletedKeys.forEach(key => {
+        if (key && !cloudState.deletedCloudKeys.includes(key)) cloudState.deletedCloudKeys.push(key);
+      });
       return;
     }
 
@@ -466,7 +483,7 @@ function syncV2StateFromRows(rows, options = {}) {
     }
 
     const def = syncV2GetRowDef(row.id);
-    if (def && row.data && row.data.id) {
+    if (def && row.data) {
       if (row.data._deleted) {
         if (!Array.isArray(cloudState.deletedIds)) cloudState.deletedIds = [];
         if (!Array.isArray(cloudState.deletedCloudKeys)) cloudState.deletedCloudKeys = [];
@@ -475,7 +492,9 @@ function syncV2StateFromRows(rows, options = {}) {
         if (!cloudState.deletedCloudKeys.includes(row.id)) cloudState.deletedCloudKeys.push(row.id);
         return;
       }
-      cloudState[def.stateKey].push(syncV2Clone(row.data));
+      if (row.data.id) {
+        cloudState[def.stateKey].push(syncV2Clone(row.data));
+      }
     }
   });
 
