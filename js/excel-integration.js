@@ -1686,7 +1686,7 @@ function updateExcelHubUI() {
 }
 
 // Tìm đối tác thông minh
-function resolvePartner(value) {
+function resolvePartner(value, autoCreateType = "retail") {
   const val = (value || "").toString().trim();
   if (!val) return { id: "DT_VANGLAI", name: "Khách hàng vãng lai" };
 
@@ -1707,12 +1707,12 @@ function resolvePartner(value) {
 
   // 3. Tạo đối tác mới tự động nếu không tồn tại (Bug B fix)
   const autoId = typeof getUniquePartnerId === "function"
-    ? getUniquePartnerId(val, "retail")
+    ? getUniquePartnerId(val, autoCreateType)
     : val.replace(/\s+/g, "_").slice(0, 40);
   const newPartner = {
     id: autoId,
     name: val,
-    type: "retail",
+    type: autoCreateType,
     address: "",
     phone: "",
     taxCode: "",
@@ -1884,15 +1884,10 @@ function parseExcelFile(file, type) {
 
               if (!currentSupplierName) continue;
 
-              const resolvedPartner = resolvePartner(currentSupplierName);
+              const resolvedPartner = resolvePartner(currentSupplierName, "supplier");
               const pId = resolvedPartner.id;
               const pName = resolvedPartner.name;
-
-              if (!partnerMap.has(pId)) {
-                const pObj = { id: pId, name: pName, type: "supplier", phone: "", email: "", address: "" };
-                state.partners.push(pObj);
-                partnerMap.set(pId, pObj);
-              }
+              if (!partnerMap.has(pId)) partnerMap.set(pId, resolvedPartner);
 
               const existingIdx = voucherMap.get(voucherId);
               if (existingIdx !== undefined) {
@@ -3288,22 +3283,10 @@ function parseExcelFile(file, type) {
             const totalAmount = safeParseFloat(row[colTotal]);
 
             // Resolve/Create Partner
-            const resolvedPartner = resolvePartner(partnerInputVal);
+            const resolvedPartner = resolvePartner(partnerInputVal, "supplier");
             const pId = resolvedPartner.id;
             const pName = resolvedPartner.name;
-
-            if (!partnerMap.has(pId)) {
-              const pObj = {
-                id: pId,
-                name: pName,
-                type: "supplier",
-                phone: "",
-                email: "",
-                address: ""
-              };
-              state.partners.push(pObj);
-              partnerMap.set(pId, pObj);
-            }
+            if (!partnerMap.has(pId)) partnerMap.set(pId, resolvedPartner);
 
             // Create generic item list for the PO
             const itemsArray = [

@@ -30,6 +30,19 @@ function accumulateDebtEntryLines(e, counters) {
   if (e.debit && e.debit.startsWith("331")) counters.debit331 += e.amount;
 }
 
+// Quy tắc cấn trừ 131 + 331 (Bug A) — TÀI LIỆU THIẾT KẾ:
+// Phiếu chi của app LUÔN ghi Nợ 331 (kể cả khi chi trả/hoàn tiền cho KHÁCH HÀNG),
+// nên ý nghĩa của số phát sinh 331 phụ thuộc VAI TRÒ thực tế của đối tác:
+//   • Vai trò "supplier" (khai báo supplier, HOẶC chỉ có phát sinh 331 mà không có 131):
+//     dùng T-account chuẩn hợp nhất: phải trả = net331 − net131.
+//     (NCC trả thừa ⇒ net331 âm ⇒ hiện bên Dư Nợ = khoản phải thu lại.)
+//   • Vai trò "customer" (có phát sinh 131): Nợ 331 được hiểu là chi trả/hoàn tiền
+//     cho khách ⇒ GIẢM phải thu: phải thu = net131 + net331 (net331 = Có − Nợ).
+//   • Nếu CẢ net131 > 0 VÀ net331 > 0 (đối tác 2 vai thực sự): hiện cả hai bên,
+//     KHÔNG cấn trừ chéo (đúng nguyên tắc không bù trừ 131/331).
+// Cột "Phát sinh Nợ/Có" cũng theo vai trò để bảo toàn Đầu kỳ + Nợ − Có = Cuối kỳ:
+//   customer: PS Nợ = Nợ131 + Có331, PS Có = Có131 + Nợ331
+//   supplier: PS Nợ = Nợ131 + Nợ331, PS Có = Có131 + Có331 (thô, đúng T-account)
 function computeDebtSides(initialOpening, priorCounters, periodCounters, partnerType) {
   const basis = getDebtOpeningBasis(partnerType, initialOpening);
 
@@ -41,55 +54,46 @@ function computeDebtSides(initialOpening, priorCounters, periodCounters, partner
   const net131Open = open131Debit - open131Credit;
   const net331Open = open331Credit - open331Debit;
 
-  let openingDebit = 0;
-  let openingCredit = 0;
-  if (net131Open > 0 && net331Open > 0) {
-    openingDebit = net131Open;
-    openingCredit = net331Open;
-  } else if (partnerType === "supplier" && net331Open > 0 && net131Open <= 0) {
-    openingCredit = net331Open - Math.max(0, net131Open);
-    openingDebit = Math.max(0, net131Open - net331Open);
-  } else {
-    const combinedOpen = net131Open + net331Open;
-    if (combinedOpen >= 0) {
-      openingDebit = combinedOpen;
-    } else {
-      openingCredit = -combinedOpen;
-    }
-  }
-
-  const net131Close = net131Open + periodCounters.debit131 - periodCounters.credit131;
-  const net331Close = net331Open + periodCounters.credit331 - periodCounters.debit331;
-
-  let closingDebit = 0;
-  let closingCredit = 0;
-  if (net131Close > 0 && net331Close > 0) {
-    closingDebit = net131Close;
-    closingCredit = net331Close;
-  } else if (partnerType === "supplier" && net331Close > 0 && net131Close <= 0) {
-    closingCredit = net331Close - Math.max(0, net131Close);
-    closingDebit = Math.max(0, net131Close - net331Close);
-  } else {
-    const combinedClose = net131Close + net331Close;
-    if (combinedClose >= 0) {
-      closingDebit = combinedClose;
-    } else {
-      closingCredit = -combinedClose;
-    }
-  }
-
   const activity131 = open131Debit + open131Credit + periodCounters.debit131 + periodCounters.credit131;
   const activity331 = open331Debit + open331Credit + periodCounters.debit331 + periodCounters.credit331;
 
+  // Vai trò quyết định cách diễn giải số phát sinh 331 (xem tài liệu thiết kế ở trên)
+  const roleSupplier = partnerType === "supplier" || (activity331 > 0 && activity131 === 0);
+
+  const resolveSides = (net131, net331) => {
+    if (net131 > 0 && net331 > 0) {
+      return { debit: net131, credit: net331 };
+    }
+    const combined = roleSupplier ? (net331 - net131) : (net131 + net331);
+    if (roleSupplier) {
+      return combined >= 0 ? { debit: 0, credit: combined } : { debit: -combined, credit: 0 };
+    }
+    return combined >= 0 ? { debit: combined, credit: 0 } : { debit: 0, credit: -combined };
+  };
+
+  const openSides = resolveSides(net131Open, net331Open);
+
+  const net131Close = net131Open + periodCounters.debit131 - periodCounters.credit131;
+  const net331Close = net331Open + periodCounters.credit331 - periodCounters.debit331;
+  const closeSides = resolveSides(net131Close, net331Close);
+
+  const debitTrans = roleSupplier
+    ? periodCounters.debit131 + periodCounters.debit331
+    : periodCounters.debit131 + periodCounters.credit331;
+  const creditTrans = roleSupplier
+    ? periodCounters.credit131 + periodCounters.credit331
+    : periodCounters.credit131 + periodCounters.debit331;
+
   return {
-    openingDebit,
-    openingCredit,
-    debitTrans: periodCounters.debit131 + periodCounters.debit331,
-    creditTrans: periodCounters.credit131 + periodCounters.credit331,
-    closingDebit,
-    closingCredit,
+    openingDebit: openSides.debit,
+    openingCredit: openSides.credit,
+    debitTrans,
+    creditTrans,
+    closingDebit: closeSides.debit,
+    closingCredit: closeSides.credit,
     has131: activity131 > 0,
-    has331: activity331 > 0
+    has331: activity331 > 0,
+    roleSupplier
   };
 }
 
@@ -220,6 +224,9 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
       id: p.id,
       name: p.name,
       type: p.type,
+      // Loại KHAI BÁO gốc — dùng để phân tab (Khách/NCC/Công ty) ổn định,
+      // vì `type` có thể bị đổi thành 'both' theo hoạt động thực tế (Bug A).
+      declaredType: p.type,
       address: p.address || "",
       taxCode: p.taxCode || "",
       phone: p.phone || "",
@@ -472,8 +479,8 @@ function filterDebts() {
     const debtVal = Math.max(d.closingDebit || 0, d.closingCredit || 0);
     const matchesQuery = matchAdvancedQuery(combined, query, debtVal);
     let matchesType = true;
-    if (filterType === "131") matchesType = d.type !== "supplier";
-    else if (filterType === "331") matchesType = d.type === "supplier";
+    if (filterType === "131") matchesType = (d.declaredType || d.type) !== "supplier";
+    else if (filterType === "331") matchesType = (d.declaredType || d.type) === "supplier";
     let matchesActive = true;
     if (activeOnly) matchesActive = (d.closingDebit > 0 || d.closingCredit > 0);
     return matchesQuery && matchesType && matchesActive;
@@ -485,9 +492,10 @@ function filterDebts() {
   }
 
   if (currentDebtsViewTab === 'project') {
-    // Tab "Khách Cá Nhân" = tất cả customer (gộp cả cá nhân và công trình)
+    // Tab "Khách Cá Nhân" = tất cả customer (gộp cả cá nhân và công trình).
+    // Phân tab theo loại KHAI BÁO (declaredType) để đối tác 'both' không nhảy tab.
     filteredDebtsList = allDebts.filter(d => {
-      if (d.type === 'supplier') return false;
+      if ((d.declaredType || d.type) === 'supplier') return false;
       if (!makeFilter(d)) return false;
       return true;
     });
@@ -497,9 +505,9 @@ function filterDebts() {
   }
 
   if (currentDebtsViewTab === 'supplier') {
-    // Tab "Nhà Cung Cấp" = tất cả supplier
+    // Tab "Nhà Cung Cấp" = tất cả supplier (theo loại khai báo, kể cả khi role là 'both')
     filteredDebtsList = allDebts.filter(d => {
-      if (d.type !== 'supplier') return false;
+      if ((d.declaredType || d.type) !== 'supplier') return false;
       if (!makeFilter(d)) return false;
       return true;
     });
@@ -510,7 +518,8 @@ function filterDebts() {
 
   if (currentDebtsViewTab === 'company') {
     const companyDebts = allDebts.filter(d => {
-      if (d.type !== 'project' && d.type !== 'enterprise') return false;
+      const dt = d.declaredType || d.type;
+      if (dt !== 'project' && dt !== 'enterprise') return false;
       if (!makeFilter(d)) return false;
       return true;
     });
@@ -866,11 +875,11 @@ function viewGroupedPartnerLedger(partnerName) {
     });
   }
 
-  // Tính số dư cuối kỳ gộp
-  let closingVal = primaryType === 'customer'
+  // Tính số dư cuối kỳ gộp (role 'both' dùng công thức customer, khớp với openingVal ở trên)
+  let closingVal = primaryType !== 'supplier'
     ? openingVal + debitSum - creditSum
     : openingVal + creditSum - debitSum;
-  const closingText = primaryType === 'customer'
+  const closingText = primaryType !== 'supplier'
     ? (closingVal >= 0 ? `${formatVND(closingVal)} (Nợ)` : `${formatVND(-closingVal)} (Có)`)
     : (closingVal >= 0 ? `${formatVND(closingVal)} (Có)` : `${formatVND(-closingVal)} (Nợ)`);
 
@@ -2252,8 +2261,10 @@ function handleEditDebtSubmit(e) {
       }
 
       if (typeof recalculateAccounting === "function") recalculateAccounting(false);
-      const fifoDebt = Number(v.remainingDebt) || 0;
-      v.debtAdjustment = newDebt - fifoDebt;
+      // remainingDebt sau recalc = FIFO thuần + debtAdjustment cũ, nên phải CỘNG DỒN
+      // phần chênh lệch vào adjustment cũ (thay vì ghi đè) để lần recalc sau ra đúng newDebt.
+      const currentDebt = Number(v.remainingDebt) || 0;
+      v.debtAdjustment = (Number(v.debtAdjustment) || 0) + (newDebt - currentDebt);
       v.remainingDebt = newDebt;
       v._updatedAt = Date.now();
       saveState();
@@ -2725,8 +2736,10 @@ function renderDebtOverview(allDebts) {
   const partnerMap = {};
   (state.partners || []).forEach(p => partnerMap[p.id] = p);
 
+  let unmatchedBucket = null;
+
   allDebts.forEach(d => {
-    if (d.type === "unmatched") return;
+    if (d.type === "unmatched") { unmatchedBucket = d; return; }
     if (d.type !== 'supplier') {
       const net = (d.closingDebit || 0) - (d.closingCredit || 0);
       if (d.closingDebit > 0) { totalRec += d.closingDebit; partnersWithDebt++; }
@@ -2758,6 +2771,10 @@ function renderDebtOverview(allDebts) {
       { label: 'Đối tác có công nợ', value: partnersWithDebt, icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', color: 'var(--color-primary)', isCount: true },
       { label: 'Đối tác trả thừa', value: partnersOverpaid, icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z', color: 'var(--color-danger)', isCount: true }
     ];
+    // NCC trả thừa (dư Nợ 331) = khoản phải thu lại từ NCC — hiển thị để không "biến mất"
+    if (totalSupplierReceivable > 0) {
+      kpiData.push({ label: 'NCC Trả Thừa (Phải Thu Lại)', value: totalSupplierReceivable, icon: 'M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z', color: 'var(--color-info, #0ea5e9)' });
+    }
     kpiEl.innerHTML = kpiData.map(k => `
       <div style="background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:16px 20px; display:flex; align-items:center; gap:14px;">
         <div style="width:44px; height:44px; border-radius:var(--radius-md); background:${k.color}22; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
@@ -2824,6 +2841,10 @@ function renderDebtOverview(allDebts) {
         <tr><td style="padding:3px 8px; color:var(--text-muted);">KPI Tổng phải thu (chỉ đối tác Dư Nợ)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-success);">${formatVND(totalRec)}</td></tr>
         <tr><td style="padding:3px 8px; color:var(--text-muted);">− Khách trả thừa/trả trước (Dư Có, giảm phải thu)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-warning);">−${formatVND(totalRowOvp)}</td></tr>
         <tr style="border-top:1.5px double var(--border-color);"><td style="padding:4px 8px; font-weight:800; color:var(--text-primary);">= Số dư ròng cuối kỳ (phải khớp ①)</td><td style="text-align:right; font-family:monospace; padding:4px 8px; font-weight:800; color:${diffOk ? 'var(--color-success)' : 'var(--color-danger)'};">${formatVND(netRec)} ${diffOk ? '✅ Khớp' : '⚠️ Lệch ' + formatVND(Math.abs(closingCalc - netRec))}</td></tr>
+        ${unmatchedBucket ? `
+        <tr><td colspan="2" style="padding:8px 8px 2px; font-weight:700; color:var(--color-danger); font-size:11px; text-transform:uppercase; letter-spacing:0.4px;">⚠ Chứng từ chưa khớp đối tác (${(unmatchedBucket.orphanPartnerIds || []).length} mã)</td></tr>
+        <tr><td style="padding:3px 8px; color:var(--text-muted);">Dư Nợ / Dư Có của nhóm chưa khớp</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-danger);">${formatVND(unmatchedBucket.closingDebit || 0)} / ${formatVND(unmatchedBucket.closingCredit || 0)}</td></tr>
+        <tr><td colspan="2" style="padding:2px 8px 4px; color:var(--text-muted); font-size:11px;">Các mã: ${(unmatchedBucket.orphanPartnerIds || []).slice(0, 10).join(", ")}${(unmatchedBucket.orphanPartnerIds || []).length > 10 ? "…" : ""} — xem chi tiết ở tab Khách Cá Nhân (dòng "Chưa khớp đối tác").</td></tr>` : ""}
       </table>`;
   }
 }
