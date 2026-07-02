@@ -11,7 +11,6 @@ let isPulling = false;
 let isPushing = false;
 let pullPending = false;
 let pushPending = false;
-let pushAfterStartupPull = false;
 let deferredCloudPull = false;
 let deferredCloudPullReason = "";
 let cloudMetadataPollTimer = null;
@@ -218,6 +217,25 @@ function syncV2GetRowDef(rowId) {
 
 function syncV2GetEntityIdFromRowId(rowId, def) {
   return String(rowId || "").slice(def.rowPrefix.length);
+}
+
+function syncV2MakeTombstoneRow(rowId, pushTs) {
+  const def = syncV2GetRowDef(rowId);
+  const entityId = def ? syncV2GetEntityIdFromRowId(rowId, def) : rowId;
+  return {
+    id: rowId,
+    data: {
+      id: entityId,
+      _deleted: true,
+      _deletedCloudKey: rowId,
+      _deletedEntity: def ? def.deleteType : "unknown",
+      _deletedAt: pushTs,
+      lastModifiedBy: syncV2GetSessionId()
+    },
+    last_modified: pushTs,
+    is_syncing: false,
+    updated_at: new Date().toISOString()
+  };
 }
 
 function syncV2SplitMetadata(sourceState) {
@@ -449,6 +467,14 @@ function syncV2StateFromRows(rows, options = {}) {
 
     const def = syncV2GetRowDef(row.id);
     if (def && row.data && row.data.id) {
+      if (row.data._deleted) {
+        if (!Array.isArray(cloudState.deletedIds)) cloudState.deletedIds = [];
+        if (!Array.isArray(cloudState.deletedCloudKeys)) cloudState.deletedCloudKeys = [];
+        const entityId = syncV2GetEntityIdFromRowId(row.id, def);
+        if (!cloudState.deletedIds.includes(entityId)) cloudState.deletedIds.push(entityId);
+        if (!cloudState.deletedCloudKeys.includes(row.id)) cloudState.deletedCloudKeys.push(row.id);
+        return;
+      }
       cloudState[def.stateKey].push(syncV2Clone(row.data));
     }
   });
@@ -468,10 +494,11 @@ function syncV2StateFromRows(rows, options = {}) {
 
 function syncV2DeduplicateState(sourceState) {
   const result = syncV2Clone(sourceState || syncV2DefaultState());
+  const deleted = new Set(Array.isArray(result.deletedIds) ? result.deletedIds : []);
   SYNC_V2_ENTITY_DEFS.forEach(def => {
     const map = new Map();
     (result[def.stateKey] || []).forEach(item => {
-      if (!item || !item.id) return;
+      if (!item || !item.id || deleted.has(item.id)) return;
       const previous = map.get(item.id);
       if (!previous || (Number(item._updatedAt) || 0) >= (Number(previous._updatedAt) || 0)) {
         map.set(item.id, item);
@@ -567,26 +594,17 @@ function mergeStates(localState, cloudState) {
   let localDeleted = Array.isArray(localState.deletedIds) ? [...localState.deletedIds] : [];
   let cloudDeleted = Array.isArray(cloudState.deletedIds) ? [...cloudState.deletedIds] : [];
 
-  if (cloudTs > localTs) {
-    const activeCloud = syncV2ActiveIds(cloudState);
-    localDeleted = localDeleted.filter(id => !activeCloud.has(id));
-  } else if (localTs > cloudTs) {
-    const activeLocal = syncV2ActiveIds(localState);
-    cloudDeleted = cloudDeleted.filter(id => !activeLocal.has(id));
-  }
-
   const deleted = new Set();
-  const tolerance = 2000;
 
   localDeleted.forEach(id => {
     const cloudItem = syncV2FindActiveItem(cloudState, id);
-    if (cloudItem && (Number(cloudItem._updatedAt) || cloudTs) > localTs - tolerance) return;
+    if (cloudItem && (Number(cloudItem._updatedAt) || 0) > localTs) return;
     deleted.add(id);
   });
 
   cloudDeleted.forEach(id => {
     const localItem = syncV2FindActiveItem(localState, id);
-    if (localItem && (Number(localItem._updatedAt) || localTs) > cloudTs - tolerance) return;
+    if (localItem && (Number(localItem._updatedAt) || 0) > cloudTs) return;
     deleted.add(id);
   });
 
@@ -690,7 +708,7 @@ async function flushDeferredCloudSync() {
   deferredCloudPull = false;
   const reason = deferredCloudPullReason;
   deferredCloudPullReason = "";
-  await pullAndMergeFromCloud({ reason: reason || "deferred", forceFull: true, force: true });
+  await pullAndMergeFromCloud({ reason: reason || "deferred", retryFullIfNoChanges: true, force: true });
 }
 
 function finishStartupPull() {
@@ -703,10 +721,6 @@ function finishStartupPull() {
     setTimeout(() => pullAndMergeFromCloud({ reason: "pending-after-startup" }), 250);
   }
 
-  if (pushAfterStartupPull) {
-    pushAfterStartupPull = false;
-    setTimeout(() => pushToCloud(), 500);
-  }
 }
 
 async function pullAndMergeFromCloud(options = {}) {
@@ -729,7 +743,6 @@ async function pullAndMergeFromCloud(options = {}) {
 
   isPulling = true;
   pullPending = false;
-  let shouldPushAfterPull = false;
 
   try {
     const localBeforePull = syncV2Clone(state);
@@ -778,7 +791,6 @@ async function pullAndMergeFromCloud(options = {}) {
     await persistStateCacheAfterCloudPull(state);
     syncV2RefreshUiAfterPull();
 
-    shouldPushAfterPull = syncV2NeedsPushAfterPull(state, cloudSnapshot);
     updateCloudSyncBadge(true, "May: Da ket noi", "#10b981");
   } catch (err) {
     if (typeof addErrorLog === "function") addErrorLog("CloudSyncV2.pull", err.message, err);
@@ -789,8 +801,6 @@ async function pullAndMergeFromCloud(options = {}) {
     if (pullPending) {
       pullPending = false;
       setTimeout(() => pullAndMergeFromCloud({ reason: "pending" }), 250);
-    } else if (shouldPushAfterPull && isStartupPullCompleted) {
-      setTimeout(() => pushToCloud(), 500);
     }
   }
 }
@@ -825,7 +835,6 @@ function syncV2MetadataDiffers(localMeta, cloudMeta) {
 function computeDelta() {
   lastSyncState = window.lastSyncState || lastSyncState;
   const rowsToUpsert = [];
-  const idsToDelete = [];
   const now = Date.now();
   const pushTs = Number(state._lastModified) || now;
 
@@ -856,19 +865,19 @@ function computeDelta() {
 
     previousItems.forEach(item => {
       if (item && item.id && !currentMap.has(item.id)) {
-        idsToDelete.push(`${def.rowPrefix}${item.id}`);
+        rowsToUpsert.push(syncV2MakeTombstoneRow(`${def.rowPrefix}${item.id}`, pushTs));
       }
     });
   });
 
   if (Array.isArray(state.deletedCloudKeys)) {
     state.deletedCloudKeys.forEach(key => {
-      if (key && !idsToDelete.includes(key)) idsToDelete.push(key);
+      if (key) rowsToUpsert.push(syncV2MakeTombstoneRow(key, pushTs));
     });
   } else if (Array.isArray(state.deletedIds)) {
     state.deletedIds.forEach(id => {
       const key = `v_${id}`;
-      if (id && !idsToDelete.includes(key)) idsToDelete.push(key);
+      if (id) rowsToUpsert.push(syncV2MakeTombstoneRow(key, pushTs));
     });
   }
 
@@ -880,7 +889,7 @@ function computeDelta() {
 
   return {
     rowsToUpsert: Array.from(new Map(rowsToUpsert.map(row => [row.id, row])).values()),
-    idsToDelete: Array.from(new Set(idsToDelete.filter(Boolean)))
+    idsToDelete: []
   };
 }
 
@@ -915,7 +924,7 @@ async function syncV2DeleteRows(ids) {
 async function pushToCloud() {
   if (!cloudSyncActive || !supabaseClient) return;
   if (!isStartupPullCompleted) {
-    pushAfterStartupPull = true;
+    syncV2Log("Skipped push while startup pull is running; next local save or manual push will upload changes.");
     return;
   }
   if (isPushing) {
@@ -928,8 +937,6 @@ async function pushToCloud() {
   updateCloudSyncBadge(false, "May: Dang day...", "#f59e0b");
 
   try {
-    if (!isPulling) await syncV2PrePullBeforePush();
-
     const metadataBefore = await syncV2EnsureMetadataRow();
     const cloudWatermarkBefore = await syncV2GetCloudWatermark(metadataBefore);
     const pushTs = Math.max(Date.now(), Number(state._lastModified) || 0, cloudWatermarkBefore + 1);
@@ -938,6 +945,7 @@ async function pushToCloud() {
     const finalMetadata = syncV2BuildMetadataForPush(pushTs);
     const { rowsToUpsert, idsToDelete } = computeDelta();
     const entityRows = rowsToUpsert.filter(row => row.id !== SYNC_V2_METADATA_ID);
+    const tombstoneRows = entityRows.filter(row => row.data && row.data._deleted);
     if (entityRows.length > 0) await syncV2UpsertRows(entityRows);
     if (idsToDelete.length > 0) await syncV2DeleteRows(idsToDelete);
 
@@ -950,12 +958,16 @@ async function pushToCloud() {
     };
     await syncV2UpsertRows([finalRow]);
 
+    if (tombstoneRows.length > 0) {
+      state.deletedIds = [];
+      state.deletedCloudKeys = [];
+    }
     state._cloudWatermark = pushTs;
     updateLastSyncState(state);
     persistLastPulledCloudTs(pushTs);
     await persistStateCacheAfterCloudPull(state);
     updateCloudSyncBadge(true, "May: Da ket noi", "#10b981");
-    syncV2Log(`Push completed: ${entityRows.length} upsert, ${idsToDelete.length} delete.`);
+    syncV2Log(`Push completed: ${entityRows.length} upsert, ${tombstoneRows.length} tombstone, ${idsToDelete.length} physical delete.`);
   } catch (err) {
     console.error("[CloudSyncV2] Push failed:", err);
     if (typeof addErrorLog === "function") addErrorLog("CloudSyncV2.push", err.message, err);
