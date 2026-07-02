@@ -609,6 +609,9 @@ function mergeStates(localState, cloudState) {
   });
 
   const deletedIds = Array.from(deleted);
+  if (deletedIds.length > 0) {
+    syncV2Log(`mergeStates: localTs=${localTs}, cloudTs=${cloudTs}, cloudDeleted size=${cloudDeleted.length}, deletedIds size=${deletedIds.length}, sample=${JSON.stringify(deletedIds.slice(0, 5))}`);
+  }
   const merged = {
     ...syncV2MergeMetadata(localState, cloudState),
     vouchers: syncV2MergeEntityArray(localState.vouchers, cloudState.vouchers, deletedIds),
