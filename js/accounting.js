@@ -155,9 +155,7 @@ function recalculateAccounting(shouldSave = true) {
 
       v.taxAmount = taxAmount;
       v.totalAmount = totalAmount;
-      if (v.remainingDebt === undefined) {
-        v.remainingDebt = (v.paymentMethod === "331") ? totalAmount : 0;
-      }
+      // Bug C: remainingDebt suy diễn ở BƯỚC C2 (FIFO)
 
       // TT133: thuế GTGT gộp vào giá hàng mua (cộng tax vào TK 156)
       const purchaseDebitAmount = (state.accountingStandard === "TT133") ? (itemSubtotal + taxAmount) : itemSubtotal;
@@ -200,10 +198,7 @@ function recalculateAccounting(shouldSave = true) {
       const totalAmountSR = itemSubtotal + taxAmountSR;
       v.taxAmount = taxAmountSR;
       v.totalAmount = totalAmountSR;
-      // Công nợ KH giảm (được hoàn lại): remainingDebt âm nghĩa là công ty nợ khách
-      if (v.remainingDebt === undefined) {
-        v.remainingDebt = -totalAmountSR; // Âm = trừ từ tổng công nợ phải thu
-      }
+      // Bug C: remainingDebt suy diễn ở BƯỚC C2 (FIFO)
 
       // Bút toán:
       // Nợ 511: Giảm doanh thu / Có 131: Giảm công nợ phải thu
@@ -254,9 +249,7 @@ function recalculateAccounting(shouldSave = true) {
       const totalAmountPR = itemSubtotal + taxAmountPR;
       v.taxAmount = taxAmountPR;
       v.totalAmount = totalAmountPR;
-      if (v.remainingDebt === undefined) {
-        v.remainingDebt = -totalAmountPR; // Âm = giảm công nợ phải trả NCC
-      }
+      // Bug C: remainingDebt suy diễn ở BƯỚC C2 (FIFO)
 
       // Bút toán mua trả lại:
       // Nợ 331: Giảm công nợ phải trả NCC (theo giá trị trả — itemSubtotal)
@@ -322,9 +315,7 @@ function recalculateAccounting(shouldSave = true) {
 
       v.taxAmount = taxAmount;
       v.totalAmount = totalAmount;
-      if (v.remainingDebt === undefined) {
-        v.remainingDebt = (v.paymentMethod === "131") ? totalAmount : 0;
-      }
+      // Bug C: remainingDebt suy diễn ở BƯỚC C2 (FIFO)
 
       // Định khoản kép cho bán hàng (2 cặp bút toán song song):
       // Bút toán 1: Ghi nhận doanh thu
@@ -382,6 +373,106 @@ function recalculateAccounting(shouldSave = true) {
       }
     }
   });
+
+  // BƯỚC C2 (Bug C): Suy diễn remainingDebt từ bút toán bằng phân bổ FIFO
+  const openingRemaining = {};
+  if (state.partnerOpeningBalances) {
+    Object.keys(state.partnerOpeningBalances).forEach(pid => {
+      const op = state.partnerOpeningBalances[pid] || {};
+      openingRemaining[pid] = { debit: op.debit || 0, credit: op.credit || 0 };
+    });
+  }
+  const arQueues = {};
+  const apQueues = {};
+
+  state.vouchers.forEach(v => {
+    const isDebtType = (v.type === "sales" || v.type === "purchase" || v.type === "sales_return" || v.type === "purchase_return");
+    if (!v.entries || v.entries.length === 0) {
+      if (isDebtType) v.remainingDebt = 0;
+      return;
+    }
+
+    const pid = v.partnerId !== undefined && v.partnerId !== null ? String(v.partnerId) : "";
+    let debit131 = 0, credit131 = 0, debit331 = 0, credit331 = 0;
+    v.entries.forEach(e => {
+      const amt = e.amount || 0;
+      const dr = e.debit ? String(e.debit) : "";
+      const cr = e.credit ? String(e.credit) : "";
+      if (dr.startsWith("131")) debit131 += amt;
+      if (cr.startsWith("131")) credit131 += amt;
+      if (dr.startsWith("331")) debit331 += amt;
+      if (cr.startsWith("331")) credit331 += amt;
+    });
+
+    if (isDebtType) v.remainingDebt = 0;
+
+    if (v.type === "sales" && debit131 > 0) {
+      const order = { v, remaining: debit131 };
+      (arQueues[pid] = arQueues[pid] || []).push(order);
+      v.remainingDebt = debit131;
+    } else if (v.type === "purchase" && credit331 > 0) {
+      const order = { v, remaining: credit331 };
+      (apQueues[pid] = apQueues[pid] || []).push(order);
+      v.remainingDebt = credit331;
+    }
+
+    if (credit131 > 0 && v.type !== "sales") {
+      let toAlloc = credit131;
+      const op = openingRemaining[pid];
+      if (op && op.debit > 0) {
+        const used = Math.min(op.debit, toAlloc);
+        op.debit -= used;
+        toAlloc -= used;
+      }
+      const q = arQueues[pid] || [];
+      for (let i = 0; i < q.length && toAlloc > 0; i++) {
+        const order = q[i];
+        if (order.remaining <= 0) continue;
+        const used = Math.min(order.remaining, toAlloc);
+        order.remaining -= used;
+        toAlloc -= used;
+        order.v.remainingDebt = order.remaining;
+      }
+      if (v.type === "sales_return") {
+        v.remainingDebt = -toAlloc;
+      }
+    }
+
+    if (debit331 > 0 && v.type !== "purchase") {
+      let toAlloc = debit331;
+      const op = openingRemaining[pid];
+      if (op && op.credit > 0) {
+        const used = Math.min(op.credit, toAlloc);
+        op.credit -= used;
+        toAlloc -= used;
+      }
+      const q = apQueues[pid] || [];
+      for (let i = 0; i < q.length && toAlloc > 0; i++) {
+        const order = q[i];
+        if (order.remaining <= 0) continue;
+        const used = Math.min(order.remaining, toAlloc);
+        order.remaining -= used;
+        toAlloc -= used;
+        order.v.remainingDebt = order.remaining;
+      }
+      if (v.type === "purchase_return") {
+        v.remainingDebt = -toAlloc;
+      }
+    }
+  });
+
+  state.vouchers.forEach(v => {
+    if (v.type === "sales" || v.type === "purchase" || v.type === "sales_return" || v.type === "purchase_return") {
+      const adj = Number(v.debtAdjustment) || 0;
+      if (adj !== 0) {
+        v.remainingDebt = (Number(v.remainingDebt) || 0) + adj;
+      }
+    }
+  });
+
+  if (typeof window !== "undefined") {
+    window.partnerOpeningRemaining = openingRemaining;
+  }
 
   // BƯỚC D: Cập nhật lại số liệu tồn kho cuối cùng vào State để hiển thị danh mục
   state.products.forEach(p => {

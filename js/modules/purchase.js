@@ -555,6 +555,9 @@ async function handlePurchaseSubmit(e) {
       if (state.vouchers[idx].excelRow) {
         newVoucher.excelRow = state.vouchers[idx].excelRow;
       }
+      if (state.vouchers[idx].debtAdjustment !== undefined) {
+        newVoucher.debtAdjustment = state.vouchers[idx].debtAdjustment;
+      }
       state.vouchers[idx] = newVoucher;
     }
     

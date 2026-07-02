@@ -825,7 +825,12 @@ function handlePartnerSubmit(e) {
 }
 
 function deletePartner(id) {
-  if (confirm(`Bạn có chắc chắn muốn xóa đối tác "${id}" không?`)) {
+  const linkedCount = (state.vouchers || []).filter(v => v.partnerId === id).length;
+  let confirmMsg = `Bạn có chắc chắn muốn xóa đối tác "${id}" không?`;
+  if (linkedCount > 0) {
+    confirmMsg = `Đối tác "${id}" còn ${linkedCount} chứng từ liên kết. Xóa sẽ làm các chứng từ này rơi vào nhóm "Chưa khớp đối tác" trên tab công nợ. Bạn có chắc muốn xóa?`;
+  }
+  if (confirm(confirmMsg)) {
     trackDeletedIds([id], 'partner');
     state.partners = state.partners.filter(p => p.id !== id);
     if (state.partnerOpeningBalances && state.partnerOpeningBalances[id]) {

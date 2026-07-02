@@ -1705,12 +1705,22 @@ function resolvePartner(value) {
   p = state.partners.find(item => item.name.toLowerCase() === val.toLowerCase());
   if (p) return p;
 
-  // 3. Tìm tương đối theo Tên hoặc ID
-  p = state.partners.find(item => item.name.toLowerCase().includes(val.toLowerCase()) || String(item.id).toLowerCase().includes(val.toLowerCase()));
-  if (p) return p;
-
-  // 4. Tạo đối tác mới tự động nếu không tồn tại
-  return { id: val, name: val };
+  // 3. Tạo đối tác mới tự động nếu không tồn tại (Bug B fix)
+  const autoId = typeof getUniquePartnerId === "function"
+    ? getUniquePartnerId(val, "retail")
+    : val.replace(/\s+/g, "_").slice(0, 40);
+  const newPartner = {
+    id: autoId,
+    name: val,
+    type: "retail",
+    address: "",
+    phone: "",
+    taxCode: "",
+    _updatedAt: Date.now()
+  };
+  state.partners.push(newPartner);
+  if (typeof invalidatePartnerCache === "function") invalidatePartnerCache();
+  return newPartner;
 }
 
 // Tìm sản phẩm thông minh từ từ khóa nhập (ID hoặc Tên) phục vụ autocomplete

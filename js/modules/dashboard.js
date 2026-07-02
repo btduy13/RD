@@ -259,16 +259,20 @@ function renderDashboardDebts() {
     const kpiDebts = toDate ? calculatePartnerDebts("", toDate) : calculatePartnerDebts();
     let totalRec = 0;
     let totalPay = 0;
+    let totalSupplierReceivable = 0;
     kpiDebts.forEach(d => {
       if (d.type !== 'supplier') {
         totalRec += (d.closingDebit || 0);
       }
       if (d.type === 'supplier' || d.type === 'both') {
         totalPay += d.closingCredit || 0;
+        totalSupplierReceivable += d.closingDebit || 0;
       }
     });
     if (kpiReceivable) kpiReceivable.innerText = formatVND(totalRec);
     if (kpiPayable) kpiPayable.innerText = formatVND(totalPay);
+    const kpiSupplierRec = document.getElementById("kpi-debt-supplier-receivable");
+    if (kpiSupplierRec) kpiSupplierRec.innerText = formatVND(totalSupplierReceivable);
   }
 }
 

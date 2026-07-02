@@ -107,6 +107,7 @@ function syncV2DefaultState() {
     accountingStandard: "TT200",
     initialBalances: {},
     partnerOpeningBalances: {},
+    partnerOpeningBalanceTs: {},
     vouchers: [],
     products: [],
     partners: [],
@@ -687,20 +688,33 @@ function syncV2MetaComparable(meta) {
 function syncV2MergeMetadata(localState, cloudState) {
   const localMeta = syncV2SplitMetadata(localState || {});
   const cloudMeta = syncV2SplitMetadata(cloudState || {});
-  const localTs = Number((typeof window !== "undefined" && window.originalStateLastModified) || localMeta._lastModified) || 0;
+  const localTs = Number(localState._lastModified) || Number((typeof window !== "undefined" && window.originalStateLastModified) || localMeta._lastModified) || 0;
   const cloudTs = Number(cloudMeta._lastModified || cloudState && cloudState._cloudWatermark) || 0;
   const merged = cloudTs >= localTs ? { ...localMeta, ...cloudMeta } : { ...cloudMeta, ...localMeta };
 
-  merged.partnerOpeningBalances = {
-    ...(cloudMeta.partnerOpeningBalances || {}),
-    ...(localTs > cloudTs ? (localMeta.partnerOpeningBalances || {}) : {})
-  };
-  if (cloudTs >= localTs && localMeta.partnerOpeningBalances) {
-    merged.partnerOpeningBalances = {
-      ...localMeta.partnerOpeningBalances,
-      ...(cloudMeta.partnerOpeningBalances || {})
-    };
-  }
+  const localOP = localMeta.partnerOpeningBalances || {};
+  const cloudOP = cloudMeta.partnerOpeningBalances || {};
+  const localOPTS = localMeta.partnerOpeningBalanceTs || {};
+  const cloudOPTS = cloudMeta.partnerOpeningBalanceTs || {};
+  const mergedOP = {};
+  const mergedOPTS = {};
+  const opKeys = new Set([...Object.keys(localOP), ...Object.keys(cloudOP)]);
+  opKeys.forEach(key => {
+    const lTs = Number(localOPTS[key]) || 0;
+    const cTs = Number(cloudOPTS[key]) || 0;
+    if (cTs > lTs) {
+      if (cloudOP[key] !== undefined) mergedOP[key] = cloudOP[key];
+      mergedOPTS[key] = cTs;
+    } else if (lTs > cTs) {
+      if (localOP[key] !== undefined) mergedOP[key] = localOP[key];
+      mergedOPTS[key] = lTs;
+    } else {
+      mergedOP[key] = localOP[key] !== undefined ? localOP[key] : cloudOP[key];
+      mergedOPTS[key] = lTs || cTs;
+    }
+  });
+  merged.partnerOpeningBalances = mergedOP;
+  merged.partnerOpeningBalanceTs = mergedOPTS;
 
   merged.initialBalances = {
     ...(cloudMeta.initialBalances || {}),
@@ -871,7 +885,7 @@ async function syncV2PersistPullDeltaToCache(mergedState, changedIdsByEntity = n
     // which the full save path also persists.
     const metadataKeys = [
       'companyName', 'address', 'taxCode', 'accountingStandard',
-      'initialBalances', 'partnerOpeningBalances', 'deletedIds', 'deletedCloudKeys',
+      'initialBalances', 'partnerOpeningBalances', 'partnerOpeningBalanceTs', 'deletedIds', 'deletedCloudKeys',
       '_lastModified', '_lastPulledCloudTs',
       'cashEntries', 'escrowItems', 'salesTemplatesData', 'users', 'actionLogs'
     ];
@@ -922,6 +936,7 @@ function syncV2RefreshUiAfterPull() {
   if (typeof filterPartners === "function") filterPartners();
   if (typeof filterCash === "function") filterCash();
   if (typeof initExcelIntegration === "function") initExcelIntegration();
+  if (typeof refreshOpenPartnerLedgerModal === "function") refreshOpenPartnerLedgerModal();
   if (typeof refreshUI === "function") refreshUI();
 }
 

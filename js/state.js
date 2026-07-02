@@ -110,6 +110,9 @@ async function initApp() {
   if (!state.partnerOpeningBalances) {
     state.partnerOpeningBalances = {};
   }
+  if (!state.partnerOpeningBalanceTs) {
+    state.partnerOpeningBalanceTs = {};
+  }
 
   // === ƯU TIÊN KHỞI CHẠY ĐẦU TIÊN: Nạp ngay các dropdown list của cửa sổ bán hàng từ cache cục bộ ===
   if (typeof initExcelIntegration === "function") {
@@ -377,6 +380,7 @@ function initializeLastSavedState(loadedState) {
     accountingStandard: loadedState.accountingStandard || "TT200",
     initialBalances: JSON.parse(JSON.stringify(loadedState.initialBalances || {})),
     partnerOpeningBalances: JSON.parse(JSON.stringify(loadedState.partnerOpeningBalances || {})),
+    partnerOpeningBalanceTs: JSON.parse(JSON.stringify(loadedState.partnerOpeningBalanceTs || {})),
     deletedIds: [...(loadedState.deletedIds || [])],
     deletedCloudKeys: [...(loadedState.deletedCloudKeys || [])],
     cashEntries: JSON.parse(JSON.stringify(loadedState.cashEntries || [])),
@@ -629,7 +633,7 @@ function executeSaveState(sync = false) {
         // A. So sánh metadata các cấu hình hệ thống (So sánh cuối cùng để ăn được actionLogs mới push)
         const metadataKeys = [
           'companyName', 'address', 'taxCode', 'accountingStandard',
-          'initialBalances', 'partnerOpeningBalances', 'deletedIds', 'deletedCloudKeys', '_lastPulledCloudTs',
+          'initialBalances', 'partnerOpeningBalances', 'partnerOpeningBalanceTs', 'deletedIds', 'deletedCloudKeys', '_lastPulledCloudTs',
           'cashEntries', 'escrowItems', 'salesTemplatesData', 'users', 'actionLogs'
         ];
         
