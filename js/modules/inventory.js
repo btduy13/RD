@@ -83,7 +83,7 @@ function renderInventoryTable(filterQuery = "") {
   }
 
   if (displayedProducts.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: var(--text-muted); padding: 30px;">Không tìm thấy sản phẩm phù hợp.</td></tr>`;
+    renderEmptyState(tbody, 12, 'Không tìm thấy sản phẩm phù hợp', 'Thử tìm kiếm với từ khóa khác hoặc thêm sản phẩm mới');
     return;
   }
 
@@ -118,6 +118,9 @@ function renderInventoryTable(filterQuery = "") {
           <div style="display: flex; gap: 6px; justify-content: center;">
             <button class="btn btn-secondary" onclick="viewStockLedgerForProduct('${escapedId}')" title="Xem Sổ thẻ kho" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-warning); cursor: pointer; transition: all 0.2s; padding: 0;">
               <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 15px; height: 15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+            </button>
+            <button class="btn btn-secondary" onclick="promptAdjustStock('${escapedId}')" title="Điều chỉnh tồn kho" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-warning); cursor: pointer; transition: all 0.2s; padding: 0;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 15px; height: 15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg>
             </button>
             <button class="btn btn-secondary" onclick="promptQuickImport('${escapedId}')" title="Nhập kho nhanh" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-success); cursor: pointer; transition: all 0.2s; padding: 0;">
               <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 15px; height: 15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
@@ -227,13 +230,13 @@ function renderStockLedger() {
 
   const prodId = selectedLedgerProductId;
   if (!prodId) {
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color:var(--text-muted); padding: 20px;">Vui lòng khai báo sản phẩm trước để xem thẻ kho</td></tr>`;
+    renderEmptyState(tbody, 5, 'Vui lòng khai báo sản phẩm trước để xem thẻ kho', 'Thêm sản phẩm trong danh mục kho hàng');
     return;
   }
 
   const prod = state.products.find(p => String(p.id) === String(prodId));
   if (!prod) {
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color:var(--text-muted); padding: 20px;">Không tìm thấy sản phẩm được chọn</td></tr>`;
+    renderEmptyState(tbody, 5, 'Không tìm thấy sản phẩm được chọn', 'Chọn sản phẩm khác từ danh sách');
     return;
   }
 
@@ -269,7 +272,7 @@ function renderStockLedger() {
 
   // 2. Lọc chứng từ phát sinh chứa sản phẩm này
   let filteredVouchers = state.vouchers.filter(v => {
-    if (v.type !== "purchase" && v.type !== "sales" && v.type !== "purchase_return" && v.type !== "sales_return") return false;
+    if (v.type !== "purchase" && v.type !== "sales" && v.type !== "purchase_return" && v.type !== "sales_return" && v.type !== "inventory_adjust") return false;
     const item = v.items.find(i => i.productId === prodId);
     if (!item) return false;
     if (fromDate && v.date < fromDate) return false;
@@ -319,6 +322,31 @@ function renderStockLedger() {
           <td class="text-right font-numeric" style="color: var(--text-secondary);">${formatVND(item.cogsUnit || 0)} (Tồn: ${runningStock})</td>
         </tr>
       `;
+    } else if (v.type === "inventory_adjust") {
+      const isIn = item.adjustDir === "in";
+      if (isIn) {
+        runningStock += item.qty;
+        html += `
+          <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
+            <td>${v.date}</td>
+            <td class="font-numeric" style="color:var(--color-warning); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${v.id}</td>
+            <td class="text-right font-numeric" style="color: var(--color-warning); font-weight:700;">+${item.qty}</td>
+            <td class="text-right font-numeric">-</td>
+            <td class="text-right font-numeric">${formatVND(item.price || 0)} (Tồn: ${runningStock})</td>
+          </tr>
+        `;
+      } else {
+        runningStock -= item.qty;
+        html += `
+          <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
+            <td>${v.date}</td>
+            <td class="font-numeric" style="color:var(--color-warning); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${v.id}</td>
+            <td class="text-right font-numeric">-</td>
+            <td class="text-right font-numeric" style="color: var(--color-warning); font-weight:700;">-${item.qty}</td>
+            <td class="text-right font-numeric" style="color: var(--text-secondary);">${formatVND(item.price || item.cogsUnit || 0)} (Tồn: ${runningStock})</td>
+          </tr>
+        `;
+      }
     }
   });
 
@@ -414,7 +442,7 @@ function exportStockLedgerToExcel() {
 
     // DATA ROWS
     let filteredVouchers = state.vouchers.filter(v => {
-      if (v.type !== "purchase" && v.type !== "sales" && v.type !== "purchase_return" && v.type !== "sales_return") return false;
+      if (v.type !== "purchase" && v.type !== "sales" && v.type !== "purchase_return" && v.type !== "sales_return" && v.type !== "inventory_adjust") return false;
       const item = v.items.find(i => i.productId === prodId);
       if (!item) return false;
       if (fromDate && v.date < fromDate) return false;
@@ -435,7 +463,7 @@ function exportStockLedgerToExcel() {
 
       sc(rowIdx, 0, v.date, 's', bs(cC, bg));
       sc(rowIdx, 1, v.id, 's', bs(cC, bg));
-      sc(rowIdx, 2, v.description || (v.type === 'purchase' ? 'Nhập kho mua hàng' : (v.type === 'purchase_return' || v.type === 'sales_return') ? 'Nhập hàng trả lại' : 'Xuất kho bán hàng'), 's', bs(cL, bg));
+      sc(rowIdx, 2, v.description || (v.type === 'purchase' ? 'Nhập kho mua hàng' : (v.type === 'purchase_return' || v.type === 'sales_return') ? 'Nhập hàng trả lại' : v.type === 'inventory_adjust' ? 'Điều chỉnh tồn kho' : 'Xuất kho bán hàng'), 's', bs(cL, bg));
 
       if (v.type === "purchase") {
         runningStock += item.qty;
@@ -449,6 +477,21 @@ function exportStockLedgerToExcel() {
         sc(rowIdx, 3, item.qty, 'n', bs(cR, bg), "#,##0.##");
         sc(rowIdx, 4, "-", 's', bs(cR, bg));
         sc(rowIdx, 5, item.price, 'n', bs(cR, bg), numFmt);
+      } else if (v.type === "inventory_adjust") {
+        const isIn = item.adjustDir === "in";
+        if (isIn) {
+          runningStock += item.qty;
+          totalImport += item.qty;
+          sc(rowIdx, 3, item.qty, 'n', bs(cR, bg), "#,##0.##");
+          sc(rowIdx, 4, "-", 's', bs(cR, bg));
+          sc(rowIdx, 5, item.price || 0, 'n', bs(cR, bg), numFmt);
+        } else {
+          runningStock -= item.qty;
+          totalExport += item.qty;
+          sc(rowIdx, 3, "-", 's', bs(cR, bg));
+          sc(rowIdx, 4, item.qty, 'n', bs(cR, bg), "#,##0.##");
+          sc(rowIdx, 5, item.price || item.cogsUnit || 0, 'n', bs(cR, bg), numFmt);
+        }
       } else {
         runningStock -= item.qty;
         totalExport += item.qty;
@@ -586,6 +629,8 @@ window.onunhandledrejection = function (event) {
 
 window.promptQuickImport = promptQuickImport;
 window.handleQuickImportSubmit = handleQuickImportSubmit;
+window.promptAdjustStock = promptAdjustStock;
+window.handleAdjustStockSubmit = handleAdjustStockSubmit;
 window.promptEditProductPrice = promptEditProductPrice;
 window.handleEditProductPriceSubmit = handleEditProductPriceSubmit;
 
@@ -694,6 +739,122 @@ function handleQuickImportSubmit(e) {
     if (typeof addErrorLog === "function") {
       addErrorLog("handleQuickImportSubmit", err.message, err);
     }
+  }
+}
+
+function promptAdjustStock(productId) {
+  try {
+    const p = state.products.find(x => String(x.id) === String(productId));
+    if (!p) {
+      showToast(`Không tìm thấy sản phẩm với mã: ${productId}`, "danger");
+      return;
+    }
+
+    const currentStock = p.stock || 0;
+    document.getElementById("adjust-stock-prod-id").value = p.id;
+    document.getElementById("adjust-stock-info-text").innerHTML = `
+      <strong>Mã hàng:</strong> ${escapeHtmlAttr(p.id)}<br>
+      <strong>Tên hàng:</strong> ${escapeHtmlAttr(p.name)}<br>
+      <strong>ĐVT:</strong> ${escapeHtmlAttr(p.unit || "Cái")}<br>
+      <strong>Tồn kho hiện tại:</strong> <span style="font-weight:bold; color:var(--color-primary);">${currentStock}</span><br>
+      <strong>Đơn giá bình quân:</strong> ${formatVND(p.avgCost || 0)}
+    `;
+
+    document.getElementById("adjust-stock-new-qty").value = String(currentStock);
+    document.getElementById("adjust-stock-reason").value = "";
+
+    openModal("modal-adjust-stock");
+    setTimeout(() => {
+      const qtyEl = document.getElementById("adjust-stock-new-qty");
+      if (qtyEl) {
+        qtyEl.focus();
+        qtyEl.select();
+      }
+    }, 120);
+  } catch (err) {
+    if (typeof addErrorLog === "function") {
+      addErrorLog("promptAdjustStock", err.message, err);
+    }
+  }
+}
+
+function handleAdjustStockSubmit(e) {
+  try {
+    e.preventDefault();
+
+    const prodId = document.getElementById("adjust-stock-prod-id").value;
+    const newQty = safeParseFloat(document.getElementById("adjust-stock-new-qty").value);
+    const reason = document.getElementById("adjust-stock-reason").value.trim();
+
+    if (newQty === null || newQty === undefined || isNaN(newQty) || newQty < 0) {
+      showToast("Số lượng tồn mới phải là số không âm!", "danger");
+      return;
+    }
+
+    if (!reason) {
+      showToast("Vui lòng nhập lý do điều chỉnh tồn kho!", "danger");
+      return;
+    }
+
+    const p = state.products.find(x => String(x.id) === String(prodId));
+    if (!p) return;
+
+    const currentStock = Number((p.stock || 0).toFixed(3));
+    const targetQty = Number(newQty.toFixed(3));
+    const delta = Number((targetQty - currentStock).toFixed(3));
+
+    if (delta === 0) {
+      showToast("Số lượng tồn mới trùng với tồn hiện tại, không cần điều chỉnh.", "warning");
+      return;
+    }
+
+    const avgCost = p.avgCost || p.initialCost || 0;
+    const absQty = Math.abs(delta);
+    const amount = Math.round(absQty * avgCost);
+    const adjustDir = delta > 0 ? "in" : "out";
+    const adjustId = "DK" + Date.now().toString().slice(-8);
+
+    const voucher = {
+      id: adjustId,
+      type: "inventory_adjust",
+      date: getLocalDateString(),
+      description: `Điều chỉnh tồn kho ${p.name}: ${currentStock} → ${targetQty}. Lý do: ${reason}`,
+      adjustReason: reason,
+      amount: amount,
+      totalAmount: amount,
+      isManual: true,
+      _sessionId: typeof clientSessionId !== "undefined" ? clientSessionId : undefined,
+      items: [
+        {
+          productId: p.id,
+          qty: absQty,
+          adjustDir: adjustDir,
+          price: avgCost,
+          amount: amount
+        }
+      ],
+      entries: adjustDir === "in"
+        ? [{ debit: "156", credit: "711", amount: amount, desc: `Tăng tồn kho do điều chỉnh: ${p.id}` }]
+        : [{ debit: "632", credit: "156", amount: amount, desc: `Giảm tồn kho do điều chỉnh: ${p.id}` }]
+    };
+
+    state.vouchers.push(voucher);
+
+    saveState();
+    recalculateAccounting();
+    closeModal("modal-adjust-stock");
+
+    const dirLabel = adjustDir === "in" ? "tăng" : "giảm";
+    showToast(`Đã ${dirLabel} tồn kho ${p.name}: ${currentStock} → ${targetQty} (${adjustId})`, "success");
+
+    renderInventoryTable();
+    populateProductLedgerDropdown();
+    renderStockLedger();
+  } catch (err) {
+    if (typeof addErrorLog === "function") {
+      addErrorLog("handleAdjustStockSubmit", err.message, err);
+    }
+    showToast("Lỗi khi điều chỉnh tồn kho: " + err.message, "danger");
   }
 }
 

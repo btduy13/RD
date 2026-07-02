@@ -104,7 +104,6 @@ function isVoucherEntryModalOpen() {
     "modal-add-sales-quotation",
     "modal-add-receipt",
     "modal-add-payment",
-    "modal-add-escrow",
     "modal-edit-debt"
   ];
   return entryModalIds.some(id => isElementVisible(document.getElementById(id)));

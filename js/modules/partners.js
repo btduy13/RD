@@ -468,7 +468,7 @@ function renderPartnersTable() {
 
   tbody.innerHTML = "";
   if (pageItems.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy đối tác nào</td></tr>`;
+    renderEmptyState(tbody, 8, 'Không tìm thấy đối tác nào', 'Thử tìm kiếm với từ khóa khác hoặc thêm đối tác mới');
   } else {
     pageItems.forEach(item => {
       const p = item.partner;

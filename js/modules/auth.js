@@ -341,7 +341,7 @@ function renderUserListTable() {
   
   const users = state.users || [];
   if (users.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Không có dữ liệu người dùng</td></tr>';
+    renderEmptyState(tbody, 4, 'Không có dữ liệu người dùng', 'Thêm tài khoản người dùng trong phần quản lý');
     return;
   }
   
@@ -585,7 +585,7 @@ function renderActivityLogTable() {
   
   const logs = state.actionLogs || [];
   if (logs.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Không có hoạt động nào được ghi nhận.</td></tr>';
+    renderEmptyState(tbody, 5, 'Không có hoạt động nào được ghi nhận', 'Nhật ký sẽ cập nhật khi có thao tác trên hệ thống');
     return;
   }
   

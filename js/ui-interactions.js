@@ -3,6 +3,56 @@
 // ==========================================================================
 // BỘ ĐIỀU KHIỂN CHUỘT VÀ CONTEXT MENU TÙY BIẾN TOÀN CỤC
 // ==========================================================================
+
+/** Tỉ lệ zoom UI trên body (font scale) — ảnh hưởng tọa độ fixed bên trong body. */
+function getUiScale() {
+  const zoom = parseFloat(document.body.style.zoom);
+  return Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+}
+
+/** Đặt popover position:fixed tại tọa độ viewport, kẹp mép màn hình. */
+function positionFixedPopover(el, clientX, clientY, options) {
+  if (!el) return;
+  const margin = (options && options.margin) || 8;
+  const scale = (options && options.parentScale) || 1;
+
+  el.style.position = "fixed";
+  el.style.right = "auto";
+  el.style.bottom = "auto";
+  el.style.display = "block";
+  el.style.visibility = "hidden";
+  el.style.left = "0";
+  el.style.top = "0";
+
+  const menuWidth = el.offsetWidth || 190;
+  const menuHeight = el.offsetHeight || 150;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  // Tọa độ CSS bên trong container có zoom
+  let x = clientX / scale;
+  let y = clientY / scale;
+  const maxX = (vw - margin) / scale - menuWidth;
+  const maxY = (vh - margin) / scale - menuHeight;
+  const minX = margin / scale;
+  const minY = margin / scale;
+
+  if (x > maxX) x = Math.max(minX, maxX);
+  if (y > maxY) y = Math.max(minY, maxY);
+  if (x < minX) x = minX;
+  if (y < minY) y = minY;
+
+  el.style.left = `${x}px`;
+  el.style.top = `${y}px`;
+  el.style.visibility = "visible";
+}
+
+function hideContextMenu(contextMenu) {
+  if (!contextMenu) return;
+  contextMenu.style.display = "none";
+  contextMenu.style.visibility = "";
+}
+
 function initMouseInteractions() {
   const contextMenu = document.getElementById("custom-context-menu");
   if (!contextMenu) {
@@ -18,17 +68,23 @@ function initMouseInteractions() {
     }
   });
 
-  // Ẩn context menu khi click chuột (trái, phải, giữa) bất kỳ đâu ngoài menu
+  // Ẩn context menu khi click chuột trái/giữa ngoài menu (giữ chuột phải cho contextmenu)
   document.addEventListener("mousedown", function (e) {
+    if (e.button === 2) return;
     if (contextMenu && !e.target.closest("#custom-context-menu")) {
-      contextMenu.style.display = "none";
+      hideContextMenu(contextMenu);
     }
   });
+
+  // Ẩn khi cuộn bất kỳ vùng nào (bảng, content-body…)
+  document.addEventListener("scroll", function () {
+    hideContextMenu(contextMenu);
+  }, true);
 
   // Ẩn context menu ngay lập tức khi click chọn một chức năng bên trong nó
   if (contextMenu) {
     contextMenu.addEventListener("click", function () {
-      contextMenu.style.display = "none";
+      hideContextMenu(contextMenu);
     });
   }
 
@@ -61,12 +117,16 @@ function initMouseInteractions() {
   document.addEventListener("contextmenu", function (e) {
     const row = e.target.closest("tr");
     if (!row || !row.hasAttribute("data-type")) {
-      if (contextMenu) contextMenu.style.display = "none";
+      hideContextMenu(contextMenu);
       return;
     }
 
     // Ngăn chặn menu chuột phải mặc định của trình duyệt
     e.preventDefault();
+    e.stopPropagation();
+
+    document.querySelectorAll("tr.active-row").forEach(r => r.classList.remove("active-row"));
+    row.classList.add("active-row");
 
     const type = row.getAttribute("data-type");
     const subtype = row.getAttribute("data-subtype") || "";
@@ -130,6 +190,20 @@ function initMouseInteractions() {
           <button class="context-menu-item" onclick="editQuotationVoucher('${escapedId}')">
             <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
             Chỉnh sửa báo giá
+          </button>
+        `;
+      } else if (subtype === "receipt") {
+        menuHTML += `
+          <button class="context-menu-item" onclick="editReceiptVoucher('${escapedId}')">
+            <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            Chỉnh sửa phiếu thu
+          </button>
+        `;
+      } else if (subtype === "payment") {
+        menuHTML += `
+          <button class="context-menu-item" onclick="editPaymentVoucher('${escapedId}')">
+            <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            Chỉnh sửa phiếu chi
           </button>
         `;
       }
@@ -200,25 +274,8 @@ function initMouseInteractions() {
 
     contextMenu.innerHTML = menuHTML;
 
-    // Xác định vị trí hiển thị Menu để không bị tràn màn hình
-    contextMenu.style.display = "block";
-
-    const menuWidth = contextMenu.offsetWidth || 190;
-    const menuHeight = contextMenu.offsetHeight || 150;
-
-    let x = e.pageX;
-    let y = e.pageY;
-
-    if (x + menuWidth > window.innerWidth + window.scrollX) {
-      x = window.innerWidth + window.scrollX - menuWidth - 10;
-    }
-
-    if (y + menuHeight > window.innerHeight + window.scrollY) {
-      y = window.innerHeight + window.scrollY - menuHeight - 10;
-    }
-
-    contextMenu.style.left = `${x}px`;
-    contextMenu.style.top = `${y}px`;
+    // body có CSS zoom (font scale) → chia tọa độ viewport cho khớp position:fixed bên trong body
+    positionFixedPopover(contextMenu, e.clientX, e.clientY, { parentScale: getUiScale(), margin: 8 });
   });
 
   // 4. Nhấn nút ESC để đóng cửa sổ/modal đang mở (Ưu tiên đóng modal trên cùng)
@@ -459,6 +516,9 @@ function initMouseInteractions() {
 }
 
 window.initMouseInteractions = initMouseInteractions;
+window.getUiScale = getUiScale;
+window.positionFixedPopover = positionFixedPopover;
+window.hideContextMenu = hideContextMenu;
 
 // ==========================================================================
 // PHÍM TẮT CTRL+F — TÌM KIẾM NHANH TRONG TAB ĐANG HIỂN THỊ
@@ -874,18 +934,14 @@ function toggleShortcutDropdown(e) {
   if (e) e.stopPropagation();
   const menu = document.getElementById("shortcut-dropdown-menu");
   if (!menu) return;
-  if (menu.style.display === "none" || menu.style.display === "") {
-    menu.style.display = "block";
-  } else {
-    menu.style.display = "none";
-  }
+  menu.classList.toggle("is-open");
 }
 
 document.addEventListener("click", function (e) {
   const menu = document.getElementById("shortcut-dropdown-menu");
-  if (menu && menu.style.display === "block") {
+  if (menu && menu.classList.contains("is-open")) {
     if (!e.target.closest(".dropdown")) {
-      menu.style.display = "none";
+      menu.classList.remove("is-open");
     }
   }
 
@@ -961,6 +1017,45 @@ window.clearAdvancedPurchaseReturnFilters = clearAdvancedPurchaseReturnFilters;
 // SIDEBAR TOGGLE, BREADCRUMB, DATE PRESETS & NOTIFICATION BADGES
 // ==========================================================================
 
+var MOBILE_SIDEBAR_BREAKPOINT = 1024;
+
+function isMobileSidebarView() {
+  return window.innerWidth <= MOBILE_SIDEBAR_BREAKPOINT;
+}
+
+function openMobileSidebar() {
+  var sidebar = document.querySelector('.sidebar');
+  var backdrop = document.getElementById('sidebar-backdrop');
+  if (!sidebar || !isMobileSidebarView()) return;
+  sidebar.classList.add('mobile-open');
+  if (backdrop) backdrop.classList.add('visible');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeMobileSidebar() {
+  var sidebar = document.querySelector('.sidebar');
+  var backdrop = document.getElementById('sidebar-backdrop');
+  if (sidebar) sidebar.classList.remove('mobile-open');
+  if (backdrop) backdrop.classList.remove('visible');
+  document.body.style.overflow = '';
+}
+
+function toggleMobileSidebar() {
+  var sidebar = document.querySelector('.sidebar');
+  if (!sidebar || !isMobileSidebarView()) return;
+  if (sidebar.classList.contains('mobile-open')) {
+    closeMobileSidebar();
+  } else {
+    openMobileSidebar();
+  }
+}
+
+window.addEventListener('resize', function () {
+  if (!isMobileSidebarView()) {
+    closeMobileSidebar();
+  }
+});
+
 // Sidebar collapse/expand with localStorage persistence
 function toggleSidebar() {
   var sidebar = document.querySelector('.sidebar');
@@ -996,7 +1091,7 @@ function updateBreadcrumb(tabId, subTabId) {
     dashboard: 'Tổng quan', purchase: 'Mua hàng', sales: 'Bán hàng',
     inventory: 'Kho hàng', partners: 'Khách hàng & NCC', debts: 'Công nợ',
     cash: 'Quỹ tiền', logs: 'Nhật ký', 'excel-hub': 'Tích hợp Excel',
-    settings: 'Thiết lập', escrow: 'Ký quỹ & Ký cược'
+    settings: 'Thiết lập'
   };
   var subTabNames = {
     invoice: 'Hóa đơn mua', order: 'Đơn đặt hàng', 'return': 'Hàng trả lại',
@@ -1331,6 +1426,8 @@ document.addEventListener('mousedown', function(e) {
 });
 
 window.toggleSidebar = toggleSidebar;
+window.toggleMobileSidebar = toggleMobileSidebar;
+window.closeMobileSidebar = closeMobileSidebar;
 window.updateBreadcrumb = updateBreadcrumb;
 window.setDatePreset = setDatePreset;
 window.updateSidebarBadges = updateSidebarBadges;
@@ -1434,20 +1531,6 @@ window.toggleSalesExportDropdown = toggleSalesExportDropdown;
 window.hideSalesExportDropdown = hideSalesExportDropdown;
 window.toggleDebtsExportDropdown = toggleDebtsExportDropdown;
 window.hideDebtsExportDropdown = hideDebtsExportDropdown;
-
-// ── Global Header Search Propagation ─────────────────────────────────────────
-function handleHeaderGlobalSearch(value) {
-  const activeSearchInputId = getActiveSearchInputId();
-  if (activeSearchInputId) {
-    const tabSearchInput = document.getElementById(activeSearchInputId);
-    if (tabSearchInput) {
-      tabSearchInput.value = value;
-      // Dispatch input event to trigger filter functions
-      tabSearchInput.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-  }
-}
-window.handleHeaderGlobalSearch = handleHeaderGlobalSearch;
 
 // ── F3 FILTER LOOKUP TABLE FOR ACTIVE INPUT CELL ─────────────────────────────────
 function getActiveLookupType(activeEl) {
@@ -2013,4 +2096,4 @@ document.addEventListener('input', (e) => {
 
 
 
-
+

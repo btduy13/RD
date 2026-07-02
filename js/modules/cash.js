@@ -39,6 +39,24 @@ function findRelatedSalesVoucher(voucherId, description, partnerId, amount) {
   return null;
 }
 let filteredCashList = [];
+let editingReceiptId = null;
+let editingPaymentId = null;
+
+function resetReceiptForm() {
+  editingReceiptId = null;
+  const modalTitle = document.querySelector("#modal-add-receipt .card-title");
+  if (modalTitle) modalTitle.innerText = "Lập Phiếu Thu Tiền (Cash Receipt)";
+  const submitBtn = document.querySelector("#form-receipt button[type='submit']");
+  if (submitBtn) submitBtn.innerText = "Ghi sổ";
+}
+
+function resetPaymentForm() {
+  editingPaymentId = null;
+  const modalTitle = document.querySelector("#modal-add-payment .card-title");
+  if (modalTitle) modalTitle.innerText = "Lập Phiếu Chi Tiền (Cash Payment)";
+  const submitBtn = document.querySelector("#form-payment button[type='submit']");
+  if (submitBtn) submitBtn.innerText = "Ghi sổ";
+}
 
 // --- Phân hệ Thu/Chi ---
 function recalculateCashKpis() {
@@ -86,7 +104,7 @@ function renderCashTable() {
 
   tbody.innerHTML = "";
   if (pageItems.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy chứng từ nào</td></tr>`;
+    renderEmptyState(tbody, 10, 'Không tìm thấy chứng từ nào', 'Nhấn "Lập Phiếu Thu" hoặc "Lập Phiếu Chi" để thêm chứng từ');
   } else {
     pageItems.forEach(v => {
       const typeLabel = (v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay") ? "Phiếu Thu" : "Phiếu Chi";
@@ -122,6 +140,10 @@ function renderCashTable() {
             <button class="print-btn" onclick="viewVoucher('${escapedVoucherId}')" title="Xem và In mẫu chứng từ" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-success); cursor: pointer; transition: all 0.2s;">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
             </button>
+            ${(v.type === "receipt" || v.type === "payment") ? `
+            <button class="edit-btn" onclick="event.stopPropagation(); ${v.type === "receipt" ? `editReceiptVoucher('${escapedVoucherId}')` : `editPaymentVoucher('${escapedVoucherId}')`}" title="Chỉnh sửa phiếu" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-primary); cursor: pointer; transition: all 0.2s;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            </button>` : ""}
             <button class="trash-btn" onclick="deleteVoucher('${escapedVoucherId}')" title="Xóa và Hủy ghi sổ chứng từ" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-danger); cursor: pointer; transition: all 0.2s;">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
             </button>
@@ -258,13 +280,63 @@ function clearCashDateFilter() {
 
 function openAddReceiptModal() {
   document.getElementById("form-receipt").reset();
+  resetReceiptForm();
   document.getElementById("receipt-date").value = getLocalDateString();
   openModal("modal-add-receipt");
 }
 
 function openAddPaymentModal() {
   document.getElementById("form-payment").reset();
+  resetPaymentForm();
   document.getElementById("payment-date").value = getLocalDateString();
+  openModal("modal-add-payment");
+}
+
+function editReceiptVoucher(id) {
+  const v = state.vouchers.find(x => x.id === id);
+  if (!v || v.type !== "receipt") return;
+
+  editingReceiptId = id;
+
+  const modalTitle = document.querySelector("#modal-add-receipt .card-title");
+  if (modalTitle) modalTitle.innerText = `Chỉnh sửa Phiếu Thu: ${id}`;
+
+  const entry = (v.entries && v.entries[0]) || {};
+  document.getElementById("receipt-date").value = v.date || getLocalDateString();
+  const pObj = typeof getPartnerForVoucher === "function" ? getPartnerForVoucher(v) : null;
+  document.getElementById("receipt-partner").value = pObj ? `${pObj.name} (${pObj.id})` : (v.partnerName || "");
+  document.getElementById("receipt-debit").value = entry.debit || v.paymentMethod || "111";
+  document.getElementById("receipt-credit").value = entry.credit || "131";
+  document.getElementById("receipt-amount").value = formatVND(v.amount || 0).replace("đ", "").trim();
+  document.getElementById("receipt-desc").value = v.description || "";
+
+  const submitBtn = document.querySelector("#form-receipt button[type='submit']");
+  if (submitBtn) submitBtn.innerText = "Cập nhật";
+
+  openModal("modal-add-receipt");
+}
+
+function editPaymentVoucher(id) {
+  const v = state.vouchers.find(x => x.id === id);
+  if (!v || v.type !== "payment") return;
+
+  editingPaymentId = id;
+
+  const modalTitle = document.querySelector("#modal-add-payment .card-title");
+  if (modalTitle) modalTitle.innerText = `Chỉnh sửa Phiếu Chi: ${id}`;
+
+  const entry = (v.entries && v.entries[0]) || {};
+  document.getElementById("payment-date").value = v.date || getLocalDateString();
+  const pObj = typeof getPartnerForVoucher === "function" ? getPartnerForVoucher(v) : null;
+  document.getElementById("payment-partner").value = pObj ? `${pObj.name} (${pObj.id})` : (v.partnerName || "");
+  document.getElementById("payment-debit").value = entry.debit || "331";
+  document.getElementById("payment-credit").value = entry.credit || v.paymentMethod || "111";
+  document.getElementById("payment-amount").value = formatVND(v.amount || 0).replace("đ", "").trim();
+  document.getElementById("payment-desc").value = v.description || "";
+
+  const submitBtn = document.querySelector("#form-payment button[type='submit']");
+  if (submitBtn) submitBtn.innerText = "Cập nhật";
+
   openModal("modal-add-payment");
 }
 
@@ -329,9 +401,14 @@ function handleReceiptSubmit(e) {
 
   const partnerObj = resolvePartner(partnerVal);
 
-  const id = generateNextReceiptVoucherId();
+  if (amount <= 0) {
+    showToast("Số tiền phải lớn hơn 0!", "danger");
+    return;
+  }
 
-  const newVoucher = {
+  const id = editingReceiptId || generateNextReceiptVoucherId();
+
+  const updatedVoucher = {
     id,
     type: "receipt",
     date,
@@ -348,13 +425,27 @@ function handleReceiptSubmit(e) {
     ]
   };
 
-  state.vouchers.push(newVoucher);
+  if (editingReceiptId) {
+    const idx = state.vouchers.findIndex(v => v.id === editingReceiptId);
+    if (idx !== -1) {
+      const oldVoucher = state.vouchers[idx];
+      if (oldVoucher.excelRow) updatedVoucher.excelRow = oldVoucher.excelRow;
+      if (oldVoucher.isImported !== undefined) updatedVoucher.isImported = oldVoucher.isImported;
+      state.vouchers[idx] = updatedVoucher;
+    }
+    editingReceiptId = null;
+    resetReceiptForm();
+    showToast("Cập nhật phiếu thu thành công!", "success");
+  } else {
+    state.vouchers.push(updatedVoucher);
+    showToast("Lập phiếu thu thành công!", "success");
+  }
+
   saveState();
   recalculateAccounting();
 
   closeModal("modal-add-receipt");
   document.getElementById("form-receipt").reset();
-  showToast("Lập phiếu thu thành công!", "success");
 
   filterCash();
   recalculateCashKpis();
@@ -377,9 +468,14 @@ function handlePaymentSubmit(e) {
 
   const partnerObj = resolvePartner(partnerVal);
 
-  const id = generateNextPaymentVoucherId();
+  if (amount <= 0) {
+    showToast("Số tiền phải lớn hơn 0!", "danger");
+    return;
+  }
 
-  const newVoucher = {
+  const id = editingPaymentId || generateNextPaymentVoucherId();
+
+  const updatedVoucher = {
     id,
     type: "payment",
     date,
@@ -396,13 +492,27 @@ function handlePaymentSubmit(e) {
     ]
   };
 
-  state.vouchers.push(newVoucher);
+  if (editingPaymentId) {
+    const idx = state.vouchers.findIndex(v => v.id === editingPaymentId);
+    if (idx !== -1) {
+      const oldVoucher = state.vouchers[idx];
+      if (oldVoucher.excelRow) updatedVoucher.excelRow = oldVoucher.excelRow;
+      if (oldVoucher.isImported !== undefined) updatedVoucher.isImported = oldVoucher.isImported;
+      state.vouchers[idx] = updatedVoucher;
+    }
+    editingPaymentId = null;
+    resetPaymentForm();
+    showToast("Cập nhật phiếu chi thành công!", "success");
+  } else {
+    state.vouchers.push(updatedVoucher);
+    showToast("Lập phiếu chi thành công!", "success");
+  }
+
   saveState();
   recalculateAccounting();
 
   closeModal("modal-add-payment");
   document.getElementById("form-payment").reset();
-  showToast("Lập phiếu chi thành công!", "success");
 
   filterCash();
   recalculateCashKpis();
@@ -836,3 +946,7 @@ window.toggleSelectAllCash = toggleSelectAllCash;
 window.updateBatchCashUI = updateBatchCashUI;
 window.batchDeleteCash = batchDeleteCash;
 window.exportCashToExcel = exportCashToExcel;
+window.editReceiptVoucher = editReceiptVoucher;
+window.editPaymentVoucher = editPaymentVoucher;
+window.openAddReceiptModal = openAddReceiptModal;
+window.openAddPaymentModal = openAddPaymentModal;

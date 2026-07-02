@@ -371,6 +371,48 @@ function recalculateAccounting(shouldSave = true) {
           { debit: "331", credit: v.paymentMethod || "111", amount: v.amount, desc: v.description }
         ];
       }
+    } else if (v.type === "inventory_adjust") {
+      // Điều chỉnh tồn kho: tăng/giảm số lượng theo đơn giá bình quân hiện tại (không đổi avgCost)
+      let totalAmount = 0;
+      (v.items || []).forEach(item => {
+        const p = productBalanceMap[item.productId];
+        if (!p) return;
+
+        const unitCost = p.avgCost || p.lastPurchasePrice || p.initialCost || item.price || 0;
+        item.price = unitCost;
+        const amt = Math.round((item.qty || 0) * unitCost);
+        item.amount = amt;
+        totalAmount += amt;
+
+        if (item.adjustDir === "in") {
+          p.stock = Number((p.stock + item.qty).toFixed(3));
+          p.totalValue += amt;
+          if (p.stock > 0) {
+            p.avgCost = Math.round((p.totalValue / p.stock) * 100) / 100;
+          }
+        } else {
+          item.cogsUnit = unitCost;
+          item.cogsAmount = amt;
+          p.stock = Number((p.stock - item.qty).toFixed(3));
+          p.totalValue -= amt;
+          if (p.stock <= 0) {
+            p.totalValue = 0;
+          } else {
+            p.avgCost = Math.round((p.totalValue / p.stock) * 100) / 100;
+          }
+        }
+      });
+
+      v.amount = totalAmount;
+      v.totalAmount = totalAmount;
+      if (!v.entries || v.entries.length === 0) {
+        const firstItem = (v.items || [])[0];
+        if (firstItem && firstItem.adjustDir === "in") {
+          v.entries = [{ debit: "156", credit: "711", amount: totalAmount, desc: v.description || "Điều chỉnh tăng tồn kho" }];
+        } else {
+          v.entries = [{ debit: "632", credit: "156", amount: totalAmount, desc: v.description || "Điều chỉnh giảm tồn kho" }];
+        }
+      }
     }
   });
 
@@ -605,8 +647,7 @@ function safeRefreshAllModules() {
     { name: "renderDashboard", fn: typeof window.renderDashboard === "function" ? window.renderDashboard : null },
     { name: "filterDebts", fn: typeof window.filterDebts === "function" ? window.filterDebts : null },
     { name: "filterPartners", fn: typeof window.filterPartners === "function" ? window.filterPartners : null },
-    { name: "renderInventoryTable", fn: typeof window.renderInventoryTable === "function" ? window.renderInventoryTable : null },
-    { name: "filterEscrowTable", fn: typeof window.filterEscrowTable === "function" ? window.filterEscrowTable : null }
+    { name: "renderInventoryTable", fn: typeof window.renderInventoryTable === "function" ? window.renderInventoryTable : null }
   ];
 
   if (typeof window.recalculateCashKpis === "function") {
@@ -655,4 +696,4 @@ function getAccountBalance(acctCode, toDate = "") {
 
   return bal;
 }
-window.deleteVoucher = deleteVoucher;
+window.deleteVoucher = deleteVoucher;

@@ -32,6 +32,12 @@ function loadDebtModule() {
     openModal() {},
     closeModal() {},
     showToast() {},
+    ensureRemainingDebt(v) {
+      if (v.remainingDebt === undefined) {
+        const totalAmt = v.totalAmount || v.amount || 0;
+        v.remainingDebt = (v.paymentMethod === "131" || v.paymentMethod === "331") ? totalAmt : 0;
+      }
+    },
     XLSX: null
   };
   sandbox.window = sandbox;
@@ -173,6 +179,24 @@ function testUnmatchedPartnerBucket() {
   const unmatched = debts.find(d => d.id === "__UNMATCHED__");
   assert.ok(unmatched, "unmatched bucket row exists");
   assert.ok(unmatched.closingCredit >= 500000 || unmatched.creditTrans >= 500000, "orphan receipt visible in debt");
+}
+
+function testUnmatchedEmptyEntriesFallback() {
+  const ctx = loadDebtModule();
+  ctx.state.partners = [];
+  ctx.state.vouchers = [
+    {
+      id: "NK1", type: "purchase", date: "2026-01-10", partnerId: "Mua le Dai thanh",
+      paymentMethod: "331", entries: [], totalAmount: 634000
+    }
+  ];
+
+  const debts = ctx.calculatePartnerDebts();
+  const unmatched = debts.find(d => d.id === "__UNMATCHED__");
+  assert.ok(unmatched, "unmatched bucket with empty entries");
+  assert.equal(unmatched.closingCredit, 634000, "synthesized 331 debt from paymentMethod");
+  const extracted = ctx.extractLedgerAmountsFromVoucher(ctx.state.vouchers[0], "both");
+  assert.equal(extracted.creditAmount, 634000, "ledger extraction uses fallback entries");
 }
 
 function testDualRoleBothType() {
@@ -364,6 +388,7 @@ function testSupplierOverpaymentShowsAsReceivable() {
 async function runAll() {
   testBothAccountsPerPartner();
   testUnmatchedPartnerBucket();
+  testUnmatchedEmptyEntriesFallback();
   testDualRoleBothType();
   testSupplierOverpaymentShowsAsReceivable();
   testFifoReceiptAllocatesSales();

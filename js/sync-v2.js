@@ -333,7 +333,6 @@ function isVoucherEntryModalOpen() {
     "modal-add-sales-quotation",
     "modal-add-receipt",
     "modal-add-payment",
-    "modal-add-escrow",
     "modal-edit-debt"
   ];
   return entryModalIds.some(id => isElementVisible(document.getElementById(id)));
@@ -1508,58 +1507,83 @@ async function startSupabaseClient() {
 
 function forcePushToCloud() {
   if (!cloudSyncActive || !supabaseClient) {
-    showToast("Ung dung chua ket noi dam may!", "danger");
+    showToast("Ứng dụng chưa kết nối đám mây!", "danger");
     return;
   }
   if (isVoucherEntryModalOpen()) {
-    showToast("Hay luu hoac dong phieu dang nhap truoc khi day cloud.", "warning");
+    showToast("Hãy lưu hoặc đóng phiếu đang nhập trước khi đẩy cloud.", "warning");
     return;
   }
-  if (confirm("Ban co chac muon day du lieu cuc bo len cloud?")) {
+  if (confirm("Bạn có chắc muốn đẩy dữ liệu cục bộ lên cloud?")) {
     state._lastModified = Date.now();
-    pushToCloud().then(() => showToast("Da day du lieu len cloud.", "success"));
+    pushToCloud().then(() => showToast("Đã đẩy dữ liệu lên cloud.", "success"));
   }
 }
 
 function forcePullFromCloud() {
   if (!cloudSyncActive || !supabaseClient) {
-    showToast("Ung dung chua ket noi dam may!", "danger");
+    showToast("Ứng dụng chưa kết nối đám mây!", "danger");
     return;
   }
   pullAndMergeFromCloud({ reason: "manual-full", forceFull: true, force: true })
-    .then(() => showToast("Da tai va hop nhat du lieu cloud.", "success"))
-    .catch(err => showToast("Loi tai cloud: " + err.message, "danger"));
+    .then(() => showToast("Đã tải và hợp nhất dữ liệu cloud.", "success"))
+    .catch(err => showToast("Lỗi tải cloud: " + err.message, "danger"));
 }
 
 function manualIncrementalSync() {
   if (!cloudSyncActive || !supabaseClient) {
-    showToast("Ung dung chua ket noi dam may!", "danger");
+    showToast("Ứng dụng chưa kết nối đám mây!", "danger");
     return;
   }
   pullAndMergeFromCloud({ reason: "manual", retryFullIfNoChanges: true, force: true })
-    .then(() => showToast("Dong bo cloud thanh cong.", "success"))
-    .catch(err => showToast("Loi dong bo: " + err.message, "danger"));
+    .then(() => showToast("Đồng bộ cloud thành công.", "success"))
+    .catch(err => showToast("Lỗi đồng bộ: " + err.message, "danger"));
 }
 
 function updateCloudSyncBadge(connected, text, color = "#64748b") {
   const badge = document.getElementById("cloud-sync-badge");
-  const indicator = document.getElementById("cloud-sync-indicator");
+  const icon = document.getElementById("cloud-sync-icon");
   const textEl = document.getElementById("cloud-sync-status-text");
+  const glyph = document.getElementById("cloud-sync-status-glyph");
 
-  if (badge && indicator && textEl) {
-    textEl.innerText = text;
-    textEl.style.color = color;
-    indicator.style.backgroundColor = color;
-    if (connected) indicator.classList.add("pulse-indicator");
-    else indicator.classList.remove("pulse-indicator");
+  if (!badge || !icon || !textEl) return;
 
-    const refreshIcon = document.getElementById("cloud-sync-refresh-icon");
-    if (refreshIcon) {
-      if (String(text).includes("Dang") || String(text).includes("tai") || String(text).includes("day")) {
-        refreshIcon.classList.add("spinning");
-      } else {
-        refreshIcon.classList.remove("spinning");
-      }
+  const statusText = String(text || "");
+  textEl.textContent = statusText;
+  badge.title = statusText;
+  badge.setAttribute("aria-label", statusText);
+
+  badge.classList.remove("sync-offline", "sync-active", "sync-syncing", "sync-error");
+  icon.style.color = "";
+
+  const lower = statusText.toLowerCase();
+  const isSyncing = lower.includes("dang") || lower.includes("tai") || lower.includes("day") || lower.includes("đang") || lower.includes("quet") || lower.includes("cho");
+  const isError = color === "#ef4444" || lower.includes("loi") || lower.includes("lỗi") || lower.includes("error");
+
+  if (isError) {
+    badge.classList.add("sync-error");
+    icon.style.color = "#ef4444";
+  } else if (isSyncing) {
+    badge.classList.add("sync-syncing");
+    icon.style.color = color && color !== "#64748b" ? color : "#f59e0b";
+  } else if (connected) {
+    badge.classList.add("sync-active");
+    icon.style.color = "#10b981";
+  } else {
+    badge.classList.add("sync-offline");
+    icon.style.color = "#64748b";
+  }
+
+  if (glyph) {
+    glyph.style.display = (connected || isSyncing || isError) ? "block" : "none";
+  }
+
+  const refreshIcon = document.getElementById("cloud-sync-refresh-icon");
+  if (refreshIcon) {
+    if (isSyncing) {
+      refreshIcon.classList.add("spinning");
+    } else {
+      refreshIcon.classList.remove("spinning");
     }
   }
 }

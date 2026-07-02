@@ -654,18 +654,36 @@ function numberToVietnameseWords(number) {
 }
 
 // Giao diện đổi Theme Tối/Sáng
+function updateThemeToggleIcon() {
+  const icon = document.getElementById("theme-toggle-icon");
+  if (!icon) return;
+  const isLight = document.body.classList.contains("light-theme");
+  icon.innerHTML = isLight
+    ? '<path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>'
+    : '<path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>';
+}
+
 function toggleTheme() {
   const body = document.body;
   body.classList.toggle("light-theme");
   const isLight = body.classList.contains("light-theme");
   localStorage.setItem("theme", isLight ? "light" : "dark");
+  updateThemeToggleIcon();
   showToast(`Đã chuyển sang giao diện ${isLight ? 'Sáng' : 'Tối'}`, "info");
 }
 
 // Báo thông báo nổi (Toast Notifications)
+const TOAST_MAX_VISIBLE = 4;
+
 function showToast(message, type = "primary") {
   const container = document.getElementById("toast-container");
   if (!container) return;
+
+  while (container.children.length >= TOAST_MAX_VISIBLE) {
+    container.firstElementChild?.remove();
+  }
+
+  if (type === "error") type = "danger";
 
   const colors = {
     primary: "var(--color-primary)",
@@ -675,26 +693,56 @@ function showToast(message, type = "primary") {
     info: "var(--color-info)"
   };
 
+  const icons = {
+    success: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:20px;height:20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>',
+    danger: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:20px;height:20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>',
+    warning: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:20px;height:20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>',
+    info: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:20px;height:20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>',
+    primary: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:20px;height:20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'
+  };
+
+  const color = colors[type] || colors.primary;
   const toast = document.createElement("div");
   toast.className = "toast";
-  toast.style.setProperty("--toast-color", colors[type] || colors.primary);
+  toast.style.setProperty("--toast-color", color);
 
-  // H3 Fix: Use textContent instead of raw innerHTML to prevent XSS
   const iconDiv = document.createElement("div");
-  iconDiv.style.cssText = `color: ${colors[type] || colors.primary}; display:flex; align-items:center;`;
-  iconDiv.innerHTML = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:20px; height:20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+  iconDiv.className = "toast-icon";
+  iconDiv.style.color = color;
+  iconDiv.innerHTML = icons[type] || icons.primary;
+
   const msgSpan = document.createElement("span");
   msgSpan.className = "toast-message";
-  msgSpan.textContent = message; // Safe: textContent escapes HTML
+  msgSpan.textContent = message;
+
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "toast-close-btn";
+  closeBtn.setAttribute("type", "button");
+  closeBtn.setAttribute("aria-label", "Đóng thông báo");
+  closeBtn.innerHTML = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>';
+
+  const progress = document.createElement("div");
+  progress.className = "toast-progress";
+
   toast.appendChild(iconDiv);
   toast.appendChild(msgSpan);
-
+  toast.appendChild(closeBtn);
+  toast.appendChild(progress);
   container.appendChild(toast);
 
-  // Tự hủy sau 4s
-  setTimeout(() => {
+  const duration = 4000;
+  let timeoutId;
+
+  function dismissToast() {
+    clearTimeout(timeoutId);
     toast.style.animation = "slideInLeft 0.3s ease reverse forwards";
     setTimeout(() => toast.remove(), 300);
-  }, 3500);
+  }
+
+  closeBtn.addEventListener("click", dismissToast);
+  timeoutId = setTimeout(dismissToast, duration);
 }
-window.escapeHtmlAttr = escapeHtmlAttr;
+window.escapeHtmlAttr = escapeHtmlAttr;
+window.toggleTheme = toggleTheme;
+window.updateThemeToggleIcon = updateThemeToggleIcon;
+window.showToast = showToast;

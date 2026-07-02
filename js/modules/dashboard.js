@@ -139,7 +139,7 @@ function renderDashboardDebts() {
     const displayedUnsettled = unsettled.slice(0, 30);
 
     if (displayedUnsettled.length === 0) {
-      unsettledTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:15px;">Không có đơn hàng nào đang nợ</td></tr>`;
+      renderEmptyState(unsettledTbody, 5, 'Không có đơn hàng nào đang nợ', 'Tất cả đơn hàng đã được thanh toán đủ');
     } else {
       displayedUnsettled.forEach(item => {
         const tr = document.createElement("tr");
@@ -226,7 +226,7 @@ function renderDashboardDebts() {
     const displayedAged = agedDebts.slice(0, 30);
 
     if (displayedAged.length === 0) {
-      agedTbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:15px;">Không có công nợ quá hạn</td></tr>`;
+      renderEmptyState(agedTbody, 4, 'Không có công nợ quá hạn', 'Không có khoản nợ nào vượt hạn thanh toán');
     } else {
       displayedAged.forEach(item => {
         const tr = document.createElement("tr");
@@ -284,7 +284,7 @@ function renderDashboardNegativeStocks() {
   const negativeProducts = (state.products || []).filter(p => (p.stock || 0) < 0);
   countEl.innerText = `${negativeProducts.length} sản phẩm`;
   if (negativeProducts.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Không có sản phẩm nào bị âm kho.</td></tr>`;
+    renderEmptyState(tbody, 5, 'Không có sản phẩm nào bị âm kho', 'Tồn kho các sản phẩm đều trong giới hạn cho phép');
     return;
   }
 
@@ -355,4 +355,4 @@ function renderRecentActivities() {
 // Dashboard
 window.renderDashboard = renderDashboard;
 window.filterDashboard = filterDashboard;
-window.clearDashboardDateFilter = clearDashboardDateFilter;
+window.clearDashboardDateFilter = clearDashboardDateFilter;

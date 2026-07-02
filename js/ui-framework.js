@@ -5,7 +5,6 @@ let tabDirtyStates = {
   purchase: true,
   sales: true,
   inventory: true,
-  escrow: true,
   logs: true,
   partners: true,
   debts: true,
@@ -64,8 +63,6 @@ function renderTabIfNeeded(tabId) {
       populateProductLedgerDropdown();
       renderInventoryTable();
       renderStockLedger();
-    } else if (tabId === "escrow") {
-      renderEscrowTable();
     } else if (tabId === "logs") {
       if (typeof renderActivityLogTable === "function") {
         renderActivityLogTable();
@@ -113,6 +110,8 @@ let activeModalsByTab = {};
 
 // 4. ĐIỀU HƯỚNG TAB CHỨNG TỪ (UI TABS SWITCHER)
 function switchTab(tabId) {
+  if (typeof closeMobileSidebar === "function") closeMobileSidebar();
+
   // Lấy tab cũ trước khi chuyển
   const prevActiveMenu = document.querySelector(".sidebar-menu .menu-item.active");
   const prevTabId = prevActiveMenu ? prevActiveMenu.getAttribute("data-tab") : null;
@@ -153,7 +152,6 @@ function switchTab(tabId) {
     purchase: { title: "Quản lý mua hàng", sub: "Hóa đơn mua hàng hóa, nguyên vật liệu nhập kho" },
     sales: { title: "Quản lý bán hàng", sub: "Hóa đơn bán hàng và công nợ khách hàng" },
     inventory: { title: "Quản lý kho hàng", sub: "Theo dõi thẻ kho và giá trị tồn kho theo phương pháp bình quân liên hoàn" },
-    escrow: { title: "Ký quỹ & Ký cược", sub: "Theo dõi các khoản đặt cọc mang đi và nhận bảo lãnh từ đại lý" },
     logs: { title: "Nhật ký hoạt động hệ thống", sub: "Theo dõi lịch sử các hành động mấu chốt của nhân viên" },
     "excel-hub": { title: "Tích hợp Excel", sub: "Nạp và kết xuất dữ liệu tự động giữa phần mềm và file Excel" },
     partners: { title: "Danh mục Đối tác", sub: "Quản lý hồ sơ khách hàng, nhà cung cấp và thông tin liên hệ" },
@@ -186,25 +184,8 @@ function switchTab(tabId) {
   }
 
   // Scroll to top
-  document.querySelector(".content-body").scrollTop = 0;
-
-  // Sync global header search input
-  if (typeof getActiveSearchInputId === "function") {
-    const activeSearchInputId = getActiveSearchInputId();
-    const headerSearch = document.getElementById('header-global-search');
-    if (headerSearch) {
-      if (activeSearchInputId) {
-        const tabSearchInput = document.getElementById(activeSearchInputId);
-        headerSearch.value = tabSearchInput ? tabSearchInput.value : '';
-        headerSearch.disabled = false;
-        headerSearch.placeholder = tabSearchInput ? tabSearchInput.placeholder : 'Tìm kiếm nhanh...';
-      } else {
-        headerSearch.value = '';
-        headerSearch.disabled = true;
-        headerSearch.placeholder = 'Không dùng ở tab này';
-      }
-    }
-  }
+  const contentBody = document.querySelector(".content-body");
+  if (contentBody) contentBody.scrollTop = 0;
 }
 
 // 5. RENDER DỮ LIỆU PHÂN HỆ DASHBOARD (KPIs & OFFLINE CHART)
@@ -259,10 +240,84 @@ function getInventoryValueAt(toDate) {
 }
 
 // Quản lý Modal
+var _modalFocusState = {};
+
+function getModalFocusableElements(container) {
+  return Array.from(container.querySelectorAll(
+    'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )).filter(function (el) {
+    return el.offsetParent !== null || el.getClientRects().length > 0;
+  });
+}
+
+function trapModalFocus(e, modalId) {
+  var modal = document.getElementById(modalId);
+  if (!modal || (modal.style.display !== "flex" && modal.style.display !== "block")) return;
+
+  if (e.key === "Escape") {
+    closeModal(modalId);
+    return;
+  }
+  if (e.key !== "Tab") return;
+
+  var focusable = getModalFocusableElements(modal);
+  if (focusable.length === 0) {
+    e.preventDefault();
+    return;
+  }
+
+  var first = focusable[0];
+  var last = focusable[focusable.length - 1];
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+
+function setupModalAccessibility(modal, modalId) {
+  modal.setAttribute("role", "dialog");
+  modal.setAttribute("aria-modal", "true");
+
+  var title = modal.querySelector(".card-title, .modal-header h3, h3");
+  if (title) {
+    if (!title.id) title.id = modalId + "-title";
+    modal.setAttribute("aria-labelledby", title.id);
+  }
+
+  var prevFocus = document.activeElement;
+  var handler = function (e) { trapModalFocus(e, modalId); };
+  _modalFocusState[modalId] = { prevFocus: prevFocus, handler: handler };
+  document.addEventListener("keydown", handler);
+
+  setTimeout(function () {
+    var focusable = getModalFocusableElements(modal);
+    if (focusable.length) focusable[0].focus();
+  }, 0);
+}
+
+function teardownModalAccessibility(modal, modalId) {
+  var state = _modalFocusState[modalId];
+  if (state) {
+    document.removeEventListener("keydown", state.handler);
+    if (state.prevFocus && typeof state.prevFocus.focus === "function") {
+      try { state.prevFocus.focus(); } catch (err) { /* ignore */ }
+    }
+    delete _modalFocusState[modalId];
+  }
+
+  modal.removeAttribute("role");
+  modal.removeAttribute("aria-modal");
+  modal.removeAttribute("aria-labelledby");
+}
+
 function openModal(modalId) {
   const modal = document.getElementById(modalId);
   if (modal) {
     modal.style.display = "flex";
+    setupModalAccessibility(modal, modalId);
     if (typeof window.checkAndRestoreDraft === "function") {
       window.checkAndRestoreDraft(modalId);
     }
@@ -276,6 +331,7 @@ function closeModal(modalId) {
     if (form && typeof window.saveFormDraftImmediately === "function") {
       window.saveFormDraftImmediately(form.id);
     }
+    teardownModalAccessibility(modal, modalId);
     modal.style.display = "none";
   }
 }
@@ -1085,6 +1141,98 @@ function viewVoucher(id) {
 
       </div>
     `;
+  } else if (v.type === "inventory_adjust") {
+    const item = (v.items || [])[0];
+    const prod = item ? (state.products.find(p => String(p.id) === String(item.productId)) || { name: item.productId, unit: "Cái" }) : { name: "Sản phẩm", unit: "Cái" };
+    const isIn = item && item.adjustDir === "in";
+    const dirLabel = isIn ? "Tăng tồn" : "Giảm tồn";
+    const amount = v.totalAmount || v.amount || (item ? item.amount : 0);
+
+    content = `
+      <div class="printable-voucher" style="max-width:800px; padding:8px; font-family:'Times New Roman',Times,serif; font-size: 13px; color:#000; line-height:1.25;">
+        <div style="position:relative; border-bottom:2px solid #000; padding-bottom:6px; margin-bottom:8px; text-align:center; min-height:50px;">
+          <div style="position:absolute; left:0; top:50%; transform:translateY(-50%); width:80px; display:flex; align-items:center; justify-content:center;">
+            <img src="logo.jpg" style="max-height:45px; max-width:75px; object-fit:contain;" alt="Logo" />
+          </div>
+          <div style="padding:0 10px 0 90px; color:#000;">
+            <div style="font-weight:bold; font-size: 14px; text-transform:uppercase;">${companyName}</div>
+            <div style="font-size: 12px;">Địa chỉ: ${companyAddr}</div>
+            <div style="font-size: 12px;">MST: ${companyTax}</div>
+          </div>
+        </div>
+
+        <div style="text-align:center; margin: 12px 0;">
+          <div style="font-weight:bold; font-size: 16px; text-transform:uppercase;">PHIẾU ĐIỀU CHỈNH TỒN KHO</div>
+          <div style="font-style:italic; font-size: 13px; margin-top: 4px;">Ngày ${v.date ? v.date.substring(8, 10) + " tháng " + v.date.substring(5, 7) + " năm " + v.date.substring(0, 4) : ""}</div>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+          <div><strong>Số chứng từ:</strong> ${v.id}</div>
+          <div><strong>Loại điều chỉnh:</strong> ${dirLabel}</div>
+          <div><strong>Diễn giải:</strong> ${v.description || ""}</div>
+          ${v.adjustReason ? `<div><strong>Lý do:</strong> ${escapeHtmlAttr(v.adjustReason)}</div>` : ""}
+        </div>
+
+        <table class="voucher-table" style="width:100%; border-collapse:collapse; margin-bottom:10px; border:1.5px solid #000;">
+          <thead>
+            <tr style="background-color: #f3f4f6;">
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:5%;">STT</th>
+              <th style="border:1px solid #000; padding:4px 6px; text-align:left;">Tên hàng hóa</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:8%;">ĐVT</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:10%;">SL điều chỉnh</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:12%;">Đơn giá BQ</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:15%;">Giá trị (đ)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="border:1px solid #000; padding:4px; text-align:center;">1</td>
+              <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${escapeHtmlAttr(prod.name)}</td>
+              <td style="border:1px solid #000; padding:4px; text-align:center;">${escapeHtmlAttr(prod.unit || "Cái")}</td>
+              <td style="border:1px solid #000; padding:4px; text-align:right;">${isIn ? "+" : "-"}${item ? item.qty : 0}</td>
+              <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVND(item ? item.price : 0).replace("đ", "")}</td>
+              <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVND(amount).replace("đ", "")}</td>
+            </tr>
+            <tr style="background-color:#e5e7eb;">
+              <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">Tổng giá trị điều chỉnh:</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVND(amount).replace("đ", "")}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        ${v.entries && v.entries.length > 0 ? `
+          <div style="margin-top: 12px;">
+            <strong>Bút toán:</strong>
+            <table style="width:100%; border-collapse:collapse; margin-top:6px; font-size:12px;">
+              <thead>
+                <tr style="background:#f3f4f6;">
+                  <th style="border:1px solid #000; padding:4px;">Nợ</th>
+                  <th style="border:1px solid #000; padding:4px;">Có</th>
+                  <th style="border:1px solid #000; padding:4px; text-align:right;">Số tiền</th>
+                  <th style="border:1px solid #000; padding:4px;">Diễn giải</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${v.entries.map(e => `
+                  <tr>
+                    <td style="border:1px solid #000; padding:4px; text-align:center;">${e.debit || ""}</td>
+                    <td style="border:1px solid #000; padding:4px; text-align:center;">${e.credit || ""}</td>
+                    <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVND(e.amount).replace("đ", "")}</td>
+                    <td style="border:1px solid #000; padding:4px;">${e.desc || ""}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        ` : ""}
+
+        <div style="display:flex; justify-content:space-between; text-align:center; margin-top:30px; font-size:13px;">
+          <div style="width:30%;"><strong>Người lập phiếu</strong><br><span style="font-style:italic; font-size:11px;">(Ký, họ tên)</span><div style="height:60px;"></div></div>
+          <div style="width:30%;"><strong>Thủ kho</strong><br><span style="font-style:italic; font-size:11px;">(Ký, họ tên)</span><div style="height:60px;"></div></div>
+          <div style="width:30%;"><strong>Kế toán trưởng</strong><br><span style="font-style:italic; font-size:11px;">(Ký, họ tên)</span><div style="height:60px;"></div></div>
+        </div>
+      </div>
+    `;
   } else if ((v.type && v.type.startsWith("escrow_")) || v.type === "receipt" || v.type === "payment") {
     // Nghiệp vụ ký quỹ hoặc Thu/Chi → PHIẾU THU hoặc PHIẾU CHI (chuẩn MISA)
     const isReceipt = v.type === "escrow_receive" || v.type === "escrow_refund_pay" || v.type === "receipt";
@@ -1235,7 +1383,7 @@ function renderPagination(containerId, currentPage, totalPages, totalItems, goTo
 }
 
 // Shared empty state renderer with SVG icon
-function renderEmptyState(container, colSpan, message, description) {
+function renderEmptyState(container, colSpan, message, description, actionHtml) {
   var msg = message || 'Chưa có dữ liệu';
   var desc = description || 'Dữ liệu sẽ xuất hiện ở đây khi bạn tạo mới';
   var html = '<tr><td colspan="' + colSpan + '">';
@@ -1243,9 +1391,31 @@ function renderEmptyState(container, colSpan, message, description) {
   html += '<svg class="empty-state-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>';
   html += '<div class="empty-state-title">' + msg + '</div>';
   html += '<div class="empty-state-desc">' + desc + '</div>';
+  if (actionHtml) {
+    html += '<div class="empty-state-action">' + actionHtml + '</div>';
+  }
   html += '</div></td></tr>';
   var el = typeof container === 'string' ? document.getElementById(container) : container;
   if (el) el.innerHTML = html;
+}
+
+// App loading overlay helpers
+function showAppLoading(message) {
+  var overlay = document.getElementById('app-loading-overlay');
+  var textEl = document.getElementById('app-loading-text');
+  if (textEl && message) textEl.textContent = message;
+  if (overlay) {
+    overlay.classList.remove('is-hidden');
+    overlay.setAttribute('aria-busy', 'true');
+  }
+}
+
+function hideAppLoading() {
+  var overlay = document.getElementById('app-loading-overlay');
+  if (overlay) {
+    overlay.classList.add('is-hidden');
+    overlay.setAttribute('aria-busy', 'false');
+  }
 }
 
 // KPI counter animation with easeOutCubic
@@ -1274,7 +1444,6 @@ openModal = function(modalId) {
   var modal = document.getElementById(modalId);
   if (modal) {
     modal.classList.add('modal-animated');
-    modal.style.display = 'flex';
     
     // Tự động vô hiệu hóa các input trong modal đối với tài khoản chỉ xem
     if (typeof window.currentUser !== 'undefined' && window.currentUser && window.currentUser.role === 'viewer') {
@@ -1306,7 +1475,6 @@ closeModal = function(modalId) {
   var modal = document.getElementById(modalId);
   if (modal) {
     modal.classList.remove('modal-animated');
-    modal.style.display = 'none';
   }
   setTimeout(function() {
     if (window.flushDeferredCloudSync) {
@@ -1318,6 +1486,8 @@ closeModal = function(modalId) {
 window.renderPagination = renderPagination;
 window.renderEmptyState = renderEmptyState;
 window.animateCountUp = animateCountUp;
+window.showAppLoading = showAppLoading;
+window.hideAppLoading = hideAppLoading;
 window.openModal = openModal;
 window.closeModal = closeModal;
 
@@ -1833,6 +2003,7 @@ function exportVoucherToExcel(id) {
   else if (v.type === "sales_return") title = "PHIẾU NHẬP KHO HÀNG BÁN TRẢ LẠI";
   else if (v.type === "sales") title = "PHIẾU GIAO HÀNG";
   else if (v.type === "sales_quotation") title = "BẢNG BÁO GIÁ";
+  else if (v.type === "inventory_adjust") title = "PHIẾU ĐIỀU CHỈNH TỒN KHO";
   else if (v.type === "receipt" || v.type === "escrow_receive") title = "PHIẾU THU";
   else if (v.type === "payment" || v.type === "escrow_refund_pay") title = "PHIẾU CHI";
 

@@ -30,6 +30,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // Khởi tạo ứng dụng: Ở chế độ Online-Only, CSDL cục bộ sẽ bị loại bỏ hoàn toàn
 async function initApp() {
+  if (typeof showAppLoading === "function") {
+    showAppLoading("Đang tải dữ liệu kế toán...");
+  }
+
+  try {
   // M6: Obsolete localStorage migration removed (was running forever)
 
   // Khởi tạo từ cache cục bộ (nếu có) để giao diện hiển thị ngay lập tức
@@ -286,6 +291,14 @@ async function initApp() {
   // Khởi tạo đăng nhập / phân quyền
   if (typeof initAuth === "function") {
     initAuth();
+  }
+  } finally {
+    if (typeof hideAppLoading === "function") {
+      hideAppLoading();
+    }
+    if (typeof updateThemeToggleIcon === "function") {
+      updateThemeToggleIcon();
+    }
   }
 }
 

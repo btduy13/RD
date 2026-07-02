@@ -10,6 +10,11 @@ let debtsCompanyPage = 1;
 let _companyGroupCache = []; // Cache for company tab onclick handlers (index → {name, childIds})
 
 const UNMATCHED_PARTNER_ID = "__UNMATCHED__";
+let pinnedUnmatchedDebt = null;
+
+function isUnmatchedDebt(d) {
+  return d && d.id === UNMATCHED_PARTNER_ID;
+}
 
 function createEmptyDebtCounters() {
   return { debit131: 0, credit131: 0, debit331: 0, credit331: 0 };
@@ -104,12 +109,74 @@ function inferPartnerDebtRole(partnerType, has131, has331) {
   return "customer";
 }
 
+/** Bút toán 131/331 — dùng entries có sẵn, hoặc suy từ paymentMethod / remainingDebt khi entries trống (nhập Excel, chưa recalc). */
+function getVoucherDebtEntries(v) {
+  if (!v) return [];
+
+  const raw = v.entries;
+  if (Array.isArray(raw) && raw.length > 0) {
+    const hasDebtLine = raw.some(e =>
+      (e.debit && (e.debit.startsWith("131") || e.debit.startsWith("331"))) ||
+      (e.credit && (e.credit.startsWith("131") || e.credit.startsWith("331")))
+    );
+    if (hasDebtLine) return raw;
+  }
+
+  if (typeof ensureRemainingDebt === "function") ensureRemainingDebt(v);
+  const amt = Number(v.remainingDebt ?? v.totalAmount ?? v.amount ?? 0);
+  const pm = String(v.paymentMethod || "");
+
+  switch (v.type) {
+    case "sales":
+      if (pm === "131" || pm.startsWith("131")) {
+        return [{ debit: "131", credit: "511", amount: amt }];
+      }
+      break;
+    case "purchase":
+      if (pm === "331" || pm.startsWith("331")) {
+        return [{ debit: "156", credit: "331", amount: amt }];
+      }
+      break;
+    case "receipt": {
+      const receiptAmt = Number(v.amount ?? amt);
+      if (receiptAmt > 0) {
+        return [{ debit: pm || "111", credit: "131", amount: receiptAmt }];
+      }
+      break;
+    }
+    case "payment": {
+      const paymentAmt = Number(v.amount ?? amt);
+      if (paymentAmt > 0) {
+        return [{ debit: "331", credit: pm || "111", amount: paymentAmt }];
+      }
+      break;
+    }
+    case "sales_return": {
+      if (amt > 0) {
+        const creditAcc = pm && pm !== "131" ? pm : "131";
+        return [{ debit: "511", credit: creditAcc, amount: amt }];
+      }
+      break;
+    }
+    case "purchase_return": {
+      if (amt > 0) {
+        const debitAcc = pm && pm !== "331" ? pm : "331";
+        return [{ debit: debitAcc, credit: "156", amount: amt }];
+      }
+      break;
+    }
+    default:
+      break;
+  }
+  return [];
+}
+
 function extractLedgerAmountsFromVoucher(v, debtRole) {
   let debitAmount = 0;
   let creditAmount = 0;
   const offsetAccountSet = new Set();
 
-  (v.entries || []).forEach(e => {
+  getVoucherDebtEntries(v).forEach(e => {
     const touches131 = (e.debit && e.debit.startsWith("131")) || (e.credit && e.credit.startsWith("131"));
     const touches331 = (e.debit && e.debit.startsWith("331")) || (e.credit && e.credit.startsWith("331"));
     let isRelevant = false;
@@ -156,6 +223,8 @@ function refreshOpenPartnerLedgerModal() {
     renderLedgerForTarget(activeLedgerTargetId, activeLedgerCombined);
   } else if (activePartnerNameForGroupedLedger && typeof viewGroupedPartnerLedger === "function") {
     viewGroupedPartnerLedger(activePartnerNameForGroupedLedger);
+  } else if (activePartnerIdForLedger === UNMATCHED_PARTNER_ID && typeof viewUnmatchedPartnerLedger === "function") {
+    viewUnmatchedPartnerLedger();
   } else if (activePartnerIdForLedger && typeof viewPartnerLedger === "function") {
     viewPartnerLedger(activePartnerIdForLedger);
   }
@@ -262,11 +331,11 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
 
   state.vouchers.forEach(v => {
     if (toDate && v.date > toDate) return;
-    if (!v.entries || !v.partnerId) return;
+    if (!v.partnerId) return;
     if (partnerIds.has(v.partnerId)) return;
     orphanPartnerIds.add(v.partnerId);
     const isPrior = fromDate && v.date < fromDate;
-    v.entries.forEach(e => {
+    getVoucherDebtEntries(v).forEach(e => {
       accumulateDebtEntryLines(e, isPrior ? unmatchedPrior : unmatchedPeriod);
     });
   });
@@ -289,7 +358,10 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
   });
 
   if (orphanPartnerIds.size > 0) {
-    const unmatchedSides = computeDebtSides({ debit: 0, credit: 0 }, unmatchedPrior, unmatchedPeriod, "both");
+    const orphanHas131 = (unmatchedPrior.debit131 + unmatchedPrior.credit131 + unmatchedPeriod.debit131 + unmatchedPeriod.credit131) > 0;
+    const orphanHas331 = (unmatchedPrior.debit331 + unmatchedPrior.credit331 + unmatchedPeriod.debit331 + unmatchedPeriod.credit331) > 0;
+    const orphanRole = inferPartnerDebtRole("both", orphanHas131, orphanHas331);
+    const unmatchedSides = computeDebtSides({ debit: 0, credit: 0 }, unmatchedPrior, unmatchedPeriod, orphanRole);
     debts[UNMATCHED_PARTNER_ID] = {
       id: UNMATCHED_PARTNER_ID,
       name: `⚠ Chưa khớp đối tác (${orphanPartnerIds.size} mã)`,
@@ -310,6 +382,155 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
   }
 
   return Object.values(debts);
+}
+
+function appendUnmatchedDebtRow(tbody, d) {
+  const tr = document.createElement("tr");
+  tr.className = "debt-row-unmatched";
+  tr.setAttribute("data-type", "unmatched");
+  tr.setAttribute("data-id", UNMATCHED_PARTNER_ID);
+  const orphanIds = d.orphanPartnerIds || [];
+  const orphanPreview = orphanIds.slice(0, 4).join(", ") + (orphanIds.length > 4 ? "…" : "");
+  tr.innerHTML = `
+    <td style="text-align:center;"></td>
+    <td style="font-weight:bold; color:var(--color-danger);">⚠</td>
+    <td style="font-weight:700;">
+      <a href="#" onclick="viewUnmatchedPartnerLedger(); return false;" class="debt-unmatched-link" title="Xem sổ chứng từ chưa khớp">${d.name}</a>
+      <div class="debt-unmatched-codes">${orphanPreview}</div>
+    </td>
+    <td style="text-align:right;" class="font-numeric">${d.openingDebit > 0 ? formatVND(d.openingDebit).replace("đ", "") : "-"}</td>
+    <td style="text-align:right;" class="font-numeric">${d.openingCredit > 0 ? formatVND(d.openingCredit).replace("đ", "") : "-"}</td>
+    <td style="text-align:right; color:var(--color-primary);" class="font-numeric">${d.debitTrans > 0 ? formatVND(d.debitTrans).replace("đ", "") : "-"}</td>
+    <td style="text-align:right; color:var(--color-warning);" class="font-numeric">${d.creditTrans > 0 ? formatVND(d.creditTrans).replace("đ", "") : "-"}</td>
+    <td style="text-align:right; font-weight:700;" class="font-numeric ${d.closingDebit > 0 ? "text-success" : ""}">${d.closingDebit > 0 ? formatVND(d.closingDebit).replace("đ", "") : "-"}</td>
+    <td style="text-align:right; font-weight:700;" class="font-numeric ${d.closingCredit > 0 ? "text-warning" : ""}">${d.closingCredit > 0 ? formatVND(d.closingCredit).replace("đ", "") : "-"}</td>
+    <td style="text-align:center;">
+      <div style="display:flex; gap:4px; justify-content:center; flex-wrap:wrap;">
+        <button class="btn btn-danger btn-sm" onclick="viewUnmatchedPartnerLedger()" style="padding:2px 8px;">Xem Sổ</button>
+        <button class="btn btn-secondary btn-sm" onclick="showUnmatchedPartnerIds()" style="padding:2px 8px;">${orphanIds.length} mã</button>
+      </div>
+    </td>`;
+  tbody.appendChild(tr);
+}
+
+function showUnmatchedPartnerIds() {
+  const bucket = pinnedUnmatchedDebt;
+  if (!bucket || !bucket.orphanPartnerIds || bucket.orphanPartnerIds.length === 0) return;
+  const ids = bucket.orphanPartnerIds.join(", ");
+  if (typeof showToast === "function") {
+    showToast(`Mã chưa khớp danh mục (${bucket.orphanPartnerIds.length}): ${ids}`, "warning", 8000);
+  } else {
+    alert(`Chứng từ tham chiếu các mã không có trong danh mục đối tác:\n\n${ids}`);
+  }
+}
+
+function viewUnmatchedPartnerLedger() {
+  const { fromDate, toDate } = getDebtDateRange();
+  const allDebts = calculatePartnerDebts(fromDate, toDate);
+  const bucket = allDebts.find(d => isUnmatchedDebt(d));
+  if (!bucket || !bucket.orphanPartnerIds || bucket.orphanPartnerIds.length === 0) {
+    if (typeof showToast === "function") {
+      showToast("Không có chứng từ chưa khớp đối tác trong kỳ đã chọn", "info");
+    }
+    return;
+  }
+  pinnedUnmatchedDebt = bucket;
+
+  activePartnerIdForLedger = UNMATCHED_PARTNER_ID;
+  activePartnerNameForGroupedLedger = "";
+  activeLedgerCombined = false;
+  activeLedgerTargetId = UNMATCHED_PARTNER_ID;
+
+  const projTabsDiv = document.getElementById("partner-ledger-projects-tabs");
+  if (projTabsDiv) projTabsDiv.style.display = "none";
+
+  const orphanIds = new Set(bucket.orphanPartnerIds);
+  const openingText = bucket.openingDebit > 0
+    ? `${formatVND(bucket.openingDebit)} (Nợ)`
+    : bucket.openingCredit > 0
+      ? `${formatVND(bucket.openingCredit)} (Có)`
+      : formatVND(0);
+
+  let subtitle = `Chưa khớp đối tác — ${orphanIds.size} mã không có trong danh mục`;
+  if (fromDate || toDate) {
+    const formatD = (dStr) => {
+      if (!dStr) return "";
+      const pt = dStr.split("-");
+      return `${pt[2]}/${pt[1]}/${pt[0]}`;
+    };
+    subtitle += ` | Kỳ: ${fromDate ? "Từ " + formatD(fromDate) : ""} ${toDate ? "Đến " + formatD(toDate) : ""}`;
+  }
+
+  document.getElementById("partner-ledger-subtitle").innerText = subtitle;
+  document.getElementById("partner-ledger-opening").innerText = openingText;
+
+  const tbody = document.getElementById("partner-ledger-table-body");
+  tbody.innerHTML = "";
+
+  let debitSum = 0;
+  let creditSum = 0;
+  const ledgerEntries = [];
+
+  state.vouchers.forEach(v => {
+    if (!v.partnerId || !orphanIds.has(v.partnerId)) return;
+    if (fromDate && v.date < fromDate) return;
+    if (toDate && v.date > toDate) return;
+
+    const extracted = extractLedgerAmountsFromVoucher(v, "both");
+    const hasDebtAmounts = extracted.debitAmount > 0 || extracted.creditAmount > 0;
+    let desc = v.description || "";
+    if (!hasDebtAmounts) {
+      const noteAmt = Number(v.totalAmount ?? v.amount ?? 0);
+      const pmLabel = v.paymentMethod ? ` · HTTT: ${v.paymentMethod}` : "";
+      desc = `${desc}${desc ? " — " : ""}(Chưa có bút toán 131/331${noteAmt > 0 ? ` · ${formatVND(noteAmt)}` : ""}${pmLabel})`.trim();
+    }
+
+    ledgerEntries.push({
+      date: v.date,
+      id: v.id,
+      partnerId: v.partnerId,
+      desc,
+      offsetAccount: extracted.offsetAccount,
+      debit: extracted.debitAmount,
+      credit: extracted.creditAmount
+    });
+    debitSum += extracted.debitAmount;
+    creditSum += extracted.creditAmount;
+  });
+
+  ledgerEntries.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+
+  if (ledgerEntries.length === 0) {
+    renderEmptyState(tbody, 6, "Không có giao dịch phát sinh công nợ trong kỳ", "Chọn kỳ khác hoặc kiểm tra chứng từ phát sinh");
+  } else {
+    ledgerEntries.forEach(le => {
+      const tr = document.createElement("tr");
+      const escapedViewId = escapeHtmlAttr(le.id);
+      tr.className = "clickable-row";
+      tr.setAttribute("data-type", "voucher");
+      tr.setAttribute("data-id", escapedViewId);
+      tr.innerHTML = `
+        <td>${le.date || ""}</td>
+        <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${le.id}</a> <span style="font-size:11px; color:var(--color-danger); font-weight:700;">[${escapeHtmlAttr(le.partnerId)}]</span></td>
+        <td>${le.desc || ""}</td>
+        <td style="text-align:center; font-weight:700;">${le.offsetAccount || ""}</td>
+        <td style="text-align:right; font-weight:500;">${le.debit > 0 ? formatVND(le.debit).replace("đ", "") : "-"}</td>
+        <td style="text-align:right; font-weight:500;">${le.credit > 0 ? formatVND(le.credit).replace("đ", "") : "-"}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  const openingVal = (bucket.openingDebit || 0) - (bucket.openingCredit || 0);
+  const closingVal = openingVal + debitSum - creditSum;
+  const closingText = closingVal >= 0
+    ? `${formatVND(closingVal)} (Nợ)`
+    : `${formatVND(-closingVal)} (Có)`;
+  document.getElementById("partner-ledger-closing").innerText = closingText;
+
+  renderLedgerOrdersForTarget(new Set());
+
+  switchPartnerLedgerTab("entries");
+  openModal("modal-view-partner-ledger");
 }
 
 function renderDebtsTable() {
@@ -333,10 +554,19 @@ function renderDebtsTable() {
   const pageItems = filteredDebtsList.slice(startIdx, endIdx);
 
   tbody.innerHTML = "";
-  if (pageItems.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy công nợ đối tác nào</td></tr>`;
+  const showPinnedUnmatched = currentDebtsViewTab === "project" && pinnedUnmatchedDebt;
+  const rowsForTotals = showPinnedUnmatched
+    ? [pinnedUnmatchedDebt, ...filteredDebtsList]
+    : filteredDebtsList;
+
+  if (pageItems.length === 0 && !showPinnedUnmatched) {
+    renderEmptyState(tbody, 10, 'Không tìm thấy công nợ đối tác nào', 'Thử điều chỉnh bộ lọc hoặc khoảng thời gian');
   } else {
-    // Tính tổng cộng cho toàn bộ danh sách đã lọc (filteredDebtsList)
+    if (showPinnedUnmatched) {
+      appendUnmatchedDebtRow(tbody, pinnedUnmatchedDebt);
+    }
+
+    // Tính tổng cộng cho toàn bộ danh sách đã lọc (kể cả dòng cảnh báo chưa khớp)
     let totalOpeningDebit = 0;
     let totalOpeningCredit = 0;
     let totalDebitTrans = 0;
@@ -344,7 +574,7 @@ function renderDebtsTable() {
     let totalClosingDebit = 0;
     let totalClosingCredit = 0;
 
-    filteredDebtsList.forEach(d => {
+    rowsForTotals.forEach(d => {
       totalOpeningDebit += d.openingDebit || 0;
       totalOpeningCredit += d.openingCredit || 0;
       totalDebitTrans += d.debitTrans || 0;
@@ -494,7 +724,9 @@ function filterDebts() {
   if (currentDebtsViewTab === 'project') {
     // Tab "Khách Cá Nhân" = tất cả customer (gộp cả cá nhân và công trình).
     // Phân tab theo loại KHAI BÁO (declaredType) để đối tác 'both' không nhảy tab.
+    pinnedUnmatchedDebt = allDebts.find(d => isUnmatchedDebt(d)) || null;
     filteredDebtsList = allDebts.filter(d => {
+      if (isUnmatchedDebt(d)) return false;
       if ((d.declaredType || d.type) === 'supplier') return false;
       if (!makeFilter(d)) return false;
       return true;
@@ -503,6 +735,8 @@ function filterDebts() {
     renderDebtsTable();
     return;
   }
+
+  pinnedUnmatchedDebt = null;
 
   if (currentDebtsViewTab === 'supplier') {
     // Tab "Nhà Cung Cấp" = tất cả supplier (theo loại khai báo, kể cả khi role là 'both')
@@ -630,7 +864,7 @@ function renderDebtsGroupedTable() {
 
   tbody.innerHTML = '';
   if (pageItems.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy đối tác nào</td></tr>`;
+    renderEmptyState(tbody, 9, 'Không tìm thấy đối tác nào', 'Thử tìm kiếm với từ khóa khác');
   } else {
     // Dòng TỔNG CỘNG
     let totOD = 0, totOC = 0, totDT = 0, totCT = 0, totCD = 0, totCC = 0;
@@ -848,7 +1082,7 @@ function viewGroupedPartnerLedger(partnerName) {
   ledgerEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
 
   if (ledgerEntries.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px;">Không có giao dịch phát sinh công nợ trong kỳ</td></tr>`;
+    renderEmptyState(tbody, 6, 'Không có giao dịch phát sinh công nợ trong kỳ', 'Chọn kỳ khác hoặc kiểm tra chứng từ phát sinh');
   } else {
     ledgerEntries.forEach(le => {
       const tr = document.createElement('tr');
@@ -1003,7 +1237,7 @@ function viewLedgerByIds(partnerIds, groupName) {
   ledgerEntries.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
   if (ledgerEntries.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px;">Không có giao dịch phát sinh công nợ trong kỳ</td></tr>`;
+    renderEmptyState(tbody, 6, 'Không có giao dịch phát sinh công nợ trong kỳ', 'Chọn kỳ khác hoặc kiểm tra chứng từ phát sinh');
   } else {
     ledgerEntries.forEach(le => {
       const tr2 = document.createElement('tr');
@@ -1230,7 +1464,7 @@ function renderLedgerForTarget(targetId, isCombined) {
   ledgerEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
 
   if (ledgerEntries.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px;">Không có giao dịch phát sinh công nợ trong kỳ</td></tr>`;
+    renderEmptyState(tbody, 6, 'Không có giao dịch phát sinh công nợ trong kỳ', 'Chọn kỳ khác hoặc kiểm tra chứng từ phát sinh');
   } else {
     ledgerEntries.forEach(le => {
       const tr = document.createElement("tr");
@@ -1295,7 +1529,7 @@ function renderLedgerOrdersForTarget(matchingIds) {
   if (toDate) salesVouchers = salesVouchers.filter(v => v.date <= toDate);
 
   if (salesVouchers.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px;">Không có đơn hàng nào trong kỳ</td></tr>`;
+    renderEmptyState(tbody, 6, 'Không có đơn hàng nào trong kỳ', 'Không có đơn hàng công nợ trong khoảng thời gian đã chọn');
   } else {
     salesVouchers.forEach(v => {
       const tr = document.createElement("tr");
@@ -2112,7 +2346,7 @@ function renderPartnerLedgerOrders() {
   const orders = state.vouchers.filter(v => String(v.partnerId) === String(pId) && (v.type === "sales" || v.type === "purchase" || v.type === "purchase_return" || v.type === "sales_return"));
 
   if (orders.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px;">Không tìm thấy hóa đơn mua/bán nào của đối tác này</td></tr>`;
+    renderEmptyState(tbody, 6, 'Không tìm thấy hóa đơn mua/bán nào của đối tác này', 'Đối tác chưa có phát sinh mua/bán trong kỳ');
     return;
   }
 
@@ -2766,23 +3000,24 @@ function renderDebtOverview(allDebts) {
   // KPI cards
   if (kpiEl) {
     const kpiData = [
-      { label: 'Tổng Phải Thu', value: totalRec, icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', color: 'var(--color-success)' },
-      { label: 'Tổng Phải Trả NCC', value: totalPay, icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z', color: 'var(--color-warning)' },
-      { label: 'Đối tác có công nợ', value: partnersWithDebt, icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', color: 'var(--color-primary)', isCount: true },
-      { label: 'Đối tác trả thừa', value: partnersOverpaid, icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z', color: 'var(--color-danger)', isCount: true }
+      { label: 'Tổng Phải Thu', value: totalRec, hint: 'TK 131 — Dư Nợ', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', accent: 'var(--color-success)' },
+      { label: 'Tổng Phải Trả NCC', value: totalPay, hint: 'TK 331 — Dư Có', icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z', accent: 'var(--color-warning)' },
+      { label: 'Đối tác có công nợ', value: partnersWithDebt, hint: 'Đối tác Dư Nợ', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', accent: 'var(--color-primary)', isCount: true },
+      { label: 'Đối tác trả thừa', value: partnersOverpaid, hint: 'Đối tác Dư Có', icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z', accent: 'var(--color-danger)', isCount: true }
     ];
     // NCC trả thừa (dư Nợ 331) = khoản phải thu lại từ NCC — hiển thị để không "biến mất"
     if (totalSupplierReceivable > 0) {
-      kpiData.push({ label: 'NCC Trả Thừa (Phải Thu Lại)', value: totalSupplierReceivable, icon: 'M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z', color: 'var(--color-info, #0ea5e9)' });
+      kpiData.push({ label: 'NCC Trả Thừa (Phải Thu Lại)', value: totalSupplierReceivable, hint: 'Dư Nợ TK 331', icon: 'M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z', accent: 'var(--color-info)' });
     }
     kpiEl.innerHTML = kpiData.map(k => `
-      <div style="background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:16px 20px; display:flex; align-items:center; gap:14px;">
-        <div style="width:44px; height:44px; border-radius:var(--radius-md); background:${k.color}22; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-          <svg fill="none" stroke="${k.color}" stroke-width="2" viewBox="0 0 24 24" style="width:22px;height:22px;"><path stroke-linecap="round" stroke-linejoin="round" d="${k.icon}"></path></svg>
+      <div class="kpi-card" style="--card-accent: ${k.accent}">
+        <div class="kpi-info">
+          <span class="kpi-label">${k.label}</span>
+          <span class="kpi-value font-numeric">${k.isCount ? k.value.toLocaleString('vi-VN') : formatVND(k.value)}</span>
+          <span class="kpi-trend">${k.hint}</span>
         </div>
-        <div>
-          <div style="font-size:11px; color:var(--text-muted); font-weight:500; text-transform:uppercase; letter-spacing:0.5px;">${k.label}</div>
-          <div style="font-size:20px; font-weight:800; color:var(--text-primary); margin-top:2px; font-family:var(--font-mono, monospace);">${k.isCount ? k.value.toLocaleString('vi-VN') : formatVND(k.value)}</div>
+        <div class="kpi-icon-wrapper">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="${k.icon}"></path></svg>
         </div>
       </div>
     `).join('');
@@ -2802,22 +3037,22 @@ function renderDebtOverview(allDebts) {
     const totalRowNet = nonCompanyNet;
     const totalRowCount = nonCompanyCount;
     const catRows = [
-      { label: '👤 Khách Cá Nhân / Công trình (Tổng)', rec: nonCompanyRec, ovp: nonCompanyOvp, net: nonCompanyNet, count: nonCompanyCount },
-      { label: '🏢 Trong đó: Công nợ theo Công ty', rec: compRec, ovp: compOvp, net: compNet, count: compCount }
+      { label: 'Khách Cá Nhân / Công trình (Tổng)', icon: '👤', rec: nonCompanyRec, ovp: nonCompanyOvp, net: nonCompanyNet, count: nonCompanyCount, rowClass: 'debt-breakdown-main-row' },
+      { label: 'Trong đó: Công nợ theo Công ty', icon: '🏢', rec: compRec, ovp: compOvp, net: compNet, count: compCount, rowClass: 'debt-breakdown-sub-row' }
     ];
-    const rows = catRows.map(cr => `<tr>
-      <td style="font-weight:600; color:var(--text-primary);">${cr.label}</td>
-      <td style="text-align:right; font-family:monospace;">${cr.count.toLocaleString('vi-VN')}</td>
-      <td style="text-align:right; color:var(--color-success); font-family:monospace;">${cr.rec > 0 ? formatVND(cr.rec).replace('đ', '') : '-'}</td>
-      <td style="text-align:right; color:var(--color-warning); font-family:monospace;">${cr.ovp > 0 ? formatVND(cr.ovp).replace('đ', '') : '-'}</td>
-      <td style="text-align:right; font-weight:700; font-family:monospace; color:${cr.net >= 0 ? 'var(--color-success)' : 'var(--color-danger)'};">${formatVND(cr.net).replace('đ', '')}</td>
+    const rows = catRows.map(cr => `<tr class="${cr.rowClass}">
+      <td><span class="debt-breakdown-label">${cr.icon} ${cr.label}</span></td>
+      <td class="text-right font-numeric">${cr.count.toLocaleString('vi-VN')}</td>
+      <td class="text-right font-numeric text-success">${cr.rec > 0 ? formatVND(cr.rec).replace('đ', '') : '-'}</td>
+      <td class="text-right font-numeric text-warning">${cr.ovp > 0 ? formatVND(cr.ovp).replace('đ', '') : '-'}</td>
+      <td class="text-right font-numeric debt-breakdown-net ${cr.net >= 0 ? 'text-success' : 'text-danger'}">${formatVND(cr.net).replace('đ', '')}</td>
     </tr>`);
-    rows.push(`<tr style="font-weight:bold; background:var(--bg-tertiary); border-top:2px solid var(--border-color);">
-      <td>TỔNG CỘNG</td>
-      <td style="text-align:right; font-family:monospace;">${totalRowCount.toLocaleString('vi-VN')}</td>
-      <td style="text-align:right; color:var(--color-success); font-family:monospace;">${formatVND(totalRowRec).replace('đ', '')}</td>
-      <td style="text-align:right; color:var(--color-warning); font-family:monospace;">${formatVND(totalRowOvp).replace('đ', '')}</td>
-      <td style="text-align:right; font-weight:800; font-family:monospace; color:var(--color-success);">${formatVND(totalRowNet).replace('đ', '')}</td>
+    rows.push(`<tr class="debt-breakdown-total-row">
+      <td><span class="debt-breakdown-total-label">TỔNG CỘNG</span></td>
+      <td class="text-right font-numeric">${totalRowCount.toLocaleString('vi-VN')}</td>
+      <td class="text-right font-numeric text-success">${formatVND(totalRowRec).replace('đ', '')}</td>
+      <td class="text-right font-numeric text-warning">${formatVND(totalRowOvp).replace('đ', '')}</td>
+      <td class="text-right font-numeric text-success debt-breakdown-net">${formatVND(totalRowNet).replace('đ', '')}</td>
     </tr>`);
     breakdownEl.innerHTML = rows.join('');
   }
@@ -2830,22 +3065,54 @@ function renderDebtOverview(allDebts) {
     // Bất biến: closingCalc === (totalRec - totalRowOvp) -- nếu khác = có lỗi logic
     const netRec = totalRec - totalRowOvp;
     const diffOk = Math.abs(closingCalc - netRec) < 1;
+    const matchBadge = diffOk
+      ? '<span class="badge badge-success debt-audit-match-badge">Khớp</span>'
+      : `<span class="badge badge-danger debt-audit-match-badge">Lệch ${formatVND(Math.abs(closingCalc - netRec))}</span>`;
+
     auditEl.innerHTML = `
-      <table style="border-collapse:collapse; width:100%; font-size:12px;">
-        <tr><td colspan="2" style="padding:4px 8px 2px; font-weight:700; color:var(--text-muted); font-size:11px; text-transform:uppercase; letter-spacing:0.4px;">① Kiểm toán T-tài khoản 131</td></tr>
-        <tr><td style="padding:3px 8px; color:var(--text-muted);">Số dư đầu kỳ</td><td style="text-align:right; font-family:monospace; padding:3px 8px;">${formatVND(totalInitOB)}</td></tr>
-        <tr><td style="padding:3px 8px; color:var(--text-muted);">+ Phát sinh Nợ trong kỳ (bán chịu)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-success);">+${formatVND(totalDebitTx)}</td></tr>
-        <tr><td style="padding:3px 8px; color:var(--text-muted);">− Phát sinh Có trong kỳ (thu tiền/giảm giá)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-warning);">−${formatVND(totalCreditTx)}</td></tr>
-        <tr style="border-top:1px solid var(--border-color);"><td style="padding:4px 8px; font-weight:700; color:var(--text-primary);">= Số dư ròng cuối kỳ</td><td style="text-align:right; font-family:monospace; padding:4px 8px; font-weight:800; color:var(--color-success);">${formatVND(closingCalc)}</td></tr>
-        <tr><td colspan="2" style="padding:8px 8px 2px; font-weight:700; color:var(--text-muted); font-size:11px; text-transform:uppercase; letter-spacing:0.4px;">② Đối chiếu với KPI</td></tr>
-        <tr><td style="padding:3px 8px; color:var(--text-muted);">KPI Tổng phải thu (chỉ đối tác Dư Nợ)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-success);">${formatVND(totalRec)}</td></tr>
-        <tr><td style="padding:3px 8px; color:var(--text-muted);">− Khách trả thừa/trả trước (Dư Có, giảm phải thu)</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-warning);">−${formatVND(totalRowOvp)}</td></tr>
-        <tr style="border-top:1.5px double var(--border-color);"><td style="padding:4px 8px; font-weight:800; color:var(--text-primary);">= Số dư ròng cuối kỳ (phải khớp ①)</td><td style="text-align:right; font-family:monospace; padding:4px 8px; font-weight:800; color:${diffOk ? 'var(--color-success)' : 'var(--color-danger)'};">${formatVND(netRec)} ${diffOk ? '✅ Khớp' : '⚠️ Lệch ' + formatVND(Math.abs(closingCalc - netRec))}</td></tr>
-        ${unmatchedBucket ? `
-        <tr><td colspan="2" style="padding:8px 8px 2px; font-weight:700; color:var(--color-danger); font-size:11px; text-transform:uppercase; letter-spacing:0.4px;">⚠ Chứng từ chưa khớp đối tác (${(unmatchedBucket.orphanPartnerIds || []).length} mã)</td></tr>
-        <tr><td style="padding:3px 8px; color:var(--text-muted);">Dư Nợ / Dư Có của nhóm chưa khớp</td><td style="text-align:right; font-family:monospace; padding:3px 8px; color:var(--color-danger);">${formatVND(unmatchedBucket.closingDebit || 0)} / ${formatVND(unmatchedBucket.closingCredit || 0)}</td></tr>
-        <tr><td colspan="2" style="padding:2px 8px 4px; color:var(--text-muted); font-size:11px;">Các mã: ${(unmatchedBucket.orphanPartnerIds || []).slice(0, 10).join(", ")}${(unmatchedBucket.orphanPartnerIds || []).length > 10 ? "…" : ""} — xem chi tiết ở tab Khách Cá Nhân (dòng "Chưa khớp đối tác").</td></tr>` : ""}
-      </table>`;
+      <div class="debt-audit-grid">
+        <div class="debt-audit-panel">
+          <div class="debt-audit-panel-header">
+            <span class="debt-audit-step">①</span>
+            <span>Kiểm toán T-tài khoản 131</span>
+          </div>
+          <div class="debt-audit-lines">
+            <div class="debt-audit-line"><span class="debt-audit-line-label">Số dư đầu kỳ</span><span class="debt-audit-line-value font-numeric">${formatVND(totalInitOB)}</span></div>
+            <div class="debt-audit-line"><span class="debt-audit-line-label">+ Phát sinh Nợ trong kỳ (bán chịu)</span><span class="debt-audit-line-value font-numeric text-success">+${formatVND(totalDebitTx)}</span></div>
+            <div class="debt-audit-line"><span class="debt-audit-line-label">− Phát sinh Có trong kỳ (thu tiền/giảm giá)</span><span class="debt-audit-line-value font-numeric text-warning">−${formatVND(totalCreditTx)}</span></div>
+            <div class="debt-audit-line debt-audit-line-total"><span class="debt-audit-line-label">= Số dư ròng cuối kỳ</span><span class="debt-audit-line-value font-numeric text-success">${formatVND(closingCalc)}</span></div>
+          </div>
+        </div>
+        <div class="debt-audit-panel">
+          <div class="debt-audit-panel-header">
+            <span class="debt-audit-step">②</span>
+            <span>Đối chiếu với KPI</span>
+          </div>
+          <div class="debt-audit-lines">
+            <div class="debt-audit-line"><span class="debt-audit-line-label">KPI Tổng phải thu (chỉ đối tác Dư Nợ)</span><span class="debt-audit-line-value font-numeric text-success">${formatVND(totalRec)}</span></div>
+            <div class="debt-audit-line"><span class="debt-audit-line-label">− Khách trả thừa/trả trước (Dư Có, giảm phải thu)</span><span class="debt-audit-line-value font-numeric text-warning">−${formatVND(totalRowOvp)}</span></div>
+            <div class="debt-audit-line debt-audit-line-total">
+              <span class="debt-audit-line-label">= Số dư ròng cuối kỳ (phải khớp ①)</span>
+              <span class="debt-audit-line-value debt-audit-final-value">
+                <span class="font-numeric ${diffOk ? 'text-success' : 'text-danger'}">${formatVND(netRec)}</span>
+                ${matchBadge}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      ${unmatchedBucket ? `
+      <div class="debt-alert-warning">
+        <div class="debt-alert-warning-header">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+          <span>Chứng từ chưa khớp đối tác</span>
+          <span class="badge badge-danger">${(unmatchedBucket.orphanPartnerIds || []).length} mã</span>
+        </div>
+        <div class="debt-alert-warning-body">
+          <div class="debt-audit-line"><span class="debt-audit-line-label">Dư Nợ / Dư Có của nhóm chưa khớp</span><span class="debt-audit-line-value font-numeric text-danger">${formatVND(unmatchedBucket.closingDebit || 0)} / ${formatVND(unmatchedBucket.closingCredit || 0)}</span></div>
+          <p class="debt-alert-warning-note">Các mã: ${(unmatchedBucket.orphanPartnerIds || []).slice(0, 10).join(", ")}${(unmatchedBucket.orphanPartnerIds || []).length > 10 ? "…" : ""} — mở tab <a href="#" onclick="switchDebtsViewTab('project'); return false;" style="color:var(--color-danger); font-weight:700;">Khách Cá Nhân</a>: dòng cảnh báo màu đỏ ở <strong>đầu bảng</strong> (luôn hiển thị, không phụ thuộc trang).</p>
+        </div>
+      </div>` : ""}`;
   }
 }
 
@@ -3432,6 +3699,8 @@ window.viewGroupedPartnerLedger = viewGroupedPartnerLedger;
 // New tabs
 window.classifyPartnerCategory = classifyPartnerCategory;
 window.renderDebtOverview = renderDebtOverview;
+window.viewUnmatchedPartnerLedger = viewUnmatchedPartnerLedger;
+window.showUnmatchedPartnerIds = showUnmatchedPartnerIds;
 window.renderDebtsIndividualTable = renderDebtsIndividualTable;
 window.changeDebtsIndividualPage = changeDebtsIndividualPage;
 window.renderDebtsCompanyGroupedTable = renderDebtsCompanyGroupedTable;
