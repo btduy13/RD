@@ -1405,6 +1405,93 @@ body.light-theme .modal-overlay {
   font-size: 14px;
 }
 
+/* Header Rạng Đông: logo | thông tin công ty | QR (grid, cho phép wrap) */
+.voucher-rd-header {
+  display: grid;
+  grid-template-columns: 80px 1fr 120px;
+  gap: 6px 8px;
+  align-items: start;
+  border-bottom: 2px solid #000;
+  padding: 10px 0 6px;
+  margin-bottom: 8px;
+}
+.voucher-rd-header-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 4px;
+}
+.voucher-rd-header-logo img {
+  max-height: 45px;
+  max-width: 75px;
+  object-fit: contain;
+}
+.voucher-rd-header-info {
+  text-align: center;
+  min-width: 0;
+  line-height: 1.25;
+}
+.voucher-rd-co-name {
+  font-weight: bold;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  line-height: 1.2;
+}
+.voucher-rd-co-unit {
+  font-weight: bold;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  margin-top: 2px;
+  line-height: 1.25;
+}
+.voucher-rd-co-addr,
+.voucher-rd-co-tel {
+  font-size: 11.5px;
+  margin-top: 2px;
+  line-height: 1.3;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+.voucher-rd-co-tel {
+  font-weight: 500;
+  margin-top: 1px;
+}
+.voucher-rd-header-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 2px;
+  background: #fff;
+}
+.voucher-rd-qr-label {
+  font-size: 8px;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+  letter-spacing: 0.1px;
+  text-align: center;
+  line-height: 1.2;
+}
+.voucher-rd-header-qr img {
+  width: 90px;
+  height: 90px;
+  display: block;
+}
+.voucher-rd-qr-stk {
+  font-size: 9px;
+  margin-top: 2px;
+  font-family: monospace;
+  font-weight: bold;
+}
+.voucher-rd-header--no-qr {
+  grid-template-columns: 80px 1fr;
+}
+.voucher-rd-header--no-qr .voucher-rd-header-info {
+  text-align: center;
+}
+
 .voucher-template-code {
   text-align: right;
   font-size: 14px;
@@ -1746,6 +1833,22 @@ body.light-theme .dynamic-items-table td {
     overflow: visible !important;
     height: auto !important;
     display: block !important; /* Hủy bỏ flexbox của body khi in để tránh vỡ trang hoặc bị trắng trang */
+    zoom: 1 !important;
+  }
+
+  /* Phần tử UI nằm ngoài .app-container — ẩn hoàn toàn khi in */
+  body > .skip-link,
+  body > .app-bg-decoration,
+  body > .app-loading-overlay,
+  body > .toast-container,
+  body > #custom-context-menu,
+  body > .login-overlay,
+  .skip-link,
+  .app-bg-decoration,
+  .app-loading-overlay,
+  .custom-context-menu {
+    display: none !important;
+    visibility: hidden !important;
   }
   
   .app-container,
@@ -1755,7 +1858,9 @@ body.light-theme .dynamic-items-table td {
   .actions-bar,
   .modal-header,
   .modal-footer,
-  .modal-overlay {
+  .modal-overlay,
+  .toast-container,
+  .toast {
     display: none !important;
   }
 
@@ -1799,7 +1904,7 @@ body.light-theme .dynamic-items-table td {
 
   .printable-voucher {
     box-shadow: none !important;
-    padding: 0 !important;
+    padding: 6px 0 0 !important;
     margin: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
@@ -1811,7 +1916,25 @@ body.light-theme .dynamic-items-table td {
   /* Tự động định dạng trang in và tự động scale theo khổ giấy */
   @page {
     size: auto;
-    margin: 4mm 6mm 4mm 6mm; /* Lề rất nhỏ giúp tận dụng tối đa khổ giấy, tránh lùi sâu */
+    margin: 10mm 6mm 4mm 6mm;
+  }
+
+  .printable-voucher .voucher-rd-header {
+    padding-top: 4px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .printable-voucher .voucher-rd-co-name {
+    font-size: 13px !important;
+  }
+  .printable-voucher .voucher-rd-co-unit,
+  .printable-voucher .voucher-rd-co-addr,
+  .printable-voucher .voucher-rd-co-tel {
+    font-size: 11px !important;
+  }
+  .printable-voucher .voucher-rd-header-qr img {
+    width: 82px !important;
+    height: 82px !important;
   }
 
   /* Điều chỉnh kích thước nhỏ lại và tránh lùi sâu khi in chứng từ */
@@ -1904,6 +2027,16 @@ body.light-theme .dynamic-items-table td {
     max-width: 100% !important;
     border: none !important;
     background-color: transparent !important;
+  }
+
+  /* Chỉ in modal chứng từ đang mở — tránh phần tử UI khác lọt vào */
+  body.printing-voucher .modal-overlay:not(#modal-view-voucher) {
+    display: none !important;
+  }
+
+  body.printing-voucher #modal-view-voucher .modal-header,
+  body.printing-voucher #modal-view-voucher .modal-footer {
+    display: none !important;
   }
 }
 

@@ -337,6 +337,29 @@ function closeModal(modalId) {
 }
 
 // 12. XEM VÀ IN BIỂU MẪU CHỨNG TỪ THEO CHUẨN BỘ TÀI CHÍNH
+function renderRdBrandedHeader(qrAmount, withQr) {
+  const showQr = withQr !== false;
+  const amount = Math.round(qrAmount || 0);
+  const qrBlock = showQr ? `
+          <div class="voucher-rd-header-qr">
+            <span class="voucher-rd-qr-label">Quét Mã QR Thanh Toán</span>
+            <img src="https://img.vietqr.io/image/sacombank-050033493999-qr_only.png?amount=${amount}&addInfo=${encodeURIComponent('thanh toan mua hang')}&accountName=${encodeURIComponent('CTY CP SX DT PHAT TRIEN RANG DONG')}" alt="VietQR" />
+            <span class="voucher-rd-qr-stk">STK: 050033493999</span>
+          </div>` : '';
+  return `
+        <div class="voucher-rd-header${showQr ? '' : ' voucher-rd-header--no-qr'}">
+          <div class="voucher-rd-header-logo">
+            <img src="logo.jpg" alt="Logo Rạng Đông" />
+          </div>
+          <div class="voucher-rd-header-info">
+            <div class="voucher-rd-co-name">CÔNG TY CỔ PHẦN RẠNG ĐÔNG</div>
+            <div class="voucher-rd-co-unit">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKYO</div>
+            <div class="voucher-rd-co-addr">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh</div>
+            <div class="voucher-rd-co-tel">Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074</div>
+          </div>${qrBlock}
+        </div>`;
+}
+
 function viewVoucher(id) {
   window.currentViewingVoucherId = id;
   const v = state.vouchers.find(v => v.id === id);
@@ -438,15 +461,15 @@ function viewVoucher(id) {
           </thead>
           <tbody>
             ${v.items.map((item, idx) => {
-              const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: "Sản phẩm" };
-              const itemGross = (item.qty || 0) * (item.price || 0);
-              let discountPercent = item.discount || 0;
-              if (discountPercent > 100) {
-                discountPercent = itemGross > 0 ? Math.round((discountPercent / itemGross) * 100 * 100) / 100 : 0;
-              }
-              const gcVal = discountPercent > 0 ? `${discountPercent}%` : "0";
-              const amt = item.amount || (itemGross - (itemGross * (discountPercent / 100)));
-              return `
+      const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: "Sản phẩm" };
+      const itemGross = (item.qty || 0) * (item.price || 0);
+      let discountPercent = item.discount || 0;
+      if (discountPercent > 100) {
+        discountPercent = itemGross > 0 ? Math.round((discountPercent / itemGross) * 100 * 100) / 100 : 0;
+      }
+      const gcVal = discountPercent > 0 ? `${discountPercent}%` : "0";
+      const amt = item.amount || (itemGross - (itemGross * (discountPercent / 100)));
+      return `
                 <tr>
                   <td style="border:1px solid #000; padding:4px; text-align:center;">${idx + 1}</td>
                   <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${prod.name}</td>
@@ -457,7 +480,7 @@ function viewVoucher(id) {
                   <td style="border:1px solid #000; padding:4px; text-align:center;">${gcVal}</td>
                 </tr>
               `;
-            }).join("")}
+    }).join("")}
             
             <tr>
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; border-top:1.5px solid #000;">Cộng tiền hàng:</td>
@@ -543,12 +566,12 @@ function viewVoucher(id) {
         <!-- Tiêu đề -->
         <div style="text-align:center; margin-bottom:10px;">
           <div style="font-size: 21px; font-weight:bold; letter-spacing:1.2px; text-transform:uppercase;">PHIẾU NHẬP KHO</div>
-          <div style="font-size: 12.5px; font-style:italic;">Ngày ${v.date.substring(8,10)} tháng ${v.date.substring(5,7)} năm ${v.date.substring(0,4)}</div>
+          <div style="font-size: 12.5px; font-style:italic;">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</div>
         </div>
         <!-- Thông tin -->
         <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size: 12.5px;">
           <div><strong>Nhà cung cấp:</strong> <span style="font-size: 14px; font-weight:bold;">${partnerName}</span></div>
-          <div style="text-align:right;"><strong>Ngày:</strong> ${v.date.substring(8,10)}/${v.date.substring(5,7)}/${v.date.substring(0,4)}</div>
+          <div style="text-align:right;"><strong>Ngày:</strong> ${v.date.substring(8, 10)}/${v.date.substring(5, 7)}/${v.date.substring(0, 4)}</div>
           <div><strong>Điện thoại:</strong> <span>${partner_p.phone || '-'}</span></div>
           <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size: 13px;">${v.id}</span></div>
           <div style="grid-column:span 2;"><strong>Địa chỉ NCC:</strong> <span>${partner_p.address || '-'}</span></div>
@@ -572,45 +595,45 @@ function viewVoucher(id) {
           </thead>
           <tbody>
             ${(v.items || []).map((item, idx) => {
-              const prod = (state.products||[]).find(p=>String(p.id)===String(item.productId))||{name:item.productId||'SP'};
-              const displayName = item.itemDesc || prod.name;
-              
-              const itemGross = (item.qty || 0) * (item.price || 0);
-              let discountPercent = item.discount || 0;
-              if (discountPercent > 100) {
-                discountPercent = itemGross > 0 ? Math.round((discountPercent / itemGross) * 100 * 100) / 100 : 0;
-              }
-              const gcVal = discountPercent > 0 ? `${discountPercent}%` : "0";
-              const amt = item.amount || (itemGross - (itemGross * (discountPercent / 100)));
-              
-              return `<tr>
-                <td style="border:1px solid #000; padding:4px; text-align:center;">${idx+1}</td>
+      const prod = (state.products || []).find(p => String(p.id) === String(item.productId)) || { name: item.productId || 'SP' };
+      const displayName = item.itemDesc || prod.name;
+
+      const itemGross = (item.qty || 0) * (item.price || 0);
+      let discountPercent = item.discount || 0;
+      if (discountPercent > 100) {
+        discountPercent = itemGross > 0 ? Math.round((discountPercent / itemGross) * 100 * 100) / 100 : 0;
+      }
+      const gcVal = discountPercent > 0 ? `${discountPercent}%` : "0";
+      const amt = item.amount || (itemGross - (itemGross * (discountPercent / 100)));
+
+      return `<tr>
+                <td style="border:1px solid #000; padding:4px; text-align:center;">${idx + 1}</td>
                 <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${displayName}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:center;">${prod.unit||'Cái'}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">${item.qty||0}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVND(item.price||0).replace('đ','')}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVND(amt).replace('đ','')}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:center;">${prod.unit || 'Cái'}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:right;">${item.qty || 0}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVND(item.price || 0).replace('đ', '')}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVND(amt).replace('đ', '')}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:center;">${gcVal}</td>
               </tr>`;
-            }).join('')}
+    }).join('')}
             <tr>
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; border-top:1.5px solid #000;">Cộng tiền hàng:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVND(grossTotal).replace('đ','')}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVND(grossTotal).replace('đ', '')}</td>
               <td style="border:1px solid #000; border-top:1.5px solid #000;"></td>
             </tr>
             <tr>
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">Số tiền chiết khấu:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">${formatVND(totalDiscount).replace('đ','')}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">${formatVND(totalDiscount).replace('đ', '')}</td>
               <td style="border:1px solid #000;"></td>
             </tr>
             ${v.taxAmount > 0 ? `<tr>
-              <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right;">Thuế GTGT (${v.taxRate||0}%):</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right;">${formatVND(v.taxAmount||0).replace('đ','')}</td>
+              <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right;">Thuế GTGT (${v.taxRate || 0}%):</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right;">${formatVND(v.taxAmount || 0).replace('đ', '')}</td>
               <td style="border:1px solid #000;"></td>
             </tr>` : ''}
             <tr style="background-color:#f9fafb;">
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; text-transform:uppercase;">Tổng tiền thanh toán:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVND(v.totalAmount).replace('đ','')}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVND(v.totalAmount).replace('đ', '')}</td>
               <td style="border:1px solid #000;"></td>
             </tr>
           </tbody>
@@ -622,10 +645,10 @@ function viewVoucher(id) {
         ${v.note ? `<div style="margin-bottom:10px; font-size: 13px; border:1px dashed #888; padding:5px 8px; border-radius:4px;"><strong>Ghi chú:</strong> ${v.note}</div>` : ''}
         <!-- Chữ ký -->
         <div style="display:flex; justify-content:space-between; text-align:center; margin-top:12px; font-size: 12.5px;">
-          ${['Người lập phiếu','Người giao hàng','Thủ kho','Kế toán trưởng','Giám đốc'].map((s,i)=>`
+          ${['Người lập phiếu', 'Người giao hàng', 'Thủ kho', 'Kế toán trưởng', 'Giám đốc'].map((s, i) => `
           <div style="width:18%;">
             <strong>${s}</strong><br>
-            <span style="font-style:italic; font-size: 11.5px; color:#555;">(Ký, họ tên${i===4?', đóng dấu':''})</span>
+            <span style="font-style:italic; font-size: 11.5px; color:#555;">(Ký, họ tên${i === 4 ? ', đóng dấu' : ''})</span>
             <div style="height:55px;"></div>
           </div>`).join('')}
         </div>
@@ -637,7 +660,7 @@ function viewVoucher(id) {
   } else if (v.type === "purchase_return") {
     // Mua trả lại → PHIẾU XUẤT KHO TRẢ NCC (hàng ĐI RA khỏi kho)
     let grossTotal = 0;
-    (v.items || []).forEach(item => { grossTotal += item.amount || ((item.qty||0)*(item.price||0)); });
+    (v.items || []).forEach(item => { grossTotal += item.amount || ((item.qty || 0) * (item.price || 0)); });
     const partner_pr = getPartnerForVoucher(v) || {};
     const isTT133pr = std === 'TT133';
     content = `
@@ -657,12 +680,12 @@ function viewVoucher(id) {
         <!-- Tiêu đề -->
         <div style="text-align:center; margin-bottom:10px;">
           <div style="font-size: 21px; font-weight:bold; letter-spacing:1.2px; text-transform:uppercase;">PHIẾU XUẤT KHO TRẢ NHÀ CUNG CẤP</div>
-          <div style="font-size: 12.5px; font-style:italic;">Ngày ${v.date.substring(8,10)} tháng ${v.date.substring(5,7)} năm ${v.date.substring(0,4)}</div>
+          <div style="font-size: 12.5px; font-style:italic;">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</div>
         </div>
         <!-- Thông tin -->
         <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size: 12.5px;">
           <div><strong>Nhà cung cấp:</strong> <span style="font-size: 14px; font-weight:bold;">${partnerName}</span></div>
-          <div style="text-align:right;"><strong>Ngày:</strong> ${v.date.substring(8,10)}/${v.date.substring(5,7)}/${v.date.substring(0,4)}</div>
+          <div style="text-align:right;"><strong>Ngày:</strong> ${v.date.substring(8, 10)}/${v.date.substring(5, 7)}/${v.date.substring(0, 4)}</div>
           <div><strong>Điện thoại:</strong> <span>${partner_pr.phone || '-'}</span></div>
           <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size: 13px;">${v.id}</span></div>
           <div style="grid-column:span 2;"><strong>Địa chỉ NCC:</strong> <span>${partner_pr.address || '-'}</span></div>
@@ -686,34 +709,34 @@ function viewVoucher(id) {
           </thead>
           <tbody>
             ${(v.items || []).map((item, idx) => {
-              const prod = (state.products||[]).find(p=>String(p.id)===String(item.productId))||{name:item.productId||'SP'};
-              const amt = item.amount||((item.qty||0)*(item.price||0));
-              return `<tr>
-                <td style="border:1px solid #000; padding:4px; text-align:center;">${idx+1}</td>
+      const prod = (state.products || []).find(p => String(p.id) === String(item.productId)) || { name: item.productId || 'SP' };
+      const amt = item.amount || ((item.qty || 0) * (item.price || 0));
+      return `<tr>
+                <td style="border:1px solid #000; padding:4px; text-align:center;">${idx + 1}</td>
                 <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${prod.name}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:center;">${prod.unit||'Cái'}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">${item.qty||0}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVND(item.price||0).replace('đ','')}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVND(amt).replace('đ','')}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:center;">${prod.unit || 'Cái'}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:right;">${item.qty || 0}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVND(item.price || 0).replace('đ', '')}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVND(amt).replace('đ', '')}</td>
                 <td style="border:1px solid #000; padding:4px;"></td>
               </tr>`;
-            }).join('')}
+    }).join('')}
             <tr style="background-color:#f9fafb;">
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; text-transform:uppercase; border-top:1.5px solid #000;">Tổng cộng tiền trả NCC:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; border-top:1.5px solid #000;">${formatVND(grossTotal).replace('đ','')}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; border-top:1.5px solid #000;">${formatVND(grossTotal).replace('đ', '')}</td>
               <td style="border:1px solid #000; border-top:1.5px solid #000;"></td>
             </tr>
           </tbody>
         </table>
         <div style="margin-bottom:12px; font-size: 13px;">
-          <strong>Số tiền viết bằng chữ:</strong> <span style="font-style:italic;">${numberToVietnameseWords(v.totalAmount||grossTotal)}</span>
+          <strong>Số tiền viết bằng chữ:</strong> <span style="font-style:italic;">${numberToVietnameseWords(v.totalAmount || grossTotal)}</span>
         </div>
         <!-- Chữ ký -->
         <div style="display:flex; justify-content:space-between; text-align:center; margin-top:12px; font-size: 12.5px;">
-          ${['Người lập phiếu','Người giao hàng','Thủ kho','Kế toán trưởng','Giám đốc'].map((s,i)=>`
+          ${['Người lập phiếu', 'Người giao hàng', 'Thủ kho', 'Kế toán trưởng', 'Giám đốc'].map((s, i) => `
           <div style="width:18%;">
             <strong>${s}</strong><br>
-            <span style="font-style:italic; font-size: 11.5px; color:#555;">(Ký, họ tên${i===4?', đóng dấu':''})</span>
+            <span style="font-style:italic; font-size: 11.5px; color:#555;">(Ký, họ tên${i === 4 ? ', đóng dấu' : ''})</span>
             <div style="height:55px;"></div>
           </div>`).join('')}
         </div>
@@ -748,12 +771,12 @@ function viewVoucher(id) {
         <!-- Tiêu đề -->
         <div style="text-align:center; margin-bottom:10px;">
           <div style="font-size: 21px; font-weight:bold; letter-spacing:1.2px; text-transform:uppercase;">PHIẾU NHẬP KHO HÀNG BÁN TRẢ LẠI</div>
-          <div style="font-size: 12.5px; font-style:italic;">Ngày ${v.date.substring(8,10)} tháng ${v.date.substring(5,7)} năm ${v.date.substring(0,4)}</div>
+          <div style="font-size: 12.5px; font-style:italic;">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</div>
         </div>
         <!-- Thông tin -->
         <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size: 12.5px;">
           <div><strong>Khách hàng trả lại:</strong> <span style="font-size: 14px; font-weight:bold;">${partnerName}</span></div>
-          <div style="text-align:right;"><strong>Ngày:</strong> ${v.date.substring(8,10)}/${v.date.substring(5,7)}/${v.date.substring(0,4)}</div>
+          <div style="text-align:right;"><strong>Ngày:</strong> ${v.date.substring(8, 10)}/${v.date.substring(5, 7)}/${v.date.substring(0, 4)}</div>
           <div><strong>Điện thoại:</strong> <span>${partner_sr.phone || '-'}</span></div>
           <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size: 13px;">${v.id}</span></div>
           <div style="grid-column:span 2;"><strong>Địa chỉ:</strong> <span>${partner_sr.address || '-'}</span></div>
@@ -778,46 +801,46 @@ function viewVoucher(id) {
           </thead>
           <tbody>
             ${(v.items || []).map((item, idx) => {
-              const prod = (state.products||[]).find(p=>String(p.id)===String(item.productId))||{name:item.productId||'SP'};
-              const amt = item.amount||((item.qty||0)*(item.price||0));
-              const discPercent = Math.round(item.discount || 0);
-              const disc = discPercent > 0 ? discPercent + '%' : '0';
-              return `<tr>
-                <td style="border:1px solid #000; padding:4px; text-align:center;">${idx+1}</td>
+      const prod = (state.products || []).find(p => String(p.id) === String(item.productId)) || { name: item.productId || 'SP' };
+      const amt = item.amount || ((item.qty || 0) * (item.price || 0));
+      const discPercent = Math.round(item.discount || 0);
+      const disc = discPercent > 0 ? discPercent + '%' : '0';
+      return `<tr>
+                <td style="border:1px solid #000; padding:4px; text-align:center;">${idx + 1}</td>
                 <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${prod.name}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:center;">${prod.unit||'Cái'}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">${item.qty||0}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVND(item.price||0).replace('đ','')}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVND(amt).replace('đ','')}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:center;">${prod.unit || 'Cái'}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:right;">${item.qty || 0}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVND(item.price || 0).replace('đ', '')}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVND(amt).replace('đ', '')}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:center;">${disc}</td>
               </tr>`;
-            }).join('')}
+    }).join('')}
             <tr>
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; border-top:1.5px solid #000;">Cộng tiền hàng trả:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVND(grossTotal).replace('đ','')}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVND(grossTotal).replace('đ', '')}</td>
               <td style="border:1px solid #000; border-top:1.5px solid #000;"></td>
             </tr>
             <tr>
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">Số tiền chiết khấu:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">${formatVND(totalDiscount).replace('đ','')}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">${formatVND(totalDiscount).replace('đ', '')}</td>
               <td style="border:1px solid #000;"></td>
             </tr>
             <tr style="background-color:#f9fafb;">
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; text-transform:uppercase;">Tổng tiền trả lại khách:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; color:#dc2626;">${formatVND(v.totalAmount||(grossTotal - totalDiscount)).replace('đ','')}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; color:#dc2626;">${formatVND(v.totalAmount || (grossTotal - totalDiscount)).replace('đ', '')}</td>
               <td style="border:1px solid #000;"></td>
             </tr>
           </tbody>
         </table>
         <div style="margin-bottom:12px; font-size: 13px;">
-          <strong>Số tiền viết bằng chữ:</strong> <span style="font-style:italic;">${numberToVietnameseWords(v.totalAmount||grossTotal)}</span>
+          <strong>Số tiền viết bằng chữ:</strong> <span style="font-style:italic;">${numberToVietnameseWords(v.totalAmount || grossTotal)}</span>
         </div>
         <!-- Chữ ký -->
         <div style="display:flex; justify-content:space-between; text-align:center; margin-top:12px; font-size: 12.5px;">
-          ${['Người lập phiếu','Khách hàng trả','Thủ kho','Kế toán trưởng','Giám đốc'].map((s,i)=>`
+          ${['Người lập phiếu', 'Khách hàng trả', 'Thủ kho', 'Kế toán trưởng', 'Giám đốc'].map((s, i) => `
           <div style="width:18%;">
             <strong>${s}</strong><br>
-            <span style="font-style:italic; font-size: 11.5px; color:#555;">(Ký, họ tên${i===4?', đóng dấu':''})</span>
+            <span style="font-style:italic; font-size: 11.5px; color:#555;">(Ký, họ tên${i === 4 ? ', đóng dấu' : ''})</span>
             <div style="height:55px;"></div>
           </div>`).join('')}
         </div>
@@ -843,28 +866,7 @@ function viewVoucher(id) {
     content = `
       <div class="printable-voucher" style="max-width: 800px; padding: 8px; font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #000; line-height: 1.25;">
         
-        <!-- Header: Logo Rạng Đông bên trái, Thông tin công ty ở giữa, Mã QR ở bên phải (Cân đối hoàn hảo) -->
-        <div style="position: relative; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 8px; text-align: center; min-height: 110px;">
-          <!-- Logo Rạng Đông thực tế từ file logo.jpg -->
-          <div style="position: absolute; left: 0; top: 15px; display: flex; align-items: center; justify-content: center; width: 80px;">
-            <img src="logo.jpg" style="max-height: 45px; max-width: 75px; object-fit: contain;" alt="Logo Rạng Đông" />
-          </div>
-
-          <!-- Thông tin công ty chính xác theo mẫu giấy (Tránh wrap lỗi căn lề và không bị tràn) -->
-          <div style="color: #000; padding: 15px 125px 0 85px;">
-            <div style="font-weight: bold; font-size: 14px; text-transform: uppercase; letter-spacing: 0.2px; white-space: nowrap;">CÔNG TY CỔ PHẦN RẠNG ĐÔNG</div>
-            <div style="font-weight: bold; font-size: 11.5px; text-transform: uppercase; margin-top: 2px; white-space: nowrap;">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY</div>
-            <div style="font-size: 11.5px; margin-top: 2px; white-space: nowrap;">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh</div>
-            <div style="font-size: 11.5px; margin-top: 1px; font-weight: 500; white-space: nowrap;">Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074</div>
-          </div>
-
-          <!-- Mã QR thanh toán ở góc bên phải (Cân đối hoàn hảo) -->
-          <div style="position: absolute; right: 0; top: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 120px; padding: 2px; background: #fff;">
-            <span style="font-size: 8px; font-weight: bold; text-transform: uppercase; color: #000; margin-bottom: 2px; letter-spacing: 0.1px;">Quét Mã QR Thanh Toán</span>
-            <img src="https://img.vietqr.io/image/sacombank-050033493999-qr_only.png?amount=${Math.round(v.totalAmount || (grossTotal - totalDiscount) || 0)}&addInfo=${encodeURIComponent('thanh toan mua hang')}&accountName=${encodeURIComponent('CTY CP SX DT PHAT TRIEN RANG DONG')}" style="width: 90px; height: 90px; display: block;" alt="VietQR" />
-            <span style="font-size: 9px; color: #000; margin-top: 2px; font-family: monospace; font-weight: bold;">STK: 050033493999</span>
-          </div>
-        </div>
+        ${renderRdBrandedHeader(v.totalAmount || (grossTotal - totalDiscount) || 0)}
 
         <!-- Tiêu đề Phiếu giao hàng -->
         <div style="text-align: center; margin-bottom: 10px;">
@@ -913,7 +915,7 @@ function viewVoucher(id) {
             ${v.items.map((item, idx) => {
       const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: item.productId };
       const qtyFormatted = Number.isInteger(item.qty) ? `${item.qty},0` : item.qty.toString().replace(".", ",");
-      
+
       const itemGross = (item.qty || 0) * (item.price || 0);
       let discountPercent = item.discount || 0;
       if (discountPercent > 100) {
@@ -1004,28 +1006,7 @@ function viewVoucher(id) {
     content = `
       <div class="printable-voucher" style="max-width: 800px; padding: 8px; font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #000; line-height: 1.25;">
         
-        <!-- Header: Logo Rạng Đông bên trái, Thông tin công ty ở giữa, QR Code bên phải (Cân đối hoàn hảo) -->
-        <div style="position: relative; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 8px; text-align: center; min-height: 110px;">
-          <!-- Logo Rạng Đông thực tế từ file logo.jpg -->
-          <div style="position: absolute; left: 0; top: 15px; display: flex; align-items: center; justify-content: center; width: 80px;">
-            <img src="logo.jpg" style="max-height: 45px; max-width: 75px; object-fit: contain;" alt="Logo Rạng Đông" />
-          </div>
-
-          <!-- Thông tin công ty chính xác theo mẫu giấy (Tránh wrap lỗi căn lề và không bị tràn) -->
-          <div style="color: #000; padding: 15px 125px 0 85px;">
-            <div style="font-weight: bold; font-size: 14px; text-transform: uppercase; letter-spacing: 0.2px; white-space: nowrap;">CÔNG TY CỔ PHẦN RẠNG ĐÔNG</div>
-            <div style="font-weight: bold; font-size: 11.5px; text-transform: uppercase; margin-top: 2px; white-space: nowrap;">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY</div>
-            <div style="font-size: 11.5px; margin-top: 2px; white-space: nowrap;">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh</div>
-            <div style="font-size: 11.5px; margin-top: 1px; font-weight: 500; white-space: nowrap;">Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074</div>
-          </div>
-
-          <!-- Mã QR thanh toán ở góc bên phải (Cân đối hoàn hảo) -->
-          <div style="position: absolute; right: 0; top: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 120px; padding: 2px; background: #fff;">
-            <span style="font-size: 8px; font-weight: bold; text-transform: uppercase; color: #000; margin-bottom: 2px; letter-spacing: 0.1px;">Quét Mã QR Thanh Toán</span>
-            <img src="https://img.vietqr.io/image/sacombank-050033493999-qr_only.png?amount=${Math.round(v.totalAmount || (grossTotal - totalDiscount) || 0)}&addInfo=${encodeURIComponent('thanh toan mua hang')}&accountName=${encodeURIComponent('CTY CP SX DT PHAT TRIEN RANG DONG')}" style="width: 90px; height: 90px; display: block;" alt="VietQR" />
-            <span style="font-size: 9px; color: #000; margin-top: 2px; font-family: monospace; font-weight: bold;">STK: 050033493999</span>
-          </div>
-        </div>
+        ${renderRdBrandedHeader(v.totalAmount || (grossTotal - totalDiscount) || 0)}
 
         <!-- Tiêu đề Phiếu báo giá -->
         <div style="text-align: center; margin-bottom: 10px;">
@@ -1073,16 +1054,16 @@ function viewVoucher(id) {
           </thead>
           <tbody>
             ${v.items.map((item, idx) => {
-              const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: item.productId };
-              const qtyFormatted = Number.isInteger(item.qty) ? `${item.qty},0` : item.qty.toString().replace(".", ",");
-              
-              const itemGross = (item.qty || 0) * (item.price || 0);
-              let discountPercent = item.discount || 0;
-              if (discountPercent > 100) {
-                discountPercent = itemGross > 0 ? Math.round((discountPercent / itemGross) * 100 * 100) / 100 : 0;
-              }
-              const gcVal = discountPercent > 0 ? `${discountPercent}%` : "0";
-              return `
+      const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: item.productId };
+      const qtyFormatted = Number.isInteger(item.qty) ? `${item.qty},0` : item.qty.toString().replace(".", ",");
+
+      const itemGross = (item.qty || 0) * (item.price || 0);
+      let discountPercent = item.discount || 0;
+      if (discountPercent > 100) {
+        discountPercent = itemGross > 0 ? Math.round((discountPercent / itemGross) * 100 * 100) / 100 : 0;
+      }
+      const gcVal = discountPercent > 0 ? `${discountPercent}%` : "0";
+      return `
                 <tr>
                   <td style="border: 1px solid #000; padding: 4px 4px; text-align: center;">${idx + 1}</td>
                   <td style="border: 1px solid #000; padding: 4px 6px; font-weight: 500;">${item.itemDesc || prod.name}</td>
@@ -1093,7 +1074,7 @@ function viewVoucher(id) {
                   <td style="border: 1px solid #000; padding: 4px 4px; text-align: center;">${gcVal}</td>
                 </tr>
               `;
-            }).join("")}
+    }).join("")}
             
             <!-- Phần tổng tiền -->
             <tr>
@@ -1282,7 +1263,7 @@ function viewVoucher(id) {
         <!-- TIÊU ĐỀ -->
         <div style="text-align:center; margin-bottom:12px;">
           <div style="font-size: 25px; font-weight:bold; letter-spacing:1px; text-transform:uppercase;">${title}</div>
-          <div style="font-size: 13px; font-style:italic;">Ngày ${v.date.substring(8,10)} tháng ${v.date.substring(5,7)} năm ${v.date.substring(0,4)}</div>
+          <div style="font-size: 13px; font-style:italic;">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</div>
         </div>
 
         <!-- THÔNG TIN PHIẾU -->
@@ -1437,14 +1418,14 @@ function animateCountUp(element, targetValue, duration) {
 
 // Enhanced openModal with animation
 var _origOpenModal = openModal;
-openModal = function(modalId) {
+openModal = function (modalId) {
   if (typeof _origOpenModal === 'function') {
     _origOpenModal(modalId);
   }
   var modal = document.getElementById(modalId);
   if (modal) {
     modal.classList.add('modal-animated');
-    
+
     // Tự động vô hiệu hóa các input trong modal đối với tài khoản chỉ xem
     if (typeof window.currentUser !== 'undefined' && window.currentUser && window.currentUser.role === 'viewer') {
       modal.querySelectorAll('input, select, textarea').forEach(el => {
@@ -1461,14 +1442,14 @@ openModal = function(modalId) {
       });
     }
   }
-  
+
   if (typeof autoTagRoleButtons === 'function') {
     autoTagRoleButtons();
   }
 };
 
 var _origCloseModal = closeModal;
-closeModal = function(modalId) {
+closeModal = function (modalId) {
   if (typeof _origCloseModal === 'function') {
     _origCloseModal(modalId);
   }
@@ -1476,7 +1457,7 @@ closeModal = function(modalId) {
   if (modal) {
     modal.classList.remove('modal-animated');
   }
-  setTimeout(function() {
+  setTimeout(function () {
     if (window.flushDeferredCloudSync) {
       window.flushDeferredCloudSync();
     }
@@ -1495,12 +1476,12 @@ window.closeModal = closeModal;
 // RDP — Custom Date Picker (cuốn lịch tùy chỉnh)
 // Tự động wrap tất cả input[type=date].form-control-date
 // ==========================================================================
-(function() {
+(function () {
   'use strict';
 
-  const MONTHS_VI = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6',
-                     'Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
-  const DAYS_VI   = ['CN','T2','T3','T4','T5','T6','T7'];
+  const MONTHS_VI = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
+    'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+  const DAYS_VI = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
   let popup = null;       // DOM element popup
   let activeInput = null; // Input đang được chọn
@@ -1537,7 +1518,7 @@ window.closeModal = closeModal;
     // Render weekday headers (Tuần bắt đầu từ T2)
     const wdEl = popup.querySelector('.rdp-weekdays');
     // Order: T2 T3 T4 T5 T6 T7 CN
-    const wdOrder = [1,2,3,4,5,6,0];
+    const wdOrder = [1, 2, 3, 4, 5, 6, 0];
     wdOrder.forEach(i => {
       const d = document.createElement('div');
       d.className = 'rdp-weekday';
@@ -1612,7 +1593,7 @@ window.closeModal = closeModal;
         const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         date = toDateString(last);
       } else {
-        date = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+        date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
       }
     } else if (preset === 'quarter') {
       const qm = Math.floor(now.getMonth() / 3) * 3;
@@ -1620,7 +1601,7 @@ window.closeModal = closeModal;
         const last = new Date(now.getFullYear(), qm + 3, 0);
         date = toDateString(last);
       } else {
-        date = `${now.getFullYear()}-${String(qm+1).padStart(2,'0')}-01`;
+        date = `${now.getFullYear()}-${String(qm + 1).padStart(2, '0')}-01`;
       }
     } else if (preset === 'year') {
       if (activeInput.id && activeInput.id.includes('-to')) {
@@ -1642,7 +1623,7 @@ window.closeModal = closeModal;
   }
 
   function toDateString(d) {
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
   function formatDisplayDate(isoStr) {
@@ -1663,7 +1644,7 @@ window.closeModal = closeModal;
     const selectedVal = activeInput ? activeInput.value : '';
 
     const firstDay = new Date(viewYear, viewMonth, 1);
-    const lastDay  = new Date(viewYear, viewMonth + 1, 0);
+    const lastDay = new Date(viewYear, viewMonth + 1, 0);
 
     // Day-of-week offset (tuần bắt đầu Thứ Hai: 0=T2, 6=CN)
     let startDow = firstDay.getDay(); // 0=CN, 1=T2, ...
@@ -1679,7 +1660,7 @@ window.closeModal = closeModal;
     // Day cells
     for (let day = 1; day <= lastDay.getDate(); day++) {
       const cell = document.createElement('div');
-      const iso = `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      const iso = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       cell.className = 'rdp-day';
       if (iso === today) cell.classList.add('today');
       if (iso === selectedVal) cell.classList.add('selected');
@@ -1704,14 +1685,14 @@ window.closeModal = closeModal;
     const popH = 380;
 
     let left = rect.left;
-    let top  = rect.bottom + 4;
+    let top = rect.bottom + 4;
 
     // Tránh ra khỏi cửa sổ
     if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
     if (top + popH > window.innerHeight - 8) top = rect.top - popH - 4;
 
     popup.style.left = left + 'px';
-    popup.style.top  = top  + 'px';
+    popup.style.top = top + 'px';
   }
 
   // ---- Mở popup ----
@@ -1759,12 +1740,12 @@ window.closeModal = closeModal;
     input.dispatchEvent(event);
     // Also call onchange attribute if set
     if (typeof input.onchange === 'function') {
-      try { input.onchange.call(input, event); } catch(e) {}
+      try { input.onchange.call(input, event); } catch (e) { }
     }
     // Support oninput attribute (some filters use oninput)
     const onchangeAttr = input.getAttribute('onchange');
     if (onchangeAttr) {
-      try { new Function(onchangeAttr).call(input); } catch(e) {}
+      try { new Function(onchangeAttr).call(input); } catch (e) { }
     }
   }
 
@@ -1845,7 +1826,7 @@ window.closeModal = closeModal;
 })();
 
 // rdpClearInput: Xóa giá trị ngày và cập nhật display (dùng trong clearXxxDateFilter)
-window.rdpClearInput = function(inputId) {
+window.rdpClearInput = function (inputId) {
   const input = document.getElementById(inputId);
   if (!input) return;
   input.value = '';
@@ -1860,7 +1841,7 @@ window.rdpClearInput = function(inputId) {
 };
 
 // rdpSetInput: Đặt giá trị ngày (ISO yyyy-mm-dd) và cập nhật display
-window.rdpSetInput = function(inputId, isoValue) {
+window.rdpSetInput = function (inputId, isoValue) {
   const input = document.getElementById(inputId);
   if (!input) return;
   input.value = isoValue || '';
@@ -1903,16 +1884,26 @@ function hideVoucherPrintDropdown() {
 function printCurrentVoucher(e) {
   if (e) e.preventDefault();
   hideVoucherPrintDropdown();
+
+  const skipLink = document.querySelector(".skip-link");
+  if (skipLink && document.activeElement === skipLink) {
+    skipLink.blur();
+  }
+
+  document.body.classList.add("printing-voucher");
   triggerPrint();
+  setTimeout(() => {
+    document.body.classList.remove("printing-voucher");
+  }, 1000);
 }
 
 async function printCurrentVoucherToPDF(e) {
   if (e) e.preventDefault();
   hideVoucherPrintDropdown();
-  
+
   const modalTitle = document.querySelector("#modal-view-voucher .card-title");
   const isDebtNotice = modalTitle && modalTitle.innerText.includes("Thông báo Công nợ");
-  
+
   let cleanFilename = "";
   if (isDebtNotice) {
     cleanFilename = `Thong_bao_cong_no_${getLocalDateString()}.pdf`;
@@ -1928,11 +1919,25 @@ async function printCurrentVoucherToPDF(e) {
     }
     cleanFilename = `${v.id}_${v.date}.pdf`;
   }
-  
-  showToast("Đang chuẩn bị tạo PDF...", "info");
-  
+
+  const printArea = document.getElementById("voucher-print-area");
+  const voucherHtml = printArea ? printArea.innerHTML.trim() : "";
+  if (!voucherHtml) {
+    showToast("Không có nội dung chứng từ để xuất PDF", "error");
+    return;
+  }
+
   try {
-    if (window.electronAPI && typeof window.electronAPI.printToPDF === "function") {
+    if (window.electronAPI && typeof window.electronAPI.printHtmlToPDF === "function") {
+      const res = await window.electronAPI.printHtmlToPDF(voucherHtml, cleanFilename);
+      if (res && res.ok) {
+        showToast(`Đã lưu PDF tại: ${res.filePath}`, "success");
+      } else if (res && res.error === 'Hủy lưu PDF') {
+        showToast("Hủy lưu file PDF", "info");
+      } else {
+        showToast(`Lỗi xuất PDF: ${res ? res.error : "Không rõ nguyên nhân"}`, "error");
+      }
+    } else if (window.electronAPI && typeof window.electronAPI.printToPDF === "function") {
       const res = await window.electronAPI.printToPDF(cleanFilename);
       if (res && res.ok) {
         showToast(`Đã lưu thành công PDF tại: ${res.filePath}`, "success");
@@ -1953,10 +1958,10 @@ async function printCurrentVoucherToPDF(e) {
 function printCurrentVoucherToExcel(e) {
   if (e) e.preventDefault();
   hideVoucherPrintDropdown();
-  
+
   const modalTitle = document.querySelector("#modal-view-voucher .card-title");
   const isDebtNotice = modalTitle && modalTitle.innerText.includes("Thông báo Công nợ");
-  
+
   if (isDebtNotice) {
     if (typeof window.exportCurrentPartnerDebtExcel === "function") {
       window.exportCurrentPartnerDebtExcel();
@@ -1965,12 +1970,12 @@ function printCurrentVoucherToExcel(e) {
     }
     return;
   }
-  
+
   if (!window.currentViewingVoucherId) {
     showToast("Không tìm thấy thông tin chứng từ hiện tại", "error");
     return;
   }
-  
+
   exportVoucherToExcel(window.currentViewingVoucherId);
 }
 
@@ -1986,14 +1991,14 @@ function exportVoucherToExcel(id) {
   const companyTax = state.taxCode || "0100101438";
 
   const rows = [];
-  
+
   // Header
   rows.push([companyName, "", "", "", "", "Mẫu số: " + (v.type === "purchase" ? "C21-DN" : v.type === "sales" ? "01-VT" : "01-TT")]);
-  rows.push(["TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY", "", "", "", "", "Quyển số: ........"]);
+  rows.push(["TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKYO", "", "", "", "", "Quyển số: ........"]);
   rows.push(["Địa chỉ: " + companyAddr, "", "", "", "", "Số: " + v.id]);
   rows.push(["MST: " + companyTax + " | Tel: 0254.3543551", "", "", "", "", ""]);
   rows.push(["", "", "", "", "", ""]); // Blank row
-  
+
   // Title
   let title = "CHỨNG TỪ KẾ TOÁN";
   let subtitle = "";
@@ -2013,7 +2018,7 @@ function exportVoucherToExcel(id) {
     const d = v.date.substring(8, 10);
     subtitle = `Ngày ${d} tháng ${m} năm ${y}`;
   }
-  
+
   rows.push([title, "", "", "", "", ""]);
   rows.push([subtitle, "", "", "", "", ""]);
   rows.push(["", "", "", "", "", ""]); // Blank row
@@ -2045,16 +2050,16 @@ function exportVoucherToExcel(id) {
   let totalDiscount = 0;
   if (hasItems) {
     rows.push(["STT", "Tên sản phẩm / quy cách", "ĐVT", "Số lượng", "Đơn giá", "Thành tiền", "Ghi chú"]);
-    
+
     let idx = 1;
     let grossTotal = 0;
     totalDiscount = 0;
-    
+
     v.items.forEach(item => {
       const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: item.productId || "Sản phẩm", unit: "Cái" };
       const itemAmt = item.amount || ((item.qty || 0) * (item.price || 0));
       grossTotal += (item.qty || 0) * (item.price || 0);
-      
+
       let discountVal = 0;
       if (item.discount) {
         if (item.discount > 100) {
@@ -2086,7 +2091,7 @@ function exportVoucherToExcel(id) {
     rows.push(["", "Tổng cộng tiền thanh toán:", "", "", "", v.totalAmount || grossTotal, ""]);
     rows.push([`Số tiền viết bằng chữ: ${numberToVietnameseWords(v.totalAmount || grossTotal)}`, "", "", "", "", "", ""]);
   }
-  
+
   rows.push(["", "", "", "", "", ""]); // Blank row
   rows.push(["", "", "", "", "", ""]); // Blank row
 
@@ -2106,12 +2111,12 @@ function exportVoucherToExcel(id) {
   }
 
   const activeSigs = sigs.filter(Boolean);
-  
+
   rows.push(["", "", "", "", `Ngày ...... tháng ...... năm ......`, ""]);
-  
+
   const sigRow = ["", "", "", "", "", "", ""];
   const subRow = ["", "", "", "", "", "", ""];
-  
+
   if (activeSigs.length === 3) {
     sigRow[0] = activeSigs[0]; sigRow[2] = activeSigs[1]; sigRow[4] = activeSigs[2];
     subRow[0] = "(Ký, họ tên)"; subRow[2] = "(Ký, họ tên)"; subRow[4] = "(Ký, họ tên)";
@@ -2131,7 +2136,7 @@ function exportVoucherToExcel(id) {
       else if (gdIdx === 4) subRow[5] = "(Ký, họ tên, đóng dấu)";
     }
   }
-  
+
   rows.push(sigRow);
   rows.push(subRow);
 
@@ -2143,7 +2148,7 @@ function exportVoucherToExcel(id) {
   merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 4 } });
   merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: 4 } });
   merges.push({ s: { r: 3, c: 0 }, e: { r: 3, c: 4 } });
-  
+
   merges.push({ s: { r: 5, c: 0 }, e: { r: 5, c: 6 } });
   merges.push({ s: { r: 6, c: 0 }, e: { r: 6, c: 6 } });
 
@@ -2168,12 +2173,12 @@ function exportVoucherToExcel(id) {
   const sigRowIdx = rows.length - 2;
   const sigSubRowIdx = sigRowIdx + 1;
   const dateRowIdx = sigRowIdx - 1;
-  
+
   if (activeSigs.length === 3) {
     merges.push({ s: { r: sigRowIdx, c: 0 }, e: { r: sigRowIdx, c: 1 } });
     merges.push({ s: { r: sigRowIdx, c: 2 }, e: { r: sigRowIdx, c: 3 } });
     merges.push({ s: { r: sigRowIdx, c: 4 }, e: { r: sigRowIdx, c: 6 } });
-    
+
     merges.push({ s: { r: sigSubRowIdx, c: 0 }, e: { r: sigSubRowIdx, c: 1 } });
     merges.push({ s: { r: sigSubRowIdx, c: 2 }, e: { r: sigSubRowIdx, c: 3 } });
     merges.push({ s: { r: sigSubRowIdx, c: 4 }, e: { r: sigSubRowIdx, c: 6 } });
@@ -2181,18 +2186,18 @@ function exportVoucherToExcel(id) {
     merges.push({ s: { r: sigRowIdx, c: 0 }, e: { r: sigRowIdx, c: 1 } });
     merges.push({ s: { r: sigRowIdx, c: 2 }, e: { r: sigRowIdx, c: 3 } });
     merges.push({ s: { r: sigRowIdx, c: 5 }, e: { r: sigRowIdx, c: 6 } });
-    
+
     merges.push({ s: { r: sigSubRowIdx, c: 0 }, e: { r: sigSubRowIdx, c: 1 } });
     merges.push({ s: { r: sigSubRowIdx, c: 2 }, e: { r: sigSubRowIdx, c: 3 } });
     merges.push({ s: { r: sigSubRowIdx, c: 5 }, e: { r: sigSubRowIdx, c: 6 } });
   } else if (activeSigs.length === 5) {
     merges.push({ s: { r: sigRowIdx, c: 0 }, e: { r: sigRowIdx, c: 1 } });
     merges.push({ s: { r: sigRowIdx, c: 5 }, e: { r: sigRowIdx, c: 6 } });
-    
+
     merges.push({ s: { r: sigSubRowIdx, c: 0 }, e: { r: sigSubRowIdx, c: 1 } });
     merges.push({ s: { r: sigSubRowIdx, c: 5 }, e: { r: sigSubRowIdx, c: 6 } });
   }
-  
+
   // Date row merge
   merges.push({ s: { r: dateRowIdx, c: 4 }, e: { r: dateRowIdx, c: 6 } });
 
@@ -2217,11 +2222,11 @@ function exportVoucherToExcel(id) {
   const fontBold = { name: "Times New Roman", sz: 11, bold: true };
   const fontItalic = { name: "Times New Roman", sz: 10, italic: true };
   const fontHeader = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
-  
+
   const alignCenter = { horizontal: "center", vertical: "center" };
   const alignLeft = { horizontal: "left", vertical: "center" };
   const alignRight = { horizontal: "right", vertical: "center" };
-  
+
   const thinBorder = { style: "thin", color: { rgb: "999999" } };
   const border4 = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
   const headerBg = { patternType: "solid", fgColor: { rgb: "2F5496" } };
@@ -2232,17 +2237,17 @@ function exportVoucherToExcel(id) {
     if (cellRef.startsWith("!")) continue;
     const cell = ws[cellRef];
     if (!cell) continue;
-    
+
     const coord = XLSX.utils.decode_cell(cellRef);
     const r = coord.r;
     const c = coord.c;
-    
+
     if (typeof cell.v === "number") {
       cell.t = "n";
     }
-    
+
     let style = { font: fontNormal };
-    
+
     // Check by row and column position first
     if (r >= 0 && r <= 3) {
       // Company Header
@@ -2254,36 +2259,36 @@ function exportVoucherToExcel(id) {
       cell.s = style;
       continue;
     }
-    
+
     if (r === 5) {
       // Main Title
       style = { font: fontTitle, alignment: alignCenter };
       cell.s = style;
       continue;
     }
-    
+
     if (r === 6) {
       // Subtitle (Date)
       style = { font: fontSubtitle, alignment: alignCenter };
       cell.s = style;
       continue;
     }
-    
+
     // Check cell value contents for contextual styling
     const valStr = cell.v ? String(cell.v).trim() : "";
-    
+
     if (valStr.startsWith("Số tiền viết bằng chữ:") || valStr.startsWith("Tổng số tiền (viết bằng chữ):") || valStr.startsWith("Tổng số tiền viết bằng chữ:") || valStr.startsWith("Viết bằng chữ:")) {
       style = { font: fontItalic, alignment: alignLeft };
       cell.s = style;
       continue;
     }
-    
+
     if (valStr.startsWith("Cộng tiền hàng") || valStr.startsWith("Số tiền chiết khấu:") || valStr.startsWith("Thuế GTGT") || valStr.startsWith("Tổng cộng tiền") || valStr.startsWith("Tổng cộng giá trị") || valStr.startsWith("Tổng tiền thanh toán:")) {
       style = { font: fontBold, alignment: alignRight, fill: totalsBg };
       cell.s = style;
       continue;
     }
-    
+
     // Check if it's the value cell for a totals row (row has totals label in column 1)
     const rowLabelCell = ws[XLSX.utils.encode_cell({ r, c: 1 })];
     const rowLabelVal = rowLabelCell && rowLabelCell.v ? String(rowLabelCell.v).trim() : "";
@@ -2317,7 +2322,7 @@ function exportVoucherToExcel(id) {
       cell.s = style;
       continue;
     }
-    
+
     if (valStr === "(Ký, họ tên)" || valStr === "(Ký, họ tên, đóng dấu)") {
       style = { font: fontItalic, alignment: alignCenter };
       cell.s = style;
@@ -2338,7 +2343,7 @@ function exportVoucherToExcel(id) {
       cell.s = style;
       continue;
     }
-    
+
     if (hasItems && r > itemsStartRow && r <= itemsStartRow + v.items.length) {
       let align = alignLeft;
       if (c === 0) align = alignCenter; // STT
@@ -2359,7 +2364,7 @@ function exportVoucherToExcel(id) {
       cell.s = style;
       continue;
     }
-    
+
     cell.s = style;
   }
 

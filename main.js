@@ -1,6 +1,7 @@
 // CẤU HÌNH VÒNG ĐỜI VÀ CỬA SỔ DESKTOP APP ĐỘC LẬP (MAIN.JS)
 const { app, BrowserWindow, Menu, ipcMain, shell, dialog } = require('electron');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const { exec } = require('child_process');
 const fs = require('fs');
 const os = require('os');
@@ -464,6 +465,250 @@ ipcMain.handle('print-to-pdf', async (event, filename) => {
   } catch (err) {
     console.error('[PDF] Lỗi khi xuất PDF:', err);
     return { ok: false, error: err.message };
+  }
+});
+
+let voucherPdfCssCache = null;
+
+function getVoucherPdfStyles() {
+  if (voucherPdfCssCache) return voucherPdfCssCache;
+
+  try {
+    const cssPath = path.join(__dirname, 'styles.css');
+    const full = fs.readFileSync(cssPath, 'utf8');
+    const start = full.indexOf('/* Thiết kế biểu mẫu kế toán in ấn */');
+    const end = full.indexOf('/* 8. FORMS & INPUTS */');
+    const voucherBlock = start >= 0 && end > start ? full.slice(start, end) : '';
+
+    voucherPdfCssCache = `
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #ffffff;
+        color: #000000;
+      }
+      .skip-link,
+      .app-bg-decoration,
+      .toast-container,
+      .custom-context-menu {
+        display: none !important;
+      }
+      ${voucherBlock}
+      .printable-voucher {
+        box-shadow: none !important;
+        padding: 6px 0 0 !important;
+        margin: 0 auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        background-color: #ffffff !important;
+        font-size: 12.5px !important;
+        line-height: 1.32 !important;
+      }
+      .printable-voucher .voucher-rd-header {
+        padding-top: 4px !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      .printable-voucher .voucher-rd-co-name { font-size: 13px !important; }
+      .printable-voucher .voucher-rd-co-unit,
+      .printable-voucher .voucher-rd-co-addr,
+      .printable-voucher .voucher-rd-co-tel { font-size: 11px !important; }
+      .printable-voucher .voucher-rd-header-qr img {
+        width: 82px !important;
+        height: 82px !important;
+      }
+      .printable-voucher table.voucher-table { margin: 8px 0 !important; }
+      .printable-voucher table { font-size: 12px !important; }
+      .printable-voucher table th,
+      .printable-voucher table td { font-size: 12px !important; }
+      .printable-voucher table.voucher-table th,
+      .printable-voucher table.voucher-table td {
+        padding: 3px 5px !important;
+        font-size: 12px !important;
+      }
+      .printable-voucher .voucher-header-top { margin-bottom: 8px !important; }
+      .printable-voucher .voucher-co-name { font-size: 13px !important; }
+      .printable-voucher .voucher-co-addr { font-size: 11px !important; }
+      .printable-voucher .voucher-template-code { font-size: 11px !important; }
+      .printable-voucher .voucher-title-area { margin-bottom: 10px !important; }
+      .printable-voucher .voucher-title { font-size: 20px !important; }
+      .printable-voucher .voucher-subtitle { font-size: 12px !important; }
+      .printable-voucher .voucher-entries-note {
+        position: absolute !important;
+        top: 55px !important;
+        right: 10px !important;
+        font-size: 12px !important;
+      }
+      .printable-voucher .voucher-info-row { margin-bottom: 4px !important; }
+      .printable-voucher .voucher-signatures { margin-top: 16px !important; }
+      .printable-voucher .sig-block { font-size: 12px !important; }
+      .printable-voucher .sig-subtext { font-size: 11px !important; }
+      .printable-voucher .sig-space { height: 38px !important; }
+      .printable-voucher .voucher-signatures,
+      .printable-voucher .sig-block {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      @page { size: auto; margin: 10mm 6mm 4mm 6mm; }
+    `;
+  } catch (err) {
+    console.error('[PDF] Không đọc được styles.css, dùng CSS tối giản:', err.message);
+    voucherPdfCssCache = `
+      html, body { margin: 0; padding: 0; background: #fff; color: #000; }
+      .printable-voucher { font-family: "Times New Roman", Times, serif; font-size: 13px; color: #000; }
+      .printable-voucher * { color: #000 !important; border-color: #000 !important; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border: 1px solid #000; padding: 4px 6px; }
+      @page { size: auto; margin: 10mm 6mm 4mm 6mm; }
+    `;
+  }
+
+  return voucherPdfCssCache;
+}
+
+function buildVoucherPdfDocument(voucherHtml) {
+  const baseHref = pathToFileURL(path.join(__dirname, path.sep)).href;
+  const styles = getVoucherPdfStyles();
+  return `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <base href="${baseHref}">
+  <style>${styles}</style>
+</head>
+<body>${voucherHtml}</body>
+</html>`;
+}
+
+// Chromium data URL limit ~2MB; stay below to avoid silent load failures on large vouchers.
+const VOUCHER_PDF_DATA_URL_MAX_LEN = 1_500_000;
+const VOUCHER_PDF_PAGE_LOAD_TIMEOUT_MS = 30000;
+const VOUCHER_PDF_IMAGE_TIMEOUT_MS = 8000;
+
+function createTempVoucherHtmlPath(doc) {
+  const tempDir = path.join(app.getPath('temp'), 'rd-voucher-pdf');
+  fs.mkdirSync(tempDir, { recursive: true });
+  const tempPath = path.join(tempDir, `voucher-${Date.now()}-${process.pid}.html`);
+  fs.writeFileSync(tempPath, doc, 'utf8');
+  return tempPath;
+}
+
+async function loadPrintWindowDocument(printWin, doc) {
+  const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(doc)}`;
+  if (dataUrl.length <= VOUCHER_PDF_DATA_URL_MAX_LEN) {
+    await printWin.loadURL(dataUrl);
+    return null;
+  }
+
+  const tempPath = createTempVoucherHtmlPath(doc);
+  await printWin.loadFile(tempPath);
+  return tempPath;
+}
+
+async function waitForPrintWindowImages(printWin, imageTimeoutMs = VOUCHER_PDF_IMAGE_TIMEOUT_MS) {
+  if (printWin.isDestroyed()) {
+    throw new Error('Cửa sổ in đã bị đóng trước khi hoàn tất');
+  }
+
+  await printWin.webContents.executeJavaScript(`
+    Promise.all(Array.from(document.images).map(img => {
+      if (img.complete) return Promise.resolve();
+      return new Promise(resolve => {
+        const timer = setTimeout(resolve, ${imageTimeoutMs});
+        const done = () => { clearTimeout(timer); resolve(); };
+        img.onload = done;
+        img.onerror = done;
+      });
+    }))
+  `);
+}
+
+ipcMain.handle('print-html-to-pdf', async (event, voucherHtml, filename) => {
+  let printWin = null;
+  let tempHtmlPath = null;
+  try {
+    const parentWin = BrowserWindow.fromWebContents(event.sender);
+    if (!parentWin) return { ok: false, error: 'Không tìm thấy cửa sổ ứng dụng' };
+
+    if (!voucherHtml || !String(voucherHtml).trim()) {
+      return { ok: false, error: 'Không có nội dung chứng từ để xuất PDF' };
+    }
+
+    const { filePath } = await dialog.showSaveDialog(parentWin, {
+      title: 'Lưu chứng từ PDF',
+      defaultPath: path.join(app.getPath('downloads'), filename || 'ChungTu.pdf'),
+      filters: [
+        { name: 'PDF Files', extensions: ['pdf'] }
+      ]
+    });
+
+    if (!filePath) {
+      return { ok: false, error: 'Hủy lưu PDF' };
+    }
+
+    printWin = new BrowserWindow({
+      show: false,
+      width: 794,
+      height: 1123,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: false,
+        webSecurity: false
+      }
+    });
+
+    const doc = buildVoucherPdfDocument(String(voucherHtml));
+
+    const pageLoadTimeout = setTimeout(() => {
+      if (printWin && !printWin.isDestroyed()) {
+        printWin.webContents.stop();
+      }
+    }, VOUCHER_PDF_PAGE_LOAD_TIMEOUT_MS);
+
+    try {
+      tempHtmlPath = await loadPrintWindowDocument(printWin, doc);
+    } catch (loadErr) {
+      const detail = loadErr && loadErr.message ? loadErr.message : String(loadErr);
+      throw new Error(`Không tải được nội dung chứng từ (${detail})`);
+    } finally {
+      clearTimeout(pageLoadTimeout);
+    }
+
+    await waitForPrintWindowImages(printWin);
+
+    if (printWin.isDestroyed()) {
+      throw new Error('Cửa sổ in đã bị đóng trước khi tạo PDF');
+    }
+
+    const data = await printWin.webContents.printToPDF({
+      printBackground: true,
+      preferCSSPageSize: true,
+      margins: {
+        marginType: 'custom',
+        top: 0.4,
+        bottom: 0.4,
+        left: 0.6,
+        right: 0.6
+      }
+    });
+
+    fs.writeFileSync(filePath, data);
+    return { ok: true, filePath };
+  } catch (err) {
+    console.error('[PDF] Lỗi khi xuất HTML sang PDF:', err);
+    const message = err && err.message ? err.message : String(err);
+    if (/timeout/i.test(message)) {
+      return { ok: false, error: 'Hết thời gian chờ tải nội dung chứng từ. Thử lại hoặc kiểm tra kết nối mạng (mã QR VietQR).' };
+    }
+    return { ok: false, error: message };
+  } finally {
+    if (tempHtmlPath) {
+      try { fs.unlinkSync(tempHtmlPath); } catch (_) {}
+    }
+    if (printWin && !printWin.isDestroyed()) {
+      printWin.destroy();
+    }
   }
 });
 

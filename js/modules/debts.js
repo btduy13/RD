@@ -1310,18 +1310,18 @@ function viewPartnerLedger(partnerId) {
     if (projTabsDiv) {
       projTabsDiv.style.display = 'flex';
       projTabsDiv.style.alignItems = 'center';
-      
+
       let optionsHTML = `
         <option value="combined:${parentEnterprise.id}">Tổng hợp (Tất cả công trình)</option>
         <option value="direct:${parentEnterprise.id}">Direct (DN mẹ)</option>
       `;
-      
+
       projects.forEach(proj => {
         optionsHTML += `
           <option value="project:${proj.id}">${proj.name}</option>
         `;
       });
-      
+
       projTabsDiv.innerHTML = `
         <label style="font-size:12px; font-weight:600; color:var(--text-secondary); margin-right:12px; margin-bottom:0;">Chọn công trình/báo cáo:</label>
         <select id="ledger-project-select" onchange="onLedgerProjectSelectChange(this.value)" style="flex:1; max-width:400px; padding:6px 12px; font-size:13px; border-radius:var(--radius-sm); border:1px solid var(--border-color); background:var(--bg-secondary); color:var(--text-primary); cursor:pointer; font-weight:600;">
@@ -1329,7 +1329,7 @@ function viewPartnerLedger(partnerId) {
         </select>
       `;
     }
-    
+
     const initialTargetId = p.id;
     const initialCombined = (p.type === 'enterprise');
     switchLedgerProjectTarget(initialTargetId, initialCombined);
@@ -1344,14 +1344,14 @@ function viewPartnerLedger(partnerId) {
   openModal("modal-view-partner-ledger");
 }
 
-window.onLedgerProjectSelectChange = function(value) {
+window.onLedgerProjectSelectChange = function (value) {
   const parts = value.split(':');
   const type = parts[0];
   const id = parts[1];
   switchLedgerProjectTarget(id, type === 'combined');
 };
 
-window.switchLedgerProjectTarget = function(targetId, isCombined) {
+window.switchLedgerProjectTarget = function (targetId, isCombined) {
   activeLedgerCombined = isCombined;
   activeLedgerTargetId = targetId;
 
@@ -1360,7 +1360,7 @@ window.switchLedgerProjectTarget = function(targetId, isCombined) {
   if (selectEl) {
     const targetVal = isCombined ? `combined:${targetId}` : `project:${targetId}`;
     const directVal = `direct:${targetId}`;
-    
+
     for (const opt of selectEl.options) {
       if (opt.value === targetVal || opt.value === directVal) {
         selectEl.value = opt.value;
@@ -1410,7 +1410,7 @@ function renderLedgerForTarget(targetId, isCombined) {
     openingText = openingVal >= 0 ? `${formatVND(openingVal)} (Nợ)` : `${formatVND(-openingVal)} (Có)`;
   }
 
-  let subtitle = isCombined 
+  let subtitle = isCombined
     ? `Doanh nghiệp: ${p.name} [Tổng hợp ${matchingPartners.length} công trình]`
     : `Đối tác: ${p.id} - ${p.name} | Loại: ${p.type === 'project' ? 'Công trình' : (p.type === 'enterprise' ? 'Doanh nghiệp' : (p.type === 'supplier' ? 'Nhà cung cấp' : 'Khách lẻ'))}`;
 
@@ -1742,7 +1742,7 @@ async function exportPartnerDebtExcel(partnerId) {
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } });
 
     // --- ROW 1: Sub Title / Trung tâm ---
-    setCell("A2", "TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY", "s",
+    setCell("A2", "TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKYO", "s",
       { font: fontCompany, alignment: alignCenter });
     merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 4 } });
 
@@ -1972,8 +1972,8 @@ function previewPartnerDebtNotice(partnerId) {
     const activeP = state.partners.find(item => item.id === activeLedgerTargetId);
     if (activeP) matchingPartners.push(activeP);
   } else if (activePartnerNameForGroupedLedger) {
-    const parent = state.partners.find(item => 
-      item.type === 'enterprise' && 
+    const parent = state.partners.find(item =>
+      item.type === 'enterprise' &&
       (item.name || '').trim().toLowerCase() === activePartnerNameForGroupedLedger.trim().toLowerCase()
     );
     if (parent) {
@@ -2134,11 +2134,11 @@ function previewPartnerDebtNotice(partnerId) {
 
   const isGrouped = matchingPartners.length > 1 || activePartnerNameForGroupedLedger;
   const idList = matchingPartners.map(item => item.id).join(', ');
-  
+
   let recipientName = p.name;
   let unitTextValue = `${p.name} (${idList})`;
   let addressText = matchingPartners.map(item => item.address).filter(Boolean)[0] || p.address || "";
-  
+
   if (isGrouped) {
     recipientName = activePartnerNameForGroupedLedger || p.name;
     unitTextValue = activePartnerNameForGroupedLedger || p.name;
@@ -2205,7 +2205,7 @@ function previewPartnerDebtNotice(partnerId) {
         @media print {
           .printable-voucher {
             box-shadow: none !important;
-            padding: 0 !important;
+            padding: 6px 0 0 !important;
             margin: 0 !important;
             width: 100% !important;
             max-width: 100% !important;
@@ -2218,21 +2218,7 @@ function previewPartnerDebtNotice(partnerId) {
         }
       </style>
 
-      <!-- Header -->
-      <div style="position: relative; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 8px; text-align: center; min-height: 50px;">
-        <!-- Logo Rạng Đông thực tế từ file logo.jpg -->
-        <div style="position: absolute; left: 0; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content: center; width: 80px;">
-          <img src="logo.jpg" style="max-height: 45px; max-width: 75px; object-fit: contain;" alt="Logo" onerror="this.style.display='none'" />
-        </div>
-
-        <!-- Thông tin công ty chính xác theo mẫu giấy (Tránh wrap lỗi căn lề và không bị tràn) -->
-        <div style="color: #000; padding: 0 10px 0 90px;">
-          <div style="font-weight: bold; font-size: 14px; text-transform: uppercase; letter-spacing: 0.2px; white-space: nowrap;">CÔNG TY CỔ PHẦN RẠNG ĐÔNG</div>
-          <div style="font-weight: bold; font-size: 11.5px; text-transform: uppercase; margin-top: 2px; white-space: nowrap;">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKY</div>
-          <div style="font-size: 11.5px; margin-top: 2px; white-space: nowrap;">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh</div>
-          <div style="font-size: 11.5px; margin-top: 1px; font-weight: 500; white-space: nowrap;">Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074</div>
-        </div>
-      </div>
+      ${typeof renderRdBrandedHeader === "function" ? renderRdBrandedHeader(null, false) : ""}
 
       <!-- Title -->
       <div style="text-align: center; margin-bottom: 12px;">
@@ -3355,7 +3341,7 @@ function renderDebtsCompanyGroupedTable() {
 
 function changeDebtsCompanyPage(p) { debtsCompanyPage = p; renderDebtsCompanyGroupedTable(); }
 
-window.toggleCompanyChildRows = function(globalIdx, trElement) {
+window.toggleCompanyChildRows = function (globalIdx, trElement) {
   const existingRow = document.getElementById(`child-row-expanded-${globalIdx}`);
   if (existingRow) {
     existingRow.remove();
@@ -3376,7 +3362,7 @@ window.toggleCompanyChildRows = function(globalIdx, trElement) {
   let subRowsHtml = '';
   // Sort projects alphabetically by name
   const sortedChildren = [...group.children].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'vi'));
-  
+
   sortedChildren.forEach(child => {
     subRowsHtml += `
       <tr style="border-bottom: 1px solid var(--border-color); background: var(--bg-primary);">
