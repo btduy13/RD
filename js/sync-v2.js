@@ -964,7 +964,9 @@ async function pushToCloud() {
     }
     state._cloudWatermark = pushTs;
     updateLastSyncState(state);
-    persistLastPulledCloudTs(pushTs);
+    // [Fix] KHÔNG cập nhật checkpoint watermark của pull khi push, để luồng check/pull 
+    // tiếp theo tải về và hợp nhất đầy đủ các thay đổi song song trên cloud (ví dụ đơn bị xóa).
+    // persistLastPulledCloudTs(pushTs);
     await persistStateCacheAfterCloudPull(state);
     updateCloudSyncBadge(true, "May: Da ket noi", "#10b981");
     syncV2Log(`Push completed: ${entityRows.length} upsert, ${tombstoneRows.length} tombstone, ${idsToDelete.length} physical delete.`);
