@@ -743,6 +743,7 @@ async function pullAndMergeFromCloud(options = {}) {
 
   isPulling = true;
   pullPending = false;
+  syncV2Log(`pullAndMergeFromCloud bat dau, ly do: ${options.reason || "unknown"}, forceFull: ${!!options.forceFull}`);
 
   try {
     const localBeforePull = syncV2Clone(state);
@@ -761,13 +762,17 @@ async function pullAndMergeFromCloud(options = {}) {
       cloudSnapshot = syncV2StateFromRows(rows, { watermark }).state;
     } else {
       const cloudWatermark = await syncV2GetCloudWatermark(metadata);
+      syncV2Log(`Kiem tra incremental: cloudWatermark=${cloudWatermark}, checkpoint=${checkpoint}`);
       if (cloudWatermark <= checkpoint && !options.retryFullIfNoChanges) {
+        syncV2Log("Cloud watermark <= checkpoint, khong co thay doi, thoat.");
         updateCloudSyncBadge(true, "May: Da ket noi", "#10b981");
         return;
       }
 
       rows = await syncV2FetchRowsSince(checkpoint);
+      syncV2Log(`Da tai ${rows.length} dong thay doi tu cloud since ${checkpoint}`);
       if (rows.length === 0 && options.retryFullIfNoChanges) {
+        syncV2Log("Khong co dong thay doi incremental, thuc hien full pull de bao dam...");
         rows = await syncV2FetchAllRows();
         watermark = syncV2WatermarkFromRows(rows, metadata);
         cloudSnapshot = syncV2StateFromRows(rows, { watermark }).state;
@@ -785,6 +790,8 @@ async function pullAndMergeFromCloud(options = {}) {
 
     let merged = mergeStates(localBeforePull, cloudSnapshot);
     merged = syncV2PruneStaleLocalOnlyItems(merged, localBeforePull, cloudSnapshot, checkpoint);
+    
+    syncV2Log(`Ket qua merge: vouchers truoc=${localBeforePull.vouchers.length}, sau=${merged.vouchers.length}`);
     state = merged;
     updateLastSyncState(cloudSnapshot);
     persistLastPulledCloudTs(watermark);
