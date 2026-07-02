@@ -16,9 +16,11 @@ function recalculateAccounting(shouldSave = true) {
       if (v.isManual === undefined && v.isImported === undefined) {
         v.isImported = true;
       }
-      // Tự động chuẩn hóa và làm sạch partnerId bị sai lệch hoặc lệch định dạng từ dữ liệu lịch sử
+      // Tự động chuẩn hóa và làm sạch partnerId bị sai lệch hoặc lệch định dạng từ dữ liệu lịch sử.
+      // Bug E fix: chỉ ghi đè partnerId khi khớp CHÍNH XÁC (ID hoặc tên chuẩn hóa).
+      // Fuzzy substring match chỉ dành cho hiển thị, không sửa dữ liệu gốc (sync cloud).
       if (typeof getPartnerForVoucher === "function") {
-        const resolvedP = getPartnerForVoucher(v);
+        const resolvedP = getPartnerForVoucher(v, { strict: true });
         if (resolvedP && v.partnerId !== resolvedP.id) {
           v.partnerId = resolvedP.id;
         }
@@ -275,8 +277,12 @@ function recalculateAccounting(shouldSave = true) {
         }
       }
       // Thuế GTGT — chỉ TT200 mới tách riêng 1331
-      if (taxAmountPR > 0 && state.accountingStandard !== "TT133") {
-        v.entries.push({ debit: creditAccPR, credit: "1331", amount: taxAmountPR, desc: "Giảm thuế GTGT đầu vào" });
+      if (taxAmountPR > 0) {
+        if (state.accountingStandard === "TT133") {
+          v.entries.push({ debit: creditAccPR, credit: "156", amount: taxAmountPR, desc: "Giảm thuế GTGT gộp trong giá hàng trả lại (TT133)" });
+        } else {
+          v.entries.push({ debit: creditAccPR, credit: "1331", amount: taxAmountPR, desc: "Giảm thuế GTGT đầu vào" });
+        }
       }
 
     } else if (v.type === "sales") {

@@ -72,16 +72,9 @@ async function initApp() {
         if (parsed && Array.isArray(parsed.products) && Array.isArray(parsed.vouchers)) {
           state = parsed;
           window.originalStateLastModified = Number(parsed._lastModified) || 0;
-          let loadedLastSyncState = null;
-          try {
-            const syncCache = localStorage.getItem("rd_accounting_last_sync_cache");
-            if (syncCache) {
-              loadedLastSyncState = JSON.parse(syncCache);
-            }
-          } catch (e) {
-            console.error("[Cache] Lỗi đọc cache đồng bộ cũ:", e);
-          }
-          window.lastSyncState = loadedLastSyncState || JSON.parse(JSON.stringify(parsed));
+          // Snapshot đồng bộ không còn được lưu vào localStorage (ghi đồng bộ
+          // nhiều MB gây đứng UI); khởi tạo từ bản sao cache giống nhánh Electron.
+          window.lastSyncState = JSON.parse(JSON.stringify(parsed));
           hasCache = true;
           const pulledTs = Number(localStorage.getItem("rd_accounting_last_pulled_cloud_ts") || parsed._lastPulledCloudTs || 0) || 0;
           lastSyncedCloudTs = pulledTs;

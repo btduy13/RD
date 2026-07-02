@@ -336,7 +336,7 @@ function invalidatePartnerCache() {
 window.invalidatePartnerCache = invalidatePartnerCache;
 
 // Tìm đối tác an toàn từ chứng từ để lấy thông tin liên hệ sđt, địa chỉ
-function getPartnerForVoucher(v) {
+function getPartnerForVoucher(v, options = {}) {
   if (!v) return null;
 
   if (state.partners !== cachedPartnersRef || (state.partners && state.partners.length !== cachedPartnersLength)) {
@@ -396,7 +396,11 @@ function getPartnerForVoucher(v) {
     p = partnerCacheByName[idLower] || partnerCacheById[idLower];
   }
 
-  // 3. Fallback nâng cao: Tìm kiếm theo các cụm từ nằm trong ngoặc (...)
+  if (options.strict) {
+    return p || null;
+  }
+
+    // 3. Fallback nâng cao: Tìm kiếm theo các cụm từ nằm trong ngoặc (...)
   if (!p) {
     const searchStrings = [partnerIdStr, partnerNameStr];
     for (const str of searchStrings) {
