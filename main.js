@@ -734,6 +734,7 @@ const STATE_FILE_PATH = path.join(STATE_DIR_PATH, 'rd_state.json');
 const SCHEMA_VERSION = 4;
 
 const Database = require('better-sqlite3');
+const { dedupeProductCatalogOnState } = require('./js/core/product-case-dedupe.js');
 let db = null;
 
 function getEmptyStateObject() {
@@ -1172,6 +1173,64 @@ function readStateFromSQLite() {
   return runSchemaMigrations(stateObj);
 }
 
+function backupSqliteBeforeProductDedupe() {
+  try {
+    ensureBackupDir();
+    if (fs.existsSync(STATE_DB_PATH)) {
+      const stamp = typeof makeBackupTimestamp === 'function' ? makeBackupTimestamp() : Date.now();
+      const dest = path.join(BACKUP_DIR, `rd_local_pre_product_dedupe_${stamp}.db`);
+      fs.copyFileSync(STATE_DB_PATH, dest);
+      console.log('[ProductDedupe] Đã sao lưu CSDL trước khi gộp mã:', dest);
+      return dest;
+    }
+  } catch (err) {
+    console.warn('[ProductDedupe] Không thể sao lưu CSDL:', err.message);
+  }
+  return null;
+}
+
+function applyProductCaseDedupeInDatabase(stateObj) {
+  if (!stateObj || !Array.isArray(stateObj.products) || stateObj.products.length === 0) {
+    return { ok: true, changed: false };
+  }
+
+  const result = dedupeProductCatalogOnState(stateObj);
+  if (!result.changed) {
+    return result;
+  }
+
+  backupSqliteBeforeProductDedupe();
+  saveStateToSQLite(stateObj);
+
+  try {
+    db.prepare('INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)').run(
+      'productCaseDedupe_v1',
+      JSON.stringify({
+        at: Date.now(),
+        beforeCount: result.beforeCount,
+        afterCount: result.afterCount,
+        removedCount: result.removedCount,
+        voucherItemUpdates: result.voucherItemUpdates
+      })
+    );
+  } catch (metaErr) {
+    console.warn('[ProductDedupe] Không ghi metadata migration:', metaErr.message);
+  }
+
+  console.log(
+    `[ProductDedupe] SQLite đã dọn: ${result.beforeCount} → ${result.afterCount} mặt hàng ` +
+    `(gộp ${result.removedCount}, cập nhật ${result.voucherItemUpdates} dòng CT)`
+  );
+  return result;
+}
+
+function readStateFromSQLiteWithDedupe() {
+  const stateObj = readStateFromSQLite();
+  if (!stateObj) return null;
+  applyProductCaseDedupeInDatabase(stateObj);
+  return stateObj;
+}
+
 // Đăng ký các IPC handlers
 ipcMain.handle('write-state-file', async (event, jsonData) => {
   try {
@@ -1197,7 +1256,7 @@ ipcMain.handle('write-state-delta', async (event, delta) => {
 ipcMain.handle('read-state-file', async (event) => {
   try {
     if (!db) initDatabase();
-    const stateObj = readStateFromSQLite();
+    const stateObj = readStateFromSQLiteWithDedupe();
     if (!stateObj) {
       return { ok: true, data: getEmptyStateObject(), isEmpty: true };
     }

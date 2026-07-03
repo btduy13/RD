@@ -125,6 +125,16 @@ async function initApp() {
     state.partnerOpeningBalanceTs = {};
   }
 
+  if (typeof dedupeProductCatalogCase === "function" && Array.isArray(state.products) && state.products.length > 0) {
+    const dedupeResult = dedupeProductCatalogCase({ runId: "init-load", recalculate: false });
+    if (dedupeResult && dedupeResult.changed) {
+      console.log(`[ProductDedupe] Renderer: ${dedupeResult.beforeCount} → ${dedupeResult.afterCount} mặt hàng (gộp ${dedupeResult.removedCount}).`);
+      if (typeof saveStateSync === "function") saveStateSync();
+      else if (typeof saveState === "function") saveState();
+      if (typeof recalculateAccounting === "function") recalculateAccounting(true);
+    }
+  }
+
   // === ƯU TIÊN KHỞI CHẠY ĐẦU TIÊN: Nạp ngay các dropdown list của cửa sổ bán hàng từ cache cục bộ ===
   if (typeof initExcelIntegration === "function") {
     initExcelIntegration();
@@ -305,6 +315,9 @@ async function initApp() {
     }
     if (typeof updateThemeToggleIcon === "function") {
       updateThemeToggleIcon();
+    }
+    if (typeof debugProductAudit === "function") {
+      debugProductAudit("initApp-loaded");
     }
   }
 }

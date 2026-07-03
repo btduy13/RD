@@ -74,9 +74,9 @@ async function autoIntegrateProductsExcel() {
 
     for (let i = headerRowIdx + 1; i < rows.length; i++) {
       const row = rows[i];
-      const id = (row[0] || "").toString().trim();
+      const id = normalizeProductId((row[0] || "").toString().trim());
       const name = (row[1] || "").toString().trim();
-      if (!id || !name || id === "Mã" || id === "Mã sản phẩm" || id === "Mã hàng" || id === "TỔNG CỘNG") continue;
+      if (!id || !name || id === "MÃ" || id === "MÃ SẢN PHẨM" || id === "MÃ HÀNG" || id === "TỔNG CỘNG") continue;
 
       let unit, minStock, stock, totalVal, avgCost;
       let initialStock, initialCost, salePrice1;
@@ -126,7 +126,7 @@ async function autoIntegrateProductsExcel() {
         inactive = inactiveVal === "1" || inactiveVal === "Có" || inactiveVal === "True" || inactiveVal === "true";
       }
 
-      const idx = state.products.findIndex(p => String(p.id) === String(id));
+      const idx = findProductIndexById(id, state.products);
       const pObj = {
         id,
         name,
@@ -152,6 +152,7 @@ async function autoIntegrateProductsExcel() {
       if (idx !== -1) {
         state.products[idx] = { ...state.products[idx], ...pObj };
       } else {
+        logProductCreate("autoIntegrateProductsExcel", id, name, "new-id-from-excel-row");
         state.products.push(pObj);
       }
       count++;
@@ -500,7 +501,7 @@ async function autoIntegrateSoChiTietBanHangExcel() {
     state.partners.forEach(p => partnerMap.set(p.id, p));
 
     const productMap = new Map();
-    state.products.forEach(p => productMap.set(p.id, p));
+    state.products.forEach(p => productMap.set(normalizeProductId(p.id), p));
 
     const voucherMap = new Map();
     state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
@@ -548,7 +549,7 @@ async function autoIntegrateSoChiTietBanHangExcel() {
       let totalVoucherAmount = 0;
 
       for (const row of voucherRows) {
-        const productId = (row[9] || "SP_GENERIC").toString().trim();
+        const productId = normalizeProductId((row[9] || "SP_GENERIC").toString().trim());
         const productName = (row[10] || "Sản phẩm generic").toString().trim();
         const unit = (row[11] || "Cái").toString().trim();
 
@@ -742,7 +743,7 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
     state.partners.forEach(p => partnerMap.set(p.id, p));
 
     const productMap = new Map();
-    state.products.forEach(p => productMap.set(p.id, p));
+    state.products.forEach(p => productMap.set(normalizeProductId(p.id), p));
 
     const voucherMap = new Map();
     state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
@@ -783,7 +784,7 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
       let totalVoucherAmount = 0;
 
       for (const row of voucherRows) {
-        const productId = (row[5] || "SP_GENERIC").toString().trim();
+        const productId = normalizeProductId((row[5] || "SP_GENERIC").toString().trim());
         const productName = (row[6] || "Sản phẩm generic").toString().trim();
         const unit = (row[7] || "Cái").toString().trim();
 
@@ -1730,32 +1731,109 @@ function resolvePartner(value, autoCreateType = "retail") {
 }
 
 // Tìm sản phẩm thông minh từ từ khóa nhập (ID hoặc Tên) phục vụ autocomplete
+function debugProductAudit(trigger, extra) {
+  const products = (state && state.products) || [];
+  const byNormName = {};
+  products.forEach((p) => {
+    const key = String(p.name || "").trim().toLowerCase().replace(/\s+/g, " ");
+    if (!key) return;
+    if (!byNormName[key]) byNormName[key] = [];
+    byNormName[key].push(String(p.id));
+  });
+  const dupNameGroups = Object.entries(byNormName)
+    .filter(([, ids]) => ids.length > 1)
+    .slice(0, 8)
+    .map(([name, ids]) => ({ name, ids }));
+  const byCaseKey = {};
+  products.forEach((p) => {
+    const key = productIdKey(p.id);
+    if (!key) return;
+    if (!byCaseKey[key]) byCaseKey[key] = [];
+    byCaseKey[key].push(String(p.id));
+  });
+  const caseDuplicateGroups = Object.entries(byCaseKey)
+    .filter(([, ids]) => ids.length > 1)
+    .slice(0, 8)
+    .map(([key, ids]) => ({ key, ids }));
+  const nameContainsIdSamples = products
+    .filter((p) => {
+      const id = String(p.id || "").trim();
+      const name = String(p.name || "");
+      return id.length > 2 && name.toLowerCase().includes(id.toLowerCase()) && name.trim() !== id;
+    })
+    .slice(0, 8)
+    .map((p) => ({ id: p.id, name: p.name }));
+  // #region agent log
+  fetch("http://127.0.0.1:7918/ingest/0b4f62c8-cbbb-4c88-8d5a-276392bdbf4f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "de6ae3" }, body: JSON.stringify({ sessionId: "de6ae3", runId: "pre-fix", hypothesisId: "H1-H5", location: "excel-integration.js:debugProductAudit", message: "product catalog audit", data: { trigger, totalProducts: products.length, duplicateNameGroupCount: dupNameGroups.length, duplicateNameGroups: dupNameGroups, caseDuplicateGroupCount: caseDuplicateGroups.length, caseDuplicateGroups, nameContainsIdCount: nameContainsIdSamples.length, nameContainsIdSamples, extra: extra || null }, timestamp: Date.now() }) }).catch(() => {});
+  // #endregion
+}
+
+function logProductCreate(source, id, name, reason) {
+  const norm = String(name || "").trim().toLowerCase();
+  const sameNameOtherId = (state.products || []).filter(
+    (p) => String(p.name || "").trim().toLowerCase() === norm && String(p.id) !== String(id)
+  ).map((p) => p.id);
+  // #region agent log
+  fetch("http://127.0.0.1:7918/ingest/0b4f62c8-cbbb-4c88-8d5a-276392bdbf4f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "de6ae3" }, body: JSON.stringify({ sessionId: "de6ae3", runId: "pre-fix", hypothesisId: "H1-H4", location: "excel-integration.js:logProductCreate", message: "new product record", data: { source, id, name, reason, sameNameOtherId }, timestamp: Date.now() }) }).catch(() => {});
+  // #endregion
+}
+
 function resolveProduct(value) {
   const val = (value || "").toString().trim();
   if (!val) return null;
+
+  let matchType = "none";
+  let matchedId = null;
 
   // Hỗ trợ định dạng "Tên sản phẩm (Mã sản phẩm)" khi nạp từ form sửa hoặc khi blur
   const idInParens = extractIdFromParentheses(val);
   if (idInParens) {
     let p = state.products.find(item => String(item.id).toLowerCase() === idInParens.toLowerCase());
-    if (p) return p;
+    if (p) {
+      matchType = "parens-id";
+      matchedId = p.id;
+      // #region agent log
+      fetch("http://127.0.0.1:7918/ingest/0b4f62c8-cbbb-4c88-8d5a-276392bdbf4f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "de6ae3" }, body: JSON.stringify({ sessionId: "de6ae3", runId: "pre-fix", hypothesisId: "H3", location: "excel-integration.js:resolveProduct", message: "resolveProduct match", data: { input: val.slice(0, 80), matchType, matchedId }, timestamp: Date.now() }) }).catch(() => {});
+      // #endregion
+      return p;
+    }
   }
 
   // 1. Tìm chính xác theo ID
   let p = state.products.find(item => String(item.id).toLowerCase() === val.toLowerCase());
-  if (p) return p;
+  if (p) {
+    matchType = "exact-id";
+    matchedId = p.id;
+    // #region agent log
+    fetch("http://127.0.0.1:7918/ingest/0b4f62c8-cbbb-4c88-8d5a-276392bdbf4f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "de6ae3" }, body: JSON.stringify({ sessionId: "de6ae3", runId: "pre-fix", hypothesisId: "H3", location: "excel-integration.js:resolveProduct", message: "resolveProduct match", data: { input: val.slice(0, 80), matchType, matchedId }, timestamp: Date.now() }) }).catch(() => {});
+    // #endregion
+    return p;
+  }
 
   // 2. Tìm chính xác theo Tên
   p = state.products.find(item => item.name.toLowerCase() === val.toLowerCase());
-  if (p) return p;
+  if (p) {
+    matchType = "exact-name";
+    matchedId = p.id;
+    // #region agent log
+    fetch("http://127.0.0.1:7918/ingest/0b4f62c8-cbbb-4c88-8d5a-276392bdbf4f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "de6ae3" }, body: JSON.stringify({ sessionId: "de6ae3", runId: "pre-fix", hypothesisId: "H3", location: "excel-integration.js:resolveProduct", message: "resolveProduct match", data: { input: val.slice(0, 80), matchType, matchedId }, timestamp: Date.now() }) }).catch(() => {});
+    // #endregion
+    return p;
+  }
 
   // 3. Tìm tương đối theo Tên hoặc ID
   p = state.products.find(item => item.name.toLowerCase().includes(val.toLowerCase()) || String(item.id).toLowerCase().includes(val.toLowerCase()));
+  if (p) {
+    matchType = "fuzzy";
+    matchedId = p.id;
+  }
+  // #region agent log
+  fetch("http://127.0.0.1:7918/ingest/0b4f62c8-cbbb-4c88-8d5a-276392bdbf4f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "de6ae3" }, body: JSON.stringify({ sessionId: "de6ae3", runId: "pre-fix", hypothesisId: "H3", location: "excel-integration.js:resolveProduct", message: "resolveProduct match", data: { input: val.slice(0, 80), matchType, matchedId }, timestamp: Date.now() }) }).catch(() => {});
+  // #endregion
   return p || null;
 }
 
-// Thiết lập kéo thả File Excel
-function initExcelDragAndDrop() {
+window.debugProductAudit = debugProductAudit;
   const zones = [
     { id: 'excel-drop-zone-products', fileId: 'excel-file-products' },
     { id: 'excel-drop-zone-partners', fileId: 'excel-file-partners' },
@@ -1961,9 +2039,9 @@ function parseExcelFile(file, type) {
 
         for (let i = headerRowIdx + 1; i < rows.length; i++) {
           const row = rows[i];
-          const id = (row[0] || "").toString().trim();
+          const id = normalizeProductId((row[0] || "").toString().trim());
           const name = (row[1] || "").toString().trim();
-          if (!id || !name || id === "Mã" || id === "Mã sản phẩm" || id === "Mã hàng" || id === "TỔNG CỘNG") continue;
+          if (!id || !name || id === "Mã" || id === "MÃ" || id === "Mã sản phẩm" || id === "MÃ SẢN PHẨM" || id === "Mã hàng" || id === "MÃ HÀNG" || id === "TỔNG CỘNG") continue;
 
           let unit, minStock, stock, totalVal, avgCost;
           let initialStock, initialCost, salePrice1;
@@ -2015,7 +2093,7 @@ function parseExcelFile(file, type) {
             inactive = inactiveVal === "1" || inactiveVal === "Có" || inactiveVal === "True" || inactiveVal === "true";
           }
 
-          const idx = state.products.findIndex(p => String(p.id) === String(id));
+          const idx = findProductIndexById(id, state.products);
           const pObj = {
             id,
             name,
@@ -2041,12 +2119,14 @@ function parseExcelFile(file, type) {
           if (idx !== -1) {
             state.products[idx] = { ...state.products[idx], ...pObj };
           } else {
+            logProductCreate("parseExcelFile-products", id, name, "manual-product-import");
             state.products.push(pObj);
           }
           count++;
         }
         saveState();
         recalculateAccounting();
+        if (typeof debugProductAudit === "function") debugProductAudit("parseExcelFile-products", { importedCount: count });
         showToast(`Đã nạp thành công ${count} sản phẩm từ file Excel (${isNewFormat ? 'định dạng mới' : 'định dạng cũ'})!`, "success");
       }
 
@@ -2384,7 +2464,7 @@ function parseExcelFile(file, type) {
           const partnerMap = new Map();
           state.partners.forEach(p => partnerMap.set(p.id, p));
           const productMap = new Map();
-          state.products.forEach(p => productMap.set(p.id, p));
+          state.products.forEach(p => productMap.set(normalizeProductId(p.id), p));
           const voucherMap = new Map();
           state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
 
@@ -2422,7 +2502,7 @@ function parseExcelFile(file, type) {
             let totalVoucherAmount = 0;
 
             for (const row of voucherRows) {
-              const productId = (row[colProductId] || "SP_GENERIC").toString().trim();
+              const productId = normalizeProductId((row[colProductId] || "SP_GENERIC").toString().trim());
               const productName = (row[colProductName] || "Sản phẩm generic").toString().trim();
               const unit = (row[colUnit] || "Cái").toString().trim();
 
@@ -2448,8 +2528,9 @@ function parseExcelFile(file, type) {
               }
 
               if (!productMap.has(productId) && productId !== "SP_GENERIC") {
-                const prodObj = { id: productId, name: productName, unit, stock: 0, avgCost: 0, totalValue: 0 };
-                state.products.push(prodObj);
+              const prodObj = { id: productId, name: productName, unit, stock: 0, avgCost: 0, totalValue: 0 };
+              logProductCreate("parseExcelFile-vouchers", productId, productName, "voucher-line-new-id");
+              state.products.push(prodObj);
                 productMap.set(productId, prodObj);
               }
             }
@@ -2676,7 +2757,7 @@ function parseExcelFile(file, type) {
           state.partners.forEach(p => partnerMap.set(p.id, p));
 
           const productMap = new Map();
-          state.products.forEach(p => productMap.set(p.id, p));
+          state.products.forEach(p => productMap.set(normalizeProductId(p.id), p));
 
           const voucherMap = new Map();
           state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
@@ -2714,7 +2795,7 @@ function parseExcelFile(file, type) {
             let totalVoucherAmount = 0;
 
             for (const row of voucherRows) {
-              const productId = (row[colProductId] || "SP_GENERIC").toString().trim();
+              const productId = normalizeProductId((row[colProductId] || "SP_GENERIC").toString().trim());
               const productName = (row[colProductName] || "Sản phẩm generic").toString().trim();
               const unit = (row[colUnit] || "Cái").toString().trim();
               const qty = safeParseFloat(row[colQty]);
@@ -2953,7 +3034,7 @@ function parseExcelFile(file, type) {
         const partnerMap = new Map();
         state.partners.forEach(p => partnerMap.set(p.id, p));
         const productMap = new Map();
-        state.products.forEach(p => productMap.set(p.id, p));
+        state.products.forEach(p => productMap.set(normalizeProductId(p.id), p));
         const voucherMap = new Map();
         state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
 
@@ -2994,7 +3075,7 @@ function parseExcelFile(file, type) {
           let totalVoucherAmount = 0;
 
           for (const row of voucherRows) {
-            const productId = (row[colProductId] || "SP_GENERIC").toString().trim();
+            const productId = normalizeProductId((row[colProductId] || "SP_GENERIC").toString().trim());
             const productName = (row[colProductName] || "Sản phẩm generic").toString().trim();
             const unit = (row[colUnit] || "Cái").toString().trim();
             const qty = safeParseFloat(row[colQty]);
@@ -3012,6 +3093,7 @@ function parseExcelFile(file, type) {
 
             if (!productMap.has(productId) && productId !== "SP_GENERIC") {
               const prodObj = { id: productId, name: productName, unit, stock: 0, avgCost: 0, totalValue: 0 };
+              logProductCreate("parseExcelFile-vouchers", productId, productName, "voucher-line-new-id");
               state.products.push(prodObj);
               productMap.set(productId, prodObj);
             }
@@ -3084,7 +3166,7 @@ function parseExcelFile(file, type) {
         state.partners.forEach(p => partnerMap.set(p.id, p));
 
         const productMap = new Map();
-        state.products.forEach(p => productMap.set(p.id, p));
+        state.products.forEach(p => productMap.set(normalizeProductId(p.id), p));
 
         const voucherMap = new Map();
         state.vouchers.forEach((v, idx) => voucherMap.set(v.id, idx));
@@ -3175,7 +3257,7 @@ function parseExcelFile(file, type) {
             let totalVoucherAmount = 0;
 
             for (const row of voucherRows) {
-              const productId = (row[colProductId] || "SP_GENERIC").toString().trim();
+              const productId = normalizeProductId((row[colProductId] || "SP_GENERIC").toString().trim());
               const productName = (row[colProductName] || "Sản phẩm generic").toString().trim();
               const unit = (row[colUnit] || "Cái").toString().trim();
               const qty = safeParseFloat(row[colQty]);
@@ -3417,4 +3499,4 @@ function exportDataToExcelSample() {
     exportCashToExcel();
   }, 600);
 }
-window.autoIntegrateSoChiTietMuaHangExcel = autoIntegrateSoChiTietMuaHangExcel;
+window.autoIntegrateSoChiTietMuaHangExcel = autoIntegrateSoChiTietMuaHangExcel;

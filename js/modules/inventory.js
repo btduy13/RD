@@ -563,7 +563,7 @@ function handleProductSubmit(e) {
   const inactive = document.getElementById("prod-inactive").checked;
 
   // Kiểm tra trùng mã
-  if (state.products.some(p => String(p.id) === String(id))) {
+  if (findProductIndexById(id, state.products) >= 0) {
     showToast(`Mã sản phẩm "${id}" đã tồn tại!`, "danger");
     return;
   }
@@ -1211,7 +1211,7 @@ function handleQuickAddProductSubmit(e) {
     const newId = rawId;
 
     // Kiểm tra trùng mã
-    if (state.products.some(p => String(p.id) === String(newId))) {
+    if (findProductIndexById(newId, state.products) >= 0) {
       showToast(`Mã mặt hàng “${newId}” đã tồn tại! Vui lòng dùng mã khác.`, "danger");
       document.getElementById("qap-prod-id").focus();
       return;
