@@ -2,7 +2,13 @@
 // 3. THUẬT TOÁN KẾ TOÁN CỐT LÕI (ENGINE)
 // - Tính giá vốn bình quân gia quyền liên hoàn sau mỗi lần nhập hàng
 // - Tự động tạo bút toán Nhật ký kép đồng bộ
-function recalculateAccounting(shouldSave = true) {
+function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
+  if (typeof shouldSkipFullRecalc === 'function' && shouldSkipFullRecalc(state, shouldSave, forceFullRecalc)) {
+    return;
+  }
+  if (typeof invalidateAccounting === 'function') {
+    invalidateAccounting(state);
+  }
   // Đảm bảo di trú dữ liệu khi nạp/thay đổi trạng thái
   if (state.products) {
     state.products.forEach(p => {
@@ -560,12 +566,21 @@ function recalculateAccounting(shouldSave = true) {
     updateExcelHubUI();
   }
 
+  if (typeof markAccountingValid === 'function') {
+    markAccountingValid(state);
+  }
+
   // Lưu lại và vẽ giao diện
   if (shouldSave) {
     saveState();
   }
   refreshUI();
 }
+
+function recalculateAccountingFull() {
+  recalculateAccounting(true, true);
+}
+window.recalculateAccountingFull = recalculateAccountingFull;
 
 // Tự động cân đối tài sản và nguồn vốn bằng cách điều chỉnh TK 411 (Vốn chủ sở hữu)
 function rebalanceEquity() {

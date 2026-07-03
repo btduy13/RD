@@ -120,6 +120,48 @@ function clearQuotationColumnFilters() {
 
 let salesCurrentPage = 1;
 
+function buildSalesTableRowHtml(v) {
+  const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
+  return `
+      <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
+        <td style="text-align: center;">
+          <input type="checkbox" class="sale-checkbox" value="${escapeHtmlAttr(v.id)}" onchange="updateBatchSalesUI()">
+        </td>
+        <td class="font-numeric" style="color: var(--color-success); font-weight:700;">${v.id}</td>
+        <td>${formattedDate}</td>
+        <td><span style="font-weight:600;">${getPartnerNameForVoucher(v)}</span></td>
+        <td>${v.description}</td>
+        <td><span class="badge ${v.paymentMethod === '131' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '131' ? 'Công nợ (131)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
+        <td class="text-right font-numeric">${formatVND(v.totalAmount)}</td>
+        <td class="text-right font-numeric" style="color:var(--text-secondary);">${formatVND(v.cogsAmount)}</td>
+        <td class="text-right font-numeric" style="font-weight:700; color:var(--color-success);">${formatVND(v.totalAmount)}</td>
+        <td>
+          <div class="accounting-detail-box">
+            ${v.entries.map(e => `
+              <div class="accounting-entry-row">
+                <span>Nợ <span class="acct-debit">${e.debit}</span> / Có <span class="acct-credit">${e.credit}</span></span>
+                <span class="font-numeric">${formatVND(e.amount)}</span>
+              </div>
+            `).join("")}
+          </div>
+        </td>
+        <td style="text-align: center;">
+          <div class="table-actions">
+            <button class="print-btn" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')" title="Xem và In mẫu chứng từ">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            </button>
+            <button class="edit-btn" onclick="editSalesVoucher('${escapeHtmlAttr(v.id)}')" title="Chỉnh sửa hóa đơn">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            </button>
+            <button class="trash-btn" onclick="deleteVoucher('${escapeHtmlAttr(v.id)}')" title="Xóa chứng từ">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+}
+
 // 7. RENDER DỮ LIỆU PHÂN HỆ BÁN HÀNG (SALES)
 function renderSalesTable() {
   const tbody = document.getElementById("sales-table-body");
@@ -241,49 +283,13 @@ function renderSalesTable() {
     return;
   }
 
-  tbody.innerHTML = displayedSales.map(v => {
-    // Định dạng ngày lập hiển thị dạng Ngày/Tháng/Năm (DD/MM/YYYY)
-    const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
-
-    return `
-      <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
-        <td style="text-align: center;">
-          <input type="checkbox" class="sale-checkbox" value="${escapeHtmlAttr(v.id)}" onchange="updateBatchSalesUI()">
-        </td>
-        <td class="font-numeric" style="color: var(--color-success); font-weight:700;">${v.id}</td>
-        <td>${formattedDate}</td>
-        <td><span style="font-weight:600;">${getPartnerNameForVoucher(v)}</span></td>
-        <td>${v.description}</td>
-        <td><span class="badge ${v.paymentMethod === '131' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '131' ? 'Công nợ (131)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
-        <td class="text-right font-numeric">${formatVND(v.totalAmount)}</td>
-        <td class="text-right font-numeric" style="color:var(--text-secondary);">${formatVND(v.cogsAmount)}</td>
-        <td class="text-right font-numeric" style="font-weight:700; color:var(--color-success);">${formatVND(v.totalAmount)}</td>
-        <td>
-          <div class="accounting-detail-box">
-            ${v.entries.map(e => `
-              <div class="accounting-entry-row">
-                <span>Nợ <span class="acct-debit">${e.debit}</span> / Có <span class="acct-credit">${e.credit}</span></span>
-                <span class="font-numeric">${formatVND(e.amount)}</span>
-              </div>
-            `).join("")}
-          </div>
-        </td>
-        <td style="text-align: center;">
-          <div class="table-actions">
-            <button class="print-btn" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')" title="Xem và In mẫu chứng từ">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-            </button>
-            <button class="edit-btn" onclick="editSalesVoucher('${escapeHtmlAttr(v.id)}')" title="Chỉnh sửa hóa đơn">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-            </button>
-            <button class="trash-btn" onclick="deleteVoucher('${escapeHtmlAttr(v.id)}')" title="Xóa chứng từ">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-            </button>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join("");
+  const forceFullSalesRender = salesCurrentPage !== window._lastSalesRenderPage;
+  window._lastSalesRenderPage = salesCurrentPage;
+  renderTableIncremental(tbody, displayedSales, buildSalesTableRowHtml, (v) => v.id, {
+    emptyColspan: 11,
+    emptyMessage: "Không tìm thấy hóa đơn bán hàng",
+    forceFullRender: forceFullSalesRender
+  });
 }
 
 // Lọc hóa đơn bán hàng

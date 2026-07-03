@@ -186,6 +186,10 @@ function switchTab(tabId) {
   // Scroll to top
   const contentBody = document.querySelector(".content-body");
   if (contentBody) contentBody.scrollTop = 0;
+
+  if (typeof saveUserPrefs === "function") {
+    saveUserPrefs({ lastTab: tabId });
+  }
 }
 
 // 5. RENDER DỮ LIỆU PHÂN HỆ DASHBOARD (KPIs & OFFLINE CHART)

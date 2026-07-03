@@ -20,6 +20,25 @@
 </head>
 
 <body>
+  <script>
+    (function () {
+      try {
+        var storage = window.localStorage;
+        if (!storage) return;
+        var theme = "dark";
+        var raw = storage.getItem("rd_user_prefs");
+        if (raw) {
+          theme = JSON.parse(raw).theme || theme;
+        } else if (storage.getItem("theme") === "light") {
+          theme = "light";
+        }
+        if (theme === "light") {
+          document.documentElement.classList.add("pref-light");
+          document.body.classList.add("light-theme");
+        }
+      } catch (e) {}
+    })();
+  </script>
 
   <div class="app-bg-decoration" aria-hidden="true"></div>
 
@@ -42,7 +61,7 @@
         </div>
         <div class="brand-info">
           <span class="brand-name">RẠNG ĐÔNG</span>
-          <span class="brand-subtitle" id="brand-version-display">RD Accounting v3.0.3</span>
+          <span class="brand-subtitle" id="brand-version-display">RD Accounting v3.0.4</span>
         </div>
         <button class="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Thu gọn/Mở rộng sidebar" title="Thu gọn sidebar">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
@@ -811,7 +830,7 @@
               <!-- Cụm bên phải: Các nút hành động -->
               <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <button id="btn-batch-delete-purchase-order" class="btn btn-danger" onclick="batchDeletePurchaseOrders()"
-                  style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
+                  style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
                   <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
                     xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
                     <path stroke-linecap="round" stroke-linejoin="round"
@@ -965,7 +984,7 @@
               <!-- Cụm bên phải: Các nút hành động -->
               <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <button id="btn-batch-delete-purchase-return" class="btn btn-danger" onclick="batchDeletePurchaseReturns()"
-                  style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
+                  style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
                   <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
                     xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
                     <path stroke-linecap="round" stroke-linejoin="round"
@@ -1337,7 +1356,7 @@
               <!-- Cụm bên phải: Các nút hành động -->
               <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <button id="btn-batch-delete-sales-return" class="btn btn-danger" onclick="batchDeleteSalesReturns()"
-                  style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
+                  style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
                   <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
                     xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
                     <path stroke-linecap="round" stroke-linejoin="round"
@@ -1488,7 +1507,7 @@
               <!-- Cụm bên phải: Các nút hành động -->
               <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <button id="btn-batch-delete-quotation" class="btn btn-danger" onclick="batchDeleteQuotations()"
-                  style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
+                  style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
                   <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
                     xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
                     <path stroke-linecap="round" stroke-linejoin="round"
@@ -1684,7 +1703,7 @@
               <!-- Cụm bên phải: Các nút hành động -->
               <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <button id="btn-batch-delete-products" class="btn btn-danger" onclick="batchDeleteProducts()"
-                  style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
+                  style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
                   <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
                     xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
                     <path stroke-linecap="round" stroke-linejoin="round"
@@ -2164,6 +2183,7 @@
                 style="height: 36px; padding: 4px 12px; font-size: 13px; font-weight: 500; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); outline: none; min-width: 150px;"
                 onchange="filterPartners()">
                 <option value="all">Tất cả đối tác</option>
+                <option value="customer" title="Hiển thị khách lẻ, doanh nghiệp và công trình">Tất cả khách hàng (KL+DN+CT)</option>
                 <option value="retail">Khách hàng lẻ (KL)</option>
                 <option value="enterprise">Doanh nghiệp (DN)</option>
                 <option value="project">Công trình (CT)</option>
@@ -2171,72 +2191,59 @@
               </select>
             </div>
 
-            <!-- Cụm bên phải: Các nút hành động -->
+            <!-- Cụm bên phải: Các nút hành động (icon) -->
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <button id="btn-batch-delete-partners" class="btn btn-danger" onclick="batchDeletePartners()"
-                style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+              <button id="btn-batch-inactive-partners" class="icon-btn icon-btn-warning" onclick="batchSetPartnersInactive()"
+                style="display: none;" title="Ngừng theo dõi các đối tác đã chọn">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path>
+                </svg>
+                <span class="icon-btn-badge" id="selected-partners-count-inactive">0</span>
+              </button>
+              <button id="btn-batch-delete-partners" class="icon-btn icon-btn-danger" onclick="batchDeletePartners()"
+                style="display: none;" title="Xóa các đối tác đã chọn">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round"
                     d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
                   </path>
                 </svg>
-                Xóa đã chọn (<span id="selected-partners-count">0</span>)
+                <span class="icon-btn-badge" id="selected-partners-count">0</span>
               </button>
 
-              <button class="btn btn-secondary" onclick="triggerAutoExtractPhones()"
-                style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: #d97706; background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
-                onmouseover="this.style.borderColor='#d97706';"
-                onmouseout="this.style.borderColor='var(--border-color)';">
-                Tách SĐT từ địa chỉ
+              <button class="icon-btn icon-btn-warning" onclick="triggerAutoExtractPhones()" title="Tách số điện thoại từ địa chỉ">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
               </button>
 
-              <button class="btn btn-secondary" onclick="triggerFileInput('excel-file-partners-view')"
-                style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
-                onmouseover="this.style.borderColor='var(--color-success)'; this.style.color='var(--color-success)'"
-                onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+              <button class="icon-btn" onclick="triggerFileInput('excel-file-partners-view')" title="Nhập Excel danh sách đối tác">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round"
                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
                 </svg>
-                Nhập Excel
               </button>
               <input type="file" id="excel-file-partners-view" accept=".xlsx, .xls" style="display: none;"
                 onchange="handleExcelImport(event, 'partners')">
 
-              <button class="btn btn-secondary" onclick="exportPartnersToExcel()"
-                style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
-                onmouseover="this.style.borderColor='var(--color-primary)'; this.style.color='var(--color-primary)'"
-                onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+              <button class="icon-btn" onclick="exportPartnersToExcel()" title="Xuất Excel danh sách đối tác">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round"
                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                 </svg>
-                Xuất Excel
               </button>
 
-              <button class="btn btn-secondary" onclick="triggerAutoExtractPhonesFromNames()"
-                style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
-                onmouseover="this.style.borderColor='var(--color-warning)'; this.style.color='var(--color-warning)'"
-                onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'"
-                title="Tách số điện thoại từ tên đối tác và cập nhật vào cột SĐT">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+              <button class="icon-btn" onclick="triggerAutoExtractPhonesFromNames()" title="Tách số điện thoại từ tên đối tác">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M9.813 15.904L9 21l-1.813-5.096L2.091 14.1 7.187 12.3 9 7.2l1.813 5.1 5.096 1.8-5.096 1.804zM19.006 5.006L18.5 6.5l-.506-1.494L16.5 14.5l1.494.506.506 1.494.506-1.494 1.494-.506-1.494-.506z"></path>
+                    d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
                 </svg>
-                Tách SĐT từ Tên
               </button>
 
-              <button class="btn btn-primary" onclick="openAddPartnerModal()"
-                style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25); cursor: pointer; transition: all 0.2s;">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
-                  style="width: 16px; height: 16px; stroke-width: 2.5;">
+              <button class="icon-btn icon-btn-primary" onclick="openAddPartnerModal()" title="Khai báo đối tác mới">
+                <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
                 </svg>
-                Khai báo Đối tác mới
               </button>
             </div>
           </div>
@@ -2257,10 +2264,11 @@
                     <th>Mã đối tác</th>
                     <th>Tên đối tác</th>
                     <th>Phân loại</th>
+                    <th>Doanh nghiệp mẹ</th>
                     <th>Số điện thoại</th>
                     <th>Địa chỉ</th>
                     <th>Trạng thái</th>
-                    <th style="width: 120px; text-align: center;">Thao tác</th>
+                    <th style="width: 110px; text-align: center;">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody id="partners-table-body">
@@ -2297,7 +2305,7 @@
 
               <select id="debt-type-filter" class="form-control"
                 style="height: 36px; padding: 4px 12px; font-size: 13px; font-weight: 500; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); outline: none; min-width: 180px;"
-                onchange="filterDebts()">
+                onchange="filterDebts(); if (typeof persistDebtsUIFromDOM === 'function') persistDebtsUIFromDOM();">
                 <option value="all">Tất cả công nợ</option>
                 <option value="131">Phải thu Khách hàng (TK 131)</option>
                 <option value="331">Phải trả Nhà cung cấp (TK 331)</option>
@@ -2344,54 +2352,39 @@
               </div>
 
 
-              <label
-                style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-primary); cursor: pointer; user-select: none; white-space: nowrap;">
-                <input type="checkbox" id="debt-active-only-filter" onchange="filterDebts()"
-                  style="width:16px; height:16px; cursor: pointer;">
-                Chỉ hiện đối tác có công nợ
+              <label class="ui-switch-wrap" title="Chỉ hiện đối tác có công nợ (dư cuối kỳ khác 0)">
+                <span class="ui-switch-label">Có công nợ</span>
+                <input type="checkbox" id="debt-active-only-filter" class="ui-switch-input" onchange="filterDebts(); if (typeof persistDebtsUIFromDOM === 'function') persistDebtsUIFromDOM();">
+                <span class="ui-switch" aria-hidden="true"></span>
               </label>
             </div>
 
-            <!-- Cụm bên phải: Các nút hành động -->
+            <!-- Cụm bên phải: Các nút hành động (icon) -->
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <button id="btn-batch-delete-debts" class="btn btn-danger" onclick="batchDeleteDebts()"
-                style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+              <button id="btn-batch-delete-debts" class="icon-btn icon-btn-danger batch-action-btn" onclick="batchDeleteDebts()"
+                title="Reset số dư đầu kỳ các công nợ đã chọn">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round"
                     d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
                   </path>
                 </svg>
-                Xóa đã chọn (<span id="selected-debts-count">0</span>)
+                <span class="icon-btn-badge" id="selected-debts-count">0</span>
               </button>
 
-              <button class="btn btn-secondary" onclick="triggerFileInput('excel-file-debts-view')"
-                style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
-                onmouseover="this.style.borderColor='var(--color-success)'; this.style.color='var(--color-success)'"
-                onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+              <button class="icon-btn" onclick="triggerFileInput('excel-file-debts-view')" title="Nhập công nợ từ Excel">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8m4-4v12"></path>
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
                 </svg>
-                Nhập Công nợ Excel
               </button>
               <input type="file" id="excel-file-debts-view" accept=".xlsx, .xls" style="display: none;"
                 onchange="handleExcelImport(event, 'debts_opening')">
 
               <div style="position: relative; display: inline-block;" id="debts-export-dropdown-wrap">
-                <button class="btn btn-secondary" onclick="toggleDebtsExportDropdown()"
-                  style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border-color: var(--border-color); color: var(--text-primary); background-color: var(--bg-secondary); display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;"
-                  onmouseover="this.style.borderColor='var(--color-primary)'; this.style.color='var(--color-primary)'"
-                  onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-primary)'">
-                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
+                <button class="icon-btn" onclick="toggleDebtsExportDropdown()" title="Xuất Excel công nợ">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round"
                       d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                  </svg>
-                  Xuất Excel
-                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-left: -2px;">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
                   </svg>
                 </button>
                 <div id="debts-export-dropdown" style="display:none; position:absolute; top:100%; right:0; margin-top:4px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:var(--radius-md); box-shadow:0 4px 16px rgba(0,0,0,0.15); z-index:1000; min-width:200px; overflow:hidden;">
@@ -2699,7 +2692,7 @@
             <!-- Cụm bên phải: Các nút hành động -->
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
               <button id="btn-batch-delete-cash" class="btn btn-danger" onclick="batchDeleteCash()"
-                style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
+                style="display: none; height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; align-items: center; gap: 6px; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s;">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
                   xmlns="http://www.w3.org/2000/svg" style="width: 16px; height: 16px;">
                   <path stroke-linecap="round" stroke-linejoin="round"
@@ -3138,9 +3131,22 @@
             </div>
           </div>
 
+          <!-- Chọn phân loại khi đang sửa -->
+          <div id="group-partner-edit-type" class="form-group" style="grid-column: span 2; display: none;">
+            <label class="form-label" for="partner-edit-type-select" style="font-weight: 600; font-size: 13px;">Phân loại <span style="color:var(--color-danger)">*</span></label>
+            <select id="partner-edit-type-select" class="form-control" style="height: 38px; font-size: 13px;" onchange="switchPartnerEditType(this.value)">
+              <option value="retail">Khách lẻ</option>
+              <option value="project">Công trình</option>
+              <option value="enterprise">Doanh nghiệp</option>
+              <option value="supplier">Nhà cung cấp (NCC)</option>
+            </select>
+            <input type="hidden" id="partner-edit-original-type" value="">
+            <div id="partner-type-change-hint" style="display: none; margin-top: 6px; font-size: 11.5px; color: #0369a1; background: rgba(2, 132, 199, 0.08); border: 1px solid rgba(2, 132, 199, 0.15); padding: 8px 12px; border-radius: 8px;"></div>
+          </div>
+
           <!-- Autocomplete Search Input to select Parent Enterprise -->
           <div id="group-partner-parent" class="form-group" style="grid-column: span 2; display: none;">
-            <label class="form-label">Chọn Doanh nghiệp mẹ <span style="color:var(--color-danger)">*</span></label>
+            <label class="form-label" id="label-partner-parent">Chọn Doanh nghiệp mẹ <span style="color:var(--color-danger)">*</span></label>
             <input type="text" id="partner-parent-search" class="form-control" style="height: 38px; font-size: 13px;" placeholder="Gõ mã hoặc tên doanh nghiệp..." autocomplete="off" list="partner-parent-datalist">
             <datalist id="partner-parent-datalist"></datalist>
           </div>
@@ -3208,6 +3214,49 @@
       </div>
     </div>
   </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- A-1b. MODAL: GÁN ĐỐI TÁC VÀO CÔNG TRÌNH -->
+  <div id="modal-assign-to-project" class="modal-overlay">
+    <div class="modal-content-container modal-w-md modal-elevated">
+      <div class="modal-header modal-header-brand">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="background: rgba(245, 158, 11, 0.12); color: #d97706; padding: 8px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          </div>
+          <h3 class="card-title modal-title-brand">Gán vào Công trình</h3>
+        </div>
+        <button class="icon-btn modal-close-btn" onclick="closeModal('modal-assign-to-project')">×</button>
+      </div>
+      <div class="modal-body modal-body-brand">
+        <form id="form-assign-to-project" onsubmit="handleAssignToProjectSubmit(event)">
+          <input type="hidden" id="assign-partner-id" value="">
+          <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;">
+            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Đối tác được chọn</div>
+            <div id="assign-partner-display" style="font-size: 14px; font-weight: 700; color: var(--text-primary);"></div>
+            <div id="assign-partner-type-hint" style="font-size: 12px; color: var(--text-muted); margin-top: 4px;"></div>
+          </div>
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="form-label" style="font-weight: 600; font-size: 13px;">Chọn Doanh nghiệp mẹ <span style="color:var(--color-danger)">*</span></label>
+            <input type="text" id="assign-parent-search" class="form-control" required style="height: 38px; font-size: 13px;" placeholder="Gõ mã hoặc tên doanh nghiệp..." autocomplete="off" list="assign-parent-datalist">
+            <datalist id="assign-parent-datalist"></datalist>
+            <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 6px;">Công trình sẽ được gắn dưới doanh nghiệp này để theo dõi công nợ theo từng công trình.</div>
+          </div>
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label class="form-label" style="font-weight: 600; font-size: 13px;">Mã công trình</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" id="assign-new-id" class="form-control" style="flex: 1; height: 38px; font-size: 13px; text-transform: uppercase;" placeholder="Tự động sinh nếu để trống">
+              <button type="button" class="btn btn-secondary" onclick="generateAssignProjectId()" style="height: 38px; padding: 0 14px; font-size: 12px;">Sinh mã</button>
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 6px;">Mã công trình thường kết thúc bằng <strong>(CH)</strong>. Nếu giữ mã cũ, các chứng từ liên kết không bị ảnh hưởng.</div>
+          </div>
+          <div class="form-actions" style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 8px;">
+            <button type="button" class="btn btn-secondary btn-modal" onclick="closeModal('modal-assign-to-project')">Hủy</button>
+            <button type="submit" class="btn btn-primary" style="height: 38px; padding: 0 20px; font-size: 13px; border-radius: 8px;">Xác nhận gán</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -4728,6 +4777,15 @@
   <!-- Các Module Core Hệ thống -->
   <script src="js/utils.js"></script>
   <script src="js/logger.js"></script>
+  <script src="js/core/state-types.js"></script>
+  <script src="js/core/state-diff.js"></script>
+  <script src="js/core/persistence-bridge.js"></script>
+  <script src="js/core/user-preferences.js"></script>
+  <script src="js/core/voucher-filters.js"></script>
+  <script src="js/core/partner-identity.js"></script>
+  <script src="js/core/partner-merge.js"></script>
+  <script src="js/core/accounting-engine.js"></script>
+  <script src="js/core/table-render.js"></script>
   <script src="js/state.js"></script>
   <script src="js/accounting.js"></script>
   <script src="js/sync-v2.js"></script>

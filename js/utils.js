@@ -50,11 +50,21 @@ function safeParseFloat(val) {
 
 // Helper đọc file Excel: ưu tiên dùng IPC (Electron), fallback sang fetch (web)
 async function readExcelViaIPC(filename) {
-  // Nếu đang chạy trong Electron desktop app, dùng IPC để tránh lỗi fetch với file:// protocol
   if (window.electronAPI && typeof window.electronAPI.readExcelFile === 'function') {
     const result = await window.electronAPI.readExcelFile(filename);
     if (!result.ok) {
       throw new Error(result.error || `Không đọc được file: ${filename}`);
+    }
+    if (result.encoding === 'base64' && typeof result.data === 'string') {
+      const binary = atob(result.data);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytes;
+    }
+    if (Array.isArray(result.data)) {
+      return new Uint8Array(result.data);
     }
     return new Uint8Array(result.data);
   }
@@ -667,7 +677,15 @@ function toggleTheme() {
   const body = document.body;
   body.classList.toggle("light-theme");
   const isLight = body.classList.contains("light-theme");
-  localStorage.setItem("theme", isLight ? "light" : "dark");
+  if (typeof saveUserPrefs === "function") {
+    saveUserPrefs({ theme: isLight ? "light" : "dark" });
+  } else {
+    localStorage.setItem("theme", isLight ? "light" : "dark");
+  }
+  if (document.documentElement) {
+    document.documentElement.classList.toggle("pref-light", isLight);
+    document.documentElement.dataset.theme = isLight ? "light" : "dark";
+  }
   updateThemeToggleIcon();
   showToast(`Đã chuyển sang giao diện ${isLight ? 'Sáng' : 'Tối'}`, "info");
 }

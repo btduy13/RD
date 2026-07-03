@@ -1705,6 +1705,12 @@ function resolvePartner(value, autoCreateType = "retail") {
   p = state.partners.find(item => item.name.toLowerCase() === val.toLowerCase());
   if (p) return p;
 
+  // 2b. Cùng thương hiệu (vd. Green Home = Không Gian Xanh)
+  if (typeof findPartnerByIdentity === "function") {
+    p = findPartnerByIdentity(val, state.partners);
+    if (p) return p;
+  }
+
   // 3. Tạo đối tác mới tự động nếu không tồn tại (Bug B fix)
   const autoId = typeof getUniquePartnerId === "function"
     ? getUniquePartnerId(val, autoCreateType)

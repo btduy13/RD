@@ -279,6 +279,9 @@ function changeDebtPeriodFilter() {
   if (typeof filterDebts === "function") {
     filterDebts();
   }
+  if (typeof persistDebtsUIFromDOM === "function") {
+    persistDebtsUIFromDOM();
+  }
 }
 
 // --- Phân hệ Công nợ ---
@@ -718,6 +721,7 @@ function filterDebts() {
 
   if (currentDebtsViewTab === 'overview') {
     renderDebtOverview(allDebts);
+    updateBatchDebtsUI();
     return;
   }
 
@@ -792,17 +796,22 @@ function calculatePartnerDebtsGrouped(fromDate = "", toDate = "") {
   // Build map: normalizedName → group
   const groups = {};
   allDebts.forEach(d => {
-    let key = (d.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
-    // Loại bỏ các tiền tố phổ biến như công ty, cty, cty tnhh, cty cp, doanh nghiệp, dn
-    key = key.replace(/^(công ty tnhh sx tm dv|công ty tnhh sx tm|công ty tnhh tm dv|công ty tnhh dv|công ty tnhh|công ty cổ phần|công ty cp|công ty|cty tnhh sx tm dv|cty tnhh sx tm|cty tnhh tm dv|cty tnhh dv|cty tnhh|cty cp|cty|doanh nghiệp|dn)\s+/i, '');
-    // Loại bỏ phần trong ngoặc đơn ở cuối tên chứa mã khách hàng/năm/tháng
-    key = key.replace(/\s*\([^)]*(?:kh|kht|ncc|dt|t\d|\d{2}\/\d{2}|\d{4})[^)]*\)$/i, '');
-    key = key.trim();
+    const key = typeof getPartnerGroupKey === "function"
+      ? getPartnerGroupKey(d.name || "")
+      : (d.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    const legacyKey = key;
+    let normalizedKey = legacyKey;
+    if (typeof getPartnerGroupKey !== "function") {
+      normalizedKey = legacyKey.replace(/^(công ty tnhh sx tm dv|công ty tnhh sx tm|công ty tnhh tm dv|công ty tnhh dv|công ty tnhh|công ty cổ phần|công ty cp|công ty|cty tnhh sx tm dv|cty tnhh sx tm|cty tnhh tm dv|cty tnhh dv|cty tnhh|cty cp|cty|doanh nghiệp|dn)\s+/i, '');
+      normalizedKey = normalizedKey.replace(/\s*\([^)]*(?:kh|kht|ncc|dt|t\d|\d{2}\/\d{2}|\d{4})[^)]*\)$/i, '');
+      normalizedKey = normalizedKey.trim();
+    }
 
-    if (!groups[key]) {
-      // Dọn dẹp tên hiển thị nhóm để loại bỏ mã/ngày tháng ở cuối
-      let displayName = d.name.trim().replace(/\s*\([^)]*(?:kh|kht|ncc|dt|t\d|\d{2}\/\d{2}|\d{4})[^)]*\)$/i, '');
-      groups[key] = {
+    if (!groups[normalizedKey]) {
+      const displayName = typeof getPartnerGroupDisplayName === "function"
+        ? getPartnerGroupDisplayName(d.name || "", d.name)
+        : d.name.trim().replace(/\s*\([^)]*(?:kh|kht|ncc|dt|t\d|\d{2}\/\d{2}|\d{4})[^)]*\)$/i, '');
+      groups[normalizedKey] = {
         name: displayName,
         primaryType: d.type,
         openingDebit: 0,
@@ -815,7 +824,7 @@ function calculatePartnerDebtsGrouped(fromDate = "", toDate = "") {
         childNames: [],     // danh sách tên gốc của từng mã
       };
     }
-    const g = groups[key];
+    const g = groups[normalizedKey];
     g.openingDebit += d.openingDebit || 0;
     g.openingCredit += d.openingCredit || 0;
     g.debitTrans += d.debitTrans || 0;
@@ -961,9 +970,20 @@ function toggleGroupChildren(btn) {
   }
 }
 
+function debtsTabSupportsBatchDelete() {
+  return currentDebtsViewTab === "project" || currentDebtsViewTab === "supplier";
+}
+
+function clearDebtCheckboxSelection() {
+  document.querySelectorAll(".debt-checkbox").forEach((cb) => { cb.checked = false; });
+  const master = document.getElementById("check-all-debts");
+  if (master) master.checked = false;
+}
+
 // Chuyển giữa 4 tab trong màn hình Công nợ
 function switchDebtsViewTab(tabName) {
   currentDebtsViewTab = tabName;
+  clearDebtCheckboxSelection();
 
   // All tab containers and buttons
   const tabs = ['overview', 'project', 'company', 'partner', 'individual', 'supplier']; // keep individual for backward-compat hide
@@ -989,6 +1009,10 @@ function switchDebtsViewTab(tabName) {
   }
 
   filterDebts();
+  updateBatchDebtsUI();
+  if (typeof saveUserPrefs === "function") {
+    saveUserPrefs({ debtsViewTab: tabName });
+  }
 }
 
 // Xem sổ chi tiết gộp: lấy chứng từ từ tất cả các mã cùng tên đối tác
@@ -2854,6 +2878,12 @@ function updateBatchDebtsUI() {
   const checked = Array.from(checkboxes).filter(cb => cb.checked);
   const btn = document.getElementById("btn-batch-delete-debts");
   const count = document.getElementById("selected-debts-count");
+
+  if (!debtsTabSupportsBatchDelete()) {
+    if (btn) btn.style.display = "none";
+    if (count) count.innerText = "0";
+    return;
+  }
 
   if (btn && count) {
     if (checked.length > 0) {

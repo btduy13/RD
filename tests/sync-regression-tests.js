@@ -486,8 +486,10 @@ async function testStaticSafetyChecks() {
 }
 
 async function testBatchSelectionResetUI() {
-  const match = uiFrameworkSource.match(/function resetBatchSelectionUI\([\s\S]*?\n}\n/);
-  assert.ok(match, "resetBatchSelectionUI helper should exist");
+  const fnStart = uiFrameworkSource.indexOf("function resetBatchSelectionUI");
+  const fnEnd = uiFrameworkSource.indexOf("\nfunction renderTabIfNeeded", fnStart);
+  assert.ok(fnStart >= 0 && fnEnd > fnStart, "resetBatchSelectionUI helper should exist");
+  const fnSource = uiFrameworkSource.slice(fnStart, fnEnd);
 
   const rows = [
     { checked: true },
@@ -510,7 +512,7 @@ async function testBatchSelectionResetUI() {
   };
 
   vm.createContext(sandbox);
-  vm.runInContext(`${match[0]}; resetBatchSelectionUI({
+  vm.runInContext(`${fnSource}; resetBatchSelectionUI({
     checkboxSelector: ".sale-checkbox",
     masterId: "check-all-sales",
     buttonId: "btn-batch-delete-sales",

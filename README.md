@@ -9,7 +9,7 @@ Chào mừng bạn đến với **RD Accounting**, phần mềm kế toán chuy�
 ## 🏛️ Giao diện Chuyên nghiệp & Độc lập
 *   Không còn chạy chung trên các tab trình duyệt lộn xộn. Phần mềm hoạt động trong một **cửa sổ Desktop riêng biệt** có thanh tiêu đề riêng và biểu tượng ứng dụng riêng.
 *   Trải nghiệm giống hệt các phiên bản SaaS cao cấp của **MISA** với Slate Theme sang trọng và các chỉ số biểu đồ tương tác thời gian thực.
-*   Dữ liệu kế toán (`localStorage`) được cô lập an toàn trong bộ nhớ cục bộ riêng của ứng dụng Desktop, hoàn toàn không bị ảnh hưởng khi bạn dọn dẹp hoặc xóa lịch sử trình duyệt web thông thường!
+*   Dữ liệu kế toán được lưu trong **SQLite cục bộ** tại `%APPDATA%\rd-accounting\data\rd_local.db` (Electron userData). Bản sao lưu JSON tự động nằm tại `%APPDATA%\rd-accounting\backup\`. Cập nhật phiên bản **không xóa** dữ liệu người dùng.
 
 ---
 
@@ -49,4 +49,12 @@ Nếu bạn muốn khởi động ứng dụng bằng PowerShell hoặc Command 
 
 ## 🖨️ Tính năng In ấn & Sao lưu Dữ liệu
 *   **In chứng từ:** Nhấn nút **Xem/In** trên bất kỳ hóa đơn hoặc phiếu thu/chi nào để mở biểu mẫu kế toán. Số tiền sẽ được thuật toán tự động chuyển đổi thành chữ Tiếng Việt (ví dụ: *Năm triệu năm trăm ngàn đồng chẵn.*). Nhấn **In (Print)** để in trực tiếp ra máy in giấy hoặc xuất PDF.
-*   **Sao lưu:** Tại mục **Thiết lập**, bạn có thể bấm **Xuất dữ liệu (JSON)** để lưu bản sao lưu kế toán về máy tính bất cứ lúc nào, đề phòng trường hợp cần cài đặt lại máy hoặc chuyển đổi thiết bị làm việc.
+*   **Sao lưu:** Tại mục **Thiết lập**, bạn có thể bấm **Xuất dữ liệu (JSON)** để lưu bản sao lưu kế toán về máy tính bất cứ lúc nào. Hệ thống cũng tự động sao lưu JSON khi đóng ứng dụng (tối đa 30 bản gần nhất trong thư mục `backup/`).
+
+## 🧪 Kiểm thử trước khi build
+
+```powershell
+npm run test
+```
+
+Bao gồm: đồng bộ cloud (`test:sync`), core diff/accounting (`test:core`), persistence (`test:persistence`).

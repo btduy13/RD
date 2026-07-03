@@ -59,6 +59,12 @@ async function initApp() {
           console.log(`[StateFile] Nạp từ file thành công! (${parsed.vouchers.length} chứng từ, ${(parsed.partners || []).length} đối tác)`);
           hasCache = true;
         }
+      } else if (result && result.ok && result.isEmpty) {
+        console.log('[StateFile] SQLite trống — khởi tạo state mặc định.');
+        if (result.data && Array.isArray(result.data.vouchers)) {
+          state = result.data;
+          hasCache = true;
+        }
       } else if (result && !result.ok) {
         // File chưa tồn tại — bình thường trong lần chạy đầu tiên
         console.log('[StateFile] File state chưa tồn tại, sẽ tạo mới khi lưu lần đầu.');
@@ -212,12 +218,6 @@ async function initApp() {
 
 
 
-  // Đặt theme mặc định (Tối)
-  const isLightTheme = localStorage.getItem("theme") === "light";
-  if (isLightTheme) {
-    document.body.classList.add("light-theme");
-  }
-
   // Khởi tạo các dòng Excel mặc định nếu bị thiếu
   initializeMissingExcelRows();
 
@@ -270,8 +270,15 @@ async function initApp() {
     }, 1500); // Trì hoãn 1.5 giây để tránh chặn tài nguyên lúc khởi động
   }
 
-  // Mở tab mặc định
-  switchTab("dashboard");
+  // Khôi phục tab & tùy chọn giao diện đã lưu
+  if (typeof restoreUserPreferencesUI === "function") {
+    restoreUserPreferencesUI();
+  }
+  if (typeof restoreLastNavigationTab === "function") {
+    restoreLastNavigationTab();
+  } else {
+    switchTab("dashboard");
+  }
 
   // Khởi tạo phím tắt Ctrl+F tìm kiếm trong tab hiện hành
   if (typeof initCtrlFShortcut === "function") {
@@ -400,15 +407,92 @@ function initializeLastSavedState(loadedState) {
     escrowItems: JSON.parse(JSON.stringify(loadedState.escrowItems || [])),
     salesTemplatesData: JSON.parse(JSON.stringify(loadedState.salesTemplatesData || [])),
     users: JSON.parse(JSON.stringify(loadedState.users || [])),
+    schemaVersion: loadedState.schemaVersion || 1,
+    _accountingValid: loadedState._accountingValid,
+    _accountingValidTs: loadedState._accountingValidTs,
+    _recalcWatermark: loadedState._recalcWatermark
+      ? JSON.parse(JSON.stringify(loadedState._recalcWatermark))
+      : null,
     vouchers: new Map((loadedState.vouchers || []).map(v => [v.id, JSON.parse(JSON.stringify(v))])),
     products: new Map((loadedState.products || []).map(p => [p.id, JSON.parse(JSON.stringify(p))])),
     partners: new Map((loadedState.partners || []).map(p => [p.id, JSON.parse(JSON.stringify(p))])),
   };
 }
 
+function logDeltaActivity(diffResult, currentVouchers, currentProducts, currentPartners) {
+  const {
+    addedVouchers, updatedVouchers,
+    addedProducts, updatedProducts,
+    addedPartners, updatedPartners
+  } = diffResult;
+
+  if (addedVouchers.length > 0) {
+    if (addedVouchers.length <= 5) {
+      addedVouchers.forEach(id => {
+        const v = currentVouchers.find(x => x.id === id);
+        const typeLabel = v && v.type === 'sales' ? 'Hóa đơn bán hàng' : (v && v.type === 'purchase' ? 'Hóa đơn mua hàng' : 'Chứng từ');
+        pushActivityLogDirectly("Thêm chứng từ", `Đã lập ${typeLabel} mới: ${id}`);
+      });
+    } else {
+      pushActivityLogDirectly("Thêm chứng từ", `Đã lập/nhập khẩu hàng loạt ${addedVouchers.length} chứng từ mới.`);
+    }
+  }
+  if (updatedVouchers.length > 0) {
+    if (updatedVouchers.length <= 5) {
+      updatedVouchers.forEach(id => {
+        const v = currentVouchers.find(x => x.id === id);
+        const typeLabel = v && v.type === 'sales' ? 'Hóa đơn bán hàng' : (v && v.type === 'purchase' ? 'Hóa đơn mua hàng' : 'Chứng từ');
+        pushActivityLogDirectly("Sửa chứng từ", `Đã cập nhật ${typeLabel}: ${id}`);
+      });
+    } else {
+      pushActivityLogDirectly("Sửa chứng từ", `Đã cập nhật hàng loạt ${updatedVouchers.length} chứng từ.`);
+    }
+  }
+  if (addedProducts.length > 0) {
+    if (addedProducts.length <= 5) {
+      addedProducts.forEach(id => {
+        const p = currentProducts.find(x => x.id === id);
+        pushActivityLogDirectly("Thêm hàng hóa", `Đã thêm vật tư hàng hóa mới: ${id} - ${p ? p.name : ''}`);
+      });
+    } else {
+      pushActivityLogDirectly("Thêm hàng hóa", `Đã thêm hàng loạt ${addedProducts.length} vật tư hàng hóa.`);
+    }
+  }
+  if (updatedProducts.length > 0) {
+    if (updatedProducts.length <= 5) {
+      updatedProducts.forEach(id => {
+        const p = currentProducts.find(x => x.id === id);
+        pushActivityLogDirectly("Sửa hàng hóa", `Đã cập nhật vật tư hàng hóa: ${id} - ${p ? p.name : ''}`);
+      });
+    } else {
+      pushActivityLogDirectly("Sửa hàng hóa", `Đã cập nhật hàng loạt ${updatedProducts.length} vật tư hàng hóa.`);
+    }
+  }
+  if (addedPartners.length > 0) {
+    if (addedPartners.length <= 5) {
+      addedPartners.forEach(id => {
+        const p = currentPartners.find(x => x.id === id);
+        pushActivityLogDirectly("Thêm đối tác", `Đã thêm đối tác mới: ${id} - ${p ? p.name : ''}`);
+      });
+    } else {
+      pushActivityLogDirectly("Thêm đối tác", `Đã thêm hàng loạt ${addedPartners.length} đối tác.`);
+    }
+  }
+  if (updatedPartners.length > 0) {
+    if (updatedPartners.length <= 5) {
+      updatedPartners.forEach(id => {
+        const p = currentPartners.find(x => x.id === id);
+        pushActivityLogDirectly("Sửa đối tác", `Đã cập nhật đối tác: ${id} - ${p ? p.name : ''}`);
+      });
+    } else {
+      pushActivityLogDirectly("Sửa đối tác", `Đã cập nhật hàng loạt ${updatedPartners.length} đối tác.`);
+    }
+  }
+}
+
 function saveStateSync() {
   saveStateIsDirty = true;
-  executeSaveState(true);
+  return executeSaveState(true);
 }
 
 // Helper to push logs directly to state.actionLogs without triggering saveState loop
@@ -428,13 +512,16 @@ function pushActivityLogDirectly(actionType, description) {
   }
 }
 
-function executeSaveState(sync = false) {
+async function executeSaveState(sync = false) {
   if (!saveStateIsDirty) return;
 
-  const doSave = () => {
+  const doSave = async () => {
     try {
       // Luôn cập nhật timestamp trước khi lưu và push
       state._lastModified = Date.now();
+      if (state.schemaVersion === undefined) {
+        state.schemaVersion = 4;
+      }
 
       // Dọn dẹp deletedIds: Loại bỏ bất kỳ ID nào hiện đang hoạt động trong hệ thống
       if (Array.isArray(state.deletedIds)) {
@@ -447,7 +534,6 @@ function executeSaveState(sync = false) {
 
         state.deletedIds = state.deletedIds.filter(id => !activeIds.has(id));
 
-        // Đồng bộ dọn deletedCloudKeys theo deletedIds để tránh gửi delete request cho item đang sống
         if (Array.isArray(state.deletedCloudKeys)) {
           state.deletedCloudKeys = state.deletedCloudKeys.filter(cloudKey => {
             if (!cloudKey) return false;
@@ -457,185 +543,18 @@ function executeSaveState(sync = false) {
         }
       }
 
-      // === TÍNH TOÁN PHẦN CHÊNH LỆCH (DELTA) SO VỚI SQLite Snapshot ===
+      let persisted = false;
+
       if (!lastSavedState) {
-        // Fallback: Nếu chưa có SQLite Snapshot, thực hiện lưu toàn bộ
         const jsonString = JSON.stringify(state);
-        if (window.electronAPI && typeof window.electronAPI.writeStateFile === 'function') {
-          window.electronAPI.writeStateFile(jsonString).then(result => {
-            if (result && result.ok) {
-              initializeLastSavedState(state);
-            } else {
-              console.error('[StateFile] Ghi file full thất bại:', result && result.error);
-            }
-          }).catch(err => console.error('[StateFile] Lỗi IPC writeStateFile:', err));
+        const result = await persistFullState(jsonString);
+        if (result && result.ok) {
+          initializeLastSavedState(state);
+          persisted = true;
         } else {
-          // Trình duyệt web fallback
-          localStorage.setItem("rd_accounting_online_cache", jsonString);
+          console.error('[StateFile] Ghi file full thất bại:', result && result.error);
         }
       } else {
-        // Có lastSavedState -> Tính toán delta
-        const delta = {
-          metadata: {},
-          vouchers: { upsert: [], deleteIds: [] },
-          products: { upsert: [], deleteIds: [] },
-          partners: { upsert: [], deleteIds: [] }
-        };
-
-        let hasVoucherChanges = false;
-        let hasProductChanges = false;
-        let hasPartnerChanges = false;
-
-        // B. So sánh Vouchers & Ghi nhận Log hoạt động mấu chốt
-        const currentVouchers = state.vouchers || [];
-        const currentVoucherIds = new Set();
-        let addedVouchers = [];
-        let updatedVouchers = [];
-
-        currentVouchers.forEach(v => {
-          if (!v || !v.id) return;
-          currentVoucherIds.add(v.id);
-          const prev = lastSavedState.vouchers.get(v.id);
-          if (!prev) {
-            delta.vouchers.upsert.push(v);
-            addedVouchers.push(v.id);
-            hasVoucherChanges = true;
-          } else if (JSON.stringify(prev) !== JSON.stringify(v)) {
-            delta.vouchers.upsert.push(v);
-            updatedVouchers.push(v.id);
-            hasVoucherChanges = true;
-          }
-        });
-
-        for (const id of lastSavedState.vouchers.keys()) {
-          if (!currentVoucherIds.has(id)) {
-            delta.vouchers.deleteIds.push(id);
-            hasVoucherChanges = true;
-          }
-        }
-
-        if (addedVouchers.length > 0) {
-          if (addedVouchers.length <= 5) {
-            addedVouchers.forEach(id => {
-              const v = currentVouchers.find(x => x.id === id);
-              const typeLabel = v && v.type === 'sales' ? 'Hóa đơn bán hàng' : (v && v.type === 'purchase' ? 'Hóa đơn mua hàng' : 'Chứng từ');
-              pushActivityLogDirectly("Thêm chứng từ", `Đã lập ${typeLabel} mới: ${id}`);
-            });
-          } else {
-            pushActivityLogDirectly("Thêm chứng từ", `Đã lập/nhập khẩu hàng loạt ${addedVouchers.length} chứng từ mới.`);
-          }
-        }
-        if (updatedVouchers.length > 0) {
-          if (updatedVouchers.length <= 5) {
-            updatedVouchers.forEach(id => {
-              const v = currentVouchers.find(x => x.id === id);
-              const typeLabel = v && v.type === 'sales' ? 'Hóa đơn bán hàng' : (v && v.type === 'purchase' ? 'Hóa đơn mua hàng' : 'Chứng từ');
-              pushActivityLogDirectly("Sửa chứng từ", `Đã cập nhật ${typeLabel}: ${id}`);
-            });
-          } else {
-            pushActivityLogDirectly("Sửa chứng từ", `Đã cập nhật hàng loạt ${updatedVouchers.length} chứng từ.`);
-          }
-        }
-
-        // C. So sánh Products & Ghi nhận Log
-        const currentProducts = state.products || [];
-        const currentProductIds = new Set();
-        let addedProducts = [];
-        let updatedProducts = [];
-
-        currentProducts.forEach(p => {
-          if (!p || !p.id) return;
-          currentProductIds.add(p.id);
-          const prev = lastSavedState.products.get(p.id);
-          if (!prev) {
-            delta.products.upsert.push(p);
-            addedProducts.push(p.id);
-            hasProductChanges = true;
-          } else if (JSON.stringify(prev) !== JSON.stringify(p)) {
-            delta.products.upsert.push(p);
-            updatedProducts.push(p.id);
-            hasProductChanges = true;
-          }
-        });
-
-        for (const id of lastSavedState.products.keys()) {
-          if (!currentProductIds.has(id)) {
-            delta.products.deleteIds.push(id);
-            hasProductChanges = true;
-          }
-        }
-
-        if (addedProducts.length > 0) {
-          if (addedProducts.length <= 5) {
-            addedProducts.forEach(id => {
-              const p = currentProducts.find(x => x.id === id);
-              pushActivityLogDirectly("Thêm hàng hóa", `Đã thêm vật tư hàng hóa mới: ${id} - ${p ? p.name : ''}`);
-            });
-          } else {
-            pushActivityLogDirectly("Thêm hàng hóa", `Đã thêm hàng loạt ${addedProducts.length} vật tư hàng hóa.`);
-          }
-        }
-        if (updatedProducts.length > 0) {
-          if (updatedProducts.length <= 5) {
-            updatedProducts.forEach(id => {
-              const p = currentProducts.find(x => x.id === id);
-              pushActivityLogDirectly("Sửa hàng hóa", `Đã cập nhật vật tư hàng hóa: ${id} - ${p ? p.name : ''}`);
-            });
-          } else {
-            pushActivityLogDirectly("Sửa hàng hóa", `Đã cập nhật hàng loạt ${updatedProducts.length} vật tư hàng hóa.`);
-          }
-        }
-
-        // D. So sánh Partners & Ghi nhận Log
-        const currentPartners = state.partners || [];
-        const currentPartnerIds = new Set();
-        let addedPartners = [];
-        let updatedPartners = [];
-
-        currentPartners.forEach(p => {
-          if (!p || !p.id) return;
-          currentPartnerIds.add(p.id);
-          const prev = lastSavedState.partners.get(p.id);
-          if (!prev) {
-            delta.partners.upsert.push(p);
-            addedPartners.push(p.id);
-            hasPartnerChanges = true;
-          } else if (JSON.stringify(prev) !== JSON.stringify(p)) {
-            delta.partners.upsert.push(p);
-            updatedPartners.push(p.id);
-            hasPartnerChanges = true;
-          }
-        });
-
-        for (const id of lastSavedState.partners.keys()) {
-          if (!currentPartnerIds.has(id)) {
-            delta.partners.deleteIds.push(id);
-            hasPartnerChanges = true;
-          }
-        }
-
-        if (addedPartners.length > 0) {
-          if (addedPartners.length <= 5) {
-            addedPartners.forEach(id => {
-              const p = currentPartners.find(x => x.id === id);
-              pushActivityLogDirectly("Thêm đối tác", `Đã thêm đối tác mới: ${id} - ${p ? p.name : ''}`);
-            });
-          } else {
-            pushActivityLogDirectly("Thêm đối tác", `Đã thêm hàng loạt ${addedPartners.length} đối tác.`);
-          }
-        }
-        if (updatedPartners.length > 0) {
-          if (updatedPartners.length <= 5) {
-            updatedPartners.forEach(id => {
-              const p = currentPartners.find(x => x.id === id);
-              pushActivityLogDirectly("Sửa đối tác", `Đã cập nhật đối tác: ${id} - ${p ? p.name : ''}`);
-            });
-          } else {
-            pushActivityLogDirectly("Sửa đối tác", `Đã cập nhật hàng loạt ${updatedPartners.length} đối tác.`);
-          }
-        }
-
-        // E. So sánh Cấu hình doanh nghiệp
         if (state.companyName !== lastSavedState.companyName || state.taxCode !== lastSavedState.taxCode || state.address !== lastSavedState.address) {
           pushActivityLogDirectly("Thay đổi cấu hình", `Đã cập nhật thông tin doanh nghiệp (Tên: ${state.companyName})`);
         }
@@ -643,60 +562,35 @@ function executeSaveState(sync = false) {
           pushActivityLogDirectly("Thay đổi cấu hình", `Đã chuyển chế độ kế toán sang ${state.accountingStandard}`);
         }
 
-        // A. So sánh metadata các cấu hình hệ thống (So sánh cuối cùng để ăn được actionLogs mới push)
-        const metadataKeys = [
-          'companyName', 'address', 'taxCode', 'accountingStandard',
-          'initialBalances', 'partnerOpeningBalances', 'partnerOpeningBalanceTs', 'deletedIds', 'deletedCloudKeys', '_lastPulledCloudTs',
-          'cashEntries', 'escrowItems', 'salesTemplatesData', 'users', 'actionLogs'
-        ];
-        
-        let hasMetaChanges = false;
-        metadataKeys.forEach(key => {
-          const currentValStr = JSON.stringify(state[key] !== undefined ? state[key] : null);
-          const prevValStr = JSON.stringify(lastSavedState[key] !== undefined ? lastSavedState[key] : null);
-          if (currentValStr !== prevValStr) {
-            delta.metadata[key] = currentValStr;
-            hasMetaChanges = true;
-          }
-        });
+        const diffResult = buildStateDelta(state, lastSavedState);
+        if (diffResult.hasChanges) {
+          logDeltaActivity(
+            diffResult,
+            state.vouchers || [],
+            state.products || [],
+            state.partners || []
+          );
 
-        // Nếu thực sự có thay đổi -> Ghi nhận delta
-        if (hasMetaChanges || hasVoucherChanges || hasProductChanges || hasPartnerChanges) {
-          if (window.electronAPI && typeof window.electronAPI.writeStateDelta === 'function') {
-            window.electronAPI.writeStateDelta(delta).then(result => {
-              if (result && result.ok) {
-                // Ghi thành công -> cập nhật SQLite Snapshot (lastSavedState) bằng cách áp dụng delta
-                Object.keys(delta.metadata).forEach(key => {
-                  lastSavedState[key] = JSON.parse(delta.metadata[key]);
-                });
-                delta.vouchers.upsert.forEach(v => {
-                  lastSavedState.vouchers.set(v.id, JSON.parse(JSON.stringify(v)));
-                });
-                delta.vouchers.deleteIds.forEach(id => {
-                  lastSavedState.vouchers.delete(id);
-                });
-                delta.products.upsert.forEach(p => {
-                  lastSavedState.products.set(p.id, JSON.parse(JSON.stringify(p)));
-                });
-                delta.products.deleteIds.forEach(id => {
-                  lastSavedState.products.delete(id);
-                });
-                delta.partners.upsert.forEach(p => {
-                  lastSavedState.partners.set(p.id, JSON.parse(JSON.stringify(p)));
-                });
-                delta.partners.deleteIds.forEach(id => {
-                  lastSavedState.partners.delete(id);
-                });
-              } else {
-                console.error('[StateFile] Ghi delta thất bại:', result && result.error);
-              }
-            }).catch(err => console.error('[StateFile] Lỗi IPC writeStateDelta:', err));
+          const refreshedDiff = buildStateDelta(state, lastSavedState);
+          const result = await persistStateDelta(refreshedDiff.delta);
+          if (result && result.ok) {
+            applyDeltaToSnapshot(lastSavedState, refreshedDiff.delta);
+            persisted = true;
           } else {
-            // Trình duyệt web fallback
-            localStorage.setItem("rd_accounting_online_cache", JSON.stringify(state));
-            initializeLastSavedState(state);
+            console.error('[StateFile] Ghi delta thất bại:', result && result.error);
+            const fallback = await persistFullState(JSON.stringify(state));
+            if (fallback && fallback.ok) {
+              initializeLastSavedState(state);
+              persisted = true;
+            }
           }
+        } else {
+          persisted = true;
         }
+      }
+
+      if (!persisted) {
+        return;
       }
 
       if (typeof pushToCloud === "function") {
@@ -714,13 +608,11 @@ function executeSaveState(sync = false) {
   };
 
   if (sync) {
-    doSave();
+    await doSave();
+  } else if (window.requestIdleCallback) {
+    window.requestIdleCallback(() => { void doSave(); }, { timeout: 1000 });
   } else {
-    if (window.requestIdleCallback) {
-      window.requestIdleCallback(() => doSave(), { timeout: 1000 });
-    } else {
-      setTimeout(doSave, 50);
-    }
+    setTimeout(() => { void doSave(); }, 50);
   }
 }
 
@@ -753,8 +645,8 @@ async function autoSaveBeforeClose() {
 
     const wasDirty = saveStateIsDirty;
 
-    // 2. Chạy đồng bộ ghi cache cục bộ lập tức
-    executeSaveState(true);
+    // 2. Chạy đồng bộ ghi cache cục bộ lập tức (await IPC SQLite)
+    await executeSaveState(true);
 
     // 3. Nếu Cloud đang kết nối VÀ có thay đổi cần đẩy -> đồng bộ lên Cloud
     // H6 Fix: Guard against sync.js variables being undefined if sync.js failed to load

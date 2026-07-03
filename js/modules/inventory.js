@@ -1,6 +1,56 @@
 let inventoryCurrentPage = 1;
 
 // 8. RENDER DỮ LIỆU PHÂN HỆ KHO HÀNG (INVENTORY)
+function buildInventoryTableRowHtml(p) {
+  const isLow = (p.stock || 0) <= (p.minStock || 0);
+  const escapedId = escapeHtmlAttr(p.id);
+  ensureProductExcelRow(p);
+  const initialCostVal = p.initialCost !== undefined ? p.initialCost : (p.excelRow[19] !== undefined ? Number(p.excelRow[19]) : 0);
+  const lastPurchasePriceVal = p.excelRow[20] !== undefined ? Number(p.excelRow[20]) : (p.avgCost || 0);
+  const salePriceVal = p.salePrice1 !== undefined ? p.salePrice1 : (p.excelRow[21] !== undefined ? Number(p.excelRow[21]) : 0);
+
+  return `
+      <tr class="clickable-row" data-type="product" data-id="${escapedId}">
+        <td style="text-align: center;">
+          <input type="checkbox" class="product-checkbox" value="${escapedId}" onchange="updateBatchProductsUI()">
+        </td>
+        <td class="font-numeric" style="font-weight:700;">${p.id}</td>
+        <td><span style="font-weight:600; color:var(--text-primary);">${p.name}</span></td>
+        <td>${p.unit || "Cái"}</td>
+        <td class="text-right font-numeric" style="color: var(--text-secondary);">${formatVND(initialCostVal)}</td>
+        <td class="text-right font-numeric" style="color: var(--text-secondary);">${formatVND(lastPurchasePriceVal)}</td>
+        <td class="text-right font-numeric" style="color: var(--color-success); font-weight: 600;">${formatVND(salePriceVal)}</td>
+        <td class="text-right font-numeric" style="font-weight:700; ${isLow ? 'color: var(--color-danger);' : ''}">${p.stock || 0}</td>
+        <td class="text-right font-numeric">${formatVND(p.avgCost || 0)}</td>
+        <td class="text-right font-numeric" style="font-weight:700;">${formatVND(p.totalValue || 0)}</td>
+        <td>
+          <span class="badge ${isLow ? 'badge-danger' : 'badge-success'}">
+            ${isLow ? 'Cảnh báo tồn thấp' : 'Đầy đủ'}
+          </span>
+        </td>
+        <td style="text-align: center;">
+          <div style="display: flex; gap: 6px; justify-content: center;">
+            <button class="btn btn-secondary" onclick="viewStockLedgerForProduct('${escapedId}')" title="Xem Sổ thẻ kho" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-warning); cursor: pointer; transition: all 0.2s; padding: 0;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 15px; height: 15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+            </button>
+            <button class="btn btn-secondary" onclick="promptAdjustStock('${escapedId}')" title="Điều chỉnh tồn kho" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-warning); cursor: pointer; transition: all 0.2s; padding: 0;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 15px; height: 15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg>
+            </button>
+            <button class="btn btn-secondary" onclick="promptQuickImport('${escapedId}')" title="Nhập kho nhanh" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-success); cursor: pointer; transition: all 0.2s; padding: 0;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 15px; height: 15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+            </button>
+            <button class="btn btn-secondary" onclick="promptEditProductPrice('${escapedId}')" title="Chỉnh sửa sản phẩm" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-primary); cursor: pointer; transition: all 0.2s; padding: 0;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 15px; height: 15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+            </button>
+            <button class="btn btn-secondary" onclick="deleteProduct('${escapedId}')" title="Xóa mặt hàng" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-danger); cursor: pointer; transition: all 0.2s; padding: 0;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 15px; height: 15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+}
+
 function renderInventoryTable(filterQuery = "") {
   const tbody = document.getElementById("inventory-table-body");
   if (!tbody) return;
@@ -87,55 +137,14 @@ function renderInventoryTable(filterQuery = "") {
     return;
   }
 
-  tbody.innerHTML = displayedProducts.map(p => {
-    const isLow = (p.stock || 0) <= (p.minStock || 0);
-    const escapedId = escapeHtmlAttr(p.id);
-    ensureProductExcelRow(p);
-    const initialCostVal = p.initialCost !== undefined ? p.initialCost : (p.excelRow[19] !== undefined ? Number(p.excelRow[19]) : 0);
-    const lastPurchasePriceVal = p.excelRow[20] !== undefined ? Number(p.excelRow[20]) : (p.avgCost || 0);
-    const salePriceVal = p.salePrice1 !== undefined ? p.salePrice1 : (p.excelRow[21] !== undefined ? Number(p.excelRow[21]) : 0);
-
-    return `
-      <tr class="clickable-row" data-type="product" data-id="${escapedId}">
-        <td style="text-align: center;">
-          <input type="checkbox" class="product-checkbox" value="${escapedId}" onchange="updateBatchProductsUI()">
-        </td>
-        <td class="font-numeric" style="font-weight:700;">${p.id}</td>
-        <td><span style="font-weight:600; color:var(--text-primary);">${p.name}</span></td>
-        <td>${p.unit || "Cái"}</td>
-        <td class="text-right font-numeric" style="color: var(--text-secondary);">${formatVND(initialCostVal)}</td>
-        <td class="text-right font-numeric" style="color: var(--text-secondary);">${formatVND(lastPurchasePriceVal)}</td>
-        <td class="text-right font-numeric" style="color: var(--color-success); font-weight: 600;">${formatVND(salePriceVal)}</td>
-        <td class="text-right font-numeric" style="font-weight:700; ${isLow ? 'color: var(--color-danger);' : ''}">${p.stock || 0}</td>
-        <td class="text-right font-numeric">${formatVND(p.avgCost || 0)}</td>
-        <td class="text-right font-numeric" style="font-weight:700;">${formatVND(p.totalValue || 0)}</td>
-        <td>
-          <span class="badge ${isLow ? 'badge-danger' : 'badge-success'}">
-            ${isLow ? 'Cảnh báo tồn thấp' : 'Đầy đủ'}
-          </span>
-        </td>
-        <td style="text-align: center;">
-          <div style="display: flex; gap: 6px; justify-content: center;">
-            <button class="btn btn-secondary" onclick="viewStockLedgerForProduct('${escapedId}')" title="Xem Sổ thẻ kho" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-warning); cursor: pointer; transition: all 0.2s; padding: 0;">
-              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 15px; height: 15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-            </button>
-            <button class="btn btn-secondary" onclick="promptAdjustStock('${escapedId}')" title="Điều chỉnh tồn kho" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-warning); cursor: pointer; transition: all 0.2s; padding: 0;">
-              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 15px; height: 15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg>
-            </button>
-            <button class="btn btn-secondary" onclick="promptQuickImport('${escapedId}')" title="Nhập kho nhanh" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-success); cursor: pointer; transition: all 0.2s; padding: 0;">
-              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 15px; height: 15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-            </button>
-            <button class="btn btn-secondary" onclick="promptEditProductPrice('${escapedId}')" title="Chỉnh sửa sản phẩm" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-primary); cursor: pointer; transition: all 0.2s; padding: 0;">
-              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 15px; height: 15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-            </button>
-            <button class="btn btn-secondary" onclick="deleteProduct('${escapedId}')" title="Xóa mặt hàng" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-danger); cursor: pointer; transition: all 0.2s; padding: 0;">
-              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 15px; height: 15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-            </button>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join("");
+  const forceFullInventoryRender = inventoryCurrentPage !== window._lastInventoryRenderPage || filterQuery !== window._lastInventoryFilterQuery;
+  window._lastInventoryRenderPage = inventoryCurrentPage;
+  window._lastInventoryFilterQuery = filterQuery;
+  renderTableIncremental(tbody, displayedProducts, buildInventoryTableRowHtml, (p) => p.id, {
+    emptyColspan: 12,
+    emptyMessage: "Không tìm thấy sản phẩm phù hợp",
+    forceFullRender: forceFullInventoryRender
+  });
 }
 
 // Lọc sản phẩm tồn kho hiệu năng cực cao (0ms jank-free) dùng bộ lọc trong bộ nhớ

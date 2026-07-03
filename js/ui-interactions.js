@@ -235,6 +235,13 @@ function initMouseInteractions() {
         </button>
       `;
     } else if (type === "partner") {
+      const partnerObj = (state.partners || []).find(p => p.id === id);
+      const assignMenuItem = (partnerObj && partnerObj.type === "retail" && !partnerObj.inactive)
+        ? `<button class="context-menu-item" onclick="openAssignToProjectModal('${escapedId}')">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+          Gán vào công trình
+        </button>`
+        : "";
       menuHTML = `
         <button class="context-menu-item" onclick="viewPartnerLedger('${escapedId}')">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
@@ -244,6 +251,7 @@ function initMouseInteractions() {
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
           Chỉnh sửa đối tác
          </button>
+        ${assignMenuItem}
         <button class="context-menu-item" onclick="promptEditPartnerOpeningDebt('${escapedId}')">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
           Chỉnh sửa công nợ đầu kỳ
@@ -1062,7 +1070,11 @@ function toggleSidebar() {
   if (!sidebar) return;
   sidebar.classList.toggle('collapsed');
   var isCollapsed = sidebar.classList.contains('collapsed');
-  localStorage.setItem('sidebar-collapsed', isCollapsed);
+  if (typeof saveUserPrefs === "function") {
+    saveUserPrefs({ sidebarCollapsed: isCollapsed });
+  } else {
+    localStorage.setItem('sidebar-collapsed', isCollapsed);
+  }
   // Update modal offsets
   document.querySelectorAll('.modal-overlay').forEach(function(m) {
     if (isCollapsed) {
@@ -1075,9 +1087,15 @@ function toggleSidebar() {
   });
 }
 
-// Restore sidebar state on load
+// Restore sidebar state on load (fallback if prefs module unavailable)
 (function restoreSidebarState() {
-  if (localStorage.getItem('sidebar-collapsed') === 'true') {
+  var collapsed = false;
+  if (typeof getUserPrefs === "function") {
+    collapsed = !!getUserPrefs().sidebarCollapsed;
+  } else if (localStorage.getItem('sidebar-collapsed') === 'true') {
+    collapsed = true;
+  }
+  if (collapsed) {
     var sidebar = document.querySelector('.sidebar');
     if (sidebar) sidebar.classList.add('collapsed');
   }
@@ -1433,11 +1451,17 @@ window.setDatePreset = setDatePreset;
 window.updateSidebarBadges = updateSidebarBadges;
 
 // Quản lý tỉ lệ cỡ chữ (font size scale) toàn phần mềm thông qua CSS Zoom
-let currentFontScale = parseFloat(localStorage.getItem('rd_font_scale')) || 1.0;
+let currentFontScale = (typeof getUserPrefs === "function")
+  ? (getUserPrefs().fontScale || 1)
+  : (parseFloat(localStorage.getItem('rd_font_scale')) || 1);
 
 function applyFontSizeScale(scale) {
   currentFontScale = scale;
-  localStorage.setItem('rd_font_scale', scale);
+  if (typeof saveUserPrefs === "function") {
+    saveUserPrefs({ fontScale: scale });
+  } else {
+    localStorage.setItem('rd_font_scale', scale);
+  }
   document.body.style.zoom = scale;
   document.body.style.height = (100 / scale) + 'vh';
   document.body.style.width = (100 / scale) + 'vw';

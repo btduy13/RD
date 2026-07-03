@@ -216,13 +216,21 @@ ipcMain.handle('list-template-files', async () => {
 
 ipcMain.handle('read-excel-file', async (event, filename) => {
   try {
-    const filePath = path.join(__dirname, 'excel', filename);
+    const safeName = path.basename(String(filename || ''));
+    if (!safeName || safeName !== filename) {
+      return { ok: false, error: 'Tên file Excel không hợp lệ.' };
+    }
+    const excelDir = path.join(__dirname, 'excel');
+    const filePath = path.join(excelDir, safeName);
+    const resolved = path.resolve(filePath);
+    if (!resolved.startsWith(path.resolve(excelDir))) {
+      return { ok: false, error: 'Đường dẫn file Excel không hợp lệ.' };
+    }
     if (!fs.existsSync(filePath)) {
-      return { ok: false, error: `File không tồn tại: ${filename}` };
+      return { ok: false, error: `File không tồn tại: ${safeName}` };
     }
     const buffer = fs.readFileSync(filePath);
-    // Trả về dưới dạng mảng số nguyên để renderer có thể tạo Uint8Array
-    return { ok: true, data: Array.from(buffer) };
+    return { ok: true, encoding: 'base64', data: buffer.toString('base64') };
   } catch (err) {
     console.error('Lỗi đọc file Excel:', err);
     return { ok: false, error: err.message };
@@ -723,9 +731,52 @@ ipcMain.handle('print-html-to-pdf', async (event, voucherHtml, filename) => {
 const STATE_DIR_PATH = path.join(app.getPath('userData'), 'data');
 const STATE_DB_PATH = path.join(STATE_DIR_PATH, 'rd_local.db');
 const STATE_FILE_PATH = path.join(STATE_DIR_PATH, 'rd_state.json');
+const SCHEMA_VERSION = 4;
 
 const Database = require('better-sqlite3');
 let db = null;
+
+function getEmptyStateObject() {
+  return {
+    companyName: '',
+    address: '',
+    taxCode: '',
+    accountingStandard: 'TT200',
+    initialBalances: {},
+    partnerOpeningBalances: {},
+    partnerOpeningBalanceTs: {},
+    deletedIds: [],
+    deletedCloudKeys: [],
+    products: [],
+    partners: [],
+    vouchers: [],
+    schemaVersion: SCHEMA_VERSION,
+    _accountingValid: false,
+    _lastModified: Date.now()
+  };
+}
+
+function runSchemaMigrations(stateObj) {
+  if (!stateObj || typeof stateObj !== 'object') return getEmptyStateObject();
+  let version = Number(stateObj.schemaVersion) || 1;
+
+  if (version < 2) {
+    if (!stateObj.partnerOpeningBalanceTs) stateObj.partnerOpeningBalanceTs = {};
+    version = 2;
+  }
+  if (version < 3) {
+    if (!Array.isArray(stateObj.deletedCloudKeys)) stateObj.deletedCloudKeys = [];
+    version = 3;
+  }
+  if (version < 4) {
+    if (stateObj._accountingValid === undefined) stateObj._accountingValid = false;
+    if (stateObj._accountingValidTs === undefined) stateObj._accountingValidTs = 0;
+    version = 4;
+  }
+
+  stateObj.schemaVersion = SCHEMA_VERSION;
+  return stateObj;
+}
 
 // Đảm bảo thư mục data/ tồn tại
 function ensureStateDir() {
@@ -818,6 +869,16 @@ function initDatabase() {
     
     console.log('[SQLiteStore] Cơ sở dữ liệu SQLite đã được khởi tạo thành công.');
     
+    // Áp dụng schema version metadata nếu thiếu
+    try {
+      const row = db.prepare("SELECT value FROM metadata WHERE key = 'schemaVersion'").get();
+      if (!row) {
+        db.prepare('INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)').run('schemaVersion', JSON.stringify(SCHEMA_VERSION));
+      }
+    } catch (e) {
+      console.warn('[SQLiteStore] Không thể ghi schemaVersion mặc định:', e.message);
+    }
+
     // Tự động di trú từ rd_state.json cũ sang SQLite nếu có
     migrateFromJsonIfNecessary();
   } catch (err) {
@@ -868,6 +929,13 @@ function saveStateToSQLite(stateObj) {
     stmtMetadata.run('deletedCloudKeys', JSON.stringify(stateObj.deletedCloudKeys || []));
     stmtMetadata.run('_lastModified', JSON.stringify(stateObj._lastModified || Date.now()));
     stmtMetadata.run('_lastPulledCloudTs', JSON.stringify(stateObj._lastPulledCloudTs || 0));
+    stmtMetadata.run('schemaVersion', JSON.stringify(stateObj.schemaVersion || SCHEMA_VERSION));
+    stmtMetadata.run('_accountingValid', JSON.stringify(!!stateObj._accountingValid));
+    stmtMetadata.run('_accountingValidTs', JSON.stringify(stateObj._accountingValidTs || 0));
+    stmtMetadata.run('_recalcWatermark', JSON.stringify(stateObj._recalcWatermark || null));
+    if (stateObj.partnerOpeningBalanceTs) {
+      stmtMetadata.run('partnerOpeningBalanceTs', JSON.stringify(stateObj.partnerOpeningBalanceTs));
+    }
     if (stateObj.cashEntries) {
       stmtMetadata.run('cashEntries', JSON.stringify(stateObj.cashEntries));
     }
@@ -1056,6 +1124,11 @@ function readStateFromSQLite() {
       else if (row.key === 'deletedCloudKeys') stateObj.deletedCloudKeys = parsedVal;
       else if (row.key === '_lastModified') stateObj._lastModified = parsedVal;
       else if (row.key === '_lastPulledCloudTs') stateObj._lastPulledCloudTs = parsedVal;
+      else if (row.key === 'partnerOpeningBalanceTs') stateObj.partnerOpeningBalanceTs = parsedVal;
+      else if (row.key === 'schemaVersion') stateObj.schemaVersion = parsedVal;
+      else if (row.key === '_accountingValid') stateObj._accountingValid = parsedVal;
+      else if (row.key === '_accountingValidTs') stateObj._accountingValidTs = parsedVal;
+      else if (row.key === '_recalcWatermark') stateObj._recalcWatermark = parsedVal;
       else if (row.key === 'cashEntries') stateObj.cashEntries = parsedVal;
       else if (row.key === 'escrowItems') stateObj.escrowItems = parsedVal;
       else if (row.key === 'salesTemplatesData') stateObj.salesTemplatesData = parsedVal;
@@ -1096,13 +1169,13 @@ function readStateFromSQLite() {
     }
   }
 
-  return stateObj;
+  return runSchemaMigrations(stateObj);
 }
 
 // Đăng ký các IPC handlers
 ipcMain.handle('write-state-file', async (event, jsonData) => {
   try {
-    const stateObj = JSON.parse(jsonData);
+    const stateObj = runSchemaMigrations(JSON.parse(jsonData));
     saveStateToSQLite(stateObj);
     return { ok: true };
   } catch (err) {
@@ -1123,11 +1196,12 @@ ipcMain.handle('write-state-delta', async (event, delta) => {
 
 ipcMain.handle('read-state-file', async (event) => {
   try {
+    if (!db) initDatabase();
     const stateObj = readStateFromSQLite();
-    if (!stateObj || (stateObj.vouchers.length === 0 && stateObj.products.length === 0)) {
-      return { ok: false, error: 'SQLite rỗng hoặc chưa được khởi tạo' };
+    if (!stateObj) {
+      return { ok: true, data: getEmptyStateObject(), isEmpty: true };
     }
-    return { ok: true, data: stateObj };
+    return { ok: true, data: stateObj, isEmpty: (stateObj.vouchers.length === 0 && stateObj.products.length === 0) };
   } catch (err) {
     console.error('[SQLiteStore] Lỗi đọc state từ SQLite:', err);
     return { ok: false, error: err.message };

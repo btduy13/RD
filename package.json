@@ -1,12 +1,17 @@
 {
   "name": "rd-accounting",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "description": "Phần mềm kế toán độc lập Công ty Cổ phần Rạng Đông",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "npm run test:sync",
+    "test": "npm run test:sync && npm run test:core && npm run test:persistence && npm run test:partners && npm run test:prefs",
     "test:sync": "node tests/sync-regression-tests.js",
+    "test:core": "node tests/core-regression-tests.js",
+    "test:persistence": "node tests/persistence-regression-tests.js",
+    "test:accounting": "node tests/core-regression-tests.js",
+    "test:partners": "node tests/partner-merge-tests.js",
+    "test:prefs": "node tests/user-preferences-tests.js",
     "package-win": "electron-packager . rd-accounting --platform=win32 --arch=x64 --out=dist --overwrite --ignore=dist",
     "build-win": "electron-builder build --win --x64"
   },
@@ -64,6 +69,9 @@
       "prepopulated_database.js",
       "package.json",
       "excel/**"
+    ],
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3/**"
     ]
   }
 }

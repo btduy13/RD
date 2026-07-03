@@ -1,6 +1,91 @@
 
 let isPartnerIdManuallyEdited = false;
 
+function getPartnerTypeLabel(type) {
+  const labels = {
+    enterprise: "Doanh nghiệp",
+    project: "Công trình",
+    retail: "Khách lẻ",
+    supplier: "Nhà cung cấp"
+  };
+  return labels[type] || type;
+}
+
+function getPartnerTypeBadgeHtml(type) {
+  const styles = {
+    enterprise: 'background-color: #6366f1; color: white;',
+    project: 'background-color: #f59e0b; color: white;',
+    retail: 'background-color: #10b981; color: white;',
+    supplier: 'background-color: #3b82f6; color: white;'
+  };
+  const style = styles[type] || '';
+  return `<span class="badge" style="${style}">${getPartnerTypeLabel(type)}</span>`;
+}
+
+const PARTNER_TABLE_ICONS = {
+  edit: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>',
+  assignProject: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>',
+  delete: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>',
+  first: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path></svg>',
+  prev: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>',
+  next: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>',
+  last: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>'
+};
+
+function buildPartnerTableActions(p) {
+  const escapedId = escapeHtmlAttr(p.id);
+  let html = `<div class="table-actions">`;
+  html += `<button class="edit-btn" onclick="openEditPartnerModal('${escapedId}')" title="Sửa thông tin">${PARTNER_TABLE_ICONS.edit}</button>`;
+  if (p.type === "retail" && !p.inactive) {
+    html += `<button class="convert-btn" onclick="openAssignToProjectModal('${escapedId}')" title="Chuyển sang Công trình và gán doanh nghiệp mẹ">${PARTNER_TABLE_ICONS.assignProject}</button>`;
+  }
+  html += `<button class="trash-btn" onclick="deletePartner('${escapedId}')" title="Xóa đối tác">${PARTNER_TABLE_ICONS.delete}</button>`;
+  html += `</div>`;
+  return html;
+}
+
+function getPartnerParentName(partner) {
+  if (!partner || partner.type !== "project" || !partner.parentId) return "";
+  const parent = state.partners.find(item => item.id === partner.parentId);
+  return parent ? parent.name : partner.parentId;
+}
+
+function populateEnterpriseDatalist(datalistId = "partner-parent-datalist") {
+  const datalist = document.getElementById(datalistId);
+  if (!datalist) return;
+  const enterprises = state.partners.filter(p => p.type === "enterprise" && !p.inactive);
+  datalist.innerHTML = enterprises.map(e => `<option value="${e.name} (${e.id})"></option>`).join("");
+}
+
+function resolveEnterpriseParent(inputVal) {
+  const trimmed = (inputVal || "").trim();
+  if (!trimmed) return null;
+  const resolved = resolvePartner(trimmed);
+  const parentP = state.partners.find(p => p.id === resolved.id && p.type === "enterprise");
+  return parentP || null;
+}
+
+function propagatePartnerIdChange(oldId, newId, newName) {
+  if (!oldId || !newId || String(oldId) === String(newId)) return;
+  state.vouchers.forEach(v => {
+    if (String(v.partnerId) === String(oldId)) {
+      v.partnerId = newId;
+      if (newName) v.partnerName = newName;
+    }
+  });
+  state.partners.forEach(p => {
+    if (p.parentId === oldId) p.parentId = newId;
+  });
+  if (state.partnerOpeningBalances && state.partnerOpeningBalances[oldId]) {
+    state.partnerOpeningBalances[newId] = state.partnerOpeningBalances[oldId];
+    delete state.partnerOpeningBalances[oldId];
+  }
+  if (state.partnerOpeningBalanceTs && state.partnerOpeningBalanceTs[oldId]) {
+    state.partnerOpeningBalanceTs[newId] = state.partnerOpeningBalanceTs[oldId];
+    delete state.partnerOpeningBalanceTs[oldId];
+  }
+}
+
 function generatePartnerIdClean(name, type) {
   if (!name) return "";
   let clean = removeAccents(name).toUpperCase();
@@ -248,6 +333,9 @@ function handleQuickAddPartnerSubmit(e) {
   }
 
   let partner = state.partners.find(p => p.name.toLowerCase() === name.toLowerCase());
+  if (!partner && typeof findPartnerByIdentity === "function") {
+    partner = findPartnerByIdentity(name, state.partners);
+  }
 
   if (!partner) {
     let finalId = idVal;
@@ -324,6 +412,90 @@ const itemsPerPage = 50;
 let filteredPartnersList = [];
 
 // --- Phân hệ Khách hàng ---
+function applyPartnerFormLabels(type) {
+  const lblName = document.getElementById('label-partner-name');
+  const lblAddress = document.getElementById('label-partner-address');
+  const lblId = document.getElementById('label-partner-id');
+  const groupTaxcode = document.getElementById('group-partner-taxcode');
+  const titleEl = document.getElementById('modal-partner-title');
+
+  if (type === 'enterprise') {
+    if (titleEl) titleEl.innerText = "Chỉnh sửa Doanh nghiệp";
+    if (lblName) lblName.innerHTML = `Tên Doanh nghiệp <span style="color:var(--color-danger)">*</span>`;
+    if (lblAddress) lblAddress.innerText = 'Địa chỉ trụ sở';
+    if (lblId) lblId.innerText = 'Mã Doanh nghiệp';
+    if (groupTaxcode) groupTaxcode.style.display = 'block';
+  } else if (type === 'project') {
+    if (titleEl) titleEl.innerText = "Chỉnh sửa Công trình";
+    if (lblName) lblName.innerHTML = `Tên Công trình <span style="color:var(--color-danger)">*</span>`;
+    if (lblAddress) lblAddress.innerText = 'Địa chỉ công trình';
+    if (lblId) lblId.innerText = 'Mã Công trình';
+    if (groupTaxcode) groupTaxcode.style.display = 'none';
+  } else if (type === 'retail') {
+    if (titleEl) titleEl.innerText = "Chỉnh sửa Khách lẻ";
+    if (lblName) lblName.innerHTML = `Tên Khách lẻ <span style="color:var(--color-danger)">*</span>`;
+    if (lblAddress) lblAddress.innerText = 'Địa chỉ liên hệ';
+    if (lblId) lblId.innerText = 'Mã Khách lẻ';
+    if (groupTaxcode) groupTaxcode.style.display = 'none';
+  } else if (type === 'supplier') {
+    if (titleEl) titleEl.innerText = "Chỉnh sửa Nhà cung cấp";
+    if (lblName) lblName.innerHTML = `Tên Nhà cung cấp <span style="color:var(--color-danger)">*</span>`;
+    if (lblAddress) lblAddress.innerText = 'Địa chỉ trụ sở';
+    if (lblId) lblId.innerText = 'Mã Nhà cung cấp';
+    if (groupTaxcode) groupTaxcode.style.display = 'block';
+  }
+}
+
+function getPartnerTypeChangeHint(fromType, toType) {
+  if (fromType === toType) return "";
+  const from = getPartnerTypeLabel(fromType);
+  const to = getPartnerTypeLabel(toType);
+  if (toType === "project") {
+    return `Đang chuyển từ "${from}" sang "${to}". Vui lòng chọn Doanh nghiệp mẹ. Có thể bấm "Sinh mã" để đổi mã theo quy tắc công trình.`;
+  }
+  if (fromType === "project") {
+    return `Đang chuyển từ "${from}" sang "${to}". Liên kết doanh nghiệp mẹ sẽ được gỡ bỏ.`;
+  }
+  if (fromType === "enterprise" && toType !== "enterprise") {
+    return `Đang chuyển từ "${from}" sang "${to}". Nếu doanh nghiệp còn công trình con thì cần xử lý các công trình con trước.`;
+  }
+  return `Đang chuyển phân loại từ "${from}" sang "${to}".`;
+}
+
+window.switchPartnerEditType = function(type) {
+  document.getElementById('partner-modal-type').value = type;
+
+  const groupParent = document.getElementById('group-partner-parent');
+  const labelParent = document.getElementById('label-partner-parent');
+  const originalTypeEl = document.getElementById('partner-edit-original-type');
+  const hintEl = document.getElementById('partner-type-change-hint');
+  const originalType = originalTypeEl ? originalTypeEl.value : type;
+
+  applyPartnerFormLabels(type);
+
+  if (groupParent) {
+    if (type === 'project') {
+      groupParent.style.display = 'block';
+      if (labelParent) labelParent.innerHTML = 'Doanh nghiệp mẹ <span style="color:var(--color-danger)">*</span>';
+      populateEnterpriseDatalist();
+    } else {
+      groupParent.style.display = 'none';
+      const searchInput = document.getElementById('partner-parent-search');
+      if (searchInput) searchInput.value = '';
+    }
+  }
+
+  if (hintEl) {
+    const hint = getPartnerTypeChangeHint(originalType, type);
+    if (hint && originalType && originalType !== type) {
+      hintEl.innerText = hint;
+      hintEl.style.display = 'block';
+    } else {
+      hintEl.style.display = 'none';
+    }
+  }
+};
+
 window.switchPartnerModalTab = function(type) {
   const tabs = ['enterprise', 'retail', 'supplier'];
   tabs.forEach(t => {
@@ -408,8 +580,7 @@ window.toggleEnterpriseOption = function(option) {
 
     const datalist = document.getElementById('partner-parent-datalist');
     if (datalist) {
-      const enterprises = state.partners.filter(p => p.type === 'enterprise');
-      datalist.innerHTML = enterprises.map(e => `<option value="${e.name} (${e.id})"></option>`).join('');
+      populateEnterpriseDatalist();
     }
     const searchInput = document.getElementById('partner-parent-search');
     if (searchInput) {
@@ -468,7 +639,7 @@ function renderPartnersTable() {
 
   tbody.innerHTML = "";
   if (pageItems.length === 0) {
-    renderEmptyState(tbody, 8, 'Không tìm thấy đối tác nào', 'Thử tìm kiếm với từ khóa khác hoặc thêm đối tác mới');
+    renderEmptyState(tbody, 9, 'Không tìm thấy đối tác nào', 'Thử tìm kiếm với từ khóa khác hoặc thêm đối tác mới');
   } else {
     pageItems.forEach(item => {
       const p = item.partner;
@@ -485,18 +656,22 @@ function renderPartnersTable() {
         namePrefix = `<span style="color: var(--text-muted); margin-right: 6px;">┕</span>`;
       }
 
-      let typeBadge = "";
-      if (p.type === 'enterprise') {
-        typeBadge = `<span class="badge" style="background-color: #6366f1; color: white;">Doanh nghiệp</span>`;
-      } else if (p.type === 'project') {
-        typeBadge = `<span class="badge" style="background-color: #f59e0b; color: white;">Công trình</span>`;
-      } else if (p.type === 'retail') {
-        typeBadge = `<span class="badge" style="background-color: #10b981; color: white;">Khách lẻ</span>`;
-      } else if (p.type === 'supplier') {
-        typeBadge = `<span class="badge" style="background-color: #3b82f6; color: white;">Nhà cung cấp</span>`;
-      } else {
-        typeBadge = `<span class="badge badge-info">${p.type}</span>`;
+      const typeBadge = getPartnerTypeBadgeHtml(p.type);
+
+      let parentCell = "-";
+      if (p.type === "project") {
+        const parentName = getPartnerParentName(p);
+        parentCell = parentName
+          ? `<span style="font-size: 12px; color: var(--text-secondary);">${parentName}</span>`
+          : `<span style="font-size: 11px; color: var(--color-danger);">Chưa gán DN mẹ</span>`;
+      } else if (p.type === "enterprise") {
+        const childCount = state.partners.filter(c => c.type === "project" && c.parentId === p.id).length;
+        if (childCount > 0) {
+          parentCell = `<span style="font-size: 11px; color: var(--text-muted);">${childCount} công trình con</span>`;
+        }
       }
+
+      let actionButtons = buildPartnerTableActions(p);
 
       tr.innerHTML = `
         <td style="text-align: center;">
@@ -505,6 +680,7 @@ function renderPartnersTable() {
         <td style="font-weight:bold; color:var(--color-primary);">${p.id}</td>
         <td style="${nameStyle}">${namePrefix}<a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${p.name}</a></td>
         <td>${typeBadge}</td>
+        <td>${parentCell}</td>
         <td class="font-numeric">${p.phone || "-"}</td>
         <td>${p.address || "-"}</td>
         <td>
@@ -512,10 +688,7 @@ function renderPartnersTable() {
             ${p.inactive ? 'Ngừng theo dõi' : 'Đang theo dõi'}
           </span>
         </td>
-        <td style="text-align:center;">
-          <button class="btn btn-secondary btn-sm" onclick="openEditPartnerModal('${escapedId}')" style="padding: 2px 6px; margin-right: 4px;">Sửa</button>
-          <button class="btn btn-secondary btn-sm" onclick="deletePartner('${escapedId}')" style="padding: 2px 6px; color:var(--color-danger); border-color:rgba(239, 68, 68, 0.2);">Xóa</button>
-        </td>
+        <td style="text-align:center;">${actionButtons}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -541,8 +714,8 @@ function renderPartnersTable() {
 
       let buttonsHTML = "";
       buttonsHTML += `
-        <button class="btn btn-secondary btn-sm" onclick="changePartnersPage(1)" ${partnersPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">« Đầu</button>
-        <button class="btn btn-secondary btn-sm" onclick="changePartnersPage(${partnersPage - 1})" ${partnersPage === 1 ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">‹ Trước</button>
+        <button class="pagination-icon-btn" onclick="changePartnersPage(1)" ${partnersPage === 1 ? 'disabled' : ''} title="Trang đầu">${PARTNER_TABLE_ICONS.first}</button>
+        <button class="pagination-icon-btn" onclick="changePartnersPage(${partnersPage - 1})" ${partnersPage === 1 ? 'disabled' : ''} title="Trang trước">${PARTNER_TABLE_ICONS.prev}</button>
       `;
 
       let startPage = Math.max(1, partnersPage - 2);
@@ -554,7 +727,7 @@ function renderPartnersTable() {
 
       for (let p = startPage; p <= endPage; p++) {
         buttonsHTML += `
-          <button class="btn ${p === partnersPage ? 'btn-success' : 'btn-secondary'} btn-sm" onclick="changePartnersPage(${p})" style="padding: 4px 10px; font-size: 12px; font-weight: ${p === partnersPage ? '800' : 'normal'};">${p}</button>
+          <button class="pagination-page-btn ${p === partnersPage ? 'is-active' : ''}" onclick="changePartnersPage(${p})" title="Trang ${p}">${p}</button>
         `;
       }
 
@@ -563,8 +736,8 @@ function renderPartnersTable() {
       }
 
       buttonsHTML += `
-        <button class="btn btn-secondary btn-sm" onclick="changePartnersPage(${partnersPage + 1})" ${partnersPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Sau ›</button>
-        <button class="btn btn-secondary btn-sm" onclick="changePartnersPage(${totalPages})" ${partnersPage === totalPages ? 'disabled' : ''} style="padding: 4px 10px; font-size: 12px; font-weight: 500;">Cuối »</button>
+        <button class="pagination-icon-btn" onclick="changePartnersPage(${partnersPage + 1})" ${partnersPage === totalPages ? 'disabled' : ''} title="Trang sau">${PARTNER_TABLE_ICONS.next}</button>
+        <button class="pagination-icon-btn" onclick="changePartnersPage(${totalPages})" ${partnersPage === totalPages ? 'disabled' : ''} title="Trang cuối">${PARTNER_TABLE_ICONS.last}</button>
       `;
 
       paginationControls.innerHTML = `
@@ -589,7 +762,8 @@ function filterPartners() {
   const filterType = document.getElementById("partner-type-filter") ? document.getElementById("partner-type-filter").value : "all";
 
   filteredPartnersList = state.partners.filter(p => {
-    const combined = `${p.id || ""}\t${p.name || ""}\t${p.phone || ""}\t${p.address || ""}`;
+    const parentName = getPartnerParentName(p);
+    const combined = `${p.id || ""}\t${p.name || ""}\t${p.phone || ""}\t${p.address || ""}\t${parentName}`;
     const matchesQuery = matchAdvancedQuery(combined, query);
     
     let matchesType = false;
@@ -612,11 +786,17 @@ function openAddPartnerModal() {
   document.getElementById("edit-partner-index").value = "-1";
   document.getElementById("form-partner").reset();
   
-  // Ẩn badge và warning
   const badge = document.getElementById("partner-id-validation-badge");
   if (badge) badge.style.display = "none";
   const warning = document.getElementById("partner-id-change-warning");
   if (warning) warning.style.display = "none";
+
+  const groupEditType = document.getElementById("group-partner-edit-type");
+  if (groupEditType) groupEditType.style.display = "none";
+  const hintEl = document.getElementById("partner-type-change-hint");
+  if (hintEl) hintEl.style.display = "none";
+  const originalTypeEl = document.getElementById("partner-edit-original-type");
+  if (originalTypeEl) originalTypeEl.value = "";
   
   const radioNew = document.querySelector('input[name="enterprise-option"][value="new"]');
   if (radioNew) radioNew.checked = true;
@@ -632,14 +812,21 @@ function openAddPartnerModal() {
   const tabContainer = document.querySelector("#modal-add-partner .sub-tabs-bar");
   if (tabContainer) tabContainer.style.display = 'flex';
 
+  const searchInput = document.getElementById('partner-parent-search');
+  if (searchInput) searchInput.value = '';
+
   switchPartnerModalTab('enterprise');
   openModal("modal-add-partner");
 }
 
-function openEditPartnerModal(id) {
+function openEditPartnerModal(id, options = {}) {
   const p = state.partners.find(item => item.id === id);
-  if (!p) return;
+  if (!p) {
+    showToast("Không tìm thấy đối tác!", "danger");
+    return;
+  }
 
+  isPartnerIdManuallyEdited = false;
   document.getElementById("edit-partner-index").value = p.id;
   document.getElementById("partner-id").value = p.id;
   document.getElementById("partner-id").disabled = false;
@@ -652,52 +839,131 @@ function openEditPartnerModal(id) {
   if (groupEnterpriseOptions) groupEnterpriseOptions.style.display = 'none';
   const groupProjectName = document.getElementById('group-partner-project-name');
   if (groupProjectName) groupProjectName.style.display = 'none';
+
+  const groupEditType = document.getElementById('group-partner-edit-type');
+  const editTypeSelect = document.getElementById('partner-edit-type-select');
+  const originalTypeEl = document.getElementById('partner-edit-original-type');
+  const presetType = options.presetType || p.type;
+
+  if (groupEditType) groupEditType.style.display = 'block';
+  if (originalTypeEl) originalTypeEl.value = p.type;
+  if (editTypeSelect) editTypeSelect.value = presetType;
+
   const groupParent = document.getElementById('group-partner-parent');
-  if (groupParent) groupParent.style.display = 'none';
+  if (groupParent && presetType === 'project') {
+    populateEnterpriseDatalist();
+    const searchInput = document.getElementById('partner-parent-search');
+    if (searchInput) {
+      if (p.parentId) {
+        const parent = state.partners.find(x => x.id === p.parentId);
+        searchInput.value = parent ? `${parent.name} (${parent.id})` : '';
+      } else {
+        searchInput.value = '';
+      }
+    }
+  } else {
+    const searchInput = document.getElementById('partner-parent-search');
+    if (searchInput) searchInput.value = '';
+  }
+
+  switchPartnerEditType(presetType);
 
   document.getElementById("partner-phone").value = p.phone || "";
   document.getElementById("partner-address").value = p.address || "";
   document.getElementById("partner-taxcode").value = p.taxCode || "";
   document.getElementById("partner-inactive").checked = !!p.inactive;
 
-  document.getElementById("partner-modal-type").value = p.type;
-  
-  const lblName = document.getElementById('label-partner-name');
-  const lblAddress = document.getElementById('label-partner-address');
-  const lblId = document.getElementById('label-partner-id');
-  const groupTaxcode = document.getElementById('group-partner-taxcode');
+  validatePartnerIdInput(p.id);
+  openModal("modal-add-partner");
 
-  if (p.type === 'enterprise') {
-    document.getElementById("modal-partner-title").innerText = "Chỉnh sửa Doanh nghiệp";
-    if (lblName) lblName.innerHTML = `Tên Doanh nghiệp <span style="color:var(--color-danger)">*</span>`;
-    if (lblAddress) lblAddress.innerText = 'Địa chỉ trụ sở';
-    if (lblId) lblId.innerText = 'Mã Doanh nghiệp';
-    if (groupTaxcode) groupTaxcode.style.display = 'block';
-  } else if (p.type === 'project') {
-    document.getElementById("modal-partner-title").innerText = "Chỉnh sửa Công trình";
-    if (lblName) lblName.innerHTML = `Tên Công trình <span style="color:var(--color-danger)">*</span>`;
-    if (lblAddress) lblAddress.innerText = 'Địa chỉ công trình';
-    if (lblId) lblId.innerText = 'Mã Công trình';
-    if (groupTaxcode) groupTaxcode.style.display = 'none';
-  } else if (p.type === 'retail') {
-    document.getElementById("modal-partner-title").innerText = "Chỉnh sửa Khách lẻ";
-    if (lblName) lblName.innerHTML = `Tên Khách lẻ <span style="color:var(--color-danger)">*</span>`;
-    if (lblAddress) lblAddress.innerText = 'Địa chỉ liên hệ';
-    if (lblId) lblId.innerText = 'Mã Khách lẻ';
-    if (groupTaxcode) groupTaxcode.style.display = 'none';
-  } else if (p.type === 'supplier') {
-    document.getElementById("modal-partner-title").innerText = "Chỉnh sửa Nhà cung cấp";
-    if (lblName) lblName.innerHTML = `Tên Nhà cung cấp <span style="color:var(--color-danger)">*</span>`;
-    if (lblAddress) lblAddress.innerText = 'Địa chỉ trụ sở';
-    if (lblId) lblId.innerText = 'Mã Nhà cung cấp';
-    if (groupTaxcode) groupTaxcode.style.display = 'block';
+  if (options.focusParent) {
+    setTimeout(() => {
+      const parentInput = document.getElementById('partner-parent-search');
+      if (parentInput) parentInput.focus();
+    }, 150);
+  }
+}
+
+function openAssignToProjectModal(id) {
+  const p = state.partners.find(item => item.id === id);
+  if (!p) {
+    showToast("Không tìm thấy đối tác!", "danger");
+    return;
+  }
+  if (p.inactive) {
+    showToast("Đối tác đang ngừng theo dõi. Hãy kích hoạt lại trước khi gán.", "warning");
+    return;
   }
 
-  isPartnerIdManuallyEdited = false;
-  // Khởi chạy kiểm tra mã hiện tại khi sửa
-  validatePartnerIdInput(p.id);
+  const enterprises = state.partners.filter(x => x.type === "enterprise" && !x.inactive);
+  if (enterprises.length === 0) {
+    showToast("Chưa có doanh nghiệp nào. Hãy khai báo doanh nghiệp trước!", "warning");
+    return;
+  }
 
-  openModal("modal-add-partner");
+  openEditPartnerModal(id, { presetType: "project", focusParent: true });
+}
+
+window.generateAssignProjectId = function() {
+  const partnerId = document.getElementById("assign-partner-id").value;
+  const p = state.partners.find(item => item.id === partnerId);
+  if (!p) return;
+  const suggestedId = getUniquePartnerId(p.name, "project", p.id);
+  document.getElementById("assign-new-id").value = suggestedId;
+  showToast("Đã sinh mã công trình!", "success");
+};
+
+function handleAssignToProjectSubmit(e) {
+  e.preventDefault();
+
+  const modal = document.getElementById("modal-assign-to-project");
+  if (modal && (modal.style.display === "none" || window.getComputedStyle(modal).display === "none")) {
+    return;
+  }
+
+  const partnerId = document.getElementById("assign-partner-id").value;
+  const p = state.partners.find(item => item.id === partnerId);
+  if (!p || p.type !== "retail") {
+    showToast("Đối tác không hợp lệ hoặc đã được gán!", "danger");
+    return;
+  }
+
+  const parentInputVal = document.getElementById("assign-parent-search").value.trim();
+  const parentP = resolveEnterpriseParent(parentInputVal);
+  if (!parentP) {
+    showToast("Vui lòng chọn doanh nghiệp mẹ hợp lệ!", "danger");
+    return;
+  }
+
+  let newId = document.getElementById("assign-new-id").value.trim().toUpperCase();
+  if (!newId) {
+    newId = getUniquePartnerId(p.name, "project", p.id);
+  }
+  if (newId !== p.id && state.partners.some(x => x.id === newId && x.id !== p.id)) {
+    showToast(`Mã "${newId}" đã tồn tại!`, "danger");
+    return;
+  }
+
+  const idx = state.partners.findIndex(x => x.id === p.id);
+  if (idx === -1) return;
+
+  if (newId !== p.id) {
+    propagatePartnerIdChange(p.id, newId, p.name);
+  }
+
+  state.partners[idx] = {
+    ...p,
+    id: newId,
+    type: "project",
+    parentId: parentP.id,
+    _updatedAt: Date.now()
+  };
+
+  saveState();
+  initExcelIntegration();
+  closeModal("modal-assign-to-project");
+  filterPartners();
+  showToast(`Đã gán "${p.name}" vào công trình thuộc "${parentP.name}"!`, "success");
 }
 
 function handlePartnerSubmit(e) {
@@ -745,15 +1011,55 @@ function handlePartnerSubmit(e) {
     }
   } else {
     const pExist = state.partners.find(item => item.id === editIndex);
-    if (pExist) {
-      type = pExist.type;
-      parentId = pExist.parentId || "";
+    if (!pExist) {
+      showToast("Không tìm thấy đối tác đang sửa!", "danger");
+      return;
     }
+
+    const editTypeSelect = document.getElementById("partner-edit-type-select");
+    type = editTypeSelect ? editTypeSelect.value : pExist.type;
+    parentId = "";
+
+    if (type === "project") {
+      const parentInputVal = document.getElementById("partner-parent-search").value.trim();
+      if (!parentInputVal) {
+        showToast("Vui lòng chọn Doanh nghiệp mẹ cho công trình!", "danger");
+        return;
+      }
+      const parentP = resolveEnterpriseParent(parentInputVal);
+      if (!parentP) {
+        showToast("Doanh nghiệp mẹ không hợp lệ hoặc không tồn tại!", "danger");
+        return;
+      }
+      if (parentP.id === editIndex) {
+        showToast("Không thể gán chính đối tác này làm doanh nghiệp mẹ!", "danger");
+        return;
+      }
+      parentId = parentP.id;
+    } else if (type === "enterprise") {
+      parentId = "";
+    } else {
+      parentId = "";
+    }
+
+    if (pExist.type === "enterprise" && type !== "enterprise") {
+      const childCount = state.partners.filter(c => c.type === "project" && c.parentId === pExist.id).length;
+      if (childCount > 0) {
+        showToast(`Doanh nghiệp này còn ${childCount} công trình con. Hãy chuyển hoặc gỡ các công trình con trước khi đổi phân loại.`, "danger");
+        return;
+      }
+    }
+  }
+
+  if (!name) {
+    showToast("Vui lòng nhập tên đối tác!", "danger");
+    return;
   }
 
   if (editIndex !== "-1") {
     const idx = state.partners.findIndex(p => String(p.id) === String(editIndex));
     if (idx !== -1) {
+      const pExist = state.partners[idx];
       const newId = idVal.toUpperCase();
       if (String(newId) !== String(editIndex) && state.partners.some(p => String(p.id) === String(newId))) {
         showToast(`Mã đối tác "${newId}" đã tồn tại!`, "danger");
@@ -761,23 +1067,32 @@ function handlePartnerSubmit(e) {
       }
 
       if (newId !== editIndex) {
-        state.vouchers.forEach(v => {
-          if (String(v.partnerId) === String(editIndex)) {
-            v.partnerId = newId;
-            v.partnerName = name;
-          }
-        });
-        state.partners.forEach(p => {
-          if (p.parentId === editIndex) p.parentId = newId;
-        });
-        if (state.partnerOpeningBalances && state.partnerOpeningBalances[editIndex]) {
-          state.partnerOpeningBalances[newId] = state.partnerOpeningBalances[editIndex];
-          delete state.partnerOpeningBalances[editIndex];
-        }
+        propagatePartnerIdChange(editIndex, newId, name);
       }
 
-      state.partners[idx] = { id: newId, name, type, parentId, phone, email: "", address, taxCode, inactive, _updatedAt: Date.now() };
-      showToast("Cập nhật đối tác thành công!", "success");
+      const updatedPartner = {
+        id: newId,
+        name,
+        type,
+        phone,
+        email: pExist.email || "",
+        address,
+        taxCode,
+        inactive,
+        _updatedAt: Date.now()
+      };
+      if (type === "project" && parentId) {
+        updatedPartner.parentId = parentId;
+      }
+
+      state.partners[idx] = updatedPartner;
+
+      const typeChanged = pExist.type !== type;
+      if (typeChanged) {
+        showToast(`Đã đổi phân loại sang "${getPartnerTypeLabel(type)}" và cập nhật đối tác!`, "success");
+      } else {
+        showToast("Cập nhật đối tác thành công!", "success");
+      }
     }
   } else {
     let id = idVal.toUpperCase();
@@ -822,6 +1137,7 @@ function handlePartnerSubmit(e) {
   closeModal("modal-add-partner");
   document.getElementById("form-partner").reset();
   filterPartners();
+  if (typeof filterDebts === "function") filterDebts();
 }
 
 function deletePartner(id) {
@@ -990,8 +1306,11 @@ function triggerAutoExtractPhonesFromNames() {
   }
 }
 window.openEditPartnerModal = openEditPartnerModal;
+window.openAssignToProjectModal = openAssignToProjectModal;
+window.handleAssignToProjectSubmit = handleAssignToProjectSubmit;
 window.triggerAutoExtractPhones = triggerAutoExtractPhones;
 window.autoExtractPhonesAndCleanAddresses = autoExtractPhonesAndCleanAddresses;
+window.batchSetPartnersInactive = batchSetPartnersInactive;
 
 function toggleSelectAllPartners(masterCheckbox) {
   const checkboxes = document.querySelectorAll(".partner-checkbox");
@@ -1002,23 +1321,50 @@ function toggleSelectAllPartners(masterCheckbox) {
 function updateBatchPartnersUI() {
   const checkboxes = document.querySelectorAll(".partner-checkbox");
   const checked = Array.from(checkboxes).filter(cb => cb.checked);
-  const btn = document.getElementById("btn-batch-delete-partners");
+  const btnDelete = document.getElementById("btn-batch-delete-partners");
+  const btnInactive = document.getElementById("btn-batch-inactive-partners");
   const count = document.getElementById("selected-partners-count");
+  const countInactive = document.getElementById("selected-partners-count-inactive");
 
-  if (btn && count) {
-    if (checked.length > 0) {
-      btn.style.display = "inline-flex";
-      count.innerText = checked.length;
-    } else {
-      btn.style.display = "none";
-      count.innerText = "0";
-    }
+  if (checked.length > 0) {
+    if (btnDelete) btnDelete.style.display = "inline-flex";
+    if (btnInactive) btnInactive.style.display = "inline-flex";
+    if (count) count.innerText = checked.length;
+    if (countInactive) countInactive.innerText = checked.length;
+  } else {
+    if (btnDelete) btnDelete.style.display = "none";
+    if (btnInactive) btnInactive.style.display = "none";
+    if (count) count.innerText = "0";
+    if (countInactive) countInactive.innerText = "0";
   }
 
   const master = document.getElementById("check-all-partners");
   if (master) {
     master.checked = checked.length === checkboxes.length && checkboxes.length > 0;
   }
+}
+
+function batchSetPartnersInactive() {
+  const checked = Array.from(document.querySelectorAll(".partner-checkbox")).filter(cb => cb.checked);
+  if (checked.length === 0) return;
+
+  if (!confirm(`Đặt trạng thái "Ngừng theo dõi" cho ${checked.length} đối tác đã chọn?`)) return;
+
+  const ids = checked.map(cb => cb.value);
+  let updated = 0;
+  state.partners.forEach(p => {
+    if (ids.includes(p.id) && !p.inactive) {
+      p.inactive = true;
+      p._updatedAt = Date.now();
+      updated++;
+    }
+  });
+
+  saveState();
+  initExcelIntegration();
+  filterPartners();
+  updateBatchPartnersUI();
+  showToast(`Đã ngừng theo dõi ${updated} đối tác!`, "success");
 }
 
 function batchDeletePartners() {
