@@ -3313,13 +3313,13 @@
 
   <!-- A-2. MODAL: LẬP PHIẾU THU -->
   <div id="modal-add-receipt" class="modal-overlay">
-    <div class="modal-content-container modal-w-md">
+    <div class="modal-content-container modal-w-lg">
       <div class="modal-header">
         <h3 class="card-title">Lập Phiếu Thu Tiền (Cash Receipt)</h3>
         <button class="icon-btn modal-close-btn" onclick="closeModal('modal-add-receipt')">×</button>
       </div>
       <div class="modal-body">
-        <form id="form-receipt" class="form-grid" style="grid-template-columns: 1fr;"
+        <form id="form-receipt" class="form-grid" style="grid-template-columns: 1fr 1fr;"
           onsubmit="handleReceiptSubmit(event)">
           <div class="form-group">
             <label class="form-label">Ngày hạch toán</label>
@@ -3346,16 +3346,16 @@
               <option value="711">Thu nhập khác (TK 711)</option>
             </select>
           </div>
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 2;">
             <label class="form-label">Số tiền (đ)</label>
             <input type="text" id="receipt-amount" class="form-control text-right number-format" required
-              placeholder="Nhập số tiền VNĐ">
+              placeholder="Nhập số tiền VNĐ" style="font-size: 16px; font-weight: 700; height: 46px;">
           </div>
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 2;">
             <label class="form-label">Lý do nộp tiền / Diễn giải</label>
             <input type="text" id="receipt-desc" class="form-control" required value="Thu hồi công nợ khách hàng">
           </div>
-          <div class="form-actions" style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 12px;">
+          <div class="form-actions" style="grid-column: span 2; margin-top: 12px; display: flex; justify-content: flex-end; gap: 12px;">
             <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-receipt')">Hủy</button>
             <button type="submit" class="btn btn-primary">Ghi sổ</button>
           </div>
@@ -3366,13 +3366,13 @@
 
   <!-- A-3. MODAL: LẬP PHIẾU CHI -->
   <div id="modal-add-payment" class="modal-overlay">
-    <div class="modal-content-container modal-w-md">
+    <div class="modal-content-container modal-w-lg">
       <div class="modal-header">
         <h3 class="card-title">Lập Phiếu Chi Tiền (Cash Payment)</h3>
         <button class="icon-btn modal-close-btn" onclick="closeModal('modal-add-payment')">×</button>
       </div>
       <div class="modal-body">
-        <form id="form-payment" class="form-grid" style="grid-template-columns: 1fr;"
+        <form id="form-payment" class="form-grid" style="grid-template-columns: 1fr 1fr;"
           onsubmit="handlePaymentSubmit(event)">
           <div class="form-group">
             <label class="form-label">Ngày hạch toán</label>
@@ -3400,17 +3400,17 @@
               <option value="112">Tiền gửi ngân hàng (1121)</option>
             </select>
           </div>
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 2;">
             <label class="form-label">Số tiền (đ)</label>
             <input type="text" id="payment-amount" class="form-control text-right number-format" required
-              placeholder="Nhập số tiền VNĐ">
+              placeholder="Nhập số tiền VNĐ" style="font-size: 16px; font-weight: 700; height: 46px;">
           </div>
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 2;">
             <label class="form-label">Lý do chi tiền / Diễn giải</label>
             <input type="text" id="payment-desc" class="form-control" required
               value="Trả tiền mua hàng cho nhà cung cấp">
           </div>
-          <div class="form-actions" style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 12px;">
+          <div class="form-actions" style="grid-column: span 2; margin-top: 12px; display: flex; justify-content: flex-end; gap: 12px;">
             <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-payment')">Hủy</button>
             <button type="submit" class="btn btn-primary"
               style="background-color: var(--color-warning); border-color: var(--color-warning);">Ghi sổ</button>
@@ -3789,13 +3789,13 @@
 
   <!-- B. MODAL: LẬP HÓA ĐƠN MUA HÀNG -->
   <div id="modal-add-purchase" class="modal-overlay">
-    <div class="modal-content-container">
+    <div class="modal-content-container" style="max-width: 1280px; width: 94%;">
       <div class="modal-header">
         <h3 class="card-title">Chứng từ Mua hàng nhập kho</h3>
         <button class="icon-btn modal-close-btn" onclick="closeModal('modal-add-purchase')">×</button>
       </div>
       <div class="modal-body">
-        <form id="form-purchase" class="form-grid" style="grid-template-columns: repeat(12, 1fr);" onsubmit="handlePurchaseSubmit(event)">
+        <form id="form-purchase" class="form-grid" style="grid-template-columns: repeat(12, 1fr); gap: 18px 16px;" onsubmit="handlePurchaseSubmit(event)">
           <div class="form-group" style="grid-column: span 5;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <label class="form-label" style="margin: 0;">Nhà cung cấp</label>
@@ -3902,14 +3902,14 @@
 
   <!-- B1.5. MODAL: LẬP TRẢ LẠI HÀNG -->
   <div id="modal-add-purchase-return" class="modal-overlay">
-    <div class="modal-content-container">
+    <div class="modal-content-container" style="max-width: 1280px; width: 94%;">
       <div class="modal-header">
         <h3 class="card-title">Chứng từ Hàng trả lại mua</h3>
         <button class="icon-btn modal-close-btn" onclick="closeModal('modal-add-purchase-return')">×</button>
       </div>
       <div class="modal-body">
-        <form id="form-purchase-return" class="form-grid" onsubmit="handlePurchaseReturnSubmit(event)">
-          <div class="form-group">
+        <form id="form-purchase-return" class="form-grid" style="grid-template-columns: repeat(12, 1fr); gap: 18px 16px;" onsubmit="handlePurchaseReturnSubmit(event)">
+          <div class="form-group" style="grid-column: span 5;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <label class="form-label" style="margin: 0;">Nhà cung cấp</label>
               <button type="button" class="btn-text-link" onclick="openQuickAddPartnerModal('supplier')"
@@ -3926,17 +3926,17 @@
               list="datalist-partners">
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 2;">
             <label class="form-label">Số chứng từ</label>
             <input type="text" id="pur-return-id" class="form-control" placeholder="Tự sinh nếu để trống">
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 2;">
             <label class="form-label">Ngày hạch toán</label>
             <input type="date" id="ret-date" class="form-control" required>
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 3;">
             <label class="form-label">Phương thức thanh toán</label>
             <select id="ret-payment" class="form-control" required>
               <option value="131">Giảm trừ công nợ (TK 131)</option>
@@ -4015,14 +4015,14 @@
 
   <!-- B2. MODAL: LẬP ĐƠN ĐẶT HÀNG -->
   <div id="modal-add-purchase-order" class="modal-overlay">
-    <div class="modal-content-container">
+    <div class="modal-content-container" style="max-width: 1280px; width: 94%;">
       <div class="modal-header">
         <h3 class="card-title">Chứng từ Đơn đặt hàng</h3>
         <button class="icon-btn modal-close-btn" onclick="closeModal('modal-add-purchase-order')">×</button>
       </div>
       <div class="modal-body">
-        <form id="form-purchase-order" class="form-grid" onsubmit="handlePurchaseOrderSubmit(event)">
-          <div class="form-group">
+        <form id="form-purchase-order" class="form-grid" style="grid-template-columns: repeat(12, 1fr); gap: 18px 16px;" onsubmit="handlePurchaseOrderSubmit(event)">
+          <div class="form-group" style="grid-column: span 5;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <label class="form-label" style="margin: 0;">Nhà cung cấp</label>
               <button type="button" class="btn-text-link" onclick="openQuickAddPartnerModal('supplier')"
@@ -4039,17 +4039,17 @@
               list="datalist-partners">
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 2;">
             <label class="form-label">Số chứng từ</label>
             <input type="text" id="pur-order-id" class="form-control" placeholder="Tự sinh nếu để trống">
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 2;">
             <label class="form-label">Ngày hạch toán</label>
             <input type="date" id="pur-order-date" class="form-control" required>
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 3;">
             <label class="form-label">Phương thức thanh toán</label>
             <select id="pur-order-payment" class="form-control" required>
               <option value="331">Chưa thanh toán (Công nợ TK 331)</option>
@@ -4128,13 +4128,13 @@
 
   <!-- C. MODAL: LẬP HÓA ĐƠN BÁN HÀNG -->
   <div id="modal-add-sales" class="modal-overlay">
-    <div class="modal-content-container">
+    <div class="modal-content-container" style="max-width: 1280px; width: 94%;">
       <div class="modal-header">
         <h3 class="card-title">Hóa đơn Bán hàng xuất kho</h3>
         <button class="icon-btn modal-close-btn" onclick="closeModal('modal-add-sales')">×</button>
       </div>
       <div class="modal-body">
-        <form id="form-sales" class="form-grid" style="grid-template-columns: repeat(12, 1fr);" onsubmit="handleSalesSubmit(event)">
+        <form id="form-sales" class="form-grid" style="grid-template-columns: repeat(12, 1fr); gap: 18px 16px;" onsubmit="handleSalesSubmit(event)">
           <div class="form-group" style="grid-column: span 2;">
             <label class="form-label">Số chứng từ</label>
             <input type="text" id="sale-id" class="form-control" placeholder="Tự sinh nếu để trống">
@@ -4311,19 +4311,19 @@
 
   <!-- C2. MODAL: LẬP BÁO GIÁ -->
   <div id="modal-add-sales-quotation" class="modal-overlay">
-    <div class="modal-content-container">
+    <div class="modal-content-container" style="max-width: 1280px; width: 94%;">
       <div class="modal-header">
         <h3 class="card-title">Lập Phiếu Báo Giá</h3>
         <button class="icon-btn modal-close-btn" onclick="closeModal('modal-add-sales-quotation')">×</button>
       </div>
       <div class="modal-body">
-        <form id="form-quotation" class="form-grid" onsubmit="handleQuotationSubmit(event)">
-          <div class="form-group">
+        <form id="form-quotation" class="form-grid" style="grid-template-columns: repeat(12, 1fr); gap: 18px 16px;" onsubmit="handleQuotationSubmit(event)">
+          <div class="form-group" style="grid-column: span 2;">
             <label class="form-label">Số báo giá</label>
             <input type="text" id="quotation-id" class="form-control" placeholder="Tự sinh nếu để trống (BGxxxxx)">
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 5;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <label class="form-label" style="margin: 0;">Khách hàng</label>
               <button type="button" class="btn-text-link" onclick="openQuickAddPartnerModal()"
@@ -4340,12 +4340,12 @@
               list="datalist-partners">
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 2;">
             <label class="form-label">Ngày báo giá</label>
             <input type="date" id="quotation-date" class="form-control" required>
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 3;">
             <label class="form-label">Hình thức thanh toán</label>
             <select id="quotation-payment" class="form-control" required>
               <option value="131">Chưa thu tiền (Ghi nợ TK 131)</option>
@@ -4436,19 +4436,19 @@
 
   <!-- D. MODAL: LẬP HÀNG TRẢ LẠI BÊN BÁN HÀNG -->
   <div id="modal-add-sales-return" class="modal-overlay">
-    <div class="modal-content-container">
+    <div class="modal-content-container" style="max-width: 1280px; width: 94%;">
       <div class="modal-header">
         <h3 class="card-title">Chứng từ Hàng bán trả lại</h3>
         <button class="icon-btn modal-close-btn" onclick="closeModal('modal-add-sales-return')">×</button>
       </div>
       <div class="modal-body">
-        <form id="form-sales-return" class="form-grid" onsubmit="handleSalesReturnSubmit(event)">
-          <div class="form-group">
+        <form id="form-sales-return" class="form-grid" style="grid-template-columns: repeat(12, 1fr); gap: 18px 16px;" onsubmit="handleSalesReturnSubmit(event)">
+          <div class="form-group" style="grid-column: span 2;">
             <label class="form-label">Số chứng từ</label>
             <input type="text" id="sales-ret-id" class="form-control" placeholder="Tự sinh nếu để trống">
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 5;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <label class="form-label" style="margin: 0;">Khách hàng trả lại</label>
               <button type="button" class="btn-text-link" onclick="openQuickAddPartnerModal()"
@@ -4465,12 +4465,12 @@
               list="datalist-partners">
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 2;">
             <label class="form-label">Ngày hạch toán</label>
             <input type="date" id="sales-ret-date" class="form-control" required>
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 3;">
             <label class="form-label">Hình thức trả tiền/giảm nợ</label>
             <select id="sales-ret-payment" class="form-control" required>
               <option value="131">Giảm trừ công nợ (TK 131)</option>
