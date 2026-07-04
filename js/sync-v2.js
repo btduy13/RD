@@ -650,8 +650,18 @@ function syncV2MergeEntityArrays(stateKey, localArr, cloudArr, deleted, options)
       const cloudTs = Number(item._updatedAt) || 0;
       if (cloudTs > localTs) {
         applyCloud = true;
-      } else if (cloudTs === localTs && !tieKeepsLocal) {
-        applyCloud = !syncV2Equal(localItem, item);
+      } else if (cloudTs === localTs) {
+        if (!tieKeepsLocal) {
+          applyCloud = !syncV2Equal(localItem, item);
+        } else if (
+          localItem._sessionId &&
+          item._sessionId &&
+          localItem._sessionId !== item._sessionId &&
+          !syncV2Equal(localItem, item)
+        ) {
+          // Same timestamp from two machines: keep the remote copy so orders are not hidden.
+          applyCloud = true;
+        }
       }
     }
     if (!applyCloud) return;
@@ -951,25 +961,14 @@ function syncV2NeedsPushAfterPull(mergedState, cloudSnapshot) {
 // merge, so no defensive clone is needed) and returns how many items were
 // pruned so the caller can factor it into the "anything changed" decision.
 function syncV2PruneStaleLocalOnlyItems(mergedState, localBeforePull, cloudSnapshot, checkpointTs) {
-  const checkpoint = Number(checkpointTs) || 0;
-  if (checkpoint <= 0) return 0;
-
-  let prunedCount = 0;
-  SYNC_V2_ENTITY_DEFS.forEach(def => {
-    const cloudIds = new Set((cloudSnapshot[def.stateKey] || []).filter(item => item && item.id).map(item => item.id));
-    const localIds = new Set((localBeforePull[def.stateKey] || []).filter(item => item && item.id).map(item => item.id));
-    const before = (mergedState[def.stateKey] || []);
-    const kept = before.filter(item => {
-      if (!item || !item.id) return false;
-      if (cloudIds.has(item.id)) return true;
-      if (!localIds.has(item.id)) return true;
-      return (Number(item._updatedAt) || 0) > checkpoint - 2000;
-    });
-    prunedCount += before.length - kept.length;
-    mergedState[def.stateKey] = kept;
-  });
-
-  return prunedCount;
+  // Disabled time-based pruning: local-only vouchers that have not reached cloud yet
+  // were being dropped during concurrent pulls on other machines. Unpushed items are
+  // handled by syncV2RescueLocalOnlyItems instead.
+  void mergedState;
+  void localBeforePull;
+  void cloudSnapshot;
+  void checkpointTs;
+  return 0;
 }
 
 function deferCloudPull(reason) {
@@ -1136,16 +1135,17 @@ async function pullAndMergeFromCloud(options = {}) {
 async function pullFromCloudOnStartup() {
   if (!cloudSyncActive || !supabaseClient) return;
 
-  // Incremental startup pull when we have a valid checkpoint AND a cached cloud snapshot
-  // to merge partial rows into; full pull only on first run / cleared storage.
+  // Incremental startup pull when we have a valid checkpoint; full pull only on first run.
+  // lastSyncState is intentionally NOT seeded from local cache (see state.js) so we never
+  // treat unpushed local vouchers as already synced.
   const startupCheckpoint = getPullCheckpointTs();
-  const hasBaseSnapshot = !!(window.lastSyncState || lastSyncState);
-  const needFullPull = !(startupCheckpoint > 0 && hasBaseSnapshot);
+  const needFullPull = !(startupCheckpoint > 0);
   updateStartupStatus(needFullPull ? "Dang full-reconcile du lieu cloud..." : "Dang dong bo thay doi tu cloud...");
   syncV2Log(`Startup pull mode: ${needFullPull ? "full" : `incremental (checkpoint=${startupCheckpoint})`}.`);
 
   try {
     await pullAndMergeFromCloud({ startup: true, forceFull: needFullPull, force: true, reason: "startup" });
+    await syncV2RescueLocalOnlyItems();
     finishStartupPull();
     updateCloudSyncBadge(true, "May: Da ket noi", "#10b981");
     syncV2Log("Startup reconcile completed.");
@@ -1240,6 +1240,65 @@ async function syncV2PrePullBeforePush() {
   }
 }
 
+async function syncV2RescueLocalOnlyItems() {
+  if (!cloudSyncActive || !supabaseClient) return false;
+
+  syncV2Log("Rescue scan: looking for local-only vouchers/products/partners not yet on cloud...");
+  try {
+    const localKeys = [
+      ...(state.vouchers || []).filter(v => v && v.id).map(v => `v_${v.id}`),
+      ...(state.products || []).filter(p => p && p.id).map(p => `p_${p.id}`),
+      ...(state.partners || []).filter(pt => pt && pt.id).map(pt => `part_${pt.id}`)
+    ];
+    if (localKeys.length === 0) return false;
+
+    const cloudIds = await fetchExistingCloudIdsByKeysFromClient(supabaseClient, localKeys);
+    let changed = false;
+    const now = Date.now();
+
+    function rescueEntity(stateKey, rowPrefix) {
+      (state[stateKey] || []).forEach(item => {
+        if (!item || !item.id) return;
+        const cloudKey = `${rowPrefix}${item.id}`;
+        if (cloudIds.has(cloudKey)) return;
+
+        item._updatedAt = Math.max(Number(item._updatedAt) || 0, now);
+        syncV2Log(`Rescue: local-only ${stateKey.slice(0, -1)} ${item.id} marked for cloud push.`);
+        changed = true;
+
+        lastSyncState = window.lastSyncState || lastSyncState;
+        if (lastSyncState && Array.isArray(lastSyncState[stateKey])) {
+          lastSyncState[stateKey] = lastSyncState[stateKey].filter(x => !x || x.id !== item.id);
+          window.lastSyncState = lastSyncState;
+        }
+      });
+    }
+
+    rescueEntity("vouchers", "v_");
+    rescueEntity("products", "p_");
+    rescueEntity("partners", "part_");
+
+    if (changed) {
+      state._lastModified = now;
+      syncV2Log("Rescue: local-only items found; triggering save/push.");
+      const saveFn = typeof saveStateSync === "function"
+        ? saveStateSync
+        : (typeof window.saveStateSync === "function" ? window.saveStateSync : null);
+      if (saveFn) {
+        await saveFn();
+      }
+    } else {
+      syncV2Log("Rescue scan: no stuck local-only items.");
+    }
+
+    return changed;
+  } catch (err) {
+    console.error("[CloudSyncV2] Rescue failed:", err);
+    if (typeof addErrorLog === "function") addErrorLog("CloudSyncV2.rescue", err.message, err);
+    return false;
+  }
+}
+
 async function syncV2UpsertRows(rows) {
   for (let i = 0; i < rows.length; i += SYNC_V2_BATCH_SIZE) {
     const batch = rows.slice(i, i + SYNC_V2_BATCH_SIZE);
@@ -1272,6 +1331,9 @@ async function pushToCloud() {
   updateCloudSyncBadge(false, "May: Dang day...", "#f59e0b");
 
   try {
+    await syncV2PrePullBeforePush();
+    await syncV2RescueLocalOnlyItems();
+
     const metadataBefore = await syncV2EnsureMetadataRow();
     const cloudWatermarkBefore = await syncV2GetCloudWatermark(metadataBefore);
     const pushTs = Math.max(Date.now(), Number(state._lastModified) || 0, cloudWatermarkBefore + 1);
@@ -1761,6 +1823,9 @@ window.__syncV2Internals__ = {
   getCloudSafeVoucherId,
   ensureCloudSafeVoucherIdForSave,
   getMaxVoucherSequenceFromRows,
-  fetchExistingCloudIdsByKeysFromClient
+  fetchExistingCloudIdsByKeysFromClient,
+  syncV2RescueLocalOnlyItems,
+  syncV2PruneStaleLocalOnlyItems,
+  syncV2PrePullBeforePush
 };
 window.__syncInternals__ = window.__syncV2Internals__;
