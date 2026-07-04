@@ -650,6 +650,26 @@ async function executeSaveState(sync = false) {
 window.initializeLastSavedState = initializeLastSavedState;
 window.saveStateSync = saveStateSync;
 
+/**
+ * Immediate local save + cloud push for vouchers/orders.
+ * Bypasses the 2s debounce so other machines see new orders quickly.
+ */
+async function saveStateAndSyncVoucher() {
+  saveStateIsDirty = true;
+  if (saveStateTimeout) {
+    clearTimeout(saveStateTimeout);
+    saveStateTimeout = null;
+  }
+
+  await executeSaveState(true);
+
+  if (typeof cloudSyncActive !== "undefined" && cloudSyncActive && typeof pushToCloud === "function") {
+    await pushToCloud();
+  }
+}
+
+window.saveStateAndSyncVoucher = saveStateAndSyncVoucher;
+
 async function waitForPushToComplete(maxWaitMs = 3000) {
   const startTime = Date.now();
   while (typeof isPushing !== 'undefined' && isPushing) {

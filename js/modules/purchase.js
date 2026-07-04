@@ -587,8 +587,8 @@ async function handlePurchaseSubmit(e) {
     state.vouchers.push(newVoucher);
   }
 
-  saveState();
-  recalculateAccounting();
+  recalculateAccounting(false);
+  await saveStateAndSyncVoucher();
 
   closeModal("modal-add-purchase");
   showToast(isEdit ? "Cập nhật chứng từ mua hàng thành công!" : "Lập chứng từ mua hàng thành công!", "success");
@@ -1311,8 +1311,8 @@ async function handlePurchaseOrderSubmit(e) {
     state.vouchers.push(newVoucher);
   }
 
-  saveState();
-  recalculateAccounting();
+  recalculateAccounting(false);
+  await saveStateAndSyncVoucher();
 
   closeModal("modal-add-purchase-order");
   showToast(isEdit ? "Cập nhật đơn đặt hàng thành công!" : "Lập đơn đặt hàng thành công!", "success");

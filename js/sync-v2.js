@@ -20,6 +20,8 @@ let lastCloudMetadataPollAt = 0;
 let lastCheckpointRecoveryAt = 0;
 let lastPulledCloudWatermark = 0;
 let pushRetryTimeout = null;
+let scheduledPullTimer = null;
+let lastPullCompletedAt = 0;
 
 const SYNC_V2_CHECKPOINT_KEY = "rd_accounting_last_pulled_cloud_ts";
 const SYNC_V2_TABLE = "rd_accounting_data";
@@ -31,6 +33,8 @@ const SYNC_V2_BATCH_SIZE = 300;
 const SYNC_V2_DELETE_BATCH_SIZE = 100;
 const SYNC_V2_POLL_INTERVAL_MS = 15000;
 const SYNC_V2_POLL_MIN_GAP_MS = 1500;
+const SYNC_V2_PULL_DEBOUNCE_MS = 450;
+const SYNC_V2_PRE_PUSH_PULL_COOLDOWN_MS = 2000;
 const SYNC_V2_STALE_LOCK_MS = 30 * 60 * 1000;
 const SYNC_V2_RECOVERY_GAP_MS = 60 * 1000;
 const SYNC_V2_RECONNECT_DELAY_MS = 5000;
@@ -940,13 +944,21 @@ async function syncV2PersistPullDeltaToCache(mergedState, changedIdsByEntity = n
 }
 
 function syncV2RefreshUiAfterPull() {
-  if (typeof recalculateAccounting === "function") recalculateAccounting(false);
-  if (typeof filterDebts === "function") filterDebts();
-  if (typeof filterPartners === "function") filterPartners();
-  if (typeof filterCash === "function") filterCash();
-  if (typeof initExcelIntegration === "function") initExcelIntegration();
-  if (typeof refreshOpenPartnerLedgerModal === "function") refreshOpenPartnerLedgerModal();
-  if (typeof refreshUI === "function") refreshUI();
+  const run = () => {
+    if (typeof recalculateAccounting === "function") recalculateAccounting(false);
+    if (typeof filterDebts === "function") filterDebts();
+    if (typeof filterPartners === "function") filterPartners();
+    if (typeof filterCash === "function") filterCash();
+    if (typeof initExcelIntegration === "function") initExcelIntegration();
+    if (typeof refreshOpenPartnerLedgerModal === "function") refreshOpenPartnerLedgerModal();
+    if (typeof refreshUI === "function") refreshUI();
+  };
+
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(run, { timeout: 1500 });
+  } else {
+    setTimeout(run, 0);
+  }
 }
 
 function syncV2NeedsPushAfterPull(mergedState, cloudSnapshot) {
@@ -982,7 +994,21 @@ function scheduleCloudPull(reason, options = {}) {
     deferCloudPull(reason);
     return;
   }
-  pullAndMergeFromCloud({ reason, ...options });
+
+  if (options.force || options.startup || options.forceFull) {
+    if (scheduledPullTimer) {
+      clearTimeout(scheduledPullTimer);
+      scheduledPullTimer = null;
+    }
+    pullAndMergeFromCloud({ reason, ...options });
+    return;
+  }
+
+  if (scheduledPullTimer) clearTimeout(scheduledPullTimer);
+  scheduledPullTimer = setTimeout(() => {
+    scheduledPullTimer = null;
+    pullAndMergeFromCloud({ reason, ...options });
+  }, SYNC_V2_PULL_DEBOUNCE_MS);
 }
 
 async function flushDeferredCloudSync() {
@@ -1125,6 +1151,7 @@ async function pullAndMergeFromCloud(options = {}) {
     throw err;
   } finally {
     isPulling = false;
+    lastPullCompletedAt = Date.now();
     if (pullPending) {
       pullPending = false;
       setTimeout(() => pullAndMergeFromCloud({ reason: "pending" }), 250);
@@ -1229,6 +1256,10 @@ function computeDelta() {
 }
 
 async function syncV2PrePullBeforePush() {
+  if (Date.now() - lastPullCompletedAt < SYNC_V2_PRE_PUSH_PULL_COOLDOWN_MS) {
+    return;
+  }
+
   const metadata = await syncV2EnsureMetadataRow();
   syncV2NoteLegacyLock(metadata, "pre-push");
 
@@ -1240,16 +1271,42 @@ async function syncV2PrePullBeforePush() {
   }
 }
 
-async function syncV2RescueLocalOnlyItems() {
+function syncV2GetRescueCandidateKeys() {
+  lastSyncState = window.lastSyncState || lastSyncState;
+  const keys = [];
+
+  SYNC_V2_ENTITY_DEFS.forEach(def => {
+    const currentItems = Array.isArray(state[def.stateKey]) ? state[def.stateKey] : [];
+    const previousItems = Array.isArray(lastSyncState && lastSyncState[def.stateKey]) ? lastSyncState[def.stateKey] : [];
+    const previousMap = new Map(previousItems.filter(item => item && item.id).map(item => [item.id, item]));
+
+    currentItems.forEach(item => {
+      if (!item || !item.id) return;
+      const previous = previousMap.get(item.id);
+      if (!previous || !syncV2Equal(previous, item)) {
+        keys.push(`${def.rowPrefix}${item.id}`);
+      }
+    });
+  });
+
+  return keys;
+}
+
+async function syncV2RescueLocalOnlyItems(options = {}) {
   if (!cloudSyncActive || !supabaseClient) return false;
 
-  syncV2Log("Rescue scan: looking for local-only vouchers/products/partners not yet on cloud...");
+  const triggerSave = options.triggerSave !== false;
+  const candidateKeysOnly = options.candidateKeysOnly === true;
+
+  syncV2Log(`Rescue scan (${candidateKeysOnly ? "push-candidates" : "full"}${triggerSave ? "" : ", no-save"})...`);
   try {
-    const localKeys = [
-      ...(state.vouchers || []).filter(v => v && v.id).map(v => `v_${v.id}`),
-      ...(state.products || []).filter(p => p && p.id).map(p => `p_${p.id}`),
-      ...(state.partners || []).filter(pt => pt && pt.id).map(pt => `part_${pt.id}`)
-    ];
+    const localKeys = candidateKeysOnly
+      ? syncV2GetRescueCandidateKeys()
+      : [
+        ...(state.vouchers || []).filter(v => v && v.id).map(v => `v_${v.id}`),
+        ...(state.products || []).filter(p => p && p.id).map(p => `p_${p.id}`),
+        ...(state.partners || []).filter(pt => pt && pt.id).map(pt => `part_${pt.id}`)
+      ];
     if (localKeys.length === 0) return false;
 
     const cloudIds = await fetchExistingCloudIdsByKeysFromClient(supabaseClient, localKeys);
@@ -1280,12 +1337,14 @@ async function syncV2RescueLocalOnlyItems() {
 
     if (changed) {
       state._lastModified = now;
-      syncV2Log("Rescue: local-only items found; triggering save/push.");
-      const saveFn = typeof saveStateSync === "function"
-        ? saveStateSync
-        : (typeof window.saveStateSync === "function" ? window.saveStateSync : null);
-      if (saveFn) {
-        await saveFn();
+      syncV2Log("Rescue: local-only items found; queuing for cloud push.");
+      if (triggerSave) {
+        const saveFn = typeof saveStateSync === "function"
+          ? saveStateSync
+          : (typeof window.saveStateSync === "function" ? window.saveStateSync : null);
+        if (saveFn) {
+          await saveFn();
+        }
       }
     } else {
       syncV2Log("Rescue scan: no stuck local-only items.");
@@ -1332,7 +1391,7 @@ async function pushToCloud() {
 
   try {
     await syncV2PrePullBeforePush();
-    await syncV2RescueLocalOnlyItems();
+    await syncV2RescueLocalOnlyItems({ triggerSave: false, candidateKeysOnly: true });
 
     const metadataBefore = await syncV2EnsureMetadataRow();
     const cloudWatermarkBefore = await syncV2GetCloudWatermark(metadataBefore);
@@ -1826,6 +1885,8 @@ window.__syncV2Internals__ = {
   fetchExistingCloudIdsByKeysFromClient,
   syncV2RescueLocalOnlyItems,
   syncV2PruneStaleLocalOnlyItems,
-  syncV2PrePullBeforePush
+  syncV2PrePullBeforePush,
+  syncV2GetRescueCandidateKeys,
+  scheduleCloudPull
 };
 window.__syncInternals__ = window.__syncV2Internals__;

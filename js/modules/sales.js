@@ -649,8 +649,8 @@ async function handleSalesSubmit(e) {
     state.vouchers.push(newVoucher);
   }
 
-  saveState();
-  recalculateAccounting();
+  recalculateAccounting(false);
+  await saveStateAndSyncVoucher();
 
   closeModal("modal-add-sales");
   showToast("Lập hóa đơn bán hàng thành công!", "success");
@@ -1333,8 +1333,8 @@ async function handleSalesReturnSubmit(e) {
     state.vouchers.push(newVoucher);
   }
 
-  saveState();
-  recalculateAccounting();
+  recalculateAccounting(false);
+  await saveStateAndSyncVoucher();
 
   closeModal("modal-add-sales-return");
   showToast(isEdit ? "Cập nhật chứng từ trả lại thành công!" : "Lập chứng từ trả lại hàng thành công!", "success");
@@ -2056,8 +2056,8 @@ async function handleQuotationSubmit(e) {
     state.vouchers.push(newVoucher);
   }
 
-  saveState();
-  recalculateAccounting();
+  recalculateAccounting(false);
+  await saveStateAndSyncVoucher();
 
   closeModal("modal-add-sales-quotation");
   showToast("Lập phiếu báo giá thành công!", "success");

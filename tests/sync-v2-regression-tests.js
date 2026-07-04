@@ -204,11 +204,28 @@ async function testRescueRemovesStuckVoucherFromLastSyncState() {
   assert.ok(delta.rowsToUpsert.some(row => row.id === "v_PO-STUCK"), "rescued voucher must be eligible for push");
 }
 
+function testRescueCandidateKeysOnlyChecksPushDiff() {
+  const { internals, sandbox } = loadSyncV2Internals();
+  sandbox.state.vouchers = [
+    { id: "PO-1", type: "purchase_order", _updatedAt: 1000 },
+    { id: "PO-2", type: "purchase_order", _updatedAt: 2000 }
+  ];
+  sandbox.window.lastSyncState = {
+    vouchers: [{ id: "PO-1", type: "purchase_order", _updatedAt: 1000 }],
+    products: [],
+    partners: []
+  };
+
+  const keys = internals.syncV2GetRescueCandidateKeys();
+  assert.deepEqual(keys, ["v_PO-2"], "rescue candidates should only include rows that differ from lastSyncState");
+}
+
 async function run() {
   testComputeDeltaDetectsUnpushedVoucherWhenLastSyncStateNull();
   testComputeDeltaSkipsAlreadySyncedVoucher();
   testPruneDoesNotDropLocalOnlyVouchers();
   testMergeKeepsRemoteVoucherOnTimestampTieWithDifferentSession();
+  testRescueCandidateKeysOnlyChecksPushDiff();
   await testRescueRemovesStuckVoucherFromLastSyncState();
   console.log("sync-v2 regression tests passed");
 }
