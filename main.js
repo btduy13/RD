@@ -734,7 +734,7 @@ const STATE_FILE_PATH = path.join(STATE_DIR_PATH, 'rd_state.json');
 const SCHEMA_VERSION = 4;
 
 const Database = require('better-sqlite3');
-const { dedupeProductCatalogOnState } = require('./js/core/product-case-dedupe.js');
+const { dedupeProductCatalogOnState, cleanGarbageProducts } = require('./js/core/product-case-dedupe.js');
 let db = null;
 
 function getEmptyStateObject() {
@@ -1194,8 +1194,13 @@ function applyProductCaseDedupeInDatabase(stateObj) {
     return { ok: true, changed: false };
   }
 
+  const garbageResult = cleanGarbageProducts(stateObj);
+  if (garbageResult && garbageResult.removed > 0) {
+    console.log(`[ProductClean] SQLite: xóa ${garbageResult.removed} mã hàng rác.`);
+  }
+
   const result = dedupeProductCatalogOnState(stateObj);
-  if (!result.changed) {
+  if (!result.changed && (!garbageResult || garbageResult.removed === 0)) {
     return result;
   }
 

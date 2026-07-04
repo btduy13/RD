@@ -125,15 +125,29 @@ async function initApp() {
     state.partnerOpeningBalanceTs = {};
   }
 
+  let _productCatalogChanged = false;
+
   if (typeof dedupeProductCatalogCase === "function" && Array.isArray(state.products) && state.products.length > 0) {
     const dedupeResult = dedupeProductCatalogCase({ runId: "init-load", recalculate: false });
     if (dedupeResult && dedupeResult.changed) {
       console.log(`[ProductDedupe] Renderer: ${dedupeResult.beforeCount} → ${dedupeResult.afterCount} mặt hàng (gộp ${dedupeResult.removedCount}).`);
-      if (typeof saveStateSync === "function") saveStateSync();
-      else if (typeof saveState === "function") saveState();
-      if (typeof recalculateAccounting === "function") recalculateAccounting(true);
+      _productCatalogChanged = true;
     }
   }
+
+  if (typeof ProductCaseDedupe !== "undefined" && ProductCaseDedupe.cleanGarbageProducts && Array.isArray(state.products)) {
+    const garbageResult = ProductCaseDedupe.cleanGarbageProducts(state);
+    if (garbageResult && garbageResult.removed > 0) {
+      console.log(`[ProductClean] Xóa ${garbageResult.removed} mã hàng rác (ngày/chứng từ/số): ${garbageResult.samples.slice(0, 5).join(", ")}`);
+      _productCatalogChanged = true;
+    }
+  }
+
+  if (_productCatalogChanged) {
+    if (typeof saveState === "function") saveState();
+    if (typeof recalculateAccounting === "function") recalculateAccounting(true);
+  }
+
 
   // === ƯU TIÊN KHỞI CHẠY ĐẦU TIÊN: Nạp ngay các dropdown list của cửa sổ bán hàng từ cache cục bộ ===
   if (typeof initExcelIntegration === "function") {
@@ -229,7 +243,9 @@ async function initApp() {
 
 
   // Khởi tạo các dòng Excel mặc định nếu bị thiếu
-  initializeMissingExcelRows();
+  if (typeof initializeMissingExcelRows === "function") {
+    initializeMissingExcelRows();
+  }
 
   // Dọn dẹp và chuẩn hóa dữ liệu Excel cũ tránh giá trị undefined
   if (typeof migrateAndCleanExistingExcelRows === "function") {

@@ -1522,11 +1522,11 @@ body.light-theme .modal-overlay {
 .printable-voucher {
   background-color: #ffffff;
   color: #000000;
-  padding: 20px;
+  padding: 14px 18px;
   border-radius: var(--radius-sm);
   font-family: "Times New Roman", Times, serif;
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.35;
   box-shadow: var(--shadow-md);
   margin: 0 auto;
   max-width: 750px;
@@ -1559,7 +1559,7 @@ body.light-theme .modal-overlay {
 .voucher-header-top {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 10px;
 }
 
 .voucher-co-info {
@@ -1568,94 +1568,92 @@ body.light-theme .modal-overlay {
 .voucher-co-name {
   font-weight: bold;
   text-transform: uppercase;
-  font-size: 15px;
+  font-size: 13.5px;
 }
 .voucher-co-addr {
-  font-size: 14px;
+  font-size: 12px;
 }
 
 /* Header Rạng Đông: logo | thông tin công ty | QR (grid, cho phép wrap) */
 .voucher-rd-header {
   display: grid;
-  grid-template-columns: 80px 1fr 120px;
-  gap: 6px 8px;
-  align-items: start;
+  grid-template-columns: 70px 1fr auto;
+  gap: 0 6px;
+  align-items: center;
   border-bottom: 2px solid #000;
-  padding: 10px 0 6px;
-  margin-bottom: 8px;
+  padding: 6px 0 5px;
+  margin-bottom: 6px;
 }
 .voucher-rd-header-logo {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-top: 4px;
 }
 .voucher-rd-header-logo img {
-  max-height: 45px;
-  max-width: 75px;
+  max-height: 42px;
+  max-width: 68px;
   object-fit: contain;
 }
 .voucher-rd-header-info {
   text-align: center;
   min-width: 0;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 .voucher-rd-co-name {
   font-weight: bold;
-  font-size: 14px;
+  font-size: 13.5px;
   text-transform: uppercase;
   letter-spacing: 0.2px;
-  line-height: 1.2;
+  line-height: 1.15;
+  margin-bottom: 1px;
 }
 .voucher-rd-co-unit {
   font-weight: bold;
-  font-size: 11.5px;
+  font-size: 10.5px;
   text-transform: uppercase;
-  margin-top: 2px;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 .voucher-rd-co-addr,
 .voucher-rd-co-tel {
-  font-size: 11.5px;
-  margin-top: 2px;
-  line-height: 1.3;
+  font-size: 11px;
+  margin-top: 1px;
+  line-height: 1.2;
   word-wrap: break-word;
   overflow-wrap: break-word;
 }
 .voucher-rd-co-tel {
   font-weight: 500;
-  margin-top: 1px;
 }
 .voucher-rd-header-qr {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  padding: 2px;
+  justify-content: center;
+  padding: 0 2px;
   background: #fff;
 }
 .voucher-rd-qr-label {
-  font-size: 8px;
+  font-size: 7.5px;
   font-weight: bold;
   text-transform: uppercase;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
   letter-spacing: 0.1px;
   text-align: center;
-  line-height: 1.2;
+  line-height: 1.1;
 }
 .voucher-rd-header-qr img {
-  width: 90px;
-  height: 90px;
+  width: 80px;
+  height: 80px;
   display: block;
 }
 .voucher-rd-qr-stk {
-  font-size: 9px;
-  margin-top: 2px;
+  font-size: 8.5px;
+  margin-top: 1px;
   font-family: monospace;
   font-weight: bold;
 }
 .voucher-rd-header--no-qr {
-  grid-template-columns: 80px 1fr;
+  grid-template-columns: 70px 1fr;
 }
 .voucher-rd-header--no-qr .voucher-rd-header-info {
   text-align: center;
@@ -1671,28 +1669,28 @@ body.light-theme .modal-overlay {
 
 .voucher-title-area {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 10px;
 }
 .voucher-title {
-  font-size: 25px;
+  font-size: 22px;
   font-weight: bold;
   text-transform: uppercase;
 }
 .voucher-subtitle {
   font-style: italic;
-  font-size: 15px;
+  font-size: 13px;
 }
 
 .voucher-entries-note {
   position: absolute;
-  top: 90px;
-  right: 40px;
+  top: 70px;
+  right: 30px;
   text-align: right;
-  font-size: 15px;
+  font-size: 13px;
 }
 
 .voucher-info-row {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   display: flex;
   justify-content: space-between;
 }

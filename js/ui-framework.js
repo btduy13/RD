@@ -414,9 +414,9 @@ function viewVoucher(id) {
     content = `
       <div class="printable-voucher">
         <div class="voucher-header-top">
-          <div style="display: flex; align-items: center; gap: 15px;">
-            <div style="display: flex; align-items: center; justify-content: center; width: 120px; height: 50px; flex-shrink: 0;">
-              <img src="logo.jpg" style="max-height: 48px; max-width: 120px; object-fit: contain;" alt="Logo Rạng Đông" />
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="display: flex; align-items: center; justify-content: center; width: 70px; flex-shrink: 0;">
+              <img src="logo.jpg" style="max-height: 42px; max-width: 68px; object-fit: contain;" alt="Logo Rạng Đông" />
             </div>
             <div class="voucher-co-info" style="width: auto;">
               <span class="voucher-co-name">${companyName}</span><br>
@@ -440,7 +440,7 @@ function viewVoucher(id) {
           <span style="font-size: 13px; color: #666; font-style: italic;">(Không hạch toán kho & kế toán)</span>
         </div>
         
-        <div style="margin-top:20px;">
+        <div style="margin-top:8px;">
           <div class="voucher-info-row">
             <span class="info-label">- Nhà cung cấp:</span>
             <span class="info-dotted">${partnerName}</span>
@@ -556,21 +556,21 @@ function viewVoucher(id) {
     content = `
       <div class="printable-voucher" style="max-width:800px; padding:8px; font-family:'Times New Roman',Times,serif; font-size: 13px; color:#000; line-height:1.25;">
         <!-- Header -->
-        <div style="position:relative; border-bottom:2px solid #000; padding-bottom:6px; margin-bottom:8px; text-align:center; min-height:50px;">
-          <div style="position:absolute; left:0; top:50%; transform:translateY(-50%); width:80px; display:flex; align-items:center; justify-content:center;">
-            <img src="logo.jpg" style="max-height:45px; max-width:75px; object-fit:contain;" alt="Logo" />
+        <div style="position:relative; border-bottom:2px solid #000; padding-bottom:4px; margin-bottom:6px; text-align:center; min-height:44px;">
+          <div style="position:absolute; left:0; top:50%; transform:translateY(-50%); width:68px; display:flex; align-items:center; justify-content:center;">
+            <img src="logo.jpg" style="max-height:40px; max-width:65px; object-fit:contain;" alt="Logo" />
           </div>
-          <div style="padding:0 10px 0 90px; color:#000;">
-            <div style="font-weight:bold; font-size: 14px; text-transform:uppercase; white-space:nowrap;">${companyName}</div>
-            <div style="font-size: 11.5px; margin-top:2px; white-space:nowrap;">Mật số: ${state.accountingStandard === 'TT133' ? 'Mẫu số C21-DN (TT133)' : 'Mẫu số 01-VT (TT200)'}</div>
-            <div style="font-size: 11.5px; margin-top:2px; white-space:nowrap;">Địa chỉ: ${companyAddr}</div>
-            <div style="font-size: 11.5px; margin-top:1px; white-space:nowrap;">MST: ${companyTax}</div>
+          <div style="padding:0 8px 0 74px; color:#000;">
+            <div style="font-weight:bold; font-size: 13px; text-transform:uppercase; white-space:nowrap;">${companyName}</div>
+            <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">Mật số: ${state.accountingStandard === 'TT133' ? 'Mẫu số C21-DN (TT133)' : 'Mẫu số 01-VT (TT200)'}</div>
+            <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">Địa chỉ: ${companyAddr}</div>
+            <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">MST: ${companyTax}</div>
           </div>
         </div>
         <!-- Tiêu đề -->
-        <div style="text-align:center; margin-bottom:10px;">
-          <div style="font-size: 21px; font-weight:bold; letter-spacing:1.2px; text-transform:uppercase;">PHIẾU NHẬP KHO</div>
-          <div style="font-size: 12.5px; font-style:italic;">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</div>
+        <div style="text-align:center; margin-bottom:6px;">
+          <div style="font-size: 20px; font-weight:bold; letter-spacing:1px; text-transform:uppercase;">PHIẾU NHẬP KHO</div>
+          <div style="font-size: 12px; font-style:italic;">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</div>
         </div>
         <!-- Thông tin -->
         <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size: 12.5px;">
@@ -670,21 +670,21 @@ function viewVoucher(id) {
     content = `
       <div class="printable-voucher" style="max-width:800px; padding:8px; font-family:'Times New Roman',Times,serif; font-size: 13px; color:#000; line-height:1.25;">
         <!-- Header -->
-        <div style="position:relative; border-bottom:2px solid #000; padding-bottom:6px; margin-bottom:8px; text-align:center; min-height:50px;">
-          <div style="position:absolute; left:0; top:50%; transform:translateY(-50%); width:80px; display:flex; align-items:center; justify-content:center;">
-            <img src="logo.jpg" style="max-height:45px; max-width:75px; object-fit:contain;" alt="Logo" />
+        <div style="position:relative; border-bottom:2px solid #000; padding-bottom:4px; margin-bottom:6px; text-align:center; min-height:44px;">
+          <div style="position:absolute; left:0; top:50%; transform:translateY(-50%); width:68px; display:flex; align-items:center; justify-content:center;">
+            <img src="logo.jpg" style="max-height:40px; max-width:65px; object-fit:contain;" alt="Logo" />
           </div>
-          <div style="padding:0 10px 0 90px; color:#000;">
-            <div style="font-weight:bold; font-size: 14px; text-transform:uppercase; white-space:nowrap;">${companyName}</div>
-            <div style="font-size: 11.5px; margin-top:2px; white-space:nowrap;">${isTT133pr ? 'Mẫu số C21-DN (TT133)' : 'Mẫu số 02-VT (TT200)'}</div>
-            <div style="font-size: 11.5px; margin-top:2px; white-space:nowrap;">Địa chỉ: ${companyAddr}</div>
-            <div style="font-size: 11.5px; margin-top:1px; white-space:nowrap;">MST: ${companyTax}</div>
+          <div style="padding:0 8px 0 74px; color:#000;">
+            <div style="font-weight:bold; font-size: 13px; text-transform:uppercase; white-space:nowrap;">${companyName}</div>
+            <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">${isTT133pr ? 'Mẫu số C21-DN (TT133)' : 'Mẫu số 02-VT (TT200)'}</div>
+            <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">Địa chỉ: ${companyAddr}</div>
+            <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">MST: ${companyTax}</div>
           </div>
         </div>
         <!-- Tiêu đề -->
-        <div style="text-align:center; margin-bottom:10px;">
-          <div style="font-size: 21px; font-weight:bold; letter-spacing:1.2px; text-transform:uppercase;">PHIẾU XUẤT KHO TRẢ NHÀ CUNG CẤP</div>
-          <div style="font-size: 12.5px; font-style:italic;">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</div>
+        <div style="text-align:center; margin-bottom:6px;">
+          <div style="font-size: 20px; font-weight:bold; letter-spacing:1px; text-transform:uppercase;">PHIẾU XUẤT KHO TRẢ NHÀ CUNG CẤP</div>
+          <div style="font-size: 12px; font-style:italic;">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</div>
         </div>
         <!-- Thông tin -->
         <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size: 12.5px;">
@@ -761,21 +761,21 @@ function viewVoucher(id) {
     content = `
       <div class="printable-voucher" style="max-width:800px; padding:8px; font-family:'Times New Roman',Times,serif; font-size: 13px; color:#000; line-height:1.25;">
         <!-- Header -->
-        <div style="position:relative; border-bottom:2px solid #000; padding-bottom:6px; margin-bottom:8px; text-align:center; min-height:50px;">
-          <div style="position:absolute; left:0; top:50%; transform:translateY(-50%); width:80px; display:flex; align-items:center; justify-content:center;">
-            <img src="logo.jpg" style="max-height:45px; max-width:75px; object-fit:contain;" alt="Logo" />
+        <div style="position:relative; border-bottom:2px solid #000; padding-bottom:4px; margin-bottom:6px; text-align:center; min-height:44px;">
+          <div style="position:absolute; left:0; top:50%; transform:translateY(-50%); width:68px; display:flex; align-items:center; justify-content:center;">
+            <img src="logo.jpg" style="max-height:40px; max-width:65px; object-fit:contain;" alt="Logo" />
           </div>
-          <div style="padding:0 10px 0 90px; color:#000;">
-            <div style="font-weight:bold; font-size: 14px; text-transform:uppercase; white-space:nowrap;">${companyName}</div>
-            <div style="font-size: 11.5px; margin-top:2px; white-space:nowrap;">Mẫu số 01-VT (TT200) — Phục hồi hàng bán trả lại</div>
-            <div style="font-size: 11.5px; margin-top:2px; white-space:nowrap;">Địa chỉ: ${companyAddr}</div>
-            <div style="font-size: 11.5px; margin-top:1px; white-space:nowrap;">MST: ${companyTax}</div>
+          <div style="padding:0 8px 0 74px; color:#000;">
+            <div style="font-weight:bold; font-size: 13px; text-transform:uppercase; white-space:nowrap;">${companyName}</div>
+            <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">Mẫu số 01-VT (TT200) — Phục hồi hàng bán trả lại</div>
+            <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">Địa chỉ: ${companyAddr}</div>
+            <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">MST: ${companyTax}</div>
           </div>
         </div>
         <!-- Tiêu đề -->
-        <div style="text-align:center; margin-bottom:10px;">
-          <div style="font-size: 21px; font-weight:bold; letter-spacing:1.2px; text-transform:uppercase;">PHIẾU NHẬP KHO HÀNG BÁN TRẢ LẠI</div>
-          <div style="font-size: 12.5px; font-style:italic;">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</div>
+        <div style="text-align:center; margin-bottom:6px;">
+          <div style="font-size: 20px; font-weight:bold; letter-spacing:1px; text-transform:uppercase;">PHIẾU NHẬP KHO HÀNG BÁN TRẢ LẠI</div>
+          <div style="font-size: 12px; font-style:italic;">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</div>
         </div>
         <!-- Thông tin -->
         <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size: 12.5px;">
@@ -873,8 +873,8 @@ function viewVoucher(id) {
         ${renderRdBrandedHeader(v.totalAmount || (grossTotal - totalDiscount) || 0)}
 
         <!-- Tiêu đề Phiếu giao hàng -->
-        <div style="text-align: center; margin-bottom: 10px;">
-          <div style="font-size: 21px; font-weight: bold; letter-spacing: 1.2px; text-transform: uppercase;">PHIẾU GIAO HÀNG</div>
+        <div style="text-align: center; margin-bottom: 6px;">
+          <div style="font-size: 20px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase;">PHIẾU GIAO HÀNG</div>
         </div>
 
         <!-- Phần thông tin khách hàng và ngày hóa đơn (chia cột giống giấy) -->
@@ -1013,9 +1013,8 @@ function viewVoucher(id) {
         ${renderRdBrandedHeader(v.totalAmount || (grossTotal - totalDiscount) || 0)}
 
         <!-- Tiêu đề Phiếu báo giá -->
-        <div style="text-align: center; margin-bottom: 10px;">
-          <div style="font-size: 21px; font-weight: bold; letter-spacing: 1.2px; text-transform: uppercase;">BẢNG BÁO GIÁ</div>
-          <span style="font-size: 14px; color: #666; font-style: italic;">(Số: ${v.id} - Không hạch toán kho & kế toán)</span>
+        <div style="text-align: center; margin-bottom: 8px;">
+          <div style="font-size: 20px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase;">BẢNG BÁO GIÁ</div>
         </div>
 
         <!-- Phần thông tin khách hàng và ngày hóa đơn -->
@@ -1246,17 +1245,17 @@ function viewVoucher(id) {
       <div class="printable-voucher" style="max-width:780px; padding:10px; font-family:'Times New Roman',Times,serif; font-size: 13px; color:#000; line-height:1.4;">
 
         <!-- HEADER: Logo trái + Tên công ty | Quyển số / Số / Nợ / Có bên phải -->
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #000; padding-bottom:6px; margin-bottom:10px;">
-          <div style="display:flex; align-items:center; gap:10px; flex:1;">
-            <img src="logo.jpg" style="max-height:44px; max-width:100px; object-fit:contain;" alt="Logo" />
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #000; padding-bottom:4px; margin-bottom:6px;">
+          <div style="display:flex; align-items:center; gap:8px; flex:1;">
+            <img src="logo.jpg" style="max-height:40px; max-width:68px; object-fit:contain;" alt="Logo" />
             <div>
-              <div style="font-weight:bold; font-size: 11.5px; text-transform:uppercase;">${companyName}</div>
-              <div style="font-size: 11.5px;">Địa chỉ: ${companyAddr}</div>
-              <div style="font-size: 11.5px;">MST: ${companyTax}</div>
+              <div style="font-weight:bold; font-size: 11px; text-transform:uppercase;">${companyName}</div>
+              <div style="font-size: 11px;">Địa chỉ: ${companyAddr}</div>
+              <div style="font-size: 11px;">MST: ${companyTax}</div>
             </div>
           </div>
-          <div style="text-align:right; font-size: 14px; min-width:160px; flex-shrink:0;">
-            <div style="font-size: 14px; color:#555;">${templateCode} &nbsp;(TT 200/2014/TT-BTC)</div>
+          <div style="text-align:right; font-size: 12px; min-width:140px; flex-shrink:0;">
+            <div style="font-size: 12px; color:#555;">${templateCode} &nbsp;(TT 200/2014/TT-BTC)</div>
             <div style="margin-top:3px;">Quyển số: <span style="border-bottom:1px dotted #000; display:inline-block; min-width:50px;">&nbsp;</span></div>
             <div>Số: <strong>${v.id}</strong></div>
             <div>Nợ: <strong>${e.debit}</strong></div>
@@ -1265,9 +1264,9 @@ function viewVoucher(id) {
         </div>
 
         <!-- TIÊU ĐỀ -->
-        <div style="text-align:center; margin-bottom:12px;">
-          <div style="font-size: 25px; font-weight:bold; letter-spacing:1px; text-transform:uppercase;">${title}</div>
-          <div style="font-size: 13px; font-style:italic;">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</div>
+        <div style="text-align:center; margin-bottom:8px;">
+          <div style="font-size: 22px; font-weight:bold; letter-spacing:1px; text-transform:uppercase;">${title}</div>
+          <div style="font-size: 12px; font-style:italic;">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</div>
         </div>
 
         <!-- THÔNG TIN PHIẾU -->

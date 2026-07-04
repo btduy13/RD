@@ -1763,77 +1763,42 @@ function debugProductAudit(trigger, extra) {
     })
     .slice(0, 8)
     .map((p) => ({ id: p.id, name: p.name }));
-  // #region agent log
-  fetch("http://127.0.0.1:7918/ingest/0b4f62c8-cbbb-4c88-8d5a-276392bdbf4f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "de6ae3" }, body: JSON.stringify({ sessionId: "de6ae3", runId: "pre-fix", hypothesisId: "H1-H5", location: "excel-integration.js:debugProductAudit", message: "product catalog audit", data: { trigger, totalProducts: products.length, duplicateNameGroupCount: dupNameGroups.length, duplicateNameGroups: dupNameGroups, caseDuplicateGroupCount: caseDuplicateGroups.length, caseDuplicateGroups, nameContainsIdCount: nameContainsIdSamples.length, nameContainsIdSamples, extra: extra || null }, timestamp: Date.now() }) }).catch(() => {});
-  // #endregion
 }
 
 function logProductCreate(source, id, name, reason) {
-  const norm = String(name || "").trim().toLowerCase();
-  const sameNameOtherId = (state.products || []).filter(
-    (p) => String(p.name || "").trim().toLowerCase() === norm && String(p.id) !== String(id)
-  ).map((p) => p.id);
-  // #region agent log
-  fetch("http://127.0.0.1:7918/ingest/0b4f62c8-cbbb-4c88-8d5a-276392bdbf4f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "de6ae3" }, body: JSON.stringify({ sessionId: "de6ae3", runId: "pre-fix", hypothesisId: "H1-H4", location: "excel-integration.js:logProductCreate", message: "new product record", data: { source, id, name, reason, sameNameOtherId }, timestamp: Date.now() }) }).catch(() => {});
-  // #endregion
 }
 
 function resolveProduct(value) {
   const val = (value || "").toString().trim();
   if (!val) return null;
 
-  let matchType = "none";
-  let matchedId = null;
-
   // Hỗ trợ định dạng "Tên sản phẩm (Mã sản phẩm)" khi nạp từ form sửa hoặc khi blur
   const idInParens = extractIdFromParentheses(val);
   if (idInParens) {
     let p = state.products.find(item => String(item.id).toLowerCase() === idInParens.toLowerCase());
-    if (p) {
-      matchType = "parens-id";
-      matchedId = p.id;
-      // #region agent log
-      fetch("http://127.0.0.1:7918/ingest/0b4f62c8-cbbb-4c88-8d5a-276392bdbf4f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "de6ae3" }, body: JSON.stringify({ sessionId: "de6ae3", runId: "pre-fix", hypothesisId: "H3", location: "excel-integration.js:resolveProduct", message: "resolveProduct match", data: { input: val.slice(0, 80), matchType, matchedId }, timestamp: Date.now() }) }).catch(() => {});
-      // #endregion
-      return p;
-    }
+    if (p) return p;
   }
 
   // 1. Tìm chính xác theo ID
   let p = state.products.find(item => String(item.id).toLowerCase() === val.toLowerCase());
   if (p) {
-    matchType = "exact-id";
-    matchedId = p.id;
-    // #region agent log
-    fetch("http://127.0.0.1:7918/ingest/0b4f62c8-cbbb-4c88-8d5a-276392bdbf4f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "de6ae3" }, body: JSON.stringify({ sessionId: "de6ae3", runId: "pre-fix", hypothesisId: "H3", location: "excel-integration.js:resolveProduct", message: "resolveProduct match", data: { input: val.slice(0, 80), matchType, matchedId }, timestamp: Date.now() }) }).catch(() => {});
-    // #endregion
     return p;
   }
 
   // 2. Tìm chính xác theo Tên
   p = state.products.find(item => item.name.toLowerCase() === val.toLowerCase());
   if (p) {
-    matchType = "exact-name";
-    matchedId = p.id;
-    // #region agent log
-    fetch("http://127.0.0.1:7918/ingest/0b4f62c8-cbbb-4c88-8d5a-276392bdbf4f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "de6ae3" }, body: JSON.stringify({ sessionId: "de6ae3", runId: "pre-fix", hypothesisId: "H3", location: "excel-integration.js:resolveProduct", message: "resolveProduct match", data: { input: val.slice(0, 80), matchType, matchedId }, timestamp: Date.now() }) }).catch(() => {});
-    // #endregion
     return p;
   }
 
   // 3. Tìm tương đối theo Tên hoặc ID
   p = state.products.find(item => item.name.toLowerCase().includes(val.toLowerCase()) || String(item.id).toLowerCase().includes(val.toLowerCase()));
-  if (p) {
-    matchType = "fuzzy";
-    matchedId = p.id;
-  }
-  // #region agent log
-  fetch("http://127.0.0.1:7918/ingest/0b4f62c8-cbbb-4c88-8d5a-276392bdbf4f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "de6ae3" }, body: JSON.stringify({ sessionId: "de6ae3", runId: "pre-fix", hypothesisId: "H3", location: "excel-integration.js:resolveProduct", message: "resolveProduct match", data: { input: val.slice(0, 80), matchType, matchedId }, timestamp: Date.now() }) }).catch(() => {});
-  // #endregion
   return p || null;
 }
 
 window.debugProductAudit = debugProductAudit;
+
+function initExcelDragAndDrop() {
   const zones = [
     { id: 'excel-drop-zone-products', fileId: 'excel-file-products' },
     { id: 'excel-drop-zone-partners', fileId: 'excel-file-partners' },

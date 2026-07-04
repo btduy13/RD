@@ -41,11 +41,6 @@ function dedupeProductCatalogCase(options) {
     else if (typeof saveState === "function") saveState();
   }
 
-  // #region agent log
-  if (typeof fetch === "function") {
-    fetch("http://127.0.0.1:7918/ingest/0b4f62c8-cbbb-4c88-8d5a-276392bdbf4f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "de6ae3" }, body: JSON.stringify({ sessionId: "de6ae3", runId: opts.runId || "post-fix", hypothesisId: "H1-H4-fix", location: "product-identity.js:dedupeProductCatalogCase", message: "product case dedupe", data: result, timestamp: Date.now() }) }).catch(() => {});
-  }
-  // #endregion
 
   return result;
 }

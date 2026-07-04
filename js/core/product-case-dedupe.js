@@ -212,11 +212,66 @@
     };
   }
 
+  function isGarbageProductId(id) {
+    const s = String(id || "").trim();
+    if (!s) return true;
+    if (s.length <= 1) return true;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return true;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return true;
+    if (/^\d+$/.test(s) && s.length <= 4) return true;
+    if (/^(BTL|BHTL|MHTL|PTL|TRH|NK|PX)\d{3,}$/i.test(s)) return true;
+    if (/^(PT|PC)\d{3,}$/i.test(s) && s.length > 4) return true;
+    return false;
+  }
+
+  function cleanGarbageProducts(stateObj, options) {
+    const opts = options || {};
+    if (!stateObj || !Array.isArray(stateObj.products)) {
+      return { ok: false, removed: 0 };
+    }
+
+    const referencedIds = new Set();
+    (stateObj.vouchers || []).forEach((v) => {
+      (v.items || []).forEach((item) => {
+        if (item && item.productId) referencedIds.add(String(item.productId));
+      });
+    });
+
+    const beforeCount = stateObj.products.length;
+    const removedIds = [];
+
+    stateObj.products = stateObj.products.filter((p) => {
+      const id = String(p.id || "").trim();
+      if (!isGarbageProductId(id)) return true;
+      if (referencedIds.has(id)) return true;
+      const hasStock = (Number(p.stock) || 0) !== 0;
+      const hasValue = (Number(p.totalValue) || 0) !== 0;
+      if (hasStock || hasValue) return true;
+      removedIds.push(id);
+      return false;
+    });
+
+    if (removedIds.length > 0) {
+      trackRemovedProductIds(stateObj, removedIds);
+      stateObj._lastModified = Date.now();
+      stateObj._accountingValid = false;
+    }
+
+    return {
+      ok: true,
+      removed: removedIds.length,
+      beforeCount,
+      afterCount: stateObj.products.length,
+      samples: removedIds.slice(0, 20)
+    };
+  }
+
   return {
     normalizeProductId,
     productIdKey,
     findProductIndexById,
     findProductById,
-    dedupeProductCatalogOnState
+    dedupeProductCatalogOnState,
+    cleanGarbageProducts
   };
 });

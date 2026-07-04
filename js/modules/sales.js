@@ -2431,9 +2431,14 @@ function displaySalesTemplateTable(list) {
       <td style="font-weight: 600; color: var(--color-primary);">${escapeHtmlAttr(item.filename)}</td>
       <td>${escapeHtmlAttr(item.desc)}</td>
       <td style="text-align: center;">
-        <button class="btn btn-primary btn-sm" onclick="modifySalesTemplate('${escapeHtmlAttr(item.filename)}')">
-          Lên đơn hàng
-        </button>
+        <div style="display:flex; gap:8px; justify-content:center; align-items:center;">
+          <button class="btn btn-primary btn-sm" onclick="modifySalesTemplate('${escapeHtmlAttr(item.filename)}')" title="Lên đơn hàng" style="padding:5px 10px;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          </button>
+          <button class="btn btn-sm" onclick="templateToQuotation('${escapeHtmlAttr(item.filename)}')" title="Lên báo giá" style="padding:5px 10px; background:var(--color-info); color:#fff; border:none; border-radius:6px;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          </button>
+        </div>
       </td>
     </tr>
   `).join("");
@@ -2550,6 +2555,52 @@ function modifySalesTemplate(filename) {
   }
 }
 
+function templateToQuotation(filename) {
+  try {
+    const template = (state.salesTemplatesData || window.salesTemplatesData || []).find(t => t.filename === filename);
+    if (!template) {
+      showToast(`Không tìm thấy mẫu: ${filename}`, "danger");
+      return;
+    }
+
+    if (typeof resetQuotationForm === "function") resetQuotationForm();
+
+    const tbody = document.getElementById("quotation-form-items-body");
+    if (tbody) tbody.innerHTML = "";
+
+    const descEl = document.getElementById("quotation-desc");
+    if (descEl) descEl.value = template.desc || "Báo giá theo mẫu";
+
+    const partnerEl = document.getElementById("quotation-partner");
+    if (partnerEl) partnerEl.value = "";
+
+    let matchedCount = 0;
+    const totalCount = template.items.length;
+
+    for (const item of template.items) {
+      const prod = findProductByName(item.name);
+      let productId = "";
+      let finalDesc = item.name;
+      if (prod) {
+        productId = prod.id;
+        finalDesc = prod.name;
+        matchedCount++;
+      }
+      if (typeof addQuotationFormRow === "function") {
+        addQuotationFormRow(productId, finalDesc, item.qty, item.price, 0);
+      }
+    }
+
+    if (typeof recalculateQuotationTotals === "function") recalculateQuotationTotals();
+
+    openModal("modal-add-sales-quotation");
+    showToast(`Đã tải mẫu "${filename}" vào Báo giá. Khớp ${matchedCount}/${totalCount} sản phẩm.`, "success");
+  } catch (err) {
+    console.error("Lỗi tải phiếu mẫu vào báo giá:", err);
+    showToast(`Lỗi: ${err.message}`, "danger");
+  }
+}
+window.templateToQuotation = templateToQuotation;
 
 function findProductByName(name) {
   if (!name) return null;
