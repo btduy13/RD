@@ -46,6 +46,7 @@ function resetReceiptForm() {
   editingReceiptId = null;
   const modalTitle = document.querySelector("#modal-add-receipt .card-title");
   if (modalTitle) modalTitle.innerText = "Lập Phiếu Thu Tiền (Cash Receipt)";
+  if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-receipt", false);
   const submitBtn = document.querySelector("#form-receipt button[type='submit']");
   if (submitBtn) submitBtn.innerText = "Ghi sổ";
 }
@@ -54,6 +55,7 @@ function resetPaymentForm() {
   editingPaymentId = null;
   const modalTitle = document.querySelector("#modal-add-payment .card-title");
   if (modalTitle) modalTitle.innerText = "Lập Phiếu Chi Tiền (Cash Payment)";
+  if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-payment", false);
   const submitBtn = document.querySelector("#form-payment button[type='submit']");
   if (submitBtn) submitBtn.innerText = "Ghi sổ";
 }
@@ -384,10 +386,11 @@ function generateNextPaymentVoucherId() {
   return `${prefix}${maxNum + 1}`;
 }
 
-function handleReceiptSubmit(e) {
+async function handleReceiptSubmit(e) {
   e.preventDefault();
 
-  const modal = document.getElementById("modal-add-receipt");
+  const modalId = "modal-add-receipt";
+  const modal = document.getElementById(modalId);
   if (modal && (modal.style.display === "none" || window.getComputedStyle(modal).display === "none")) {
     return;
   }
@@ -406,55 +409,67 @@ function handleReceiptSubmit(e) {
     return;
   }
 
-  const id = editingReceiptId || generateNextReceiptVoucherId();
+  if (!beginVoucherSubmit(modalId, "Đang lưu phiếu thu...")) return;
 
-  const updatedVoucher = {
-    id,
-    type: "receipt",
-    date,
-    partnerId: partnerObj.id,
-    partnerName: partnerObj.name,
-    paymentMethod: debit,
-    description: desc,
-    amount,
-    isManual: true,
-    _updatedAt: Date.now(),
-    _sessionId: clientSessionId,
-    entries: [
-      { debit, credit, amount, desc }
-    ]
-  };
+  try {
+    const id = editingReceiptId || generateNextReceiptVoucherId();
 
-  if (editingReceiptId) {
-    const idx = state.vouchers.findIndex(v => v.id === editingReceiptId);
-    if (idx !== -1) {
-      const oldVoucher = state.vouchers[idx];
-      if (oldVoucher.excelRow) updatedVoucher.excelRow = oldVoucher.excelRow;
-      if (oldVoucher.isImported !== undefined) updatedVoucher.isImported = oldVoucher.isImported;
-      state.vouchers[idx] = updatedVoucher;
+    const updatedVoucher = {
+      id,
+      type: "receipt",
+      date,
+      partnerId: partnerObj.id,
+      partnerName: partnerObj.name,
+      paymentMethod: debit,
+      description: desc,
+      amount,
+      isManual: true,
+      _updatedAt: Date.now(),
+      _sessionId: clientSessionId,
+      entries: [
+        { debit, credit, amount, desc }
+      ]
+    };
+
+    if (editingReceiptId) {
+      const idx = state.vouchers.findIndex(v => v.id === editingReceiptId);
+      if (idx !== -1) {
+        const oldVoucher = state.vouchers[idx];
+        if (oldVoucher.excelRow) updatedVoucher.excelRow = oldVoucher.excelRow;
+        if (oldVoucher.isImported !== undefined) updatedVoucher.isImported = oldVoucher.isImported;
+        state.vouchers[idx] = updatedVoucher;
+      }
+      editingReceiptId = null;
+      resetReceiptForm();
+      showToast("Cập nhật phiếu thu thành công!", "success");
+    } else {
+      state.vouchers.push(updatedVoucher);
+      showToast("Lập phiếu thu thành công!", "success");
     }
-    editingReceiptId = null;
-    resetReceiptForm();
-    showToast("Cập nhật phiếu thu thành công!", "success");
-  } else {
-    state.vouchers.push(updatedVoucher);
-    showToast("Lập phiếu thu thành công!", "success");
+
+    setVoucherFormStatus(modalId, "Đang đồng bộ máy khác...", "sync");
+    recalculateAccounting(false);
+    await saveStateAndSyncVoucher();
+
+    closeModal(modalId);
+    document.getElementById("form-receipt").reset();
+
+    filterCash();
+    recalculateCashKpis();
+  } catch (err) {
+    console.error("[Cash] Lưu phiếu thu thất bại:", err);
+    setVoucherFormStatus(modalId, "Không thể lưu phiếu thu. Vui lòng thử lại.", "error");
+    showToast("Không thể lưu phiếu thu. Vui lòng thử lại.", "danger");
+  } finally {
+    endVoucherSubmit(modalId);
   }
-
-  saveState();
-  recalculateAccounting();
-
-  closeModal("modal-add-receipt");
-  document.getElementById("form-receipt").reset();
-
-  filterCash();
-  recalculateCashKpis();
 }
 
-function handlePaymentSubmit(e) {
+async function handlePaymentSubmit(e) {
   e.preventDefault();
 
-  const modal = document.getElementById("modal-add-payment");
+  const modalId = "modal-add-payment";
+  const modal = document.getElementById(modalId);
   if (modal && (modal.style.display === "none" || window.getComputedStyle(modal).display === "none")) {
     return;
   }
@@ -473,49 +488,60 @@ function handlePaymentSubmit(e) {
     return;
   }
 
-  const id = editingPaymentId || generateNextPaymentVoucherId();
+  if (!beginVoucherSubmit(modalId, "Đang lưu phiếu chi...")) return;
 
-  const updatedVoucher = {
-    id,
-    type: "payment",
-    date,
-    partnerId: partnerObj.id,
-    partnerName: partnerObj.name,
-    paymentMethod: credit,
-    description: desc,
-    amount,
-    isManual: true,
-    _updatedAt: Date.now(),
-    _sessionId: clientSessionId,
-    entries: [
-      { debit, credit, amount, desc }
-    ]
-  };
+  try {
+    const id = editingPaymentId || generateNextPaymentVoucherId();
 
-  if (editingPaymentId) {
-    const idx = state.vouchers.findIndex(v => v.id === editingPaymentId);
-    if (idx !== -1) {
-      const oldVoucher = state.vouchers[idx];
-      if (oldVoucher.excelRow) updatedVoucher.excelRow = oldVoucher.excelRow;
-      if (oldVoucher.isImported !== undefined) updatedVoucher.isImported = oldVoucher.isImported;
-      state.vouchers[idx] = updatedVoucher;
+    const updatedVoucher = {
+      id,
+      type: "payment",
+      date,
+      partnerId: partnerObj.id,
+      partnerName: partnerObj.name,
+      paymentMethod: credit,
+      description: desc,
+      amount,
+      isManual: true,
+      _updatedAt: Date.now(),
+      _sessionId: clientSessionId,
+      entries: [
+        { debit, credit, amount, desc }
+      ]
+    };
+
+    if (editingPaymentId) {
+      const idx = state.vouchers.findIndex(v => v.id === editingPaymentId);
+      if (idx !== -1) {
+        const oldVoucher = state.vouchers[idx];
+        if (oldVoucher.excelRow) updatedVoucher.excelRow = oldVoucher.excelRow;
+        if (oldVoucher.isImported !== undefined) updatedVoucher.isImported = oldVoucher.isImported;
+        state.vouchers[idx] = updatedVoucher;
+      }
+      editingPaymentId = null;
+      resetPaymentForm();
+      showToast("Cập nhật phiếu chi thành công!", "success");
+    } else {
+      state.vouchers.push(updatedVoucher);
+      showToast("Lập phiếu chi thành công!", "success");
     }
-    editingPaymentId = null;
-    resetPaymentForm();
-    showToast("Cập nhật phiếu chi thành công!", "success");
-  } else {
-    state.vouchers.push(updatedVoucher);
-    showToast("Lập phiếu chi thành công!", "success");
+
+    setVoucherFormStatus(modalId, "Đang đồng bộ máy khác...", "sync");
+    recalculateAccounting(false);
+    await saveStateAndSyncVoucher();
+
+    closeModal(modalId);
+    document.getElementById("form-payment").reset();
+
+    filterCash();
+    recalculateCashKpis();
+  } catch (err) {
+    console.error("[Cash] Lưu phiếu chi thất bại:", err);
+    setVoucherFormStatus(modalId, "Không thể lưu phiếu chi. Vui lòng thử lại.", "error");
+    showToast("Không thể lưu phiếu chi. Vui lòng thử lại.", "danger");
+  } finally {
+    endVoucherSubmit(modalId);
   }
-
-  saveState();
-  recalculateAccounting();
-
-  closeModal("modal-add-payment");
-  document.getElementById("form-payment").reset();
-
-  filterCash();
-  recalculateCashKpis();
 }
 
 function exportCashToExcel() {
