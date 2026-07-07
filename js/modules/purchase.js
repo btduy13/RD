@@ -308,8 +308,9 @@ function populatePartnerDropdown(elementId, filterType) {
 
 // Bổ sung các hàng sản phẩm động vào form Mua hàng
 // Bổ sung các hàng sản phẩm động vào form Mua hàng
-function addPurchaseFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
-  const tbody = document.getElementById("purchase-form-items-body");
+function addPurchaseFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0, insertAfterRow = null) {
+  const tbodyId = "purchase-form-items-body";
+  const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
 
   const rowId = `pur-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -330,26 +331,19 @@ function addPurchaseFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discoun
       <input type="text" class="form-control item-discount text-right number-format" required value="${discountVal}" oninput="recalculatePurchaseTotals()" placeholder="0">
     </td>
     <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
-    <td style="text-align: center;">
-      <button type="button" class="trash-btn" onclick="document.getElementById('${rowId}').remove(); recalculatePurchaseTotals();">×</button>
-    </td>
+    ${buildDynamicRowActionsCell(rowId, tbodyId)}
   `;
 
-  tbody.appendChild(tr);
+  mountDynamicFormRow(tbody, tr, insertAfterRow);
 
-  // Auto-focus vào ô sản phẩm của dòng vừa tạo khi add tay
   if (!productIdVal) {
-    const allRows = tbody.querySelectorAll("tr");
-    const newRow = allRows[allRows.length - 1];
-    if (newRow) {
-      const firstInput = newRow.querySelector(".item-productId");
-      if (firstInput) {
-        setTimeout(() => { firstInput.focus(); }, 30);
-      }
+    const firstInput = tr.querySelector(".item-productId");
+    if (firstInput) {
+      setTimeout(() => { firstInput.focus(); }, 30);
     }
   }
 
-  recalculatePurchaseTotals();
+  refreshDynamicFormTable(tbodyId);
 }
 
 // Tự động điền đơn giá mua hàng của sản phẩm được chọn
@@ -1041,8 +1035,9 @@ function generateNextPurchaseOrderVoucherId() {
   return `${prefix}${(maxNum + 1).toString().padStart(5, '0')}`;
 }
 
-function addPurchaseOrderFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
-  const tbody = document.getElementById("purchase-order-form-items-body");
+function addPurchaseOrderFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0, insertAfterRow = null) {
+  const tbodyId = "purchase-order-form-items-body";
+  const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
 
   const rowId = `pur-order-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -1063,26 +1058,19 @@ function addPurchaseOrderFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, di
       <input type="text" class="form-control item-discount text-right number-format" required value="${discountVal}" oninput="recalculatePurchaseOrderTotals()" placeholder="0">
     </td>
     <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
-    <td style="text-align: center;">
-      <button type="button" class="trash-btn" onclick="document.getElementById('${rowId}').remove(); recalculatePurchaseOrderTotals();">×</button>
-    </td>
+    ${buildDynamicRowActionsCell(rowId, tbodyId)}
   `;
 
-  tbody.appendChild(tr);
+  mountDynamicFormRow(tbody, tr, insertAfterRow);
 
-  // Auto-focus vào ô sản phẩm của dòng vừa tạo khi add tay
   if (!productIdVal) {
-    const allRows = tbody.querySelectorAll("tr");
-    const newRow = allRows[allRows.length - 1];
-    if (newRow) {
-      const firstInput = newRow.querySelector(".item-productId");
-      if (firstInput) {
-        setTimeout(() => { firstInput.focus(); }, 30);
-      }
+    const firstInput = tr.querySelector(".item-productId");
+    if (firstInput) {
+      setTimeout(() => { firstInput.focus(); }, 30);
     }
   }
 
-  recalculatePurchaseOrderTotals();
+  refreshDynamicFormTable(tbodyId);
 }
 
 function autoFillPurchaseOrderPrice(selectEl) {
@@ -2033,8 +2021,9 @@ function changePurchaseReturnPage(p) {
   renderPurchaseReturnTable();
 }
 
-function addPurchaseReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
-  const tbody = document.getElementById("purchase-return-form-items-body");
+function addPurchaseReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0, insertAfterRow = null) {
+  const tbodyId = "purchase-return-form-items-body";
+  const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
 
   const rowId = `ret-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -2055,25 +2044,19 @@ function addPurchaseReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, d
       <input type="text" class="form-control item-discount text-right number-format" required value="${discountVal}" oninput="recalculatePurchaseReturnTotals()" placeholder="0">
     </td>
     <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
-    <td style="text-align: center;">
-      <button type="button" class="trash-btn" onclick="document.getElementById('${rowId}').remove(); recalculatePurchaseReturnTotals();">×</button>
-    </td>
+    ${buildDynamicRowActionsCell(rowId, tbodyId)}
   `;
 
-  tbody.appendChild(tr);
+  mountDynamicFormRow(tbody, tr, insertAfterRow);
 
   if (!productIdVal) {
-    const allRows = tbody.querySelectorAll("tr");
-    const newRow = allRows[allRows.length - 1];
-    if (newRow) {
-      const firstInput = newRow.querySelector(".item-productId");
-      if (firstInput) {
-        setTimeout(() => { firstInput.focus(); }, 30);
-      }
+    const firstInput = tr.querySelector(".item-productId");
+    if (firstInput) {
+      setTimeout(() => { firstInput.focus(); }, 30);
     }
   }
 
-  recalculatePurchaseReturnTotals();
+  refreshDynamicFormTable(tbodyId);
 }
 
 function autoFillPurchaseReturnPrice(selectEl) {
@@ -2593,4 +2576,19 @@ window.onPurchaseOrderFilterChange = onPurchaseOrderFilterChange;
 window.clearPurchaseOrderColumnFilters = clearPurchaseOrderColumnFilters;
 window.onPurchaseReturnFilterChange = onPurchaseReturnFilterChange;
 window.clearPurchaseReturnColumnFilters = clearPurchaseReturnColumnFilters;
+
+if (typeof registerDynamicFormTable === "function") {
+  registerDynamicFormTable("purchase-form-items-body", {
+    addRow: (insertAfter) => addPurchaseFormRow("", 1, 0, 0, insertAfter),
+    recalc: recalculatePurchaseTotals
+  });
+  registerDynamicFormTable("purchase-order-form-items-body", {
+    addRow: (insertAfter) => addPurchaseOrderFormRow("", 1, 0, 0, insertAfter),
+    recalc: recalculatePurchaseOrderTotals
+  });
+  registerDynamicFormTable("purchase-return-form-items-body", {
+    addRow: (insertAfter) => addPurchaseReturnFormRow("", 1, 0, 0, insertAfter),
+    recalc: recalculatePurchaseReturnTotals
+  });
+}
 

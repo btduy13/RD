@@ -341,13 +341,14 @@ function closeModal(modalId) {
 }
 
 // 12. XEM VÀ IN BIỂU MẪU CHỨNG TỪ THEO CHUẨN BỘ TÀI CHÍNH
-function renderRdBrandedHeader(qrAmount, withQr) {
+function renderRdBrandedHeader(qrAmount, withQr, qrAddInfo) {
   const showQr = withQr !== false;
   const amount = Math.round(qrAmount || 0);
+  const addInfo = (qrAddInfo || "thanh toan mua hang").toString().trim().substring(0, 80);
   const qrBlock = showQr ? `
           <div class="voucher-rd-header-qr">
             <span class="voucher-rd-qr-label">Quét Mã QR Thanh Toán</span>
-            <img src="https://img.vietqr.io/image/sacombank-050033493999-qr_only.png?amount=${amount}&addInfo=${encodeURIComponent('thanh toan mua hang')}&accountName=${encodeURIComponent('CTY CP SX DT PHAT TRIEN RANG DONG')}" alt="VietQR" />
+            <img src="https://img.vietqr.io/image/sacombank-050033493999-qr_only.png?amount=${amount}&addInfo=${encodeURIComponent(addInfo)}&accountName=${encodeURIComponent('CTY CP SX DT PHAT TRIEN RANG DONG')}" alt="VietQR" />
             <span class="voucher-rd-qr-stk">STK: 050033493999</span>
           </div>` : '';
   return `

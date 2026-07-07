@@ -5152,12 +5152,59 @@ tr.debt-row-unmatched:hover {
   width: 28px;
   height: 28px;
   padding: 0;
-  margin: 0 auto;
+  margin: 0;
   border: 1px solid #fca5a5;
   border-radius: var(--radius-sm);
   background: #ffffff;
   color: #dc2626;
   line-height: 1;
+}
+
+.dynamic-row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.dynamic-row-actions-cell {
+  text-align: center;
+  white-space: nowrap;
+  width: 72px;
+  min-width: 72px;
+}
+
+.insert-row-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid #86efac;
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  color: #16a34a;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.insert-row-btn:hover {
+  background: #f0fdf4;
+  border-color: #4ade80;
+}
+
+.dynamic-items-row-count {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted, #64748b);
+  text-align: right;
+  font-weight: 500;
+}
+
+.voucher-entry-modal .dynamic-items-table .insert-row-btn {
+  width: 28px;
+  height: 28px;
 }
 
 /* Cash modals (receipt/payment) get a slightly wider treatment */

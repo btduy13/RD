@@ -317,8 +317,9 @@ function changeSalesPage(p) {
 }
 
 // Bổ sung các hàng sản phẩm động vào form Bán hàng
-function addSalesFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
-  const tbody = document.getElementById("sales-form-items-body");
+function addSalesFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVal = 0, discountVal = 0, insertAfterRow = null) {
+  const tbodyId = "sales-form-items-body";
+  const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
 
   const rowId = `sale-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -344,23 +345,16 @@ function addSalesFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVal =
       <input type="text" class="form-control item-discount text-right number-format" required value="${discountVal}" oninput="recalculateSalesTotals()" placeholder="0">
     </td>
     <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
-    <td style="text-align: center;">
-      <button type="button" class="trash-btn" onclick="document.getElementById('${rowId}').remove(); recalculateSalesTotals();">×</button>
-    </td>
+    ${buildDynamicRowActionsCell(rowId, tbodyId)}
   `;
 
-  tbody.appendChild(tr);
-  recalculateSalesTotals();
+  mountDynamicFormRow(tbody, tr, insertAfterRow);
+  refreshDynamicFormTable(tbodyId);
 
-  // Auto-focus vào ô sản phẩm của dòng vừa tạo khi add tay
   if (!productIdVal) {
-    const allRows = tbody.querySelectorAll("tr");
-    const newRow = allRows[allRows.length - 1];
-    if (newRow) {
-      const firstInput = newRow.querySelector(".item-productId");
-      if (firstInput) {
-        setTimeout(() => { firstInput.focus(); }, 30);
-      }
+    const firstInput = tr.querySelector(".item-productId");
+    if (firstInput) {
+      setTimeout(() => { firstInput.focus(); }, 30);
     }
   }
 }
@@ -1052,8 +1046,9 @@ function changeSalesReturnPage(p) {
 }
 
 // addSalesReturnFormRow
-function addSalesReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
-  const tbody = document.getElementById("sales-return-form-items-body");
+function addSalesReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0, insertAfterRow = null) {
+  const tbodyId = "sales-return-form-items-body";
+  const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
 
   const rowId = `sales-ret-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -1074,23 +1069,16 @@ function addSalesReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, disc
       <input type="text" class="form-control item-discount text-right number-format" required value="${discountVal}" oninput="recalculateSalesReturnTotals()" placeholder="0">
     </td>
     <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
-    <td style="text-align: center;">
-      <button type="button" class="trash-btn" onclick="document.getElementById('${rowId}').remove(); recalculateSalesReturnTotals();">×</button>
-    </td>
+    ${buildDynamicRowActionsCell(rowId, tbodyId)}
   `;
 
-  tbody.appendChild(tr);
-  recalculateSalesReturnTotals();
+  mountDynamicFormRow(tbody, tr, insertAfterRow);
+  refreshDynamicFormTable(tbodyId);
 
-  // Auto-focus vào ô sản phẩm của dòng vừa tạo khi add tay
   if (!productIdVal) {
-    const allRows = tbody.querySelectorAll("tr");
-    const newRow = allRows[allRows.length - 1];
-    if (newRow) {
-      const firstInput = newRow.querySelector(".item-productId");
-      if (firstInput) {
-        setTimeout(() => { firstInput.focus(); }, 30);
-      }
+    const firstInput = tr.querySelector(".item-productId");
+    if (firstInput) {
+      setTimeout(() => { firstInput.focus(); }, 30);
     }
   }
 }
@@ -1778,8 +1766,9 @@ function changeQuotationPage(p) {
 }
 
 // Bổ sung các hàng sản phẩm động vào form Báo giá
-function addQuotationFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
-  const tbody = document.getElementById("quotation-form-items-body");
+function addQuotationFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVal = 0, discountVal = 0, insertAfterRow = null) {
+  const tbodyId = "quotation-form-items-body";
+  const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
 
   const rowId = `quotation-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -1805,23 +1794,16 @@ function addQuotationFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceV
       <input type="text" class="form-control item-discount text-right number-format" required value="${discountVal}" oninput="recalculateQuotationTotals()" placeholder="0">
     </td>
     <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
-    <td style="text-align: center;">
-      <button type="button" class="trash-btn" onclick="document.getElementById('${rowId}').remove(); recalculateQuotationTotals();">×</button>
-    </td>
+    ${buildDynamicRowActionsCell(rowId, tbodyId)}
   `;
 
-  tbody.appendChild(tr);
-  recalculateQuotationTotals();
+  mountDynamicFormRow(tbody, tr, insertAfterRow);
+  refreshDynamicFormTable(tbodyId);
 
-  // Auto-focus vào ô sản phẩm của dòng vừa tạo khi add tay
   if (!productIdVal) {
-    const allRows = tbody.querySelectorAll("tr");
-    const newRow = allRows[allRows.length - 1];
-    if (newRow) {
-      const firstInput = newRow.querySelector(".item-productId");
-      if (firstInput) {
-        setTimeout(() => { firstInput.focus(); }, 30);
-      }
+    const firstInput = tr.querySelector(".item-productId");
+    if (firstInput) {
+      setTimeout(() => { firstInput.focus(); }, 30);
     }
   }
 }
@@ -2715,8 +2697,9 @@ function openEditTemplateModal(filename) {
   openModal('modal-edit-template');
 }
 
-function addTemplateFormRow(nameVal = "", qtyVal = 1, priceVal = 0) {
-  const tbody = document.getElementById("template-form-items-body");
+function addTemplateFormRow(nameVal = "", qtyVal = 1, priceVal = 0, insertAfterRow = null) {
+  const tbodyId = "template-form-items-body";
+  const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
   
   const rowId = `template-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -2733,12 +2716,18 @@ function addTemplateFormRow(nameVal = "", qtyVal = 1, priceVal = 0) {
     <td>
       <input type="text" class="form-control item-price text-right number-format" required value="${Number(priceVal).toLocaleString("vi-VN")}">
     </td>
-    <td style="text-align: center;">
-      <button type="button" class="trash-btn" onclick="document.getElementById('${rowId}').remove();">×</button>
-    </td>
+    ${buildDynamicRowActionsCell(rowId, tbodyId)}
   `;
   
-  tbody.appendChild(tr);
+  mountDynamicFormRow(tbody, tr, insertAfterRow);
+  refreshDynamicFormTable(tbodyId);
+
+  if (!nameVal) {
+    const firstInput = tr.querySelector(".item-productId");
+    if (firstInput) {
+      setTimeout(() => { firstInput.focus(); }, 30);
+    }
+  }
 }
 
 function autoFillTemplateProductPrice(selectEl) {
@@ -2879,4 +2868,22 @@ window.handleTemplateSubmit = handleTemplateSubmit;
 window.deleteSalesTemplate = deleteSalesTemplate;
 window.autoFillTemplateProductPrice = autoFillTemplateProductPrice;
 
+if (typeof registerDynamicFormTable === "function") {
+  registerDynamicFormTable("sales-form-items-body", {
+    addRow: (insertAfter) => addSalesFormRow("", "", 1, 0, 0, insertAfter),
+    recalc: recalculateSalesTotals
+  });
+  registerDynamicFormTable("sales-return-form-items-body", {
+    addRow: (insertAfter) => addSalesReturnFormRow("", 1, 0, 0, insertAfter),
+    recalc: recalculateSalesReturnTotals
+  });
+  registerDynamicFormTable("quotation-form-items-body", {
+    addRow: (insertAfter) => addQuotationFormRow("", "", 1, 0, 0, insertAfter),
+    recalc: recalculateQuotationTotals
+  });
+  registerDynamicFormTable("template-form-items-body", {
+    addRow: (insertAfter) => addTemplateFormRow("", 1, 0, insertAfter),
+    recalc: null
+  });
+}
 

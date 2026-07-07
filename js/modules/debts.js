@@ -2212,6 +2212,13 @@ function previewPartnerDebtNotice(partnerId) {
   const printArea = document.getElementById("voucher-print-area");
   if (!printArea) return;
 
+  const debtQrAmount = closingVal > 0 ? Math.round(closingVal) : 0;
+  const debtQrPartnerRef = (isGrouped ? (idList || recipientName) : (p.id || recipientName || "")).toString().trim();
+  const debtQrInfo = `TT cong no ${debtQrPartnerRef}`.replace(/\s+/g, " ").substring(0, 80);
+  const debtHeaderHtml = typeof renderRdBrandedHeader === "function"
+    ? renderRdBrandedHeader(debtQrAmount, true, debtQrInfo)
+    : "";
+
   const content = `
     <div class="printable-voucher" style="max-width: 800px; padding: 10px; font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #000; line-height: 1.25; background-color: #fff; margin: 0 auto; box-sizing: border-box;">
       <style>
@@ -2242,7 +2249,7 @@ function previewPartnerDebtNotice(partnerId) {
         }
       </style>
 
-      ${typeof renderRdBrandedHeader === "function" ? renderRdBrandedHeader(null, false) : ""}
+      ${debtHeaderHtml}
 
       <!-- Title -->
       <div style="text-align: center; margin-bottom: 12px;">

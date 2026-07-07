@@ -96,6 +96,12 @@ function ensureVoucherModalChrome(modalId) {
     itemsTable.parentNode.insertBefore(card, itemsTable);
     card.appendChild(itemsTable);
   }
+
+  const itemsBody = els.modal.querySelector(".dynamic-items-table tbody[id]");
+  if (itemsBody) {
+    ensureDynamicItemsRowCountElement(itemsBody);
+    updateDynamicItemsRowCount(itemsBody.id);
+  }
 }
 
 function setVoucherFormStatus(modalId, message, phase = "busy") {
@@ -215,6 +221,13 @@ function patchVoucherModalLifecycle() {
       ensureVoucherModalChrome(modalId);
       resetVoucherFormStatus(modalId);
     }
+    const modal = document.getElementById(modalId);
+    if (modal) {
+      modal.querySelectorAll(".dynamic-items-table tbody[id]").forEach(tbody => {
+        ensureDynamicItemsRowCountElement(tbody);
+        updateDynamicItemsRowCount(tbody.id);
+      });
+    }
   };
 
   const origClose = window.closeModal;
@@ -232,12 +245,124 @@ function patchVoucherModalLifecycle() {
   };
 }
 
+const dynamicFormTableRegistry = Object.create(null);
+
+function registerDynamicFormTable(tbodyId, config) {
+  if (!tbodyId || !config || typeof config.addRow !== "function") return;
+  dynamicFormTableRegistry[tbodyId] = config;
+}
+
+function ensureDynamicItemsRowCountElement(tbody) {
+  if (!tbody || !tbody.id) return null;
+
+  const table = tbody.closest(".dynamic-items-table");
+  if (!table) return null;
+
+  const host = table.closest(".voucher-items-card") || table.parentElement;
+  if (!host) return null;
+
+  let counter = host.querySelector(`.dynamic-items-row-count[data-tbody-id="${tbody.id}"]`);
+  if (!counter) {
+    counter = document.createElement("div");
+    counter.className = "dynamic-items-row-count";
+    counter.dataset.tbodyId = tbody.id;
+    table.insertAdjacentElement("afterend", counter);
+  }
+  return counter;
+}
+
+function updateDynamicItemsRowCount(tbodyId) {
+  const tbody = document.getElementById(tbodyId);
+  if (!tbody) return;
+
+  const counter = ensureDynamicItemsRowCountElement(tbody);
+  if (!counter) return;
+
+  const count = tbody.querySelectorAll("tr").length;
+  counter.textContent = `Số dòng: ${count}`;
+}
+
+function refreshDynamicFormTable(tbodyId) {
+  const config = dynamicFormTableRegistry[tbodyId];
+  if (config && typeof config.recalc === "function") {
+    config.recalc();
+  }
+  updateDynamicItemsRowCount(tbodyId);
+}
+
+function mountDynamicFormRow(tbody, tr, insertAfterRow = null) {
+  if (!tbody || !tr) return tr;
+
+  if (insertAfterRow) {
+    const anchor = typeof insertAfterRow === "string"
+      ? document.getElementById(insertAfterRow)
+      : insertAfterRow;
+    if (anchor && anchor.parentNode === tbody) {
+      anchor.insertAdjacentElement("afterend", tr);
+      return tr;
+    }
+  }
+
+  tbody.appendChild(tr);
+  return tr;
+}
+
+function buildDynamicRowActionsCell(rowId, tbodyId) {
+  return `
+    <td class="dynamic-row-actions-cell">
+      <div class="dynamic-row-actions">
+        <button type="button" class="trash-btn dynamic-row-delete-btn" onclick="removeDynamicFormRow('${rowId}', '${tbodyId}')" title="Xóa dòng">×</button>
+        <button type="button" class="insert-row-btn dynamic-row-insert-btn" onclick="insertDynamicFormRowAfter('${tbodyId}', '${rowId}')" title="Chèn dòng phía dưới">+</button>
+      </div>
+    </td>
+  `;
+}
+
+function removeDynamicFormRow(rowId, tbodyId) {
+  const row = document.getElementById(rowId);
+  const tbody = document.getElementById(tbodyId);
+  if (!row || !tbody) return;
+
+  const rows = tbody.querySelectorAll("tr");
+  if (rows.length <= 1) {
+    if (typeof showToast === "function") {
+      showToast("Phải có ít nhất 1 dòng.", "info");
+    }
+    return;
+  }
+
+  row.remove();
+  refreshDynamicFormTable(tbodyId);
+}
+
+function insertDynamicFormRowAfter(tbodyId, afterRowId) {
+  const config = dynamicFormTableRegistry[tbodyId];
+  const afterRow = document.getElementById(afterRowId);
+  if (!config || !afterRow) return;
+  config.addRow(afterRow);
+}
+
+function initDynamicItemsTables() {
+  document.querySelectorAll(".dynamic-items-table tbody[id]").forEach(tbody => {
+    ensureDynamicItemsRowCountElement(tbody);
+    updateDynamicItemsRowCount(tbody.id);
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   VOUCHER_ENTRY_MODAL_IDS.forEach(ensureVoucherModalChrome);
   patchVoucherModalLifecycle();
+  initDynamicItemsTables();
 });
 
 window.isVoucherEntryModalId = isVoucherEntryModalId;
+window.registerDynamicFormTable = registerDynamicFormTable;
+window.buildDynamicRowActionsCell = buildDynamicRowActionsCell;
+window.mountDynamicFormRow = mountDynamicFormRow;
+window.removeDynamicFormRow = removeDynamicFormRow;
+window.insertDynamicFormRowAfter = insertDynamicFormRowAfter;
+window.updateDynamicItemsRowCount = updateDynamicItemsRowCount;
+window.refreshDynamicFormTable = refreshDynamicFormTable;
 window.isVoucherFormBusy = isVoucherFormBusy;
 window.beginVoucherSubmit = beginVoucherSubmit;
 window.endVoucherSubmit = endVoucherSubmit;
