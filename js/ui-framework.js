@@ -1885,13 +1885,39 @@ function hideVoucherPrintDropdown() {
   if (menu) menu.style.display = "none";
 }
 
-function printCurrentVoucher(e) {
+async function printCurrentVoucher(e) {
   if (e) e.preventDefault();
   hideVoucherPrintDropdown();
 
   const skipLink = document.querySelector(".skip-link");
   if (skipLink && document.activeElement === skipLink) {
     skipLink.blur();
+  }
+
+  const printArea = document.getElementById("voucher-print-area");
+  const voucherHtml = printArea ? printArea.innerHTML.trim() : "";
+  if (!voucherHtml) {
+    if (typeof showToast === "function") {
+      showToast("Không có nội dung chứng từ để in", "error");
+    }
+    return;
+  }
+
+  if (window.electronAPI && typeof window.electronAPI.printHtml === "function") {
+    try {
+      const res = await window.electronAPI.printHtml(voucherHtml);
+      if (res && res.ok === false && res.error && res.error !== "Hủy in") {
+        if (typeof showToast === "function") {
+          showToast(`Lỗi in: ${res.error}`, "error");
+        }
+      }
+    } catch (err) {
+      console.error("[Print] Lỗi khi in HTML chứng từ:", err);
+      if (typeof showToast === "function") {
+        showToast(`Lỗi in: ${err.message}`, "error");
+      }
+    }
+    return;
   }
 
   document.body.classList.add("printing-voucher");

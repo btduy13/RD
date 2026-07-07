@@ -557,7 +557,28 @@ function getVoucherPdfStyles() {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
       }
-      @page { size: auto; margin: 10mm 6mm 4mm 6mm; }
+      .printable-voucher.debt-notice-voucher {
+        max-width: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      .printable-voucher.debt-notice-voucher .debt-notice-table {
+        width: 100% !important;
+        table-layout: fixed;
+      }
+      .printable-voucher.debt-notice-voucher .debt-notice-info-grid {
+        display: grid !important;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 3px 12px;
+      }
+      .printable-voucher.debt-notice-voucher .debt-notice-table th,
+      .printable-voucher.debt-notice-voucher .debt-notice-table td {
+        padding: 3px 5px !important;
+        font-size: 11.5px !important;
+        word-wrap: break-word;
+        overflow-wrap: anywhere;
+      }
+      @page { size: A4 portrait; margin: 10mm 12mm; }
     `;
   } catch (err) {
     console.error('[PDF] Không đọc được styles.css, dùng CSS tối giản:', err.message);
@@ -567,7 +588,7 @@ function getVoucherPdfStyles() {
       .printable-voucher * { color: #000 !important; border-color: #000 !important; }
       table { width: 100%; border-collapse: collapse; }
       th, td { border: 1px solid #000; padding: 4px 6px; }
-      @page { size: auto; margin: 10mm 6mm 4mm 6mm; }
+      @page { size: A4 portrait; margin: 10mm 12mm; }
     `;
   }
 
@@ -592,6 +613,13 @@ function buildVoucherPdfDocument(voucherHtml) {
 const VOUCHER_PDF_DATA_URL_MAX_LEN = 1_500_000;
 const VOUCHER_PDF_PAGE_LOAD_TIMEOUT_MS = 30000;
 const VOUCHER_PDF_IMAGE_TIMEOUT_MS = 8000;
+const VOUCHER_PRINT_MARGINS_IN = {
+  marginType: 'custom',
+  top: 0.39,
+  bottom: 0.39,
+  left: 0.47,
+  right: 0.47
+};
 
 function createTempVoucherHtmlPath(doc) {
   const tempDir = path.join(app.getPath('temp'), 'rd-voucher-pdf');
@@ -631,6 +659,54 @@ async function waitForPrintWindowImages(printWin, imageTimeoutMs = VOUCHER_PDF_I
   `);
 }
 
+async function prepareVoucherPrintWindow(voucherHtml) {
+  const printWin = new BrowserWindow({
+    show: false,
+    width: 794,
+    height: 1123,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      webSecurity: false
+    }
+  });
+
+  const doc = buildVoucherPdfDocument(String(voucherHtml));
+  const pageLoadTimeout = setTimeout(() => {
+    if (printWin && !printWin.isDestroyed()) {
+      printWin.webContents.stop();
+    }
+  }, VOUCHER_PDF_PAGE_LOAD_TIMEOUT_MS);
+
+  let tempHtmlPath = null;
+  try {
+    tempHtmlPath = await loadPrintWindowDocument(printWin, doc);
+  } catch (loadErr) {
+    const detail = loadErr && loadErr.message ? loadErr.message : String(loadErr);
+    throw new Error(`Không tải được nội dung chứng từ (${detail})`);
+  } finally {
+    clearTimeout(pageLoadTimeout);
+  }
+
+  await waitForPrintWindowImages(printWin);
+
+  if (printWin.isDestroyed()) {
+    throw new Error('Cửa sổ in đã bị đóng trước khi in');
+  }
+
+  return { printWin, tempHtmlPath };
+}
+
+function cleanupVoucherPrintWindow(printWin, tempHtmlPath) {
+  if (tempHtmlPath) {
+    try { fs.unlinkSync(tempHtmlPath); } catch (_) {}
+  }
+  if (printWin && !printWin.isDestroyed()) {
+    printWin.destroy();
+  }
+}
+
 ipcMain.handle('print-html-to-pdf', async (event, voucherHtml, filename) => {
   let printWin = null;
   let tempHtmlPath = null;
@@ -654,51 +730,14 @@ ipcMain.handle('print-html-to-pdf', async (event, voucherHtml, filename) => {
       return { ok: false, error: 'Hủy lưu PDF' };
     }
 
-    printWin = new BrowserWindow({
-      show: false,
-      width: 794,
-      height: 1123,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-        sandbox: false,
-        webSecurity: false
-      }
-    });
-
-    const doc = buildVoucherPdfDocument(String(voucherHtml));
-
-    const pageLoadTimeout = setTimeout(() => {
-      if (printWin && !printWin.isDestroyed()) {
-        printWin.webContents.stop();
-      }
-    }, VOUCHER_PDF_PAGE_LOAD_TIMEOUT_MS);
-
-    try {
-      tempHtmlPath = await loadPrintWindowDocument(printWin, doc);
-    } catch (loadErr) {
-      const detail = loadErr && loadErr.message ? loadErr.message : String(loadErr);
-      throw new Error(`Không tải được nội dung chứng từ (${detail})`);
-    } finally {
-      clearTimeout(pageLoadTimeout);
-    }
-
-    await waitForPrintWindowImages(printWin);
-
-    if (printWin.isDestroyed()) {
-      throw new Error('Cửa sổ in đã bị đóng trước khi tạo PDF');
-    }
+    const prepared = await prepareVoucherPrintWindow(String(voucherHtml));
+    printWin = prepared.printWin;
+    tempHtmlPath = prepared.tempHtmlPath;
 
     const data = await printWin.webContents.printToPDF({
       printBackground: true,
       preferCSSPageSize: true,
-      margins: {
-        marginType: 'custom',
-        top: 0.4,
-        bottom: 0.4,
-        left: 0.6,
-        right: 0.6
-      }
+      margins: VOUCHER_PRINT_MARGINS_IN
     });
 
     fs.writeFileSync(filePath, data);
@@ -711,12 +750,51 @@ ipcMain.handle('print-html-to-pdf', async (event, voucherHtml, filename) => {
     }
     return { ok: false, error: message };
   } finally {
-    if (tempHtmlPath) {
-      try { fs.unlinkSync(tempHtmlPath); } catch (_) {}
+    cleanupVoucherPrintWindow(printWin, tempHtmlPath);
+  }
+});
+
+ipcMain.handle('print-html', async (event, voucherHtml) => {
+  let printWin = null;
+  let tempHtmlPath = null;
+  try {
+    if (!voucherHtml || !String(voucherHtml).trim()) {
+      return { ok: false, error: 'Không có nội dung chứng từ để in' };
     }
-    if (printWin && !printWin.isDestroyed()) {
-      printWin.destroy();
+
+    const prepared = await prepareVoucherPrintWindow(String(voucherHtml));
+    printWin = prepared.printWin;
+    tempHtmlPath = prepared.tempHtmlPath;
+
+    const printResult = await new Promise((resolve) => {
+      printWin.webContents.print({
+        silent: false,
+        printBackground: true,
+        color: true,
+        margins: VOUCHER_PRINT_MARGINS_IN
+      }, (success, failureReason) => {
+        resolve({ success, failureReason });
+      });
+    });
+
+    if (!printResult.success) {
+      const reason = printResult.failureReason || '';
+      if (/cancel/i.test(reason)) {
+        return { ok: false, error: 'Hủy in' };
+      }
+      return { ok: false, error: reason || 'In thất bại' };
     }
+
+    return { ok: true };
+  } catch (err) {
+    console.error('[Print] Lỗi khi in HTML chứng từ:', err);
+    const message = err && err.message ? err.message : String(err);
+    if (/timeout/i.test(message)) {
+      return { ok: false, error: 'Hết thời gian chờ tải nội dung chứng từ. Thử lại hoặc kiểm tra kết nối mạng (mã QR VietQR).' };
+    }
+    return { ok: false, error: message };
+  } finally {
+    cleanupVoucherPrintWindow(printWin, tempHtmlPath);
   }
 });
 
