@@ -1,12 +1,13 @@
 {
   "name": "rd-accounting",
-  "version": "3.0.5",
+  "version": "3.0.8",
   "description": "Phần mềm kế toán độc lập Công ty Cổ phần Rạng Đông",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "npm run test:sync && npm run test:core && npm run test:persistence && npm run test:partners && npm run test:prefs && npm run test:products",
+    "test": "npm run test:sync && npm run test:sync-v2 && npm run test:core && npm run test:persistence && npm run test:partners && npm run test:prefs && npm run test:products",
     "test:sync": "node tests/sync-regression-tests.js",
+    "test:sync-v2": "node tests/sync-v2-regression-tests.js",
     "test:core": "node tests/core-regression-tests.js",
     "test:persistence": "node tests/persistence-regression-tests.js",
     "test:accounting": "node tests/core-regression-tests.js",

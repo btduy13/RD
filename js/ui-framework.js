@@ -341,13 +341,14 @@ function closeModal(modalId) {
 }
 
 // 12. XEM VÀ IN BIỂU MẪU CHỨNG TỪ THEO CHUẨN BỘ TÀI CHÍNH
-function renderRdBrandedHeader(qrAmount, withQr) {
+function renderRdBrandedHeader(qrAmount, withQr, qrAddInfo) {
   const showQr = withQr !== false;
   const amount = Math.round(qrAmount || 0);
+  const addInfo = (qrAddInfo || "thanh toan mua hang").toString().trim().substring(0, 80);
   const qrBlock = showQr ? `
           <div class="voucher-rd-header-qr">
             <span class="voucher-rd-qr-label">Quét Mã QR Thanh Toán</span>
-            <img src="https://img.vietqr.io/image/sacombank-050033493999-qr_only.png?amount=${amount}&addInfo=${encodeURIComponent('thanh toan mua hang')}&accountName=${encodeURIComponent('CTY CP SX DT PHAT TRIEN RANG DONG')}" alt="VietQR" />
+            <img src="https://img.vietqr.io/image/sacombank-050033493999-qr_only.png?amount=${amount}&addInfo=${encodeURIComponent(addInfo)}&accountName=${encodeURIComponent('CTY CP SX DT PHAT TRIEN RANG DONG')}" alt="VietQR" />
             <span class="voucher-rd-qr-stk">STK: 050033493999</span>
           </div>` : '';
   return `
@@ -1884,13 +1885,39 @@ function hideVoucherPrintDropdown() {
   if (menu) menu.style.display = "none";
 }
 
-function printCurrentVoucher(e) {
+async function printCurrentVoucher(e) {
   if (e) e.preventDefault();
   hideVoucherPrintDropdown();
 
   const skipLink = document.querySelector(".skip-link");
   if (skipLink && document.activeElement === skipLink) {
     skipLink.blur();
+  }
+
+  const printArea = document.getElementById("voucher-print-area");
+  const voucherHtml = printArea ? printArea.innerHTML.trim() : "";
+  if (!voucherHtml) {
+    if (typeof showToast === "function") {
+      showToast("Không có nội dung chứng từ để in", "error");
+    }
+    return;
+  }
+
+  if (window.electronAPI && typeof window.electronAPI.printHtml === "function") {
+    try {
+      const res = await window.electronAPI.printHtml(voucherHtml);
+      if (res && res.ok === false && res.error && res.error !== "Hủy in") {
+        if (typeof showToast === "function") {
+          showToast(`Lỗi in: ${res.error}`, "error");
+        }
+      }
+    } catch (err) {
+      console.error("[Print] Lỗi khi in HTML chứng từ:", err);
+      if (typeof showToast === "function") {
+        showToast(`Lỗi in: ${err.message}`, "error");
+      }
+    }
+    return;
   }
 
   document.body.classList.add("printing-voucher");

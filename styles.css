@@ -1416,7 +1416,7 @@ body.light-theme .modal-overlay {
   border-radius: var(--radius-xl);
   width: 100%;
   max-width: 1150px;
-  max-height: 90vh;
+  max-height: 92vh;
   overflow-y: auto;
   box-shadow: var(--shadow-lg);
   display: flex;
@@ -1427,13 +1427,13 @@ body.light-theme .modal-overlay {
 
 .modal-w-xs { max-width: 400px; }
 .modal-w-sm { max-width: 450px; }
-.modal-w-md { max-width: 500px; }
-.modal-w-md-alt { max-width: 480px; }
-.modal-w-lg { max-width: 620px; }
-.modal-w-product { max-width: 650px; }
-.modal-w-wide { max-width: 850px; width: 90%; }
-.modal-w-xl { max-width: 900px; max-height: 85vh; }
-.modal-w-report { max-width: 830px; background-color: #f3f4f6; }
+.modal-w-md { max-width: 560px; }
+.modal-w-md-alt { max-width: 520px; }
+.modal-w-lg { max-width: 680px; }
+.modal-w-product { max-width: 700px; }
+.modal-w-wide { max-width: 900px; width: 92%; }
+.modal-w-xl { max-width: 960px; max-height: 88vh; }
+.modal-w-report { max-width: 880px; background-color: #f3f4f6; }
 .modal-w-auth { max-width: 420px; }
 
 .modal-elevated {
@@ -1447,6 +1447,10 @@ body.light-theme .modal-overlay {
   border-radius: 50%;
   font-size: 18px;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .modal-body-scroll {
@@ -1488,7 +1492,7 @@ body.light-theme .modal-overlay {
 }
 
 .modal-header {
-  padding: var(--space-4) var(--space-6);
+  padding: var(--space-5) var(--space-8);
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
@@ -1499,7 +1503,7 @@ body.light-theme .modal-overlay {
 }
 
 .modal-body {
-  padding: var(--space-5) var(--space-6);
+  padding: var(--space-6) var(--space-8);
   flex-grow: 1;
   position: relative;
   z-index: 1;
@@ -1508,7 +1512,7 @@ body.light-theme .modal-overlay {
 }
 
 .modal-footer {
-  padding: var(--space-4) var(--space-6);
+  padding: var(--space-5) var(--space-8);
   border-top: 1px solid var(--border-color);
   display: flex;
   justify-content: flex-end;
@@ -1536,6 +1540,33 @@ body.light-theme .modal-overlay {
 .printable-voucher * {
   color: #000000 !important;
   border-color: #000000 !important;
+}
+
+.printable-voucher.debt-notice-voucher {
+  max-width: 800px;
+  padding: 10px;
+  line-height: 1.25;
+}
+
+.debt-notice-table th {
+  border: 1px solid #000 !important;
+  padding: 4px 6px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.debt-notice-table td {
+  border: 1px solid #000 !important;
+  padding: 4px 6px;
+  vertical-align: middle;
+}
+
+.debt-notice-info-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 3px 12px;
+  margin-bottom: 8px;
+  font-size: 12.5px;
 }
 
 /* Thiết kế báo cáo kế toán in ấn và hiển thị */
@@ -1805,7 +1836,7 @@ body.light-theme .modal-overlay {
 
 /* Bảng động cho hàng hóa trong form Mua/Bán */
 .dynamic-items-table-wrapper {
-  max-height: 280px;
+  max-height: 340px;
   overflow-y: auto;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -2082,8 +2113,8 @@ body.light-theme .dynamic-items-table td {
 
   /* Tự động định dạng trang in và tự động scale theo khổ giấy */
   @page {
-    size: auto;
-    margin: 10mm 6mm 4mm 6mm;
+    size: A4 portrait;
+    margin: 10mm 12mm;
   }
 
   .printable-voucher .voucher-rd-header {
@@ -2204,6 +2235,56 @@ body.light-theme .dynamic-items-table td {
   body.printing-voucher #modal-view-voucher .modal-header,
   body.printing-voucher #modal-view-voucher .modal-footer {
     display: none !important;
+  }
+
+  body.printing-voucher #modal-view-voucher {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    display: block !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  body.printing-voucher #modal-view-voucher .modal-content-container,
+  body.printing-voucher #modal-view-voucher .modal-body,
+  body.printing-voucher #voucher-print-area {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+    background: transparent !important;
+  }
+
+  .printable-voucher.debt-notice-voucher {
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .printable-voucher.debt-notice-voucher .debt-notice-table {
+    width: 100% !important;
+    table-layout: fixed;
+  }
+
+  .printable-voucher.debt-notice-voucher .debt-notice-info-grid {
+    display: grid !important;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 3px 12px;
+  }
+
+  .printable-voucher.debt-notice-voucher .debt-notice-table th,
+  .printable-voucher.debt-notice-voucher .debt-notice-table td {
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+    padding: 3px 5px !important;
+    font-size: 11.5px !important;
   }
 }
 
@@ -4827,6 +4908,464 @@ tr.debt-row-unmatched:hover {
   }
 }
 
+/* ---- Voucher entry modals (sales / purchase / cash) ---- */
 
+.voucher-entry-modal .modal-content-container {
+  max-width: 1280px;
+  width: 94%;
+  max-height: 92vh;
+}
 
+.voucher-entry-modal .modal-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 32px;
+  background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+  border-bottom: 1px solid var(--border-color);
+}
 
+.voucher-entry-modal .modal-header .card-title {
+  flex: 1;
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.voucher-entry-modal .modal-body {
+  padding: 28px 32px 24px;
+}
+
+.voucher-entry-modal .modal-body .form-grid {
+  gap: var(--space-5);
+  row-gap: var(--space-5);
+}
+
+.voucher-entry-modal .modal-footer {
+  padding: 18px 32px;
+  gap: var(--space-4);
+}
+
+.voucher-entry-modal .modal-footer .btn {
+  padding: 0 24px;
+  height: 42px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+}
+
+.voucher-entry-modal .form-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+  letter-spacing: 0.01em;
+}
+
+.voucher-entry-modal .form-control {
+  height: 40px;
+  font-size: 13.5px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+}
+
+.voucher-entry-modal select.form-control {
+  height: 40px;
+  padding-right: 36px;
+}
+
+.voucher-mode-badge {
+  display: none;
+}
+
+.voucher-mode-badge.is-create {
+  color: #059669;
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.voucher-mode-badge.is-edit {
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.12);
+  border-color: rgba(37, 99, 235, 0.25);
+}
+
+.voucher-items-card {
+  border: 1px solid #dbe3ef;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #f8fafc;
+  margin-top: 4px;
+}
+
+.voucher-items-card .dynamic-items-table {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.voucher-items-card .dynamic-items-table thead th {
+  background: #f8fafc;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 10px 10px;
+  color: #25324a;
+  border-bottom: 1px solid #dbe3ef;
+}
+
+.voucher-items-card .dynamic-items-table td {
+  padding: 8px 6px;
+  background: #ffffff;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.voucher-total-panel {
+  background: linear-gradient(135deg, var(--bg-tertiary) 0%, rgba(16, 185, 129, 0.06) 100%) !important;
+  border: 1px solid rgba(16, 185, 129, 0.18);
+  border-radius: var(--radius-md) !important;
+  padding: 20px 24px !important;
+}
+
+.voucher-total-field .form-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+
+.voucher-total-display {
+  font-size: 1.75rem !important;
+  line-height: 1.2;
+  padding: 12px 16px !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.voucher-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+}
+
+.voucher-modal-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.voucher-form-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.voucher-form-status.is-hidden {
+  display: none;
+}
+
+.voucher-form-status.is-success {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
+.voucher-form-status.is-error {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}
+
+.voucher-form-status-icon {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  flex-shrink: 0;
+}
+
+.voucher-form-status-icon.is-spinning {
+  animation: voucherSpin 0.8s linear infinite;
+}
+
+.voucher-form-status-icon.is-success,
+.voucher-form-status-icon.is-error {
+  border: none;
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='white'%3E%3Cpath fill-rule='evenodd' d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z' clip-rule='evenodd'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.voucher-form-status-icon.is-error {
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='white'%3E%3Cpath fill-rule='evenodd' d='M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z' clip-rule='evenodd'/%3E%3C/svg%3E");
+}
+
+.voucher-entry-modal.voucher-form-busy .modal-body {
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.voucher-submit-btn.is-loading {
+  position: relative;
+  pointer-events: none;
+  opacity: 0.92;
+}
+
+.voucher-submit-btn.is-loading::before {
+  content: "";
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  vertical-align: -2px;
+  animation: voucherSpin 0.8s linear infinite;
+}
+
+@keyframes voucherSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Voucher section divider for visual separation */
+.voucher-entry-modal .form-group.col-span-full + .form-group.col-span-full {
+  padding-top: 4px;
+}
+
+/* Improved dynamic items table within voucher modals */
+.voucher-entry-modal .dynamic-items-table-wrapper {
+  max-height: min(42vh, 360px);
+  overflow: auto;
+  border: 0;
+  border-radius: var(--radius-md);
+  margin-top: 8px;
+  background: transparent;
+}
+
+.voucher-entry-modal .dynamic-items-table-wrapper .voucher-items-card {
+  margin-top: 0;
+}
+
+.voucher-entry-modal .dynamic-items-table {
+  margin-top: 8px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid #dbe3ef;
+  background: #f8fafc;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.voucher-entry-modal .voucher-items-card .dynamic-items-table {
+  margin-top: 0;
+  border: none;
+}
+
+.voucher-entry-modal .dynamic-items-table thead th {
+  padding: 11px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #25324a;
+  background: #f8fafc;
+  border-bottom: 1px solid #dbe3ef;
+}
+
+.voucher-entry-modal .dynamic-items-table td {
+  padding: 8px 6px;
+  background: #ffffff;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.voucher-entry-modal .dynamic-items-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.voucher-entry-modal .dynamic-items-table td .form-control {
+  height: 36px;
+  font-size: 13px;
+  background: #f3f4f6;
+  color: #111827;
+  border: 1px solid #dfe4ec;
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+
+.voucher-entry-modal .dynamic-items-table td .form-control:focus {
+  background: #ffffff;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14);
+}
+
+.voucher-entry-modal .dynamic-items-table td .form-control:disabled {
+  background: #f3f4f6;
+  color: #111827;
+  opacity: 1;
+}
+
+.voucher-entry-modal .dynamic-items-table .item-total-display {
+  color: #111827 !important;
+  font-weight: 700;
+}
+
+.voucher-entry-modal .dynamic-items-table .trash-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid #fca5a5;
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  color: #dc2626;
+  line-height: 1;
+}
+
+.dynamic-row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.dynamic-row-actions-cell {
+  text-align: center;
+  white-space: nowrap;
+  width: 72px;
+  min-width: 72px;
+}
+
+.insert-row-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid #86efac;
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  color: #16a34a;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.insert-row-btn:hover {
+  background: #f0fdf4;
+  border-color: #4ade80;
+}
+
+.dynamic-items-row-count {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted, #64748b);
+  text-align: left;
+  font-weight: 500;
+}
+
+.voucher-entry-modal .dynamic-items-table .insert-row-btn {
+  width: 28px;
+  height: 28px;
+}
+
+/* Cash modals (receipt/payment) get a slightly wider treatment */
+.voucher-entry-modal.modal-overlay #modal-add-receipt .modal-content-container,
+.voucher-entry-modal.modal-overlay #modal-add-payment .modal-content-container {
+  max-width: 620px;
+}
+
+@media (max-width: 768px) {
+  .voucher-entry-modal .modal-content-container {
+    width: 98%;
+    max-width: none;
+  }
+
+  .voucher-entry-modal .modal-header {
+    padding: 16px 20px;
+  }
+
+  .voucher-entry-modal .modal-body {
+    padding: 20px;
+  }
+
+  .voucher-entry-modal .modal-footer {
+    padding: 14px 20px;
+  }
+
+  .voucher-modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .voucher-modal-footer-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .voucher-modal-footer-actions .btn {
+    flex: 1;
+  }
+
+  .voucher-total-display {
+    font-size: 1.35rem !important;
+  }
+}
+
+/* Light theme adjustments for voucher modals */
+body.light-theme .voucher-entry-modal .modal-header {
+  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+  border-bottom-color: #e5e7eb;
+}
+
+body.light-theme .voucher-entry-modal .modal-footer {
+  background: #f8fafc;
+  border-top-color: #e5e7eb;
+}
+
+body.light-theme .voucher-entry-modal .dynamic-items-table {
+  border-color: #dbe3ef;
+  background: #f8fafc;
+}
+
+body.light-theme .voucher-entry-modal .dynamic-items-table thead th {
+  background: #f8fafc;
+  color: #25324a;
+  border-bottom-color: #dbe3ef;
+}
+
+body.light-theme .voucher-entry-modal .dynamic-items-table td {
+  background: #ffffff;
+  border-bottom-color: #edf2f7;
+}
+
+body.light-theme .voucher-entry-modal .dynamic-items-table td .form-control {
+  background: #f3f4f6;
+  color: #111827;
+  border-color: #dfe4ec;
+}
+
+body.light-theme .voucher-items-card {
+  border-color: #dbe3ef;
+  background: #f8fafc;
+}
+
+body.light-theme .voucher-total-panel {
+  background: linear-gradient(135deg, #f8fafc 0%, rgba(16, 185, 129, 0.05) 100%) !important;
+  border-color: rgba(16, 185, 129, 0.2);
+}

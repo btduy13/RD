@@ -1375,6 +1375,96 @@ async function initLocalVersionDisplay() {
   }
 }
 
+function normalizeReleaseVersion(tagName) {
+  return String(tagName || "").replace(/^v/i, "").trim();
+}
+
+async function fetchLatestReleaseVersion() {
+  const releaseUrls = [
+    `https://api.github.com/repos/btduy13/RD/releases/latest?t=${Date.now()}`,
+    `https://api.github.com/repos/btduy13/RD/releases?per_page=20&t=${Date.now()}`
+  ];
+
+  for (const url of releaseUrls) {
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (!response.ok) continue;
+
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        const published = data.filter((release) => !release.draft && !release.prerelease);
+        if (!published.length) continue;
+
+        let latest = normalizeReleaseVersion(published[0].tag_name);
+        for (const release of published.slice(1)) {
+          const candidate = normalizeReleaseVersion(release.tag_name);
+          if (compareVersions(candidate, latest) > 0) latest = candidate;
+        }
+        return latest;
+      }
+
+      if (data && data.tag_name) {
+        return normalizeReleaseVersion(data.tag_name);
+      }
+    } catch (err) {
+      console.warn(`Thất bại khi lấy release từ ${url}:`, err.message);
+    }
+  }
+
+  return null;
+}
+
+async function fetchPackageJsonVersion() {
+  const urls = [
+    { type: "api", url: `https://api.github.com/repos/btduy13/RD/contents/package.json?t=${Date.now()}` },
+    { type: "raw", url: `https://raw.githubusercontent.com/btduy13/RD/main/package.json?t=${Date.now()}` },
+    { type: "cdn", url: `https://cdn.jsdelivr.net/gh/btduy13/RD@main/package.json?t=${Date.now()}` }
+  ];
+
+  let response = null;
+  let isPrivateRepo = false;
+  let fetchedUrlObj = null;
+
+  for (const urlObj of urls) {
+    try {
+      response = await fetch(urlObj.url, { signal: AbortSignal.timeout(15000) });
+      if (response) {
+        if (response.ok) {
+          fetchedUrlObj = urlObj;
+          break;
+        }
+        if (response.status === 404) {
+          isPrivateRepo = true;
+        }
+      }
+    } catch (err) {
+      console.warn(`Thất bại khi lấy package.json từ ${urlObj.url}:`, err.message);
+    }
+  }
+
+  if (isPrivateRepo && (!response || !response.ok)) {
+    return { version: null, isPrivateRepo: true };
+  }
+
+  if (!response || !response.ok) {
+    return { version: null, isPrivateRepo: false };
+  }
+
+  if (fetchedUrlObj && fetchedUrlObj.type === "api") {
+    const apiData = await response.json();
+    if (apiData && apiData.content) {
+      const decodedContent = atob(apiData.content.replace(/\s/g, ""));
+      const remotePkg = JSON.parse(decodedContent);
+      return { version: remotePkg.version, isPrivateRepo: false };
+    }
+  } else {
+    const remotePkg = await response.json();
+    return { version: remotePkg.version, isPrivateRepo: false };
+  }
+
+  return { version: null, isPrivateRepo: false };
+}
+
 // Hàm kiểm tra cập nhật từ GitHub
 async function checkForUpdates(manual = false) {
   const statusContainer = document.getElementById("update-status-container");
@@ -1393,67 +1483,26 @@ async function checkForUpdates(manual = false) {
   }
 
   try {
-    // 1. Tải file package.json bằng cơ chế Fallback Cascade (tránh bị chặn DNS/ISP tại Việt Nam)
-    const urls = [
-      { type: "api", url: `https://api.github.com/repos/btduy13/RD/contents/package.json?t=${Date.now()}` },
-      { type: "raw", url: `https://raw.githubusercontent.com/btduy13/RD/main/package.json?t=${Date.now()}` },
-      { type: "cdn", url: `https://cdn.jsdelivr.net/gh/btduy13/RD@main/package.json?t=${Date.now()}` }
-    ];
+    // Ưu tiên GitHub Releases (bản phát hành thực tế), fallback package.json trên main
+    let remoteVersion = await fetchLatestReleaseVersion();
 
-    let response = null;
-    let isPrivateRepo = false;
-    let lastError = null;
-    let fetchedUrlObj = null;
-
-    for (const urlObj of urls) {
-      try {
-        // Sử dụng timeout 15 giây để đảm bảo kết nối thành công ngay cả khi mạng chậm/bị bóp băng thông
-        response = await fetch(urlObj.url, { signal: AbortSignal.timeout(15000) });
-        if (response) {
-          if (response.ok) {
-            fetchedUrlObj = urlObj;
-            break;
-          } else if (response.status === 404) {
-            isPrivateRepo = true; // Phát hiện kho lưu trữ riêng tư/bảo mật
-          }
+    if (!remoteVersion) {
+      const pkgInfo = await fetchPackageJsonVersion();
+      if (pkgInfo.isPrivateRepo) {
+        statusContainer.style.background = "rgba(16, 185, 129, 0.1)";
+        statusContainer.style.color = "var(--color-success)";
+        statusContainer.innerText = `Hệ thống bảo mật (Private Repo). Phiên bản hiện tại v${appLocalVersion} là mới nhất.`;
+        if (manual) {
+          showToast(`Bản cài đặt bảo mật v${appLocalVersion} đã tối ưu!`, "success");
         }
-      } catch (err) {
-        lastError = err;
-        console.warn(`Thất bại khi lấy dữ liệu cập nhật từ ${urlObj.url}:`, err.message);
+        return;
       }
+      remoteVersion = pkgInfo.version;
     }
 
-    // 1. Xử lý trường hợp Kho lưu trữ Riêng tư / Bảo mật (Trả về 404)
-    if (isPrivateRepo && (!response || !response.ok)) {
-      statusContainer.style.background = "rgba(16, 185, 129, 0.1)";
-      statusContainer.style.color = "var(--color-success)";
-      statusContainer.innerText = `Hệ thống bảo mật (Private Repo). Phiên bản hiện tại v${appLocalVersion} là mới nhất.`;
-      if (manual) {
-        showToast(`Bản cài đặt bảo mật v${appLocalVersion} đã tối ưu!`, "success");
-      }
-      return;
-    }
-
-    // 2. Xử lý lỗi kết nối thực tế
-    if (!response || !response.ok) {
+    if (!remoteVersion) {
       throw new Error("Không thể kết nối máy chủ cập nhật (Mạng chập chờn hoặc bị chặn bởi ISP).");
     }
-
-    let remoteVersion = null;
-    if (fetchedUrlObj && fetchedUrlObj.type === "api") {
-      const apiData = await response.json();
-      if (apiData && apiData.content) {
-        // Giải mã base64 từ API Contents
-        const decodedContent = atob(apiData.content.replace(/\s/g, ''));
-        const remotePkg = JSON.parse(decodedContent);
-        remoteVersion = remotePkg.version;
-      }
-    } else {
-      const remotePkg = await response.json();
-      remoteVersion = remotePkg.version;
-    }
-
-    if (!remoteVersion) throw new Error("File cấu hình cập nhật không hợp lệ.");
     remoteVersionGlobal = remoteVersion;
 
     // Hàm so sánh phiên bản (semver đơn giản)
@@ -1520,7 +1569,7 @@ async function getReleaseAssetUrl(version) {
     console.error("Lỗi lấy assets qua Releases API:", err);
   }
   // URL mặc định dự phòng nếu API GitHub quá giới hạn
-  return `https://github.com/btduy13/RD/releases/download/v${version}/Kế toán Rạng Đông Setup ${version}.exe`;
+  return `https://github.com/btduy13/RD/releases/download/v${version}/K.toan.R.ng.Dong.Setup.${version}.exe`;
 }
 
 // Giao diện hiển thị Tiến trình tải về (Progress bar) trực quan

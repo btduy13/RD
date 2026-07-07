@@ -317,8 +317,9 @@ function changeSalesPage(p) {
 }
 
 // Bổ sung các hàng sản phẩm động vào form Bán hàng
-function addSalesFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
-  const tbody = document.getElementById("sales-form-items-body");
+function addSalesFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVal = 0, discountVal = 0, insertAfterRow = null) {
+  const tbodyId = "sales-form-items-body";
+  const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
 
   const rowId = `sale-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -344,23 +345,16 @@ function addSalesFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVal =
       <input type="text" class="form-control item-discount text-right number-format" required value="${discountVal}" oninput="recalculateSalesTotals()" placeholder="0">
     </td>
     <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
-    <td style="text-align: center;">
-      <button type="button" class="trash-btn" onclick="document.getElementById('${rowId}').remove(); recalculateSalesTotals();">×</button>
-    </td>
+    ${buildDynamicRowActionsCell(rowId, tbodyId)}
   `;
 
-  tbody.appendChild(tr);
-  recalculateSalesTotals();
+  mountDynamicFormRow(tbody, tr, insertAfterRow);
+  refreshDynamicFormTable(tbodyId);
 
-  // Auto-focus vào ô sản phẩm của dòng vừa tạo khi add tay
   if (!productIdVal) {
-    const allRows = tbody.querySelectorAll("tr");
-    const newRow = allRows[allRows.length - 1];
-    if (newRow) {
-      const firstInput = newRow.querySelector(".item-productId");
-      if (firstInput) {
-        setTimeout(() => { firstInput.focus(); }, 30);
-      }
+    const firstInput = tr.querySelector(".item-productId");
+    if (firstInput) {
+      setTimeout(() => { firstInput.focus(); }, 30);
     }
   }
 }
@@ -438,6 +432,8 @@ function resetSalesForm() {
   const noteEl = document.getElementById("sale-note");
   if (noteEl) noteEl.value = "";
   addSalesFormRow();
+  if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-sales-return", false);
+  if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-sales", false);
   // Auto-focus vào ô “Khách hàng mua” — trường quan trọng nhất khi mở form
   setTimeout(() => {
     const el = document.getElementById("sale-partner");
@@ -560,14 +556,12 @@ async function handleSalesSubmit(e) {
 
   if (isStockInsufficient) return;
 
-  if (!editingSalesId || voucherId !== editingSalesId) {
-    if (salesSubmitInProgress) {
-      showToast("Đang kiểm tra số chứng từ trên cloud, vui lòng chờ...", "info");
-      return;
-    }
+  const modalId = "modal-add-sales";
+  if (!beginVoucherSubmit(modalId, "Đang kiểm tra dữ liệu...")) return;
 
-    salesSubmitInProgress = true;
-    try {
+  try {
+    if (!editingSalesId || voucherId !== editingSalesId) {
+      setVoucherFormStatus(modalId, "Đang kiểm tra số chứng từ trên cloud...", "cloud");
       if (typeof getCloudSafeVoucherId === "function") {
         const safeVoucherId = await getCloudSafeVoucherId({
           currentId: voucherId,
@@ -582,29 +576,19 @@ async function handleSalesSubmit(e) {
           showToast(`Đã cấp số chứng từ an toàn theo cloud: ${voucherId}`, "info");
         }
       }
-    } catch (err) {
-      console.error("[Sales] Không thể kiểm tra số chứng từ trên cloud:", err);
-      if (typeof addErrorLog === "function") {
-        addErrorLog("handleSalesSubmit.cloudSafeId", err.message, err);
+
+      const isDuplicateAfterCloudCheck = state.vouchers.some(v => {
+        if (editingSalesId && v.id.toLowerCase() === editingSalesId.toLowerCase()) return false;
+        return v.id.toLowerCase() === voucherId.toLowerCase();
+      });
+
+      if (isDuplicateAfterCloudCheck) {
+        showToast("Số chứng từ đã tồn tại, vui lòng thử ghi sổ lại để cấp số mới!", "danger");
+        return;
       }
-      showToast("Không thể kiểm tra số chứng từ trên cloud. Vui lòng thử lại trước khi ghi sổ.", "danger");
-      return;
-    } finally {
-      salesSubmitInProgress = false;
     }
 
-    const isDuplicateAfterCloudCheck = state.vouchers.some(v => {
-      if (editingSalesId && v.id.toLowerCase() === editingSalesId.toLowerCase()) return false;
-      return v.id.toLowerCase() === voucherId.toLowerCase();
-    });
-
-    if (isDuplicateAfterCloudCheck) {
-      showToast("Số chứng từ đã tồn tại, vui lòng thử ghi sổ lại để cấp số mới!", "danger");
-      return;
-    }
-  }
-
-  const newVoucher = {
+    const newVoucher = {
     id: voucherId,
     type: "sales",
     date: document.getElementById("sale-date").value,
@@ -649,13 +633,22 @@ async function handleSalesSubmit(e) {
     state.vouchers.push(newVoucher);
   }
 
-  saveState();
-  recalculateAccounting();
+  recalculateAccounting(false);
+  setVoucherFormStatus(modalId, "Đang lưu và đồng bộ máy khác...", "sync");
+  await saveStateAndSyncVoucher();
 
-  closeModal("modal-add-sales");
+  closeModal(modalId);
   showToast("Lập hóa đơn bán hàng thành công!", "success");
   if (typeof viewVoucher === "function") {
     viewVoucher(newVoucher.id || voucherId);
+  }
+  } catch (err) {
+    console.error("[Sales] Lưu hóa đơn bán hàng thất bại:", err);
+    if (typeof addErrorLog === "function") addErrorLog("handleSalesSubmit.save", err.message, err);
+    setVoucherFormStatus(modalId, "Không thể lưu chứng từ. Vui lòng thử lại.", "error");
+    showToast("Không thể lưu chứng từ. Vui lòng thử lại.", "danger");
+  } finally {
+    endVoucherSubmit(modalId);
   }
 }
 
@@ -664,6 +657,7 @@ function editSalesVoucher(id) {
   if (!v) return;
 
   editingSalesId = id;
+  if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-sales", true);
 
   const modalTitle = document.querySelector("#modal-add-sales .card-title");
   if (modalTitle) modalTitle.innerText = `Chỉnh sửa hóa đơn bán hàng: ${id}`;
@@ -1052,8 +1046,9 @@ function changeSalesReturnPage(p) {
 }
 
 // addSalesReturnFormRow
-function addSalesReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
-  const tbody = document.getElementById("sales-return-form-items-body");
+function addSalesReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0, insertAfterRow = null) {
+  const tbodyId = "sales-return-form-items-body";
+  const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
 
   const rowId = `sales-ret-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -1074,23 +1069,16 @@ function addSalesReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, disc
       <input type="text" class="form-control item-discount text-right number-format" required value="${discountVal}" oninput="recalculateSalesReturnTotals()" placeholder="0">
     </td>
     <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
-    <td style="text-align: center;">
-      <button type="button" class="trash-btn" onclick="document.getElementById('${rowId}').remove(); recalculateSalesReturnTotals();">×</button>
-    </td>
+    ${buildDynamicRowActionsCell(rowId, tbodyId)}
   `;
 
-  tbody.appendChild(tr);
-  recalculateSalesReturnTotals();
+  mountDynamicFormRow(tbody, tr, insertAfterRow);
+  refreshDynamicFormTable(tbodyId);
 
-  // Auto-focus vào ô sản phẩm của dòng vừa tạo khi add tay
   if (!productIdVal) {
-    const allRows = tbody.querySelectorAll("tr");
-    const newRow = allRows[allRows.length - 1];
-    if (newRow) {
-      const firstInput = newRow.querySelector(".item-productId");
-      if (firstInput) {
-        setTimeout(() => { firstInput.focus(); }, 30);
-      }
+    const firstInput = tr.querySelector(".item-productId");
+    if (firstInput) {
+      setTimeout(() => { firstInput.focus(); }, 30);
     }
   }
 }
@@ -1169,6 +1157,7 @@ function resetSalesReturnForm() {
   editingSalesReturnId = null;
   const modalTitle = document.querySelector("#modal-add-sales-return .card-title");
   if (modalTitle) modalTitle.innerText = "Chứng từ Hàng bán trả lại nhập kho";
+  if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-sales-return", false);
 
   const idEl = document.getElementById("sales-ret-id");
   if (idEl) idEl.value = "";
@@ -1262,14 +1251,12 @@ async function handleSalesReturnSubmit(e) {
 
   if (hasError) return;
 
-  if (!editingSalesReturnId || voucherId !== editingSalesReturnId) {
-    if (salesReturnSubmitInProgress) {
-      showToast("Đang kiểm tra số chứng từ trên cloud, vui lòng chờ...", "info");
-      return;
-    }
+  const modalId = "modal-add-sales-return";
+  if (!beginVoucherSubmit(modalId, "Đang kiểm tra dữ liệu...")) return;
 
-    salesReturnSubmitInProgress = true;
-    try {
+  try {
+    if (!editingSalesReturnId || voucherId !== editingSalesReturnId) {
+      setVoucherFormStatus(modalId, "Đang kiểm tra số chứng từ trên cloud...", "cloud");
       if (typeof ensureCloudSafeVoucherIdForSave === "function") {
         voucherId = await ensureCloudSafeVoucherIdForSave({
           currentId: voucherId,
@@ -1279,19 +1266,9 @@ async function handleSalesReturnSubmit(e) {
           inputEl: inputIdEl
         });
       }
-    } catch (err) {
-      console.error("[SalesReturn] Không thể kiểm tra số chứng từ trên cloud:", err);
-      if (typeof addErrorLog === "function") {
-        addErrorLog("handleSalesReturnSubmit.cloudSafeId", err.message, err);
-      }
-      showToast("Không thể kiểm tra số chứng từ trên cloud. Vui lòng thử lại trước khi ghi sổ.", "danger");
-      return;
-    } finally {
-      salesReturnSubmitInProgress = false;
     }
-  }
 
-  const newVoucher = {
+    const newVoucher = {
     id: voucherId,
     type: "sales_return",
     date: document.getElementById("sales-ret-date").value,
@@ -1333,13 +1310,22 @@ async function handleSalesReturnSubmit(e) {
     state.vouchers.push(newVoucher);
   }
 
-  saveState();
-  recalculateAccounting();
+  recalculateAccounting(false);
+  setVoucherFormStatus(modalId, "Đang lưu và đồng bộ máy khác...", "sync");
+  await saveStateAndSyncVoucher();
 
-  closeModal("modal-add-sales-return");
+  closeModal(modalId);
   showToast(isEdit ? "Cập nhật chứng từ trả lại thành công!" : "Lập chứng từ trả lại hàng thành công!", "success");
   if (typeof viewVoucher === "function") {
     viewVoucher(newVoucher.id || voucherId);
+  }
+  } catch (err) {
+    console.error("[SalesReturn] Lưu chứng từ trả lại thất bại:", err);
+    if (typeof addErrorLog === "function") addErrorLog("handleSalesReturnSubmit.save", err.message, err);
+    setVoucherFormStatus(modalId, "Không thể lưu chứng từ. Vui lòng thử lại.", "error");
+    showToast("Không thể lưu chứng từ. Vui lòng thử lại.", "danger");
+  } finally {
+    endVoucherSubmit(modalId);
   }
 }
 
@@ -1349,6 +1335,7 @@ function editSalesReturnVoucher(id) {
   if (!v) return;
 
   editingSalesReturnId = id;
+  if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-sales-return", true);
 
   const modalTitle = document.querySelector("#modal-add-sales-return .card-title");
   if (modalTitle) modalTitle.innerText = `Chỉnh sửa chứng từ hàng bán trả lại: ${id}`;
@@ -1779,8 +1766,9 @@ function changeQuotationPage(p) {
 }
 
 // Bổ sung các hàng sản phẩm động vào form Báo giá
-function addQuotationFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
-  const tbody = document.getElementById("quotation-form-items-body");
+function addQuotationFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVal = 0, discountVal = 0, insertAfterRow = null) {
+  const tbodyId = "quotation-form-items-body";
+  const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
 
   const rowId = `quotation-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -1806,23 +1794,16 @@ function addQuotationFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceV
       <input type="text" class="form-control item-discount text-right number-format" required value="${discountVal}" oninput="recalculateQuotationTotals()" placeholder="0">
     </td>
     <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
-    <td style="text-align: center;">
-      <button type="button" class="trash-btn" onclick="document.getElementById('${rowId}').remove(); recalculateQuotationTotals();">×</button>
-    </td>
+    ${buildDynamicRowActionsCell(rowId, tbodyId)}
   `;
 
-  tbody.appendChild(tr);
-  recalculateQuotationTotals();
+  mountDynamicFormRow(tbody, tr, insertAfterRow);
+  refreshDynamicFormTable(tbodyId);
 
-  // Auto-focus vào ô sản phẩm của dòng vừa tạo khi add tay
   if (!productIdVal) {
-    const allRows = tbody.querySelectorAll("tr");
-    const newRow = allRows[allRows.length - 1];
-    if (newRow) {
-      const firstInput = newRow.querySelector(".item-productId");
-      if (firstInput) {
-        setTimeout(() => { firstInput.focus(); }, 30);
-      }
+    const firstInput = tr.querySelector(".item-productId");
+    if (firstInput) {
+      setTimeout(() => { firstInput.focus(); }, 30);
     }
   }
 }
@@ -1883,6 +1864,7 @@ function resetQuotationForm() {
   editingQuotationId = null;
   const modalTitle = document.querySelector("#modal-add-sales-quotation .card-title");
   if (modalTitle) modalTitle.innerText = "Lập Phiếu Báo Giá";
+  if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-sales-quotation", false);
 
   const idEl = document.getElementById("quotation-id");
   if (idEl) idEl.value = "";
@@ -1993,14 +1975,12 @@ async function handleQuotationSubmit(e) {
     });
   }
 
-  if (!editingQuotationId || voucherId !== editingQuotationId) {
-    if (quotationSubmitInProgress) {
-      showToast("Đang kiểm tra số chứng từ trên cloud, vui lòng chờ...", "info");
-      return;
-    }
+  const modalId = "modal-add-sales-quotation";
+  if (!beginVoucherSubmit(modalId, "Đang kiểm tra dữ liệu...")) return;
 
-    quotationSubmitInProgress = true;
-    try {
+  try {
+    if (!editingQuotationId || voucherId !== editingQuotationId) {
+      setVoucherFormStatus(modalId, "Đang kiểm tra số chứng từ trên cloud...", "cloud");
       if (typeof ensureCloudSafeVoucherIdForSave === "function") {
         voucherId = await ensureCloudSafeVoucherIdForSave({
           currentId: voucherId,
@@ -2010,59 +1990,58 @@ async function handleQuotationSubmit(e) {
           inputEl: inputIdEl
         });
       }
-    } catch (err) {
-      console.error("[Quotation] Không thể kiểm tra số chứng từ trên cloud:", err);
-      if (typeof addErrorLog === "function") {
-        addErrorLog("handleQuotationSubmit.cloudSafeId", err.message, err);
-      }
-      showToast("Không thể kiểm tra số chứng từ trên cloud. Vui lòng thử lại trước khi ghi sổ.", "danger");
-      return;
-    } finally {
-      quotationSubmitInProgress = false;
     }
-  }
 
-  const newVoucher = {
-    id: voucherId,
-    type: "sales_quotation",
-    date: document.getElementById("quotation-date").value,
-    partnerId,
-    partnerName,
-    paymentMethod: document.getElementById("quotation-payment").value,
-    description: document.getElementById("quotation-desc").value,
-    items: voucherItems,
-    taxRate: parseInt(document.getElementById("quotation-tax-rate").value),
-    isManual: true,
-    _updatedAt: Date.now(),
-    _sessionId: clientSessionId
-  };
+    const newVoucher = {
+      id: voucherId,
+      type: "sales_quotation",
+      date: document.getElementById("quotation-date").value,
+      partnerId,
+      partnerName,
+      paymentMethod: document.getElementById("quotation-payment").value,
+      description: document.getElementById("quotation-desc").value,
+      items: voucherItems,
+      taxRate: parseInt(document.getElementById("quotation-tax-rate").value),
+      isManual: true,
+      _updatedAt: Date.now(),
+      _sessionId: clientSessionId
+    };
 
-  if (editingQuotationId) {
-    const idx = state.vouchers.findIndex(v => v.id === editingQuotationId);
-    if (idx !== -1) {
-      if (state.vouchers[idx].excelRow) {
-        newVoucher.excelRow = state.vouchers[idx].excelRow;
+    if (editingQuotationId) {
+      const idx = state.vouchers.findIndex(v => v.id === editingQuotationId);
+      if (idx !== -1) {
+        if (state.vouchers[idx].excelRow) {
+          newVoucher.excelRow = state.vouchers[idx].excelRow;
+        }
+        state.vouchers[idx] = newVoucher;
       }
-      state.vouchers[idx] = newVoucher;
-    }
-    
-    if (voucherId !== editingQuotationId) {
-      if (typeof trackDeletedIds === "function") {
-        trackDeletedIds([editingQuotationId]);
+
+      if (voucherId !== editingQuotationId) {
+        if (typeof trackDeletedIds === "function") {
+          trackDeletedIds([editingQuotationId]);
+        }
       }
+      editingQuotationId = null;
+    } else {
+      state.vouchers.push(newVoucher);
     }
-    editingQuotationId = null;
-  } else {
-    state.vouchers.push(newVoucher);
-  }
 
-  saveState();
-  recalculateAccounting();
+    recalculateAccounting(false);
+    setVoucherFormStatus(modalId, "Đang lưu và đồng bộ máy khác...", "sync");
+    await saveStateAndSyncVoucher();
 
-  closeModal("modal-add-sales-quotation");
-  showToast("Lập phiếu báo giá thành công!", "success");
-  if (typeof viewVoucher === "function") {
-    viewVoucher(newVoucher.id || voucherId);
+    closeModal(modalId);
+    showToast("Lập phiếu báo giá thành công!", "success");
+    if (typeof viewVoucher === "function") {
+      viewVoucher(newVoucher.id || voucherId);
+    }
+  } catch (err) {
+    console.error("[Quotation] Lưu phiếu báo giá thất bại:", err);
+    if (typeof addErrorLog === "function") addErrorLog("handleQuotationSubmit.save", err.message, err);
+    setVoucherFormStatus(modalId, "Không thể lưu phiếu báo giá. Vui lòng thử lại.", "error");
+    showToast("Không thể lưu phiếu báo giá. Vui lòng thử lại.", "danger");
+  } finally {
+    endVoucherSubmit(modalId);
   }
 }
 
@@ -2071,6 +2050,7 @@ function editQuotationVoucher(id) {
   if (!v) return;
 
   editingQuotationId = id;
+  if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-sales-quotation", true);
 
   const modalTitle = document.querySelector("#modal-add-sales-quotation .card-title");
   if (modalTitle) modalTitle.innerText = `Chỉnh sửa phiếu báo giá: ${id}`;
@@ -2717,8 +2697,9 @@ function openEditTemplateModal(filename) {
   openModal('modal-edit-template');
 }
 
-function addTemplateFormRow(nameVal = "", qtyVal = 1, priceVal = 0) {
-  const tbody = document.getElementById("template-form-items-body");
+function addTemplateFormRow(nameVal = "", qtyVal = 1, priceVal = 0, insertAfterRow = null) {
+  const tbodyId = "template-form-items-body";
+  const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
   
   const rowId = `template-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -2735,12 +2716,18 @@ function addTemplateFormRow(nameVal = "", qtyVal = 1, priceVal = 0) {
     <td>
       <input type="text" class="form-control item-price text-right number-format" required value="${Number(priceVal).toLocaleString("vi-VN")}">
     </td>
-    <td style="text-align: center;">
-      <button type="button" class="trash-btn" onclick="document.getElementById('${rowId}').remove();">×</button>
-    </td>
+    ${buildDynamicRowActionsCell(rowId, tbodyId)}
   `;
   
-  tbody.appendChild(tr);
+  mountDynamicFormRow(tbody, tr, insertAfterRow);
+  refreshDynamicFormTable(tbodyId);
+
+  if (!nameVal) {
+    const firstInput = tr.querySelector(".item-productId");
+    if (firstInput) {
+      setTimeout(() => { firstInput.focus(); }, 30);
+    }
+  }
 }
 
 function autoFillTemplateProductPrice(selectEl) {
@@ -2881,4 +2868,22 @@ window.handleTemplateSubmit = handleTemplateSubmit;
 window.deleteSalesTemplate = deleteSalesTemplate;
 window.autoFillTemplateProductPrice = autoFillTemplateProductPrice;
 
+if (typeof registerDynamicFormTable === "function") {
+  registerDynamicFormTable("sales-form-items-body", {
+    addRow: (insertAfter) => addSalesFormRow("", "", 1, 0, 0, insertAfter),
+    recalc: recalculateSalesTotals
+  });
+  registerDynamicFormTable("sales-return-form-items-body", {
+    addRow: (insertAfter) => addSalesReturnFormRow("", 1, 0, 0, insertAfter),
+    recalc: recalculateSalesReturnTotals
+  });
+  registerDynamicFormTable("quotation-form-items-body", {
+    addRow: (insertAfter) => addQuotationFormRow("", "", 1, 0, 0, insertAfter),
+    recalc: recalculateQuotationTotals
+  });
+  registerDynamicFormTable("template-form-items-body", {
+    addRow: (insertAfter) => addTemplateFormRow("", 1, 0, insertAfter),
+    recalc: null
+  });
+}
 

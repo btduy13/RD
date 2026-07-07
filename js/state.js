@@ -50,7 +50,9 @@ async function initApp() {
         if (parsed && Array.isArray(parsed.products) && Array.isArray(parsed.vouchers)) {
           state = parsed;
           window.originalStateLastModified = Number(parsed._lastModified) || 0;
-          window.lastSyncState = JSON.parse(JSON.stringify(parsed));
+          // Do not seed lastSyncState from local cache: unpushed vouchers would be
+          // treated as already synced and never uploaded after restart.
+          window.lastSyncState = null;
           if (typeof lastSyncedCloudTs !== 'undefined') {
             const pulledTs = Number(localStorage.getItem("rd_accounting_last_pulled_cloud_ts") || parsed._lastPulledCloudTs || 0) || 0;
             lastSyncedCloudTs = pulledTs;
@@ -84,8 +86,8 @@ async function initApp() {
           state = parsed;
           window.originalStateLastModified = Number(parsed._lastModified) || 0;
           // Snapshot đồng bộ không còn được lưu vào localStorage (ghi đồng bộ
-          // nhiều MB gây đứng UI); khởi tạo từ bản sao cache giống nhánh Electron.
-          window.lastSyncState = JSON.parse(JSON.stringify(parsed));
+          // nhiều MB gây đứng UI). Không clone cache vào lastSyncState — xem nhánh Electron.
+          window.lastSyncState = null;
           hasCache = true;
           const pulledTs = Number(localStorage.getItem("rd_accounting_last_pulled_cloud_ts") || parsed._lastPulledCloudTs || 0) || 0;
           lastSyncedCloudTs = pulledTs;
@@ -647,6 +649,26 @@ async function executeSaveState(sync = false) {
 
 window.initializeLastSavedState = initializeLastSavedState;
 window.saveStateSync = saveStateSync;
+
+/**
+ * Immediate local save + cloud push for vouchers/orders.
+ * Bypasses the 2s debounce so other machines see new orders quickly.
+ */
+async function saveStateAndSyncVoucher() {
+  saveStateIsDirty = true;
+  if (saveStateTimeout) {
+    clearTimeout(saveStateTimeout);
+    saveStateTimeout = null;
+  }
+
+  await executeSaveState(true);
+
+  if (typeof cloudSyncActive !== "undefined" && cloudSyncActive && typeof pushToCloud === "function") {
+    await pushToCloud();
+  }
+}
+
+window.saveStateAndSyncVoucher = saveStateAndSyncVoucher;
 
 async function waitForPushToComplete(maxWaitMs = 3000) {
   const startTime = Date.now();

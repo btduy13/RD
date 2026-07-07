@@ -308,8 +308,9 @@ function populatePartnerDropdown(elementId, filterType) {
 
 // Bổ sung các hàng sản phẩm động vào form Mua hàng
 // Bổ sung các hàng sản phẩm động vào form Mua hàng
-function addPurchaseFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
-  const tbody = document.getElementById("purchase-form-items-body");
+function addPurchaseFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0, insertAfterRow = null) {
+  const tbodyId = "purchase-form-items-body";
+  const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
 
   const rowId = `pur-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -330,26 +331,19 @@ function addPurchaseFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discoun
       <input type="text" class="form-control item-discount text-right number-format" required value="${discountVal}" oninput="recalculatePurchaseTotals()" placeholder="0">
     </td>
     <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
-    <td style="text-align: center;">
-      <button type="button" class="trash-btn" onclick="document.getElementById('${rowId}').remove(); recalculatePurchaseTotals();">×</button>
-    </td>
+    ${buildDynamicRowActionsCell(rowId, tbodyId)}
   `;
 
-  tbody.appendChild(tr);
+  mountDynamicFormRow(tbody, tr, insertAfterRow);
 
-  // Auto-focus vào ô sản phẩm của dòng vừa tạo khi add tay
   if (!productIdVal) {
-    const allRows = tbody.querySelectorAll("tr");
-    const newRow = allRows[allRows.length - 1];
-    if (newRow) {
-      const firstInput = newRow.querySelector(".item-productId");
-      if (firstInput) {
-        setTimeout(() => { firstInput.focus(); }, 30);
-      }
+    const firstInput = tr.querySelector(".item-productId");
+    if (firstInput) {
+      setTimeout(() => { firstInput.focus(); }, 30);
     }
   }
 
-  recalculatePurchaseTotals();
+  refreshDynamicFormTable(tbodyId);
 }
 
 // Tự động điền đơn giá mua hàng của sản phẩm được chọn
@@ -423,6 +417,7 @@ function resetPurchaseForm() {
   document.getElementById("pur-date").value = getLocalDateString();
   
   addPurchaseFormRow();
+  if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-purchase", false);
   // Auto-focus vào ô Nhà cung cấp (trường đầu tiên hiển thị của form mua)
   setTimeout(() => {
     const el = document.getElementById("pur-partner");
@@ -508,14 +503,12 @@ async function handlePurchaseSubmit(e) {
 
   if (hasError) return;
 
-  if (!editingPurchaseId || voucherId !== editingPurchaseId) {
-    if (purchaseSubmitInProgress) {
-      showToast("Đang kiểm tra số chứng từ trên cloud, vui lòng chờ...", "info");
-      return;
-    }
+  const modalId = "modal-add-purchase";
+  if (!beginVoucherSubmit(modalId, "Đang kiểm tra dữ liệu...")) return;
 
-    purchaseSubmitInProgress = true;
-    try {
+  try {
+    if (!editingPurchaseId || voucherId !== editingPurchaseId) {
+      setVoucherFormStatus(modalId, "Đang kiểm tra số chứng từ trên cloud...", "cloud");
       if (typeof ensureCloudSafeVoucherIdForSave === "function") {
         voucherId = await ensureCloudSafeVoucherIdForSave({
           currentId: voucherId,
@@ -526,20 +519,10 @@ async function handlePurchaseSubmit(e) {
           inputEl: inputIdEl
         });
       }
-    } catch (err) {
-      console.error("[Purchase] Không thể kiểm tra số chứng từ trên cloud:", err);
-      if (typeof addErrorLog === "function") {
-        addErrorLog("handlePurchaseSubmit.cloudSafeId", err.message, err);
-      }
-      showToast("Không thể kiểm tra số chứng từ trên cloud. Vui lòng thử lại trước khi ghi sổ.", "danger");
-      return;
-    } finally {
-      purchaseSubmitInProgress = false;
     }
-  }
 
-  const paymentMethod = document.getElementById("pur-payment").value;
-  const newVoucher = {
+    const paymentMethod = document.getElementById("pur-payment").value;
+    const newVoucher = {
     id: voucherId,
     type: "purchase",
     date: document.getElementById("pur-date").value,
@@ -587,11 +570,20 @@ async function handlePurchaseSubmit(e) {
     state.vouchers.push(newVoucher);
   }
 
-  saveState();
-  recalculateAccounting();
+  recalculateAccounting(false);
+  setVoucherFormStatus(modalId, "Đang lưu và đồng bộ máy khác...", "sync");
+  await saveStateAndSyncVoucher();
 
-  closeModal("modal-add-purchase");
+  closeModal(modalId);
   showToast(isEdit ? "Cập nhật chứng từ mua hàng thành công!" : "Lập chứng từ mua hàng thành công!", "success");
+  } catch (err) {
+    console.error("[Purchase] Lưu chứng từ mua hàng thất bại:", err);
+    if (typeof addErrorLog === "function") addErrorLog("handlePurchaseSubmit.save", err.message, err);
+    setVoucherFormStatus(modalId, "Không thể lưu chứng từ. Vui lòng thử lại.", "error");
+    showToast("Không thể lưu chứng từ. Vui lòng thử lại.", "danger");
+  } finally {
+    endVoucherSubmit(modalId);
+  }
 }
 let editingPurchaseId = null;
 let editingPurchaseOrderId = null;
@@ -626,6 +618,7 @@ function editPurchaseVoucher(id) {
   if (!v) return;
 
   editingPurchaseId = id;
+  if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-purchase", true);
 
   const modalTitle = document.querySelector("#modal-add-purchase .card-title");
   if (modalTitle) modalTitle.innerText = `Chỉnh sửa chứng từ mua hàng: ${id}`;
@@ -1042,8 +1035,9 @@ function generateNextPurchaseOrderVoucherId() {
   return `${prefix}${(maxNum + 1).toString().padStart(5, '0')}`;
 }
 
-function addPurchaseOrderFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
-  const tbody = document.getElementById("purchase-order-form-items-body");
+function addPurchaseOrderFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0, insertAfterRow = null) {
+  const tbodyId = "purchase-order-form-items-body";
+  const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
 
   const rowId = `pur-order-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -1064,26 +1058,19 @@ function addPurchaseOrderFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, di
       <input type="text" class="form-control item-discount text-right number-format" required value="${discountVal}" oninput="recalculatePurchaseOrderTotals()" placeholder="0">
     </td>
     <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
-    <td style="text-align: center;">
-      <button type="button" class="trash-btn" onclick="document.getElementById('${rowId}').remove(); recalculatePurchaseOrderTotals();">×</button>
-    </td>
+    ${buildDynamicRowActionsCell(rowId, tbodyId)}
   `;
 
-  tbody.appendChild(tr);
+  mountDynamicFormRow(tbody, tr, insertAfterRow);
 
-  // Auto-focus vào ô sản phẩm của dòng vừa tạo khi add tay
   if (!productIdVal) {
-    const allRows = tbody.querySelectorAll("tr");
-    const newRow = allRows[allRows.length - 1];
-    if (newRow) {
-      const firstInput = newRow.querySelector(".item-productId");
-      if (firstInput) {
-        setTimeout(() => { firstInput.focus(); }, 30);
-      }
+    const firstInput = tr.querySelector(".item-productId");
+    if (firstInput) {
+      setTimeout(() => { firstInput.focus(); }, 30);
     }
   }
 
-  recalculatePurchaseOrderTotals();
+  refreshDynamicFormTable(tbodyId);
 }
 
 function autoFillPurchaseOrderPrice(selectEl) {
@@ -1153,6 +1140,7 @@ function resetPurchaseOrderForm() {
   document.getElementById("pur-order-date").value = getLocalDateString();
 
   addPurchaseOrderFormRow();
+  if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-purchase-order", false);
   // Auto-focus vào ô Nhà cung cấp
   setTimeout(() => {
     const el = document.getElementById("pur-order-partner");
@@ -1236,14 +1224,12 @@ async function handlePurchaseOrderSubmit(e) {
 
   if (hasError) return;
 
-  if (!editingPurchaseOrderId || voucherId !== editingPurchaseOrderId) {
-    if (purchaseOrderSubmitInProgress) {
-      showToast("Đang kiểm tra số chứng từ trên cloud, vui lòng chờ...", "info");
-      return;
-    }
+  const modalId = "modal-add-purchase-order";
+  if (!beginVoucherSubmit(modalId, "Đang kiểm tra dữ liệu...")) return;
 
-    purchaseOrderSubmitInProgress = true;
-    try {
+  try {
+    if (!editingPurchaseOrderId || voucherId !== editingPurchaseOrderId) {
+      setVoucherFormStatus(modalId, "Đang kiểm tra số chứng từ trên cloud...", "cloud");
       if (typeof ensureCloudSafeVoucherIdForSave === "function") {
         voucherId = await ensureCloudSafeVoucherIdForSave({
           currentId: voucherId,
@@ -1255,20 +1241,10 @@ async function handlePurchaseOrderSubmit(e) {
           inputEl: inputIdEl
         });
       }
-    } catch (err) {
-      console.error("[PurchaseOrder] Không thể kiểm tra số chứng từ trên cloud:", err);
-      if (typeof addErrorLog === "function") {
-        addErrorLog("handlePurchaseOrderSubmit.cloudSafeId", err.message, err);
-      }
-      showToast("Không thể kiểm tra số chứng từ trên cloud. Vui lòng thử lại trước khi ghi sổ.", "danger");
-      return;
-    } finally {
-      purchaseOrderSubmitInProgress = false;
     }
-  }
 
-  const paymentMethod = document.getElementById("pur-order-payment").value;
-  const newVoucher = {
+    const paymentMethod = document.getElementById("pur-order-payment").value;
+    const newVoucher = {
     id: voucherId,
     type: "purchase_order",
     date: document.getElementById("pur-order-date").value,
@@ -1311,11 +1287,20 @@ async function handlePurchaseOrderSubmit(e) {
     state.vouchers.push(newVoucher);
   }
 
-  saveState();
-  recalculateAccounting();
+  recalculateAccounting(false);
+  setVoucherFormStatus(modalId, "Đang lưu và đồng bộ máy khác...", "sync");
+  await saveStateAndSyncVoucher();
 
-  closeModal("modal-add-purchase-order");
+  closeModal(modalId);
   showToast(isEdit ? "Cập nhật đơn đặt hàng thành công!" : "Lập đơn đặt hàng thành công!", "success");
+  } catch (err) {
+    console.error("[PurchaseOrder] Lưu đơn đặt hàng thất bại:", err);
+    if (typeof addErrorLog === "function") addErrorLog("handlePurchaseOrderSubmit.save", err.message, err);
+    setVoucherFormStatus(modalId, "Không thể lưu đơn đặt hàng. Vui lòng thử lại.", "error");
+    showToast("Không thể lưu đơn đặt hàng. Vui lòng thử lại.", "danger");
+  } finally {
+    endVoucherSubmit(modalId);
+  }
 }
 
 function editPurchaseOrderVoucher(id) {
@@ -1323,6 +1308,7 @@ function editPurchaseOrderVoucher(id) {
   if (!v) return;
 
   editingPurchaseOrderId = id;
+  if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-purchase-order", true);
 
   const modalTitle = document.querySelector("#modal-add-purchase-order .card-title");
   if (modalTitle) modalTitle.innerText = `Chỉnh sửa đơn đặt hàng: ${id}`;
@@ -2035,8 +2021,9 @@ function changePurchaseReturnPage(p) {
   renderPurchaseReturnTable();
 }
 
-function addPurchaseReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0) {
-  const tbody = document.getElementById("purchase-return-form-items-body");
+function addPurchaseReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0, insertAfterRow = null) {
+  const tbodyId = "purchase-return-form-items-body";
+  const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
 
   const rowId = `ret-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -2057,25 +2044,19 @@ function addPurchaseReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, d
       <input type="text" class="form-control item-discount text-right number-format" required value="${discountVal}" oninput="recalculatePurchaseReturnTotals()" placeholder="0">
     </td>
     <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
-    <td style="text-align: center;">
-      <button type="button" class="trash-btn" onclick="document.getElementById('${rowId}').remove(); recalculatePurchaseReturnTotals();">×</button>
-    </td>
+    ${buildDynamicRowActionsCell(rowId, tbodyId)}
   `;
 
-  tbody.appendChild(tr);
+  mountDynamicFormRow(tbody, tr, insertAfterRow);
 
   if (!productIdVal) {
-    const allRows = tbody.querySelectorAll("tr");
-    const newRow = allRows[allRows.length - 1];
-    if (newRow) {
-      const firstInput = newRow.querySelector(".item-productId");
-      if (firstInput) {
-        setTimeout(() => { firstInput.focus(); }, 30);
-      }
+    const firstInput = tr.querySelector(".item-productId");
+    if (firstInput) {
+      setTimeout(() => { firstInput.focus(); }, 30);
     }
   }
 
-  recalculatePurchaseReturnTotals();
+  refreshDynamicFormTable(tbodyId);
 }
 
 function autoFillPurchaseReturnPrice(selectEl) {
@@ -2132,6 +2113,7 @@ function resetPurchaseReturnForm() {
   editingPurchaseReturnId = null;
   const modalTitle = document.querySelector("#modal-add-purchase-return .card-title");
   if (modalTitle) modalTitle.innerText = "Chứng từ Hàng trả lại mua";
+  if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-purchase-return", false);
 
   const idEl = document.getElementById("pur-return-id");
   if (idEl) idEl.value = "";
@@ -2231,14 +2213,12 @@ async function handlePurchaseReturnSubmit(e) {
 
   if (hasError) return;
 
-  if (!editingPurchaseReturnId || voucherId !== editingPurchaseReturnId) {
-    if (purchaseReturnSubmitInProgress) {
-      showToast("Đang kiểm tra số chứng từ trên cloud, vui lòng chờ...", "info");
-      return;
-    }
+  const modalId = "modal-add-purchase-return";
+  if (!beginVoucherSubmit(modalId, "Đang kiểm tra dữ liệu...")) return;
 
-    purchaseReturnSubmitInProgress = true;
-    try {
+  try {
+    if (!editingPurchaseReturnId || voucherId !== editingPurchaseReturnId) {
+      setVoucherFormStatus(modalId, "Đang kiểm tra số chứng từ trên cloud...", "cloud");
       if (typeof ensureCloudSafeVoucherIdForSave === "function") {
         voucherId = await ensureCloudSafeVoucherIdForSave({
           currentId: voucherId,
@@ -2249,20 +2229,10 @@ async function handlePurchaseReturnSubmit(e) {
           inputEl: inputIdEl
         });
       }
-    } catch (err) {
-      console.error("[PurchaseReturn] Không thể kiểm tra số chứng từ trên cloud:", err);
-      if (typeof addErrorLog === "function") {
-        addErrorLog("handlePurchaseReturnSubmit.cloudSafeId", err.message, err);
-      }
-      showToast("Không thể kiểm tra số chứng từ trên cloud. Vui lòng thử lại trước khi ghi sổ.", "danger");
-      return;
-    } finally {
-      purchaseReturnSubmitInProgress = false;
     }
-  }
 
-  const paymentMethod = document.getElementById("ret-payment").value;
-  const newVoucher = {
+    const paymentMethod = document.getElementById("ret-payment").value;
+    const newVoucher = {
     id: voucherId,
     type: "purchase_return",
     date: document.getElementById("ret-date").value,
@@ -2305,11 +2275,20 @@ async function handlePurchaseReturnSubmit(e) {
     state.vouchers.push(newVoucher);
   }
 
-  saveState();
-  recalculateAccounting();
+  recalculateAccounting(false);
+  setVoucherFormStatus(modalId, "Đang lưu và đồng bộ máy khác...", "sync");
+  await saveStateAndSyncVoucher();
 
-  closeModal("modal-add-purchase-return");
+  closeModal(modalId);
   showToast(isEdit ? "Cập nhật chứng từ trả lại thành công!" : "Lập chứng từ trả lại thành công!", "success");
+  } catch (err) {
+    console.error("[PurchaseReturn] Lưu chứng từ trả lại thất bại:", err);
+    if (typeof addErrorLog === "function") addErrorLog("handlePurchaseReturnSubmit.save", err.message, err);
+    setVoucherFormStatus(modalId, "Không thể lưu chứng từ. Vui lòng thử lại.", "error");
+    showToast("Không thể lưu chứng từ. Vui lòng thử lại.", "danger");
+  } finally {
+    endVoucherSubmit(modalId);
+  }
 }
 
 function generateNextPurchaseReturnVoucherId() {
@@ -2597,4 +2576,19 @@ window.onPurchaseOrderFilterChange = onPurchaseOrderFilterChange;
 window.clearPurchaseOrderColumnFilters = clearPurchaseOrderColumnFilters;
 window.onPurchaseReturnFilterChange = onPurchaseReturnFilterChange;
 window.clearPurchaseReturnColumnFilters = clearPurchaseReturnColumnFilters;
+
+if (typeof registerDynamicFormTable === "function") {
+  registerDynamicFormTable("purchase-form-items-body", {
+    addRow: (insertAfter) => addPurchaseFormRow("", 1, 0, 0, insertAfter),
+    recalc: recalculatePurchaseTotals
+  });
+  registerDynamicFormTable("purchase-order-form-items-body", {
+    addRow: (insertAfter) => addPurchaseOrderFormRow("", 1, 0, 0, insertAfter),
+    recalc: recalculatePurchaseOrderTotals
+  });
+  registerDynamicFormTable("purchase-return-form-items-body", {
+    addRow: (insertAfter) => addPurchaseReturnFormRow("", 1, 0, 0, insertAfter),
+    recalc: recalculatePurchaseReturnTotals
+  });
+}
 

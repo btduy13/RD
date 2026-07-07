@@ -2212,37 +2212,17 @@ function previewPartnerDebtNotice(partnerId) {
   const printArea = document.getElementById("voucher-print-area");
   if (!printArea) return;
 
-  const content = `
-    <div class="printable-voucher" style="max-width: 800px; padding: 10px; font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #000; line-height: 1.25; background-color: #fff; margin: 0 auto; box-sizing: border-box;">
-      <style>
-        .debt-notice-table th {
-          border: 1px solid #000 !important;
-          padding: 4px 6px;
-          text-align: center;
-          font-weight: bold;
-        }
-        .debt-notice-table td {
-          border: 1px solid #000 !important;
-          padding: 4px 6px;
-          vertical-align: middle;
-        }
-        @media print {
-          .printable-voucher {
-            box-shadow: none !important;
-            padding: 6px 0 0 !important;
-            margin: 0 !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            font-size: 14px !important;
-          }
-          .debt-notice-table th, .debt-notice-table td {
-            padding: 3px 5px !important;
-            font-size: 11.5px !important;
-          }
-        }
-      </style>
+  const debtQrAmount = closingVal > 0 ? Math.round(closingVal) : 0;
+  const debtQrPartnerRef = (isGrouped ? (idList || recipientName) : (p.id || recipientName || "")).toString().trim();
+  const debtQrInfo = `TT cong no ${debtQrPartnerRef}`.replace(/\s+/g, " ").substring(0, 80);
+  const debtHeaderHtml = typeof renderRdBrandedHeader === "function"
+    ? renderRdBrandedHeader(debtQrAmount, true, debtQrInfo)
+    : "";
 
-      ${typeof renderRdBrandedHeader === "function" ? renderRdBrandedHeader(null, false) : ""}
+  const content = `
+    <div class="printable-voucher debt-notice-voucher" style="font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #000; background-color: #fff; margin: 0 auto; box-sizing: border-box;">
+
+      ${debtHeaderHtml}
 
       <!-- Title -->
       <div style="text-align: center; margin-bottom: 12px;">
@@ -2251,7 +2231,7 @@ function previewPartnerDebtNotice(partnerId) {
       </div>
 
       <!-- Info -->
-      <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 3px 12px; margin-bottom: 8px; font-size: 12.5px;">
+      <div class="debt-notice-info-grid">
         <div><strong>Kính gửi:</strong> ${recipientName}</div>
         <div><strong>Kỳ:</strong> Từ ngày ${fromDateStr} đến ngày ${toDateStr}</div>
         
