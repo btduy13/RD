@@ -595,15 +595,19 @@ function getVoucherPdfStyles() {
   return voucherPdfCssCache;
 }
 
-function buildVoucherPdfDocument(voucherHtml) {
+function buildVoucherPdfDocument(voucherHtml, printFontScale = 1) {
   const baseHref = pathToFileURL(path.join(__dirname, path.sep)).href;
   const styles = getVoucherPdfStyles();
+  const scale = Number(printFontScale) > 0 ? Number(printFontScale) : 1;
+  const scaleCss = scale !== 1
+    ? `.printable-voucher { zoom: ${scale} !important; --voucher-print-scale: ${scale}; }`
+    : '';
   return `<!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="utf-8">
   <base href="${baseHref}">
-  <style>${styles}</style>
+  <style>${styles}${scaleCss}</style>
 </head>
 <body>${voucherHtml}</body>
 </html>`;
@@ -659,7 +663,7 @@ async function waitForPrintWindowImages(printWin, imageTimeoutMs = VOUCHER_PDF_I
   `);
 }
 
-async function prepareVoucherPrintWindow(voucherHtml) {
+async function prepareVoucherPrintWindow(voucherHtml, printFontScale = 1) {
   const printWin = new BrowserWindow({
     show: false,
     width: 794,
@@ -672,7 +676,7 @@ async function prepareVoucherPrintWindow(voucherHtml) {
     }
   });
 
-  const doc = buildVoucherPdfDocument(String(voucherHtml));
+  const doc = buildVoucherPdfDocument(String(voucherHtml), printFontScale);
   const pageLoadTimeout = setTimeout(() => {
     if (printWin && !printWin.isDestroyed()) {
       printWin.webContents.stop();
@@ -707,7 +711,7 @@ function cleanupVoucherPrintWindow(printWin, tempHtmlPath) {
   }
 }
 
-ipcMain.handle('print-html-to-pdf', async (event, voucherHtml, filename) => {
+ipcMain.handle('print-html-to-pdf', async (event, voucherHtml, filename, printFontScale) => {
   let printWin = null;
   let tempHtmlPath = null;
   try {
@@ -730,7 +734,7 @@ ipcMain.handle('print-html-to-pdf', async (event, voucherHtml, filename) => {
       return { ok: false, error: 'Hủy lưu PDF' };
     }
 
-    const prepared = await prepareVoucherPrintWindow(String(voucherHtml));
+    const prepared = await prepareVoucherPrintWindow(String(voucherHtml), printFontScale);
     printWin = prepared.printWin;
     tempHtmlPath = prepared.tempHtmlPath;
 
@@ -754,7 +758,7 @@ ipcMain.handle('print-html-to-pdf', async (event, voucherHtml, filename) => {
   }
 });
 
-ipcMain.handle('print-html', async (event, voucherHtml) => {
+ipcMain.handle('print-html', async (event, voucherHtml, printFontScale) => {
   let printWin = null;
   let tempHtmlPath = null;
   try {
@@ -762,7 +766,7 @@ ipcMain.handle('print-html', async (event, voucherHtml) => {
       return { ok: false, error: 'Không có nội dung chứng từ để in' };
     }
 
-    const prepared = await prepareVoucherPrintWindow(String(voucherHtml));
+    const prepared = await prepareVoucherPrintWindow(String(voucherHtml), printFontScale);
     printWin = prepared.printWin;
     tempHtmlPath = prepared.tempHtmlPath;
 

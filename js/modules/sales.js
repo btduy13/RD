@@ -370,10 +370,10 @@ function autoFillProductPrice(selectEl) {
     if (isBlur) {
       // Khi blur: đặt lại mã SP về đúng ID sản phẩm
       selectEl.value = prod.id;
-      // Tự điền mô tả khi blur — chỉ điền nếu user CHƯA tự sửa
       const descEl = row.querySelector(".item-desc");
-      if (descEl && !descEl.dataset.userEdited) {
+      if (descEl) {
         descEl.value = prod.name;
+        delete descEl.dataset.userEdited;
       }
     }
     // Điền giá bán (cả khi input và blur)
@@ -1814,13 +1814,15 @@ function autoFillQuotationPrice(selectEl) {
   const prod = resolveProduct(prodVal);
   const row = selectEl.closest("tr");
   const isBlur = document.activeElement !== selectEl;
+  const descInput = row ? row.querySelector(".item-desc") : null;
 
   if (prod && row) {
     if (isBlur) {
       selectEl.value = prod.id;
       const descInput = row.querySelector(".item-desc");
-      if (descInput && !descInput.dataset.userEdited) {
+      if (descInput) {
         descInput.value = prod.name;
+        delete descInput.dataset.userEdited;
       }
     }
     ensureProductExcelRow(prod);
@@ -2662,6 +2664,7 @@ function openAddTemplateModal() {
   if (tbody) tbody.innerHTML = "";
   
   addTemplateFormRow(); // Add one empty row initially
+  recalculateTemplateTotals();
   openModal('modal-edit-template');
 }
 
@@ -2685,19 +2688,20 @@ function openEditTemplateModal(filename) {
   
   if (Array.isArray(template.items) && template.items.length > 0) {
     for (const item of template.items) {
-      // Find matching product code to display as "Product Name (ID)"
       const prod = findProductByName(item.name);
-      const nameVal = prod ? `${prod.name} (${prod.id})` : item.name;
-      addTemplateFormRow(nameVal, item.qty, item.price);
+      const productId = prod ? prod.id : "";
+      const descVal = prod ? prod.name : item.name;
+      addTemplateFormRow(productId, descVal, item.qty, item.price);
     }
   } else {
     addTemplateFormRow();
   }
-  
+
+  recalculateTemplateTotals();
   openModal('modal-edit-template');
 }
 
-function addTemplateFormRow(nameVal = "", qtyVal = 1, priceVal = 0, insertAfterRow = null) {
+function addTemplateFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVal = 0, insertAfterRow = null) {
   const tbodyId = "template-form-items-body";
   const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
@@ -2708,21 +2712,27 @@ function addTemplateFormRow(nameVal = "", qtyVal = 1, priceVal = 0, insertAfterR
   
   tr.innerHTML = `
     <td>
-      <input type="text" class="form-control item-productId" placeholder="Mã hoặc Tên SP..." required list="datalist-sales-products" oninput="autoFillTemplateProductPrice(this)" onblur="autoFillTemplateProductPrice(this)" value="${escapeHtmlAttr(nameVal)}">
+      <input type="text" class="form-control item-productId" placeholder="Mã SP..." required list="datalist-sales-products" oninput="autoFillTemplateProductPrice(this)" onblur="autoFillTemplateProductPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
     </td>
     <td>
-      <input type="text" class="form-control item-qty text-right qty-format" required value="${Number.isInteger(qtyVal) ? qtyVal : qtyVal.toString().replace(".", ",")}">
+      <input type="text" class="form-control item-desc" placeholder="Mô tả..." value="${escapeHtmlAttr(descVal)}"
+        ${descVal ? 'data-user-edited="1"' : ''}
+        oninput="this.dataset.userEdited='1'">
     </td>
     <td>
-      <input type="text" class="form-control item-price text-right number-format" required value="${Number(priceVal).toLocaleString("vi-VN")}">
+      <input type="text" class="form-control item-qty text-right qty-format" required value="${Number.isInteger(qtyVal) ? qtyVal : qtyVal.toString().replace(".", ",")}" oninput="recalculateTemplateTotals()">
     </td>
+    <td>
+      <input type="text" class="form-control item-price text-right number-format" required value="${Number(priceVal).toLocaleString("vi-VN")}" oninput="recalculateTemplateTotals()">
+    </td>
+    <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
     ${buildDynamicRowActionsCell(rowId, tbodyId)}
   `;
   
   mountDynamicFormRow(tbody, tr, insertAfterRow);
   refreshDynamicFormTable(tbodyId);
 
-  if (!nameVal) {
+  if (!productIdVal) {
     const firstInput = tr.querySelector(".item-productId");
     if (firstInput) {
       setTimeout(() => { firstInput.focus(); }, 30);
@@ -2738,7 +2748,12 @@ function autoFillTemplateProductPrice(selectEl) {
 
   if (prod && row) {
     if (isBlur) {
-      selectEl.value = `${prod.name} (${prod.id})`;
+      selectEl.value = prod.id;
+      const descEl = row.querySelector(".item-desc");
+      if (descEl) {
+        descEl.value = prod.name;
+        delete descEl.dataset.userEdited;
+      }
     }
     ensureProductExcelRow(prod);
     const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
@@ -2748,6 +2763,30 @@ function autoFillTemplateProductPrice(selectEl) {
         : (Math.round(prod.avgCost * 1.35 / 1000) * 1000 || 50000));
 
     row.querySelector(".item-price").value = Number(salePriceVal).toLocaleString("vi-VN");
+    recalculateTemplateTotals();
+  }
+}
+
+function recalculateTemplateTotals() {
+  const rows = document.querySelectorAll("#template-form-items-body tr");
+  let subtotal = 0;
+
+  rows.forEach(row => {
+    const qtyEl = row.querySelector(".item-qty");
+    const priceEl = row.querySelector(".item-price");
+    const totalEl = row.querySelector(".item-total-display");
+    if (!qtyEl || !priceEl || !totalEl) return;
+
+    const qty = safeParseFloat(qtyEl.value) || 0;
+    const price = parseInt(priceEl.value.replace(/\D/g, "")) || 0;
+    const amount = Math.round(qty * price);
+    subtotal += amount;
+    totalEl.innerText = formatVND(amount);
+  });
+
+  const totalDisplay = document.getElementById("template-total-display");
+  if (totalDisplay) {
+    totalDisplay.innerText = formatVND(subtotal);
   }
 }
 
@@ -2773,24 +2812,22 @@ function handleTemplateSubmit(event) {
   let hasEmptyProduct = false;
   
   rows.forEach(row => {
-    let nameVal = row.querySelector(".item-productId").value.trim();
+    const productIdVal = row.querySelector(".item-productId").value.trim();
+    const descVal = row.querySelector(".item-desc")?.value.trim() || "";
     const qtyValStr = row.querySelector(".item-qty").value;
     const priceValStr = row.querySelector(".item-price").value;
     
-    if (!nameVal) {
+    if (!productIdVal && !descVal) {
       hasEmptyProduct = true;
       return;
     }
     
-    // Extract actual product name (without ID suffix if present)
-    const prod = resolveProduct(nameVal);
+    let nameVal = descVal;
+    const prod = resolveProduct(productIdVal);
     if (prod) {
       nameVal = prod.name;
-    } else {
-      const parenIdx = nameVal.lastIndexOf("(");
-      if (parenIdx !== -1) {
-        nameVal = nameVal.substring(0, parenIdx).trim();
-      }
+    } else if (!nameVal && productIdVal) {
+      nameVal = productIdVal;
     }
     
     const qty = safeParseFloat(qtyValStr) || 0;
@@ -2867,6 +2904,7 @@ window.addTemplateFormRow = addTemplateFormRow;
 window.handleTemplateSubmit = handleTemplateSubmit;
 window.deleteSalesTemplate = deleteSalesTemplate;
 window.autoFillTemplateProductPrice = autoFillTemplateProductPrice;
+window.recalculateTemplateTotals = recalculateTemplateTotals;
 
 if (typeof registerDynamicFormTable === "function") {
   registerDynamicFormTable("sales-form-items-body", {
@@ -2882,8 +2920,8 @@ if (typeof registerDynamicFormTable === "function") {
     recalc: recalculateQuotationTotals
   });
   registerDynamicFormTable("template-form-items-body", {
-    addRow: (insertAfter) => addTemplateFormRow("", 1, 0, insertAfter),
-    recalc: null
+    addRow: (insertAfter) => addTemplateFormRow("", "", 1, 0, insertAfter),
+    recalc: recalculateTemplateTotals
   });
 }
 

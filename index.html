@@ -2848,6 +2848,24 @@
               </div>
             </div>
 
+            <!-- Cỡ chữ khi in phiếu -->
+            <div class="chart-card" style="min-height: auto;">
+              <span class="card-title">Cỡ chữ khi in phiếu</span>
+              <p class="header-subtitle" style="margin-bottom: 12px;">Áp dụng cho mọi phiếu in (bán, mua, thu/chi, báo giá, thông báo công nợ...). Lựa chọn được lưu tự động.</p>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <label class="form-label" for="print-font-scale-select" style="margin: 0; white-space: nowrap;">Kích thước in:</label>
+                <select id="print-font-scale-select" class="form-control" style="max-width: 160px;"
+                  onchange="applyPrintFontScale(parseFloat(this.value)); if (typeof showToast === 'function') showToast('Cỡ chữ in: ' + Math.round(this.value * 100) + '%', 'info');">
+                  <option value="0.8">80%</option>
+                  <option value="0.9">90%</option>
+                  <option value="1">100%</option>
+                  <option value="1.1">110%</option>
+                  <option value="1.2">120%</option>
+                  <option value="1.3">130%</option>
+                </select>
+              </div>
+            </div>
+
             <!-- Kiểm tra Cập nhật phần mềm (Auto Update) -->
             <div class="chart-card" id="card-auto-update" style="min-height: auto;">
               <span class="card-title"
@@ -4289,16 +4307,24 @@
             <table class="dynamic-items-table" style="width: 100%;">
               <thead>
                 <tr>
-                  <th style="width: 50%;">Tên mặt hàng (Mã hoặc Tên SP)</th>
-                  <th style="width: 20%; text-align: right;">Số lượng</th>
-                  <th style="width: 20%; text-align: right;">Đơn giá bán</th>
-                  <th style="width: 12%; text-align: center;"></th>
+                  <th style="width: 12%;">Mã SP</th>
+                  <th style="width: 28%;">Mô tả</th>
+                  <th style="width: 12%; text-align: right;">Số lượng</th>
+                  <th style="width: 16%; text-align: right;">Đơn giá bán</th>
+                  <th style="width: 14%; text-align: right;">Thành tiền</th>
+                  <th style="width: 8%; text-align: center;"></th>
                 </tr>
               </thead>
               <tbody id="template-form-items-body">
                 <!-- Sẽ được render động -->
               </tbody>
             </table>
+            <div class="dynamic-items-table-footer template-items-footer" data-tbody-id="template-form-items-body">
+              <div class="dynamic-items-row-count" data-tbody-id="template-form-items-body">Số dòng: 0</div>
+              <div style="font-size: 14px; font-weight: 700;">
+                Tổng cộng: <span id="template-total-display" class="font-numeric" style="margin-left: 8px; color: var(--color-primary);">0đ</span>
+              </div>
+            </div>
           </div>
         </form>
       </div>

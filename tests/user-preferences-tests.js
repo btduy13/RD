@@ -50,6 +50,18 @@ function testSaveAndMergePrefs() {
   console.log('save and merge prefs passed');
 }
 
+function testPrintFontScalePersist() {
+  const storage = createStorage({});
+  const api = loadUserPrefsModule(storage);
+  assert.equal(api.getUserPrefs().printFontScale, 1);
+  api.saveUserPrefs({ printFontScale: 1.1 });
+  const prefs = api.getUserPrefs();
+  assert.equal(prefs.printFontScale, 1.1);
+  assert.equal(JSON.parse(storage.getItem('rd_user_prefs')).printFontScale, 1.1);
+  console.log('print font scale persist passed');
+}
+
 testMigrateLegacyTheme();
 testSaveAndMergePrefs();
+testPrintFontScalePersist();
 console.log('user preferences tests passed');

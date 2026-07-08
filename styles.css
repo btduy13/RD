@@ -1548,6 +1548,10 @@ body.light-theme .modal-overlay {
   line-height: 1.25;
 }
 
+#voucher-print-area .printable-voucher {
+  zoom: var(--voucher-print-scale, 1);
+}
+
 .debt-notice-table th {
   border: 1px solid #000 !important;
   padding: 4px 6px;
@@ -1844,6 +1848,12 @@ body.light-theme .modal-overlay {
   position: relative;
 }
 
+.dynamic-items-table-wrapper:has(+ .dynamic-items-table-footer) {
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
 body.light-theme .dynamic-items-table-wrapper {
   border-color: #e2e8f0;
 }
@@ -2109,6 +2119,7 @@ body.light-theme .dynamic-items-table td {
     background-color: transparent !important;
     font-size: 12.5px !important;
     line-height: 1.32 !important;
+    zoom: var(--voucher-print-scale, 1) !important;
   }
 
   /* Tự động định dạng trang in và tự động scale theo khổ giấy */
@@ -5271,12 +5282,33 @@ tr.debt-row-unmatched:hover {
   border-color: #4ade80;
 }
 
+.dynamic-items-table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  background: var(--bg-secondary);
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
+}
+
+.dynamic-items-table-wrapper + .dynamic-items-table-footer {
+  margin-top: 0;
+  border-top: 1px solid var(--border-color);
+}
+
 .dynamic-items-row-count {
-  margin-top: 6px;
+  margin: 0;
   font-size: 12px;
   color: var(--color-text-muted, #64748b);
   text-align: left;
-  font-weight: 500;
+  font-weight: 600;
+  flex: 0 0 auto;
 }
 
 .voucher-entry-modal .dynamic-items-table .insert-row-btn {

@@ -26,9 +26,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Xuất file PDF bản địa của OS (legacy — chụp cả cửa sổ)
   printToPDF: (filename) => ipcRenderer.invoke('print-to-pdf', filename),
   // Xuất HTML chứng từ thành PDF (cửa sổ ẩn — chỉ nội dung phiếu in)
-  printHtmlToPDF: (html, filename) => ipcRenderer.invoke('print-html-to-pdf', html, filename),
+  printHtmlToPDF: (html, filename, printFontScale) => ipcRenderer.invoke('print-html-to-pdf', html, filename, printFontScale),
   // In HTML chứng từ ra máy in (cùng bố cục với xuất PDF)
-  printHtml: (html) => ipcRenderer.invoke('print-html', html),
+  printHtml: (html, printFontScale) => ipcRenderer.invoke('print-html', html, printFontScale),
   // Lưu state ra file JSON (không giới hạn kích thước, thay thế localStorage)
   writeStateFile: (jsonData) => ipcRenderer.invoke('write-state-file', jsonData),
   // Đọc state từ file JSON

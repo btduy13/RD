@@ -10,6 +10,7 @@ const DEFAULT_USER_PREFS = {
   theme: "dark",
   sidebarCollapsed: false,
   fontScale: 1,
+  printFontScale: 1,
   lastTab: "dashboard",
   debtsViewTab: "overview",
   debtActiveOnly: false,
@@ -149,6 +150,12 @@ function restoreUserPreferencesUI() {
   if (prefs.sidebarCollapsed) {
     const sidebar = document.querySelector(".sidebar");
     if (sidebar) sidebar.classList.add("collapsed");
+  }
+
+  const printScaleSelect = document.getElementById("print-font-scale-select");
+  if (printScaleSelect) {
+    const printScale = prefs.printFontScale || 1;
+    printScaleSelect.value = printScale === 1 ? "1" : String(printScale);
   }
 
   if (typeof applyFontSizeScale === "function") {

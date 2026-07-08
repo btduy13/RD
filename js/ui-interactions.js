@@ -1500,6 +1500,10 @@ document.addEventListener("DOMContentLoaded", () => {
       wrapper.className = 'dynamic-items-table-wrapper';
       table.parentNode.insertBefore(wrapper, table);
       wrapper.appendChild(table);
+      const tbody = table.querySelector('tbody[id]');
+      if (tbody && typeof updateDynamicItemsRowCount === 'function') {
+        updateDynamicItemsRowCount(tbody.id);
+      }
     }
   });
 });

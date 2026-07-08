@@ -258,16 +258,37 @@ function ensureDynamicItemsRowCountElement(tbody) {
   const table = tbody.closest(".dynamic-items-table");
   if (!table) return null;
 
-  const host = table.closest(".voucher-items-card") || table.parentElement;
+  const scrollWrapper = table.closest(".dynamic-items-table-wrapper");
+  const tableAnchor = scrollWrapper || table;
+  const host = tableAnchor.parentElement;
   if (!host) return null;
 
-  let counter = host.querySelector(`.dynamic-items-row-count[data-tbody-id="${tbody.id}"]`);
-  if (!counter) {
+  const counters = document.querySelectorAll(`.dynamic-items-row-count[data-tbody-id="${tbody.id}"]`);
+  let counter = counters.length > 0 ? counters[counters.length - 1] : null;
+  counters.forEach((el) => {
+    if (el !== counter) el.remove();
+  });
+
+  const footers = host.querySelectorAll(`.dynamic-items-table-footer[data-tbody-id="${tbody.id}"]`);
+  let footer = footers.length > 0 ? footers[footers.length - 1] : null;
+  footers.forEach((el) => {
+    if (el !== footer) el.remove();
+  });
+
+  if (!footer) {
+    footer = document.createElement("div");
+    footer.className = "dynamic-items-table-footer";
+    footer.dataset.tbodyId = tbody.id;
+    tableAnchor.insertAdjacentElement("afterend", footer);
+  }
+
+  if (!counter || !footer.contains(counter)) {
     counter = document.createElement("div");
     counter.className = "dynamic-items-row-count";
     counter.dataset.tbodyId = tbody.id;
-    table.insertAdjacentElement("afterend", counter);
+    footer.insertBefore(counter, footer.firstChild);
   }
+
   return counter;
 }
 

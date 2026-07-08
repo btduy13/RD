@@ -1333,6 +1333,7 @@ function viewVoucher(id) {
   }
 
   printArea.innerHTML = content;
+  applyPrintScaleToVoucherRoot(printArea);
   openModal("modal-view-voucher");
 }
 window.viewVoucher = viewVoucher;
@@ -1880,6 +1881,54 @@ function toggleVoucherPrintDropdown(e) {
   }
 }
 
+function getPrintFontScale() {
+  if (typeof getUserPrefs === "function") {
+    const scale = parseFloat(getUserPrefs().printFontScale);
+    if (!Number.isNaN(scale) && scale > 0) return scale;
+  }
+  return 1;
+}
+
+function applyPrintScaleToVoucherRoot(container, scale) {
+  const host = container || document.getElementById("voucher-print-area");
+  if (!host) return;
+  const root = host.querySelector(".printable-voucher");
+  if (!root) return;
+  const resolvedScale = scale != null && !Number.isNaN(Number(scale)) && Number(scale) > 0
+    ? Number(scale)
+    : getPrintFontScale();
+  root.style.setProperty("--voucher-print-scale", String(resolvedScale));
+  root.style.zoom = String(resolvedScale);
+}
+
+function wrapVoucherHtmlForPrint(html) {
+  const scale = getPrintFontScale();
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = String(html || "").trim();
+  const root = wrapper.querySelector(".printable-voucher");
+  if (root) {
+    root.style.setProperty("--voucher-print-scale", String(scale));
+    root.style.zoom = String(scale);
+  }
+  return wrapper.innerHTML;
+}
+
+function applyPrintFontScale(scale) {
+  const resolvedScale = Number(scale);
+  if (Number.isNaN(resolvedScale) || resolvedScale <= 0) return;
+
+  if (typeof saveUserPrefs === "function") {
+    saveUserPrefs({ printFontScale: resolvedScale });
+  }
+
+  const selectEl = document.getElementById("print-font-scale-select");
+  if (selectEl) {
+    selectEl.value = resolvedScale === 1 ? "1" : String(resolvedScale);
+  }
+
+  applyPrintScaleToVoucherRoot(document.getElementById("voucher-print-area"), resolvedScale);
+}
+
 function hideVoucherPrintDropdown() {
   const menu = document.getElementById("voucher-print-dropdown");
   if (menu) menu.style.display = "none";
@@ -1903,9 +1952,12 @@ async function printCurrentVoucher(e) {
     return;
   }
 
+  const printFontScale = getPrintFontScale();
+  const wrappedHtml = wrapVoucherHtmlForPrint(voucherHtml);
+
   if (window.electronAPI && typeof window.electronAPI.printHtml === "function") {
     try {
-      const res = await window.electronAPI.printHtml(voucherHtml);
+      const res = await window.electronAPI.printHtml(wrappedHtml, printFontScale);
       if (res && res.ok === false && res.error && res.error !== "Hủy in") {
         if (typeof showToast === "function") {
           showToast(`Lỗi in: ${res.error}`, "error");
@@ -1921,6 +1973,7 @@ async function printCurrentVoucher(e) {
   }
 
   document.body.classList.add("printing-voucher");
+  applyPrintScaleToVoucherRoot(printArea, printFontScale);
   triggerPrint();
   setTimeout(() => {
     document.body.classList.remove("printing-voucher");
@@ -1957,9 +2010,12 @@ async function printCurrentVoucherToPDF(e) {
     return;
   }
 
+  const printFontScale = getPrintFontScale();
+  const wrappedHtml = wrapVoucherHtmlForPrint(voucherHtml);
+
   try {
     if (window.electronAPI && typeof window.electronAPI.printHtmlToPDF === "function") {
-      const res = await window.electronAPI.printHtmlToPDF(voucherHtml, cleanFilename);
+      const res = await window.electronAPI.printHtmlToPDF(wrappedHtml, cleanFilename, printFontScale);
       if (res && res.ok) {
         showToast(`Đã lưu PDF tại: ${res.filePath}`, "success");
       } else if (res && res.error === 'Hủy lưu PDF') {
@@ -2410,4 +2466,8 @@ window.hideVoucherPrintDropdown = hideVoucherPrintDropdown;
 window.printCurrentVoucher = printCurrentVoucher;
 window.printCurrentVoucherToPDF = printCurrentVoucherToPDF;
 window.printCurrentVoucherToExcel = printCurrentVoucherToExcel;
+window.getPrintFontScale = getPrintFontScale;
+window.applyPrintFontScale = applyPrintFontScale;
+window.applyPrintScaleToVoucherRoot = applyPrintScaleToVoucherRoot;
+window.wrapVoucherHtmlForPrint = wrapVoucherHtmlForPrint;
 window.exportVoucherToExcel = exportVoucherToExcel;
