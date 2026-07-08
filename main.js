@@ -544,7 +544,7 @@ function getVoucherPdfStyles() {
       .printable-voucher table td { font-size: ${voucherScaledFont(12)} !important; }
       .printable-voucher table.voucher-table th,
       .printable-voucher table.voucher-table td {
-        padding: calc(2px * var(--voucher-font-scale, 1)) calc(3px * var(--voucher-font-scale, 1)) !important;
+        padding: calc(2px * var(--voucher-font-scale, 1)) 3px !important;
         font-size: ${voucherScaledFont(12)} !important;
       }
       .printable-voucher table th { white-space: nowrap !important; }
@@ -642,7 +642,7 @@ function buildVoucherPdfDocument(voucherHtml, printFontScale = 1, printPaperSize
     .printable-voucher table th,
     .printable-voucher table td {
       font-size: ${voucherScaledFont(12)} !important;
-      padding: calc(2px * var(--voucher-font-scale, 1)) calc(3px * var(--voucher-font-scale, 1)) !important;
+      padding: calc(2px * var(--voucher-font-scale, 1)) 3px !important;
     }
     .printable-voucher table th { white-space: nowrap !important; }
     .printable-voucher table td.font-numeric,

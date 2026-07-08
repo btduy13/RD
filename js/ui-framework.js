@@ -455,12 +455,12 @@ function viewVoucher(id) {
         <table class="voucher-table" style="width:100%; border-collapse:collapse; margin-bottom:10px; border:1.5px solid #000;">
           <thead>
             <tr style="background-color: #f3f4f6;">
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:4%;">STT</th>
-              <th style="border:1px solid #000; padding:4px 6px; text-align:left; width:38%;" class="voucher-col-desc">Tên hàng</th>
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;">ĐVT</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:8%;">SL</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:14%;">Đ.giá (đ)</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:20%;">T.tiền (đ)</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;">STT</th>
+              <th style="border:1px solid #000; padding:4px 6px; text-align:left; width:36%;" class="voucher-col-desc">Tên hàng</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:8%;">ĐVT</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:9%;">SL</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:15%;">Đ.giá</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:20%;">T.tiền</th>
               <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;" class="voucher-col-gc">GC</th>
             </tr>
           </thead>
@@ -589,13 +589,13 @@ function viewVoucher(id) {
         <table style="width:100%; border-collapse:collapse; margin-bottom:10px; border:1.5px solid #000;">
           <thead>
             <tr style="background-color:#f3f4f6;">
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:4%;">TT</th>
-              <th style="border:1px solid #000; padding:4px 6px; text-align:left; width:38%;" class="voucher-col-desc">T.quy cách</th>
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;">ĐV</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:8%;">SL</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:14%;">Đ.giá</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;">TT</th>
+              <th style="border:1px solid #000; padding:4px 6px; text-align:left; width:36%;" class="voucher-col-desc">T.quy cách</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:8%;">ĐV</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:9%;">SL</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:15%;">Đ.giá</th>
               <th style="border:1px solid #000; padding:4px; text-align:right; width:20%;">T.tiền</th>
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;" class="voucher-col-gc">G.chú</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;" class="voucher-col-gc">GC</th>
             </tr>
           </thead>
           <tbody>
@@ -703,13 +703,13 @@ function viewVoucher(id) {
         <table style="width:100%; border-collapse:collapse; margin-bottom:10px; border:1.5px solid #000;">
           <thead>
             <tr style="background-color:#f3f4f6;">
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:4%;">TT</th>
-              <th style="border:1px solid #000; padding:4px 6px; text-align:left; width:38%;" class="voucher-col-desc">T.quy cách</th>
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;">ĐV</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:8%;">SL</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:14%;">Đ.giá</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;">TT</th>
+              <th style="border:1px solid #000; padding:4px 6px; text-align:left; width:36%;" class="voucher-col-desc">T.quy cách</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:8%;">ĐV</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:9%;">SL</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:15%;">Đ.giá</th>
               <th style="border:1px solid #000; padding:4px; text-align:right; width:20%;">T.tiền</th>
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;" class="voucher-col-gc">G.chú</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;" class="voucher-col-gc">GC</th>
             </tr>
           </thead>
           <tbody>
@@ -795,11 +795,11 @@ function viewVoucher(id) {
         <table style="width:100%; border-collapse:collapse; margin-bottom:10px; border:1.5px solid #000;">
           <thead>
             <tr style="background-color:#f3f4f6;">
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:4%;">TT</th>
-              <th style="border:1px solid #000; padding:4px 6px; text-align:left; width:38%;" class="voucher-col-desc">T.quy cách</th>
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;">ĐV</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:8%;">SL</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:14%;">Đ.giá</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;">TT</th>
+              <th style="border:1px solid #000; padding:4px 6px; text-align:left; width:36%;" class="voucher-col-desc">T.quy cách</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:8%;">ĐV</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:9%;">SL</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:15%;">Đ.giá</th>
               <th style="border:1px solid #000; padding:4px; text-align:right; width:20%;">T.tiền</th>
               <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;" class="voucher-col-gc">GC</th>
             </tr>
@@ -907,13 +907,13 @@ function viewVoucher(id) {
         <table class="voucher-table" style="width: 100%; border-collapse: collapse; margin-bottom: 10px; border: 1.5px solid #000;">
           <thead>
             <tr style="background-color: #f3f4f6;">
-              <th style="border: 1px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; width: 3%;">TT</th>
-              <th style="border: 1px solid #000; padding: 4px 4px; text-align: left; font-weight: bold; width: 40%;" class="voucher-col-desc">D.giải</th>
-              <th style="border: 1px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; width: 6%;">ĐV</th>
-              <th style="border: 1px solid #000; padding: 4px 2px; text-align: right; font-weight: bold; width: 5%;">SL</th>
+              <th style="border: 1px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; width: 6%;">TT</th>
+              <th style="border: 1px solid #000; padding: 4px 4px; text-align: left; font-weight: bold; width: 36%;" class="voucher-col-desc">D.giải</th>
+              <th style="border: 1px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; width: 8%;">ĐV</th>
+              <th style="border: 1px solid #000; padding: 4px 2px; text-align: right; font-weight: bold; width: 9%;">SL</th>
               <th style="border: 1px solid #000; padding: 4px 3px; text-align: right; font-weight: bold; width: 15%;">Đ.giá</th>
-              <th style="border: 1px solid #000; padding: 4px 3px; text-align: right; font-weight: bold; width: 22%;">T.tiền</th>
-              <th style="border: 1px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; width: 5%;" class="voucher-col-gc">GC</th>
+              <th style="border: 1px solid #000; padding: 4px 3px; text-align: right; font-weight: bold; width: 20%;">T.tiền</th>
+              <th style="border: 1px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; width: 6%;" class="voucher-col-gc">GC</th>
             </tr>
           </thead>
           <tbody>
@@ -1047,13 +1047,13 @@ function viewVoucher(id) {
         <table class="voucher-table" style="width: 100%; border-collapse: collapse; margin-bottom: 10px; border: 1.5px solid #000;">
           <thead>
             <tr style="background-color: #f3f4f6;">
-              <th style="border: 1px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; width: 3%;">TT</th>
-              <th style="border: 1px solid #000; padding: 4px 4px; text-align: left; font-weight: bold; width: 40%;" class="voucher-col-desc">T.sản phẩm</th>
-              <th style="border: 1px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; width: 6%;">ĐV</th>
-              <th style="border: 1px solid #000; padding: 4px 2px; text-align: right; font-weight: bold; width: 5%;">SL</th>
+              <th style="border: 1px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; width: 6%;">TT</th>
+              <th style="border: 1px solid #000; padding: 4px 4px; text-align: left; font-weight: bold; width: 36%;" class="voucher-col-desc">T.sản phẩm</th>
+              <th style="border: 1px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; width: 8%;">ĐV</th>
+              <th style="border: 1px solid #000; padding: 4px 2px; text-align: right; font-weight: bold; width: 9%;">SL</th>
               <th style="border: 1px solid #000; padding: 4px 3px; text-align: right; font-weight: bold; width: 15%;">Đ.giá</th>
-              <th style="border: 1px solid #000; padding: 4px 3px; text-align: right; font-weight: bold; width: 22%;">T.tiền</th>
-              <th style="border: 1px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; width: 5%;" class="voucher-col-gc">C.K</th>
+              <th style="border: 1px solid #000; padding: 4px 3px; text-align: right; font-weight: bold; width: 20%;">T.tiền</th>
+              <th style="border: 1px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; width: 6%;" class="voucher-col-gc">C.K</th>
             </tr>
           </thead>
           <tbody>
@@ -1161,12 +1161,12 @@ function viewVoucher(id) {
         <table class="voucher-table" style="width:100%; border-collapse:collapse; margin-bottom:10px; border:1.5px solid #000;">
           <thead>
             <tr style="background-color: #f3f4f6;">
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:5%;">STT</th>
-              <th style="border:1px solid #000; padding:4px 6px; text-align:left;">T.hàng</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;">STT</th>
+              <th style="border:1px solid #000; padding:4px 6px; text-align:left; width:42%;">T.hàng</th>
               <th style="border:1px solid #000; padding:4px; text-align:center; width:8%;">ĐVT</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:10%;">SL ĐC</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:12%;">Đ.giá BQ</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:15%;">GT (đ)</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:11%;">SL ĐC</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:15%;">Đ.giá BQ</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:18%;">GT</th>
             </tr>
           </thead>
           <tbody>

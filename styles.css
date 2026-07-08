@@ -1575,7 +1575,7 @@ body.light-theme .modal-overlay {
 #voucher-print-area .printable-voucher table th,
 #voucher-print-area .printable-voucher table td {
   font-size: calc(13px * var(--voucher-font-scale, 1)) !important;
-  padding: calc(4px * var(--voucher-font-scale, 1)) calc(6px * var(--voucher-font-scale, 1)) !important;
+  padding: calc(3px * var(--voucher-font-scale, 1)) 4px !important;
 }
 
 #voucher-print-area .printable-voucher table th {
