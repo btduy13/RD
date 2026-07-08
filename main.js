@@ -595,7 +595,7 @@ function getVoucherPdfStyles() {
       .printable-voucher.debt-notice-voucher .debt-notice-table td.font-numeric {
         white-space: nowrap !important;
       }
-      @page { size: A4 portrait; margin: 8mm 8mm; }
+      @page { size: A4 portrait; margin: 10mm 12mm; }
     `;
   } catch (err) {
     console.error('[PDF] Không đọc được styles.css, dùng CSS tối giản:', err.message);
@@ -618,7 +618,7 @@ function buildVoucherPdfDocument(voucherHtml, printFontScale = 1, printPaperSize
   const fontScale = Number(printFontScale) > 0 ? Number(printFontScale) : 1;
   const paper = printPaperSize === "A4" ? "A4" : "A5";
   const paperMaxW = paper === "A5" ? Math.round(800 * (148 / 210)) : 800;
-  const pageMargin = paper === "A5" ? "5mm 4mm" : "8mm 8mm";
+  const pageMargin = paper === "A5" ? "6mm 8mm" : "10mm 12mm";
   const pageOverride = `@page { size: ${paper} portrait; margin: ${pageMargin}; }`;
   debugPrintLog("main.js:buildVoucherPdfDocument", "building print document", { printFontScale, fontScale, paper, paperMaxW });
   const layoutCss = `

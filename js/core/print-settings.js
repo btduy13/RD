@@ -27,7 +27,7 @@
   }
 
   function getPrintPageMargins(paperSize) {
-    return paperSize === "A4" ? "8mm 8mm" : "5mm 4mm";
+    return paperSize === "A4" ? "10mm 12mm" : "6mm 8mm";
   }
 
   function getVoucherPreviewPageHeight(paperSize, paperWidthPx) {

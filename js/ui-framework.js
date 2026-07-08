@@ -2192,7 +2192,7 @@ function ensurePrintPageStyle(paperSize) {
   const paper = paperSize === "A4" ? "A4" : "A5";
   const margins = typeof PrintSettings !== "undefined" && PrintSettings.getPrintPageMargins
     ? PrintSettings.getPrintPageMargins(paper)
-    : (paper === "A4" ? "8mm 8mm" : "5mm 4mm");
+    : (paper === "A4" ? "10mm 12mm" : "6mm 8mm");
   let el = document.getElementById("voucher-print-page-style");
   if (!el) {
     el = document.createElement("style");

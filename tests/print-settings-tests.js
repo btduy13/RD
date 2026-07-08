@@ -25,8 +25,8 @@ function testFontOptions() {
 }
 
 function testPageMargins() {
-  assert.equal(ps.getPrintPageMargins('A4'), '8mm 8mm');
-  assert.equal(ps.getPrintPageMargins('A5'), '5mm 4mm');
+  assert.equal(ps.getPrintPageMargins('A4'), '10mm 12mm');
+  assert.equal(ps.getPrintPageMargins('A5'), '6mm 8mm');
   console.log('page margins passed');
 }
 
