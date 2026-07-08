@@ -1948,6 +1948,12 @@ function updateVoucherPreviewPagination() {
   if (root) {
     root.style.setProperty("--voucher-paper-height", pageHeightPx + "px");
     root.style.height = (voucherPreviewTotalPages * pageHeightPx) + "px";
+    root.style.margin = "0 auto !important";
+    
+    // Apply transform translateY to slide to correct page segment
+    const targetY = -(voucherPreviewCurrentPage - 1) * pageHeightPx;
+    root.style.transition = "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)";
+    root.style.transform = "translateY(" + targetY + "px)";
   }
 
   if (voucherPreviewCurrentPage > voucherPreviewTotalPages) {
@@ -1962,26 +1968,13 @@ function updateVoucherPreviewPagination() {
   if (nextBtn) nextBtn.disabled = voucherPreviewCurrentPage >= voucherPreviewTotalPages;
 
   if (viewport) {
-    // Force layout reflow so the browser computes the new height synchronously
-    const forced = viewport.scrollHeight;
-    const targetScrollTop = (voucherPreviewCurrentPage - 1) * pageHeightPx * voucherPreviewCurrentScale;
-    viewport.scrollTop = targetScrollTop;
-    requestAnimationFrame(() => {
-      viewport.scrollTop = targetScrollTop;
-    });
+    viewport.scrollTop = 0;
   }
 }
 
 function voucherPreviewGoToPage(page) {
-  const viewport = document.getElementById("voucher-print-viewport");
-  if (!viewport) return;
-
-  const paperSize = getPrintPaperSize();
-  const paperWidth = getVoucherPaperMaxWidth(paperSize);
-  const pageHeightPx = getVoucherPreviewPageHeight(paperSize, paperWidth);
   const target = Math.max(1, Math.min(page, voucherPreviewTotalPages));
   voucherPreviewCurrentPage = target;
-  viewport.scrollTop = (target - 1) * pageHeightPx * voucherPreviewCurrentScale;
   updateVoucherPreviewPagination();
 }
 
@@ -2027,12 +2020,13 @@ function applyVoucherPreviewZoom() {
   voucherPreviewCurrentScale = scale;
 
   zoomWrap.style.width = paperWidth + "px";
+  zoomWrap.style.height = pageHeight + "px";
+  zoomWrap.style.overflow = "hidden";
+  zoomWrap.style.position = "relative";
   zoomWrap.style.transform = "scale(" + scale + ")";
   zoomWrap.style.transformOrigin = "top center";
 
-  const scaledH = contentHeight * scale;
-  const extraScroll = Math.max(0, scaledH - viewport.clientHeight + pad);
-  viewport.style.paddingBottom = extraScroll > 0 ? (extraScroll + pad) + "px" : "";
+  viewport.style.paddingBottom = "";
 
   updateVoucherPreviewPagination();
 }
