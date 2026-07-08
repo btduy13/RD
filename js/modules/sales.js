@@ -1497,7 +1497,7 @@ function exportSalesReturnsToExcel() {
       ws[key] = cell;
     };
 
-    sc(0, 0, state.companyName || "Công Ty Cổ Phần Rạng Đông", 's', { font: fntT, alignment: cL });
+    sc(0, 0, state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông", 's', { font: fntT, alignment: cL });
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: NCOLS - 1 } });
     sc(1, 0, "SỔ CHI TIẾT HÀNG BÁN TRẢ LẠI", 's', { font: fntT, alignment: cC });
     merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: NCOLS - 1 } });
@@ -2264,7 +2264,7 @@ function exportQuotationsToExcel() {
     };
 
     const today = new Date().toLocaleDateString('vi-VN');
-    sc(0, 0, (state.companyName || "Công Ty Cổ Phần Rạng Đông") + " — DANH SÁCH BÁO GIÁ", 's', { font: fntT, alignment: cC });
+    sc(0, 0, (state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông") + " — DANH SÁCH BÁO GIÁ", 's', { font: fntT, alignment: cC });
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 9 } });
 
     sc(1, 0, `Từ ngày: ${fromDate || 'đầu kỳ'}   Đến ngày: ${toDate || today}`, 's', { font: fntSub, alignment: cC });

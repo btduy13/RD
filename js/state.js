@@ -127,6 +127,10 @@ async function initApp() {
     state.partnerOpeningBalanceTs = {};
   }
 
+  if (!state.companyName || state.companyName === "Công Ty Cổ Phần Rạng Đông" || state.companyName === "CÔNG TY CỔ PHẦN RẠNG ĐÔNG") {
+    state.companyName = "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông";
+  }
+
   let _productCatalogChanged = false;
 
   if (typeof dedupeProductCatalogCase === "function" && Array.isArray(state.products) && state.products.length > 0) {

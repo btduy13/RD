@@ -684,7 +684,7 @@ function exportSalesToExcel(detailed = true) {
       const NCOLS = 19;
 
       // ROW 0: Tên công ty
-      sc(0, 0, state.companyName || "Công Ty Cổ Phần Rạng Đông", 's', { font: fntT, alignment: cL });
+      sc(0, 0, state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông", 's', { font: fntT, alignment: cL });
       merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: NCOLS - 1 } });
 
       // ROW 1: Tiêu đề báo cáo (giống MISA)
@@ -813,7 +813,7 @@ function exportSalesToExcel(detailed = true) {
       const NCOLS = 11;
 
       // ROW 0: Tên công ty
-      sc(0, 0, state.companyName || "Công Ty Cổ Phần Rạng Đông", 's', { font: fntT, alignment: cL });
+      sc(0, 0, state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông", 's', { font: fntT, alignment: cL });
       merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: NCOLS - 1 } });
 
       // ROW 1: Tiêu đề báo cáo

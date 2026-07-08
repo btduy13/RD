@@ -1527,7 +1527,7 @@ function exportPartnersToExcel() {
     const ncols = headers.length;
 
     // ROW 0: Tiêu đề
-    sc(0, 0, (state.companyName || "Công Ty Cổ Phần Rạng Đông") + " — DANH SÁCH KHÁCH HÀNG / NHÀ CUNG CẤP", 's', { font: fntT, alignment: cC });
+    sc(0, 0, (state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông") + " — DANH SÁCH KHÁCH HÀNG / NHÀ CUNG CẤP", 's', { font: fntT, alignment: cC });
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: ncols - 1 } });
 
     // ROW 1: Headers

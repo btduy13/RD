@@ -357,7 +357,7 @@ function renderRdBrandedHeader(qrAmount, withQr, qrAddInfo) {
             <img src="logo.jpg" alt="Logo Rạng Đông" />
           </div>
           <div class="voucher-rd-header-info">
-            <div class="voucher-rd-co-name">CÔNG TY CỔ PHẦN RẠNG ĐÔNG</div>
+            <div class="voucher-rd-co-name">CÔNG TY CỔ PHẦN SX VÀ ĐT PHÁT TRIỂN RẠNG ĐÔNG</div>
             <div class="voucher-rd-co-unit">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKYO</div>
             <div class="voucher-rd-co-addr">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh</div>
             <div class="voucher-rd-co-tel">Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074</div>
@@ -392,7 +392,7 @@ function viewVoucher(id) {
   }
 
   let content = "";
-  const companyName = state.companyName || "Công Ty Cổ Phần Rạng Đông";
+  const companyName = state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông";
   const companyAddr = state.address || "255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh";
   const companyTax = state.taxCode || "0100101438";
 
@@ -2461,7 +2461,7 @@ function exportVoucherToExcel(id) {
     return;
   }
 
-  const companyName = state.companyName || "Công Ty Cổ Phần Rạng Đông";
+  const companyName = state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông";
   const companyAddr = state.address || "255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh";
   const companyTax = state.taxCode || "0100101438";
 

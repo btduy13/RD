@@ -1676,7 +1676,7 @@ function exportPurchaseOrdersToExcel() {
     let dateRangeText = `Từ ngày: ${fromDate || 'đầu kỳ'}   Đến ngày: ${toDate || today}`;
 
     // --- ROW 0: Tiêu đề chính ---
-    const compName = state.companyName || "Công Ty Cổ Phần Rạng Đông";
+    const compName = state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông";
     setCell(ws, 0, 0, compName, 's', { font: fntTitle, alignment: cCenter }, null);
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 21 } });
 
@@ -2466,7 +2466,7 @@ function exportPurchaseReturnsToExcel() {
       ws[key] = cell;
     };
 
-    sc(0, 0, state.companyName || "Công Ty Cổ Phần Rạng Đông", 's', { font: fntT, alignment: cL });
+    sc(0, 0, state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông", 's', { font: fntT, alignment: cL });
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: NCOLS - 1 } });
     sc(1, 0, "SỔ CHI TIẾT HÀNG TRẢ LẠI MUA", 's', { font: fntT, alignment: cC });
     merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: NCOLS - 1 } });

@@ -1761,7 +1761,7 @@ async function exportPartnerDebtExcel(partnerId) {
     let row = 0; // 0-indexed
 
     // --- ROW 0: Company Name ---
-    setCell("A1", "CÔNG TY CỔ PHẦN RẠNG ĐÔNG", "s",
+    setCell("A1", "CÔNG TY CỔ PHẦN SX VÀ ĐT PHÁT TRIỂN RẠNG ĐÔNG", "s",
       { font: fontCompany, alignment: alignCenter });
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } });
 
@@ -2590,7 +2590,7 @@ function exportDebtsToExcel() {
       const pt = dStr.split("-");
       return `${pt[2]}/${pt[1]}/${pt[0]}`;
     };
-    let titleStr = (state.companyName || "Công Ty Cổ Phần Rạng Đông") + " — SỔ DƯ CÔNG NỢ";
+    let titleStr = (state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông") + " — SỔ DƯ CÔNG NỢ";
     if (fromDate || toDate) {
       titleStr += ` (Kỳ: ${fromDate ? 'Từ ' + formatD(fromDate) : ''} ${toDate ? 'Đến ' + formatD(toDate) : ''})`;
     }
@@ -2727,7 +2727,7 @@ function exportDebtsToExcelDetailed() {
       const pt = dStr.split("-");
       return `${pt[2]}/${pt[1]}/${pt[0]}`;
     };
-    let titleStr = (state.companyName || "Công Ty Cổ Phần Rạng Đông") + " — CHI TIẾT SỔ CÔNG NỢ ĐỐI TÁC";
+    let titleStr = (state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông") + " — CHI TIẾT SỔ CÔNG NỢ ĐỐI TÁC";
     if (fromDate || toDate) {
       titleStr += ` (Kỳ: ${fromDate ? 'Từ ' + formatD(fromDate) : ''} ${toDate ? 'Đến ' + formatD(toDate) : ''})`;
     }

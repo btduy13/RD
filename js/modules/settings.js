@@ -6,7 +6,7 @@ window.addEventListener("beforeunload", () => {
 
 // Cập nhật các thông tin công ty lên giao diện
 function updateCompanyUI() {
-  document.getElementById("header-company-name").innerText = state.companyName || "Công Ty Cổ Phần Rạng Đông";
+  document.getElementById("header-company-name").innerText = state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông";
   document.getElementById("setting-company-name").value = state.companyName || "";
   document.getElementById("setting-tax-code").value = state.taxCode || "";
   document.getElementById("setting-address").value = state.address || "";
@@ -23,7 +23,7 @@ function updateCompanyUI() {
 
 // Lưu thiết lập doanh nghiệp
 function saveCompanySettings() {
-  state.companyName = document.getElementById("setting-company-name").value.trim() || "Công Ty Cổ Phần Rạng Đông";
+  state.companyName = document.getElementById("setting-company-name").value.trim() || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông";
   state.taxCode = document.getElementById("setting-tax-code").value.trim();
   state.address = document.getElementById("setting-address").value.trim() || "255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh";
   saveState();

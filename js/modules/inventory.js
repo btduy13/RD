@@ -411,7 +411,7 @@ function exportStockLedgerToExcel() {
     const ncols = headers.length;
 
     // ROW 0: Tiêu đề lớn
-    sc(0, 0, (state.companyName || "Công Ty Cổ Phần Rạng Đông") + " — SỔ THẺ KHO CHI TIẾT", 's', { font: fntT, alignment: cC });
+    sc(0, 0, (state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông") + " — SỔ THẺ KHO CHI TIẾT", 's', { font: fntT, alignment: cC });
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: ncols - 1 } });
 
     // ROW 1: Tên sản phẩm

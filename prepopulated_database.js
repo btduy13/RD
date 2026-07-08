@@ -4,7 +4,7 @@
    ========================================================================== */
 
 const PREPOPULATED_DATABASE = {
-  "companyName": "Công Ty Cổ Phần Rạng Đông",
+  "companyName": "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông",
   "address": "255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh",
   "taxCode": "0100101438",
   "accountingStandard": "TT200",
