@@ -600,6 +600,13 @@ function formatVND(value) {
   return _vndFormatter.format(value);
 }
 
+// Formatter số tiền không có ký hiệu tiền tệ (dùng cho in ấn)
+const _vndNumberOnly = new Intl.NumberFormat("vi-VN", { style: "decimal", maximumFractionDigits: 0 });
+function formatVNDNoSymbol(value) {
+  if (value === undefined || value === null || isNaN(value)) value = 0;
+  return _vndNumberOnly.format(value);
+}
+
 // Thuật toán chuyển đổi Số thành Chữ tiếng Việt cực chuẩn và chuyên nghiệp
 function numberToVietnameseWords(number) {
   // H7 Fix: Handle negative numbers

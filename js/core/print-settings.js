@@ -27,7 +27,17 @@
   }
 
   function getPrintPageMargins(paperSize) {
-    return paperSize === "A4" ? "10mm 12mm" : "6mm 5mm";
+    return paperSize === "A4" ? "8mm 8mm" : "5mm 4mm";
+  }
+
+  function getVoucherPreviewPageHeight(paperSize, paperWidthPx) {
+    const width = Number(paperWidthPx);
+    const paperW = width > 0 ? width : getVoucherPaperMaxWidth(paperSize);
+    const paper = paperSize === "A4" ? "A4" : "A5";
+    if (paper === "A5") {
+      return paperW * (210 / 148);
+    }
+    return paperW * (297 / 210);
   }
 
   function formatPrintScaleLabel(scale) {
@@ -43,6 +53,7 @@
     getVoucherPaperMaxWidth,
     getEffectivePrintScale,
     getPrintPageMargins,
+    getVoucherPreviewPageHeight,
     formatPrintScaleLabel
   };
 

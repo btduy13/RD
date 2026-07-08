@@ -25,13 +25,22 @@ function testFontOptions() {
 }
 
 function testPageMargins() {
-  assert.equal(ps.getPrintPageMargins('A4'), '10mm 12mm');
-  assert.equal(ps.getPrintPageMargins('A5'), '6mm 5mm');
+  assert.equal(ps.getPrintPageMargins('A4'), '8mm 8mm');
+  assert.equal(ps.getPrintPageMargins('A5'), '5mm 4mm');
   console.log('page margins passed');
+}
+
+function testPreviewPageHeight() {
+  const a5w = ps.getVoucherPaperMaxWidth('A5');
+  const a4w = ps.getVoucherPaperMaxWidth('A4');
+  assert.equal(ps.getVoucherPreviewPageHeight('A5', a5w), a5w * (210 / 148));
+  assert.equal(ps.getVoucherPreviewPageHeight('A4', a4w), a4w * (297 / 210));
+  console.log('preview page height passed');
 }
 
 testEffectiveScale();
 testPaperMaxWidth();
 testFontOptions();
 testPageMargins();
+testPreviewPageHeight();
 console.log('print settings tests passed');

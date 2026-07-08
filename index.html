@@ -4710,32 +4710,69 @@
 
   <!-- E. MODAL: XEM VÀ IN CHỨNG TỪ KẾ TOÁN CHUẨN (PRINT VOUCHER PREVIEW) -->
   <div id="modal-view-voucher" class="modal-overlay">
-    <div class="modal-content-container modal-w-report">
-      <div class="modal-header voucher-preview-header"
-        style="background-color: var(--bg-secondary); border-bottom: 1px solid var(--border-color);">
-        <h3 class="card-title">Xem Chứng từ Kế toán</h3>
-        <div class="voucher-preview-header-actions">
-          <div class="voucher-print-options" aria-label="Tùy chọn in">
-            <div class="voucher-print-option-item">
-              <label class="voucher-print-option-icon" for="voucher-preview-paper-size-select" title="Khổ giấy" aria-label="Khổ giấy">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                </svg>
+    <div class="modal-content-container modal-w-report voucher-print-dialog">
+      <div class="modal-body voucher-print-body">
+        <aside class="voucher-print-sidebar" aria-label="Tùy chọn in">
+          <h3 class="voucher-print-sidebar-title card-title" id="voucher-preview-title">Xem Chứng từ Kế toán</h3>
+
+          <div class="voucher-print-sidebar-section">
+            <div class="voucher-print-sidebar-label">In ra</div>
+            <div class="voucher-print-dest-list" role="radiogroup" aria-label="Đích in">
+              <label class="voucher-print-dest-item" for="voucher-print-dest-printer">
+                <input type="radio" name="voucher-print-dest" id="voucher-print-dest-printer" value="printer" checked
+                  onchange="setVoucherPrintDestination('printer')">
+                <span class="voucher-print-dest-icon" aria-hidden="true">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                  </svg>
+                </span>
+                <span class="voucher-print-dest-text">
+                  <span class="voucher-print-dest-name">Máy in</span>
+                  <span class="voucher-print-dest-desc">In ra máy in hệ thống</span>
+                </span>
               </label>
-              <select id="voucher-preview-paper-size-select" class="form-control voucher-print-option-select voucher-print-option-select--paper"
-                onchange="applyPrintPaperSize(this.value)" title="Khổ giấy">
-                <option value="A4">A4</option>
-                <option value="A5" selected>A5</option>
-              </select>
+              <label class="voucher-print-dest-item" for="voucher-print-dest-pdf">
+                <input type="radio" name="voucher-print-dest" id="voucher-print-dest-pdf" value="pdf"
+                  onchange="setVoucherPrintDestination('pdf')">
+                <span class="voucher-print-dest-icon" aria-hidden="true">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                  </svg>
+                </span>
+                <span class="voucher-print-dest-text">
+                  <span class="voucher-print-dest-name">PDF</span>
+                  <span class="voucher-print-dest-desc">Lưu file PDF</span>
+                </span>
+              </label>
+              <label class="voucher-print-dest-item" for="voucher-print-dest-excel">
+                <input type="radio" name="voucher-print-dest" id="voucher-print-dest-excel" value="excel"
+                  onchange="setVoucherPrintDestination('excel')">
+                <span class="voucher-print-dest-icon" aria-hidden="true">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                  </svg>
+                </span>
+                <span class="voucher-print-dest-text">
+                  <span class="voucher-print-dest-name">Excel</span>
+                  <span class="voucher-print-dest-desc">Xuất bảng tính</span>
+                </span>
+              </label>
             </div>
-            <div class="voucher-print-option-item">
-              <label class="voucher-print-option-icon" for="voucher-preview-font-scale-select" title="Cỡ chữ" aria-label="Cỡ chữ">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 20h4l1.6-5h8.8L20 20h4L14.5 4h-5L4 20zm5.2-8h5.6L12 7.2 9.2 12z"></path>
-                </svg>
-              </label>
-              <select id="voucher-preview-font-scale-select" class="form-control voucher-print-option-select voucher-print-option-select--font"
-                onchange="applyPrintFontScale(parseFloat(this.value))" title="Cỡ chữ">
+          </div>
+
+          <div class="voucher-print-sidebar-section">
+            <label class="voucher-print-field-label" for="voucher-preview-paper-size-select">Khổ giấy</label>
+            <select id="voucher-preview-paper-size-select" class="form-control voucher-print-sidebar-select"
+              onchange="applyPrintPaperSize(this.value)">
+              <option value="A4">A4</option>
+              <option value="A5" selected>A5</option>
+            </select>
+          </div>
+
+          <div class="voucher-print-sidebar-section">
+            <label class="voucher-print-field-label" for="voucher-preview-font-scale-select">Cỡ chữ</label>
+            <select id="voucher-preview-font-scale-select" class="form-control voucher-print-sidebar-select"
+              onchange="applyPrintFontScale(parseFloat(this.value))">
               <option value="0.7">70%</option>
               <option value="0.75">75%</option>
               <option value="0.8">80%</option>
@@ -4752,53 +4789,39 @@
               <option value="1.35">135%</option>
               <option value="1.4">140%</option>
               <option value="1.5">150%</option>
-              </select>
+            </select>
+          </div>
+        </aside>
+
+        <div class="voucher-print-preview">
+          <div class="voucher-print-toolbar">
+            <div class="voucher-print-toolbar-nav">
+              <button type="button" class="voucher-print-toolbar-btn" id="voucher-preview-prev" title="Trang trước"
+                onclick="voucherPreviewPrevPage()" disabled aria-label="Trang trước">&#9664;</button>
+              <span class="voucher-print-page-label" id="voucher-preview-page-label">Trang 1 / 1</span>
+              <button type="button" class="voucher-print-toolbar-btn" id="voucher-preview-next" title="Trang sau"
+                onclick="voucherPreviewNextPage()" disabled aria-label="Trang sau">&#9654;</button>
+            </div>
+            <div class="voucher-print-toolbar-zoom">
+              <button type="button" class="voucher-print-toolbar-btn voucher-print-toolbar-btn-text" id="voucher-preview-fit-page"
+                onclick="setVoucherPreviewZoomMode('fitPage')">Vừa trang</button>
+              <button type="button" class="voucher-print-toolbar-btn voucher-print-toolbar-btn-text" id="voucher-preview-fit-width"
+                onclick="setVoucherPreviewZoomMode('fitWidth')">Vừa rộng</button>
             </div>
           </div>
-          <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-view-voucher')">Đóng</button>
-          <div style="position: relative; display: inline-block;" id="voucher-print-dropdown-wrap">
-            <button class="btn btn-primary btn-sm" onclick="toggleVoucherPrintDropdown(event)">
-              In chứng từ
-              <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="width: 10px; height: 10px; margin-left: 2px; display: inline-block; vertical-align: middle;">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
-              </svg>
-            </button>
-            <div id="voucher-print-dropdown" style="display:none; position:absolute; top:100%; right:0; margin-top:4px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:var(--radius-md); box-shadow:0 4px 16px rgba(0,0,0,0.25); z-index:10000; min-width:180px; overflow:hidden;">
-              <button onclick="printCurrentVoucher(event)"
-                style="display:flex; align-items:center; gap:8px; width:100%; padding:10px 14px; border:none; background:none; cursor:pointer; font-size:13px; color:var(--text-primary); text-align:left; transition:background 0.15s;"
-                onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background='none'">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px; height:16px; flex-shrink:0;">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-                </svg>
-                <div style="font-weight:600;">In ra máy in</div>
-              </button>
-              <div style="border-top:1px solid var(--border-color);"></div>
-              <button onclick="printCurrentVoucherToPDF(event)"
-                style="display:flex; align-items:center; gap:8px; width:100%; padding:10px 14px; border:none; background:none; cursor:pointer; font-size:13px; color:var(--text-primary); text-align:left; transition:background 0.15s;"
-                onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background='none'">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px; height:16px; flex-shrink:0;">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                </svg>
-                <div style="font-weight:600;">In ra PDF</div>
-              </button>
-              <div style="border-top:1px solid var(--border-color);"></div>
-              <button onclick="printCurrentVoucherToExcel(event)"
-                style="display:flex; align-items:center; gap:8px; width:100%; padding:10px 14px; border:none; background:none; cursor:pointer; font-size:13px; color:var(--text-primary); text-align:left; transition:background 0.15s;"
-                onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background='none'">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px; height:16px; flex-shrink:0;">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                </svg>
-                <div style="font-weight:600;">In ra Excel</div>
-              </button>
+          <div id="voucher-print-viewport" class="voucher-print-viewport">
+            <div id="voucher-print-zoom-wrap" class="voucher-print-zoom-wrap">
+              <div id="voucher-print-area">
+                <!-- Bút toán in do JS sinh động -->
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <div class="modal-body">
-        <!-- Đây là khu vực biểu mẫu in ấn Times New Roman cực chuẩn -->
-        <div id="voucher-print-area">
-          <!-- Bút toán in do JS sinh động -->
-        </div>
+
+      <div class="voucher-print-footer">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeModal('modal-view-voucher')">Đóng</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="executeVoucherPrint(event)">In</button>
       </div>
     </div>
   </div>

@@ -370,7 +370,7 @@ function viewVoucher(id) {
   const v = state.vouchers.find(v => v.id === id);
   if (!v) return;
 
-  const modalTitle = document.querySelector("#modal-view-voucher .card-title");
+  const modalTitle = document.getElementById("voucher-preview-title");
   if (modalTitle) {
     modalTitle.innerText = "Xem Chứng từ Kế toán";
   }
@@ -455,13 +455,13 @@ function viewVoucher(id) {
         <table class="voucher-table" style="width:100%; border-collapse:collapse; margin-bottom:10px; border:1.5px solid #000;">
           <thead>
             <tr style="background-color: #f3f4f6;">
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:5%;">STT</th>
-              <th style="border:1px solid #000; padding:4px 6px; text-align:left; width:45%;">Tên, nhãn hiệu quy cách sản phẩm vật tư</th>
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:8%;">ĐVT</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:10%;">Số lượng</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:12%;">Đơn giá (đ)</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:15%;">Thành tiền (đ)</th>
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:5%;">G.C</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:4%;">STT</th>
+              <th style="border:1px solid #000; padding:4px 6px; text-align:left; width:38%;" class="voucher-col-desc">Tên hàng</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;">ĐVT</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:8%;">SL</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:14%;">Đ.giá (đ)</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:20%;">T.tiền (đ)</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;" class="voucher-col-gc">GC</th>
             </tr>
           </thead>
           <tbody>
@@ -472,7 +472,7 @@ function viewVoucher(id) {
       if (discountPercent > 100) {
         discountPercent = itemGross > 0 ? Math.round((discountPercent / itemGross) * 100 * 100) / 100 : 0;
       }
-      const gcVal = discountPercent > 0 ? `${discountPercent}%` : "0";
+      const gcVal = discountPercent > 0 ? `${discountPercent}` : "0";
       const amt = item.amount || (itemGross - (itemGross * (discountPercent / 100)));
       return `
                 <tr>
@@ -480,8 +480,8 @@ function viewVoucher(id) {
                   <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${prod.name}</td>
                   <td style="border:1px solid #000; padding:4px; text-align:center;">${prod.unit || "Cái"}</td>
                   <td style="border:1px solid #000; padding:4px; text-align:right;">${item.qty}</td>
-                  <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVND(item.price).replace("đ", "")}</td>
-                  <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVND(amt).replace("đ", "")}</td>
+                  <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVNDNoSymbol(item.price)}</td>
+                  <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVNDNoSymbol(amt)}</td>
                   <td style="border:1px solid #000; padding:4px; text-align:center;">${gcVal}</td>
                 </tr>
               `;
@@ -489,17 +489,17 @@ function viewVoucher(id) {
             
             <tr>
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; border-top:1.5px solid #000;">Cộng tiền hàng:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVND(grossTotal).replace("đ", "")}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVNDNoSymbol(grossTotal)}</td>
               <td style="border:1px solid #000; border-top:1.5px solid #000;"></td>
             </tr>
             <tr>
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">Số tiền chiết khấu:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">${formatVND(totalDiscount).replace("đ", "")}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">${formatVNDNoSymbol(totalDiscount)}</td>
               <td style="border:1px solid #000;"></td>
             </tr>
             <tr style="background-color:#e5e7eb;">
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; text-transform:uppercase;">Tổng cộng tiền đặt hàng:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; color:var(--color-primary);">${formatVND(v.totalAmount).replace("đ", "")}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; color:var(--color-primary);">${formatVNDNoSymbol(v.totalAmount)} đ</td>
               <td style="border:1px solid #000;"></td>
             </tr>
           </tbody>
@@ -576,7 +576,7 @@ function viewVoucher(id) {
         <!-- Thông tin -->
         <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size: 12.5px;">
           <div><strong>Nhà cung cấp:</strong> <span style="font-size: 14px; font-weight:bold;">${partnerName}</span></div>
-          <div style="text-align:right;"><strong>Ngày:</strong> ${v.date.substring(8, 10)}/${v.date.substring(5, 7)}/${v.date.substring(0, 4)}</div>
+          <div style="text-align:right;"><strong>Ngày:</strong> ${v.date.substring(8, 10)}/${v.date.substring(5, 7)}/${v.date.substring(2, 4)}</div>
           <div><strong>Điện thoại:</strong> <span>${partner_p.phone || '-'}</span></div>
           <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size: 13px;">${v.id}</span></div>
           <div style="grid-column:span 2;"><strong>Địa chỉ NCC:</strong> <span>${partner_p.address || '-'}</span></div>
@@ -589,13 +589,13 @@ function viewVoucher(id) {
         <table style="width:100%; border-collapse:collapse; margin-bottom:10px; border:1.5px solid #000;">
           <thead>
             <tr style="background-color:#f3f4f6;">
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:5%;">TT</th>
-              <th style="border:1px solid #000; padding:4px 6px; text-align:left; width:40%;">Tên, nhãn hiệu, quy cách</th>
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:7%;">ĐV</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:9%;">Số lượng</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:12%;">Đơn giá</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:14%;">Thành tiền</th>
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:13%;">Ghi chú</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:4%;">TT</th>
+              <th style="border:1px solid #000; padding:4px 6px; text-align:left; width:38%;" class="voucher-col-desc">T.quy cách</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;">ĐV</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:8%;">SL</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:14%;">Đ.giá</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:20%;">T.tiền</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;" class="voucher-col-gc">G.chú</th>
             </tr>
           </thead>
           <tbody>
@@ -608,7 +608,7 @@ function viewVoucher(id) {
       if (discountPercent > 100) {
         discountPercent = itemGross > 0 ? Math.round((discountPercent / itemGross) * 100 * 100) / 100 : 0;
       }
-      const gcVal = discountPercent > 0 ? `${discountPercent}%` : "0";
+      const gcVal = discountPercent > 0 ? `${discountPercent}` : "0";
       const amt = item.amount || (itemGross - (itemGross * (discountPercent / 100)));
 
       return `<tr>
@@ -616,29 +616,29 @@ function viewVoucher(id) {
                 <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${displayName}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:center;">${prod.unit || 'Cái'}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:right;">${item.qty || 0}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVND(item.price || 0).replace('đ', '')}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVND(amt).replace('đ', '')}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVNDNoSymbol(item.price || 0)}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVNDNoSymbol(amt)}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:center;">${gcVal}</td>
               </tr>`;
     }).join('')}
             <tr>
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; border-top:1.5px solid #000;">Cộng tiền hàng:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVND(grossTotal).replace('đ', '')}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVNDNoSymbol(grossTotal)}</td>
               <td style="border:1px solid #000; border-top:1.5px solid #000;"></td>
             </tr>
             <tr>
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">Số tiền chiết khấu:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">${formatVND(totalDiscount).replace('đ', '')}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">${formatVNDNoSymbol(totalDiscount)}</td>
               <td style="border:1px solid #000;"></td>
             </tr>
             ${v.taxAmount > 0 ? `<tr>
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right;">Thuế GTGT (${v.taxRate || 0}%):</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right;">${formatVND(v.taxAmount || 0).replace('đ', '')}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right;">${formatVNDNoSymbol(v.taxAmount || 0)}</td>
               <td style="border:1px solid #000;"></td>
             </tr>` : ''}
             <tr style="background-color:#f9fafb;">
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; text-transform:uppercase;">Tổng tiền thanh toán:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVND(v.totalAmount).replace('đ', '')}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVNDNoSymbol(v.totalAmount)} đ</td>
               <td style="border:1px solid #000;"></td>
             </tr>
           </tbody>
@@ -690,7 +690,7 @@ function viewVoucher(id) {
         <!-- Thông tin -->
         <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size: 12.5px;">
           <div><strong>Nhà cung cấp:</strong> <span style="font-size: 14px; font-weight:bold;">${partnerName}</span></div>
-          <div style="text-align:right;"><strong>Ngày:</strong> ${v.date.substring(8, 10)}/${v.date.substring(5, 7)}/${v.date.substring(0, 4)}</div>
+          <div style="text-align:right;"><strong>Ngày:</strong> ${v.date.substring(8, 10)}/${v.date.substring(5, 7)}/${v.date.substring(2, 4)}</div>
           <div><strong>Điện thoại:</strong> <span>${partner_pr.phone || '-'}</span></div>
           <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size: 13px;">${v.id}</span></div>
           <div style="grid-column:span 2;"><strong>Địa chỉ NCC:</strong> <span>${partner_pr.address || '-'}</span></div>
@@ -703,13 +703,13 @@ function viewVoucher(id) {
         <table style="width:100%; border-collapse:collapse; margin-bottom:10px; border:1.5px solid #000;">
           <thead>
             <tr style="background-color:#f3f4f6;">
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:5%;">TT</th>
-              <th style="border:1px solid #000; padding:4px 6px; text-align:left; width:40%;">Tên, nhãn hiệu, quy cách</th>
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:7%;">ĐV</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:9%;">Số lượng</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:12%;">Đơn giá</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:14%;">Thành tiền</th>
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:13%;">Ghi chú</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:4%;">TT</th>
+              <th style="border:1px solid #000; padding:4px 6px; text-align:left; width:38%;" class="voucher-col-desc">T.quy cách</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;">ĐV</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:8%;">SL</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:14%;">Đ.giá</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:20%;">T.tiền</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;" class="voucher-col-gc">G.chú</th>
             </tr>
           </thead>
           <tbody>
@@ -721,14 +721,14 @@ function viewVoucher(id) {
                 <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${prod.name}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:center;">${prod.unit || 'Cái'}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:right;">${item.qty || 0}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVND(item.price || 0).replace('đ', '')}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVND(amt).replace('đ', '')}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVNDNoSymbol(item.price || 0)}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVNDNoSymbol(amt)}</td>
                 <td style="border:1px solid #000; padding:4px;"></td>
               </tr>`;
     }).join('')}
             <tr style="background-color:#f9fafb;">
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; text-transform:uppercase; border-top:1.5px solid #000;">Tổng cộng tiền trả NCC:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; border-top:1.5px solid #000;">${formatVND(grossTotal).replace('đ', '')}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; border-top:1.5px solid #000;">${formatVNDNoSymbol(grossTotal)} đ</td>
               <td style="border:1px solid #000; border-top:1.5px solid #000;"></td>
             </tr>
           </tbody>
@@ -781,7 +781,7 @@ function viewVoucher(id) {
         <!-- Thông tin -->
         <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size: 12.5px;">
           <div><strong>Khách hàng trả lại:</strong> <span style="font-size: 14px; font-weight:bold;">${partnerName}</span></div>
-          <div style="text-align:right;"><strong>Ngày:</strong> ${v.date.substring(8, 10)}/${v.date.substring(5, 7)}/${v.date.substring(0, 4)}</div>
+          <div style="text-align:right;"><strong>Ngày:</strong> ${v.date.substring(8, 10)}/${v.date.substring(5, 7)}/${v.date.substring(2, 4)}</div>
           <div><strong>Điện thoại:</strong> <span>${partner_sr.phone || '-'}</span></div>
           <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size: 13px;">${v.id}</span></div>
           <div style="grid-column:span 2;"><strong>Địa chỉ:</strong> <span>${partner_sr.address || '-'}</span></div>
@@ -795,13 +795,13 @@ function viewVoucher(id) {
         <table style="width:100%; border-collapse:collapse; margin-bottom:10px; border:1.5px solid #000;">
           <thead>
             <tr style="background-color:#f3f4f6;">
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:5%;">TT</th>
-              <th style="border:1px solid #000; padding:4px 6px; text-align:left; width:40%;">Tên, nhãn hiệu, quy cách</th>
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:7%;">ĐV</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:9%;">Số lượng</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:12%;">Đơn giá</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:14%;">Thành tiền</th>
-              <th style="border:1px solid #000; padding:4px; text-align:center; width:13%;">G.C</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:4%;">TT</th>
+              <th style="border:1px solid #000; padding:4px 6px; text-align:left; width:38%;" class="voucher-col-desc">T.quy cách</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;">ĐV</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:8%;">SL</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:14%;">Đ.giá</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:20%;">T.tiền</th>
+              <th style="border:1px solid #000; padding:4px; text-align:center; width:6%;" class="voucher-col-gc">GC</th>
             </tr>
           </thead>
           <tbody>
@@ -815,24 +815,24 @@ function viewVoucher(id) {
                 <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${prod.name}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:center;">${prod.unit || 'Cái'}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:right;">${item.qty || 0}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVND(item.price || 0).replace('đ', '')}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVND(amt).replace('đ', '')}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVNDNoSymbol(item.price || 0)}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVNDNoSymbol(amt)}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:center;">${disc}</td>
               </tr>`;
     }).join('')}
             <tr>
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; border-top:1.5px solid #000;">Cộng tiền hàng trả:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVND(grossTotal).replace('đ', '')}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVNDNoSymbol(grossTotal)}</td>
               <td style="border:1px solid #000; border-top:1.5px solid #000;"></td>
             </tr>
             <tr>
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">Số tiền chiết khấu:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">${formatVND(totalDiscount).replace('đ', '')}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">${formatVNDNoSymbol(totalDiscount)}</td>
               <td style="border:1px solid #000;"></td>
             </tr>
             <tr style="background-color:#f9fafb;">
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; text-transform:uppercase;">Tổng tiền trả lại khách:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; color:#dc2626;">${formatVND(v.totalAmount || (grossTotal - totalDiscount)).replace('đ', '')}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; color:#dc2626;">${formatVNDNoSymbol(v.totalAmount || (grossTotal - totalDiscount))} đ</td>
               <td style="border:1px solid #000;"></td>
             </tr>
           </tbody>
@@ -884,7 +884,7 @@ function viewVoucher(id) {
             <strong>Tên khách hàng:</strong> <span style="font-size: 12.5px; font-weight: bold;">${partnerName}</span>
           </div>
           <div style="text-align: right;">
-            <strong>Ngày:</strong> ${v.date.substring(8, 10)}/${v.date.substring(5, 7)}/${v.date.substring(0, 4)}
+            <strong>Ngày:</strong> ${v.date.substring(8, 10)}/${v.date.substring(5, 7)}/${v.date.substring(2, 4)}
           </div>
           
           <div>
@@ -907,13 +907,13 @@ function viewVoucher(id) {
         <table class="voucher-table" style="width: 100%; border-collapse: collapse; margin-bottom: 10px; border: 1.5px solid #000;">
           <thead>
             <tr style="background-color: #f3f4f6;">
-              <th style="border: 1px solid #000; padding: 4px 4px; text-align: center; font-weight: bold; width: 5%;">TT</th>
-              <th style="border: 1px solid #000; padding: 4px 6px; text-align: left; font-weight: bold; width: 45%;">Diễn giải</th>
-              <th style="border: 1px solid #000; padding: 4px 4px; text-align: center; font-weight: bold; width: 8%;">ĐV</th>
-              <th style="border: 1px solid #000; padding: 4px 4px; text-align: right; font-weight: bold; width: 10%;">Số lượng</th>
-              <th style="border: 1px solid #000; padding: 4px 4px; text-align: right; font-weight: bold; width: 12%;">Đơn giá</th>
-              <th style="border: 1px solid #000; padding: 4px 4px; text-align: right; font-weight: bold; width: 15%;">Thành tiền</th>
-              <th style="border: 1px solid #000; padding: 4px 4px; text-align: center; font-weight: bold; width: 5%;">G.C</th>
+              <th style="border: 1px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; width: 3%;">TT</th>
+              <th style="border: 1px solid #000; padding: 4px 4px; text-align: left; font-weight: bold; width: 40%;" class="voucher-col-desc">D.giải</th>
+              <th style="border: 1px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; width: 6%;">ĐV</th>
+              <th style="border: 1px solid #000; padding: 4px 2px; text-align: right; font-weight: bold; width: 5%;">SL</th>
+              <th style="border: 1px solid #000; padding: 4px 3px; text-align: right; font-weight: bold; width: 15%;">Đ.giá</th>
+              <th style="border: 1px solid #000; padding: 4px 3px; text-align: right; font-weight: bold; width: 22%;">T.tiền</th>
+              <th style="border: 1px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; width: 5%;" class="voucher-col-gc">GC</th>
             </tr>
           </thead>
           <tbody>
@@ -926,16 +926,16 @@ function viewVoucher(id) {
       if (discountPercent > 100) {
         discountPercent = itemGross > 0 ? Math.round((discountPercent / itemGross) * 100 * 100) / 100 : 0;
       }
-      const gcVal = discountPercent > 0 ? `${discountPercent}%` : "0";
+      const gcVal = discountPercent > 0 ? `${discountPercent}` : "0";
       return `
                 <tr>
-                  <td style="border: 1px solid #000; padding: 4px 4px; text-align: center;">${idx + 1}</td>
-                  <td style="border: 1px solid #000; padding: 4px 6px; font-weight: 500;">${item.itemDesc || prod.name}</td>
-                  <td style="border: 1px solid #000; padding: 4px 4px; text-align: center;">${prod.unit || "Cái"}</td>
-                  <td style="border: 1px solid #000; padding: 4px 4px; text-align: right;" class="font-numeric">${qtyFormatted}</td>
-                  <td style="border: 1px solid #000; padding: 4px 4px; text-align: right;" class="font-numeric">${formatVND(item.price).replace("đ", "").trim()}</td>
-                  <td style="border: 1px solid #000; padding: 4px 4px; text-align: right; font-weight: bold;" class="font-numeric">${formatVND(item.amount).replace("đ", "").trim()}</td>
-                  <td style="border: 1px solid #000; padding: 4px 4px; text-align: center;">${gcVal}</td>
+                  <td style="border: 1px solid #000; padding: 4px 2px; text-align: center;">${idx + 1}</td>
+                  <td style="border: 1px solid #000; padding: 4px 4px; font-weight: 500;" class="voucher-col-desc">${item.itemDesc || prod.name}</td>
+                  <td style="border: 1px solid #000; padding: 4px 2px; text-align: center;">${prod.unit || "Cái"}</td>
+                  <td style="border: 1px solid #000; padding: 4px 2px; text-align: right;" class="font-numeric">${qtyFormatted}</td>
+                  <td style="border: 1px solid #000; padding: 4px 3px; text-align: right;" class="font-numeric">${formatVNDNoSymbol(item.price)}</td>
+                  <td style="border: 1px solid #000; padding: 4px 3px; text-align: right; font-weight: bold;" class="font-numeric">${formatVNDNoSymbol(item.amount)}</td>
+                  <td style="border: 1px solid #000; padding: 4px 2px; text-align: center;" class="voucher-col-gc">${gcVal}</td>
                 </tr>
               `;
     }).join("")}
@@ -943,17 +943,17 @@ function viewVoucher(id) {
             <!-- Phần tổng tiền -->
             <tr>
               <td colspan="5" style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold; border-top: 1.5px solid #000;">Cộng tiền hàng :</td>
-              <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold;" class="font-numeric">${formatVND(grossTotal).replace("đ", "").trim()}</td>
+              <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold;" class="font-numeric">${formatVNDNoSymbol(grossTotal)}</td>
               <td style="border: 1px solid #000; border-top: 1.5px solid #000;"></td>
             </tr>
             <tr>
               <td colspan="5" style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: 500;">Số tiền chiết khấu:</td>
-              <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: 500;" class="font-numeric">${formatVND(totalDiscount).replace("đ", "").trim()}</td>
+              <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: 500;" class="font-numeric">${formatVNDNoSymbol(totalDiscount)}</td>
               <td style="border: 1px solid #000;"></td>
             </tr>
             <tr style="background-color: #f9fafb;">
               <td colspan="5" style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold; text-transform: uppercase;">Tổng tiền thanh toán:</td>
-              <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold;" class="font-numeric">${formatVND(v.totalAmount).replace("đ", "").trim()}</td>
+              <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold;" class="font-numeric">${formatVNDNoSymbol(v.totalAmount)} đ</td>
               <td style="border: 1px solid #000;"></td>
             </tr>
           </tbody>
@@ -1024,7 +1024,7 @@ function viewVoucher(id) {
             <strong>Kính gửi khách hàng:</strong> <span style="font-size: 12.5px; font-weight: bold;">${partnerName}</span>
           </div>
           <div style="text-align: right;">
-            <strong>Ngày lập:</strong> ${v.date.substring(8, 10)}/${v.date.substring(5, 7)}/${v.date.substring(0, 4)}
+            <strong>Ngày lập:</strong> ${v.date.substring(8, 10)}/${v.date.substring(5, 7)}/${v.date.substring(2, 4)}
           </div>
           
           <div>
@@ -1047,13 +1047,13 @@ function viewVoucher(id) {
         <table class="voucher-table" style="width: 100%; border-collapse: collapse; margin-bottom: 10px; border: 1.5px solid #000;">
           <thead>
             <tr style="background-color: #f3f4f6;">
-              <th style="border: 1px solid #000; padding: 4px 4px; text-align: center; font-weight: bold; width: 5%;">TT</th>
-              <th style="border: 1px solid #000; padding: 4px 6px; text-align: left; font-weight: bold; width: 45%;">Tên sản phẩm / quy cách</th>
-              <th style="border: 1px solid #000; padding: 4px 4px; text-align: center; font-weight: bold; width: 8%;">ĐV</th>
-              <th style="border: 1px solid #000; padding: 4px 4px; text-align: right; font-weight: bold; width: 10%;">Số lượng</th>
-              <th style="border: 1px solid #000; padding: 4px 4px; text-align: right; font-weight: bold; width: 12%;">Đơn giá</th>
-              <th style="border: 1px solid #000; padding: 4px 4px; text-align: right; font-weight: bold; width: 15%;">Thành tiền</th>
-              <th style="border: 1px solid #000; padding: 4px 4px; text-align: center; font-weight: bold; width: 5%;">C.K</th>
+              <th style="border: 1px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; width: 3%;">TT</th>
+              <th style="border: 1px solid #000; padding: 4px 4px; text-align: left; font-weight: bold; width: 40%;" class="voucher-col-desc">T.sản phẩm</th>
+              <th style="border: 1px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; width: 6%;">ĐV</th>
+              <th style="border: 1px solid #000; padding: 4px 2px; text-align: right; font-weight: bold; width: 5%;">SL</th>
+              <th style="border: 1px solid #000; padding: 4px 3px; text-align: right; font-weight: bold; width: 15%;">Đ.giá</th>
+              <th style="border: 1px solid #000; padding: 4px 3px; text-align: right; font-weight: bold; width: 22%;">T.tiền</th>
+              <th style="border: 1px solid #000; padding: 4px 2px; text-align: center; font-weight: bold; width: 5%;" class="voucher-col-gc">C.K</th>
             </tr>
           </thead>
           <tbody>
@@ -1066,16 +1066,16 @@ function viewVoucher(id) {
       if (discountPercent > 100) {
         discountPercent = itemGross > 0 ? Math.round((discountPercent / itemGross) * 100 * 100) / 100 : 0;
       }
-      const gcVal = discountPercent > 0 ? `${discountPercent}%` : "0";
+      const gcVal = discountPercent > 0 ? `${discountPercent}` : "0";
       return `
                 <tr>
-                  <td style="border: 1px solid #000; padding: 4px 4px; text-align: center;">${idx + 1}</td>
-                  <td style="border: 1px solid #000; padding: 4px 6px; font-weight: 500;">${item.itemDesc || prod.name}</td>
-                  <td style="border: 1px solid #000; padding: 4px 4px; text-align: center;">${prod.unit || "Cái"}</td>
-                  <td style="border: 1px solid #000; padding: 4px 4px; text-align: right;" class="font-numeric">${qtyFormatted}</td>
-                  <td style="border: 1px solid #000; padding: 4px 4px; text-align: right;" class="font-numeric">${formatVND(item.price).replace("đ", "").trim()}</td>
-                  <td style="border: 1px solid #000; padding: 4px 4px; text-align: right; font-weight: bold;" class="font-numeric">${formatVND(item.amount).replace("đ", "").trim()}</td>
-                  <td style="border: 1px solid #000; padding: 4px 4px; text-align: center;">${gcVal}</td>
+                  <td style="border: 1px solid #000; padding: 4px 2px; text-align: center;">${idx + 1}</td>
+                  <td style="border: 1px solid #000; padding: 4px 4px; font-weight: 500;" class="voucher-col-desc">${item.itemDesc || prod.name}</td>
+                  <td style="border: 1px solid #000; padding: 4px 2px; text-align: center;">${prod.unit || "Cái"}</td>
+                  <td style="border: 1px solid #000; padding: 4px 2px; text-align: right;" class="font-numeric">${qtyFormatted}</td>
+                  <td style="border: 1px solid #000; padding: 4px 3px; text-align: right;" class="font-numeric">${formatVNDNoSymbol(item.price)}</td>
+                  <td style="border: 1px solid #000; padding: 4px 3px; text-align: right; font-weight: bold;" class="font-numeric">${formatVNDNoSymbol(item.amount)}</td>
+                  <td style="border: 1px solid #000; padding: 4px 2px; text-align: center;" class="voucher-col-gc">${gcVal}</td>
                 </tr>
               `;
     }).join("")}
@@ -1083,17 +1083,17 @@ function viewVoucher(id) {
             <!-- Phần tổng tiền -->
             <tr>
               <td colspan="5" style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold; border-top: 1.5px solid #000;">Cộng tiền hàng :</td>
-              <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold;" class="font-numeric">${formatVND(grossTotal).replace("đ", "").trim()}</td>
+              <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold;" class="font-numeric">${formatVNDNoSymbol(grossTotal)}</td>
               <td style="border: 1px solid #000; border-top: 1.5px solid #000;"></td>
             </tr>
             <tr>
               <td colspan="5" style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: 500;">Số tiền chiết khấu:</td>
-              <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: 500;" class="font-numeric">${formatVND(totalDiscount).replace("đ", "").trim()}</td>
+              <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: 500;" class="font-numeric">${formatVNDNoSymbol(totalDiscount)}</td>
               <td style="border: 1px solid #000;"></td>
             </tr>
             <tr style="background-color: #f9fafb;">
               <td colspan="5" style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold; text-transform: uppercase;">Tổng cộng giá trị báo giá:</td>
-              <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold;" class="font-numeric">${formatVND(v.totalAmount).replace("đ", "").trim()}</td>
+              <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold;" class="font-numeric">${formatVNDNoSymbol(v.totalAmount)} đ</td>
               <td style="border: 1px solid #000;"></td>
             </tr>
           </tbody>
@@ -1162,11 +1162,11 @@ function viewVoucher(id) {
           <thead>
             <tr style="background-color: #f3f4f6;">
               <th style="border:1px solid #000; padding:4px; text-align:center; width:5%;">STT</th>
-              <th style="border:1px solid #000; padding:4px 6px; text-align:left;">Tên hàng hóa</th>
+              <th style="border:1px solid #000; padding:4px 6px; text-align:left;">T.hàng</th>
               <th style="border:1px solid #000; padding:4px; text-align:center; width:8%;">ĐVT</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:10%;">SL điều chỉnh</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:12%;">Đơn giá BQ</th>
-              <th style="border:1px solid #000; padding:4px; text-align:right; width:15%;">Giá trị (đ)</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:10%;">SL ĐC</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:12%;">Đ.giá BQ</th>
+              <th style="border:1px solid #000; padding:4px; text-align:right; width:15%;">GT (đ)</th>
             </tr>
           </thead>
           <tbody>
@@ -1175,12 +1175,12 @@ function viewVoucher(id) {
               <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${escapeHtmlAttr(prod.name)}</td>
               <td style="border:1px solid #000; padding:4px; text-align:center;">${escapeHtmlAttr(prod.unit || "Cái")}</td>
               <td style="border:1px solid #000; padding:4px; text-align:right;">${isIn ? "+" : "-"}${item ? item.qty : 0}</td>
-              <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVND(item ? item.price : 0).replace("đ", "")}</td>
-              <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVND(amount).replace("đ", "")}</td>
+              <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVNDNoSymbol(item ? item.price : 0)}</td>
+              <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVNDNoSymbol(amount)}</td>
             </tr>
             <tr style="background-color:#e5e7eb;">
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">Tổng giá trị điều chỉnh:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVND(amount).replace("đ", "")}</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVNDNoSymbol(amount)} đ</td>
             </tr>
           </tbody>
         </table>
@@ -1194,7 +1194,7 @@ function viewVoucher(id) {
                   <th style="border:1px solid #000; padding:4px;">Nợ</th>
                   <th style="border:1px solid #000; padding:4px;">Có</th>
                   <th style="border:1px solid #000; padding:4px; text-align:right;">Số tiền</th>
-                  <th style="border:1px solid #000; padding:4px;">Diễn giải</th>
+                  <th style="border:1px solid #000; padding:4px;">D.giải</th>
                 </tr>
               </thead>
               <tbody>
@@ -1202,7 +1202,7 @@ function viewVoucher(id) {
                   <tr>
                     <td style="border:1px solid #000; padding:4px; text-align:center;">${e.debit || ""}</td>
                     <td style="border:1px solid #000; padding:4px; text-align:center;">${e.credit || ""}</td>
-                    <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVND(e.amount).replace("đ", "")}</td>
+                    <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVNDNoSymbol(e.amount)}</td>
                     <td style="border:1px solid #000; padding:4px;">${e.desc || ""}</td>
                   </tr>
                 `).join("")}
@@ -1337,7 +1337,10 @@ function viewVoucher(id) {
   applyPrintScaleToVoucherRoot(printArea);
   requestAnimationFrame(() => {
     applyPrintScaleToVoucherRoot(printArea);
+    resetVoucherPreviewPage();
     fitVoucherPreviewModal();
+    updateVoucherPreviewPagination();
+    applyVoucherPreviewZoom();
   });
   openModal("modal-view-voucher");
 }
@@ -1875,15 +1878,167 @@ window.rdpSetInput = function (inputId, isoValue) {
 // VOUCHER PRINT & EXPORT OPTIONS (Printer, PDF, Excel)
 // ==========================================================================
 
+let voucherPreviewCurrentPage = 1;
+let voucherPreviewTotalPages = 1;
+let voucherPreviewZoomMode = "fitPage";
+let voucherPreviewCurrentScale = 1;
+
+function getVoucherPreviewPageHeight(paperSize, paperWidthPx) {
+  if (typeof PrintSettings !== "undefined" && PrintSettings.getVoucherPreviewPageHeight) {
+    return PrintSettings.getVoucherPreviewPageHeight(paperSize, paperWidthPx);
+  }
+  const paperW = paperWidthPx || getVoucherPaperMaxWidth(paperSize);
+  const paper = paperSize === "A4" ? "A4" : "A5";
+  return paper === "A5" ? paperW * (210 / 148) : paperW * (297 / 210);
+}
+
+function getVoucherPrintDestination() {
+  if (typeof getUserPrefs === "function") {
+    const dest = getUserPrefs().printDestination;
+    if (dest === "pdf" || dest === "excel" || dest === "printer") return dest;
+  }
+  return "printer";
+}
+
+function setVoucherPrintDestination(dest) {
+  const resolved = dest === "pdf" || dest === "excel" ? dest : "printer";
+  if (typeof saveUserPrefs === "function") {
+    saveUserPrefs({ printDestination: resolved });
+  }
+  const radio = document.getElementById("voucher-print-dest-" + resolved);
+  if (radio) radio.checked = true;
+}
+
+function executeVoucherPrint(e) {
+  const dest = getVoucherPrintDestination();
+  if (dest === "pdf") {
+    printCurrentVoucherToPDF(e);
+  } else if (dest === "excel") {
+    printCurrentVoucherToExcel(e);
+  } else {
+    printCurrentVoucher(e);
+  }
+}
+
+function resetVoucherPreviewPage() {
+  voucherPreviewCurrentPage = 1;
+  const viewport = document.getElementById("voucher-print-viewport");
+  if (viewport) viewport.scrollTop = 0;
+}
+
+function updateVoucherPreviewPagination() {
+  const viewport = document.getElementById("voucher-print-viewport");
+  const printArea = document.getElementById("voucher-print-area");
+  const label = document.getElementById("voucher-preview-page-label");
+  const prevBtn = document.getElementById("voucher-preview-prev");
+  const nextBtn = document.getElementById("voucher-preview-next");
+  if (!printArea) return;
+
+  const root = printArea.querySelector(".printable-voucher");
+  if (root) {
+    root.style.removeProperty("height");
+  }
+
+  const paperSize = getPrintPaperSize();
+  const paperWidth = getVoucherPaperMaxWidth(paperSize);
+  const pageHeightPx = getVoucherPreviewPageHeight(paperSize, paperWidth);
+  const contentHeight = printArea.scrollHeight || printArea.offsetHeight || pageHeightPx;
+  voucherPreviewTotalPages = Math.max(1, Math.ceil(contentHeight / pageHeightPx));
+
+  if (root) {
+    root.style.setProperty("--voucher-paper-height", pageHeightPx + "px");
+    root.style.height = (voucherPreviewTotalPages * pageHeightPx) + "px";
+  }
+
+  if (voucherPreviewCurrentPage > voucherPreviewTotalPages) {
+    voucherPreviewCurrentPage = voucherPreviewTotalPages;
+  }
+  if (voucherPreviewCurrentPage < 1) voucherPreviewCurrentPage = 1;
+
+  if (label) {
+    label.textContent = "Trang " + voucherPreviewCurrentPage + " / " + voucherPreviewTotalPages;
+  }
+  if (prevBtn) prevBtn.disabled = voucherPreviewCurrentPage <= 1;
+  if (nextBtn) nextBtn.disabled = voucherPreviewCurrentPage >= voucherPreviewTotalPages;
+
+  if (viewport) {
+    // Force layout reflow so the browser computes the new height synchronously
+    const forced = viewport.scrollHeight;
+    const targetScrollTop = (voucherPreviewCurrentPage - 1) * pageHeightPx * voucherPreviewCurrentScale;
+    viewport.scrollTop = targetScrollTop;
+    requestAnimationFrame(() => {
+      viewport.scrollTop = targetScrollTop;
+    });
+  }
+}
+
+function voucherPreviewGoToPage(page) {
+  const viewport = document.getElementById("voucher-print-viewport");
+  if (!viewport) return;
+
+  const paperSize = getPrintPaperSize();
+  const paperWidth = getVoucherPaperMaxWidth(paperSize);
+  const pageHeightPx = getVoucherPreviewPageHeight(paperSize, paperWidth);
+  const target = Math.max(1, Math.min(page, voucherPreviewTotalPages));
+  voucherPreviewCurrentPage = target;
+  viewport.scrollTop = (target - 1) * pageHeightPx * voucherPreviewCurrentScale;
+  updateVoucherPreviewPagination();
+}
+
+function voucherPreviewPrevPage() {
+  voucherPreviewGoToPage(voucherPreviewCurrentPage - 1);
+}
+
+function voucherPreviewNextPage() {
+  voucherPreviewGoToPage(voucherPreviewCurrentPage + 1);
+}
+
+function setVoucherPreviewZoomMode(mode) {
+  voucherPreviewZoomMode = mode === "fitWidth" ? "fitWidth" : "fitPage";
+  const fitPageBtn = document.getElementById("voucher-preview-fit-page");
+  const fitWidthBtn = document.getElementById("voucher-preview-fit-width");
+  if (fitPageBtn) fitPageBtn.classList.toggle("is-active", voucherPreviewZoomMode === "fitPage");
+  if (fitWidthBtn) fitWidthBtn.classList.toggle("is-active", voucherPreviewZoomMode === "fitWidth");
+  applyVoucherPreviewZoom();
+}
+
+function applyVoucherPreviewZoom() {
+  const viewport = document.getElementById("voucher-print-viewport");
+  const zoomWrap = document.getElementById("voucher-print-zoom-wrap");
+  const printArea = document.getElementById("voucher-print-area");
+  if (!viewport || !zoomWrap || !printArea) return;
+
+  const paperSize = getPrintPaperSize();
+  const paperWidth = getVoucherPaperMaxWidth(paperSize);
+  const pageHeight = getVoucherPreviewPageHeight(paperSize, paperWidth);
+  const contentHeight = Math.max(printArea.scrollHeight, printArea.offsetHeight, pageHeight);
+
+  const pad = 8;
+  const availW = Math.max(80, viewport.clientWidth - pad * 2);
+  const availH = Math.max(80, viewport.clientHeight - pad * 2);
+
+  let scale;
+  if (voucherPreviewZoomMode === "fitWidth") {
+    scale = availW / paperWidth;
+  } else {
+    scale = Math.min(availW / paperWidth, availH / pageHeight);
+  }
+  scale = Math.max(0.15, Math.min(scale, 2.5));
+  voucherPreviewCurrentScale = scale;
+
+  zoomWrap.style.width = paperWidth + "px";
+  zoomWrap.style.transform = "scale(" + scale + ")";
+  zoomWrap.style.transformOrigin = "top center";
+
+  const scaledH = contentHeight * scale;
+  const extraScroll = Math.max(0, scaledH - viewport.clientHeight + pad);
+  viewport.style.paddingBottom = extraScroll > 0 ? (extraScroll + pad) + "px" : "";
+
+  updateVoucherPreviewPagination();
+}
+
 function toggleVoucherPrintDropdown(e) {
   if (e) e.stopPropagation();
-  const menu = document.getElementById("voucher-print-dropdown");
-  if (!menu) return;
-  if (menu.style.display === "none" || menu.style.display === "") {
-    menu.style.display = "block";
-  } else {
-    menu.style.display = "none";
-  }
 }
 
 function getPrintFontScale() {
@@ -1930,8 +2085,18 @@ function cacheVoucherBaseFontSizes(root) {
   if (!root) return;
   [root, ...root.querySelectorAll("*")].forEach((el) => {
     if (el.dataset && el.dataset.voucherBaseFontPx) return;
-    const px = parseInlineFontSizePx(el);
-    if (px != null && !Number.isNaN(px)) {
+    let px = parseInlineFontSizePx(el);
+    if (px == null) {
+      const tag = el.tagName;
+      if (tag === "TH" || tag === "TD" || tag === "SPAN" || tag === "STRONG" || tag === "DIV") {
+        const computed = window.getComputedStyle(el).fontSize;
+        if (computed && /px$/i.test(computed)) {
+          const parsed = parseFloat(computed);
+          if (!Number.isNaN(parsed) && parsed > 0) px = parsed;
+        }
+      }
+    }
+    if (px != null && !Number.isNaN(px) && px > 0) {
       el.dataset.voucherBaseFontPx = String(px);
     }
   });
@@ -1948,9 +2113,32 @@ function applyVoucherFontScale(root, fontScale) {
   };
   applyOne(root);
   root.querySelectorAll("[data-voucher-base-font-px]").forEach(applyOne);
+
+  // #region agent log
+  requestAnimationFrame(() => {
+    const table = root.querySelector("table.voucher-table, table");
+    const ths = table ? Array.from(table.querySelectorAll("th")) : [];
+    const sample = ths.slice(0, 7).map((th) => {
+      const cs = window.getComputedStyle(th);
+      return {
+        text: (th.textContent || "").trim().substring(0, 12),
+        fontSize: cs.fontSize,
+        width: cs.width,
+        padding: cs.padding,
+        whiteSpace: cs.whiteSpace,
+        offsetW: th.offsetWidth,
+        scrollW: th.scrollWidth,
+        wraps: th.scrollWidth > th.offsetWidth + 1
+      };
+    });
+    const sampleTd = table ? table.querySelector("tbody td") : null;
+    const rootCs = window.getComputedStyle(root);
+    fetch("http://127.0.0.1:7918/ingest/0b4f62c8-cbbb-4c88-8d5a-276392bdbf4f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "316809" }, body: JSON.stringify({ sessionId: "316809", runId: "post-fix", hypothesisId: "H-A,H-B,H-C", location: "ui-framework.js:applyVoucherFontScale", message: "table column metrics after font scale", data: { scale, paperSize: getPrintPaperSize(), tableWidth: table ? table.offsetWidth : null, tableLayout: table ? window.getComputedStyle(table).tableLayout : null, rootFontSize: rootCs.fontSize, tdFontSize: sampleTd ? window.getComputedStyle(sampleTd).fontSize : null, tdExpectedPx: Math.round(13 * scale * 10) / 10, thCount: ths.length, columns: sample }, timestamp: Date.now() }) }).catch(() => {});
+  });
+  // #endregion
 }
 
-function applyVoucherPaperSize(root, paperSize) {
+function applyVoucherPaperSizeStyles(root, paperSize) {
   if (!root) return;
   const paper = paperSize === "A4" ? "A4" : "A5";
   const maxW = getVoucherPaperMaxWidth(paper);
@@ -1958,42 +2146,40 @@ function applyVoucherPaperSize(root, paperSize) {
   root.classList.add(paper === "A4" ? "voucher-paper-a4" : "voucher-paper-a5");
   root.style.setProperty("--voucher-paper-max-width", maxW + "px");
   root.style.maxWidth = maxW + "px";
-  fitVoucherPreviewModal(paper);
+  const pageH = getVoucherPreviewPageHeight(paper, maxW);
+  root.style.setProperty("--voucher-paper-height", pageH + "px");
+}
+
+function applyVoucherPaperSize(root, paperSize) {
+  applyVoucherPaperSizeStyles(root, paperSize);
+  resetVoucherPreviewPage();
+  fitVoucherPreviewModal(paperSize);
 }
 
 function fitVoucherPreviewModal(paperSize) {
   const paper = paperSize === "A4" ? "A4" : (paperSize === "A5" ? "A5" : getPrintPaperSize());
   const maxW = getVoucherPaperMaxWidth(paper);
-  const modal = document.querySelector("#modal-view-voucher .modal-content-container");
   const overlay = document.getElementById("modal-view-voucher");
-  const header = modal && modal.querySelector(".modal-header");
-  const body = modal && modal.querySelector(".modal-body");
-  const printArea = document.getElementById("voucher-print-area");
-  const sheetPad = 12;
-  const modalW = Math.min(Math.max(maxW + sheetPad, 380), Math.floor(window.innerWidth * 0.96));
   if (overlay) overlay.style.setProperty("--voucher-paper-max-width", maxW + "px");
-  if (modal) {
-    modal.style.width = modalW + "px";
-    modal.style.maxWidth = "96vw";
-    modal.style.height = "auto";
-    modal.style.maxHeight = "92vh";
-    if (header && body && printArea) {
-      const headerH = header.offsetHeight;
-      const contentH = printArea.offsetHeight;
-      const needsScroll = headerH + contentH + 4 > window.innerHeight * 0.92;
-      modal.classList.toggle("is-voucher-overflow", needsScroll);
-    }
-  }
+  requestAnimationFrame(() => {
+    updateVoucherPreviewPagination();
+    applyVoucherPreviewZoom();
+  });
 }
 
 function syncVoucherPrintControls() {
   const prefs = typeof getUserPrefs === "function" ? getUserPrefs() : {};
   const fontScale = prefs.printFontScale || 1;
   const paperSize = prefs.printPaperSize === "A4" ? "A4" : "A5";
+  const printDest = prefs.printDestination === "pdf" || prefs.printDestination === "excel"
+    ? prefs.printDestination
+    : "printer";
   const fontSelect = document.getElementById("voucher-preview-font-scale-select");
   const paperSelect = document.getElementById("voucher-preview-paper-size-select");
   if (fontSelect) fontSelect.value = String(fontScale);
   if (paperSelect) paperSelect.value = paperSize;
+  setVoucherPrintDestination(printDest);
+  setVoucherPreviewZoomMode(voucherPreviewZoomMode || "fitPage");
   ensurePrintPageStyle(paperSize);
   fitVoucherPreviewModal(paperSize);
 }
@@ -2002,7 +2188,7 @@ function ensurePrintPageStyle(paperSize) {
   const paper = paperSize === "A4" ? "A4" : "A5";
   const margins = typeof PrintSettings !== "undefined" && PrintSettings.getPrintPageMargins
     ? PrintSettings.getPrintPageMargins(paper)
-    : (paper === "A4" ? "10mm 12mm" : "6mm 5mm");
+    : (paper === "A4" ? "8mm 8mm" : "5mm 4mm");
   let el = document.getElementById("voucher-print-page-style");
   if (!el) {
     el = document.createElement("style");
@@ -2029,21 +2215,49 @@ function applyPrintScaleToVoucherRoot(container) {
   root.style.removeProperty("--voucher-preview-scale");
   root.style.removeProperty("--voucher-print-scale");
 
-  applyVoucherPaperSize(root, getPrintPaperSize());
+  applyVoucherPaperSizeStyles(root, getPrintPaperSize());
   applyVoucherFontScale(root, getPrintFontScale());
 }
 
+function resetVoucherFontScaleForPrint(root) {
+  if (!root) return;
+  const currentScale = Number(getPrintFontScale()) > 0 ? Number(getPrintFontScale()) : 1;
+  root.style.removeProperty("--voucher-font-scale");
+  [root, ...root.querySelectorAll("*")].forEach((el) => {
+    if (el.dataset) delete el.dataset.voucherBaseFontPx;
+    const px = parseInlineFontSizePx(el);
+    if (px != null && !Number.isNaN(px) && currentScale > 0) {
+      const base = px / currentScale;
+      if (base > 0) el.style.fontSize = base + "px";
+    } else {
+      el.style.removeProperty("font-size");
+    }
+  });
+}
+
 function wrapVoucherHtmlForPrint(html) {
-  const wrapper = document.createElement("div");
-  wrapper.innerHTML = String(html || "").trim();
-  const root = wrapper.querySelector(".printable-voucher");
+  const host = document.createElement("div");
+  host.style.cssText = "position:fixed;left:-9999px;top:0;visibility:hidden;pointer-events:none;";
+  document.body.appendChild(host);
+  host.innerHTML = String(html || "").trim();
+  const root = host.querySelector(".printable-voucher");
   if (root) {
     root.style.removeProperty("transform");
     root.style.removeProperty("zoom");
-    applyVoucherPaperSize(root, getPrintPaperSize());
+    resetVoucherFontScaleForPrint(root);
+    applyVoucherPaperSizeStyles(root, getPrintPaperSize());
     applyVoucherFontScale(root, getPrintFontScale());
   }
-  return wrapper.innerHTML;
+  const result = host.innerHTML;
+  document.body.removeChild(host);
+
+  // #region agent log
+  const scale = getPrintFontScale();
+  const sampleTd = root ? root.querySelector("table td") : null;
+  fetch("http://127.0.0.1:7918/ingest/0b4f62c8-cbbb-4c88-8d5a-276392bdbf4f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "316809" }, body: JSON.stringify({ sessionId: "316809", runId: "print-fix", hypothesisId: "H-P1,H-P2,H-P3", location: "ui-framework.js:wrapVoucherHtmlForPrint", message: "wrapped html for print", data: { scale, paperSize: getPrintPaperSize(), rootFontSize: root ? root.style.fontSize : null, cssVar: root ? root.style.getPropertyValue("--voucher-font-scale") : null, tdFontSize: sampleTd ? sampleTd.style.fontSize : null, tdComputed: sampleTd ? window.getComputedStyle(sampleTd).fontSize : null }, timestamp: Date.now() }) }).catch(() => {});
+  // #endregion
+
+  return result;
 }
 
 function applyPrintFontScale(scale) {
@@ -2058,7 +2272,12 @@ function applyPrintFontScale(scale) {
   if (selectEl) selectEl.value = String(resolvedScale);
 
   applyPrintScaleToVoucherRoot(document.getElementById("voucher-print-area"));
-  requestAnimationFrame(() => fitVoucherPreviewModal());
+  requestAnimationFrame(() => {
+    resetVoucherPreviewPage();
+    fitVoucherPreviewModal();
+    updateVoucherPreviewPagination();
+    applyVoucherPreviewZoom();
+  });
 }
 
 function applyPrintPaperSize(paperSize) {
@@ -2070,11 +2289,15 @@ function applyPrintPaperSize(paperSize) {
   if (selectEl) selectEl.value = paperSize;
   ensurePrintPageStyle(paperSize);
   applyPrintScaleToVoucherRoot(document.getElementById("voucher-print-area"));
+  requestAnimationFrame(() => {
+    resetVoucherPreviewPage();
+    fitVoucherPreviewModal(paperSize);
+    updateVoucherPreviewPagination();
+    applyVoucherPreviewZoom();
+  });
 }
 
 function hideVoucherPrintDropdown() {
-  const menu = document.getElementById("voucher-print-dropdown");
-  if (menu) menu.style.display = "none";
 }
 
 async function printCurrentVoucher(e) {
@@ -2099,6 +2322,10 @@ async function printCurrentVoucher(e) {
   const printPaperSize = getPrintPaperSize();
   const wrappedHtml = wrapVoucherHtmlForPrint(voucherHtml);
 
+  // #region agent log
+  fetch("http://127.0.0.1:7918/ingest/0b4f62c8-cbbb-4c88-8d5a-276392bdbf4f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "316809" }, body: JSON.stringify({ sessionId: "316809", runId: "print-fix", hypothesisId: "H-P1", location: "ui-framework.js:printCurrentVoucher", message: "sending to electron print", data: { printFontScale, printPaperSize, htmlLen: wrappedHtml.length }, timestamp: Date.now() }) }).catch(() => {});
+  // #endregion
+
   if (window.electronAPI && typeof window.electronAPI.printHtml === "function") {
     try {
       const res = await window.electronAPI.printHtml(wrappedHtml, printFontScale, printPaperSize);
@@ -2122,7 +2349,7 @@ async function printCurrentVoucher(e) {
   ensurePrintPageStyle(getPrintPaperSize());
   const root = printArea.querySelector(".printable-voucher");
   if (root) {
-    applyVoucherPaperSize(root, getPrintPaperSize());
+    applyVoucherPaperSizeStyles(root, getPrintPaperSize());
     applyVoucherFontScale(root, getPrintFontScale());
   }
   triggerPrint();
@@ -2135,7 +2362,7 @@ async function printCurrentVoucherToPDF(e) {
   if (e) e.preventDefault();
   hideVoucherPrintDropdown();
 
-  const modalTitle = document.querySelector("#modal-view-voucher .card-title");
+  const modalTitle = document.getElementById("voucher-preview-title");
   const isDebtNotice = modalTitle && modalTitle.innerText.includes("Thông báo Công nợ");
 
   let cleanFilename = "";
@@ -2197,7 +2424,7 @@ function printCurrentVoucherToExcel(e) {
   if (e) e.preventDefault();
   hideVoucherPrintDropdown();
 
-  const modalTitle = document.querySelector("#modal-view-voucher .card-title");
+  const modalTitle = document.getElementById("voucher-preview-title");
   const isDebtNotice = modalTitle && modalTitle.innerText.includes("Thông báo Công nợ");
 
   if (isDebtNotice) {
@@ -2287,7 +2514,7 @@ function exportVoucherToExcel(id) {
   let itemsStartRow = rows.length;
   let totalDiscount = 0;
   if (hasItems) {
-    rows.push(["STT", "Tên sản phẩm / quy cách", "ĐVT", "Số lượng", "Đơn giá", "Thành tiền", "Ghi chú"]);
+    rows.push(["STT", "T.sản phẩm", "ĐVT", "SL", "Đ.giá", "T.tiền", "G.chú"]);
 
     let idx = 1;
     let grossTotal = 0;
@@ -2618,8 +2845,17 @@ window.hideVoucherPrintDropdown = hideVoucherPrintDropdown;
 window.printCurrentVoucher = printCurrentVoucher;
 window.printCurrentVoucherToPDF = printCurrentVoucherToPDF;
 window.printCurrentVoucherToExcel = printCurrentVoucherToExcel;
+window.resetVoucherPreviewPage = resetVoucherPreviewPage;
+window.executeVoucherPrint = executeVoucherPrint;
+window.getVoucherPrintDestination = getVoucherPrintDestination;
+window.setVoucherPrintDestination = setVoucherPrintDestination;
 window.fitVoucherPreviewModal = fitVoucherPreviewModal;
 window.syncVoucherPrintControls = syncVoucherPrintControls;
+window.updateVoucherPreviewPagination = updateVoucherPreviewPagination;
+window.voucherPreviewPrevPage = voucherPreviewPrevPage;
+window.voucherPreviewNextPage = voucherPreviewNextPage;
+window.setVoucherPreviewZoomMode = setVoucherPreviewZoomMode;
+window.applyVoucherPreviewZoom = applyVoucherPreviewZoom;
 window.ensurePrintPageStyle = ensurePrintPageStyle;
 window.getPrintFontScale = getPrintFontScale;
 window.getPrintPaperSize = getPrintPaperSize;

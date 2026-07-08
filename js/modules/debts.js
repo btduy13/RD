@@ -2123,26 +2123,33 @@ function previewPartnerDebtNotice(partnerId) {
   }
 
   // Determine min/max dates
+  const getShortDateStr = (dateVal) => {
+    if (!dateVal) return "";
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return "";
+    const pad = (n) => n.toString().padStart(2, '0');
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear().toString().slice(-2)}`;
+  };
+
   const formatD = (dStr) => {
     if (!dStr) return "";
     const pt = dStr.split("-");
-    return `${pt[2]}/${pt[1]}/${pt[0]}`;
+    const yr = pt[0].length === 4 ? pt[0].substring(2, 4) : pt[0];
+    return `${pt[2]}/${pt[1]}/${yr}`;
   };
 
-  let fromDateStr = fromDate ? formatD(fromDate) : "01/01/2026";
-  let toDateStr = toDate ? formatD(toDate) : new Date().toLocaleDateString('vi-VN');
+  let fromDateStr = fromDate ? formatD(fromDate) : "01/01/26";
+  let toDateStr = toDate ? formatD(toDate) : getShortDateStr(new Date());
 
   if (!fromDate && ledgerEntries.length > 0) {
     const dates = ledgerEntries.map(e => new Date(e.date));
     const minDate = new Date(Math.min(...dates));
-    const pad = (n) => n.toString().padStart(2, '0');
-    fromDateStr = `${pad(minDate.getDate())}/${pad(minDate.getMonth() + 1)}/${minDate.getFullYear()}`;
+    fromDateStr = getShortDateStr(minDate);
   }
   if (!toDate && ledgerEntries.length > 0) {
     const dates = ledgerEntries.map(e => new Date(e.date));
     const maxDate = new Date(Math.max(...dates));
-    const pad = (n) => n.toString().padStart(2, '0');
-    toDateStr = `${pad(maxDate.getDate())}/${pad(maxDate.getMonth() + 1)}/${maxDate.getFullYear()}`;
+    toDateStr = getShortDateStr(maxDate);
   }
 
   const formatDebtAmount = (val) => {
@@ -2180,9 +2187,7 @@ function previewPartnerDebtNotice(partnerId) {
     }
     currentBalance += amount;
 
-    const dVal = new Date(le.date);
-    const pad = (n) => n.toString().padStart(2, '0');
-    const dateFormatted = `${pad(dVal.getDate())}/${pad(dVal.getMonth() + 1)}/${dVal.getFullYear()}`;
+    const dateFormatted = getShortDateStr(le.date);
 
     const subCodeStr = matchingPartners.length > 1
       ? `<br><span style="font-size: 10.5px; color:#555; font-style:italic;">[${le.partnerId}]</span>`
@@ -2227,7 +2232,7 @@ function previewPartnerDebtNotice(partnerId) {
       <!-- Title -->
       <div style="text-align: center; margin-bottom: 12px;">
         <div style="font-size: 20px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase;">THÔNG BÁO CÔNG NỢ</div>
-        <div style="font-size: 11.5px; font-style: italic; margin-top: 2px;">Ngày in: ${new Date().toLocaleDateString('vi-VN')}</div>
+        <div style="font-size: 11.5px; font-style: italic; margin-top: 2px;">Ngày in: ${getShortDateStr(new Date())}</div>
       </div>
 
       <!-- Info -->
@@ -2247,14 +2252,14 @@ function previewPartnerDebtNotice(partnerId) {
 
 
       <!-- Table -->
-      <table class="debt-notice-table" style="width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 14px;">
+      <table class="debt-notice-table" style="width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 13px; table-layout: fixed !important;">
         <thead>
           <tr style="background-color: #f3f4f6;">
-            <th style="width: 13%; text-align: center;">Ngày</th>
-            <th style="width: 15%; text-align: center;">Số chứng từ</th>
-            <th style="width: 42%; text-align: left;">Diễn giải</th>
-            <th style="width: 15%; text-align: right;">Số tiền</th>
-            <th style="width: 15%; text-align: right;">Số dư</th>
+            <th style="width: 11%; text-align: center;">Ngày</th>
+            <th style="width: 14%; text-align: center;">Số CT</th>
+            <th style="width: 45%; text-align: left;">D.giải</th>
+            <th style="width: 15%; text-align: right;">S.tiền</th>
+            <th style="width: 15%; text-align: right;">S.dư</th>
           </tr>
         </thead>
         <tbody>
@@ -2277,10 +2282,15 @@ function previewPartnerDebtNotice(partnerId) {
   if (typeof syncVoucherPrintControls === "function") syncVoucherPrintControls();
   if (typeof applyPrintScaleToVoucherRoot === "function") {
     applyPrintScaleToVoucherRoot(printArea);
-    requestAnimationFrame(() => applyPrintScaleToVoucherRoot(printArea));
+    requestAnimationFrame(() => {
+      applyPrintScaleToVoucherRoot(printArea);
+      if (typeof resetVoucherPreviewPage === "function") resetVoucherPreviewPage();
+      if (typeof fitVoucherPreviewModal === "function") fitVoucherPreviewModal();
+      if (typeof updateVoucherPreviewPagination === "function") updateVoucherPreviewPagination();
+      if (typeof applyVoucherPreviewZoom === "function") applyVoucherPreviewZoom();
+    });
   }
-  // Change title of modal temporarily
-  const modalTitle = document.querySelector("#modal-view-voucher .card-title");
+  const modalTitle = document.getElementById("voucher-preview-title");
   if (modalTitle) {
     modalTitle.innerText = "Xem trước Thông báo Công nợ";
   }

@@ -12,6 +12,7 @@ const DEFAULT_USER_PREFS = {
   fontScale: 1,
   printFontScale: 1,
   printPaperSize: "A5",
+  printDestination: "printer",
   lastTab: "dashboard",
   debtsViewTab: "overview",
   debtActiveOnly: false,
