@@ -2111,8 +2111,18 @@ function applyVoucherFontScale(root, fontScale) {
     if (!el.dataset || !el.dataset.voucherBaseFontPx) return;
     el.style.fontSize = (parseFloat(el.dataset.voucherBaseFontPx) * scale) + "px";
   };
-  applyOne(root);
-  root.querySelectorAll("[data-voucher-base-font-px]").forEach(applyOne);
+  const resetOne = (el) => {
+    if (!el.dataset || !el.dataset.voucherBaseFontPx) return;
+    el.style.fontSize = el.dataset.voucherBaseFontPx + "px";
+  };
+  resetOne(root);
+  root.querySelectorAll("[data-voucher-base-font-px]").forEach((el) => {
+    if (el.closest("table")) {
+      applyOne(el);
+    } else {
+      resetOne(el);
+    }
+  });
 
   // #region agent log
   requestAnimationFrame(() => {
