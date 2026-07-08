@@ -1,11 +1,11 @@
 {
   "name": "rd-accounting",
-  "version": "3.0.10",
+  "version": "3.0.11",
   "description": "Phần mềm kế toán độc lập Công ty Cổ phần Rạng Đông",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "npm run test:sync && npm run test:sync-v2 && npm run test:core && npm run test:persistence && npm run test:partners && npm run test:prefs && npm run test:products",
+    "test": "npm run test:sync && npm run test:sync-v2 && npm run test:core && npm run test:persistence && npm run test:partners && npm run test:prefs && npm run test:print && npm run test:products",
     "test:sync": "node tests/sync-regression-tests.js",
     "test:sync-v2": "node tests/sync-v2-regression-tests.js",
     "test:core": "node tests/core-regression-tests.js",
@@ -13,6 +13,7 @@
     "test:accounting": "node tests/core-regression-tests.js",
     "test:partners": "node tests/partner-merge-tests.js",
     "test:prefs": "node tests/user-preferences-tests.js",
+    "test:print": "node tests/print-settings-tests.js",
     "test:products": "node tests/product-identity-tests.js",
     "db:dedupe-products": "electron scripts/db-migrate-product-dedupe.js",
     "package-win": "electron-packager . rd-accounting --platform=win32 --arch=x64 --out=dist --overwrite --ignore=dist",

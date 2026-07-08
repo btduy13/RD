@@ -11,6 +11,7 @@ const DEFAULT_USER_PREFS = {
   sidebarCollapsed: false,
   fontScale: 1,
   printFontScale: 1,
+  printPaperSize: "A5",
   lastTab: "dashboard",
   debtsViewTab: "overview",
   debtActiveOnly: false,
@@ -152,10 +153,19 @@ function restoreUserPreferencesUI() {
     if (sidebar) sidebar.classList.add("collapsed");
   }
 
-  const printScaleSelect = document.getElementById("print-font-scale-select");
+  const printScaleSelect = document.getElementById("voucher-preview-font-scale-select");
   if (printScaleSelect) {
     const printScale = prefs.printFontScale || 1;
-    printScaleSelect.value = printScale === 1 ? "1" : String(printScale);
+    printScaleSelect.value = String(printScale);
+  }
+
+  const printPaperSelect = document.getElementById("voucher-preview-paper-size-select");
+  if (printPaperSelect && prefs.printPaperSize) {
+    printPaperSelect.value = prefs.printPaperSize;
+  }
+
+  if (typeof ensurePrintPageStyle === "function") {
+    ensurePrintPageStyle(prefs.printPaperSize || "A5");
   }
 
   if (typeof applyFontSizeScale === "function") {

@@ -2274,8 +2274,10 @@ function previewPartnerDebtNotice(partnerId) {
   `;
 
   printArea.innerHTML = content;
+  if (typeof syncVoucherPrintControls === "function") syncVoucherPrintControls();
   if (typeof applyPrintScaleToVoucherRoot === "function") {
     applyPrintScaleToVoucherRoot(printArea);
+    requestAnimationFrame(() => applyPrintScaleToVoucherRoot(printArea));
   }
   // Change title of modal temporarily
   const modalTitle = document.querySelector("#modal-view-voucher .card-title");

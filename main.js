@@ -595,19 +595,53 @@ function getVoucherPdfStyles() {
   return voucherPdfCssCache;
 }
 
-function buildVoucherPdfDocument(voucherHtml, printFontScale = 1) {
+function buildVoucherPdfDocument(voucherHtml, printFontScale = 1, printPaperSize = "A5") {
   const baseHref = pathToFileURL(path.join(__dirname, path.sep)).href;
   const styles = getVoucherPdfStyles();
-  const scale = Number(printFontScale) > 0 ? Number(printFontScale) : 1;
-  const scaleCss = scale !== 1
-    ? `.printable-voucher { zoom: ${scale} !important; --voucher-print-scale: ${scale}; }`
-    : '';
+  const fontScale = Number(printFontScale) > 0 ? Number(printFontScale) : 1;
+  const paper = printPaperSize === "A4" ? "A4" : "A5";
+  const paperMaxW = paper === "A5" ? Math.round(800 * (148 / 210)) : 800;
+  const pageMargin = paper === "A5" ? "6mm 5mm" : "10mm 12mm";
+  const pageOverride = `@page { size: ${paper} portrait; margin: ${pageMargin}; }`;
+  const layoutCss = `
+    html, body { height: auto !important; overflow: visible !important; }
+    .printable-voucher {
+      --voucher-font-scale: ${fontScale};
+      --voucher-paper-max-width: ${paperMaxW}px;
+      max-width: ${paperMaxW}px !important;
+      width: 100% !important;
+      margin: 0 auto !important;
+      zoom: 1 !important;
+      font-size: calc(14px * ${fontScale}) !important;
+      box-sizing: border-box !important;
+      overflow-x: hidden !important;
+    }
+    .printable-voucher .voucher-rd-co-name { font-size: calc(13px * ${fontScale}) !important; }
+    .printable-voucher .voucher-rd-co-unit,
+    .printable-voucher .voucher-rd-co-addr,
+    .printable-voucher .voucher-rd-co-tel { font-size: calc(11px * ${fontScale}) !important; }
+    .printable-voucher table { font-size: calc(12px * ${fontScale}) !important; }
+  `;
+  const tableCss = `
+    .printable-voucher { box-sizing: border-box !important; max-width: 100% !important; overflow-x: hidden !important; }
+    .printable-voucher table { table-layout: fixed !important; width: 100% !important; }
+    .printable-voucher table thead { display: table-header-group !important; }
+    .printable-voucher table tfoot { display: table-footer-group !important; }
+    .printable-voucher table th, .printable-voucher table td {
+      word-wrap: break-word !important;
+      overflow-wrap: anywhere !important;
+      box-sizing: border-box !important;
+    }
+    .printable-voucher table tr { page-break-inside: avoid; break-inside: avoid; }
+    .printable-voucher .voucher-signatures,
+    .printable-voucher .sig-block { page-break-inside: avoid !important; break-inside: avoid !important; }
+  `;
   return `<!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="utf-8">
   <base href="${baseHref}">
-  <style>${styles}${scaleCss}</style>
+  <style>${styles}${pageOverride}${layoutCss}${tableCss}</style>
 </head>
 <body>${voucherHtml}</body>
 </html>`;
@@ -663,11 +697,12 @@ async function waitForPrintWindowImages(printWin, imageTimeoutMs = VOUCHER_PDF_I
   `);
 }
 
-async function prepareVoucherPrintWindow(voucherHtml, printFontScale = 1) {
+async function prepareVoucherPrintWindow(voucherHtml, printFontScale = 1, printPaperSize = "A5") {
+  const isA5 = printPaperSize !== "A4";
   const printWin = new BrowserWindow({
     show: false,
-    width: 794,
-    height: 1123,
+    width: isA5 ? 560 : 794,
+    height: isA5 ? 794 : 1123,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -676,7 +711,7 @@ async function prepareVoucherPrintWindow(voucherHtml, printFontScale = 1) {
     }
   });
 
-  const doc = buildVoucherPdfDocument(String(voucherHtml), printFontScale);
+  const doc = buildVoucherPdfDocument(String(voucherHtml), printFontScale, printPaperSize);
   const pageLoadTimeout = setTimeout(() => {
     if (printWin && !printWin.isDestroyed()) {
       printWin.webContents.stop();
@@ -699,6 +734,17 @@ async function prepareVoucherPrintWindow(voucherHtml, printFontScale = 1) {
     throw new Error('Cửa sổ in đã bị đóng trước khi in');
   }
 
+  try {
+    const contentHeight = await printWin.webContents.executeJavaScript(
+      'Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)'
+    );
+    if (Number.isFinite(contentHeight) && contentHeight > 0) {
+      const winWidth = isA5 ? 560 : 794;
+      const winHeight = Math.min(Math.max(Math.ceil(contentHeight) + 40, isA5 ? 794 : 1123), 16000);
+      printWin.setSize(winWidth, winHeight);
+    }
+  } catch (_) {}
+
   return { printWin, tempHtmlPath };
 }
 
@@ -711,7 +757,7 @@ function cleanupVoucherPrintWindow(printWin, tempHtmlPath) {
   }
 }
 
-ipcMain.handle('print-html-to-pdf', async (event, voucherHtml, filename, printFontScale) => {
+ipcMain.handle('print-html-to-pdf', async (event, voucherHtml, filename, printFontScale, printPaperSize) => {
   let printWin = null;
   let tempHtmlPath = null;
   try {
@@ -734,7 +780,7 @@ ipcMain.handle('print-html-to-pdf', async (event, voucherHtml, filename, printFo
       return { ok: false, error: 'Hủy lưu PDF' };
     }
 
-    const prepared = await prepareVoucherPrintWindow(String(voucherHtml), printFontScale);
+    const prepared = await prepareVoucherPrintWindow(String(voucherHtml), printFontScale, printPaperSize);
     printWin = prepared.printWin;
     tempHtmlPath = prepared.tempHtmlPath;
 
@@ -758,7 +804,7 @@ ipcMain.handle('print-html-to-pdf', async (event, voucherHtml, filename, printFo
   }
 });
 
-ipcMain.handle('print-html', async (event, voucherHtml, printFontScale) => {
+ipcMain.handle('print-html', async (event, voucherHtml, printFontScale, printPaperSize) => {
   let printWin = null;
   let tempHtmlPath = null;
   try {
@@ -766,15 +812,18 @@ ipcMain.handle('print-html', async (event, voucherHtml, printFontScale) => {
       return { ok: false, error: 'Không có nội dung chứng từ để in' };
     }
 
-    const prepared = await prepareVoucherPrintWindow(String(voucherHtml), printFontScale);
+    const prepared = await prepareVoucherPrintWindow(String(voucherHtml), printFontScale, printPaperSize);
     printWin = prepared.printWin;
     tempHtmlPath = prepared.tempHtmlPath;
 
+    const pageSize = printPaperSize === "A4" ? "A4" : "A5";
     const printResult = await new Promise((resolve) => {
       printWin.webContents.print({
         silent: false,
         printBackground: true,
         color: true,
+        pageSize,
+        preferCSSPageSize: true,
         margins: VOUCHER_PRINT_MARGINS_IN
       }, (success, failureReason) => {
         resolve({ success, failureReason });

@@ -1333,7 +1333,12 @@ function viewVoucher(id) {
   }
 
   printArea.innerHTML = content;
+  syncVoucherPrintControls();
   applyPrintScaleToVoucherRoot(printArea);
+  requestAnimationFrame(() => {
+    applyPrintScaleToVoucherRoot(printArea);
+    fitVoucherPreviewModal();
+  });
   openModal("modal-view-voucher");
 }
 window.viewVoucher = viewVoucher;
@@ -1889,26 +1894,154 @@ function getPrintFontScale() {
   return 1;
 }
 
-function applyPrintScaleToVoucherRoot(container, scale) {
+function getPrintPaperSize() {
+  if (typeof getUserPrefs === "function") {
+    const size = getUserPrefs().printPaperSize;
+    if (size === "A5" || size === "A4") return size;
+  }
+  return "A5";
+}
+
+function getVoucherPaperMaxWidth(paperSize) {
+  if (typeof PrintSettings !== "undefined" && PrintSettings.getVoucherPaperMaxWidth) {
+    return PrintSettings.getVoucherPaperMaxWidth(paperSize || getPrintPaperSize());
+  }
+  const paper = paperSize || getPrintPaperSize();
+  return paper === "A5" ? Math.round(800 * 148 / 210) : 800;
+}
+
+function getEffectivePrintScale() {
+  return getPrintFontScale();
+}
+
+function parseInlineFontSizePx(el) {
+  if (!el) return null;
+  const fromStyle = el.style && el.style.fontSize;
+  if (fromStyle && /px$/i.test(fromStyle)) {
+    const px = parseFloat(fromStyle);
+    return Number.isNaN(px) ? null : px;
+  }
+  const attr = el.getAttribute("style") || "";
+  const m = attr.match(/font-size\s*:\s*([\d.]+)\s*px/i);
+  return m ? parseFloat(m[1]) : null;
+}
+
+function cacheVoucherBaseFontSizes(root) {
+  if (!root) return;
+  [root, ...root.querySelectorAll("*")].forEach((el) => {
+    if (el.dataset && el.dataset.voucherBaseFontPx) return;
+    const px = parseInlineFontSizePx(el);
+    if (px != null && !Number.isNaN(px)) {
+      el.dataset.voucherBaseFontPx = String(px);
+    }
+  });
+}
+
+function applyVoucherFontScale(root, fontScale) {
+  if (!root) return;
+  cacheVoucherBaseFontSizes(root);
+  const scale = Number(fontScale) > 0 ? Number(fontScale) : 1;
+  root.style.setProperty("--voucher-font-scale", String(scale));
+  const applyOne = (el) => {
+    if (!el.dataset || !el.dataset.voucherBaseFontPx) return;
+    el.style.fontSize = (parseFloat(el.dataset.voucherBaseFontPx) * scale) + "px";
+  };
+  applyOne(root);
+  root.querySelectorAll("[data-voucher-base-font-px]").forEach(applyOne);
+}
+
+function applyVoucherPaperSize(root, paperSize) {
+  if (!root) return;
+  const paper = paperSize === "A4" ? "A4" : "A5";
+  const maxW = getVoucherPaperMaxWidth(paper);
+  root.classList.remove("voucher-paper-a4", "voucher-paper-a5");
+  root.classList.add(paper === "A4" ? "voucher-paper-a4" : "voucher-paper-a5");
+  root.style.setProperty("--voucher-paper-max-width", maxW + "px");
+  root.style.maxWidth = maxW + "px";
+  fitVoucherPreviewModal(paper);
+}
+
+function fitVoucherPreviewModal(paperSize) {
+  const paper = paperSize === "A4" ? "A4" : (paperSize === "A5" ? "A5" : getPrintPaperSize());
+  const maxW = getVoucherPaperMaxWidth(paper);
+  const modal = document.querySelector("#modal-view-voucher .modal-content-container");
+  const overlay = document.getElementById("modal-view-voucher");
+  const header = modal && modal.querySelector(".modal-header");
+  const body = modal && modal.querySelector(".modal-body");
+  const printArea = document.getElementById("voucher-print-area");
+  const sheetPad = 12;
+  const modalW = Math.min(Math.max(maxW + sheetPad, 380), Math.floor(window.innerWidth * 0.96));
+  if (overlay) overlay.style.setProperty("--voucher-paper-max-width", maxW + "px");
+  if (modal) {
+    modal.style.width = modalW + "px";
+    modal.style.maxWidth = "96vw";
+    modal.style.height = "auto";
+    modal.style.maxHeight = "92vh";
+    if (header && body && printArea) {
+      const headerH = header.offsetHeight;
+      const contentH = printArea.offsetHeight;
+      const needsScroll = headerH + contentH + 4 > window.innerHeight * 0.92;
+      modal.classList.toggle("is-voucher-overflow", needsScroll);
+    }
+  }
+}
+
+function syncVoucherPrintControls() {
+  const prefs = typeof getUserPrefs === "function" ? getUserPrefs() : {};
+  const fontScale = prefs.printFontScale || 1;
+  const paperSize = prefs.printPaperSize === "A4" ? "A4" : "A5";
+  const fontSelect = document.getElementById("voucher-preview-font-scale-select");
+  const paperSelect = document.getElementById("voucher-preview-paper-size-select");
+  if (fontSelect) fontSelect.value = String(fontScale);
+  if (paperSelect) paperSelect.value = paperSize;
+  ensurePrintPageStyle(paperSize);
+  fitVoucherPreviewModal(paperSize);
+}
+
+function ensurePrintPageStyle(paperSize) {
+  const paper = paperSize === "A4" ? "A4" : "A5";
+  const margins = typeof PrintSettings !== "undefined" && PrintSettings.getPrintPageMargins
+    ? PrintSettings.getPrintPageMargins(paper)
+    : (paper === "A4" ? "10mm 12mm" : "6mm 5mm");
+  let el = document.getElementById("voucher-print-page-style");
+  if (!el) {
+    el = document.createElement("style");
+    el.id = "voucher-print-page-style";
+    document.head.appendChild(el);
+  }
+  el.textContent = `@media print { @page { size: ${paper} portrait; margin: ${margins}; } }`;
+}
+
+function applyPrintScaleToVoucherRoot(container) {
   const host = container || document.getElementById("voucher-print-area");
   if (!host) return;
   const root = host.querySelector(".printable-voucher");
   if (!root) return;
-  const resolvedScale = scale != null && !Number.isNaN(Number(scale)) && Number(scale) > 0
-    ? Number(scale)
-    : getPrintFontScale();
-  root.style.setProperty("--voucher-print-scale", String(resolvedScale));
-  root.style.zoom = String(resolvedScale);
+
+  host.querySelectorAll(":scope > .voucher-print-scaler").forEach((el) => {
+    if (root.parentElement === el) host.appendChild(root);
+    el.remove();
+  });
+
+  root.style.removeProperty("transform");
+  root.style.removeProperty("zoom");
+  root.style.removeProperty("width");
+  root.style.removeProperty("--voucher-preview-scale");
+  root.style.removeProperty("--voucher-print-scale");
+
+  applyVoucherPaperSize(root, getPrintPaperSize());
+  applyVoucherFontScale(root, getPrintFontScale());
 }
 
 function wrapVoucherHtmlForPrint(html) {
-  const scale = getPrintFontScale();
   const wrapper = document.createElement("div");
   wrapper.innerHTML = String(html || "").trim();
   const root = wrapper.querySelector(".printable-voucher");
   if (root) {
-    root.style.setProperty("--voucher-print-scale", String(scale));
-    root.style.zoom = String(scale);
+    root.style.removeProperty("transform");
+    root.style.removeProperty("zoom");
+    applyVoucherPaperSize(root, getPrintPaperSize());
+    applyVoucherFontScale(root, getPrintFontScale());
   }
   return wrapper.innerHTML;
 }
@@ -1921,12 +2054,22 @@ function applyPrintFontScale(scale) {
     saveUserPrefs({ printFontScale: resolvedScale });
   }
 
-  const selectEl = document.getElementById("print-font-scale-select");
-  if (selectEl) {
-    selectEl.value = resolvedScale === 1 ? "1" : String(resolvedScale);
-  }
+  const selectEl = document.getElementById("voucher-preview-font-scale-select");
+  if (selectEl) selectEl.value = String(resolvedScale);
 
-  applyPrintScaleToVoucherRoot(document.getElementById("voucher-print-area"), resolvedScale);
+  applyPrintScaleToVoucherRoot(document.getElementById("voucher-print-area"));
+  requestAnimationFrame(() => fitVoucherPreviewModal());
+}
+
+function applyPrintPaperSize(paperSize) {
+  if (paperSize !== "A4" && paperSize !== "A5") return;
+  if (typeof saveUserPrefs === "function") {
+    saveUserPrefs({ printPaperSize: paperSize });
+  }
+  const selectEl = document.getElementById("voucher-preview-paper-size-select");
+  if (selectEl) selectEl.value = paperSize;
+  ensurePrintPageStyle(paperSize);
+  applyPrintScaleToVoucherRoot(document.getElementById("voucher-print-area"));
 }
 
 function hideVoucherPrintDropdown() {
@@ -1953,11 +2096,12 @@ async function printCurrentVoucher(e) {
   }
 
   const printFontScale = getPrintFontScale();
+  const printPaperSize = getPrintPaperSize();
   const wrappedHtml = wrapVoucherHtmlForPrint(voucherHtml);
 
   if (window.electronAPI && typeof window.electronAPI.printHtml === "function") {
     try {
-      const res = await window.electronAPI.printHtml(wrappedHtml, printFontScale);
+      const res = await window.electronAPI.printHtml(wrappedHtml, printFontScale, printPaperSize);
       if (res && res.ok === false && res.error && res.error !== "Hủy in") {
         if (typeof showToast === "function") {
           showToast(`Lỗi in: ${res.error}`, "error");
@@ -1973,10 +2117,17 @@ async function printCurrentVoucher(e) {
   }
 
   document.body.classList.add("printing-voucher");
-  applyPrintScaleToVoucherRoot(printArea, printFontScale);
+  document.body.classList.toggle("print-paper-a5", getPrintPaperSize() === "A5");
+  document.body.classList.toggle("print-paper-a4", getPrintPaperSize() === "A4");
+  ensurePrintPageStyle(getPrintPaperSize());
+  const root = printArea.querySelector(".printable-voucher");
+  if (root) {
+    applyVoucherPaperSize(root, getPrintPaperSize());
+    applyVoucherFontScale(root, getPrintFontScale());
+  }
   triggerPrint();
   setTimeout(() => {
-    document.body.classList.remove("printing-voucher");
+    document.body.classList.remove("printing-voucher", "print-paper-a5", "print-paper-a4");
   }, 1000);
 }
 
@@ -2011,11 +2162,12 @@ async function printCurrentVoucherToPDF(e) {
   }
 
   const printFontScale = getPrintFontScale();
+  const printPaperSize = getPrintPaperSize();
   const wrappedHtml = wrapVoucherHtmlForPrint(voucherHtml);
 
   try {
     if (window.electronAPI && typeof window.electronAPI.printHtmlToPDF === "function") {
-      const res = await window.electronAPI.printHtmlToPDF(wrappedHtml, cleanFilename, printFontScale);
+      const res = await window.electronAPI.printHtmlToPDF(wrappedHtml, cleanFilename, printFontScale, printPaperSize);
       if (res && res.ok) {
         showToast(`Đã lưu PDF tại: ${res.filePath}`, "success");
       } else if (res && res.error === 'Hủy lưu PDF') {
@@ -2466,8 +2618,14 @@ window.hideVoucherPrintDropdown = hideVoucherPrintDropdown;
 window.printCurrentVoucher = printCurrentVoucher;
 window.printCurrentVoucherToPDF = printCurrentVoucherToPDF;
 window.printCurrentVoucherToExcel = printCurrentVoucherToExcel;
+window.fitVoucherPreviewModal = fitVoucherPreviewModal;
+window.syncVoucherPrintControls = syncVoucherPrintControls;
+window.ensurePrintPageStyle = ensurePrintPageStyle;
 window.getPrintFontScale = getPrintFontScale;
+window.getPrintPaperSize = getPrintPaperSize;
+window.getEffectivePrintScale = getEffectivePrintScale;
 window.applyPrintFontScale = applyPrintFontScale;
+window.applyPrintPaperSize = applyPrintPaperSize;
 window.applyPrintScaleToVoucherRoot = applyPrintScaleToVoucherRoot;
 window.wrapVoucherHtmlForPrint = wrapVoucherHtmlForPrint;
 window.exportVoucherToExcel = exportVoucherToExcel;

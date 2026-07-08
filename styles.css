@@ -1529,12 +1529,13 @@ body.light-theme .modal-overlay {
   padding: 14px 18px;
   border-radius: var(--radius-sm);
   font-family: "Times New Roman", Times, serif;
-  font-size: 14px;
+  font-size: calc(14px * var(--voucher-font-scale, 1));
   line-height: 1.35;
   box-shadow: var(--shadow-md);
   margin: 0 auto;
-  max-width: 750px;
+  max-width: var(--voucher-paper-max-width, 750px);
   position: relative;
+  --voucher-font-scale: 1;
 }
 
 .printable-voucher * {
@@ -1548,8 +1549,142 @@ body.light-theme .modal-overlay {
   line-height: 1.25;
 }
 
+#voucher-print-area {
+  overflow: visible;
+  padding: 4px;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  background: var(--bg-tertiary, #e8eaed);
+}
+
 #voucher-print-area .printable-voucher {
-  zoom: var(--voucher-print-scale, 1);
+  max-width: var(--voucher-paper-max-width, 800px);
+  width: 100%;
+  margin: 0;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+#modal-view-voucher.modal-overlay {
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+  padding: max(8px, 1.5vh) 8px;
+}
+
+#modal-view-voucher .modal-content-container {
+  height: auto;
+  max-height: 92vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: min(96vw, calc(var(--voucher-paper-max-width, 565px) + 12px));
+  max-width: 96vw;
+}
+
+#modal-view-voucher .modal-content-container.modal-w-report {
+  max-width: 96vw !important;
+  background-color: var(--bg-secondary);
+}
+
+#modal-view-voucher .modal-header {
+  flex-shrink: 0;
+  z-index: 20;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+#modal-view-voucher .voucher-preview-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+
+#modal-view-voucher .voucher-preview-header .card-title {
+  flex: 1 1 auto;
+  min-width: 160px;
+}
+
+#modal-view-voucher .voucher-preview-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+#modal-view-voucher .voucher-print-options {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+}
+
+#modal-view-voucher .voucher-print-option-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#modal-view-voucher .voucher-print-option-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: var(--text-secondary);
+  cursor: default;
+  flex-shrink: 0;
+}
+
+#modal-view-voucher .voucher-print-option-icon svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+}
+
+#modal-view-voucher .voucher-print-option-select {
+  width: auto !important;
+  min-width: 0;
+  max-width: none;
+  flex: 0 0 auto;
+  padding: 0 20px 0 6px !important;
+  font-size: 12px !important;
+  font-weight: 600;
+  height: 28px !important;
+  min-height: 28px;
+  line-height: 28px;
+  border-radius: var(--radius-sm);
+}
+
+#modal-view-voucher .voucher-print-option-select--paper {
+  min-width: 46px;
+}
+
+#modal-view-voucher .voucher-print-option-select--font {
+  min-width: 54px;
+}
+
+#modal-view-voucher .modal-body {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: auto;
+  padding: 0;
+  background: var(--bg-tertiary, #e8eaed);
+  -webkit-overflow-scrolling: touch;
+}
+
+#modal-view-voucher .modal-content-container.is-voucher-overflow .modal-body {
+  flex: 1 1 auto;
 }
 
 .debt-notice-table th {
@@ -1636,7 +1771,7 @@ body.light-theme .modal-overlay {
 }
 .voucher-rd-co-name {
   font-weight: bold;
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--voucher-font-scale, 1));
   text-transform: uppercase;
   letter-spacing: 0.2px;
   line-height: 1.15;
@@ -1644,13 +1779,13 @@ body.light-theme .modal-overlay {
 }
 .voucher-rd-co-unit {
   font-weight: bold;
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--voucher-font-scale, 1));
   text-transform: uppercase;
   line-height: 1.2;
 }
 .voucher-rd-co-addr,
 .voucher-rd-co-tel {
-  font-size: 11px;
+  font-size: calc(11px * var(--voucher-font-scale, 1));
   margin-top: 1px;
   line-height: 1.2;
   word-wrap: break-word;
@@ -1668,7 +1803,7 @@ body.light-theme .modal-overlay {
   background: #fff;
 }
 .voucher-rd-qr-label {
-  font-size: 7.5px;
+  font-size: calc(7.5px * var(--voucher-font-scale, 1));
   font-weight: bold;
   text-transform: uppercase;
   margin-bottom: 1px;
@@ -1682,7 +1817,7 @@ body.light-theme .modal-overlay {
   display: block;
 }
 .voucher-rd-qr-stk {
-  font-size: 8.5px;
+  font-size: calc(8.5px * var(--voucher-font-scale, 1));
   margin-top: 1px;
   font-family: monospace;
   font-weight: bold;
@@ -2113,13 +2248,46 @@ body.light-theme .dynamic-items-table td {
   .printable-voucher {
     box-shadow: none !important;
     padding: 6px 0 0 !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    max-width: var(--voucher-paper-max-width, 100%) !important;
+    background-color: transparent !important;
+    font-size: calc(12.5px * var(--voucher-font-scale, 1)) !important;
+    line-height: 1.32 !important;
+    zoom: 1 !important;
+    transform: none !important;
+  }
+
+  .printable-voucher table {
+    table-layout: fixed !important;
+    width: 100% !important;
+  }
+
+  .printable-voucher table thead {
+    display: table-header-group !important;
+  }
+
+  .printable-voucher table th,
+  .printable-voucher table td {
+    word-wrap: break-word !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .printable-voucher table tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .printable-voucher .voucher-signatures,
+  .printable-voucher .sig-block {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  #voucher-print-area .voucher-print-scaler {
+    transform: none !important;
     width: 100% !important;
     max-width: 100% !important;
-    background-color: transparent !important;
-    font-size: 12.5px !important;
-    line-height: 1.32 !important;
-    zoom: var(--voucher-print-scale, 1) !important;
   }
 
   /* Tự động định dạng trang in và tự động scale theo khổ giấy */
