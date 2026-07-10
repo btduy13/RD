@@ -2529,6 +2529,136 @@ select.vie-control {
   font-weight: bold;
 }
 
+/* ── WORKSPACE TAB BAR (Tab dạng trình duyệt) ── */
+.workspace-tab-bar {
+  display: flex;
+  align-items: stretch;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 8px;
+  min-height: 38px;
+  flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.workspace-tab-bar::-webkit-scrollbar { height: 3px; }
+.workspace-tab-bar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 2px; }
+
+.workspace-tab-bar-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 0;
+}
+
+.workspace-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  border-radius: 8px 8px 0 0;
+  border: 1px solid transparent;
+  border-bottom: none;
+  position: relative;
+  user-select: none;
+  transition: background 0.15s, color 0.15s;
+  background: transparent;
+  margin-top: 4px;
+}
+.workspace-tab:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+.workspace-tab.active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+  font-weight: 600;
+  box-shadow: 0 1px 0 var(--bg-primary);
+}
+.workspace-tab-icon {
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.workspace-tab-label {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.workspace-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s;
+}
+.workspace-tab-close:hover {
+  background: var(--color-danger, #ef4444);
+  color: #fff;
+}
+.workspace-tab-home .workspace-tab-icon { font-size: 13px; }
+
+/* ── Modal → Tab Panel mode ── */
+/* Modal giữ nguyên position:fixed, nhưng bắt đầu dưới header+tab bar,
+   nền solid che phủ content area, không backdrop blur */
+.modal-overlay.workspace-tab-panel {
+  top: calc(var(--header-height, 60px) + 38px) !important;
+  height: calc(100% - var(--header-height, 60px) - 38px) !important;
+  background: var(--bg-primary) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 !important;
+  align-items: stretch !important;
+  justify-content: stretch !important;
+  animation: none !important;
+  z-index: 900 !important;
+}
+.modal-overlay.workspace-tab-panel > .modal-content-container {
+  max-width: none !important;
+  width: 100% !important;
+  max-height: none !important;
+  height: 100% !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  animation: none !important;
+  border: none !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-overlay.workspace-tab-panel > .modal-content-container > .modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.modal-overlay.workspace-tab-panel > .modal-content-container > .modal-header {
+  border-radius: 0;
+  flex-shrink: 0;
+}
+.modal-overlay.workspace-tab-panel > .modal-content-container > .modal-footer {
+  border-radius: 0;
+  flex-shrink: 0;
+}
+
+
 
 /* 8. FORMS & INPUTS */
 .form-grid {

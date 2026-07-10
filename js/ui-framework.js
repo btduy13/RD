@@ -112,6 +112,9 @@ let activeModalsByTab = {};
 function switchTab(tabId) {
   if (typeof closeMobileSidebar === "function") closeMobileSidebar();
 
+  // Khi chuyển sidebar, giữ nguyên workspace tabs nhưng chuyển về home view
+  if (typeof switchWorkspaceTab === "function") switchWorkspaceTab(null);
+
   // Lấy tab cũ trước khi chuyển
   const prevActiveMenu = document.querySelector(".sidebar-menu .menu-item.active");
   const prevTabId = prevActiveMenu ? prevActiveMenu.getAttribute("data-tab") : null;
@@ -120,6 +123,7 @@ function switchTab(tabId) {
   if (prevTabId) {
     const openModals = [];
     document.querySelectorAll(".modal-overlay").forEach(modal => {
+      if (modal.classList.contains("workspace-tab-panel")) return; // Skip workspace tabs
       if (modal.style.display === "flex" || modal.style.display === "block") {
         openModals.push(modal.id);
         modal.style.display = "none";
@@ -190,6 +194,9 @@ function switchTab(tabId) {
   if (typeof saveUserPrefs === "function") {
     saveUserPrefs({ lastTab: tabId });
   }
+
+  // Cập nhật label home tab trong workspace tab bar
+  if (typeof updateHomeTabLabel === "function") updateHomeTabLabel();
 }
 
 // 5. RENDER DỮ LIỆU PHÂN HỆ DASHBOARD (KPIs & OFFLINE CHART)
