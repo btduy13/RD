@@ -25,8 +25,13 @@ function testFontOptions() {
 }
 
 function testPageMargins() {
-  assert.equal(ps.getPrintPageMargins('A4'), '0');
-  assert.equal(ps.getPrintPageMargins('A5'), '0');
+  assert.equal(ps.getPrintPageMargins(), '10mm 5mm 10mm 5mm');
+  assert.equal(ps.getPrintPageMargins({ marginTopMm: 20, marginRightMm: 8, marginBottomMm: 15, marginLeftMm: 6 }), '20mm 8mm 15mm 6mm');
+  const px = ps.getPrintMarginPx({ marginTopMm: 10, marginRightMm: 5, marginBottomMm: 10, marginLeftMm: 5 }, 'A4', 210);
+  assert.equal(px.top, 10);
+  assert.equal(px.right, 5);
+  assert.equal(px.bottom, 10);
+  assert.equal(px.left, 5);
   console.log('page margins passed');
 }
 

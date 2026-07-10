@@ -1526,7 +1526,8 @@ body.light-theme .modal-overlay {
 .printable-voucher {
   background-color: #ffffff;
   color: #000000;
-  padding: var(--voucher-template-margin-top, 10mm) var(--voucher-template-margin-right, 5mm) var(--voucher-template-margin-bottom, 10mm) var(--voucher-template-margin-left, 5mm);
+  /* Per-page margins come from @page (print) / preview zoom-wrap — not element padding */
+  padding: 0;
   border-radius: var(--radius-sm);
   font-family: var(--voucher-template-font-family, "Times New Roman", Times, serif);
   font-size: var(--voucher-template-content-font-size, 13px);
@@ -1563,16 +1564,15 @@ body.light-theme .modal-overlay {
 #voucher-print-area .printable-voucher {
   max-width: var(--voucher-paper-max-width, 800px);
   width: 100%;
-  margin: 16px auto !important;
+  margin: 0 auto !important;
   flex-shrink: 0;
   background-color: #ffffff !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
-  border: 1px solid #94a3b8 !important;
+  box-shadow: none !important;
+  border: none !important;
   box-sizing: border-box !important;
   position: relative !important;
-  min-height: var(--voucher-paper-height, 800px) !important;
-  background-image: linear-gradient(to bottom, transparent calc(var(--voucher-paper-height) - 1px), #cbd5e1 calc(var(--voucher-paper-height) - 1px)) !important;
-  background-size: 100% var(--voucher-paper-height) !important;
+  min-height: 0 !important;
+  background-image: none !important;
 }
 
 #voucher-print-area .printable-voucher table th,
@@ -1839,6 +1839,11 @@ body.light-theme .modal-overlay {
 #modal-view-voucher .voucher-print-zoom-wrap {
   transform-origin: top center;
   margin: 0 auto;
+  background-color: #ffffff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  border: 1px solid #94a3b8;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 #modal-view-voucher .voucher-print-footer {
@@ -2991,7 +2996,7 @@ body.light-theme .dynamic-items-table td {
     background-color: #ffffff !important;
     zoom: 1 !important;
     transform: none !important;
-    padding: var(--voucher-template-margin-top, 10mm) var(--voucher-template-margin-right, 5mm) var(--voucher-template-margin-bottom, 10mm) var(--voucher-template-margin-left, 5mm);
+    padding: 0 !important;
   }
 
   .printable-voucher table {
@@ -3042,7 +3047,7 @@ body.light-theme .dynamic-items-table td {
   /* Tự động định dạng trang in và tự động scale theo khổ giấy */
   @page {
     size: A4 portrait;
-    margin: 0;
+    margin: 10mm 5mm 10mm 5mm;
   }
 
   .printable-voucher .voucher-rd-header {

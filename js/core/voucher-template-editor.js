@@ -27,6 +27,7 @@
   function applyVoucherTemplateSettingsToRoot(voucherRoot, settingsValue) {
     if (!voucherRoot) return null;
     const settings = normalizeSettings(settingsValue || getPrintTemplateSettings());
+    voucherRoot._voucherTemplateSettings = settings;
     const fontStack = settings.fontFamily === "Times New Roman"
       ? '"Times New Roman", Times, serif'
       : `"${settings.fontFamily}", Arial, sans-serif`;
@@ -60,7 +61,8 @@
     voucherRoot.style.fontSize = `${settings.contentFontSize}px`;
     voucherRoot.style.lineHeight = String(settings.lineHeight);
     voucherRoot.style.textAlign = settings.textAlign;
-    voucherRoot.style.padding = `${settings.marginTopMm}mm ${settings.marginRightMm}mm ${settings.marginBottomMm}mm ${settings.marginLeftMm}mm`;
+    // Per-page margins are applied via @page (print) and preview zoom-wrap padding — not root padding.
+    voucherRoot.style.padding = "0";
     voucherRoot.style.boxSizing = "border-box";
 
     const contentScale = settings.contentFontSize / 13;

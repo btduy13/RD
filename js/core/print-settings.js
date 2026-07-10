@@ -73,8 +73,31 @@
     return normalizePrintFontScale(fontScale);
   }
 
-  function getPrintPageMargins(paperSize) {
-    return "0";
+  function getPaperWidthMm(paperSize) {
+    return paperSize === "A4" ? 210 : 148;
+  }
+
+  function getPaperHeightMm(paperSize) {
+    return paperSize === "A4" ? 297 : 210;
+  }
+
+  /** CSS @page margin shorthand from template settings (per-page gutters). */
+  function getPrintPageMargins(settingsValue) {
+    const settings = normalizePrintTemplateSettings(settingsValue);
+    return `${settings.marginTopMm}mm ${settings.marginRightMm}mm ${settings.marginBottomMm}mm ${settings.marginLeftMm}mm`;
+  }
+
+  /** Convert template margins (mm) to preview pixels for the given paper width. */
+  function getPrintMarginPx(settingsValue, paperSize, paperWidthPx) {
+    const settings = normalizePrintTemplateSettings(settingsValue);
+    const paperW = Number(paperWidthPx) > 0 ? Number(paperWidthPx) : getVoucherPaperMaxWidth(paperSize);
+    const pxPerMm = paperW / getPaperWidthMm(paperSize);
+    return {
+      top: settings.marginTopMm * pxPerMm,
+      right: settings.marginRightMm * pxPerMm,
+      bottom: settings.marginBottomMm * pxPerMm,
+      left: settings.marginLeftMm * pxPerMm
+    };
   }
 
   function getVoucherPreviewPageHeight(paperSize, paperWidthPx) {
@@ -101,7 +124,10 @@
     getPrintPaperFitFactor,
     getVoucherPaperMaxWidth,
     getEffectivePrintScale,
+    getPaperWidthMm,
+    getPaperHeightMm,
     getPrintPageMargins,
+    getPrintMarginPx,
     normalizePrintTemplateSettings,
     getVoucherPreviewPageHeight,
     formatPrintScaleLabel

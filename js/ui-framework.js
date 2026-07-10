@@ -1905,6 +1905,41 @@ function getVoucherPreviewPageHeight(paperSize, paperWidthPx) {
   return paper === "A5" ? paperW * (210 / 148) : paperW * (297 / 210);
 }
 
+function getVoucherPreviewTemplateSettings() {
+  const previewRoot = document.querySelector("#voucher-print-area .printable-voucher");
+  if (previewRoot && previewRoot._voucherTemplateSettings) {
+    return previewRoot._voucherTemplateSettings;
+  }
+  if (typeof window.getPrintTemplateSettings === "function") {
+    return window.getPrintTemplateSettings();
+  }
+  const prefs = typeof getUserPrefs === "function" ? getUserPrefs() : {};
+  if (typeof PrintSettings !== "undefined" && PrintSettings.normalizePrintTemplateSettings) {
+    return PrintSettings.normalizePrintTemplateSettings(prefs.printTemplate);
+  }
+  return prefs.printTemplate || {};
+}
+
+function getVoucherPreviewMarginPx(paperSize, paperWidthPx) {
+  const settings = getVoucherPreviewTemplateSettings();
+  if (typeof PrintSettings !== "undefined" && PrintSettings.getPrintMarginPx) {
+    return PrintSettings.getPrintMarginPx(settings, paperSize, paperWidthPx);
+  }
+  const paperW = paperWidthPx || getVoucherPaperMaxWidth(paperSize);
+  const paperWidthMm = paperSize === "A4" ? 210 : 148;
+  const pxPerMm = paperW / paperWidthMm;
+  const top = Number(settings.marginTopMm);
+  const right = Number(settings.marginRightMm);
+  const bottom = Number(settings.marginBottomMm);
+  const left = Number(settings.marginLeftMm);
+  return {
+    top: (Number.isFinite(top) ? top : 10) * pxPerMm,
+    right: (Number.isFinite(right) ? right : 5) * pxPerMm,
+    bottom: (Number.isFinite(bottom) ? bottom : 10) * pxPerMm,
+    left: (Number.isFinite(left) ? left : 5) * pxPerMm
+  };
+}
+
 function getVoucherPrintDestination() {
   if (typeof getUserPrefs === "function") {
     const dest = getUserPrefs().printDestination;
@@ -1942,6 +1977,7 @@ function resetVoucherPreviewPage() {
 function updateVoucherPreviewPagination() {
   const viewport = document.getElementById("voucher-print-viewport");
   const printArea = document.getElementById("voucher-print-area");
+  const zoomWrap = document.getElementById("voucher-print-zoom-wrap");
   const label = document.getElementById("voucher-preview-page-label");
   const prevBtn = document.getElementById("voucher-preview-prev");
   const nextBtn = document.getElementById("voucher-preview-next");
@@ -1955,16 +1991,32 @@ function updateVoucherPreviewPagination() {
   const paperSize = getPrintPaperSize();
   const paperWidth = getVoucherPaperMaxWidth(paperSize);
   const pageHeightPx = getVoucherPreviewPageHeight(paperSize, paperWidth);
-  const contentHeight = printArea.scrollHeight || printArea.offsetHeight || pageHeightPx;
-  voucherPreviewTotalPages = Math.max(1, Math.ceil(contentHeight / pageHeightPx));
+  const margins = getVoucherPreviewMarginPx(paperSize, paperWidth);
+  const contentPageHeight = Math.max(1, pageHeightPx - margins.top - margins.bottom);
+
+  if (zoomWrap) {
+    zoomWrap.style.boxSizing = "border-box";
+    zoomWrap.style.padding = `${margins.top}px ${margins.right}px ${margins.bottom}px ${margins.left}px`;
+    zoomWrap.style.backgroundColor = "#ffffff";
+  }
+
+  printArea.style.height = contentPageHeight + "px";
+  printArea.style.overflow = "hidden";
+  printArea.style.width = "100%";
+  printArea.style.boxSizing = "border-box";
+
+  const contentHeight = root
+    ? (root.scrollHeight || root.offsetHeight || contentPageHeight)
+    : (printArea.scrollHeight || printArea.offsetHeight || contentPageHeight);
+  voucherPreviewTotalPages = Math.max(1, Math.ceil(contentHeight / contentPageHeight));
 
   if (root) {
-    root.style.setProperty("--voucher-paper-height", pageHeightPx + "px");
-    root.style.height = (voucherPreviewTotalPages * pageHeightPx) + "px";
-    root.style.margin = "0 auto !important";
-    
-    // Apply transform translateY to slide to correct page segment
-    const targetY = -(voucherPreviewCurrentPage - 1) * pageHeightPx;
+    root.style.setProperty("--voucher-paper-height", contentPageHeight + "px");
+    root.style.height = (voucherPreviewTotalPages * contentPageHeight) + "px";
+    root.style.margin = "0 auto";
+
+    // Apply transform translateY to slide to correct page segment (usable content area only)
+    const targetY = -(voucherPreviewCurrentPage - 1) * contentPageHeight;
     root.style.transition = "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)";
     root.style.transform = "translateY(" + targetY + "px)";
   }
@@ -2182,9 +2234,10 @@ function syncVoucherPrintControls() {
 
 function ensurePrintPageStyle(paperSize) {
   const paper = paperSize === "A4" ? "A4" : "A5";
+  const settings = getVoucherPreviewTemplateSettings();
   const margins = typeof PrintSettings !== "undefined" && PrintSettings.getPrintPageMargins
-    ? PrintSettings.getPrintPageMargins(paper)
-    : "0";
+    ? PrintSettings.getPrintPageMargins(settings)
+    : "10mm 5mm 10mm 5mm";
   let el = document.getElementById("voucher-print-page-style");
   if (!el) {
     el = document.createElement("style");
@@ -2245,6 +2298,9 @@ function wrapVoucherHtmlForPrint(html) {
   if (root) {
     root.style.removeProperty("transform");
     root.style.removeProperty("zoom");
+    root.style.removeProperty("height");
+    root.style.removeProperty("transition");
+    root.style.removeProperty("--voucher-paper-height");
     resetVoucherFontScaleForPrint(root);
     if (typeof window.applyVoucherTemplateSettingsToRoot === "function") {
       window.applyVoucherTemplateSettingsToRoot(root);

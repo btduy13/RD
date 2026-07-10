@@ -67,7 +67,7 @@ function getVoucherPrintStyles(appDir) {
       overflow-x: hidden !important;
       zoom: 1 !important;
       transform: none !important;
-      padding: var(--voucher-template-margin-top, 10mm) var(--voucher-template-margin-right, 5mm) var(--voucher-template-margin-bottom, 10mm) var(--voucher-template-margin-left, 5mm);
+      padding: 0 !important;
     }
     .printable-voucher .voucher-rd-header {
       padding: 6px 0 5px !important;
@@ -172,19 +172,31 @@ function getVoucherPrintStyles(appDir) {
   `;
 }
 
-function buildVoucherPrintDocument({ voucherHtml, printFontScale = 1, printPaperSize = "A5", appDir }) {
+function extractVoucherPageMargins(voucherHtml) {
+  const html = String(voucherHtml || "");
+  const read = (name, fallback) => {
+    const re = new RegExp(`--voucher-template-margin-${name}\\s*:\\s*([\\d.]+)\\s*mm`, "i");
+    const match = html.match(re);
+    return match ? match[1] : String(fallback);
+  };
+  return `${read("top", 10)}mm ${read("right", 5)}mm ${read("bottom", 10)}mm ${read("left", 5)}mm`;
+}
+
+function buildVoucherPrintDocument({ voucherHtml, printFontScale = 1, printPaperSize = "A5", appDir, pageMargins }) {
   const rootDir = appDir || path.join(__dirname, "..", "..");
   const baseHref = pathToFileURL(path.join(rootDir, path.sep)).href;
   const paper = printPaperSize === "A4" ? "A4" : "A5";
   const fontScale = Number(printFontScale) > 0 ? Number(printFontScale) : 1;
   const paperMaxW = getVoucherPaperMaxWidth(paper);
-  const pageOverride = `@page { size: ${paper} portrait; margin: 0; }`;
+  const margins = pageMargins || extractVoucherPageMargins(voucherHtml);
+  const pageOverride = `@page { size: ${paper} portrait; margin: ${margins}; }`;
   const layoutVars = `
     .printable-voucher {
       --voucher-font-scale: 1;
       --voucher-table-font-scale: ${fontScale};
       --voucher-paper-max-width: ${paperMaxW}px;
       max-width: ${paperMaxW}px !important;
+      padding: 0 !important;
     }
   `;
 
@@ -202,5 +214,6 @@ function buildVoucherPrintDocument({ voucherHtml, printFontScale = 1, printPaper
 module.exports = {
   buildVoucherPrintDocument,
   getVoucherPaperMaxWidth,
-  getVoucherPrintStyles
+  getVoucherPrintStyles,
+  extractVoucherPageMargins
 };
