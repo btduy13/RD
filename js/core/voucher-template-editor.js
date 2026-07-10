@@ -349,62 +349,16 @@
     if (vieOpen) {
       populateVoucherInlineEditor(getPrintTemplateSettings());
       panel.style.display = "";
+      setVoucherContentEditing(true);
     } else {
       panel.style.display = "none";
-      // If content-editing mode was on, turn it off when closing panel
-      if (voucherContentEditing) setVoucherContentEditing(false);
+      setVoucherContentEditing(false);
     }
 
     if (toggleBtn) {
       toggleBtn.classList.toggle("is-active", vieOpen);
     }
 
-    refreshVoucherPreviewLayout();
-  }
-
-  function addVoucherInlineExtraContent() {
-    const textInput = document.getElementById("vie-extra-text");
-    const placementInput = document.getElementById("vie-extra-placement");
-    // Temporarily mirror values to the original function's expected ids
-    const origText = document.getElementById("voucher-template-extra-text");
-    const origPlacement = document.getElementById("voucher-template-extra-placement");
-    // Use the inline panel values directly
-    const voucherRoot = getVoucherPreviewRoot();
-    const text = textInput?.value?.trim();
-    if (!voucherRoot || !text) return;
-
-    const block = document.createElement("div");
-    block.className = "voucher-extra-content";
-    block.dataset.voucherExtraContent = "true";
-
-    const content = document.createElement("div");
-    content.className = "voucher-extra-content-text";
-    content.textContent = text;
-
-    const removeButton = document.createElement("button");
-    removeButton.type = "button";
-    removeButton.className = "voucher-template-editor-only voucher-extra-content-remove";
-    removeButton.textContent = "×";
-    removeButton.title = "Xóa nội dung";
-    removeButton.setAttribute("aria-label", "Xóa nội dung");
-    removeButton.setAttribute("contenteditable", "false");
-    removeButton.addEventListener("click", event => {
-      event.preventDefault();
-      event.stopPropagation();
-      removeVoucherPreviewExtraContent(removeButton);
-    });
-    block.append(content, removeButton);
-
-    const firstTable = voucherRoot.querySelector("table");
-    const header = voucherRoot.querySelector(".voucher-rd-header, .voucher-header-top");
-    const placement = placementInput?.value || "end";
-    if (placement === "afterHeader" && header) header.insertAdjacentElement("afterend", block);
-    else if (placement === "beforeTable" && firstTable) firstTable.insertAdjacentElement("beforebegin", block);
-    else if (placement === "afterTable" && firstTable) firstTable.insertAdjacentElement("afterend", block);
-    else voucherRoot.appendChild(block);
-
-    if (textInput) textInput.value = "";
-    setVoucherContentEditing(true);
     refreshVoucherPreviewLayout();
   }
 
@@ -415,6 +369,7 @@
     if (panel) panel.style.display = "none";
     const toggleBtn = document.getElementById("voucher-preview-edit-toggle");
     if (toggleBtn) toggleBtn.classList.remove("is-active");
+    setVoucherContentEditing(false);
   }
 
   root.getPrintTemplateSettings = getPrintTemplateSettings;
@@ -430,11 +385,9 @@
   root.addVoucherPreviewExtraContent = addVoucherPreviewExtraContent;
   root.removeVoucherPreviewExtraContent = removeVoucherPreviewExtraContent;
   root.prepareVoucherRootForPrint = prepareVoucherRootForPrint;
-  // Inline editor
   root.toggleVoucherInlineEditor = toggleVoucherInlineEditor;
   root.applyVoucherInlineEditorLive = applyVoucherInlineEditorLive;
   root.saveVoucherInlineEditor = saveVoucherInlineEditor;
   root.resetVoucherInlineEditor = resetVoucherInlineEditor;
-  root.addVoucherInlineExtraContent = addVoucherInlineExtraContent;
   root.resetVoucherInlineEditorState = resetVoucherInlineEditorState;
 })(typeof window !== "undefined" ? window : globalThis);

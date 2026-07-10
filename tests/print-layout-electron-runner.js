@@ -138,7 +138,7 @@ async function main() {
   assert.equal(metrics.tableFontScale, "1");
   assert.equal(metrics.headerDisplay, "grid");
   assert(metrics.headerGridTemplateColumns.includes("70px"), `unexpected header grid columns: ${metrics.headerGridTemplateColumns}`);
-  assert.equal(metrics.titleFontSize, "18px");
+  assert.equal(metrics.titleFontSize, "17.55px");
   assert(metrics.titleScrollWidth <= metrics.titleClientWidth + 1, "voucher title is clipped/overflowing");
   assert.equal(metrics.companyWhiteSpace, "nowrap");
   assert(metrics.companyScrollWidth <= metrics.companyClientWidth + 1, "company title is clipped/overflowing");
@@ -189,8 +189,8 @@ async function main() {
 
   assert.equal(scaledPrintMetrics.fontScale, "1");
   assert.equal(scaledPrintMetrics.tableFontScale, "1.2");
-  assert.equal(scaledPrintMetrics.titleFontSize, "18px");
-  assert.equal(scaledPrintMetrics.companyFontSize, "12.2px");
+  assert.equal(scaledPrintMetrics.titleFontSize, "17.55px");
+  assert.equal(scaledPrintMetrics.companyFontSize, "12.6px");
   assert.equal(scaledPrintMetrics.cellFontSize, "15.6px");
   assert.equal(scaledPreviewMetrics.titleFontSize, scaledPrintMetrics.titleFontSize);
   assert.equal(scaledPreviewMetrics.companyFontSize, scaledPrintMetrics.companyFontSize);
@@ -211,7 +211,8 @@ async function main() {
   });
   await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(customizedDoc)}`);
   const customizedMetrics = await win.webContents.executeJavaScript(collectMetricsScript);
-  assert.equal(customizedMetrics.titleFontSize, "20px");
+  assert.equal(customizedMetrics.titleFontSize, "17.55px");
+  assert.equal(customizedMetrics.companyFontSize, "14px");
   assert.equal(customizedMetrics.cellFontSize, "12px");
   assert(Math.abs(parseFloat(customizedMetrics.rootPaddingLeft) - 18.9) < 0.6);
   assert(Math.abs(parseFloat(customizedMetrics.rootPaddingRight) - 18.9) < 0.6);

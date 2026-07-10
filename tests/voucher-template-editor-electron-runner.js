@@ -45,7 +45,7 @@ async function main() {
     saveVoucherTemplateEditor();
 
     const voucher = document.querySelector('.printable-voucher');
-    const title = document.querySelector('.voucher-document-title');
+    const title = document.querySelector('.voucher-rd-header-info');
     const cell = document.querySelector('td');
     const qr = document.querySelector('.voucher-rd-header-qr');
     const signatures = document.querySelector('.voucher-signatures');

@@ -73,15 +73,26 @@ function getVoucherPrintStyles(appDir) {
       page-break-inside: avoid !important;
       break-inside: avoid !important;
     }
+    .printable-voucher .voucher-rd-header-info {
+      font-size: var(--voucher-template-title-font-size, 18px) !important;
+    }
     .printable-voucher .voucher-rd-co-name {
-      font-size: ${voucherScaledFont(12.2)} !important;
+      font-size: calc(var(--voucher-template-title-font-size, 18px) * 0.7) !important;
       letter-spacing: 0 !important;
       white-space: nowrap !important;
     }
-    .printable-voucher .voucher-rd-co-unit,
+    .printable-voucher .voucher-rd-co-unit {
+      font-size: calc(var(--voucher-template-title-font-size, 18px) * 0.6) !important;
+    }
     .printable-voucher .voucher-rd-co-addr,
     .printable-voucher .voucher-rd-co-tel {
-      font-size: ${voucherScaledFont(11)} !important;
+      font-size: calc(var(--voucher-template-title-font-size, 18px) * 0.6) !important;
+    }
+    .printable-voucher .voucher-co-name {
+      font-size: var(--voucher-template-title-font-size, 18px) !important;
+    }
+    .printable-voucher .voucher-co-addr {
+      font-size: calc(var(--voucher-template-title-font-size, 18px) * 0.85) !important;
     }
     .printable-voucher .voucher-rd-header-qr img,
     .printable-voucher .voucher-rd-header-qr .voucher-rd-qr-box {
@@ -90,7 +101,7 @@ function getVoucherPrintStyles(appDir) {
     }
     .printable-voucher .voucher-title,
     .printable-voucher .voucher-document-title {
-      font-size: var(--voucher-template-title-font-size, 18px) !important;
+      font-size: calc(var(--voucher-template-content-font-size, 13px) * 1.35) !important;
       letter-spacing: 0.8px !important;
       line-height: 1.15 !important;
     }

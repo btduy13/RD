@@ -2322,10 +2322,10 @@ select.vie-control {
 .voucher-co-name {
   font-weight: bold;
   text-transform: uppercase;
-  font-size: 13.5px;
+  font-size: var(--voucher-template-title-font-size, 18px) !important;
 }
 .voucher-co-addr {
-  font-size: 12px;
+  font-size: calc(var(--voucher-template-title-font-size, 18px) * 0.85) !important;
 }
 
 /* Header Rạng Đông: logo | thông tin công ty | QR (grid, cho phép wrap) */
@@ -2352,10 +2352,11 @@ select.vie-control {
   text-align: center;
   min-width: 0;
   line-height: 1.2;
+  font-size: var(--voucher-template-title-font-size, 18px) !important;
 }
 .voucher-rd-co-name {
   font-weight: bold;
-  font-size: calc(12.2px * var(--voucher-font-scale, 1));
+  font-size: calc(var(--voucher-template-title-font-size, 18px) * 0.7) !important;
   text-transform: uppercase;
   letter-spacing: 0;
   line-height: 1.15;
@@ -2364,13 +2365,13 @@ select.vie-control {
 }
 .voucher-rd-co-unit {
   font-weight: bold;
-  font-size: calc(10.5px * var(--voucher-font-scale, 1));
+  font-size: calc(var(--voucher-template-title-font-size, 18px) * 0.6) !important;
   text-transform: uppercase;
   line-height: 1.2;
 }
 .voucher-rd-co-addr,
 .voucher-rd-co-tel {
-  font-size: calc(11px * var(--voucher-font-scale, 1));
+  font-size: calc(var(--voucher-template-title-font-size, 18px) * 0.6) !important;
   margin-top: 1px;
   line-height: 1.2;
   word-wrap: break-word;
@@ -2427,12 +2428,12 @@ select.vie-control {
   margin-bottom: 10px;
 }
 .voucher-title {
-  font-size: var(--voucher-template-title-font-size, 18px);
+  font-size: calc(var(--voucher-template-content-font-size, 13px) * 1.35) !important;
   font-weight: bold;
   text-transform: uppercase;
 }
 .voucher-document-title {
-  font-size: var(--voucher-template-title-font-size, 18px) !important;
+  font-size: calc(var(--voucher-template-content-font-size, 13px) * 1.35) !important;
   font-weight: bold;
   letter-spacing: 0.8px;
   text-transform: uppercase;
@@ -2918,13 +2919,18 @@ body.light-theme .dynamic-items-table td {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
-  .printable-voucher .voucher-rd-co-name {
-    font-size: calc(12.2px * var(--voucher-font-scale, 1)) !important;
+  .printable-voucher .voucher-rd-header-info {
+    font-size: var(--voucher-template-title-font-size, 18px) !important;
   }
-  .printable-voucher .voucher-rd-co-unit,
+  .printable-voucher .voucher-rd-co-name {
+    font-size: calc(var(--voucher-template-title-font-size, 18px) * 0.7) !important;
+  }
+  .printable-voucher .voucher-rd-co-unit {
+    font-size: calc(var(--voucher-template-title-font-size, 18px) * 0.6) !important;
+  }
   .printable-voucher .voucher-rd-co-addr,
   .printable-voucher .voucher-rd-co-tel {
-    font-size: calc(11px * var(--voucher-font-scale, 1)) !important;
+    font-size: calc(var(--voucher-template-title-font-size, 18px) * 0.6) !important;
   }
   .printable-voucher .voucher-rd-header-qr img {
     width: 80px !important;
@@ -2955,10 +2961,10 @@ body.light-theme .dynamic-items-table td {
     margin-bottom: 8px !important;
   }
   .printable-voucher .voucher-co-name {
-    font-size: 13px !important;
+    font-size: var(--voucher-template-title-font-size, 18px) !important;
   }
   .printable-voucher .voucher-co-addr {
-    font-size: 11px !important;
+    font-size: calc(var(--voucher-template-title-font-size, 18px) * 0.85) !important;
   }
   .printable-voucher .voucher-template-code {
     font-size: 11px !important;
@@ -2967,10 +2973,10 @@ body.light-theme .dynamic-items-table td {
     margin-bottom: 10px !important;
   }
   .printable-voucher .voucher-title {
-    font-size: var(--voucher-template-title-font-size, 18px) !important;
+    font-size: calc(var(--voucher-template-content-font-size, 13px) * 1.35) !important;
   }
   .printable-voucher .voucher-document-title {
-    font-size: var(--voucher-template-title-font-size, 18px) !important;
+    font-size: calc(var(--voucher-template-content-font-size, 13px) * 1.35) !important;
     letter-spacing: 0.8px !important;
     line-height: 1.15 !important;
   }
