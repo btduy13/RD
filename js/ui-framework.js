@@ -1336,6 +1336,9 @@ function viewVoucher(id) {
   if (typeof window.resetVoucherContentEditingState === "function") {
     window.resetVoucherContentEditingState();
   }
+  if (typeof window.resetVoucherInlineEditorState === "function") {
+    window.resetVoucherInlineEditorState();
+  }
   syncVoucherPrintControls();
   applyPrintScaleToVoucherRoot(printArea);
   requestAnimationFrame(() => {

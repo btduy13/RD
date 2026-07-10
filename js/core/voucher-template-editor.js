@@ -161,7 +161,7 @@
     const button = document.getElementById("voucher-preview-edit-content");
     if (!button) return;
     button.classList.toggle("is-active", voucherContentEditing);
-    button.textContent = voucherContentEditing ? "Đang sửa" : "Sửa nội dung";
+    button.textContent = voucherContentEditing ? "✏ Đang sửa..." : "✏ Sửa trực tiếp";
     button.setAttribute("aria-pressed", voucherContentEditing ? "true" : "false");
   }
 
@@ -257,6 +257,166 @@
     voucherRoot.querySelectorAll(".voucher-template-editor-only").forEach(element => element.remove());
   }
 
+  // ---- INLINE EDITOR (VIE) ----
+
+  let vieOpen = false;
+
+  function getVieValue(id) {
+    const el = document.getElementById(id);
+    return el ? el.value : undefined;
+  }
+
+  function setVieValue(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.value = String(value);
+  }
+
+  function populateVoucherInlineEditor(settingsValue) {
+    const settings = normalizeSettings(settingsValue);
+    setVieValue("vie-font-family", settings.fontFamily);
+    setVieValue("vie-content-font-size", settings.contentFontSize);
+    setVieValue("vie-table-font-size", settings.tableFontSize);
+    setVieValue("vie-title-font-size", settings.titleFontSize);
+    setVieValue("vie-line-height", settings.lineHeight);
+    setVieValue("vie-margin-top", settings.marginTopMm);
+    setVieValue("vie-margin-right", settings.marginRightMm);
+    setVieValue("vie-margin-bottom", settings.marginBottomMm);
+    setVieValue("vie-margin-left", settings.marginLeftMm);
+    document.querySelectorAll('input[name="vie-align"]').forEach(input => {
+      input.checked = input.value === settings.textAlign;
+    });
+    const logo = document.getElementById("vie-show-logo");
+    const qr = document.getElementById("vie-show-qr");
+    const sigs = document.getElementById("vie-show-sigs");
+    if (logo) logo.checked = settings.showLogo;
+    if (qr) qr.checked = settings.showQr;
+    if (sigs) sigs.checked = settings.showSignatures;
+  }
+
+  function readVoucherInlineEditor() {
+    const checkedAlign = document.querySelector('input[name="vie-align"]:checked');
+    return normalizeSettings({
+      fontFamily: getVieValue("vie-font-family"),
+      contentFontSize: getVieValue("vie-content-font-size"),
+      tableFontSize: getVieValue("vie-table-font-size"),
+      titleFontSize: getVieValue("vie-title-font-size"),
+      lineHeight: getVieValue("vie-line-height"),
+      textAlign: checkedAlign?.value,
+      marginTopMm: getVieValue("vie-margin-top"),
+      marginRightMm: getVieValue("vie-margin-right"),
+      marginBottomMm: getVieValue("vie-margin-bottom"),
+      marginLeftMm: getVieValue("vie-margin-left"),
+      showLogo: !!document.getElementById("vie-show-logo")?.checked,
+      showQr: !!document.getElementById("vie-show-qr")?.checked,
+      showSignatures: !!document.getElementById("vie-show-sigs")?.checked
+    });
+  }
+
+  function applyVoucherInlineEditorLive() {
+    const settings = readVoucherInlineEditor();
+    applyVoucherTemplateSettingsToRoot(getVoucherPreviewRoot(), settings);
+    refreshVoucherPreviewLayout();
+  }
+
+  function saveVoucherInlineEditor() {
+    const settings = readVoucherInlineEditor();
+    if (typeof root.saveUserPrefs === "function") root.saveUserPrefs({ printTemplate: settings });
+    applyVoucherTemplateSettingsToRoot(getVoucherPreviewRoot(), settings);
+    refreshVoucherPreviewLayout();
+    // Brief visual feedback on the Save button
+    const btn = document.querySelector(".vie-btn-save");
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = "✓ Đã lưu";
+      setTimeout(() => { btn.textContent = orig; }, 1200);
+    }
+  }
+
+  function resetVoucherInlineEditor() {
+    const defaults = getDefaultSettings();
+    populateVoucherInlineEditor(defaults);
+    applyVoucherTemplateSettingsToRoot(getVoucherPreviewRoot(), defaults);
+    refreshVoucherPreviewLayout();
+  }
+
+  function toggleVoucherInlineEditor(force) {
+    const panel = document.getElementById("voucher-inline-editor");
+    const toggleBtn = document.getElementById("voucher-preview-edit-toggle");
+    if (!panel) return;
+
+    vieOpen = typeof force === "boolean" ? force : !vieOpen;
+
+    if (vieOpen) {
+      populateVoucherInlineEditor(getPrintTemplateSettings());
+      panel.style.display = "";
+    } else {
+      panel.style.display = "none";
+      // If content-editing mode was on, turn it off when closing panel
+      if (voucherContentEditing) setVoucherContentEditing(false);
+    }
+
+    if (toggleBtn) {
+      toggleBtn.classList.toggle("is-active", vieOpen);
+    }
+
+    refreshVoucherPreviewLayout();
+  }
+
+  function addVoucherInlineExtraContent() {
+    const textInput = document.getElementById("vie-extra-text");
+    const placementInput = document.getElementById("vie-extra-placement");
+    // Temporarily mirror values to the original function's expected ids
+    const origText = document.getElementById("voucher-template-extra-text");
+    const origPlacement = document.getElementById("voucher-template-extra-placement");
+    // Use the inline panel values directly
+    const voucherRoot = getVoucherPreviewRoot();
+    const text = textInput?.value?.trim();
+    if (!voucherRoot || !text) return;
+
+    const block = document.createElement("div");
+    block.className = "voucher-extra-content";
+    block.dataset.voucherExtraContent = "true";
+
+    const content = document.createElement("div");
+    content.className = "voucher-extra-content-text";
+    content.textContent = text;
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.className = "voucher-template-editor-only voucher-extra-content-remove";
+    removeButton.textContent = "×";
+    removeButton.title = "Xóa nội dung";
+    removeButton.setAttribute("aria-label", "Xóa nội dung");
+    removeButton.setAttribute("contenteditable", "false");
+    removeButton.addEventListener("click", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      removeVoucherPreviewExtraContent(removeButton);
+    });
+    block.append(content, removeButton);
+
+    const firstTable = voucherRoot.querySelector("table");
+    const header = voucherRoot.querySelector(".voucher-rd-header, .voucher-header-top");
+    const placement = placementInput?.value || "end";
+    if (placement === "afterHeader" && header) header.insertAdjacentElement("afterend", block);
+    else if (placement === "beforeTable" && firstTable) firstTable.insertAdjacentElement("beforebegin", block);
+    else if (placement === "afterTable" && firstTable) firstTable.insertAdjacentElement("afterend", block);
+    else voucherRoot.appendChild(block);
+
+    if (textInput) textInput.value = "";
+    setVoucherContentEditing(true);
+    refreshVoucherPreviewLayout();
+  }
+
+  // Close inline panel when voucher preview modal is closed
+  function resetVoucherInlineEditorState() {
+    vieOpen = false;
+    const panel = document.getElementById("voucher-inline-editor");
+    if (panel) panel.style.display = "none";
+    const toggleBtn = document.getElementById("voucher-preview-edit-toggle");
+    if (toggleBtn) toggleBtn.classList.remove("is-active");
+  }
+
   root.getPrintTemplateSettings = getPrintTemplateSettings;
   root.applyVoucherTemplateSettingsToRoot = applyVoucherTemplateSettingsToRoot;
   root.populateVoucherTemplateEditor = populateVoucherTemplateEditor;
@@ -270,4 +430,11 @@
   root.addVoucherPreviewExtraContent = addVoucherPreviewExtraContent;
   root.removeVoucherPreviewExtraContent = removeVoucherPreviewExtraContent;
   root.prepareVoucherRootForPrint = prepareVoucherRootForPrint;
+  // Inline editor
+  root.toggleVoucherInlineEditor = toggleVoucherInlineEditor;
+  root.applyVoucherInlineEditorLive = applyVoucherInlineEditorLive;
+  root.saveVoucherInlineEditor = saveVoucherInlineEditor;
+  root.resetVoucherInlineEditor = resetVoucherInlineEditor;
+  root.addVoucherInlineExtraContent = addVoucherInlineExtraContent;
+  root.resetVoucherInlineEditorState = resetVoucherInlineEditorState;
 })(typeof window !== "undefined" ? window : globalThis);

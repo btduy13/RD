@@ -4738,18 +4738,96 @@
                 onclick="voucherPreviewNextPage()" disabled aria-label="Trang sau">&#9654;</button>
             </div>
             <div class="voucher-print-toolbar-zoom">
-              <button type="button" class="voucher-print-toolbar-btn voucher-print-toolbar-btn-text" id="voucher-preview-edit-content"
-                onclick="toggleVoucherContentEditing()" title="Sửa nội dung phiếu">Sửa nội dung</button>
-              <button type="button" class="voucher-print-toolbar-btn voucher-print-toolbar-btn-text"
-                onclick="openVoucherTemplateEditor()" title="Tùy chỉnh mẫu in">Tùy chỉnh mẫu</button>
-              <button type="button" class="voucher-print-toolbar-btn voucher-print-toolbar-btn-text"
-                onclick="openVoucherTemplateEditor('extra')" title="Thêm nội dung vào phiếu">Thêm nội dung</button>
+              <button type="button" class="voucher-print-toolbar-btn voucher-print-toolbar-btn-text" id="voucher-preview-edit-toggle"
+                onclick="toggleVoucherInlineEditor()" title="Chỉnh sửa trang: font, lề, nội dung">✏ Chỉnh sửa trang</button>
               <button type="button" class="voucher-print-toolbar-btn voucher-print-toolbar-btn-text" id="voucher-preview-fit-page"
                 onclick="setVoucherPreviewZoomMode('fitPage')">Vừa trang</button>
               <button type="button" class="voucher-print-toolbar-btn voucher-print-toolbar-btn-text" id="voucher-preview-fit-width"
                 onclick="setVoucherPreviewZoomMode('fitWidth')">Vừa rộng</button>
             </div>
           </div>
+
+          <!-- INLINE EDITOR PANEL -->
+          <div id="voucher-inline-editor" class="voucher-inline-editor" style="display:none;" aria-label="Bảng chỉnh sửa trang">
+            <div class="vie-row">
+              <div class="vie-group">
+                <label class="vie-label">Font chữ</label>
+                <select id="vie-font-family" class="vie-control" onchange="applyVoucherInlineEditorLive()">
+                  <option value="Times New Roman">Times New Roman</option>
+                  <option value="Arial">Arial</option>
+                  <option value="Tahoma">Tahoma</option>
+                  <option value="Verdana">Verdana</option>
+                </select>
+              </div>
+              <div class="vie-group">
+                <label class="vie-label">Nội dung (px)</label>
+                <input id="vie-content-font-size" class="vie-control vie-number" type="number" min="8" max="24" step="0.5" oninput="applyVoucherInlineEditorLive()">
+              </div>
+              <div class="vie-group">
+                <label class="vie-label">Trong bảng (px)</label>
+                <input id="vie-table-font-size" class="vie-control vie-number" type="number" min="8" max="20" step="0.5" oninput="applyVoucherInlineEditorLive()">
+              </div>
+              <div class="vie-group">
+                <label class="vie-label">Tiêu đề (px)</label>
+                <input id="vie-title-font-size" class="vie-control vie-number" type="number" min="12" max="32" step="0.5" oninput="applyVoucherInlineEditorLive()">
+              </div>
+              <div class="vie-group">
+                <label class="vie-label">Giãn dòng</label>
+                <input id="vie-line-height" class="vie-control vie-number" type="number" min="1" max="2" step="0.05" oninput="applyVoucherInlineEditorLive()">
+              </div>
+              <div class="vie-group">
+                <label class="vie-label">Căn chữ</label>
+                <div class="vie-segmented">
+                  <label title="Trái"><input type="radio" name="vie-align" value="left" onchange="applyVoucherInlineEditorLive()"><span>☰</span></label>
+                  <label title="Giữa"><input type="radio" name="vie-align" value="center" onchange="applyVoucherInlineEditorLive()"><span>≡</span></label>
+                  <label title="Phải"><input type="radio" name="vie-align" value="right" onchange="applyVoucherInlineEditorLive()"><span>☷</span></label>
+                </div>
+              </div>
+            </div>
+            <div class="vie-row vie-row-margin">
+              <span class="vie-label vie-margin-label">Lề (mm):</span>
+              <div class="vie-group">
+                <label class="vie-label">Trên</label>
+                <input id="vie-margin-top" class="vie-control vie-number" type="number" min="0" max="30" step="0.5" oninput="applyVoucherInlineEditorLive()">
+              </div>
+              <div class="vie-group">
+                <label class="vie-label">Phải</label>
+                <input id="vie-margin-right" class="vie-control vie-number" type="number" min="0" max="30" step="0.5" oninput="applyVoucherInlineEditorLive()">
+              </div>
+              <div class="vie-group">
+                <label class="vie-label">Dưới</label>
+                <input id="vie-margin-bottom" class="vie-control vie-number" type="number" min="0" max="30" step="0.5" oninput="applyVoucherInlineEditorLive()">
+              </div>
+              <div class="vie-group">
+                <label class="vie-label">Trái</label>
+                <input id="vie-margin-left" class="vie-control vie-number" type="number" min="0" max="30" step="0.5" oninput="applyVoucherInlineEditorLive()">
+              </div>
+              <div class="vie-toggles">
+                <label><input id="vie-show-logo" type="checkbox" onchange="applyVoucherInlineEditorLive()"><span>Logo</span></label>
+                <label><input id="vie-show-qr" type="checkbox" onchange="applyVoucherInlineEditorLive()"><span>QR</span></label>
+                <label><input id="vie-show-sigs" type="checkbox" onchange="applyVoucherInlineEditorLive()"><span>Chữ ký</span></label>
+              </div>
+              <div class="vie-actions">
+                <button type="button" class="vie-btn vie-btn-save" onclick="saveVoucherInlineEditor()">💾 Lưu</button>
+                <button type="button" class="vie-btn vie-btn-reset" onclick="resetVoucherInlineEditor()">↺ Mặc định</button>
+              </div>
+            </div>
+            <div class="vie-row vie-row-extra">
+              <span class="vie-label vie-margin-label">Sửa nội dung:</span>
+              <button type="button" id="voucher-preview-edit-content" class="vie-btn vie-btn-edit" onclick="toggleVoucherContentEditing()" aria-pressed="false">✏ Sửa trực tiếp</button>
+              <span class="vie-label vie-margin-label" style="margin-left:16px;">Thêm dòng chú thích:</span>
+              <textarea id="vie-extra-text" class="vie-control vie-textarea" rows="1" placeholder="Ghi chú, điều kiện..."></textarea>
+              <select id="vie-extra-placement" class="vie-control">
+                <option value="afterHeader">Sau công ty</option>
+                <option value="beforeTable">Trước bảng</option>
+                <option value="afterTable">Sau bảng</option>
+                <option value="end">Cuối phiếu</option>
+              </select>
+              <button type="button" class="vie-btn" onclick="addVoucherInlineExtraContent()">＋ Thêm</button>
+            </div>
+          </div>
+          <!-- /INLINE EDITOR PANEL -->
+
           <div id="voucher-print-viewport" class="voucher-print-viewport">
             <div id="voucher-print-zoom-wrap" class="voucher-print-zoom-wrap">
               <div id="voucher-print-area">

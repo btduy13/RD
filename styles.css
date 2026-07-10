@@ -1981,6 +1981,216 @@ body.light-theme .modal-overlay {
   flex: 1;
 }
 
+/* ---- INLINE EDITOR PANEL (VIE) ---- */
+.voucher-inline-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 8px 12px;
+  animation: vieSlideIn 0.15s ease;
+}
+
+@keyframes vieSlideIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.vie-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 10px;
+  padding: 4px 0;
+}
+
+.vie-row + .vie-row {
+  border-top: 1px solid var(--border-color);
+  padding-top: 8px;
+  margin-top: 4px;
+}
+
+.vie-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vie-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.vie-margin-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+  align-self: flex-end;
+  padding-bottom: 4px;
+}
+
+.vie-control {
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.vie-control:focus {
+  outline: 2px solid var(--accent-color, #4a9eff);
+  outline-offset: 1px;
+}
+
+select.vie-control {
+  padding-right: 20px;
+  cursor: pointer;
+}
+
+.vie-number {
+  width: 56px;
+  text-align: right;
+}
+
+.vie-textarea {
+  height: 28px;
+  width: 170px;
+  resize: none;
+  padding: 4px 6px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.vie-segmented {
+  display: flex;
+  gap: 2px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+}
+
+.vie-segmented label {
+  position: relative;
+  flex: 1;
+  cursor: pointer;
+}
+
+.vie-segmented input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.vie-segmented span {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  min-width: 22px;
+  padding: 0 4px;
+}
+
+.vie-segmented input:checked + span {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.vie-toggles {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  padding-bottom: 4px;
+}
+
+.vie-toggles label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.vie-actions {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  margin-left: auto;
+}
+
+.vie-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.vie-btn:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--accent-color, #4a9eff);
+}
+
+.vie-btn-save {
+  background: var(--accent-color, #4a9eff);
+  border-color: var(--accent-color, #4a9eff);
+  color: #fff;
+}
+
+.vie-btn-save:hover {
+  opacity: 0.88;
+  background: var(--accent-color, #4a9eff);
+}
+
+.vie-btn-edit {
+  background: var(--bg-primary);
+  border-color: var(--border-color);
+}
+
+.vie-btn-edit.is-active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.vie-row-extra {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+/* Main toolbar edit button active state */
+#voucher-preview-edit-toggle.is-active {
+  border-color: var(--accent-color, #4a9eff);
+  background: var(--bg-tertiary);
+  font-weight: 600;
+}
+/* ---- /INLINE EDITOR PANEL ---- */
+
+
 .printable-voucher.is-content-editing {
   outline: 2px solid #2563eb !important;
   outline-offset: 2px;
