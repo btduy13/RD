@@ -233,10 +233,8 @@ function patchVoucherModalLifecycle() {
   const origClose = window.closeModal;
   window.closeModal = function (modalId) {
     if (isVoucherEntryModalId(modalId) && isVoucherFormBusy(modalId)) {
-      if (typeof showToast === "function") {
-        showToast("Đang lưu chứng từ, vui lòng chờ...", "info");
-      }
-      return;
+      // Tự động kết thúc trạng thái busy thay vì chặn đóng form
+      endVoucherSubmit(modalId);
     }
     if (typeof origClose === "function") origClose(modalId);
     if (isVoucherEntryModalId(modalId)) {
