@@ -370,6 +370,8 @@ function resetSalesForm() {
   const modalTitle = document.querySelector("#modal-add-sales .card-title");
   if (modalTitle) modalTitle.innerText = "Lập hóa đơn bán hàng xuất kho";
   resetDynamicVoucherForm("form-sales", { date: getLocalDateString() });
+  const descEl = document.getElementById("sale-desc");
+  if (descEl) delete descEl.dataset.userEdited;
   // Auto-focus vào ô “Khách hàng mua” — trường quan trọng nhất khi mở form
   setTimeout(() => {
     const el = document.getElementById("sale-partner");
@@ -604,7 +606,11 @@ function editSalesVoucher(id) {
   document.getElementById("sale-date").value = v.date;
   const pObj1 = getPartnerForVoucher(v);
   document.getElementById("sale-partner").value = pObj1 ? `${pObj1.name} (${pObj1.id})` : (v.partnerName || "");
-  document.getElementById("sale-desc").value = v.description;
+  const descEl = document.getElementById("sale-desc");
+  if (descEl) {
+    descEl.value = v.description;
+    descEl.dataset.userEdited = "1";
+  }
   document.getElementById("sale-payment").value = v.paymentMethod;
   if (document.getElementById("sale-note")) {
     document.getElementById("sale-note").value = v.note || "";
@@ -2292,8 +2298,11 @@ function modifySalesTemplate(filename) {
     // 1. Reset form bán hàng hiện tại
     resetSalesForm();
 
-    // 2. Đọc thông tin mô tả/diễn giải
-    document.getElementById("sale-desc").value = template.desc || "Bán hàng theo mẫu";
+    const descEl = document.getElementById("sale-desc");
+    if (descEl) {
+      descEl.value = template.desc || "Bán hàng theo mẫu";
+      descEl.dataset.userEdited = "1";
+    }
 
     // Đặt khách hàng mặc định là Khách lẻ
     document.getElementById("sale-partner").value = "Khách lẻ";
@@ -2705,4 +2714,27 @@ if (typeof registerDynamicFormTable === "function") {
     fieldIds: { oldFilename: "template-old-filename", filename: "template-filename", desc: "template-desc" }
   }));
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  const partnerInput = document.getElementById("sale-partner");
+  const descInput = document.getElementById("sale-desc");
+  if (!partnerInput || !descInput) return;
+
+  descInput.addEventListener("input", () => {
+    descInput.dataset.userEdited = "1";
+  });
+
+  partnerInput.addEventListener("input", () => {
+    if (descInput.dataset.userEdited === "1") return;
+
+    const val = partnerInput.value.trim();
+    if (!val) {
+      descInput.value = "Bán hàng xuất kho";
+    } else {
+      const resolved = resolvePartner(val);
+      const name = resolved ? resolved.name : val;
+      descInput.value = `Bán hàng ${name}`;
+    }
+  });
+});
 
