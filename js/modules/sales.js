@@ -379,6 +379,50 @@ function resetSalesForm() {
   }, 60);
 }
 
+// Tự động cập nhật "Diễn giải" theo tên khách hàng khi chọn đối tác
+function syncSalesDescriptionWithPartner(partnerInputEl, descInputEl, defaultDesc) {
+  if (!partnerInputEl || !descInputEl) return;
+  const partnerVal = partnerInputEl.value.trim();
+  const currentDesc = descInputEl.value.trim();
+  // Chỉ tự động điền nếu desc chưa bị chỉnh tay thủ công
+  const isAutoDesc = currentDesc === defaultDesc
+    || currentDesc === ""
+    || /^Bán hàng\b/.test(currentDesc);
+  if (!isAutoDesc) return;
+  // Loại bỏ phần (MÃ) ở cuối nếu có, vd: "Anh Dũng (KH789)" → "Anh Dũng"
+  const partnerName = partnerVal.replace(/\s*\([^)]*\)\s*$/, "").trim();
+  descInputEl.value = partnerName ? `Bán hàng ${partnerName}` : defaultDesc;
+}
+
+// Đăng ký listener tự động đồng bộ diễn giải trên form bán hàng & báo giá
+function initSalesPartnerDescSync() {
+  const salePartner = document.getElementById("sale-partner");
+  const saleDesc = document.getElementById("sale-desc");
+  if (salePartner && saleDesc) {
+    ["change", "blur"].forEach(evt => {
+      salePartner.addEventListener(evt, () => {
+        syncSalesDescriptionWithPartner(salePartner, saleDesc, "Bán hàng xuất kho");
+      });
+    });
+  }
+  const quotPartner = document.getElementById("quotation-partner");
+  const quotDesc = document.getElementById("quotation-desc");
+  if (quotPartner && quotDesc) {
+    ["change", "blur"].forEach(evt => {
+      quotPartner.addEventListener(evt, () => {
+        syncSalesDescriptionWithPartner(quotPartner, quotDesc, "Báo giá hàng hóa");
+      });
+    });
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initSalesPartnerDescSync);
+} else {
+  initSalesPartnerDescSync();
+}
+
+
 function generateNextSalesVoucherId(paymentMethod) {
   const prefix = "BH";
 
