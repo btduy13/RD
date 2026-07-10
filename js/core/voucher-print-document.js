@@ -67,6 +67,7 @@ function getVoucherPrintStyles(appDir) {
       overflow-x: hidden !important;
       zoom: 1 !important;
       transform: none !important;
+      padding: var(--voucher-template-margin-top, 10mm) var(--voucher-template-margin-right, 5mm) var(--voucher-template-margin-bottom, 10mm) var(--voucher-template-margin-left, 5mm);
     }
     .printable-voucher .voucher-rd-header {
       padding: 6px 0 5px !important;
@@ -146,7 +147,7 @@ function getVoucherPrintStyles(appDir) {
     }
     .printable-voucher.debt-notice-voucher {
       max-width: none !important;
-      padding: var(--voucher-template-margin-top, 4mm) var(--voucher-template-margin-right, 5mm) var(--voucher-template-margin-bottom, 4mm) var(--voucher-template-margin-left, 5mm) !important;
+      padding: var(--voucher-template-margin-top, 10mm) var(--voucher-template-margin-right, 5mm) var(--voucher-template-margin-bottom, 10mm) var(--voucher-template-margin-left, 5mm) !important;
       margin: 0 !important;
     }
     .printable-voucher.debt-notice-voucher .debt-notice-table {

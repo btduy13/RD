@@ -32,7 +32,7 @@ function testPageMargins() {
 
 function testTemplateSettings() {
   const defaults = ps.normalizePrintTemplateSettings();
-  assert.equal(defaults.marginTopMm, 4);
+  assert.equal(defaults.marginTopMm, 10);
   assert.equal(defaults.marginRightMm, 5);
   assert.equal(defaults.tableFontSize, 13);
   const normalized = ps.normalizePrintTemplateSettings({
