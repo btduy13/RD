@@ -134,6 +134,8 @@
           restoreFormDraft(config.formId);
         } else {
           localStorage.removeItem(storageKey);
+          // Ngăn saveFormDraftImmediately lưu lại draft khi đóng form
+          suppressNextImmediateSave.add(config.formId);
         }
       }, 150);
     } catch (err) {
