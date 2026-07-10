@@ -198,10 +198,7 @@ async function main() {
 
   const customizedVoucherHtml = sampleVoucherHtml.replace(
     'class="printable-voucher" style="',
-    'class="printable-voucher voucher-template-customized" style="--voucher-template-font-family: Arial, sans-serif; --voucher-template-title-font-size: 20px; --voucher-template-table-font-size: 12px; --voucher-template-margin-left: 5mm; --voucher-template-margin-right: 5mm; '
-  ).replace(
-    'line-height: 1.25;">',
-    'line-height: 1.25; padding-left: 5mm; padding-right: 5mm;">'
+    'class="printable-voucher voucher-template-customized" style="--voucher-template-font-family: Arial, sans-serif; --voucher-template-title-font-size: 20px; --voucher-template-table-font-size: 12px; --voucher-template-margin-top: 12mm; --voucher-template-margin-right: 5mm; --voucher-template-margin-bottom: 8mm; --voucher-template-margin-left: 5mm; '
   );
   const customizedDoc = buildVoucherPrintDocument({
     voucherHtml: customizedVoucherHtml,
@@ -209,13 +206,14 @@ async function main() {
     printPaperSize: "A5",
     appDir
   });
+  assert(customizedDoc.includes("@page { size: A5 portrait; margin: 12mm 5mm 8mm 5mm; }"));
   await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(customizedDoc)}`);
   const customizedMetrics = await win.webContents.executeJavaScript(collectMetricsScript);
   assert.equal(customizedMetrics.titleFontSize, "17.55px");
   assert.equal(customizedMetrics.companyFontSize, "14px");
   assert.equal(customizedMetrics.cellFontSize, "12px");
-  assert(Math.abs(parseFloat(customizedMetrics.rootPaddingLeft) - 18.9) < 0.6);
-  assert(Math.abs(parseFloat(customizedMetrics.rootPaddingRight) - 18.9) < 0.6);
+  assert.equal(parseFloat(customizedMetrics.rootPaddingLeft), 0);
+  assert.equal(parseFloat(customizedMetrics.rootPaddingRight), 0);
 
   const a4Doc = buildVoucherPrintDocument({
     voucherHtml: sampleVoucherHtml,

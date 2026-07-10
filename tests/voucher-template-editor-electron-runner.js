@@ -68,6 +68,10 @@ async function main() {
       paddingTop: parseFloat(voucherStyle.paddingTop),
       paddingRight: parseFloat(voucherStyle.paddingRight),
       paddingLeft: parseFloat(voucherStyle.paddingLeft),
+      marginTopVar: voucherStyle.getPropertyValue('--voucher-template-margin-top').trim(),
+      marginRightVar: voucherStyle.getPropertyValue('--voucher-template-margin-right').trim(),
+      marginBottomVar: voucherStyle.getPropertyValue('--voucher-template-margin-bottom').trim(),
+      marginLeftVar: voucherStyle.getPropertyValue('--voucher-template-margin-left').trim(),
       titleFontSize: getComputedStyle(title).fontSize,
       tableFontSize: getComputedStyle(cell).fontSize,
       bodyCopyFontSize: getComputedStyle(bodyCopy).fontSize,
@@ -88,9 +92,13 @@ async function main() {
   assert.equal(result.titleFontSize, '20px');
   assert.equal(result.tableFontSize, '12px');
   assert(Math.abs(parseFloat(result.bodyCopyFontSize) - (10 * 15 / 13)) < 0.1);
-  assert(Math.abs(result.paddingTop - 11.34) < 0.5, `unexpected 3mm top padding: ${result.paddingTop}`);
-  assert(Math.abs(result.paddingRight - 15.12) < 0.5, `unexpected 4mm right padding: ${result.paddingRight}`);
-  assert(Math.abs(result.paddingLeft - 22.68) < 0.5, `unexpected 6mm left padding: ${result.paddingLeft}`);
+  assert.equal(result.paddingTop, 0, `expected zero root padding, got ${result.paddingTop}`);
+  assert.equal(result.paddingRight, 0, `expected zero root padding, got ${result.paddingRight}`);
+  assert.equal(result.paddingLeft, 0, `expected zero root padding, got ${result.paddingLeft}`);
+  assert.equal(result.marginTopVar, '3mm');
+  assert.equal(result.marginRightVar, '4mm');
+  assert.equal(result.marginBottomVar, '3mm');
+  assert.equal(result.marginLeftVar, '6mm');
   assert.equal(result.qrDisplay, 'none');
   assert.equal(result.signaturesDisplay, 'none');
   assert.equal(result.editable, 'true');
