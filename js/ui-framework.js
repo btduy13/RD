@@ -570,7 +570,7 @@ function viewVoucher(id) {
         </div>
         <!-- Tiêu đề -->
         <div style="text-align:center; margin-bottom:6px;">
-          <div style="font-size: 20px; font-weight:bold; letter-spacing:1px; text-transform:uppercase;">PHIẾU NHẬP KHO</div>
+          <div class="voucher-document-title">PHIẾU NHẬP KHO</div>
           <div style="font-size: 12px; font-style:italic;">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</div>
         </div>
         <!-- Thông tin -->
@@ -684,7 +684,7 @@ function viewVoucher(id) {
         </div>
         <!-- Tiêu đề -->
         <div style="text-align:center; margin-bottom:6px;">
-          <div style="font-size: 20px; font-weight:bold; letter-spacing:1px; text-transform:uppercase;">PHIẾU XUẤT KHO TRẢ NHÀ CUNG CẤP</div>
+          <div class="voucher-document-title">PHIẾU XUẤT KHO TRẢ NHÀ CUNG CẤP</div>
           <div style="font-size: 12px; font-style:italic;">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</div>
         </div>
         <!-- Thông tin -->
@@ -775,7 +775,7 @@ function viewVoucher(id) {
         </div>
         <!-- Tiêu đề -->
         <div style="text-align:center; margin-bottom:6px;">
-          <div style="font-size: 20px; font-weight:bold; letter-spacing:1px; text-transform:uppercase;">PHIẾU NHẬP KHO HÀNG BÁN TRẢ LẠI</div>
+          <div class="voucher-document-title">PHIẾU NHẬP KHO HÀNG BÁN TRẢ LẠI</div>
           <div style="font-size: 12px; font-style:italic;">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</div>
         </div>
         <!-- Thông tin -->
@@ -875,7 +875,7 @@ function viewVoucher(id) {
 
         <!-- Tiêu đề Phiếu giao hàng -->
         <div style="text-align: center; margin-bottom: 6px;">
-          <div style="font-size: 20px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase;">PHIẾU GIAO HÀNG</div>
+          <div class="voucher-document-title">PHIẾU GIAO HÀNG</div>
         </div>
 
         <!-- Phần thông tin khách hàng và ngày hóa đơn (chia cột giống giấy) -->
@@ -1015,7 +1015,7 @@ function viewVoucher(id) {
 
         <!-- Tiêu đề Phiếu báo giá -->
         <div style="text-align: center; margin-bottom: 8px;">
-          <div style="font-size: 20px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase;">BẢNG BÁO GIÁ</div>
+          <div class="voucher-document-title">BẢNG BÁO GIÁ</div>
         </div>
 
         <!-- Phần thông tin khách hàng và ngày hóa đơn -->
@@ -2100,7 +2100,8 @@ function applyVoucherFontScale(root, fontScale) {
   if (!root) return;
   cacheVoucherBaseFontSizes(root);
   const scale = Number(fontScale) > 0 ? Number(fontScale) : 1;
-  root.style.setProperty("--voucher-font-scale", String(scale));
+  root.style.setProperty("--voucher-font-scale", "1");
+  root.style.setProperty("--voucher-table-font-scale", String(scale));
   const applyOne = (el) => {
     if (!el.dataset || !el.dataset.voucherBaseFontPx) return;
     el.style.fontSize = (parseFloat(el.dataset.voucherBaseFontPx) * scale) + "px";
@@ -2118,28 +2119,6 @@ function applyVoucherFontScale(root, fontScale) {
     }
   });
 
-  // #region agent log
-  requestAnimationFrame(() => {
-    const table = root.querySelector("table.voucher-table, table");
-    const ths = table ? Array.from(table.querySelectorAll("th")) : [];
-    const sample = ths.slice(0, 7).map((th) => {
-      const cs = window.getComputedStyle(th);
-      return {
-        text: (th.textContent || "").trim().substring(0, 12),
-        fontSize: cs.fontSize,
-        width: cs.width,
-        padding: cs.padding,
-        whiteSpace: cs.whiteSpace,
-        offsetW: th.offsetWidth,
-        scrollW: th.scrollWidth,
-        wraps: th.scrollWidth > th.offsetWidth + 1
-      };
-    });
-    const sampleTd = table ? table.querySelector("tbody td") : null;
-    const rootCs = window.getComputedStyle(root);
-    fetch("http://127.0.0.1:7918/ingest/0b4f62c8-cbbb-4c88-8d5a-276392bdbf4f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "316809" }, body: JSON.stringify({ sessionId: "316809", runId: "post-fix", hypothesisId: "H-A,H-B,H-C", location: "ui-framework.js:applyVoucherFontScale", message: "table column metrics after font scale", data: { scale, paperSize: getPrintPaperSize(), tableWidth: table ? table.offsetWidth : null, tableLayout: table ? window.getComputedStyle(table).tableLayout : null, rootFontSize: rootCs.fontSize, tdFontSize: sampleTd ? window.getComputedStyle(sampleTd).fontSize : null, tdExpectedPx: Math.round(13 * scale * 10) / 10, thCount: ths.length, columns: sample }, timestamp: Date.now() }) }).catch(() => {});
-  });
-  // #endregion
 }
 
 function applyVoucherPaperSizeStyles(root, paperSize) {
@@ -2227,8 +2206,10 @@ function resetVoucherFontScaleForPrint(root) {
   if (!root) return;
   const currentScale = Number(getPrintFontScale()) > 0 ? Number(getPrintFontScale()) : 1;
   root.style.removeProperty("--voucher-font-scale");
+  root.style.removeProperty("--voucher-table-font-scale");
   [root, ...root.querySelectorAll("*")].forEach((el) => {
     if (el.dataset) delete el.dataset.voucherBaseFontPx;
+    if (!el.closest("table")) return;
     const px = parseInlineFontSizePx(el);
     if (px != null && !Number.isNaN(px) && currentScale > 0) {
       const base = px / currentScale;
@@ -2254,12 +2235,6 @@ function wrapVoucherHtmlForPrint(html) {
   }
   const result = host.innerHTML;
   document.body.removeChild(host);
-
-  // #region agent log
-  const scale = getPrintFontScale();
-  const sampleTd = root ? root.querySelector("table td") : null;
-  fetch("http://127.0.0.1:7918/ingest/0b4f62c8-cbbb-4c88-8d5a-276392bdbf4f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "316809" }, body: JSON.stringify({ sessionId: "316809", runId: "print-fix", hypothesisId: "H-P1,H-P2,H-P3", location: "ui-framework.js:wrapVoucherHtmlForPrint", message: "wrapped html for print", data: { scale, paperSize: getPrintPaperSize(), rootFontSize: root ? root.style.fontSize : null, cssVar: root ? root.style.getPropertyValue("--voucher-font-scale") : null, tdFontSize: sampleTd ? sampleTd.style.fontSize : null, tdComputed: sampleTd ? window.getComputedStyle(sampleTd).fontSize : null }, timestamp: Date.now() }) }).catch(() => {});
-  // #endregion
 
   return result;
 }
@@ -2325,10 +2300,6 @@ async function printCurrentVoucher(e) {
   const printFontScale = getPrintFontScale();
   const printPaperSize = getPrintPaperSize();
   const wrappedHtml = wrapVoucherHtmlForPrint(voucherHtml);
-
-  // #region agent log
-  fetch("http://127.0.0.1:7918/ingest/0b4f62c8-cbbb-4c88-8d5a-276392bdbf4f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "316809" }, body: JSON.stringify({ sessionId: "316809", runId: "print-fix", hypothesisId: "H-P1", location: "ui-framework.js:printCurrentVoucher", message: "sending to electron print", data: { printFontScale, printPaperSize, htmlLen: wrappedHtml.length }, timestamp: Date.now() }) }).catch(() => {});
-  // #endregion
 
   if (window.electronAPI && typeof window.electronAPI.printHtml === "function") {
     try {

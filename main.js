@@ -1,10 +1,10 @@
 // CẤU HÌNH VÒNG ĐỜI VÀ CỬA SỔ DESKTOP APP ĐỘC LẬP (MAIN.JS)
 const { app, BrowserWindow, Menu, ipcMain, shell, dialog } = require('electron');
 const path = require('path');
-const { pathToFileURL } = require('url');
 const { exec } = require('child_process');
 const fs = require('fs');
 const os = require('os');
+const { buildVoucherPrintDocument } = require('./js/core/voucher-print-document');
 
 // Tăng giới hạn heap V8 lên 4 GB để xử lý tập dữ liệu lớn (7000+ chứng từ, 1600+ sản phẩm)
 // Ngăn chặn lỗi "FATAL ERROR: Oilpan: Large allocation" khi ghi nhớ vượt ngưỡng mặc định ~1.5 GB
@@ -476,211 +476,13 @@ ipcMain.handle('print-to-pdf', async (event, filename) => {
   }
 });
 
-let voucherPdfCssCache = null;
-
-function voucherScaledFont(px) {
-  return `calc(${px}px * var(--voucher-font-scale, 1))`;
-}
-
-function debugPrintLog(location, message, data) {
-  // #region agent log
-  try {
-    const line = JSON.stringify({ sessionId: "316809", runId: "print-fix", hypothesisId: "H-P1,H-P2,H-P3", location, message, data, timestamp: Date.now() }) + "\n";
-    fs.appendFileSync(path.join(__dirname, "debug-316809.log"), line, "utf8");
-  } catch (_) {}
-  // #endregion
-}
-
-function getVoucherPdfStyles() {
-  if (voucherPdfCssCache) return voucherPdfCssCache;
-
-  try {
-    const cssPath = path.join(__dirname, 'styles.css');
-    const full = fs.readFileSync(cssPath, 'utf8');
-    const start = full.indexOf('/* Thiết kế biểu mẫu kế toán in ấn */');
-    const end = full.indexOf('/* 8. FORMS & INPUTS */');
-    const voucherBlock = start >= 0 && end > start ? full.slice(start, end) : '';
-
-    voucherPdfCssCache = `
-      html, body {
-        margin: 0;
-        padding: 0;
-        background: #ffffff;
-        color: #000000;
-      }
-      .skip-link,
-      .app-bg-decoration,
-      .toast-container,
-      .custom-context-menu {
-        display: none !important;
-      }
-      ${voucherBlock}
-      .printable-voucher {
-        box-shadow: none !important;
-        padding: 6px 0 0 !important;
-        margin: 0 auto !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        background-color: #ffffff !important;
-        font-size: 12.5px !important;
-        line-height: 1.32 !important;
-      }
-      .printable-voucher .voucher-rd-header {
-        padding-top: 4px !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-      }
-      .printable-voucher .voucher-rd-co-name { font-size: 13px !important; }
-      .printable-voucher .voucher-rd-co-unit,
-      .printable-voucher .voucher-rd-co-addr,
-      .printable-voucher .voucher-rd-co-tel { font-size: 11px !important; }
-      .printable-voucher .voucher-rd-header-qr img {
-        width: 82px !important;
-        height: 82px !important;
-      }
-      .printable-voucher table.voucher-table { margin: 8px 0 !important; }
-      .printable-voucher table { font-size: ${voucherScaledFont(12)} !important; }
-      .printable-voucher table th,
-      .printable-voucher table td { font-size: ${voucherScaledFont(12)} !important; }
-      .printable-voucher table.voucher-table th,
-      .printable-voucher table.voucher-table td {
-        padding: calc(2px * var(--voucher-font-scale, 1)) 3px !important;
-        font-size: ${voucherScaledFont(12)} !important;
-      }
-      .printable-voucher table th { white-space: nowrap !important; }
-      .printable-voucher .voucher-header-top { margin-bottom: 8px !important; }
-      .printable-voucher .voucher-co-name { font-size: 13px !important; }
-      .printable-voucher .voucher-co-addr { font-size: 11px !important; }
-      .printable-voucher .voucher-template-code { font-size: 11px !important; }
-      .printable-voucher .voucher-title-area { margin-bottom: 10px !important; }
-      .printable-voucher .voucher-title { font-size: 20px !important; }
-      .printable-voucher .voucher-subtitle { font-size: 12px !important; }
-      .printable-voucher .voucher-entries-note {
-        position: absolute !important;
-        top: 55px !important;
-        right: 10px !important;
-        font-size: 12px !important;
-      }
-      .printable-voucher .voucher-info-row { margin-bottom: 4px !important; }
-      .printable-voucher .voucher-signatures { margin-top: 16px !important; }
-      .printable-voucher .sig-block { font-size: 12px !important; }
-      .printable-voucher .sig-subtext { font-size: 11px !important; }
-      .printable-voucher .sig-space { height: 38px !important; }
-      .printable-voucher .voucher-signatures,
-      .printable-voucher .sig-block {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-      }
-      .printable-voucher.debt-notice-voucher {
-        max-width: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
-      }
-      .printable-voucher.debt-notice-voucher .debt-notice-table {
-        width: 100% !important;
-        table-layout: fixed;
-      }
-      .printable-voucher.debt-notice-voucher .debt-notice-info-grid {
-        display: grid !important;
-        grid-template-columns: 1.2fr 1fr;
-        gap: 3px 12px;
-      }
-      .printable-voucher.debt-notice-voucher .debt-notice-table th,
-      .printable-voucher.debt-notice-voucher .debt-notice-table td {
-        padding: calc(3px * var(--voucher-font-scale, 1)) calc(5px * var(--voucher-font-scale, 1)) !important;
-        font-size: ${voucherScaledFont(11.5)} !important;
-        overflow-wrap: normal !important;
-        word-wrap: normal !important;
-      }
-      .printable-voucher.debt-notice-voucher .debt-notice-table td.font-numeric {
-        white-space: nowrap !important;
-      }
-      @page { size: A4 portrait; margin: 10mm 12mm; }
-    `;
-  } catch (err) {
-    console.error('[PDF] Không đọc được styles.css, dùng CSS tối giản:', err.message);
-    voucherPdfCssCache = `
-      html, body { margin: 0; padding: 0; background: #fff; color: #000; }
-      .printable-voucher { font-family: "Times New Roman", Times, serif; font-size: 13px; color: #000; }
-      .printable-voucher * { color: #000 !important; border-color: #000 !important; }
-      table { width: 100%; border-collapse: collapse; }
-      th, td { border: 1px solid #000; padding: 4px 6px; }
-      @page { size: A4 portrait; margin: 10mm 12mm; }
-    `;
-  }
-
-  return voucherPdfCssCache;
-}
-
 function buildVoucherPdfDocument(voucherHtml, printFontScale = 1, printPaperSize = "A5") {
-  const baseHref = pathToFileURL(path.join(__dirname, path.sep)).href;
-  const styles = getVoucherPdfStyles();
-  const fontScale = Number(printFontScale) > 0 ? Number(printFontScale) : 1;
-  const paper = printPaperSize === "A4" ? "A4" : "A5";
-  const paperMaxW = paper === "A5" ? Math.round(800 * (148 / 210)) : 800;
-  const pageMargin = paper === "A5" ? "6mm 8mm" : "10mm 12mm";
-  const pageOverride = `@page { size: ${paper} portrait; margin: ${pageMargin}; }`;
-  debugPrintLog("main.js:buildVoucherPdfDocument", "building print document", { printFontScale, fontScale, paper, paperMaxW });
-  const layoutCss = `
-    html, body { height: auto !important; overflow: visible !important; }
-    .printable-voucher {
-      --voucher-font-scale: ${fontScale};
-      --voucher-paper-max-width: ${paperMaxW}px;
-      max-width: ${paperMaxW}px !important;
-      width: 100% !important;
-      margin: 0 auto !important;
-      zoom: 1 !important;
-      font-size: 14px !important;
-      box-sizing: border-box !important;
-      overflow-x: hidden !important;
-    }
-    .printable-voucher .voucher-rd-co-name { font-size: 13px !important; }
-    .printable-voucher .voucher-rd-co-unit,
-    .printable-voucher .voucher-rd-co-addr,
-    .printable-voucher .voucher-rd-co-tel { font-size: 11px !important; }
-    .printable-voucher table { font-size: ${voucherScaledFont(12)} !important; }
-    .printable-voucher table th,
-    .printable-voucher table td {
-      font-size: ${voucherScaledFont(12)} !important;
-      padding: calc(2px * var(--voucher-font-scale, 1)) 3px !important;
-    }
-    .printable-voucher table th { white-space: nowrap !important; }
-    .printable-voucher table td.font-numeric,
-    .printable-voucher table td.voucher-col-gc,
-    .printable-voucher table th.voucher-col-gc {
-      white-space: nowrap !important;
-      overflow-wrap: normal !important;
-      word-wrap: normal !important;
-    }
-    .printable-voucher table td.voucher-col-desc {
-      white-space: normal !important;
-      overflow-wrap: break-word !important;
-      word-wrap: break-word !important;
-    }
-  `;
-  const tableCss = `
-    .printable-voucher { box-sizing: border-box !important; max-width: 100% !important; overflow-x: hidden !important; }
-    .printable-voucher table { table-layout: fixed !important; width: 100% !important; }
-    .printable-voucher table thead { display: table-header-group !important; }
-    .printable-voucher table tfoot { display: table-footer-group !important; }
-    .printable-voucher table th, .printable-voucher table td {
-      box-sizing: border-box !important;
-      overflow-wrap: normal !important;
-      word-wrap: normal !important;
-    }
-    .printable-voucher table tr { page-break-inside: avoid; break-inside: avoid; }
-    .printable-voucher .voucher-signatures,
-    .printable-voucher .sig-block { page-break-inside: avoid !important; break-inside: avoid !important; }
-  `;
-  return `<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="utf-8">
-  <base href="${baseHref}">
-  <style>${styles}${pageOverride}${layoutCss}${tableCss}</style>
-</head>
-<body>${voucherHtml}</body>
-</html>`;
+  return buildVoucherPrintDocument({
+    voucherHtml,
+    printFontScale,
+    printPaperSize,
+    appDir: __dirname
+  });
 }
 
 // Chromium data URL limit ~2MB; stay below to avoid silent load failures on large vouchers.
@@ -689,10 +491,10 @@ const VOUCHER_PDF_PAGE_LOAD_TIMEOUT_MS = 30000;
 const VOUCHER_PDF_IMAGE_TIMEOUT_MS = 8000;
 const VOUCHER_PRINT_MARGINS_IN = {
   marginType: 'custom',
-  top: 0.31,
-  bottom: 0.31,
-  left: 0.31,
-  right: 0.31
+  top: 0,
+  bottom: 0,
+  left: 0,
+  right: 0
 };
 
 function createTempVoucherHtmlPath(doc) {
@@ -769,34 +571,6 @@ async function prepareVoucherPrintWindow(voucherHtml, printFontScale = 1, printP
   if (printWin.isDestroyed()) {
     throw new Error('Cửa sổ in đã bị đóng trước khi in');
   }
-
-  // #region agent log
-  try {
-    const printMetrics = await printWin.webContents.executeJavaScript(`(() => {
-      const root = document.querySelector('.printable-voucher');
-      const td = document.querySelector('.printable-voucher table td.font-numeric');
-      const gc = document.querySelector('.printable-voucher table td.voucher-col-gc');
-      const th = document.querySelector('.printable-voucher table th');
-      const rootCs = root ? getComputedStyle(root) : null;
-      const tdCs = td ? getComputedStyle(td) : null;
-      const gcCs = gc ? getComputedStyle(gc) : null;
-      return {
-        cssVar: rootCs ? rootCs.getPropertyValue('--voucher-font-scale').trim() : null,
-        rootFontSize: rootCs ? rootCs.fontSize : null,
-        tdFontSize: tdCs ? tdCs.fontSize : null,
-        tdWhiteSpace: tdCs ? tdCs.whiteSpace : null,
-        tdOverflowWrap: tdCs ? tdCs.overflowWrap : null,
-        tdWraps: td ? td.scrollWidth > td.offsetWidth + 1 : null,
-        gcWhiteSpace: gcCs ? gcCs.whiteSpace : null,
-        gcWraps: gc ? gc.scrollWidth > gc.offsetWidth + 1 : null,
-        thFontSize: th ? getComputedStyle(th).fontSize : null
-      };
-    })()`);
-    debugPrintLog('main.js:prepareVoucherPrintWindow', 'print window computed fonts', { printFontScale, printPaperSize, printMetrics });
-  } catch (logErr) {
-    debugPrintLog('main.js:prepareVoucherPrintWindow', 'print metrics failed', { error: String(logErr) });
-  }
-  // #endregion
 
   try {
     const contentHeight = await printWin.webContents.executeJavaScript(
