@@ -510,7 +510,7 @@ function viewVoucher(id) {
         </div>
         
         <!-- Chữ ký và dấu (Đơn đặt hàng) -->
-        <div style="display: flex; justify-content: space-between; text-align: center; margin-top: 30px; font-size: 13px; page-break-inside: avoid; break-inside: avoid;">
+        <div class="voucher-signatures" style="display: flex; justify-content: space-between; text-align: center; margin-top: 30px; font-size: 13px; page-break-inside: avoid; break-inside: avoid;">
           <div style="width: 23%; page-break-inside: avoid; break-inside: avoid;">
             <strong>Người lập phiếu</strong><br>
             <span style="font-style: italic; font-size: 11.5px; color: #555;">(Ký, họ tên)</span>
@@ -649,7 +649,7 @@ function viewVoucher(id) {
         </div>
         ${v.note ? `<div style="margin-bottom:10px; font-size: 13px; border:1px dashed #888; padding:5px 8px; border-radius:4px;"><strong>Ghi chú:</strong> ${v.note}</div>` : ''}
         <!-- Chữ ký -->
-        <div style="display:flex; justify-content:space-between; text-align:center; margin-top:12px; font-size: 12.5px;">
+        <div class="voucher-signatures" style="display:flex; justify-content:space-between; text-align:center; margin-top:12px; font-size: 12.5px;">
           ${['Người lập phiếu', 'Người giao hàng', 'Thủ kho', 'Kế toán trưởng', 'Giám đốc'].map((s, i) => `
           <div style="width:18%;">
             <strong>${s}</strong><br>
@@ -737,7 +737,7 @@ function viewVoucher(id) {
           <strong>Số tiền viết bằng chữ:</strong> <span style="font-style:italic;">${numberToVietnameseWords(v.totalAmount || grossTotal)}</span>
         </div>
         <!-- Chữ ký -->
-        <div style="display:flex; justify-content:space-between; text-align:center; margin-top:12px; font-size: 12.5px;">
+        <div class="voucher-signatures" style="display:flex; justify-content:space-between; text-align:center; margin-top:12px; font-size: 12.5px;">
           ${['Người lập phiếu', 'Người giao hàng', 'Thủ kho', 'Kế toán trưởng', 'Giám đốc'].map((s, i) => `
           <div style="width:18%;">
             <strong>${s}</strong><br>
@@ -841,7 +841,7 @@ function viewVoucher(id) {
           <strong>Số tiền viết bằng chữ:</strong> <span style="font-style:italic;">${numberToVietnameseWords(v.totalAmount || grossTotal)}</span>
         </div>
         <!-- Chữ ký -->
-        <div style="display:flex; justify-content:space-between; text-align:center; margin-top:12px; font-size: 12.5px;">
+        <div class="voucher-signatures" style="display:flex; justify-content:space-between; text-align:center; margin-top:12px; font-size: 12.5px;">
           ${['Người lập phiếu', 'Khách hàng trả', 'Thủ kho', 'Kế toán trưởng', 'Giám đốc'].map((s, i) => `
           <div style="width:18%;">
             <strong>${s}</strong><br>
@@ -970,7 +970,7 @@ function viewVoucher(id) {
         </div>
 
         <!-- Chữ ký và dấu (Nhiệm vụ người lập, giao, nhận) -->
-        <div style="display: flex; justify-content: space-between; text-align: center; margin-top: 12px; font-size: 12.5px; page-break-inside: avoid; break-inside: avoid;">
+        <div class="voucher-signatures" style="display: flex; justify-content: space-between; text-align: center; margin-top: 12px; font-size: 12.5px; page-break-inside: avoid; break-inside: avoid;">
           <div style="width: 30%; page-break-inside: avoid; break-inside: avoid;">
             <strong>Người nhận hàng</strong><br>
             <span style="font-style: italic; font-size: 11.5px; color: #555;">(Ký, họ tên)</span>
@@ -1110,7 +1110,7 @@ function viewVoucher(id) {
         </div>
 
         <!-- Chữ ký và dấu (Báo giá) -->
-        <div style="display: flex; justify-content: space-between; text-align: center; margin-top: 12px; font-size: 12.5px; page-break-inside: avoid; break-inside: avoid;">
+        <div class="voucher-signatures" style="display: flex; justify-content: space-between; text-align: center; margin-top: 12px; font-size: 12.5px; page-break-inside: avoid; break-inside: avoid;">
           <div style="width: 45%; page-break-inside: avoid; break-inside: avoid;">
             <strong>Đại diện khách hàng</strong><br>
             <span style="font-style: italic; font-size: 11.5px; color: #555;">(Ký, họ tên)</span>
@@ -1147,7 +1147,7 @@ function viewVoucher(id) {
         </div>
 
         <div style="text-align:center; margin: 12px 0;">
-          <div style="font-weight:bold; font-size: 16px; text-transform:uppercase;">PHIẾU ĐIỀU CHỈNH TỒN KHO</div>
+          <div class="voucher-document-title">PHIẾU ĐIỀU CHỈNH TỒN KHO</div>
           <div style="font-style:italic; font-size: 13px; margin-top: 4px;">Ngày ${v.date ? v.date.substring(8, 10) + " tháng " + v.date.substring(5, 7) + " năm " + v.date.substring(0, 4) : ""}</div>
         </div>
 
@@ -1211,7 +1211,7 @@ function viewVoucher(id) {
           </div>
         ` : ""}
 
-        <div style="display:flex; justify-content:space-between; text-align:center; margin-top:30px; font-size:13px;">
+        <div class="voucher-signatures" style="display:flex; justify-content:space-between; text-align:center; margin-top:30px; font-size:13px;">
           <div style="width:30%;"><strong>Người lập phiếu</strong><br><span style="font-style:italic; font-size:11px;">(Ký, họ tên)</span><div style="height:60px;"></div></div>
           <div style="width:30%;"><strong>Thủ kho</strong><br><span style="font-style:italic; font-size:11px;">(Ký, họ tên)</span><div style="height:60px;"></div></div>
           <div style="width:30%;"><strong>Kế toán trưởng</strong><br><span style="font-style:italic; font-size:11px;">(Ký, họ tên)</span><div style="height:60px;"></div></div>
@@ -1266,7 +1266,7 @@ function viewVoucher(id) {
 
         <!-- TIÊU ĐỀ -->
         <div style="text-align:center; margin-bottom:8px;">
-          <div style="font-size: 22px; font-weight:bold; letter-spacing:1px; text-transform:uppercase;">${title}</div>
+          <div class="voucher-document-title">${title}</div>
           <div style="font-size: 12px; font-style:italic;">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</div>
         </div>
 
@@ -1306,7 +1306,7 @@ function viewVoucher(id) {
         </div>
 
         <!-- CHỮ KÝ -->
-        <table style="width:100%; border-collapse:collapse; text-align:center; font-size: 12.5px; margin-top:4px;">
+        <table class="voucher-signatures" style="width:100%; border-collapse:collapse; text-align:center; font-size: 12.5px; margin-top:4px;">
           <tr>
             ${sigRow.map(s => `<td style="width:20%; padding:4px 2px; font-weight:bold;">${s}</td>`).join("")}
           </tr>
@@ -1333,6 +1333,9 @@ function viewVoucher(id) {
   }
 
   printArea.innerHTML = content;
+  if (typeof window.resetVoucherContentEditingState === "function") {
+    window.resetVoucherContentEditingState();
+  }
   syncVoucherPrintControls();
   applyPrintScaleToVoucherRoot(printArea);
   requestAnimationFrame(() => {
@@ -2171,7 +2174,7 @@ function ensurePrintPageStyle(paperSize) {
   const paper = paperSize === "A4" ? "A4" : "A5";
   const margins = typeof PrintSettings !== "undefined" && PrintSettings.getPrintPageMargins
     ? PrintSettings.getPrintPageMargins(paper)
-    : (paper === "A4" ? "10mm 12mm" : "6mm 8mm");
+    : "0";
   let el = document.getElementById("voucher-print-page-style");
   if (!el) {
     el = document.createElement("style");
@@ -2198,6 +2201,9 @@ function applyPrintScaleToVoucherRoot(container) {
   root.style.removeProperty("--voucher-preview-scale");
   root.style.removeProperty("--voucher-print-scale");
 
+  if (typeof window.applyVoucherTemplateSettingsToRoot === "function") {
+    window.applyVoucherTemplateSettingsToRoot(root);
+  }
   applyVoucherPaperSizeStyles(root, getPrintPaperSize());
   applyVoucherFontScale(root, getPrintFontScale());
 }
@@ -2230,8 +2236,14 @@ function wrapVoucherHtmlForPrint(html) {
     root.style.removeProperty("transform");
     root.style.removeProperty("zoom");
     resetVoucherFontScaleForPrint(root);
+    if (typeof window.applyVoucherTemplateSettingsToRoot === "function") {
+      window.applyVoucherTemplateSettingsToRoot(root);
+    }
     applyVoucherPaperSizeStyles(root, getPrintPaperSize());
     applyVoucherFontScale(root, getPrintFontScale());
+    if (typeof window.prepareVoucherRootForPrint === "function") {
+      window.prepareVoucherRootForPrint(root);
+    }
   }
   const result = host.innerHTML;
   document.body.removeChild(host);

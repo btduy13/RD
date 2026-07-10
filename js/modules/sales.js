@@ -318,45 +318,13 @@ function changeSalesPage(p) {
 
 // Bổ sung các hàng sản phẩm động vào form Bán hàng
 function addSalesFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVal = 0, discountVal = 0, insertAfterRow = null) {
-  const tbodyId = "sales-form-items-body";
-  const tbody = document.getElementById(tbodyId);
-  if (!tbody) return;
-
-  const rowId = `sale-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-  const tr = document.createElement("tr");
-  tr.id = rowId;
-  tr.innerHTML = `
-    <td>
-      <input type="text" class="form-control item-productId" placeholder="Mã SP..." required list="datalist-sales-products" oninput="autoFillProductPrice(this)" onblur="autoFillProductPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
-    </td>
-    <td>
-      <input type="text" class="form-control item-desc" placeholder="Mô tả..." value="${escapeHtmlAttr(descVal)}"
-        ${descVal ? 'data-user-edited="1"' : ''}
-        oninput="this.dataset.userEdited='1'">
-    </td>
-    <td>
-      <input type="text" class="form-control item-qty text-right qty-format" required value="${Number.isInteger(qtyVal) ? qtyVal : qtyVal.toString().replace(".", ",")}" oninput="recalculateSalesTotals()">
-    </td>
-    <td>
-      <input type="text" class="form-control item-price text-right number-format" required value="${Number(priceVal).toLocaleString("vi-VN")}" oninput="recalculateSalesTotals()">
-    </td>
-    <td>
-      <input type="text" class="form-control item-discount text-right number-format" required value="${discountVal}" oninput="recalculateSalesTotals()" placeholder="0">
-    </td>
-    <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
-    ${buildDynamicRowActionsCell(rowId, tbodyId)}
-  `;
-
-  mountDynamicFormRow(tbody, tr, insertAfterRow);
-  refreshDynamicFormTable(tbodyId);
-
-  if (!productIdVal) {
-    const firstInput = tr.querySelector(".item-productId");
-    if (firstInput) {
-      setTimeout(() => { firstInput.focus(); }, 30);
-    }
-  }
+  return addDynamicFormTableRow("sales-form-items-body", {
+    productId: productIdVal,
+    desc: descVal,
+    qty: qtyVal,
+    price: priceVal,
+    discount: discountVal
+  }, insertAfterRow);
 }
 
 // Lấy giá bán từ thông tin mặt hàng
@@ -391,26 +359,7 @@ function autoFillProductPrice(selectEl) {
 
 // Tính toán lại tổng tiền trong form Bán
 function recalculateSalesTotals() {
-  const rows = document.querySelectorAll("#sales-form-items-body tr");
-  let subtotal = 0;
-
-  rows.forEach(row => {
-    const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
-    const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
-    const amount = Math.round(qty * price * (1 - discount / 100));
-    subtotal += amount;
-
-    row.querySelector(".item-total-display").innerText = formatVND(amount);
-  });
-
-  const taxRate = parseInt(document.getElementById("sale-tax-rate").value) || 0;
-  const taxAmount = Math.round(subtotal * (taxRate / 100));
-  const total = subtotal + taxAmount;
-
-  document.getElementById("sale-subtotal-display").value = formatVND(subtotal);
-  document.getElementById("sale-tax-display").value = formatVND(taxAmount);
-  document.getElementById("sale-total-display").value = formatVND(total);
+  return recalculateDynamicFormTable("sales-form-items-body");
 }
 
 let editingSalesId = null;
@@ -418,22 +367,9 @@ let salesSubmitInProgress = false;
 
 // Reset form bán hàng
 function resetSalesForm() {
-  editingSalesId = null;
   const modalTitle = document.querySelector("#modal-add-sales .card-title");
   if (modalTitle) modalTitle.innerText = "Lập hóa đơn bán hàng xuất kho";
-
-  const idEl = document.getElementById("sale-id");
-  if (idEl) idEl.value = "";
-
-  const tbody = document.getElementById("sales-form-items-body");
-  if (tbody) tbody.innerHTML = "";
-  document.getElementById("sale-desc").value = "Bán hàng xuất kho";
-  document.getElementById("sale-date").value = getLocalDateString();
-  const noteEl = document.getElementById("sale-note");
-  if (noteEl) noteEl.value = "";
-  addSalesFormRow();
-  if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-sales-return", false);
-  if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-sales", false);
+  resetDynamicVoucherForm("form-sales", { date: getLocalDateString() });
   // Auto-focus vào ô “Khách hàng mua” — trường quan trọng nhất khi mở form
   setTimeout(() => {
     const el = document.getElementById("sale-partner");
@@ -677,28 +613,19 @@ function editSalesVoucher(id) {
     document.getElementById("sale-tax-rate").value = v.taxRate || 0;
   }
 
-  const tbody = document.getElementById("sales-form-items-body");
-  if (tbody) tbody.innerHTML = "";
-
-  v.items.forEach(item => {
+  const formItems = v.items.map(item => {
     const prod = state.products.find(p => String(p.id) === String(item.productId));
     const prodId = prod ? prod.id : item.productId;
     const itemDesc = item.itemDesc || (prod ? prod.name : item.productId);
-    let discountPercent = item.discount || 0;
-    if (discountPercent > 100) {
-      const gross = (item.qty || 0) * (item.price || 0);
-      discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100) : 0;
-    }
-    addSalesFormRow(prodId, itemDesc, item.qty, item.price, discountPercent);
-    // Đánh dấu mô tả đã được điền sẵn → không bị ghi đè bởi autoFill khi blur
-    if (itemDesc) {
-      const lastRow = document.querySelector("#sales-form-items-body tr:last-child");
-      if (lastRow) {
-        const descEl = lastRow.querySelector(".item-desc");
-        if (descEl) descEl.dataset.userEdited = "1";
-      }
-    }
+    return {
+      productId: prodId,
+      desc: itemDesc,
+      qty: item.qty,
+      price: item.price,
+      discount: normalizeDynamicDiscountValue(item.discount, item.qty, item.price)
+    };
   });
+  replaceDynamicFormTableRows("sales-form-items-body", formItems);
 
   openModal("modal-add-sales");
 }
@@ -1047,40 +974,12 @@ function changeSalesReturnPage(p) {
 
 // addSalesReturnFormRow
 function addSalesReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0, insertAfterRow = null) {
-  const tbodyId = "sales-return-form-items-body";
-  const tbody = document.getElementById(tbodyId);
-  if (!tbody) return;
-
-  const rowId = `sales-ret-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-  const tr = document.createElement("tr");
-  tr.id = rowId;
-  tr.innerHTML = `
-    <td>
-      <input type="text" class="form-control item-productId" placeholder="Gõ mã hoặc tên sản phẩm..." required list="datalist-sales-products" oninput="autoFillSalesReturnPrice(this)" onblur="autoFillSalesReturnPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
-    </td>
-    <td>
-      <input type="text" class="form-control item-qty text-right qty-format" required value="${Number.isInteger(qtyVal) ? qtyVal : qtyVal.toString().replace(".", ",")}" oninput="recalculateSalesReturnTotals()">
-    </td>
-    <td>
-      <input type="text" class="form-control item-price text-right number-format" required value="${Number(priceVal).toLocaleString("vi-VN")}" oninput="recalculateSalesReturnTotals()">
-    </td>
-    <td>
-      <input type="text" class="form-control item-discount text-right number-format" required value="${discountVal}" oninput="recalculateSalesReturnTotals()" placeholder="0">
-    </td>
-    <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
-    ${buildDynamicRowActionsCell(rowId, tbodyId)}
-  `;
-
-  mountDynamicFormRow(tbody, tr, insertAfterRow);
-  refreshDynamicFormTable(tbodyId);
-
-  if (!productIdVal) {
-    const firstInput = tr.querySelector(".item-productId");
-    if (firstInput) {
-      setTimeout(() => { firstInput.focus(); }, 30);
-    }
-  }
+  return addDynamicFormTableRow("sales-return-form-items-body", {
+    productId: productIdVal,
+    qty: qtyVal,
+    price: priceVal,
+    discount: discountVal
+  }, insertAfterRow);
 }
 
 // autoFillSalesReturnPrice
@@ -1107,26 +1006,7 @@ function autoFillSalesReturnPrice(selectEl) {
 
 // recalculateSalesReturnTotals
 function recalculateSalesReturnTotals() {
-  const rows = document.querySelectorAll("#sales-return-form-items-body tr");
-  let subtotal = 0;
-
-  rows.forEach(row => {
-    const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
-    const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
-    const amount = Math.round(qty * price * (1 - discount / 100));
-    subtotal += amount;
-
-    row.querySelector(".item-total-display").innerText = formatVND(amount);
-  });
-
-  const taxRate = parseInt(document.getElementById("sales-ret-tax-rate").value) || 0;
-  const taxAmount = Math.round(subtotal * (taxRate / 100));
-  const total = subtotal + taxAmount;
-
-  document.getElementById("sales-ret-subtotal-display").value = formatVND(subtotal);
-  document.getElementById("sales-ret-tax-display").value = formatVND(taxAmount);
-  document.getElementById("sales-ret-total-display").value = formatVND(total);
+  return recalculateDynamicFormTable("sales-return-form-items-body");
 }
 
 // generateNextSalesReturnVoucherId
@@ -1154,20 +1034,9 @@ function generateNextSalesReturnVoucherId() {
 
 // resetSalesReturnForm
 function resetSalesReturnForm() {
-  editingSalesReturnId = null;
   const modalTitle = document.querySelector("#modal-add-sales-return .card-title");
   if (modalTitle) modalTitle.innerText = "Chứng từ Hàng bán trả lại nhập kho";
-  if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-sales-return", false);
-
-  const idEl = document.getElementById("sales-ret-id");
-  if (idEl) idEl.value = "";
-
-  const tbody = document.getElementById("sales-return-form-items-body");
-  if (tbody) tbody.innerHTML = "";
-  document.getElementById("sales-ret-desc").value = "Nhập hàng bán trả lại";
-  document.getElementById("sales-ret-date").value = getLocalDateString();
-  
-  addSalesReturnFormRow();
+  resetDynamicVoucherForm("form-sales-return", { date: getLocalDateString() });
   setTimeout(() => {
     const el = document.getElementById("sales-ret-partner");
     if (el) { el.focus(); el.select && el.select(); }
@@ -1352,19 +1221,17 @@ function editSalesReturnVoucher(id) {
     document.getElementById("sales-ret-tax-rate").value = v.taxRate || 0;
   }
 
-  const tbody = document.getElementById("sales-return-form-items-body");
-  if (tbody) tbody.innerHTML = "";
-
-  v.items.forEach(item => {
+  const formItems = v.items.map(item => {
     const prod = state.products.find(p => String(p.id) === String(item.productId));
     const prodVal = prod ? `${prod.name} (${prod.id})` : item.productId;
-    let discountPercent = item.discount || 0;
-    if (discountPercent > 100) {
-      const gross = (item.qty || 0) * (item.price || 0);
-      discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100) : 0;
-    }
-    addSalesReturnFormRow(prodVal, item.qty, item.price, discountPercent);
+    return {
+      productId: prodVal,
+      qty: item.qty,
+      price: item.price,
+      discount: normalizeDynamicDiscountValue(item.discount, item.qty, item.price)
+    };
   });
+  replaceDynamicFormTableRows("sales-return-form-items-body", formItems);
 
   openModal("modal-add-sales-return");
 }
@@ -1767,45 +1634,13 @@ function changeQuotationPage(p) {
 
 // Bổ sung các hàng sản phẩm động vào form Báo giá
 function addQuotationFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVal = 0, discountVal = 0, insertAfterRow = null) {
-  const tbodyId = "quotation-form-items-body";
-  const tbody = document.getElementById(tbodyId);
-  if (!tbody) return;
-
-  const rowId = `quotation-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-  const tr = document.createElement("tr");
-  tr.id = rowId;
-  tr.innerHTML = `
-    <td>
-      <input type="text" class="form-control item-productId" placeholder="Mã SP..." required list="datalist-sales-products" oninput="autoFillQuotationPrice(this)" onblur="autoFillQuotationPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
-    </td>
-    <td>
-      <input type="text" class="form-control item-desc" placeholder="Mô tả..." value="${escapeHtmlAttr(descVal)}"
-        ${descVal ? 'data-user-edited="1"' : ''}
-        oninput="this.dataset.userEdited='1'">
-    </td>
-    <td>
-      <input type="text" class="form-control item-qty text-right qty-format" required value="${Number.isInteger(qtyVal) ? qtyVal : qtyVal.toString().replace(".", ",")}" oninput="recalculateQuotationTotals()">
-    </td>
-    <td>
-      <input type="text" class="form-control item-price text-right number-format" required value="${Number(priceVal).toLocaleString("vi-VN")}" oninput="recalculateQuotationTotals()">
-    </td>
-    <td>
-      <input type="text" class="form-control item-discount text-right number-format" required value="${discountVal}" oninput="recalculateQuotationTotals()" placeholder="0">
-    </td>
-    <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
-    ${buildDynamicRowActionsCell(rowId, tbodyId)}
-  `;
-
-  mountDynamicFormRow(tbody, tr, insertAfterRow);
-  refreshDynamicFormTable(tbodyId);
-
-  if (!productIdVal) {
-    const firstInput = tr.querySelector(".item-productId");
-    if (firstInput) {
-      setTimeout(() => { firstInput.focus(); }, 30);
-    }
-  }
+  return addDynamicFormTableRow("quotation-form-items-body", {
+    productId: productIdVal,
+    desc: descVal,
+    qty: qtyVal,
+    price: priceVal,
+    discount: discountVal
+  }, insertAfterRow);
 }
 
 // Lấy giá bán từ thông tin mặt hàng cho báo giá
@@ -1839,43 +1674,14 @@ function autoFillQuotationPrice(selectEl) {
 
 // Tính toán lại tổng tiền trong form Báo giá
 function recalculateQuotationTotals() {
-  const rows = document.querySelectorAll("#quotation-form-items-body tr");
-  let subtotal = 0;
-
-  rows.forEach(row => {
-    const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
-    const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
-    const amount = Math.round(qty * price * (1 - discount / 100));
-    subtotal += amount;
-
-    row.querySelector(".item-total-display").innerText = formatVND(amount);
-  });
-
-  const taxRate = parseInt(document.getElementById("quotation-tax-rate").value) || 0;
-  const taxAmount = Math.round(subtotal * (taxRate / 100));
-  const total = subtotal + taxAmount;
-
-  document.getElementById("quotation-subtotal-display").value = formatVND(subtotal);
-  document.getElementById("quotation-tax-display").value = formatVND(taxAmount);
-  document.getElementById("quotation-total-display").value = formatVND(total);
+  return recalculateDynamicFormTable("quotation-form-items-body");
 }
 
 // Reset form báo giá
 function resetQuotationForm() {
-  editingQuotationId = null;
   const modalTitle = document.querySelector("#modal-add-sales-quotation .card-title");
   if (modalTitle) modalTitle.innerText = "Lập Phiếu Báo Giá";
-  if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-sales-quotation", false);
-
-  const idEl = document.getElementById("quotation-id");
-  if (idEl) idEl.value = "";
-
-  const tbody = document.getElementById("quotation-form-items-body");
-  if (tbody) tbody.innerHTML = "";
-  document.getElementById("quotation-desc").value = "Báo giá hàng hóa";
-  document.getElementById("quotation-date").value = getLocalDateString();
-  addQuotationFormRow();
+  resetDynamicVoucherForm("form-quotation", { date: getLocalDateString() });
   setTimeout(() => {
     const el = document.getElementById("quotation-partner");
     if (el) { el.focus(); el.select && el.select(); }
@@ -2069,20 +1875,19 @@ function editQuotationVoucher(id) {
     document.getElementById("quotation-tax-rate").value = v.taxRate || 0;
   }
 
-  const tbody = document.getElementById("quotation-form-items-body");
-  if (tbody) tbody.innerHTML = "";
-
-  v.items.forEach(item => {
+  const formItems = v.items.map(item => {
     const prod = state.products.find(p => String(p.id) === String(item.productId));
     const prodId = prod ? prod.id : item.productId;
     const itemDesc = item.itemDesc || (prod ? prod.name : item.productId);
-    let discountPercent = item.discount || 0;
-    if (discountPercent > 100) {
-      const gross = (item.qty || 0) * (item.price || 0);
-      discountPercent = gross > 0 ? Math.round((discountPercent / gross) * 100) : 0;
-    }
-    addQuotationFormRow(prodId, itemDesc, item.qty, item.price, discountPercent);
+    return {
+      productId: prodId,
+      desc: itemDesc,
+      qty: item.qty,
+      price: item.price,
+      discount: normalizeDynamicDiscountValue(item.discount, item.qty, item.price)
+    };
   });
+  replaceDynamicFormTableRows("quotation-form-items-body", formItems);
 
   openModal("modal-add-sales-quotation");
 }
@@ -2487,11 +2292,7 @@ function modifySalesTemplate(filename) {
     // 1. Reset form bán hàng hiện tại
     resetSalesForm();
 
-    // 2. Clear tbody của mặt hàng để add từ template
-    const tbody = document.getElementById("sales-form-items-body");
-    if (tbody) tbody.innerHTML = "";
-
-    // 3. Đọc thông tin mô tả/diễn giải
+    // 2. Đọc thông tin mô tả/diễn giải
     document.getElementById("sale-desc").value = template.desc || "Bán hàng theo mẫu";
 
     // Đặt khách hàng mặc định là Khách lẻ
@@ -2501,7 +2302,7 @@ function modifySalesTemplate(filename) {
     let matchedProductsCount = 0;
     const totalProductsCount = template.items.length;
 
-    for (const item of template.items) {
+    const formItems = template.items.map(item => {
       const itemName = item.name;
       const qty = item.qty;
       const price = item.price;
@@ -2518,11 +2319,9 @@ function modifySalesTemplate(filename) {
         console.warn(`Không khớp sản phẩm: "${itemName}"`);
       }
 
-      // Thêm dòng vào form bán hàng
-      addSalesFormRow(productId, finalDesc, qty, price, 0);
-    }
-
-    recalculateSalesTotals();
+      return { productId, desc: finalDesc, qty, price, discount: 0 };
+    });
+    replaceDynamicFormTableRows("sales-form-items-body", formItems);
 
     // Mở modal bán hàng
     openModal('modal-add-sales');
@@ -2547,9 +2346,6 @@ function templateToQuotation(filename) {
 
     if (typeof resetQuotationForm === "function") resetQuotationForm();
 
-    const tbody = document.getElementById("quotation-form-items-body");
-    if (tbody) tbody.innerHTML = "";
-
     const descEl = document.getElementById("quotation-desc");
     if (descEl) descEl.value = template.desc || "Báo giá theo mẫu";
 
@@ -2559,7 +2355,7 @@ function templateToQuotation(filename) {
     let matchedCount = 0;
     const totalCount = template.items.length;
 
-    for (const item of template.items) {
+    const formItems = template.items.map(item => {
       const prod = findProductByName(item.name);
       let productId = "";
       let finalDesc = item.name;
@@ -2568,12 +2364,9 @@ function templateToQuotation(filename) {
         finalDesc = prod.name;
         matchedCount++;
       }
-      if (typeof addQuotationFormRow === "function") {
-        addQuotationFormRow(productId, finalDesc, item.qty, item.price, 0);
-      }
-    }
-
-    if (typeof recalculateQuotationTotals === "function") recalculateQuotationTotals();
+      return { productId, desc: finalDesc, qty: item.qty, price: item.price, discount: 0 };
+    });
+    replaceDynamicFormTableRows("quotation-form-items-body", formItems);
 
     openModal("modal-add-sales-quotation");
     showToast(`Đã tải mẫu "${filename}" vào Báo giá. Khớp ${matchedCount}/${totalCount} sản phẩm.`, "success");
@@ -2655,16 +2448,8 @@ function findProductByName(name) {
 // --- TEMPLATE EDITOR ACTIONS & FORMS ---
 function openAddTemplateModal() {
   document.getElementById("template-modal-title").textContent = "Thêm phiếu mẫu mới";
-  document.getElementById("template-old-filename").value = "";
-  document.getElementById("template-filename").value = "";
-  document.getElementById("template-desc").value = "";
+  resetDynamicVoucherForm("form-edit-template");
   document.getElementById("template-filename").readOnly = false;
-  
-  const tbody = document.getElementById("template-form-items-body");
-  if (tbody) tbody.innerHTML = "";
-  
-  addTemplateFormRow(); // Add one empty row initially
-  recalculateTemplateTotals();
   openModal('modal-edit-template');
 }
 
@@ -2683,61 +2468,23 @@ function openEditTemplateModal(filename) {
   document.getElementById("template-desc").value = template.desc || "";
   document.getElementById("template-filename").readOnly = true; // Don't allow changing filename directly to avoid key mismatches
   
-  const tbody = document.getElementById("template-form-items-body");
-  if (tbody) tbody.innerHTML = "";
-  
-  if (Array.isArray(template.items) && template.items.length > 0) {
-    for (const item of template.items) {
+  const formItems = Array.isArray(template.items) ? template.items.map(item => {
       const prod = findProductByName(item.name);
       const productId = prod ? prod.id : "";
       const descVal = prod ? prod.name : item.name;
-      addTemplateFormRow(productId, descVal, item.qty, item.price);
-    }
-  } else {
-    addTemplateFormRow();
-  }
-
-  recalculateTemplateTotals();
+      return { productId, desc: descVal, qty: item.qty, price: item.price };
+    }) : [];
+  replaceDynamicFormTableRows("template-form-items-body", formItems);
   openModal('modal-edit-template');
 }
 
 function addTemplateFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVal = 0, insertAfterRow = null) {
-  const tbodyId = "template-form-items-body";
-  const tbody = document.getElementById(tbodyId);
-  if (!tbody) return;
-  
-  const rowId = `template-row-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-  const tr = document.createElement("tr");
-  tr.id = rowId;
-  
-  tr.innerHTML = `
-    <td>
-      <input type="text" class="form-control item-productId" placeholder="Mã SP..." required list="datalist-sales-products" oninput="autoFillTemplateProductPrice(this)" onblur="autoFillTemplateProductPrice(this)" value="${escapeHtmlAttr(productIdVal)}">
-    </td>
-    <td>
-      <input type="text" class="form-control item-desc" placeholder="Mô tả..." value="${escapeHtmlAttr(descVal)}"
-        ${descVal ? 'data-user-edited="1"' : ''}
-        oninput="this.dataset.userEdited='1'">
-    </td>
-    <td>
-      <input type="text" class="form-control item-qty text-right qty-format" required value="${Number.isInteger(qtyVal) ? qtyVal : qtyVal.toString().replace(".", ",")}" oninput="recalculateTemplateTotals()">
-    </td>
-    <td>
-      <input type="text" class="form-control item-price text-right number-format" required value="${Number(priceVal).toLocaleString("vi-VN")}" oninput="recalculateTemplateTotals()">
-    </td>
-    <td class="text-right font-numeric item-total-display" style="font-weight:700; padding:10px;">0đ</td>
-    ${buildDynamicRowActionsCell(rowId, tbodyId)}
-  `;
-  
-  mountDynamicFormRow(tbody, tr, insertAfterRow);
-  refreshDynamicFormTable(tbodyId);
-
-  if (!productIdVal) {
-    const firstInput = tr.querySelector(".item-productId");
-    if (firstInput) {
-      setTimeout(() => { firstInput.focus(); }, 30);
-    }
-  }
+  return addDynamicFormTableRow("template-form-items-body", {
+    productId: productIdVal,
+    desc: descVal,
+    qty: qtyVal,
+    price: priceVal
+  }, insertAfterRow);
 }
 
 function autoFillTemplateProductPrice(selectEl) {
@@ -2768,26 +2515,7 @@ function autoFillTemplateProductPrice(selectEl) {
 }
 
 function recalculateTemplateTotals() {
-  const rows = document.querySelectorAll("#template-form-items-body tr");
-  let subtotal = 0;
-
-  rows.forEach(row => {
-    const qtyEl = row.querySelector(".item-qty");
-    const priceEl = row.querySelector(".item-price");
-    const totalEl = row.querySelector(".item-total-display");
-    if (!qtyEl || !priceEl || !totalEl) return;
-
-    const qty = safeParseFloat(qtyEl.value) || 0;
-    const price = parseInt(priceEl.value.replace(/\D/g, "")) || 0;
-    const amount = Math.round(qty * price);
-    subtotal += amount;
-    totalEl.innerText = formatVND(amount);
-  });
-
-  const totalDisplay = document.getElementById("template-total-display");
-  if (totalDisplay) {
-    totalDisplay.innerText = formatVND(subtotal);
-  }
+  return recalculateDynamicFormTable("template-form-items-body");
 }
 
 function handleTemplateSubmit(event) {
@@ -2907,21 +2635,74 @@ window.autoFillTemplateProductPrice = autoFillTemplateProductPrice;
 window.recalculateTemplateTotals = recalculateTemplateTotals;
 
 if (typeof registerDynamicFormTable === "function") {
-  registerDynamicFormTable("sales-form-items-body", {
-    addRow: (insertAfter) => addSalesFormRow("", "", 1, 0, 0, insertAfter),
-    recalc: recalculateSalesTotals
-  });
-  registerDynamicFormTable("sales-return-form-items-body", {
-    addRow: (insertAfter) => addSalesReturnFormRow("", 1, 0, 0, insertAfter),
-    recalc: recalculateSalesReturnTotals
-  });
-  registerDynamicFormTable("quotation-form-items-body", {
-    addRow: (insertAfter) => addQuotationFormRow("", "", 1, 0, 0, insertAfter),
-    recalc: recalculateQuotationTotals
-  });
-  registerDynamicFormTable("template-form-items-body", {
-    addRow: (insertAfter) => addTemplateFormRow("", "", 1, 0, insertAfter),
-    recalc: recalculateTemplateTotals
-  });
+  registerDynamicFormTable(createStandardDynamicFormTableConfig({
+    key: "sales",
+    tbodyId: "sales-form-items-body",
+    formId: "form-sales",
+    modalId: "modal-add-sales",
+    rowIdPrefix: "sale-row",
+    hasDescription: true,
+    productLabel: "Mã SP",
+    productPlaceholder: "Mã SP...",
+    productListId: "datalist-sales-products",
+    widths: { productId: "12%", desc: "23%", qty: "10%", price: "16%", discount: "13%", amount: "13%", actions: "8%" },
+    onProductInput: autoFillProductPrice,
+    totals: { taxRateId: "sale-tax-rate", subtotalId: "sale-subtotal-display", taxId: "sale-tax-display", totalId: "sale-total-display" },
+    fieldIds: { id: "sale-id", partner: "sale-partner", date: "sale-date", payment: "sale-payment", desc: "sale-desc", note: "sale-note", taxRate: "sale-tax-rate" },
+    fieldDefaults: { payment: "131", desc: "Bán hàng xuất kho", taxRate: "0" },
+    getEditingId: () => editingSalesId,
+    setEditingId: value => { editingSalesId = value || null; }
+  }));
+  registerDynamicFormTable(createStandardDynamicFormTableConfig({
+    key: "sales-return",
+    tbodyId: "sales-return-form-items-body",
+    formId: "form-sales-return",
+    modalId: "modal-add-sales-return",
+    rowIdPrefix: "sales-ret-row",
+    productLabel: "Tên sản phẩm",
+    priceLabel: "Đơn giá trả lại (đ)",
+    productListId: "datalist-sales-products",
+    onProductInput: autoFillSalesReturnPrice,
+    totals: { taxRateId: "sales-ret-tax-rate", subtotalId: "sales-ret-subtotal-display", taxId: "sales-ret-tax-display", totalId: "sales-ret-total-display" },
+    fieldIds: { id: "sales-ret-id", partner: "sales-ret-partner", date: "sales-ret-date", payment: "sales-ret-payment", desc: "sales-ret-desc", taxRate: "sales-ret-tax-rate" },
+    fieldDefaults: { payment: "131", desc: "Nhập hàng bán trả lại", taxRate: "0" },
+    getEditingId: () => editingSalesReturnId,
+    setEditingId: value => { editingSalesReturnId = value || null; }
+  }));
+  registerDynamicFormTable(createStandardDynamicFormTableConfig({
+    key: "quotation",
+    tbodyId: "quotation-form-items-body",
+    formId: "form-quotation",
+    modalId: "modal-add-sales-quotation",
+    rowIdPrefix: "quotation-row",
+    hasDescription: true,
+    productLabel: "Mã SP",
+    productPlaceholder: "Mã SP...",
+    productListId: "datalist-sales-products",
+    widths: { productId: "12%", desc: "23%", qty: "10%", price: "16%", discount: "13%", amount: "13%", actions: "8%" },
+    onProductInput: autoFillQuotationPrice,
+    totals: { taxRateId: "quotation-tax-rate", subtotalId: "quotation-subtotal-display", taxId: "quotation-tax-display", totalId: "quotation-total-display" },
+    fieldIds: { id: "quotation-id", partner: "quotation-partner", date: "quotation-date", payment: "quotation-payment", desc: "quotation-desc", taxRate: "quotation-tax-rate" },
+    fieldDefaults: { payment: "131", desc: "Báo giá hàng hóa", taxRate: "0" },
+    getEditingId: () => editingQuotationId,
+    setEditingId: value => { editingQuotationId = value || null; }
+  }));
+  registerDynamicFormTable(createStandardDynamicFormTableConfig({
+    key: "sales-template",
+    tbodyId: "template-form-items-body",
+    formId: "form-edit-template",
+    modalId: "modal-edit-template",
+    rowIdPrefix: "template-row",
+    hasDescription: true,
+    hasDiscount: false,
+    productLabel: "Mã SP",
+    productPlaceholder: "Mã SP...",
+    productListId: "datalist-sales-products",
+    priceLabel: "Đơn giá bán",
+    widths: { productId: "12%", desc: "28%", qty: "12%", price: "16%", amount: "14%", actions: "8%" },
+    onProductInput: autoFillTemplateProductPrice,
+    totals: { fixedTaxRate: 0, totalId: "template-total-display" },
+    fieldIds: { oldFilename: "template-old-filename", filename: "template-filename", desc: "template-desc" }
+  }));
 }
 

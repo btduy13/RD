@@ -3847,16 +3847,7 @@
             </div>
 
             <table class="dynamic-items-table">
-              <thead>
-                <tr>
-                  <th style="width: 35%;">Tên sản phẩm</th>
-                  <th style="width: 12%; text-align: right;">Số lượng</th>
-                  <th style="width: 18%; text-align: right;">Đơn giá mua (đ)</th>
-                  <th style="width: 15%; text-align: right;">Chiết khấu (%)</th>
-                  <th style="width: 15%; text-align: right;">Thành tiền</th>
-<th style="width: 8%;"></th>
-                </tr>
-              </thead>
+              <thead></thead>
               <tbody id="purchase-form-items-body">
                 <!-- Các dòng sản phẩm mua -->
               </tbody>
@@ -3960,16 +3951,7 @@
             </div>
 
             <table class="dynamic-items-table">
-              <thead>
-                <tr>
-                  <th style="width: 35%;">Tên sản phẩm</th>
-                  <th style="width: 12%; text-align: right;">Số lượng</th>
-                  <th style="width: 18%; text-align: right;">Đơn giá trả lại (đ)</th>
-                  <th style="width: 15%; text-align: right;">Chiết khấu (%)</th>
-                  <th style="width: 15%; text-align: right;">Thành tiền</th>
-<th style="width: 8%;"></th>
-                </tr>
-              </thead>
+              <thead></thead>
               <tbody id="purchase-return-form-items-body">
                 <!-- Các dòng sản phẩm trả lại -->
               </tbody>
@@ -4073,16 +4055,7 @@
             </div>
 
             <table class="dynamic-items-table">
-              <thead>
-                <tr>
-                  <th style="width: 35%;">Tên sản phẩm</th>
-                  <th style="width: 12%; text-align: right;">Số lượng</th>
-                  <th style="width: 18%; text-align: right;">Đơn giá mua (đ)</th>
-                  <th style="width: 15%; text-align: right;">Chiết khấu (%)</th>
-                  <th style="width: 15%; text-align: right;">Thành tiền</th>
-<th style="width: 8%;"></th>
-                </tr>
-              </thead>
+              <thead></thead>
               <tbody id="purchase-order-form-items-body">
                 <!-- Các dòng sản phẩm mua -->
               </tbody>
@@ -4197,17 +4170,7 @@
             </div>
 
             <table class="dynamic-items-table">
-              <thead>
-                <tr>
-                  <th style="width: 12%;">Mã SP</th>
-                  <th style="width: 23%;">Mô tả</th>
-                  <th style="width: 10%; text-align: right;">Số lượng</th>
-                  <th style="width: 16%; text-align: right;">Đơn giá (đ)</th>
-                  <th style="width: 13%; text-align: right;">Chiết khấu (%)</th>
-                  <th style="width: 13%; text-align: right;">Thành tiền</th>
-<th style="width: 8%;"></th>
-                </tr>
-              </thead>
+              <thead></thead>
               <tbody id="sales-form-items-body">
                 <!-- Các dòng sản phẩm bán -->
               </tbody>
@@ -4288,16 +4251,7 @@
             </div>
 
             <table class="dynamic-items-table" style="width: 100%;">
-              <thead>
-                <tr>
-                  <th style="width: 12%;">Mã SP</th>
-                  <th style="width: 28%;">Mô tả</th>
-                  <th style="width: 12%; text-align: right;">Số lượng</th>
-                  <th style="width: 16%; text-align: right;">Đơn giá bán</th>
-                  <th style="width: 14%; text-align: right;">Thành tiền</th>
-                  <th style="width: 8%; text-align: center;"></th>
-                </tr>
-              </thead>
+              <thead></thead>
               <tbody id="template-form-items-body">
                 <!-- Sẽ được render động -->
               </tbody>
@@ -4388,17 +4342,7 @@
             </div>
 
             <table class="dynamic-items-table">
-              <thead>
-                <tr>
-                  <th style="width: 12%;">Mã SP</th>
-                  <th style="width: 23%;">Mô tả</th>
-                  <th style="width: 10%; text-align: right;">Số lượng</th>
-                  <th style="width: 16%; text-align: right;">Đơn giá (đ)</th>
-                  <th style="width: 13%; text-align: right;">Chiết khấu (%)</th>
-                  <th style="width: 13%; text-align: right;">Thành tiền</th>
-<th style="width: 8%;"></th>
-                </tr>
-              </thead>
+              <thead></thead>
               <tbody id="quotation-form-items-body">
                 <!-- Các dòng sản phẩm báo giá -->
               </tbody>
@@ -4513,16 +4457,7 @@
             </div>
 
             <table class="dynamic-items-table">
-              <thead>
-                <tr>
-                  <th style="width: 35%;">Tên sản phẩm</th>
-                  <th style="width: 12%; text-align: right;">Số lượng</th>
-                  <th style="width: 18%; text-align: right;">Đơn giá trả lại (đ)</th>
-                  <th style="width: 15%; text-align: right;">Chiết khấu (%)</th>
-                  <th style="width: 15%; text-align: right;">Thành tiền</th>
-<th style="width: 8%;"></th>
-                </tr>
-              </thead>
+              <thead></thead>
               <tbody id="sales-return-form-items-body">
                 <!-- Các dòng sản phẩm trả lại -->
               </tbody>
@@ -4803,6 +4738,12 @@
                 onclick="voucherPreviewNextPage()" disabled aria-label="Trang sau">&#9654;</button>
             </div>
             <div class="voucher-print-toolbar-zoom">
+              <button type="button" class="voucher-print-toolbar-btn voucher-print-toolbar-btn-text" id="voucher-preview-edit-content"
+                onclick="toggleVoucherContentEditing()" title="Sửa nội dung phiếu">Sửa nội dung</button>
+              <button type="button" class="voucher-print-toolbar-btn voucher-print-toolbar-btn-text"
+                onclick="openVoucherTemplateEditor()" title="Tùy chỉnh mẫu in">Tùy chỉnh mẫu</button>
+              <button type="button" class="voucher-print-toolbar-btn voucher-print-toolbar-btn-text"
+                onclick="openVoucherTemplateEditor('extra')" title="Thêm nội dung vào phiếu">Thêm nội dung</button>
               <button type="button" class="voucher-print-toolbar-btn voucher-print-toolbar-btn-text" id="voucher-preview-fit-page"
                 onclick="setVoucherPreviewZoomMode('fitPage')">Vừa trang</button>
               <button type="button" class="voucher-print-toolbar-btn voucher-print-toolbar-btn-text" id="voucher-preview-fit-width"
@@ -4822,6 +4763,94 @@
       <div class="voucher-print-footer">
         <button type="button" class="btn btn-secondary btn-sm" onclick="closeModal('modal-view-voucher')">Đóng</button>
         <button type="button" class="btn btn-primary btn-sm" onclick="executeVoucherPrint(event)">In</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-voucher-template-editor" class="modal-overlay voucher-template-editor-overlay" style="z-index: 2200;">
+    <div class="modal-content-container voucher-template-editor-dialog">
+      <div class="modal-header">
+        <h3 class="card-title">Tùy chỉnh mẫu in</h3>
+        <button type="button" class="icon-btn modal-close-btn" onclick="cancelVoucherTemplateEditor()" aria-label="Đóng">×</button>
+      </div>
+      <div class="modal-body voucher-template-editor-body">
+        <section class="voucher-template-section">
+          <h4>Kiểu chữ</h4>
+          <div class="voucher-template-grid voucher-template-grid-type">
+            <div class="form-group">
+              <label class="form-label" for="voucher-template-font-family">Font chữ</label>
+              <select id="voucher-template-font-family" class="form-control">
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Arial">Arial</option>
+                <option value="Tahoma">Tahoma</option>
+                <option value="Verdana">Verdana</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="voucher-template-content-font-size">Nội dung (px)</label>
+              <input id="voucher-template-content-font-size" class="form-control" type="number" min="8" max="24" step="0.5">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="voucher-template-table-font-size">Trong bảng (px)</label>
+              <input id="voucher-template-table-font-size" class="form-control" type="number" min="8" max="20" step="0.5">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="voucher-template-title-font-size">Tiêu đề (px)</label>
+              <input id="voucher-template-title-font-size" class="form-control" type="number" min="12" max="32" step="0.5">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="voucher-template-line-height">Giãn dòng</label>
+              <input id="voucher-template-line-height" class="form-control" type="number" min="1" max="2" step="0.05">
+            </div>
+            <div class="form-group">
+              <span class="form-label">Căn nội dung</span>
+              <div class="voucher-template-segmented" role="radiogroup" aria-label="Căn nội dung">
+                <label><input type="radio" name="voucher-template-align" value="left"><span>Trái</span></label>
+                <label><input type="radio" name="voucher-template-align" value="center"><span>Giữa</span></label>
+                <label><input type="radio" name="voucher-template-align" value="right"><span>Phải</span></label>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="voucher-template-section">
+          <h4>Lề an toàn</h4>
+          <div class="voucher-template-grid voucher-template-margin-grid">
+            <div class="form-group"><label class="form-label" for="voucher-template-margin-top">Trên (mm)</label><input id="voucher-template-margin-top" class="form-control" type="number" min="0" max="30" step="0.5"></div>
+            <div class="form-group"><label class="form-label" for="voucher-template-margin-right">Phải (mm)</label><input id="voucher-template-margin-right" class="form-control" type="number" min="0" max="30" step="0.5"></div>
+            <div class="form-group"><label class="form-label" for="voucher-template-margin-bottom">Dưới (mm)</label><input id="voucher-template-margin-bottom" class="form-control" type="number" min="0" max="30" step="0.5"></div>
+            <div class="form-group"><label class="form-label" for="voucher-template-margin-left">Trái (mm)</label><input id="voucher-template-margin-left" class="form-control" type="number" min="0" max="30" step="0.5"></div>
+          </div>
+        </section>
+
+        <section class="voucher-template-section">
+          <h4>Thành phần</h4>
+          <div class="voucher-template-toggles">
+            <label><input id="voucher-template-show-logo" type="checkbox"><span>Logo</span></label>
+            <label><input id="voucher-template-show-qr" type="checkbox"><span>Mã QR</span></label>
+            <label><input id="voucher-template-show-signatures" type="checkbox"><span>Chữ ký</span></label>
+          </div>
+        </section>
+
+        <section class="voucher-template-section" id="voucher-template-extra-section">
+          <h4>Thêm nội dung</h4>
+          <div class="voucher-template-extra-grid">
+            <textarea id="voucher-template-extra-text" class="form-control" rows="3" placeholder="Nhập nội dung cần thêm..."></textarea>
+            <select id="voucher-template-extra-placement" class="form-control">
+              <option value="afterHeader">Sau phần công ty</option>
+              <option value="beforeTable">Trước bảng</option>
+              <option value="afterTable">Sau bảng</option>
+              <option value="end">Cuối phiếu</option>
+            </select>
+            <button type="button" class="btn btn-secondary" onclick="addVoucherPreviewExtraContent()">Thêm vào phiếu</button>
+          </div>
+        </section>
+      </div>
+      <div class="modal-footer voucher-template-editor-footer">
+        <button type="button" class="btn btn-secondary" onclick="resetVoucherTemplateEditor()">Mặc định</button>
+        <span class="voucher-template-footer-spacer"></span>
+        <button type="button" class="btn btn-secondary" onclick="cancelVoucherTemplateEditor()">Hủy</button>
+        <button type="button" class="btn btn-primary" onclick="saveVoucherTemplateEditor()">Áp dụng</button>
       </div>
     </div>
   </div>
@@ -4866,6 +4895,7 @@
   <script src="js/sync-v2.js"></script>
   <script src="js/excel-integration.js"></script>
   <script src="js/ui-framework.js"></script>
+  <script src="js/core/voucher-template-editor.js"></script>
   <script src="js/core/voucher-form-ui.js"></script>
   <script src="js/ui-interactions.js"></script>
 

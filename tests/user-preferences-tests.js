@@ -61,7 +61,20 @@ function testPrintFontScalePersist() {
   console.log('print font scale persist passed');
 }
 
+function testPrintTemplatePersist() {
+  const storage = createStorage({});
+  const api = loadUserPrefsModule(storage);
+  assert.equal(api.getUserPrefs().printTemplate.marginRightMm, 5);
+  const template = { ...api.getUserPrefs().printTemplate, fontFamily: 'Arial', marginRightMm: 4 };
+  api.saveUserPrefs({ printTemplate: template });
+  const saved = JSON.parse(storage.getItem('rd_user_prefs')).printTemplate;
+  assert.equal(saved.fontFamily, 'Arial');
+  assert.equal(saved.marginRightMm, 4);
+  console.log('print template persist passed');
+}
+
 testMigrateLegacyTheme();
 testSaveAndMergePrefs();
 testPrintFontScalePersist();
+testPrintTemplatePersist();
 console.log('user preferences tests passed');

@@ -10,6 +10,8 @@ const {
 const appDir = path.join(__dirname, "..");
 const appStyles = fs.readFileSync(path.join(appDir, "styles.css"), "utf8");
 
+app.disableHardwareAcceleration();
+
 const sampleVoucherHtml = `
   <div class="printable-voucher" style="max-width: 800px; padding: 8px; font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #000; line-height: 1.25;">
     <div class="voucher-rd-header">
@@ -101,7 +103,13 @@ async function main() {
     const headerStyle = getComputedStyle(header);
     return {
       rootOffsetWidth: root.offsetWidth,
+      rootClientWidth: root.clientWidth,
       rootMaxWidth: rootStyle.maxWidth,
+      rootWidth: rootStyle.width,
+      rootBoxSizing: rootStyle.boxSizing,
+      rootPaddingLeft: rootStyle.paddingLeft,
+      rootPaddingRight: rootStyle.paddingRight,
+      parentClientWidth: root.parentElement.clientWidth,
       rootCssVarWidth: rootStyle.getPropertyValue("--voucher-paper-max-width").trim(),
       fontScale: rootStyle.getPropertyValue("--voucher-font-scale").trim(),
       tableFontScale: rootStyle.getPropertyValue("--voucher-table-font-scale").trim(),
@@ -143,7 +151,7 @@ async function main() {
   <meta charset="utf-8">
   <style>${appStyles}</style>
   <style>
-    body { margin: 0; background: #dbe3ee; }
+    body { margin: 0; background: #dbe3ee; display: block; }
     .printable-voucher {
       --voucher-font-scale: 1;
       --voucher-table-font-scale: 1;
@@ -160,7 +168,7 @@ async function main() {
 
   await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(previewDoc)}`);
   const previewMetrics = await win.webContents.executeJavaScript(collectMetricsScript);
-  assert(Math.abs(previewMetrics.rootOffsetWidth - metrics.rootOffsetWidth) <= 1, `preview width ${previewMetrics.rootOffsetWidth} != print width ${metrics.rootOffsetWidth}`);
+  assert(Math.abs(previewMetrics.rootOffsetWidth - metrics.rootOffsetWidth) <= 1, `preview width ${previewMetrics.rootOffsetWidth} != print width ${metrics.rootOffsetWidth}: ${JSON.stringify(previewMetrics)}`);
   assert.equal(previewMetrics.headerDisplay, metrics.headerDisplay);
   assert.equal(previewMetrics.titleFontSize, metrics.titleFontSize);
   assert.equal(previewMetrics.companyFontSize, metrics.companyFontSize);
@@ -187,6 +195,26 @@ async function main() {
   assert.equal(scaledPreviewMetrics.titleFontSize, scaledPrintMetrics.titleFontSize);
   assert.equal(scaledPreviewMetrics.companyFontSize, scaledPrintMetrics.companyFontSize);
   assert.equal(scaledPreviewMetrics.cellFontSize, scaledPrintMetrics.cellFontSize);
+
+  const customizedVoucherHtml = sampleVoucherHtml.replace(
+    'class="printable-voucher" style="',
+    'class="printable-voucher voucher-template-customized" style="--voucher-template-font-family: Arial, sans-serif; --voucher-template-title-font-size: 20px; --voucher-template-table-font-size: 12px; --voucher-template-margin-left: 5mm; --voucher-template-margin-right: 5mm; '
+  ).replace(
+    'line-height: 1.25;">',
+    'line-height: 1.25; padding-left: 5mm; padding-right: 5mm;">'
+  );
+  const customizedDoc = buildVoucherPrintDocument({
+    voucherHtml: customizedVoucherHtml,
+    printFontScale: 1,
+    printPaperSize: "A5",
+    appDir
+  });
+  await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(customizedDoc)}`);
+  const customizedMetrics = await win.webContents.executeJavaScript(collectMetricsScript);
+  assert.equal(customizedMetrics.titleFontSize, "20px");
+  assert.equal(customizedMetrics.cellFontSize, "12px");
+  assert(Math.abs(parseFloat(customizedMetrics.rootPaddingLeft) - 18.9) < 0.6);
+  assert(Math.abs(parseFloat(customizedMetrics.rootPaddingRight) - 18.9) < 0.6);
 
   const a4Doc = buildVoucherPrintDocument({
     voucherHtml: sampleVoucherHtml,

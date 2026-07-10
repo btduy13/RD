@@ -246,10 +246,420 @@ function patchVoucherModalLifecycle() {
 }
 
 const dynamicFormTableRegistry = Object.create(null);
+let dynamicFormRowSequence = 0;
 
-function registerDynamicFormTable(tbodyId, config) {
-  if (!tbodyId || !config || typeof config.addRow !== "function") return;
+function createStandardDynamicFormTableConfig(options = {}) {
+  const hasDescription = options.hasDescription === true;
+  const hasDiscount = options.hasDiscount !== false;
+  const widths = options.widths || {};
+  const columns = [
+    {
+      key: "productId",
+      type: "product",
+      label: options.productLabel || "Tên sản phẩm",
+      width: widths.productId || (hasDescription ? "12%" : "35%"),
+      placeholder: options.productPlaceholder || "Gõ mã hoặc tên sản phẩm...",
+      listId: options.productListId || "",
+      required: true
+    }
+  ];
+
+  if (hasDescription) {
+    columns.push({
+      key: "desc",
+      type: "description",
+      label: options.descriptionLabel || "Mô tả",
+      width: widths.desc || "23%",
+      placeholder: options.descriptionPlaceholder || "Mô tả..."
+    });
+  }
+
+  columns.push(
+    {
+      key: "qty",
+      type: "quantity",
+      label: options.quantityLabel || "Số lượng",
+      width: widths.qty || "12%",
+      align: "right",
+      required: true
+    },
+    {
+      key: "price",
+      type: "money",
+      label: options.priceLabel || "Đơn giá (đ)",
+      width: widths.price || "18%",
+      align: "right",
+      required: true
+    }
+  );
+
+  if (hasDiscount) {
+    columns.push({
+      key: "discount",
+      type: "discount",
+      label: options.discountLabel || "Chiết khấu (%)",
+      width: widths.discount || "15%",
+      align: "right",
+      required: true
+    });
+  }
+
+  columns.push(
+    {
+      key: "amount",
+      type: "amount",
+      label: options.amountLabel || "Thành tiền",
+      width: widths.amount || "15%",
+      align: "right"
+    },
+    {
+      key: "actions",
+      type: "actions",
+      label: "",
+      width: widths.actions || "8%",
+      align: "center"
+    }
+  );
+
+  return {
+    ...options,
+    columns,
+    defaults: {
+      productId: "",
+      ...(hasDescription ? { desc: "" } : {}),
+      qty: 1,
+      price: 0,
+      ...(hasDiscount ? { discount: 0 } : {}),
+      ...(options.defaults || {})
+    }
+  };
+}
+
+function registerDynamicFormTable(tbodyIdOrConfig, maybeConfig) {
+  const config = typeof tbodyIdOrConfig === "string"
+    ? { ...(maybeConfig || {}), tbodyId: tbodyIdOrConfig }
+    : { ...(tbodyIdOrConfig || {}) };
+  const tbodyId = config.tbodyId;
+
+  if (!tbodyId || !Array.isArray(config.columns) || config.columns.length === 0) {
+    console.warn("[VoucherTable] Cấu hình bảng không hợp lệ:", tbodyId || config);
+    return null;
+  }
+
+  config.key = config.key || tbodyId;
   dynamicFormTableRegistry[tbodyId] = config;
+
+  const tbody = document.getElementById(tbodyId);
+  if (tbody) {
+    tbody.dataset.dynamicFormTable = config.key;
+    renderDynamicFormTableHeader(tbodyId);
+  }
+  return config;
+}
+
+function getDynamicFormTableConfig(tbodyId) {
+  return dynamicFormTableRegistry[tbodyId] || null;
+}
+
+function getDynamicFormTableConfigs() {
+  return Object.values(dynamicFormTableRegistry);
+}
+
+function getDynamicFormTableConfigByFormId(formId) {
+  return getDynamicFormTableConfigs().find(config => config.formId === formId) || null;
+}
+
+function getVisibleDynamicFormTableConfig() {
+  return getDynamicFormTableConfigs().find(config => {
+    const modal = config.modalId ? document.getElementById(config.modalId) : null;
+    return modal && (modal.style.display === "flex" || window.getComputedStyle(modal).display === "flex");
+  }) || null;
+}
+
+function validateDynamicFormTableConfig(config) {
+  const errors = [];
+  if (!config) return ["missing config"];
+  const tbody = document.getElementById(config.tbodyId);
+  const form = config.formId ? document.getElementById(config.formId) : null;
+  if (!tbody) errors.push(`Không tìm thấy tbody #${config.tbodyId}`);
+  if (config.formId && !form) errors.push(`Không tìm thấy form #${config.formId}`);
+  if (tbody && form && !form.contains(tbody)) errors.push(`#${config.tbodyId} không thuộc #${config.formId}`);
+
+  const columnKeys = config.columns.map(column => column.key);
+  if (new Set(columnKeys).size !== columnKeys.length) errors.push("Schema có key cột trùng nhau");
+  Object.entries(config.fieldIds || {}).forEach(([key, elementId]) => {
+    if (!document.getElementById(elementId)) errors.push(`Field ${key} trỏ tới ID không tồn tại: #${elementId}`);
+  });
+  return errors;
+}
+
+function renderDynamicFormTableHeader(tbodyId) {
+  const config = getDynamicFormTableConfig(tbodyId);
+  const tbody = document.getElementById(tbodyId);
+  const table = tbody ? tbody.closest(".dynamic-items-table") : null;
+  const thead = table ? table.querySelector("thead") : null;
+  if (!config || !thead) return;
+
+  const tr = document.createElement("tr");
+  config.columns.forEach(column => {
+    const th = document.createElement("th");
+    th.dataset.columnKey = column.key;
+    th.textContent = column.label || "";
+    if (column.width) th.style.width = column.width;
+    if (column.align) th.style.textAlign = column.align;
+    tr.appendChild(th);
+  });
+  thead.replaceChildren(tr);
+}
+
+function formatDynamicQuantity(value) {
+  const raw = value === undefined || value === null || value === "" ? 1 : value;
+  if (typeof raw === "number") {
+    return Number.isInteger(raw) ? String(raw) : String(raw).replace(".", ",");
+  }
+  return String(raw);
+}
+
+function parseDynamicQuantity(value) {
+  if (typeof safeParseFloat === "function") return safeParseFloat(value) || 0;
+  const normalized = String(value || "").replace(/\s/g, "").replace(",", ".");
+  return Number.parseFloat(normalized) || 0;
+}
+
+function parseDynamicMoney(value) {
+  return Number.parseInt(String(value || "").replace(/\D/g, ""), 10) || 0;
+}
+
+function parseDynamicDiscount(value) {
+  return Number.parseFloat(String(value || "").replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
+}
+
+function normalizeDynamicDiscountValue(discount, qty, price) {
+  const numericDiscount = Number(discount) || 0;
+  if (numericDiscount <= 100) return numericDiscount;
+  const gross = (Number(qty) || 0) * (Number(price) || 0);
+  return gross > 0 ? Math.round((numericDiscount / gross) * 100) : 0;
+}
+
+function formatDynamicMoney(value) {
+  if (typeof formatVND === "function") return formatVND(value || 0);
+  return `${Number(value || 0).toLocaleString("vi-VN")}đ`;
+}
+
+function setDynamicMoneyDisplay(elementId, value) {
+  if (!elementId) return;
+  const element = document.getElementById(elementId);
+  if (!element) return;
+  const formatted = formatDynamicMoney(value);
+  if ("value" in element) element.value = formatted;
+  else element.textContent = formatted;
+}
+
+function createDynamicFormInput(column, value, config) {
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "form-control";
+  input.dataset.fieldKey = column.key;
+  input.setAttribute("aria-label", column.label || column.key);
+  if (column.placeholder) input.placeholder = column.placeholder;
+  if (column.required) input.required = true;
+
+  if (column.type === "product") {
+    input.classList.add("item-productId");
+    if (column.listId) input.setAttribute("list", column.listId);
+    input.value = value === undefined || value === null ? "" : String(value);
+    if (typeof config.onProductInput === "function") {
+      input.addEventListener("input", () => config.onProductInput(input));
+      input.addEventListener("blur", () => config.onProductInput(input));
+    }
+  } else if (column.type === "description") {
+    input.classList.add("item-desc");
+    input.value = value === undefined || value === null ? "" : String(value);
+    if (input.value) input.dataset.userEdited = "1";
+    input.addEventListener("input", () => { input.dataset.userEdited = "1"; });
+  } else if (column.type === "quantity") {
+    input.classList.add("item-qty", "text-right", "qty-format");
+    input.value = formatDynamicQuantity(value);
+    input.addEventListener("input", () => refreshDynamicFormTable(config.tbodyId));
+  } else if (column.type === "money") {
+    input.classList.add("item-price", "text-right", "number-format");
+    input.value = Number(parseDynamicMoney(value)).toLocaleString("vi-VN");
+    input.addEventListener("input", () => refreshDynamicFormTable(config.tbodyId));
+  } else if (column.type === "discount") {
+    input.classList.add("item-discount", "text-right", "number-format");
+    input.placeholder = "0";
+    input.value = value === undefined || value === null || value === "" ? "0" : String(value);
+    input.addEventListener("input", () => refreshDynamicFormTable(config.tbodyId));
+  }
+
+  return input;
+}
+
+function createDynamicRowActionsElement(rowId, tbodyId) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "dynamic-row-actions";
+
+  const deleteButton = document.createElement("button");
+  deleteButton.type = "button";
+  deleteButton.className = "trash-btn dynamic-row-delete-btn";
+  deleteButton.title = "Xóa dòng";
+  deleteButton.setAttribute("aria-label", "Xóa dòng");
+  deleteButton.textContent = "×";
+  deleteButton.addEventListener("click", () => removeDynamicFormRow(rowId, tbodyId));
+
+  const insertButton = document.createElement("button");
+  insertButton.type = "button";
+  insertButton.className = "insert-row-btn dynamic-row-insert-btn";
+  insertButton.title = "Chèn dòng phía dưới";
+  insertButton.setAttribute("aria-label", "Chèn dòng phía dưới");
+  insertButton.textContent = "+";
+  insertButton.addEventListener("click", () => insertDynamicFormRowAfter(tbodyId, rowId));
+
+  wrapper.append(deleteButton, insertButton);
+  return wrapper;
+}
+
+function addDynamicFormTableRow(tbodyId, rowValues = {}, insertAfterRow = null, options = {}) {
+  const config = getDynamicFormTableConfig(tbodyId);
+  const tbody = document.getElementById(tbodyId);
+  if (!config || !tbody) return null;
+
+  const values = { ...(config.defaults || {}), ...(rowValues || {}) };
+  const rowId = `${config.rowIdPrefix || "voucher-row"}-${++dynamicFormRowSequence}`;
+  const tr = document.createElement("tr");
+  tr.id = rowId;
+  tr.dataset.dynamicFormRow = config.key;
+
+  config.columns.forEach(column => {
+    const td = document.createElement("td");
+    td.dataset.columnKey = column.key;
+    if (column.align) td.style.textAlign = column.align;
+
+    if (column.type === "amount") {
+      td.className = "text-right font-numeric item-total-display";
+      td.textContent = formatDynamicMoney(0);
+    } else if (column.type === "actions") {
+      td.className = "dynamic-row-actions-cell";
+      td.appendChild(createDynamicRowActionsElement(rowId, tbodyId));
+    } else {
+      td.appendChild(createDynamicFormInput(column, values[column.key], config));
+    }
+    tr.appendChild(td);
+  });
+
+  mountDynamicFormRow(tbody, tr, insertAfterRow);
+  if (options.refresh !== false) refreshDynamicFormTable(tbodyId);
+
+  const productInput = tr.querySelector(".item-productId");
+  if (options.focus !== false && productInput && !values.productId) {
+    setTimeout(() => productInput.focus(), 30);
+  }
+  return tr;
+}
+
+function serializeDynamicFormTable(tbodyId) {
+  const config = getDynamicFormTableConfig(tbodyId);
+  const tbody = document.getElementById(tbodyId);
+  if (!config || !tbody) return [];
+
+  return Array.from(tbody.querySelectorAll("tr")).map(row => {
+    const item = {};
+    config.columns.forEach(column => {
+      if (["amount", "actions"].includes(column.type)) return;
+      const input = row.querySelector(`[data-field-key="${column.key}"]`);
+      item[column.key] = input ? input.value : "";
+    });
+    return item;
+  });
+}
+
+function replaceDynamicFormTableRows(tbodyId, items, options = {}) {
+  const config = getDynamicFormTableConfig(tbodyId);
+  const tbody = document.getElementById(tbodyId);
+  if (!config || !tbody) return;
+
+  tbody.replaceChildren();
+  const rows = Array.isArray(items) && items.length > 0 ? items : [config.defaults || {}];
+  rows.forEach(item => addDynamicFormTableRow(tbodyId, item, null, { focus: false, refresh: false }));
+  refreshDynamicFormTable(tbodyId);
+
+  if (options.focus === true) {
+    const firstInput = tbody.querySelector(".item-productId");
+    if (firstInput) setTimeout(() => firstInput.focus(), 30);
+  }
+}
+
+function resetDynamicVoucherForm(formId, fieldOverrides = {}) {
+  const config = getDynamicFormTableConfigByFormId(formId);
+  if (!config) return false;
+
+  if (typeof config.setEditingId === "function") config.setEditingId(null);
+  Object.entries(config.fieldIds || {}).forEach(([key, elementId]) => {
+    const element = document.getElementById(elementId);
+    if (!element || !("value" in element)) return;
+    if (Object.prototype.hasOwnProperty.call(fieldOverrides, key)) {
+      element.value = fieldOverrides[key];
+    } else if (config.fieldDefaults && Object.prototype.hasOwnProperty.call(config.fieldDefaults, key)) {
+      element.value = config.fieldDefaults[key];
+    } else {
+      element.value = "";
+    }
+  });
+  replaceDynamicFormTableRows(config.tbodyId, []);
+  if (typeof updateVoucherModeBadge === "function" && config.modalId) {
+    updateVoucherModeBadge(config.modalId, false);
+  }
+  return true;
+}
+
+function recalculateDynamicFormTable(tbodyId) {
+  const config = getDynamicFormTableConfig(tbodyId);
+  const tbody = document.getElementById(tbodyId);
+  if (!config || !tbody) return { subtotal: 0, taxAmount: 0, total: 0 };
+
+  let subtotal = 0;
+  tbody.querySelectorAll("tr").forEach(row => {
+    const qty = parseDynamicQuantity(row.querySelector(".item-qty")?.value);
+    const price = parseDynamicMoney(row.querySelector(".item-price")?.value);
+    const discount = row.querySelector(".item-discount")
+      ? parseDynamicDiscount(row.querySelector(".item-discount").value)
+      : 0;
+    const amount = typeof config.calculateAmount === "function"
+      ? config.calculateAmount({ qty, price, discount, row })
+      : Math.round(qty * price * (1 - discount / 100));
+    subtotal += amount;
+    const amountDisplay = row.querySelector(".item-total-display");
+    if (amountDisplay) amountDisplay.textContent = formatDynamicMoney(amount);
+  });
+
+  const totals = config.totals || {};
+  let taxRate = 0;
+  if (Object.prototype.hasOwnProperty.call(totals, "fixedTaxRate")) {
+    taxRate = Number(totals.fixedTaxRate) || 0;
+  } else if (totals.taxRateId) {
+    taxRate = Number.parseInt(document.getElementById(totals.taxRateId)?.value, 10) || 0;
+  }
+  const taxAmount = Math.round(subtotal * (taxRate / 100));
+  const total = subtotal + taxAmount;
+
+  setDynamicMoneyDisplay(totals.subtotalId, subtotal);
+  setDynamicMoneyDisplay(totals.taxId, taxAmount);
+  setDynamicMoneyDisplay(totals.totalId, total);
+  return { subtotal, taxAmount, total };
+}
+
+function refreshDynamicProductPrices(tbodyId) {
+  const config = getDynamicFormTableConfig(tbodyId);
+  const tbody = document.getElementById(tbodyId);
+  if (!config || !tbody || typeof config.onProductInput !== "function") return 0;
+  let count = 0;
+  tbody.querySelectorAll(".item-productId").forEach(input => {
+    if (!input.value.trim()) return;
+    config.onProductInput(input);
+    count++;
+  });
+  refreshDynamicFormTable(tbodyId);
+  return count;
 }
 
 function ensureDynamicItemsRowCountElement(tbody) {
@@ -305,10 +715,16 @@ function updateDynamicItemsRowCount(tbodyId) {
 
 function refreshDynamicFormTable(tbodyId) {
   const config = dynamicFormTableRegistry[tbodyId];
-  if (config && typeof config.recalc === "function") {
-    config.recalc();
+  if (config) {
+    if (typeof config.recalculate === "function") config.recalculate(tbodyId);
+    else recalculateDynamicFormTable(tbodyId);
   }
   updateDynamicItemsRowCount(tbodyId);
+  if (config && config.formId) {
+    document.dispatchEvent(new CustomEvent("dynamic-form-table-change", {
+      detail: { formId: config.formId, tbodyId }
+    }));
+  }
 }
 
 function mountDynamicFormRow(tbody, tr, insertAfterRow = null) {
@@ -360,10 +776,15 @@ function insertDynamicFormRowAfter(tbodyId, afterRowId) {
   const config = dynamicFormTableRegistry[tbodyId];
   const afterRow = document.getElementById(afterRowId);
   if (!config || !afterRow) return;
-  config.addRow(afterRow);
+  addDynamicFormTableRow(tbodyId, config.defaults || {}, afterRow);
 }
 
 function initDynamicItemsTables() {
+  getDynamicFormTableConfigs().forEach(config => {
+    const errors = validateDynamicFormTableConfig(config);
+    if (errors.length > 0) console.error(`[VoucherTable:${config.key}]`, errors.join("; "));
+    renderDynamicFormTableHeader(config.tbodyId);
+  });
   document.querySelectorAll(".dynamic-items-table tbody[id]").forEach(tbody => {
     ensureDynamicItemsRowCountElement(tbody);
     updateDynamicItemsRowCount(tbody.id);
@@ -378,6 +799,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
 window.isVoucherEntryModalId = isVoucherEntryModalId;
 window.registerDynamicFormTable = registerDynamicFormTable;
+window.createStandardDynamicFormTableConfig = createStandardDynamicFormTableConfig;
+window.getDynamicFormTableConfig = getDynamicFormTableConfig;
+window.getDynamicFormTableConfigs = getDynamicFormTableConfigs;
+window.getDynamicFormTableConfigByFormId = getDynamicFormTableConfigByFormId;
+window.getVisibleDynamicFormTableConfig = getVisibleDynamicFormTableConfig;
+window.validateDynamicFormTableConfig = validateDynamicFormTableConfig;
+window.renderDynamicFormTableHeader = renderDynamicFormTableHeader;
+window.addDynamicFormTableRow = addDynamicFormTableRow;
+window.replaceDynamicFormTableRows = replaceDynamicFormTableRows;
+window.resetDynamicVoucherForm = resetDynamicVoucherForm;
+window.serializeDynamicFormTable = serializeDynamicFormTable;
+window.recalculateDynamicFormTable = recalculateDynamicFormTable;
+window.refreshDynamicProductPrices = refreshDynamicProductPrices;
+window.normalizeDynamicDiscountValue = normalizeDynamicDiscountValue;
 window.buildDynamicRowActionsCell = buildDynamicRowActionsCell;
 window.mountDynamicFormRow = mountDynamicFormRow;
 window.removeDynamicFormRow = removeDynamicFormRow;

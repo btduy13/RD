@@ -5,6 +5,53 @@
   ];
   const PRINT_PAPER_SIZES = ["A4", "A5"];
   const A5_WIDTH_RATIO = 148 / 210;
+  const PRINT_TEMPLATE_FONT_FAMILIES = [
+    "Times New Roman",
+    "Arial",
+    "Tahoma",
+    "Verdana"
+  ];
+  const DEFAULT_PRINT_TEMPLATE_SETTINGS = Object.freeze({
+    fontFamily: "Times New Roman",
+    contentFontSize: 13,
+    tableFontSize: 13,
+    titleFontSize: 18,
+    lineHeight: 1.25,
+    textAlign: "left",
+    marginTopMm: 4,
+    marginRightMm: 5,
+    marginBottomMm: 4,
+    marginLeftMm: 5,
+    showLogo: true,
+    showQr: true,
+    showSignatures: true
+  });
+
+  function clampNumber(value, min, max, fallback) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(max, Math.max(min, n));
+  }
+
+  function normalizePrintTemplateSettings(value) {
+    const raw = value && typeof value === "object" ? value : {};
+    const defaults = DEFAULT_PRINT_TEMPLATE_SETTINGS;
+    return {
+      fontFamily: PRINT_TEMPLATE_FONT_FAMILIES.includes(raw.fontFamily) ? raw.fontFamily : defaults.fontFamily,
+      contentFontSize: clampNumber(raw.contentFontSize, 8, 24, defaults.contentFontSize),
+      tableFontSize: clampNumber(raw.tableFontSize, 8, 20, defaults.tableFontSize),
+      titleFontSize: clampNumber(raw.titleFontSize, 12, 32, defaults.titleFontSize),
+      lineHeight: clampNumber(raw.lineHeight, 1, 2, defaults.lineHeight),
+      textAlign: ["left", "center", "right"].includes(raw.textAlign) ? raw.textAlign : defaults.textAlign,
+      marginTopMm: clampNumber(raw.marginTopMm, 0, 30, defaults.marginTopMm),
+      marginRightMm: clampNumber(raw.marginRightMm, 0, 30, defaults.marginRightMm),
+      marginBottomMm: clampNumber(raw.marginBottomMm, 0, 30, defaults.marginBottomMm),
+      marginLeftMm: clampNumber(raw.marginLeftMm, 0, 30, defaults.marginLeftMm),
+      showLogo: raw.showLogo !== false,
+      showQr: raw.showQr !== false,
+      showSignatures: raw.showSignatures !== false
+    };
+  }
 
   function normalizePrintFontScale(value) {
     const n = Number(value);
@@ -27,7 +74,7 @@
   }
 
   function getPrintPageMargins(paperSize) {
-    return paperSize === "A4" ? "10mm 12mm" : "6mm 8mm";
+    return "0";
   }
 
   function getVoucherPreviewPageHeight(paperSize, paperWidthPx) {
@@ -47,12 +94,15 @@
   const api = {
     PRINT_FONT_SCALE_OPTIONS,
     PRINT_PAPER_SIZES,
+    PRINT_TEMPLATE_FONT_FAMILIES,
+    DEFAULT_PRINT_TEMPLATE_SETTINGS,
     A5_WIDTH_RATIO,
     normalizePrintFontScale,
     getPrintPaperFitFactor,
     getVoucherPaperMaxWidth,
     getEffectivePrintScale,
     getPrintPageMargins,
+    normalizePrintTemplateSettings,
     getVoucherPreviewPageHeight,
     formatPrintScaleLabel
   };

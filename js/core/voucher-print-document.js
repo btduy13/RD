@@ -9,7 +9,7 @@ function voucherScaledFont(px) {
 }
 
 function voucherTableScaledFont(px) {
-  return `calc(${px}px * var(--voucher-table-font-scale, 1))`;
+  return `calc(var(--voucher-template-table-font-size, ${px}px) * var(--voucher-table-font-scale, 1))`;
 }
 
 function getVoucherPaperMaxWidth(printPaperSize) {
@@ -90,7 +90,7 @@ function getVoucherPrintStyles(appDir) {
     }
     .printable-voucher .voucher-title,
     .printable-voucher .voucher-document-title {
-      font-size: 18px !important;
+      font-size: var(--voucher-template-title-font-size, 18px) !important;
       letter-spacing: 0.8px !important;
       line-height: 1.15 !important;
     }
@@ -135,7 +135,7 @@ function getVoucherPrintStyles(appDir) {
     }
     .printable-voucher.debt-notice-voucher {
       max-width: none !important;
-      padding: 0 !important;
+      padding: var(--voucher-template-margin-top, 4mm) var(--voucher-template-margin-right, 5mm) var(--voucher-template-margin-bottom, 4mm) var(--voucher-template-margin-left, 5mm) !important;
       margin: 0 !important;
     }
     .printable-voucher.debt-notice-voucher .debt-notice-table {

@@ -25,9 +25,31 @@ function testFontOptions() {
 }
 
 function testPageMargins() {
-  assert.equal(ps.getPrintPageMargins('A4'), '10mm 12mm');
-  assert.equal(ps.getPrintPageMargins('A5'), '6mm 8mm');
+  assert.equal(ps.getPrintPageMargins('A4'), '0');
+  assert.equal(ps.getPrintPageMargins('A5'), '0');
   console.log('page margins passed');
+}
+
+function testTemplateSettings() {
+  const defaults = ps.normalizePrintTemplateSettings();
+  assert.equal(defaults.marginTopMm, 4);
+  assert.equal(defaults.marginRightMm, 5);
+  assert.equal(defaults.tableFontSize, 13);
+  const normalized = ps.normalizePrintTemplateSettings({
+    fontFamily: 'Arial',
+    contentFontSize: 99,
+    tableFontSize: 7,
+    marginLeftMm: -4,
+    textAlign: 'center',
+    showQr: false
+  });
+  assert.equal(normalized.fontFamily, 'Arial');
+  assert.equal(normalized.contentFontSize, 24);
+  assert.equal(normalized.tableFontSize, 8);
+  assert.equal(normalized.marginLeftMm, 0);
+  assert.equal(normalized.textAlign, 'center');
+  assert.equal(normalized.showQr, false);
+  console.log('print template settings passed');
 }
 
 function testPreviewPageHeight() {
@@ -42,5 +64,6 @@ testEffectiveScale();
 testPaperMaxWidth();
 testFontOptions();
 testPageMargins();
+testTemplateSettings();
 testPreviewPageHeight();
 console.log('print settings tests passed');

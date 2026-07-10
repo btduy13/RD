@@ -343,171 +343,23 @@ function initMouseInteractions() {
         e.preventDefault();
       }
     } else if (e.key === "F4") {
-      const salesModal = document.getElementById("modal-add-sales");
-      const isSalesVisible = salesModal && (salesModal.style.display === "flex" || window.getComputedStyle(salesModal).display === "flex");
-      const purchaseModal = document.getElementById("modal-add-purchase");
-      const isPurchaseVisible = purchaseModal && (purchaseModal.style.display === "flex" || window.getComputedStyle(purchaseModal).display === "flex");
-      const purchaseOrderModal = document.getElementById("modal-add-purchase-order");
-      const isPurchaseOrderVisible = purchaseOrderModal && (purchaseOrderModal.style.display === "flex" || window.getComputedStyle(purchaseOrderModal).display === "flex");
-      const purchaseReturnModal = document.getElementById("modal-add-purchase-return");
-      const isPurchaseReturnVisible = purchaseReturnModal && (purchaseReturnModal.style.display === "flex" || window.getComputedStyle(purchaseReturnModal).display === "flex");
-      const salesReturnModal = document.getElementById("modal-add-sales-return");
-      const isSalesReturnVisible = salesReturnModal && (salesReturnModal.style.display === "flex" || window.getComputedStyle(salesReturnModal).display === "flex");
-      const salesQuotationModal = document.getElementById("modal-add-sales-quotation");
-      const isSalesQuotationVisible = salesQuotationModal && (salesQuotationModal.style.display === "flex" || window.getComputedStyle(salesQuotationModal).display === "flex");
-
-      if (isSalesVisible) {
-        if (typeof addSalesFormRow === "function") {
-          addSalesFormRow();
-        }
-        e.preventDefault();
-      } else if (isPurchaseVisible) {
-        if (typeof addPurchaseFormRow === "function") {
-          addPurchaseFormRow();
-        }
-        e.preventDefault();
-      } else if (isPurchaseOrderVisible) {
-        if (typeof addPurchaseOrderFormRow === "function") {
-          addPurchaseOrderFormRow();
-        }
-        e.preventDefault();
-      } else if (isPurchaseReturnVisible) {
-        if (typeof addPurchaseReturnFormRow === "function") {
-          addPurchaseReturnFormRow();
-        }
-        e.preventDefault();
-      } else if (isSalesReturnVisible) {
-        if (typeof addSalesReturnFormRow === "function") {
-          addSalesReturnFormRow();
-        }
-        e.preventDefault();
-      } else if (isSalesQuotationVisible) {
-        if (typeof addQuotationFormRow === "function") {
-          addQuotationFormRow();
-        }
+      const config = typeof getVisibleDynamicFormTableConfig === "function"
+        ? getVisibleDynamicFormTableConfig()
+        : null;
+      if (config) {
+        addDynamicFormTableRow(config.tbodyId, config.defaults || {});
         e.preventDefault();
       }
     } else if (e.key === "F8") {
-      const salesModal = document.getElementById("modal-add-sales");
-      const isSalesVisible = salesModal && (salesModal.style.display === "flex" || window.getComputedStyle(salesModal).display === "flex");
-      const purchaseModal = document.getElementById("modal-add-purchase");
-      const isPurchaseVisible = purchaseModal && (purchaseModal.style.display === "flex" || window.getComputedStyle(purchaseModal).display === "flex");
-      const purchaseOrderModal = document.getElementById("modal-add-purchase-order");
-      const isPurchaseOrderVisible = purchaseOrderModal && (purchaseOrderModal.style.display === "flex" || window.getComputedStyle(purchaseOrderModal).display === "flex");
-      const purchaseReturnModal = document.getElementById("modal-add-purchase-return");
-      const isPurchaseReturnVisible = purchaseReturnModal && (purchaseReturnModal.style.display === "flex" || window.getComputedStyle(purchaseReturnModal).display === "flex");
-      const salesReturnModal = document.getElementById("modal-add-sales-return");
-      const isSalesReturnVisible = salesReturnModal && (salesReturnModal.style.display === "flex" || window.getComputedStyle(salesReturnModal).display === "flex");
-      const salesQuotationModal = document.getElementById("modal-add-sales-quotation");
-      const isSalesQuotationVisible = salesQuotationModal && (salesQuotationModal.style.display === "flex" || window.getComputedStyle(salesQuotationModal).display === "flex");
-
-      if (isSalesVisible) {
-        const activeEl = document.activeElement;
-        const itemsBody = document.getElementById("sales-form-items-body");
-        if (itemsBody) {
-          let trToDelete = null;
-          if (activeEl && itemsBody.contains(activeEl)) {
-            trToDelete = activeEl.closest("tr");
-          } else {
-            trToDelete = itemsBody.querySelector("tr:last-child");
-          }
-          if (trToDelete) {
-            trToDelete.remove();
-            if (typeof recalculateSalesTotals === "function") {
-              recalculateSalesTotals();
-            }
-          }
-        }
-        e.preventDefault();
-      } else if (isPurchaseVisible) {
-        const activeEl = document.activeElement;
-        const itemsBody = document.getElementById("purchase-form-items-body");
-        if (itemsBody) {
-          let trToDelete = null;
-          if (activeEl && itemsBody.contains(activeEl)) {
-            trToDelete = activeEl.closest("tr");
-          } else {
-            trToDelete = itemsBody.querySelector("tr:last-child");
-          }
-          if (trToDelete) {
-            trToDelete.remove();
-            if (typeof recalculatePurchaseTotals === "function") {
-              recalculatePurchaseTotals();
-            }
-          }
-        }
-        e.preventDefault();
-      } else if (isPurchaseOrderVisible) {
-        const activeEl = document.activeElement;
-        const itemsBody = document.getElementById("purchase-order-form-items-body");
-        if (itemsBody) {
-          let trToDelete = null;
-          if (activeEl && itemsBody.contains(activeEl)) {
-            trToDelete = activeEl.closest("tr");
-          } else {
-            trToDelete = itemsBody.querySelector("tr:last-child");
-          }
-          if (trToDelete) {
-            trToDelete.remove();
-            if (typeof recalculatePurchaseOrderTotals === "function") {
-              recalculatePurchaseOrderTotals();
-            }
-          }
-        }
-        e.preventDefault();
-      } else if (isPurchaseReturnVisible) {
-        const activeEl = document.activeElement;
-        const itemsBody = document.getElementById("purchase-return-form-items-body");
-        if (itemsBody) {
-          let trToDelete = null;
-          if (activeEl && itemsBody.contains(activeEl)) {
-            trToDelete = activeEl.closest("tr");
-          } else {
-            trToDelete = itemsBody.querySelector("tr:last-child");
-          }
-          if (trToDelete) {
-            trToDelete.remove();
-            if (typeof recalculatePurchaseReturnTotals === "function") {
-              recalculatePurchaseReturnTotals();
-            }
-          }
-        }
-        e.preventDefault();
-      } else if (isSalesReturnVisible) {
-        const activeEl = document.activeElement;
-        const itemsBody = document.getElementById("sales-return-form-items-body");
-        if (itemsBody) {
-          let trToDelete = null;
-          if (activeEl && itemsBody.contains(activeEl)) {
-            trToDelete = activeEl.closest("tr");
-          } else {
-            trToDelete = itemsBody.querySelector("tr:last-child");
-          }
-          if (trToDelete) {
-            trToDelete.remove();
-            if (typeof recalculateSalesReturnTotals === "function") {
-              recalculateSalesReturnTotals();
-            }
-          }
-        }
-        e.preventDefault();
-      } else if (isSalesQuotationVisible) {
-        const activeEl = document.activeElement;
-        const itemsBody = document.getElementById("quotation-form-items-body");
-        if (itemsBody) {
-          let trToDelete = null;
-          if (activeEl && itemsBody.contains(activeEl)) {
-            trToDelete = activeEl.closest("tr");
-          } else {
-            trToDelete = itemsBody.querySelector("tr:last-child");
-          }
-          if (trToDelete) {
-            trToDelete.remove();
-            if (typeof recalculateQuotationTotals === "function") {
-              recalculateQuotationTotals();
-            }
-          }
-        }
+      const config = typeof getVisibleDynamicFormTableConfig === "function"
+        ? getVisibleDynamicFormTableConfig()
+        : null;
+      const tbody = config ? document.getElementById(config.tbodyId) : null;
+      if (config && tbody) {
+        const activeRow = tbody.contains(document.activeElement)
+          ? document.activeElement.closest("tr")
+          : tbody.querySelector("tr:last-child");
+        if (activeRow) removeDynamicFormRow(activeRow.id, config.tbodyId);
         e.preventDefault();
       }
     }
@@ -626,18 +478,11 @@ function getEditableCellsInRow(tr) {
  * Lấy tbody của bảng đơn hàng nếu el đang nằm bên trong.
  */
 function getOrderTableRows(currentEl) {
-  const tbodyId = currentEl.closest('#purchase-form-items-body')
-    ? 'purchase-form-items-body'
-    : currentEl.closest('#sales-form-items-body')
-      ? 'sales-form-items-body'
-      : currentEl.closest('#purchase-order-form-items-body')
-        ? 'purchase-order-form-items-body'
-        : currentEl.closest('#purchase-return-form-items-body')
-          ? 'purchase-return-form-items-body'
-          : null;
-  if (!tbodyId) return null;
-  const tbody = document.getElementById(tbodyId);
-  return { tbody, rows: Array.from(tbody.querySelectorAll('tr')), tbodyId };
+  const tbody = currentEl?.closest?.('.dynamic-items-table tbody[id]');
+  if (!tbody || typeof getDynamicFormTableConfig !== 'function') return null;
+  const config = getDynamicFormTableConfig(tbody.id);
+  if (!config) return null;
+  return { tbody, rows: Array.from(tbody.querySelectorAll('tr')), tbodyId: tbody.id, config };
 }
 
 /**
@@ -658,133 +503,16 @@ function focusRowFirstCell(tr) {
  */
 function initOrderFormKeyboardNavigation() {
   document.addEventListener('keydown', function (e) {
-    // ── F5: Reset đơn giá bán hàng theo giá kho (chặn load lại trang) ─────
+    // F5: reset đơn giá của bảng chứng từ đang mở theo cấu hình registry.
     if (e.key === 'F5') {
-      const salesModal = document.getElementById('modal-add-sales');
-      const isSalesOpen = salesModal && (salesModal.style.display === 'flex' || window.getComputedStyle(salesModal).display === 'flex');
-      
-      if (isSalesOpen) {
+      const config = typeof getVisibleDynamicFormTableConfig === 'function'
+        ? getVisibleDynamicFormTableConfig()
+        : null;
+      if (config) {
         e.preventDefault();
-        const salesRows = salesModal.querySelectorAll("#sales-form-items-body tr");
-        if (salesRows.length > 0) {
-          let count = 0;
-          salesRows.forEach(row => {
-            const selectEl = row.querySelector(".item-productId");
-            if (!selectEl) return;
-            const prodVal = selectEl.value;
-            const prod = resolveProduct(prodVal);
-            if (prod) {
-              ensureProductExcelRow(prod);
-              const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
-                ? prod.salePrice1
-                : (prod.excelRow && prod.excelRow[21] !== undefined && Number(prod.excelRow[21]) > 0
-                  ? Number(prod.excelRow[21])
-                  : (Math.round(prod.avgCost * 1.35 / 1000) * 1000 || 50000));
-              
-              row.querySelector(".item-price").value = Number(salePriceVal).toLocaleString("vi-VN");
-              count++;
-            }
-          });
-          recalculateSalesTotals();
-          if (typeof showToast === "function") {
-            showToast(`Đã khôi phục đơn giá gốc của ${count} mặt hàng từ kho!`, "success");
-          }
-        }
-        return;
-      }
-
-      const purchaseModal = document.getElementById('modal-add-purchase');
-      const isPurchaseOpen = purchaseModal && (purchaseModal.style.display === 'flex' || window.getComputedStyle(purchaseModal).display === 'flex');
-      if (isPurchaseOpen) {
-        e.preventDefault();
-        const purchaseRows = purchaseModal.querySelectorAll("#purchase-form-items-body tr");
-        if (purchaseRows.length > 0) {
-          let count = 0;
-          purchaseRows.forEach(row => {
-            const selectEl = row.querySelector(".item-productId");
-            if (!selectEl) return;
-            const prodVal = selectEl.value;
-            const prod = resolveProduct(prodVal);
-            if (prod) {
-              ensureProductExcelRow(prod);
-              const purchasePriceVal = prod.lastPurchasePrice !== undefined && prod.lastPurchasePrice > 0
-                ? prod.lastPurchasePrice
-                : (prod.excelRow && prod.excelRow[20] !== undefined && Number(prod.excelRow[20]) > 0
-                  ? Number(prod.excelRow[20])
-                  : (prod.avgCost || prod.initialCost || 10000));
-              
-              row.querySelector(".item-price").value = Number(purchasePriceVal).toLocaleString("vi-VN");
-              count++;
-            }
-          });
-          recalculatePurchaseTotals();
-          if (typeof showToast === "function") {
-            showToast(`Đã khôi phục đơn giá gốc của ${count} mặt hàng từ kho!`, "success");
-          }
-        }
-        return;
-      }
-
-      const purchaseOrderModal = document.getElementById('modal-add-purchase-order');
-      const isPurchaseOrderOpen = purchaseOrderModal && (purchaseOrderModal.style.display === 'flex' || window.getComputedStyle(purchaseOrderModal).display === 'flex');
-      if (isPurchaseOrderOpen) {
-        e.preventDefault();
-        const purchaseOrderRows = purchaseOrderModal.querySelectorAll("#purchase-order-form-items-body tr");
-        if (purchaseOrderRows.length > 0) {
-          let count = 0;
-          purchaseOrderRows.forEach(row => {
-            const selectEl = row.querySelector(".item-productId");
-            if (!selectEl) return;
-            const prodVal = selectEl.value;
-            const prod = resolveProduct(prodVal);
-            if (prod) {
-              ensureProductExcelRow(prod);
-              const purchasePriceVal = prod.lastPurchasePrice !== undefined && prod.lastPurchasePrice > 0
-                ? prod.lastPurchasePrice
-                : (prod.excelRow && prod.excelRow[20] !== undefined && Number(prod.excelRow[20]) > 0
-                  ? Number(prod.excelRow[20])
-                  : (prod.avgCost || prod.initialCost || 10000));
-              
-              row.querySelector(".item-price").value = Number(purchasePriceVal).toLocaleString("vi-VN");
-              count++;
-            }
-          });
-          recalculatePurchaseOrderTotals();
-          if (typeof showToast === "function") {
-            showToast("Đã khôi phục đơn giá gốc của " + count + " mặt hàng từ kho!", "success");
-          }
-        }
-        return;
-      }
-
-      const purchaseReturnModal = document.getElementById('modal-add-purchase-return');
-      const isPurchaseReturnOpen = purchaseReturnModal && (purchaseReturnModal.style.display === 'flex' || window.getComputedStyle(purchaseReturnModal).display === 'flex');
-      if (isPurchaseReturnOpen) {
-        e.preventDefault();
-        const purchaseReturnRows = purchaseReturnModal.querySelectorAll("#purchase-return-form-items-body tr");
-        if (purchaseReturnRows.length > 0) {
-          let count = 0;
-          purchaseReturnRows.forEach(row => {
-            const selectEl = row.querySelector(".item-productId");
-            if (!selectEl) return;
-            const prodVal = selectEl.value;
-            const prod = resolveProduct(prodVal);
-            if (prod) {
-              ensureProductExcelRow(prod);
-              const purchasePriceVal = prod.lastPurchasePrice !== undefined && prod.lastPurchasePrice > 0
-                ? prod.lastPurchasePrice
-                : (prod.excelRow && prod.excelRow[20] !== undefined && Number(prod.excelRow[20]) > 0
-                  ? Number(prod.excelRow[20])
-                  : (prod.avgCost || prod.initialCost || 10000));
-              
-              row.querySelector(".item-price").value = Number(purchasePriceVal).toLocaleString("vi-VN");
-              count++;
-            }
-          });
-          recalculatePurchaseReturnTotals();
-          if (typeof showToast === "function") {
-            showToast("Đã khôi phục đơn giá gốc của " + count + " mặt hàng từ kho!", "success");
-          }
+        const count = refreshDynamicProductPrices(config.tbodyId);
+        if (typeof showToast === "function") {
+          showToast(`Đã khôi phục đơn giá gốc của ${count} mặt hàng từ kho!`, "success");
         }
         return;
       }
@@ -794,8 +522,8 @@ function initOrderFormKeyboardNavigation() {
     if (!el) return;
 
     // Xác định modal đang mở chứa el hiện tại
-    const activeModal = el.closest('#modal-add-purchase, #modal-add-sales, #modal-add-purchase-order, #modal-add-purchase-return');
-    if (!activeModal) return;
+    const activeModal = el.closest('.modal-overlay');
+    if (!activeModal || !activeModal.querySelector('.dynamic-items-table tbody[id]')) return;
 
     // ── F1: chuyển sang ô tiếp theo trong toàn bộ modal ──────────────────
     if (e.key === 'F1') {
@@ -810,10 +538,7 @@ function initOrderFormKeyboardNavigation() {
         // Đang ở ô cuối cùng của modal → thêm dòng mới nếu đang trong bảng
         const info = getOrderTableRows(el);
         if (info) {
-          if (info.tbodyId === 'purchase-form-items-body') addPurchaseFormRow();
-          else if (info.tbodyId === 'purchase-order-form-items-body') addPurchaseOrderFormRow();
-          else if (info.tbodyId === 'purchase-return-form-items-body') addPurchaseReturnFormRow();
-          else addSalesFormRow();
+          addDynamicFormTableRow(info.tbodyId, info.config.defaults || {});
         }
       }
       return;
@@ -888,11 +613,8 @@ function initOrderFormKeyboardNavigation() {
     // ── Tab: chuyển dòng trong bảng đơn hàng ─────────────────────────────
     const info = getOrderTableRows(el);
     if (!info) return;
-    const { rows, tbodyId } = info;
+    const { rows, tbodyId, config } = info;
     if (rows.length === 0) return;
-    const isPurchase = tbodyId === 'purchase-form-items-body';
-    const isPurchaseOrder = tbodyId === 'purchase-order-form-items-body';
-    const isPurchaseReturn = tbodyId === 'purchase-return-form-items-body';
     const currentRow = el.closest('tr');
     if (!currentRow) return;
     const rowIdx = rows.indexOf(currentRow);
@@ -906,10 +628,7 @@ function initOrderFormKeyboardNavigation() {
       if (rowIdx < rows.length - 1) {
         focusRowFirstCell(rows[rowIdx + 1]);
       } else {
-        if (isPurchase) addPurchaseFormRow();
-        else if (isPurchaseOrder) addPurchaseOrderFormRow();
-        else if (isPurchaseReturn) addPurchaseReturnFormRow();
-        else addSalesFormRow();
+        addDynamicFormTableRow(tbodyId, config.defaults || {});
       }
       return;
     }

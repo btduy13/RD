@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <button id="voucher-preview-edit-content" type="button">Sửa nội dung</button>
+  <div id="voucher-print-area">
+    <div class="printable-voucher" style="--voucher-paper-max-width:564px; max-width:564px;">
+      <div class="voucher-rd-header">
+        <div class="voucher-rd-header-logo"><img alt="Logo"></div>
+        <div class="voucher-rd-header-info">Công ty kiểm thử</div>
+        <div class="voucher-rd-header-qr">QR</div>
+      </div>
+      <div class="voucher-document-title">PHIẾU KIỂM THỬ</div>
+      <div class="voucher-body-copy" style="font-size:10px;">Nội dung thường</div>
+      <table><thead><tr><th>Mặt hàng</th></tr></thead><tbody><tr><td>Nội dung bảng</td></tr></tbody></table>
+      <div class="voucher-signatures">Người lập phiếu</div>
+    </div>
+  </div>
+  <div id="modal-voucher-template-editor"></div>
+  <select id="voucher-template-font-family"><option>Times New Roman</option><option>Arial</option><option>Tahoma</option><option>Verdana</option></select>
+  <input id="voucher-template-content-font-size" type="number">
+  <input id="voucher-template-table-font-size" type="number">
+  <input id="voucher-template-title-font-size" type="number">
+  <input id="voucher-template-line-height" type="number">
+  <label><input type="radio" name="voucher-template-align" value="left"></label>
+  <label><input type="radio" name="voucher-template-align" value="center"></label>
+  <label><input type="radio" name="voucher-template-align" value="right"></label>
+  <input id="voucher-template-margin-top" type="number">
+  <input id="voucher-template-margin-right" type="number">
+  <input id="voucher-template-margin-bottom" type="number">
+  <input id="voucher-template-margin-left" type="number">
+  <input id="voucher-template-show-logo" type="checkbox">
+  <input id="voucher-template-show-qr" type="checkbox">
+  <input id="voucher-template-show-signatures" type="checkbox">
+  <textarea id="voucher-template-extra-text"></textarea>
+  <select id="voucher-template-extra-placement"><option value="beforeTable">Trước bảng</option></select>
+</body>
+</html>
