@@ -1,5 +1,19 @@
 # Audit dong bo cloud va UI
 
+## Bo sung audit 2026-07-11
+
+- Sua hang doi dong bo V2: push trong luc startup/pull khong con bi bo roi; pull dang cho giu nguyen `forceFull`, `force` va ly do yeu cau.
+- Chan pull va push chay song song ngoai luong pre-pull noi bo, tranh merge/push tren snapshot cu.
+- Sua thong bao dong bo thu cong: khong con bao thanh cong khi tac vu moi chi duoc xep hang hoac push that bai.
+- Sua tombstone theo dung loai entity (`v_`, `p_`, `part_`, `cash_`, `escrow_`), tranh xoa nham voucher/san pham/doi tac trung ID.
+- Giu tuong thich tombstone cu khong co prefix bang cach mac dinh no la voucher.
+- Bat lai Electron sandbox va webSecurity; khoa dieu huong ngoai cua so ung dung.
+- Gioi han URL cap nhat vao GitHub Releases chinh thuc cua `btduy13/RD`, chi theo redirect HTTPS den may chu asset GitHub.
+- Sua offset modal bi gan inline sai `68px/260px`; modal gio bam theo bien CSS sidebar va khong lech khi doi breakpoint.
+- Sua giao dien mobile: dashboard debt grid, filter ngay, header, dropdown, modal va khoang cach tren man hinh hep.
+- Sua style phieu thu/chi khong an do selector sai; bo sung dieu huong sidebar bang ban phim va trang thai ARIA.
+- Bo sung regression test cho tombstone trung ID, hang doi full pull va whitelist URL cap nhat.
+
 ## Da sua trong client
 
 - Tach checkpoint pull cloud ra khoi `state._lastModified` bang key `rd_accounting_last_pulled_cloud_ts`, tranh viec local moi hon lam bo sot delta cloud.

@@ -5,6 +5,11 @@ const { exec } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const { buildVoucherPrintDocument } = require('./js/core/voucher-print-document');
+const {
+  isAllowedExternalUrl,
+  isAllowedUpdateRequestUrl,
+  isAllowedUpdateRedirectUrl
+} = require('./js/core/url-security');
 
 // Tăng giới hạn heap V8 lên 4 GB để xử lý tập dữ liệu lớn (7000+ chứng từ, 1600+ sản phẩm)
 // Ngăn chặn lỗi "FATAL ERROR: Oilpan: Large allocation" khi ghi nhớ vượt ngưỡng mặc định ~1.5 GB
@@ -82,9 +87,9 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: false, // Tắt sandbox để preload.js có quyền chạy giao tiếp IPC đầy đủ
+      sandbox: true,
       preload: path.join(__dirname, 'preload.js'),
-      webSecurity: false
+      webSecurity: true
     },
     // Giao diện bắt đầu mượt mà, ẩn cửa sổ cho đến khi sẵn sàng hiển thị để tránh chớp trắng
     show: false,
@@ -96,6 +101,16 @@ function createWindow() {
     console.log(`RENDERER CONSOLE [${level}]: ${message} (at ${sourceId}:${line})`);
   });
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (isAllowedExternalUrl(url)) {
+      shell.openExternal(url).catch(err => console.error('Lỗi mở liên kết ngoài:', err));
+    }
+    return { action: 'deny' };
+  });
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (url !== mainWindow.webContents.getURL()) event.preventDefault();
+  });
 
   // 3. Thiết lập menu ứng dụng tối giản để các phím tắt soạn thảo hoạt động bình thường
   const template = [
@@ -290,6 +305,7 @@ ipcMain.handle('get-boot-session-id', () => {
 // 2. Mở URL bằng trình duyệt mặc định của hệ thống
 ipcMain.handle('open-external-url', async (event, url) => {
   try {
+    if (!isAllowedExternalUrl(url)) throw new Error('URL không hợp lệ hoặc giao thức không được phép.');
     await shell.openExternal(url);
     return { ok: true };
   } catch (err) {
@@ -303,6 +319,7 @@ ipcMain.handle('open-external-url', async (event, url) => {
 ipcMain.handle('trigger-auto-update', async (event, downloadUrl) => {
   const url = downloadUrl || 'https://github.com/btduy13/RD/releases/latest';
   try {
+    if (!isAllowedUpdateRequestUrl(url)) throw new Error('URL cập nhật không thuộc kho phát hành chính thức.');
     await shell.openExternal(url);
     return { ok: true, message: 'Đã mở trang tải bộ cài mới trong trình duyệt.' };
   } catch (err) {
@@ -313,19 +330,23 @@ ipcMain.handle('trigger-auto-update', async (event, downloadUrl) => {
 
 // 4. Tải trực tiếp tệp cài đặt mới từ GitHub và tự động kích hoạt tiến trình cài đặt
 const https = require('https');
-const http = require('http');
 const urlModule = require('url');
 
 function downloadFile(fileUrl, destPath, progressCallback) {
   return new Promise((resolve, reject) => {
-    function get(url) {
+    function get(url, redirectCount = 0) {
+      if (!isAllowedUpdateRedirectUrl(url)) {
+        return reject(new Error('Máy chủ tải bản cập nhật không được phép.'));
+      }
+      if (redirectCount > 5) return reject(new Error('Quá nhiều lần chuyển hướng khi tải cập nhật.'));
       const parsedUrl = urlModule.parse(url);
-      const protocol = parsedUrl.protocol === 'https:' ? https : http;
+      const protocol = https;
       
       protocol.get(url, (response) => {
         if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-          // Follow redirect
-          return get(response.headers.location);
+          const redirectedUrl = new URL(response.headers.location, url).toString();
+          response.resume();
+          return get(redirectedUrl, redirectCount + 1);
         }
         
         if (response.statusCode !== 200) {
@@ -377,6 +398,9 @@ ipcMain.handle('download-and-install-update', async (event, downloadUrl) => {
   const destPath = path.join(tempDir, 'Ke_Toan_Rang_Dong_Setup_Update.exe');
   
   try {
+    if (!isAllowedUpdateRequestUrl(downloadUrl)) {
+      throw new Error('URL cập nhật không thuộc kho phát hành chính thức.');
+    }
     await downloadFile(downloadUrl, destPath, (percent) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('download-progress', percent);

@@ -135,11 +135,17 @@ function switchTab(tabId) {
   // Bỏ active tất cả menu
   document.querySelectorAll(".sidebar-menu .menu-item").forEach(item => {
     item.classList.remove("active");
+    const link = item.querySelector("a");
+    if (link) link.removeAttribute("aria-current");
   });
 
   // Set active menu hiện hành
   const activeMenu = document.querySelector(`.sidebar-menu .menu-item[data-tab="${tabId}"]`);
-  if (activeMenu) activeMenu.classList.add("active");
+  if (activeMenu) {
+    activeMenu.classList.add("active");
+    const link = activeMenu.querySelector("a");
+    if (link) link.setAttribute("aria-current", "page");
+  }
 
   // Ẩn tất cả tab-view
   document.querySelectorAll(".content-body .tab-view").forEach(view => {

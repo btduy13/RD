@@ -54,7 +54,7 @@
   <div class="app-container">
 
     <!-- SYSTEM SIDEBAR (THANH ĐIỀU HƯỚNG TRÁI) -->
-    <aside class="sidebar" aria-label="Thanh điều hướng chính">
+    <aside id="main-sidebar" class="sidebar" aria-label="Thanh điều hướng chính">
       <div class="sidebar-brand">
         <div class="brand-logo">
           <img src="logo.jpg" alt="Rạng Đông" class="brand-logo-img">
@@ -196,7 +196,7 @@
       <!-- HEADER BAR (THANH ĐẦU TRANG) -->
       <header class="header" role="banner">
         <div class="header-title-section">
-          <button class="mobile-menu-btn" type="button" onclick="toggleMobileSidebar()" aria-label="Mở menu điều hướng" title="Menu">
+          <button class="mobile-menu-btn" type="button" onclick="toggleMobileSidebar()" aria-label="Mở menu điều hướng" aria-controls="main-sidebar" aria-expanded="false" title="Menu">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
             </svg>
@@ -312,7 +312,7 @@
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 14px; height: 14px; color: var(--text-secondary);">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 18l4-12h2l4 12M5 13h5m3 5l2.5-7.5h1l2.5 7.5M14 15h3.5"></path>
             </svg>
-            <select id="font-scale-select" onchange="applyFontSizeScale(parseFloat(this.value)); if (typeof showToast === 'function') showToast('Kích thước chữ: ' + Math.round(this.value * 100) + '%', 'info');">
+            <select id="font-scale-select" aria-label="Kích thước chữ" onchange="applyFontSizeScale(parseFloat(this.value)); if (typeof showToast === 'function') showToast('Kích thước chữ: ' + Math.round(this.value * 100) + '%', 'info');">
               <option value="0.9">90%</option>
               <option value="1">100%</option>
               <option value="1.1">110%</option>
@@ -3318,11 +3318,11 @@
   </div>
 
   <!-- A-2. MODAL: LẬP PHIẾU THU -->
-  <div id="modal-add-receipt" class="modal-overlay">
+  <div id="modal-add-receipt" class="modal-overlay voucher-entry-modal">
     <div class="modal-content-container modal-w-lg">
       <div class="modal-header">
         <h3 class="card-title">Lập Phiếu Thu Tiền (Cash Receipt)</h3>
-        <button class="icon-btn modal-close-btn" onclick="closeModal('modal-add-receipt')">×</button>
+        <button class="icon-btn modal-close-btn" onclick="closeModal('modal-add-receipt')" aria-label="Đóng phiếu thu">×</button>
       </div>
       <div class="modal-body">
         <form id="form-receipt" class="form-grid" style="grid-template-columns: 1fr 1fr;"
@@ -3371,11 +3371,11 @@
   </div>
 
   <!-- A-3. MODAL: LẬP PHIẾU CHI -->
-  <div id="modal-add-payment" class="modal-overlay">
+  <div id="modal-add-payment" class="modal-overlay voucher-entry-modal">
     <div class="modal-content-container modal-w-lg">
       <div class="modal-header">
         <h3 class="card-title">Lập Phiếu Chi Tiền (Cash Payment)</h3>
-        <button class="icon-btn modal-close-btn" onclick="closeModal('modal-add-payment')">×</button>
+        <button class="icon-btn modal-close-btn" onclick="closeModal('modal-add-payment')" aria-label="Đóng phiếu chi">×</button>
       </div>
       <div class="modal-body">
         <form id="form-payment" class="form-grid" style="grid-template-columns: 1fr 1fr;"

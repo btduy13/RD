@@ -753,17 +753,29 @@ function isMobileSidebarView() {
 function openMobileSidebar() {
   var sidebar = document.querySelector('.sidebar');
   var backdrop = document.getElementById('sidebar-backdrop');
+  var menuButton = document.querySelector('.mobile-menu-btn');
   if (!sidebar || !isMobileSidebarView()) return;
   sidebar.classList.add('mobile-open');
-  if (backdrop) backdrop.classList.add('visible');
+  sidebar.setAttribute('aria-hidden', 'false');
+  if (menuButton) menuButton.setAttribute('aria-expanded', 'true');
+  if (backdrop) {
+    backdrop.classList.add('visible');
+    backdrop.setAttribute('aria-hidden', 'false');
+  }
   document.body.style.overflow = 'hidden';
 }
 
 function closeMobileSidebar() {
   var sidebar = document.querySelector('.sidebar');
   var backdrop = document.getElementById('sidebar-backdrop');
+  var menuButton = document.querySelector('.mobile-menu-btn');
   if (sidebar) sidebar.classList.remove('mobile-open');
-  if (backdrop) backdrop.classList.remove('visible');
+  if (sidebar) sidebar.setAttribute('aria-hidden', isMobileSidebarView() ? 'true' : 'false');
+  if (menuButton) menuButton.setAttribute('aria-expanded', 'false');
+  if (backdrop) {
+    backdrop.classList.remove('visible');
+    backdrop.setAttribute('aria-hidden', 'true');
+  }
   document.body.style.overflow = '';
 }
 
@@ -780,8 +792,39 @@ function toggleMobileSidebar() {
 window.addEventListener('resize', function () {
   if (!isMobileSidebarView()) {
     closeMobileSidebar();
+  } else {
+    var sidebar = document.querySelector('.sidebar');
+    if (sidebar && !sidebar.classList.contains('mobile-open')) sidebar.setAttribute('aria-hidden', 'true');
   }
 });
+
+document.addEventListener('keydown', function (event) {
+  if (event.key === 'Escape') {
+    var sidebar = document.querySelector('.sidebar');
+    if (sidebar && sidebar.classList.contains('mobile-open')) closeMobileSidebar();
+  }
+});
+
+(function initSidebarAccessibility() {
+  var sidebar = document.querySelector('.sidebar');
+  var menuButton = document.querySelector('.mobile-menu-btn');
+  if (sidebar) sidebar.setAttribute('aria-hidden', isMobileSidebarView() ? 'true' : 'false');
+  if (menuButton) menuButton.setAttribute('aria-expanded', 'false');
+
+  document.querySelectorAll('.sidebar-menu .menu-item a').forEach(function (link) {
+    link.setAttribute('role', 'button');
+    link.setAttribute('tabindex', '0');
+    if (link.parentElement && link.parentElement.classList.contains('active')) {
+      link.setAttribute('aria-current', 'page');
+    }
+    link.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        link.click();
+      }
+    });
+  });
+})();
 
 // Sidebar collapse/expand with localStorage persistence
 function toggleSidebar() {
@@ -794,16 +837,6 @@ function toggleSidebar() {
   } else {
     localStorage.setItem('sidebar-collapsed', isCollapsed);
   }
-  // Update modal offsets
-  document.querySelectorAll('.modal-overlay').forEach(function(m) {
-    if (isCollapsed) {
-      m.style.left = '68px';
-      m.style.width = 'calc(100% - 68px)';
-    } else {
-      m.style.left = '260px';
-      m.style.width = 'calc(100% - 260px)';
-    }
-  });
 }
 
 // Restore sidebar state on load (fallback if prefs module unavailable)

@@ -10,6 +10,7 @@ let lastSyncState = window.lastSyncState || null;
 let isPulling = false;
 let isPushing = false;
 let pullPending = false;
+let pendingPullOptions = null;
 let pushPending = false;
 let deferredCloudPull = false;
 let deferredCloudPullReason = "";
@@ -43,6 +44,13 @@ const SYNC_V2_ENTITY_DEFS = [
   { stateKey: "vouchers", rowPrefix: "v_", deleteType: "voucher" },
   { stateKey: "products", rowPrefix: "p_", deleteType: "product" },
   { stateKey: "partners", rowPrefix: "part_", deleteType: "partner" }
+];
+
+const SYNC_V2_MERGE_ENTITY_KEYS = ["vouchers", "products", "partners", "cashEntries", "escrowItems"];
+const SYNC_V2_DELETE_DEFS = [
+  ...SYNC_V2_ENTITY_DEFS,
+  { stateKey: "cashEntries", rowPrefix: "cash_", deleteType: "cashEntry" },
+  { stateKey: "escrowItems", rowPrefix: "escrow_", deleteType: "escrowItem" }
 ];
 
 function syncV2Log(message) {
@@ -276,11 +284,37 @@ function syncV2ApplyPushToLastSyncState(pushedEntityRows, pushTs) {
 }
 
 function syncV2GetRowDef(rowId) {
-  return SYNC_V2_ENTITY_DEFS.find(def => rowId && rowId.startsWith(def.rowPrefix));
+  return SYNC_V2_DELETE_DEFS.find(def => rowId && rowId.startsWith(def.rowPrefix));
 }
 
 function syncV2GetEntityIdFromRowId(rowId, def) {
   return String(rowId || "").slice(def.rowPrefix.length);
+}
+
+function syncV2GetDeletedIdsByState(sourceState) {
+  const result = {};
+  SYNC_V2_DELETE_DEFS.forEach(def => {
+    result[def.stateKey] = new Set();
+  });
+
+  const typedIds = new Set();
+  (sourceState && Array.isArray(sourceState.deletedCloudKeys) ? sourceState.deletedCloudKeys : []).forEach(key => {
+    const def = syncV2GetRowDef(key);
+    if (!def) return;
+    const entityId = syncV2GetEntityIdFromRowId(key, def);
+    if (!entityId) return;
+    result[def.stateKey].add(entityId);
+    typedIds.add(entityId);
+  });
+
+  // Old versions only persisted deletedIds and those IDs represented vouchers.
+  // Use that fallback only without a typed tombstone. Otherwise deleting a
+  // product/partner could erase an unrelated voucher sharing the same ID.
+  (sourceState && Array.isArray(sourceState.deletedIds) ? sourceState.deletedIds : []).forEach(id => {
+    if (id && !typedIds.has(id)) result.vouchers.add(id);
+  });
+
+  return result;
 }
 
 function syncV2MakeTombstoneRow(rowId, pushTs) {
@@ -586,8 +620,9 @@ function syncV2StateFromRows(rows, options = {}) {
 // cloud snapshots), so in-place is safe.
 function syncV2DeduplicateState(sourceState) {
   const result = sourceState || syncV2DefaultState();
-  const deleted = new Set(Array.isArray(result.deletedIds) ? result.deletedIds : []);
-  SYNC_V2_ENTITY_DEFS.forEach(def => {
+  const deletedByState = syncV2GetDeletedIdsByState(result);
+  SYNC_V2_DELETE_DEFS.forEach(def => {
+    const deleted = deletedByState[def.stateKey];
     const map = new Map();
     (result[def.stateKey] || []).forEach(item => {
       if (!item || !item.id || deleted.has(item.id)) return;
@@ -601,7 +636,6 @@ function syncV2DeduplicateState(sourceState) {
   return result;
 }
 
-const SYNC_V2_MERGE_ENTITY_KEYS = ["vouchers", "products", "partners", "cashEntries", "escrowItems"];
 // The big three are timestamp-stamped by computeDelta on every push, so an
 // equal _updatedAt means "same version": keep the local object (no clone, no
 // change flagged). cashEntries/escrowItems ride inside the metadata row without
@@ -614,19 +648,6 @@ function syncV2NewMergeStats() {
     changed: false,
     changedIdsByEntity: { vouchers: new Set(), products: new Set(), partners: new Set() }
   };
-}
-
-// id -> item across all entity arrays (first occurrence wins, mirroring the
-// old syncV2FindActiveItem scan order).
-function syncV2BuildActiveItemMap(s) {
-  const map = new Map();
-  if (!s) return map;
-  SYNC_V2_MERGE_ENTITY_KEYS.forEach(key => {
-    (s[key] || []).forEach(item => {
-      if (item && item.id && !map.has(item.id)) map.set(item.id, item);
-    });
-  });
-  return map;
 }
 
 // Merge one entity array. Local items are carried by reference (they already
@@ -762,34 +783,37 @@ function syncV2MergeStatesCore(localState, cloudState, options = {}) {
 
   const localTs = Number(localState._lastModified) || 0;
   const cloudTs = Number(cloudState._lastModified || cloudState._cloudWatermark) || 0;
-  const localDeleted = Array.isArray(localState.deletedIds) ? localState.deletedIds : [];
-  const cloudDeleted = Array.isArray(cloudState.deletedIds) ? cloudState.deletedIds : [];
+  const localDeletedByState = syncV2GetDeletedIdsByState(localState);
+  const cloudDeletedByState = syncV2GetDeletedIdsByState(cloudState);
+  const deletedByState = {};
+  const deletedCloudKeys = [];
 
-  const deleted = new Set();
-  if (localDeleted.length > 0 || cloudDeleted.length > 0) {
-    // One id->item map per side instead of a linear scan per deleted id.
-    const cloudActive = syncV2BuildActiveItemMap(cloudState);
-    const localActive = syncV2BuildActiveItemMap(localState);
-    localDeleted.forEach(id => {
+  SYNC_V2_DELETE_DEFS.forEach(def => {
+    const deleted = new Set();
+    const cloudActive = new Map((cloudState[def.stateKey] || []).filter(item => item && item.id).map(item => [item.id, item]));
+    const localActive = new Map((localState[def.stateKey] || []).filter(item => item && item.id).map(item => [item.id, item]));
+    localDeletedByState[def.stateKey].forEach(id => {
       const cloudItem = cloudActive.get(id);
       if (cloudItem && (Number(cloudItem._updatedAt) || 0) > localTs) return;
       deleted.add(id);
     });
-    cloudDeleted.forEach(id => {
+    cloudDeletedByState[def.stateKey].forEach(id => {
       const localItem = localActive.get(id);
       if (localItem && (Number(localItem._updatedAt) || 0) > cloudTs) return;
       deleted.add(id);
     });
-  }
+    deletedByState[def.stateKey] = deleted;
+    deleted.forEach(id => deletedCloudKeys.push(`${def.rowPrefix}${id}`));
+  });
 
-  const deletedIds = Array.from(deleted);
+  const deletedIds = Array.from(new Set(SYNC_V2_DELETE_DEFS.flatMap(def => Array.from(deletedByState[def.stateKey]))));
   if (deletedIds.length > 0) {
-    syncV2Log(`mergeStates: localTs=${localTs}, cloudTs=${cloudTs}, cloudDeleted size=${cloudDeleted.length}, deletedIds size=${deletedIds.length}, sample=${JSON.stringify(deletedIds.slice(0, 5))}`);
+    syncV2Log(`mergeStates: localTs=${localTs}, cloudTs=${cloudTs}, deletedIds size=${deletedIds.length}, sample=${JSON.stringify(deletedIds.slice(0, 5))}`);
   }
 
   const entityArrays = {};
   SYNC_V2_MERGE_ENTITY_KEYS.forEach(key => {
-    entityArrays[key] = syncV2MergeEntityArrays(key, localState[key], cloudState[key], deleted, mergeOptions);
+    entityArrays[key] = syncV2MergeEntityArrays(key, localState[key], cloudState[key], deletedByState[key] || new Set(), mergeOptions);
   });
 
   const mergedMeta = syncV2MergeMetadata(localState, cloudState);
@@ -804,10 +828,7 @@ function syncV2MergeStatesCore(localState, cloudState, options = {}) {
     ...(options.cloneMetadata ? syncV2Clone(mergedMeta) : mergedMeta),
     ...entityArrays,
     deletedIds,
-    deletedCloudKeys: Array.from(new Set([
-      ...(localState.deletedCloudKeys || []),
-      ...(cloudState.deletedCloudKeys || [])
-    ])),
+    deletedCloudKeys: Array.from(new Set(deletedCloudKeys)),
     _lastModified: Math.max(localTs, cloudTs),
     _cloudWatermark: Math.max(Number(localState._cloudWatermark) || 0, Number(cloudState._cloudWatermark) || cloudTs)
   };
@@ -989,6 +1010,27 @@ function deferCloudPull(reason) {
   updateCloudSyncBadge(false, "May: Cho luu phieu de dong bo", "#f59e0b");
 }
 
+function queuePendingPull(options = {}) {
+  const previous = pendingPullOptions || {};
+  pullPending = true;
+  pendingPullOptions = {
+    ...previous,
+    ...options,
+    reason: options.reason || previous.reason || "pending",
+    force: !!(previous.force || options.force),
+    forceFull: !!(previous.forceFull || options.forceFull),
+    retryFullIfNoChanges: !!(previous.retryFullIfNoChanges || options.retryFullIfNoChanges)
+  };
+}
+
+function takePendingPullOptions() {
+  if (!pullPending) return null;
+  const options = pendingPullOptions || { reason: "pending" };
+  pullPending = false;
+  pendingPullOptions = null;
+  return options;
+}
+
 function scheduleCloudPull(reason, options = {}) {
   if (!options.force && isVoucherEntryModalOpen()) {
     deferCloudPull(reason);
@@ -1024,33 +1066,44 @@ function finishStartupPull() {
   isPulling = false;
   hideStartupOverlay();
 
-  if (pullPending) {
-    pullPending = false;
-    setTimeout(() => pullAndMergeFromCloud({ reason: "pending-after-startup" }), 250);
+  const queuedPull = takePendingPullOptions();
+  if (queuedPull) {
+    setTimeout(() => pullAndMergeFromCloud({ reason: "pending-after-startup", ...queuedPull }), 250);
+  }
+
+  if (pushPending && !queuedPull) {
+    pushPending = false;
+    setTimeout(() => pushToCloud(), 300);
   }
 
 }
 
 async function pullAndMergeFromCloud(options = {}) {
-  if (!cloudSyncActive || !supabaseClient) return;
+  if (!cloudSyncActive || !supabaseClient) return false;
 
   if (!isStartupPullCompleted && !options.startup) {
-    pullPending = true;
-    return;
+    queuePendingPull(options);
+    return false;
+  }
+
+  if (isPushing && !options.allowDuringPush) {
+    queuePendingPull(options);
+    return false;
   }
 
   if (!options.force && isVoucherEntryModalOpen()) {
     deferCloudPull(options.reason || "editing");
-    return;
+    return false;
   }
 
   if (isPulling) {
-    pullPending = true;
-    return;
+    queuePendingPull(options);
+    return false;
   }
 
   isPulling = true;
   pullPending = false;
+  pendingPullOptions = null;
   syncV2Log(`pullAndMergeFromCloud bat dau, ly do: ${options.reason || "unknown"}, forceFull: ${!!options.forceFull}`);
 
   try {
@@ -1073,7 +1126,7 @@ async function pullAndMergeFromCloud(options = {}) {
       if (cloudWatermark <= checkpoint && !options.retryFullIfNoChanges) {
         syncV2Log("Cloud watermark <= checkpoint, khong co thay doi, thoat.");
         updateCloudSyncBadge(true, "May: Da ket noi", "#10b981");
-        return;
+        return true;
       }
 
       rows = await syncV2FetchRowsSince(checkpoint);
@@ -1152,9 +1205,12 @@ async function pullAndMergeFromCloud(options = {}) {
   } finally {
     isPulling = false;
     lastPullCompletedAt = Date.now();
-    if (pullPending) {
-      pullPending = false;
-      setTimeout(() => pullAndMergeFromCloud({ reason: "pending" }), 250);
+    const queuedPull = takePendingPullOptions();
+    if (queuedPull) {
+      setTimeout(() => pullAndMergeFromCloud(queuedPull), 250);
+    } else if (pushPending) {
+      pushPending = false;
+      setTimeout(() => pushToCloud(), 300);
     }
   }
 }
@@ -1267,7 +1323,7 @@ async function syncV2PrePullBeforePush() {
   const checkpoint = getPullCheckpointTs();
   if (cloudWatermark > checkpoint) {
     syncV2Log(`Pre-push pull because cloud ${cloudWatermark} > checkpoint ${checkpoint}.`);
-    await pullAndMergeFromCloud({ reason: "pre-push", force: true });
+    await pullAndMergeFromCloud({ reason: "pre-push", force: true, allowDuringPush: true });
   }
 }
 
@@ -1375,14 +1431,20 @@ async function syncV2DeleteRows(ids) {
 }
 
 async function pushToCloud() {
-  if (!cloudSyncActive || !supabaseClient) return;
+  if (!cloudSyncActive || !supabaseClient) return false;
   if (!isStartupPullCompleted) {
-    syncV2Log("Skipped push while startup pull is running; next local save or manual push will upload changes.");
-    return;
+    pushPending = true;
+    syncV2Log("Deferred push while startup pull is running.");
+    return false;
+  }
+  if (isPulling) {
+    pushPending = true;
+    syncV2Log("Deferred push while a cloud pull is running.");
+    return false;
   }
   if (isPushing) {
     pushPending = true;
-    return;
+    return false;
   }
 
   isPushing = true;
@@ -1430,7 +1492,9 @@ async function pushToCloud() {
     // bookkeeping trong luc push (_lastModified, _updatedAt, deletedIds da xoa) se duoc
     // luu o lan save/pull ke tiep va an toan neu mat (tombstone gui lai idempotent).
     updateCloudSyncBadge(true, "May: Da ket noi", "#10b981");
+    return true;
     syncV2Log(`Push completed: ${entityRows.length} upsert, ${tombstoneRows.length} tombstone, ${idsToDelete.length} physical delete.`);
+    return true;
   } catch (err) {
     console.error("[CloudSyncV2] Push failed:", err);
     if (typeof addErrorLog === "function") addErrorLog("CloudSyncV2.push", err.message, err);
@@ -1441,6 +1505,7 @@ async function pushToCloud() {
         if (cloudSyncActive && supabaseClient) pushToCloud();
       }, 5000);
     }
+    return false;
   } finally {
     isPushing = false;
     if (pushPending) {
@@ -1637,7 +1702,10 @@ function forcePushToCloud() {
   }
   if (confirm("Bạn có chắc muốn đẩy dữ liệu cục bộ lên cloud?")) {
     state._lastModified = Date.now();
-    pushToCloud().then(() => showToast("Đã đẩy dữ liệu lên cloud.", "success"));
+    pushToCloud().then(success => {
+      if (success) showToast("Đã đẩy dữ liệu lên cloud.", "success");
+      else showToast("Chưa thể đẩy ngay; yêu cầu đã được xếp hàng tự động.", "warning");
+    });
   }
 }
 
@@ -1646,8 +1714,15 @@ function forcePullFromCloud() {
     showToast("Ứng dụng chưa kết nối đám mây!", "danger");
     return;
   }
+  if (isVoucherEntryModalOpen()) {
+    showToast("Hãy lưu hoặc đóng phiếu đang nhập trước khi tải cloud.", "warning");
+    return;
+  }
   pullAndMergeFromCloud({ reason: "manual-full", forceFull: true, force: true })
-    .then(() => showToast("Đã tải và hợp nhất dữ liệu cloud.", "success"))
+    .then(success => showToast(
+      success ? "Đã tải và hợp nhất dữ liệu cloud." : "Yêu cầu tải cloud đã được xếp hàng.",
+      success ? "success" : "warning"
+    ))
     .catch(err => showToast("Lỗi tải cloud: " + err.message, "danger"));
 }
 
@@ -1656,8 +1731,15 @@ function manualIncrementalSync() {
     showToast("Ứng dụng chưa kết nối đám mây!", "danger");
     return;
   }
+  if (isVoucherEntryModalOpen()) {
+    showToast("Hãy lưu hoặc đóng phiếu đang nhập trước khi đồng bộ.", "warning");
+    return;
+  }
   pullAndMergeFromCloud({ reason: "manual", retryFullIfNoChanges: true, force: true })
-    .then(() => showToast("Đồng bộ cloud thành công.", "success"))
+    .then(success => showToast(
+      success ? "Đồng bộ cloud thành công." : "Yêu cầu đồng bộ đã được xếp hàng.",
+      success ? "success" : "warning"
+    ))
     .catch(err => showToast("Lỗi đồng bộ: " + err.message, "danger"));
 }
 
@@ -1887,6 +1969,9 @@ window.__syncV2Internals__ = {
   syncV2PruneStaleLocalOnlyItems,
   syncV2PrePullBeforePush,
   syncV2GetRescueCandidateKeys,
-  scheduleCloudPull
+  scheduleCloudPull,
+  syncV2GetDeletedIdsByState,
+  queuePendingPull,
+  takePendingPullOptions
 };
 window.__syncInternals__ = window.__syncV2Internals__;

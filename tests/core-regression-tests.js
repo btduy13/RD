@@ -1,6 +1,11 @@
 'use strict';
 
 const assert = require('assert');
+const {
+  isAllowedExternalUrl,
+  isAllowedUpdateRequestUrl,
+  isAllowedUpdateRedirectUrl
+} = require('../js/core/url-security');
 const vm = require('vm');
 const fs = require('fs');
 const path = require('path');
@@ -78,6 +83,24 @@ function testAccountingEngine() {
   console.log('accounting-engine tests passed');
 }
 
+function testUrlSecurity() {
+  assert.equal(isAllowedExternalUrl('https://example.com/help'), true);
+  assert.equal(isAllowedExternalUrl('javascript:alert(1)'), false);
+  assert.equal(isAllowedExternalUrl('file:///C:/Windows/System32/calc.exe'), false);
+
+  assert.equal(isAllowedUpdateRequestUrl('https://github.com/btduy13/RD/releases/latest'), true);
+  assert.equal(isAllowedUpdateRequestUrl('https://github.com/btduy13/RD/releases/download/v3/app.exe'), true);
+  assert.equal(isAllowedUpdateRequestUrl('http://github.com/btduy13/RD/releases/latest'), false);
+  assert.equal(isAllowedUpdateRequestUrl('https://github.com/attacker/repo/releases/download/app.exe'), false);
+  assert.equal(isAllowedUpdateRequestUrl('https://release-assets.githubusercontent.com/arbitrary.exe'), false);
+
+  assert.equal(isAllowedUpdateRedirectUrl('https://release-assets.githubusercontent.com/signed-asset'), true);
+  assert.equal(isAllowedUpdateRedirectUrl('https://objects.githubusercontent.com/github-production-release-asset'), true);
+  assert.equal(isAllowedUpdateRedirectUrl('https://evil.example/update.exe'), false);
+  console.log('URL security tests passed');
+}
+
 testStateDiff();
 testAccountingEngine();
+testUrlSecurity();
 console.log('core regression tests passed');

@@ -156,6 +156,58 @@ function testMergeKeepsRemoteVoucherOnTimestampTieWithDifferentSession() {
   assert.equal(winner._sessionId, "session-b");
 }
 
+function testTypedTombstoneDoesNotDeleteOtherEntityWithSameId() {
+  const { internals } = loadSyncV2Internals();
+  const localState = {
+    vouchers: [{ id: "SHARED", _updatedAt: 100 }],
+    products: [{ id: "SHARED", _updatedAt: 100 }],
+    partners: [{ id: "SHARED", _updatedAt: 100 }],
+    cashEntries: [],
+    escrowItems: [],
+    deletedIds: [],
+    deletedCloudKeys: [],
+    _lastModified: 100
+  };
+  const cloudState = {
+    vouchers: [],
+    products: [],
+    partners: [],
+    cashEntries: [],
+    escrowItems: [],
+    deletedIds: ["SHARED"],
+    deletedCloudKeys: ["p_SHARED"],
+    _lastModified: 200,
+    _cloudWatermark: 200
+  };
+
+  const merged = internals.mergeStates(localState, cloudState);
+  assert.equal(merged.products.length, 0, "typed product tombstone must delete the product");
+  assert.equal(merged.vouchers.length, 1, "product tombstone must not delete a voucher with the same ID");
+  assert.equal(merged.partners.length, 1, "product tombstone must not delete a partner with the same ID");
+  assert.deepEqual(Array.from(merged.deletedCloudKeys), ["p_SHARED"]);
+}
+
+function testLegacyUntypedTombstoneStillDeletesVoucher() {
+  const { internals } = loadSyncV2Internals();
+  const deleted = internals.syncV2GetDeletedIdsByState({
+    deletedIds: ["OLD-VOUCHER"],
+    deletedCloudKeys: []
+  });
+  assert.equal(deleted.vouchers.has("OLD-VOUCHER"), true, "legacy deletedIds must remain voucher-compatible");
+  assert.equal(deleted.products.has("OLD-VOUCHER"), false, "legacy voucher deletion must not spill into products");
+}
+
+function testQueuedPullPreservesStrongestRequest() {
+  const { internals } = loadSyncV2Internals();
+  internals.queuePendingPull({ reason: "realtime" });
+  internals.queuePendingPull({ reason: "manual-full", force: true, forceFull: true });
+  const queued = internals.takePendingPullOptions();
+  assert.equal(queued.reason, "manual-full");
+  assert.equal(queued.force, true);
+  assert.equal(queued.forceFull, true, "a queued manual full pull must not degrade to incremental");
+  assert.equal(internals.takePendingPullOptions(), null, "taking the queued pull must clear it exactly once");
+}
+
 async function testRescueRemovesStuckVoucherFromLastSyncState() {
   const { internals, sandbox, vm } = loadSyncV2Internals();
 
@@ -225,6 +277,9 @@ async function run() {
   testComputeDeltaSkipsAlreadySyncedVoucher();
   testPruneDoesNotDropLocalOnlyVouchers();
   testMergeKeepsRemoteVoucherOnTimestampTieWithDifferentSession();
+  testTypedTombstoneDoesNotDeleteOtherEntityWithSameId();
+  testLegacyUntypedTombstoneStillDeletesVoucher();
+  testQueuedPullPreservesStrongestRequest();
   testRescueCandidateKeysOnlyChecksPushDiff();
   await testRescueRemovesStuckVoucherFromLastSyncState();
   console.log("sync-v2 regression tests passed");
