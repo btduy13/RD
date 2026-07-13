@@ -51,6 +51,44 @@ function touchEntityUpdatedAt(entity) {
   return entity;
 }
 
+function pruneResolvedDeletionMarkers(currentState) {
+  if (!currentState || typeof currentState !== "object") return currentState;
+
+  const activeIds = new Set();
+  const activeCloudKeys = new Set();
+  const addActive = (items, prefix, includeLegacyKey = false) => {
+    (Array.isArray(items) ? items : []).forEach(item => {
+      if (!item || item.id === undefined || item.id === null || item.id === "") return;
+      const id = String(item.id);
+      activeIds.add(id);
+      activeCloudKeys.add(`${prefix}${id}`);
+      if (includeLegacyKey) activeCloudKeys.add(id);
+    });
+  };
+
+  // Legacy unprefixed tombstones represented vouchers. Typed markers must be
+  // compared against their own entity collection so p_X is not discarded just
+  // because an unrelated voucher/partner also happens to use ID X.
+  addActive(currentState.vouchers, "v_", true);
+  addActive(currentState.products, "p_");
+  addActive(currentState.partners, "part_");
+  addActive(currentState.cashEntries, "cash_");
+  addActive(currentState.escrowItems, "escrow_");
+
+  if (Array.isArray(currentState.deletedIds)) {
+    currentState.deletedIds = currentState.deletedIds.filter(id =>
+      id !== undefined && id !== null && id !== "" && !activeIds.has(String(id))
+    );
+  }
+  if (Array.isArray(currentState.deletedCloudKeys)) {
+    currentState.deletedCloudKeys = currentState.deletedCloudKeys.filter(key =>
+      key !== undefined && key !== null && key !== "" && !activeCloudKeys.has(String(key))
+    );
+  }
+
+  return currentState;
+}
+
 function buildStateDelta(state, lastSavedState) {
   const delta = {
     metadata: {},
@@ -201,5 +239,6 @@ function applyDeltaToSnapshot(lastSavedState, delta) {
 window.entityChanged = entityChanged;
 window.entityContentHash = entityContentHash;
 window.touchEntityUpdatedAt = touchEntityUpdatedAt;
+window.pruneResolvedDeletionMarkers = pruneResolvedDeletionMarkers;
 window.buildStateDelta = buildStateDelta;
 window.applyDeltaToSnapshot = applyDeltaToSnapshot;

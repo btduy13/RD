@@ -559,23 +559,8 @@ async function executeSaveState(sync = false) {
       }
 
       // Dọn dẹp deletedIds: Loại bỏ bất kỳ ID nào hiện đang hoạt động trong hệ thống
-      if (Array.isArray(state.deletedIds)) {
-        const activeIds = new Set();
-        if (Array.isArray(state.vouchers)) state.vouchers.forEach(v => v && v.id && activeIds.add(v.id));
-        if (Array.isArray(state.products)) state.products.forEach(p => p && p.id && activeIds.add(p.id));
-        if (Array.isArray(state.partners)) state.partners.forEach(pt => pt && pt.id && activeIds.add(pt.id));
-        if (Array.isArray(state.cashEntries)) state.cashEntries.forEach(c => c && c.id && activeIds.add(c.id));
-        if (Array.isArray(state.escrowItems)) state.escrowItems.forEach(e => e && e.id && activeIds.add(e.id));
-
-        state.deletedIds = state.deletedIds.filter(id => !activeIds.has(id));
-
-        if (Array.isArray(state.deletedCloudKeys)) {
-          state.deletedCloudKeys = state.deletedCloudKeys.filter(cloudKey => {
-            if (!cloudKey) return false;
-            const rawId = cloudKey.replace(/^(v_|p_|part_|cash_|escrow_)/, '');
-            return !activeIds.has(rawId);
-          });
-        }
+      if (typeof pruneResolvedDeletionMarkers === "function") {
+        pruneResolvedDeletionMarkers(state);
       }
 
       let persisted = false;

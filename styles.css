@@ -517,6 +517,23 @@ body.light-theme .brand-logo {
   color: var(--color-success);
 }
 
+button.sync-chip {
+  appearance: none;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+button.sync-chip:hover {
+  transform: translateY(-1px);
+  border-color: currentColor;
+}
+
+button.sync-chip:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .sync-chip.sync-icon-only {
   width: 36px;
   height: 36px;
@@ -553,6 +570,13 @@ body.light-theme .brand-logo {
   display: block;
   font-size: 7px;
   line-height: 10px;
+}
+
+.sync-chip.sync-active .sync-status-glyph,
+.sync-chip.sync-syncing .sync-status-glyph,
+.sync-chip.sync-error .sync-status-glyph,
+.sync-chip.sync-offline .sync-status-glyph {
+  display: block;
 }
 
 .sync-chip.sync-active .sync-status-glyph {
@@ -1522,6 +1546,192 @@ body.light-theme .modal-overlay {
   background: var(--bg-tertiary);
 }
 
+/* Cloud sync configuration/control modal */
+#modal-cloud-sync.modal-overlay {
+  left: 0;
+  width: 100%;
+  z-index: 4000;
+}
+
+.cloud-sync-modal .modal-content-container {
+  max-width: 620px;
+}
+
+.cloud-sync-modal-subtitle {
+  margin: 5px 0 0;
+}
+
+.cloud-sync-status-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.cloud-sync-status-panel strong {
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.cloud-sync-status-panel[data-state="active"] strong {
+  color: var(--color-success);
+}
+
+.cloud-sync-status-panel[data-state="syncing"] strong {
+  color: var(--color-primary);
+}
+
+.cloud-sync-status-panel[data-state="error"] strong {
+  color: var(--color-danger);
+}
+
+.cloud-sync-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.cloud-sync-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: var(--space-4);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  cursor: pointer;
+}
+
+.cloud-sync-toggle input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  flex: 0 0 auto;
+  accent-color: var(--color-primary);
+}
+
+.cloud-sync-toggle span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cloud-sync-toggle strong {
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.cloud-sync-toggle small {
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.cloud-sync-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px dashed var(--border-color);
+}
+
+.cloud-sync-inputs[hidden] {
+  display: none !important;
+}
+
+.cloud-sync-config-actions,
+.cloud-sync-manual-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.cloud-sync-config-actions {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.cloud-sync-manual-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border-color);
+}
+
+.cloud-sync-manual-section h4 {
+  margin: 0 0 5px;
+  color: var(--text-primary);
+  font-size: var(--text-base);
+}
+
+.cloud-sync-manual-section p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.cloud-sync-manual-actions .btn {
+  min-height: 40px;
+  height: auto;
+  white-space: normal;
+}
+
+.cloud-sync-push-btn {
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.cloud-sync-modal [aria-busy="true"] {
+  cursor: wait;
+}
+
+body.cloud-sync-modal-open {
+  overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  #modal-cloud-sync.modal-overlay {
+    padding: 8px;
+    align-items: flex-end;
+  }
+
+  .cloud-sync-modal .modal-content-container {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 16px);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  .cloud-sync-modal .modal-header,
+  .cloud-sync-modal .modal-body,
+  .cloud-sync-modal .modal-footer {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+
+  .cloud-sync-manual-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cloud-sync-status-panel {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .cloud-sync-status-panel strong {
+    text-align: left;
+  }
+}
+
 /* Thiết kế biểu mẫu kế toán in ấn */
 .printable-voucher {
   background-color: #ffffff;
@@ -1748,6 +1958,100 @@ body.light-theme .modal-overlay {
   background-color: var(--bg-primary);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
+}
+
+#modal-view-voucher .voucher-printer-select-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 6px;
+  align-items: center;
+}
+
+#modal-view-voucher .voucher-printer-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+#modal-view-voucher .voucher-printer-refresh-btn:hover {
+  border-color: var(--accent-color, #4a9eff);
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+#modal-view-voucher .voucher-printer-refresh-btn:focus-visible,
+#modal-view-voucher .voucher-direct-print-toggle:has(input:focus-visible) {
+  outline: 2px solid var(--accent-color, #4a9eff);
+  outline-offset: 2px;
+}
+
+#modal-view-voucher .voucher-printer-refresh-btn svg {
+  width: 17px;
+  height: 17px;
+}
+
+#modal-view-voucher .voucher-direct-print-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 9px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  cursor: pointer;
+}
+
+#modal-view-voucher .voucher-direct-print-toggle input {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  margin: 1px 0 0;
+  accent-color: var(--accent-color, #4a9eff);
+}
+
+#modal-view-voucher .voucher-direct-print-toggle span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#modal-view-voucher .voucher-direct-print-toggle strong {
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+#modal-view-voucher .voucher-direct-print-toggle small,
+#modal-view-voucher .voucher-printer-status {
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+#modal-view-voucher .voucher-printer-status {
+  margin: 1px 0 0;
+}
+
+#modal-view-voucher .voucher-printer-status[data-state="warning"] {
+  color: var(--color-warning, #f59e0b);
+}
+
+#modal-view-voucher .voucher-printer-status[data-state="error"] {
+  color: var(--color-danger, #ef4444);
+}
+
+#modal-view-voucher #voucher-printer-settings[hidden] {
+  display: none !important;
 }
 
 #modal-view-voucher .voucher-print-preview {

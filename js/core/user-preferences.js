@@ -13,6 +13,8 @@ const DEFAULT_USER_PREFS = {
   printFontScale: 1,
   printPaperSize: "A5",
   printDestination: "printer",
+  printDirectEnabled: true,
+  printPrinterDeviceName: "",
   printTemplate: {
     fontFamily: "Times New Roman",
     contentFontSize: 13,
@@ -178,6 +180,11 @@ function restoreUserPreferencesUI() {
   const printPaperSelect = document.getElementById("voucher-preview-paper-size-select");
   if (printPaperSelect && prefs.printPaperSize) {
     printPaperSelect.value = prefs.printPaperSize;
+  }
+
+  const directPrintToggle = document.getElementById("voucher-direct-print-enabled");
+  if (directPrintToggle) {
+    directPrintToggle.checked = prefs.printDirectEnabled !== false;
   }
 
   if (typeof ensurePrintPageStyle === "function") {

@@ -1,5 +1,15 @@
 
 // 10. PHÂN HỆ LẬP BÁO CÁO KẾ TOÁN (REPORTS ENGINE)
+function escapeReportText(value) {
+  if (typeof escapeHtml === "function") return escapeHtml(String(value ?? ""));
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function populateReportAccountDropdown() {
   const select = document.getElementById("select-report-account");
   if (!select) return;
@@ -54,7 +64,7 @@ function generateReport() {
         <p style="font-style: italic; font-size:13px;">Niên độ kế toán năm ${new Date().getFullYear()}</p>
         <p style="font-size:12px;">Áp dụng theo ${std === 'TT200' ? 'Thông tư 200/2014/TT-BTC' : 'Thông tư 133/2016/TT-BTC'}</p>
       </div>
-      
+
       <table class="data-table" style="width:100%; font-family:'Times New Roman', serif; border:1px solid #000; border-collapse:collapse; font-size:12px;">
         <thead>
           <tr style="background-color:#f3f4f6;">
@@ -74,15 +84,15 @@ function generateReport() {
       html += `<tr><td colspan="6" style="text-align:center; padding:10px; border:1px solid #000;">Chưa có dữ liệu chứng từ.</td></tr>`;
     } else {
       state.vouchers.forEach(v => {
-        v.entries.forEach((e, idx) => {
+        (v.entries || []).forEach((e, idx) => {
           totalVal += e.amount;
           html += `
             <tr>
-              <td style="border:1px solid #000; padding:6px; color:#000;">${idx === 0 ? v.date : ""}</td>
-              <td style="border:1px solid #000; padding:6px; color:#000; font-weight:700;">${idx === 0 ? v.id : ""}</td>
-              <td style="border:1px solid #000; padding:6px; color:#000;">${e.desc}</td>
-              <td style="border:1px solid #000; padding:6px; color:#000; text-align:center; font-weight:700;">${e.debit}</td>
-              <td style="border:1px solid #000; padding:6px; color:#000; text-align:center; font-weight:700;">${e.credit}</td>
+              <td style="border:1px solid #000; padding:6px; color:#000;">${idx === 0 ? escapeReportText(v.date) : ""}</td>
+              <td style="border:1px solid #000; padding:6px; color:#000; font-weight:700;">${idx === 0 ? escapeReportText(v.id) : ""}</td>
+              <td style="border:1px solid #000; padding:6px; color:#000;">${escapeReportText(e.desc)}</td>
+              <td style="border:1px solid #000; padding:6px; color:#000; text-align:center; font-weight:700;">${escapeReportText(e.debit)}</td>
+              <td style="border:1px solid #000; padding:6px; color:#000; text-align:center; font-weight:700;">${escapeReportText(e.credit)}</td>
               <td style="border:1px solid #000; padding:6px; color:#000; text-align:right; font-weight:700;" class="font-numeric">${formatVND(e.amount)}</td>
             </tr>
           `;
@@ -97,7 +107,7 @@ function generateReport() {
           </tr>
         </tbody>
       </table>
-      
+
       <!-- Chữ ký báo cáo -->
       ${getReportSignaturesHTML()}
     `;
@@ -111,10 +121,10 @@ function generateReport() {
     html += `
       <div style="text-align:center; font-family:'Times New Roman', serif; color:#000; margin-bottom:20px;">
         <h2 style="font-size: 20px; font-weight: bold; text-transform: uppercase;">SỔ CÁI TÀI KHOẢN</h2>
-        <h3 style="font-size: 16px; font-weight: bold;">Tài khoản: ${acctCode} - ${acctName}</h3>
+        <h3 style="font-size: 16px; font-weight: bold;">Tài khoản: ${escapeReportText(acctCode)} - ${escapeReportText(acctName)}</h3>
         <p style="font-style: italic; font-size:12px;">Niên độ kế toán năm ${new Date().getFullYear()}</p>
       </div>
-      
+
       <table class="data-table" style="width:100%; font-family:'Times New Roman', serif; border:1px solid #000; border-collapse:collapse; font-size:12px;">
         <thead>
           <tr style="background-color:#f3f4f6;">
@@ -152,7 +162,7 @@ function generateReport() {
 
     // Quét qua các nghiệp vụ trong nhật ký
     state.vouchers.forEach(v => {
-      v.entries.forEach(e => {
+      (v.entries || []).forEach(e => {
         if (e.debit !== acctCode && e.credit !== acctCode) return;
 
         let dbAmt = 0;
@@ -173,10 +183,10 @@ function generateReport() {
 
         html += `
           <tr>
-            <td style="border:1px solid #000; padding:6px; color:#000;">${v.date}</td>
-            <td style="border:1px solid #000; padding:6px; color:#000; font-weight:700;">${v.id}</td>
-            <td style="border:1px solid #000; padding:6px; color:#000;">${e.desc}</td>
-            <td style="border:1px solid #000; padding:6px; color:#000; text-align:center; font-weight:700;">${oppositeAcct}</td>
+            <td style="border:1px solid #000; padding:6px; color:#000;">${escapeReportText(v.date)}</td>
+            <td style="border:1px solid #000; padding:6px; color:#000; font-weight:700;">${escapeReportText(v.id)}</td>
+            <td style="border:1px solid #000; padding:6px; color:#000;">${escapeReportText(e.desc)}</td>
+            <td style="border:1px solid #000; padding:6px; color:#000; text-align:center; font-weight:700;">${escapeReportText(oppositeAcct)}</td>
             <td style="border:1px solid #000; padding:6px; color:#000; text-align:right;" class="font-numeric">${dbAmt > 0 ? formatVND(dbAmt) : "-"}</td>
             <td style="border:1px solid #000; padding:6px; color:#000; text-align:right;" class="font-numeric">${crAmt > 0 ? formatVND(crAmt) : "-"}</td>
             <td style="border:1px solid #000; padding:6px; color:#000; text-align:right;" class="font-numeric">${formatVND(currentBalance)}</td>
@@ -198,7 +208,7 @@ function generateReport() {
           </tr>
         </tbody>
       </table>
-      
+
       <!-- Chữ ký báo cáo -->
       ${getReportSignaturesHTML()}
     `;
@@ -212,7 +222,7 @@ function generateReport() {
         <p style="font-style: italic; font-size:12px;">Niên độ kế toán năm ${new Date().getFullYear()}</p>
         <p style="font-size:11px;">(Đảm bảo tính chính xác và cân đối kép của toàn bộ hệ thống)</p>
       </div>
-      
+
       <table class="data-table" style="width:100%; font-family:'Times New Roman', serif; border:1px solid #000; border-collapse:collapse; font-size:11px;">
         <thead>
           <tr style="background-color:#e5e7eb;">
@@ -251,8 +261,8 @@ function generateReport() {
 
       html += `
         <tr>
-          <td style="border:1px solid #000; padding:6px; text-align:center; font-weight:700; color:#000;">${row.code}</td>
-          <td style="border:1px solid #000; padding:6px; font-weight:600; color:#000;">${row.name}</td>
+          <td style="border:1px solid #000; padding:6px; text-align:center; font-weight:700; color:#000;">${escapeReportText(row.code)}</td>
+          <td style="border:1px solid #000; padding:6px; font-weight:600; color:#000;">${escapeReportText(row.name)}</td>
           <td style="border:1px solid #000; padding:6px; text-align:right;" class="font-numeric">${row.openDebit > 0 ? formatVND(row.openDebit) : "-"}</td>
           <td style="border:1px solid #000; padding:6px; text-align:right;" class="font-numeric">${row.openCredit > 0 ? formatVND(row.openCredit) : "-"}</td>
           <td style="border:1px solid #000; padding:6px; text-align:right;" class="font-numeric">${row.moveDebit > 0 ? formatVND(row.moveDebit) : "-"}</td>
@@ -275,7 +285,7 @@ function generateReport() {
           </tr>
         </tbody>
       </table>
-      
+
       <p style="font-size: 11px; margin-top:8px; font-style:italic; color:#444;">
         * Nhận xét: Tổng phát sinh Nợ luôn luôn bằng Tổng phát sinh Có trên từng phân khúc dữ liệu giúp bảo toàn tuyệt đối nguyên lý định khoản kép.
       </p>
@@ -369,7 +379,7 @@ function calculateTrialBalance() {
   accounts.forEach(a => { acctMoves[a.code] = { deb: 0, cre: 0 }; });
 
   state.vouchers.forEach(v => {
-    v.entries.forEach(e => {
+    (v.entries || []).forEach(e => {
       if (acctMoves[e.debit]) acctMoves[e.debit].deb += e.amount;
       if (acctMoves[e.credit]) acctMoves[e.credit].cre += e.amount;
     });
@@ -426,4 +436,10 @@ function calculateTrialBalance() {
 
   return trialRows;
 }
-
+
+window.populateReportAccountDropdown = populateReportAccountDropdown;
+window.handleReportTypeChange = handleReportTypeChange;
+window.generateReport = generateReport;
+window.printReport = printReport;
+window.calculateTrialBalance = calculateTrialBalance;
+

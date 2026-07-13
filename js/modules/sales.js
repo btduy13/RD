@@ -487,11 +487,6 @@ async function handleSalesSubmit(e) {
     return;
   }
 
-  const partnerInputVal = document.getElementById("sale-partner").value;
-  const resolvedPartner = resolvePartner(partnerInputVal);
-  const partnerId = resolvedPartner.id;
-  const partnerName = resolvedPartner.name;
-
   const voucherItems = [];
   let isStockInsufficient = false;
 
@@ -509,8 +504,14 @@ async function handleSalesSubmit(e) {
     const productId = resolvedProduct.id;
     const itemDesc = row.querySelector(".item-desc") ? row.querySelector(".item-desc").value.trim() : "";
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
-    const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
+    const price = parseDynamicMoney(row.querySelector(".item-price").value);
+    const discount = parseDynamicDiscount(row.querySelector(".item-discount").value);
+    const lineError = validateDynamicVoucherLine(qty, price, discount);
+    if (lineError) {
+      showToast(`Dòng ${i + 1}: ${lineError}`, "danger");
+      isStockInsufficient = true;
+      break;
+    }
     const amount = Math.round(qty * price * (1 - discount / 100));
 
     // Kiểm tra hàng tồn kho khả dụng (Cộng lại lượng đã bán cũ của chứng từ này nếu đang edit)
@@ -569,6 +570,13 @@ async function handleSalesSubmit(e) {
         return;
       }
     }
+
+    // Resolve only after validation/cloud ID checks because this helper may add
+    // a new partner to state.
+    const partnerInputVal = document.getElementById("sale-partner").value;
+    const resolvedPartner = resolvePartner(partnerInputVal);
+    const partnerId = resolvedPartner.id;
+    const partnerName = resolvedPartner.name;
 
     const newVoucher = {
     id: voucherId,
@@ -1134,11 +1142,6 @@ async function handleSalesReturnSubmit(e) {
     return;
   }
 
-  const partnerInputVal = document.getElementById("sales-ret-partner").value;
-  const resolvedPartner = resolvePartner(partnerInputVal);
-  const partnerId = resolvedPartner.id;
-  const partnerName = resolvedPartner.name;
-
   const voucherItems = [];
   let hasError = false;
 
@@ -1155,8 +1158,14 @@ async function handleSalesReturnSubmit(e) {
 
     const productId = resolvedProduct.id;
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
-    const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
+    const price = parseDynamicMoney(row.querySelector(".item-price").value);
+    const discount = parseDynamicDiscount(row.querySelector(".item-discount").value);
+    const lineError = validateDynamicVoucherLine(qty, price, discount);
+    if (lineError) {
+      showToast(`Dòng ${i + 1}: ${lineError}`, "danger");
+      hasError = true;
+      break;
+    }
     const amount = Math.round(qty * price * (1 - discount / 100));
 
     voucherItems.push({
@@ -1186,6 +1195,11 @@ async function handleSalesReturnSubmit(e) {
         });
       }
     }
+
+    const partnerInputVal = document.getElementById("sales-ret-partner").value;
+    const resolvedPartner = resolvePartner(partnerInputVal);
+    const partnerId = resolvedPartner.id;
+    const partnerName = resolvedPartner.name;
 
     const newVoucher = {
     id: voucherId,
@@ -1799,11 +1813,6 @@ async function handleQuotationSubmit(e) {
     return;
   }
 
-  const partnerInputVal = document.getElementById("quotation-partner").value;
-  const resolvedPartner = resolvePartner(partnerInputVal);
-  const partnerId = resolvedPartner.id;
-  const partnerName = resolvedPartner.name;
-
   const voucherItems = [];
 
   for (let i = 0; i < rows.length; i++) {
@@ -1819,8 +1828,13 @@ async function handleQuotationSubmit(e) {
     const productId = resolvedProduct.id;
     const itemDesc = row.querySelector(".item-desc") ? row.querySelector(".item-desc").value.trim() : "";
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
-    const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
+    const price = parseDynamicMoney(row.querySelector(".item-price").value);
+    const discount = parseDynamicDiscount(row.querySelector(".item-discount").value);
+    const lineError = validateDynamicVoucherLine(qty, price, discount);
+    if (lineError) {
+      showToast(`Dòng ${i + 1}: ${lineError}`, "danger");
+      return;
+    }
     const amount = Math.round(qty * price * (1 - discount / 100));
 
     voucherItems.push({
@@ -1849,6 +1863,11 @@ async function handleQuotationSubmit(e) {
         });
       }
     }
+
+    const partnerInputVal = document.getElementById("quotation-partner").value;
+    const resolvedPartner = resolvePartner(partnerInputVal);
+    const partnerId = resolvedPartner.id;
+    const partnerName = resolvedPartner.name;
 
     const newVoucher = {
       id: voucherId,
@@ -2591,8 +2610,10 @@ function handleTemplateSubmit(event) {
   const rows = document.querySelectorAll("#template-form-items-body tr");
   const items = [];
   let hasEmptyProduct = false;
+  let invalidLine = "";
   
-  rows.forEach(row => {
+  rows.forEach((row, index) => {
+    if (invalidLine) return;
     const productIdVal = row.querySelector(".item-productId").value.trim();
     const descVal = row.querySelector(".item-desc")?.value.trim() || "";
     const qtyValStr = row.querySelector(".item-qty").value;
@@ -2611,14 +2632,24 @@ function handleTemplateSubmit(event) {
       nameVal = productIdVal;
     }
     
-    const qty = safeParseFloat(qtyValStr) || 0;
-    const price = parseInt(priceValStr.replace(/\D/g, "")) || 0;
+    const qty = parseDynamicQuantity(qtyValStr);
+    const price = parseDynamicMoney(priceValStr);
+    const lineError = validateDynamicVoucherLine(qty, price, 0);
+    if (lineError) {
+      invalidLine = `Dòng ${index + 1}: ${lineError}`;
+      return;
+    }
     
     items.push({ name: nameVal, qty, price });
   });
   
   if (hasEmptyProduct) {
     alert("Vui lòng nhập tên/mã sản phẩm cho tất cả các dòng.");
+    return;
+  }
+
+  if (invalidLine) {
+    alert(invalidLine);
     return;
   }
   
@@ -2775,7 +2806,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!val) {
       descInput.value = "Bán hàng xuất kho";
     } else {
-      const resolved = resolvePartner(val);
+      const resolved = findExistingPartner(val);
       const name = resolved ? resolved.name : val;
       descInput.value = `Bán hàng ${name}`;
     }

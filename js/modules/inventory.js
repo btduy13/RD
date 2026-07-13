@@ -1,6 +1,65 @@
 let inventoryCurrentPage = 1;
 
 // 8. RENDER DỮ LIỆU PHÂN HỆ KHO HÀNG (INVENTORY)
+function getInventoryVoucherProductMovement(voucher, productId) {
+  if (!voucher || !Array.isArray(voucher.items)) return null;
+
+  const matchingItems = voucher.items.filter(item =>
+    item && String(item.productId) === String(productId)
+  );
+  if (matchingItems.length === 0) return null;
+
+  let inQty = 0;
+  let outQty = 0;
+  let weightedCost = 0;
+  let weightedQty = 0;
+
+  matchingItems.forEach(item => {
+    const qty = Number(item.qty) || 0;
+    if (qty <= 0) return;
+
+    let direction = "";
+    if (voucher.type === "purchase" || voucher.type === "sales_return") direction = "in";
+    else if (voucher.type === "sales" || voucher.type === "purchase_return") direction = "out";
+    else if (voucher.type === "inventory_adjust") direction = item.adjustDir === "in" ? "in" : "out";
+
+    if (direction === "in") inQty += qty;
+    if (direction === "out") outQty += qty;
+
+    const unitCost = Number(
+      (direction === "out" ? item.cogsUnit : item.price) ?? item.price ?? item.cogsUnit ?? 0
+    ) || 0;
+    weightedCost += unitCost * qty;
+    weightedQty += qty;
+  });
+
+  if (inQty === 0 && outQty === 0) return null;
+  return {
+    inQty,
+    outQty,
+    netQty: inQty - outQty,
+    unitCost: weightedQty > 0 ? weightedCost / weightedQty : 0,
+    items: matchingItems
+  };
+}
+
+function generateUniqueInventoryVoucherId(prefix, timestamp = Date.now()) {
+  const baseId = `${prefix}${timestamp}`;
+  const existingIds = new Set((state.vouchers || []).map(v => String(v && v.id || "").toLowerCase()));
+  let candidate = baseId;
+  let suffix = 1;
+  while (existingIds.has(candidate.toLowerCase())) {
+    candidate = `${baseId}-${suffix}`;
+    suffix++;
+  }
+  return candidate;
+}
+
+function getInventoryOpeningDateLabel() {
+  // Opening balances in the current schema are explicitly anchored at 01/01/2026.
+  return "01/01/2026";
+}
+
 function buildInventoryTableRowHtml(p) {
   const isLow = (p.stock || 0) <= (p.minStock || 0);
   const escapedId = escapeHtmlAttr(p.id);
@@ -271,7 +330,7 @@ function renderStockLedger() {
   // 1. Số dư dòng đầu tiên: Tồn đầu kỳ
   html += `
     <tr style="background-color: rgba(255, 255, 255, 0.02); font-style: italic;">
-      <td>01/01/2026</td>
+      <td>${getInventoryOpeningDateLabel()}</td>
       <td style="font-weight:600; color:var(--text-muted);">TỒN ĐẦU KỲ</td>
       <td class="text-right font-numeric">-</td>
       <td class="text-right font-numeric">-</td>
@@ -282,8 +341,7 @@ function renderStockLedger() {
   // 2. Lọc chứng từ phát sinh chứa sản phẩm này
   let filteredVouchers = state.vouchers.filter(v => {
     if (v.type !== "purchase" && v.type !== "sales" && v.type !== "purchase_return" && v.type !== "sales_return" && v.type !== "inventory_adjust") return false;
-    const item = v.items.find(i => i.productId === prodId);
-    if (!item) return false;
+    if (!getInventoryVoucherProductMovement(v, prodId)) return false;
     if (fromDate && v.date < fromDate) return false;
     if (toDate && v.date > toDate) return false;
     return true;
@@ -295,11 +353,16 @@ function renderStockLedger() {
   let runningStock = initStock;
 
   filteredVouchers.forEach(v => {
-    const item = v.items.find(i => i.productId === prodId);
-    if (!item) return;
+    const movement = getInventoryVoucherProductMovement(v, prodId);
+    if (!movement) return;
+    const item = {
+      qty: movement.inQty > 0 ? movement.inQty : movement.outQty,
+      price: movement.unitCost,
+      cogsUnit: movement.unitCost
+    };
 
     if (v.type === "purchase") {
-      runningStock += item.qty;
+      runningStock += movement.inQty;
       html += `
         <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
           <td>${v.date}</td>
@@ -309,8 +372,8 @@ function renderStockLedger() {
           <td class="text-right font-numeric">${formatVND(item.price)} (Tồn: ${runningStock})</td>
         </tr>
       `;
-    } else if (v.type === "purchase_return" || v.type === "sales_return") {
-      runningStock += item.qty;
+    } else if (v.type === "sales_return") {
+      runningStock += movement.inQty;
       html += `
         <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
           <td>${v.date}</td>
@@ -320,8 +383,8 @@ function renderStockLedger() {
           <td class="text-right font-numeric">${formatVND(item.price)} (Tồn: ${runningStock})</td>
         </tr>
       `;
-    } else if (v.type === "sales") {
-      runningStock -= item.qty;
+    } else if (v.type === "sales" || v.type === "purchase_return") {
+      runningStock -= movement.outQty;
       html += `
         <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
           <td>${v.date}</td>
@@ -332,9 +395,8 @@ function renderStockLedger() {
         </tr>
       `;
     } else if (v.type === "inventory_adjust") {
-      const isIn = item.adjustDir === "in";
-      if (isIn) {
-        runningStock += item.qty;
+      if (movement.inQty > 0) {
+        runningStock += movement.inQty;
         html += `
           <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
             <td>${v.date}</td>
@@ -345,7 +407,7 @@ function renderStockLedger() {
           </tr>
         `;
       } else {
-        runningStock -= item.qty;
+        runningStock -= movement.outQty;
         html += `
           <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
             <td>${v.date}</td>
@@ -440,7 +502,7 @@ function exportStockLedgerToExcel() {
     const bs = (al, bg) => ({ font: fntN, fill: bg, alignment: al, border: border4 });
     const ts = (al) => ({ font: fntB, fill: totBg, alignment: al, border: border4 });
 
-    sc(rowIdx, 0, "01/01/2026", 's', bs(cC, null));
+    sc(rowIdx, 0, getInventoryOpeningDateLabel(), 's', bs(cC, null));
     sc(rowIdx, 1, "TỒN ĐẦU KỲ", 's', bs(cL, null));
     sc(rowIdx, 2, "Số dư đầu kỳ", 's', bs(cL, null));
     sc(rowIdx, 3, "-", 's', bs(cR, null));
@@ -452,8 +514,7 @@ function exportStockLedgerToExcel() {
     // DATA ROWS
     let filteredVouchers = state.vouchers.filter(v => {
       if (v.type !== "purchase" && v.type !== "sales" && v.type !== "purchase_return" && v.type !== "sales_return" && v.type !== "inventory_adjust") return false;
-      const item = v.items.find(i => i.productId === prodId);
-      if (!item) return false;
+      if (!getInventoryVoucherProductMovement(v, prodId)) return false;
       if (fromDate && v.date < fromDate) return false;
       if (toDate && v.date > toDate) return false;
       return true;
@@ -465,14 +526,20 @@ function exportStockLedgerToExcel() {
     let totalImport = 0, totalExport = 0;
 
     filteredVouchers.forEach((v, idx) => {
-      const item = v.items.find(i => i.productId === prodId);
-      if (!item) return;
+      const movement = getInventoryVoucherProductMovement(v, prodId);
+      if (!movement) return;
+      const item = {
+        qty: movement.inQty > 0 ? movement.inQty : movement.outQty,
+        price: movement.unitCost,
+        cogsUnit: movement.unitCost,
+        adjustDir: movement.inQty > 0 ? "in" : "out"
+      };
 
       const bg = idx % 2 === 0 ? null : altBg;
 
       sc(rowIdx, 0, v.date, 's', bs(cC, bg));
       sc(rowIdx, 1, v.id, 's', bs(cC, bg));
-      sc(rowIdx, 2, v.description || (v.type === 'purchase' ? 'Nhập kho mua hàng' : (v.type === 'purchase_return' || v.type === 'sales_return') ? 'Nhập hàng trả lại' : v.type === 'inventory_adjust' ? 'Điều chỉnh tồn kho' : 'Xuất kho bán hàng'), 's', bs(cL, bg));
+      sc(rowIdx, 2, v.description || (v.type === 'purchase' ? 'Nhập kho mua hàng' : v.type === 'sales_return' ? 'Nhập hàng bán trả lại' : v.type === 'purchase_return' ? 'Xuất trả nhà cung cấp' : v.type === 'inventory_adjust' ? 'Điều chỉnh tồn kho' : 'Xuất kho bán hàng'), 's', bs(cL, bg));
 
       if (v.type === "purchase") {
         runningStock += item.qty;
@@ -480,7 +547,7 @@ function exportStockLedgerToExcel() {
         sc(rowIdx, 3, item.qty, 'n', bs(cR, bg), "#,##0.##");
         sc(rowIdx, 4, "-", 's', bs(cR, bg));
         sc(rowIdx, 5, item.price, 'n', bs(cR, bg), numFmt);
-      } else if (v.type === "purchase_return" || v.type === "sales_return") {
+      } else if (v.type === "sales_return") {
         runningStock += item.qty;
         totalImport += item.qty;
         sc(rowIdx, 3, item.qty, 'n', bs(cR, bg), "#,##0.##");
@@ -694,10 +761,12 @@ function handleQuickImportSubmit(e) {
     if (!p) return;
 
     // Tìm nhà cung cấp đầu tiên hoặc dùng mặc định
-    const supplier = state.partners.find(x => x.type === "supplier") || { id: "NCC001", name: "Nhà cung cấp vãng lai" };
+    const supplier = state.partners.find(x => x.type === "supplier" && !x.inactive)
+      || resolvePartner("Nhà cung cấp vãng lai", "supplier");
 
     // Tạo mã chứng từ nhập kho nhanh
-    const quickId = "PNK-Q" + Math.floor(1000 + Math.random() * 9000);
+    const updatedAt = Date.now();
+    const quickId = generateUniqueInventoryVoucherId("PNK-Q", updatedAt);
     const amount = qty * price;
 
     // Tạo phiếu nhập kho
@@ -714,6 +783,7 @@ function handleQuickImportSubmit(e) {
       taxRate: 0,
       taxAmount: 0,
       isManual: true,
+      _updatedAt: updatedAt,
       _sessionId: clientSessionId,
       items: [
         {
@@ -821,7 +891,8 @@ function handleAdjustStockSubmit(e) {
     const absQty = Math.abs(delta);
     const amount = Math.round(absQty * avgCost);
     const adjustDir = delta > 0 ? "in" : "out";
-    const adjustId = "DK" + Date.now().toString().slice(-8);
+    const updatedAt = Date.now();
+    const adjustId = generateUniqueInventoryVoucherId("DK", updatedAt);
 
     const voucher = {
       id: adjustId,
@@ -832,6 +903,7 @@ function handleAdjustStockSubmit(e) {
       amount: amount,
       totalAmount: amount,
       isManual: true,
+      _updatedAt: updatedAt,
       _sessionId: typeof clientSessionId !== "undefined" ? clientSessionId : undefined,
       items: [
         {
@@ -1699,6 +1771,8 @@ async function triggerUpdateFlow(auto = false) {
 }
 // Đăng ký toàn cục các hàm phục vụ cập nhật
 window.renderInventoryTable = renderInventoryTable;
+window.getInventoryVoucherProductMovement = getInventoryVoucherProductMovement;
+window.generateUniqueInventoryVoucherId = generateUniqueInventoryVoucherId;
 window.initLocalVersionDisplay = initLocalVersionDisplay;
 window.checkForUpdates = checkForUpdates;
 window.triggerUpdateFlow = triggerUpdateFlow;

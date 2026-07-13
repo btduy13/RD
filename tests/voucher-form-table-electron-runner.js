@@ -155,6 +155,14 @@ async function main() {
       restoredPartner: document.getElementById('sales-partner').value,
       restoredEditingId: editingId,
       restoredRows,
+      lineValidation: [
+        validateDynamicVoucherLine(1, 0, 0) === '',
+        validateDynamicVoucherLine(0, 100, 0) !== '',
+        validateDynamicVoucherLine(1, -1, 0) !== '',
+        validateDynamicVoucherLine(1, 100, 101) !== '',
+        parseDynamicMoney('-1.000') === -1000,
+        parseDynamicDiscount('-5,5') === -5.5
+      ],
       resetResult: (() => {
         const ok = resetDynamicVoucherForm('form-sales', { taxRate: '0' });
         return {
@@ -185,6 +193,7 @@ async function main() {
   assert.equal(result.restoredPartner, 'KH001');
   assert.equal(result.restoredEditingId, 'BH001');
   assert.equal(result.restoredRows[0].productId, 'SP-DRAFT');
+  assert.deepEqual(result.lineValidation, [true, true, true, true, true, true]);
   assert.deepEqual(result.resetResult, { ok: true, partner: '', editingId: null, rowCount: 1 });
 
   await win.loadFile(path.join(__dirname, 'voucher-form-table-fixture.html'));

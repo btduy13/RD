@@ -398,11 +398,6 @@ async function handlePurchaseSubmit(e) {
     return;
   }
 
-  const partnerInputVal = document.getElementById("pur-partner").value;
-  const resolvedPartner = resolvePartner(partnerInputVal, "supplier");
-  const partnerId = resolvedPartner.id;
-  const partnerName = resolvedPartner.name;
-
   const voucherItems = [];
   let hasError = false;
 
@@ -419,8 +414,14 @@ async function handlePurchaseSubmit(e) {
 
     const productId = resolvedProduct.id;
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
-    const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
+    const price = parseDynamicMoney(row.querySelector(".item-price").value);
+    const discount = parseDynamicDiscount(row.querySelector(".item-discount").value);
+    const lineError = validateDynamicVoucherLine(qty, price, discount);
+    if (lineError) {
+      showToast(`Dòng ${i + 1}: ${lineError}`, "danger");
+      hasError = true;
+      break;
+    }
     const amount = Math.round(qty * price * (1 - discount / 100));
 
     voucherItems.push({
@@ -452,6 +453,10 @@ async function handlePurchaseSubmit(e) {
       }
     }
 
+    const partnerInputVal = document.getElementById("pur-partner").value;
+    const resolvedPartner = resolvePartner(partnerInputVal, "supplier");
+    const partnerId = resolvedPartner.id;
+    const partnerName = resolvedPartner.name;
     const paymentMethod = document.getElementById("pur-payment").value;
     const newVoucher = {
     id: voucherId,
@@ -1049,11 +1054,6 @@ async function handlePurchaseOrderSubmit(e) {
     return;
   }
 
-  const partnerInputVal = document.getElementById("pur-order-partner").value;
-  const resolvedPartner = resolvePartner(partnerInputVal, "supplier");
-  const partnerId = resolvedPartner.id;
-  const partnerName = resolvedPartner.name;
-
   const voucherItems = [];
   let hasError = false;
 
@@ -1070,8 +1070,14 @@ async function handlePurchaseOrderSubmit(e) {
 
     const productId = resolvedProduct.id;
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
-    const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
+    const price = parseDynamicMoney(row.querySelector(".item-price").value);
+    const discount = parseDynamicDiscount(row.querySelector(".item-discount").value);
+    const lineError = validateDynamicVoucherLine(qty, price, discount);
+    if (lineError) {
+      showToast(`Dòng ${i + 1}: ${lineError}`, "danger");
+      hasError = true;
+      break;
+    }
     const amount = Math.round(qty * price * (1 - discount / 100));
 
     voucherItems.push({
@@ -1105,6 +1111,11 @@ async function handlePurchaseOrderSubmit(e) {
     }
 
     const paymentMethod = document.getElementById("pur-order-payment").value;
+    const partnerInputVal = document.getElementById("pur-order-partner").value;
+    const resolvedPartner = resolvePartner(partnerInputVal, "supplier");
+    const partnerId = resolvedPartner.id;
+    const partnerName = resolvedPartner.name;
+
     const newVoucher = {
     id: voucherId,
     type: "purchase_order",
@@ -1968,11 +1979,6 @@ async function handlePurchaseReturnSubmit(e) {
     return;
   }
 
-  const partnerInputVal = document.getElementById("ret-partner").value;
-  const resolvedPartner = resolvePartner(partnerInputVal, "supplier");
-  const partnerId = resolvedPartner.id;
-  const partnerName = resolvedPartner.name;
-
   const voucherItems = [];
   let hasError = false;
 
@@ -1989,8 +1995,14 @@ async function handlePurchaseReturnSubmit(e) {
 
     const productId = resolvedProduct.id;
     const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
-    const price = parseInt(row.querySelector(".item-price").value.replace(/\D/g, "")) || 0;
-    const discount = parseFloat(row.querySelector(".item-discount").value.replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
+    const price = parseDynamicMoney(row.querySelector(".item-price").value);
+    const discount = parseDynamicDiscount(row.querySelector(".item-discount").value);
+    const lineError = validateDynamicVoucherLine(qty, price, discount);
+    if (lineError) {
+      showToast(`Dòng ${i + 1}: ${lineError}`, "danger");
+      hasError = true;
+      break;
+    }
     const amount = Math.round(qty * price * (1 - discount / 100));
 
     voucherItems.push({
@@ -2023,6 +2035,11 @@ async function handlePurchaseReturnSubmit(e) {
     }
 
     const paymentMethod = document.getElementById("ret-payment").value;
+    const partnerInputVal = document.getElementById("ret-partner").value;
+    const resolvedPartner = resolvePartner(partnerInputVal, "supplier");
+    const partnerId = resolvedPartner.id;
+    const partnerName = resolvedPartner.name;
+
     const newVoucher = {
     id: voucherId,
     type: "purchase_return",

@@ -425,11 +425,28 @@ function parseDynamicQuantity(value) {
 }
 
 function parseDynamicMoney(value) {
-  return Number.parseInt(String(value || "").replace(/\D/g, ""), 10) || 0;
+  return Number.parseInt(String(value || "").replace(/[^\d-]/g, ""), 10) || 0;
 }
 
 function parseDynamicDiscount(value) {
-  return Number.parseFloat(String(value || "").replace(/,/g, ".").replace(/[^\d.]/g, "")) || 0;
+  return Number.parseFloat(String(value || "").replace(/,/g, ".").replace(/[^\d.-]/g, "")) || 0;
+}
+
+function validateDynamicVoucherLine(qty, price, discount) {
+  const numericQty = Number(qty);
+  const numericPrice = Number(price);
+  const numericDiscount = Number(discount);
+
+  if (!Number.isFinite(numericQty) || numericQty <= 0) {
+    return "Số lượng phải lớn hơn 0.";
+  }
+  if (!Number.isFinite(numericPrice) || numericPrice < 0) {
+    return "Đơn giá không được âm.";
+  }
+  if (!Number.isFinite(numericDiscount) || numericDiscount < 0 || numericDiscount > 100) {
+    return "Chiết khấu phải từ 0% đến 100%.";
+  }
+  return "";
 }
 
 function normalizeDynamicDiscountValue(discount, qty, price) {
@@ -811,6 +828,10 @@ window.serializeDynamicFormTable = serializeDynamicFormTable;
 window.recalculateDynamicFormTable = recalculateDynamicFormTable;
 window.refreshDynamicProductPrices = refreshDynamicProductPrices;
 window.normalizeDynamicDiscountValue = normalizeDynamicDiscountValue;
+window.parseDynamicQuantity = parseDynamicQuantity;
+window.parseDynamicMoney = parseDynamicMoney;
+window.parseDynamicDiscount = parseDynamicDiscount;
+window.validateDynamicVoucherLine = validateDynamicVoucherLine;
 window.buildDynamicRowActionsCell = buildDynamicRowActionsCell;
 window.mountDynamicFormRow = mountDynamicFormRow;
 window.removeDynamicFormRow = removeDynamicFormRow;

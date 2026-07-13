@@ -204,6 +204,7 @@ function buildVoucherPrintDocument({ voucherHtml, printFontScale = 1, printPaper
 <html lang="vi">
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: file: https://img.vietqr.io; style-src 'unsafe-inline'; font-src data: file:; script-src 'none'; connect-src 'none'; frame-src 'none'; object-src 'none'">
   <base href="${baseHref}">
   <style>${getVoucherPrintStyles(rootDir)}${pageOverride}${layoutVars}</style>
 </head>

@@ -141,6 +141,16 @@
             <span>Quỹ tiền Thu/Chi</span>
           </a>
         </li>
+        <li class="menu-item" data-tab="reports">
+          <a onclick="switchTab('reports')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+              </path>
+            </svg>
+            <span>Báo cáo kế toán</span>
+          </a>
+        </li>
         <li class="menu-section-label" aria-hidden="true">Hệ thống</li>
         <li class="menu-item" data-tab="logs" data-role-required="admin">
           <a onclick="switchTab('logs')">
@@ -218,20 +228,23 @@
             <span id="header-company-name">CÔNG TY CP RẠNG ĐÔNG</span>
           </div>
 
-          <!-- Chỉ báo đồng bộ Đám mây (icon + màu, không chữ) -->
-          <div id="cloud-sync-badge" class="header-status-chip sync-chip sync-icon-only" role="status" aria-live="polite" title="Mây: Tắt">
+          <!-- Chỉ báo đồng bộ Đám mây; bấm để mở bảng quản lý đồng bộ -->
+          <button type="button" id="cloud-sync-badge" class="header-status-chip sync-chip sync-icon-only"
+            onclick="openCloudSyncModal()" aria-haspopup="dialog" aria-controls="modal-cloud-sync"
+            aria-label="Mây: Tắt" title="Mây: Tắt">
             <svg id="cloud-sync-icon" class="sync-cloud-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
             </svg>
             <span id="cloud-sync-status-glyph" class="sync-status-glyph" aria-hidden="true"></span>
-            <span id="cloud-sync-status-text" class="sr-only">Mây: Tắt</span>
-          </div>
+            <span id="cloud-sync-status-text" class="sr-only" role="status" aria-live="polite">Mây: Tắt</span>
+          </button>
 
           <!-- Thông tin Người dùng & Đăng xuất -->
           <div id="user-info-display" class="header-status-chip user-chip" style="display: none;"></div>
 
           <!-- Nút đồng bộ lại dữ liệu (Reset/Sync) -->
-          <button class="icon-btn" onclick="manualIncrementalSync()" title="Đồng bộ dữ liệu Đám mây">
+          <button type="button" id="btn-cloud-sync-now" class="icon-btn" onclick="manualIncrementalSync()"
+            aria-label="Đồng bộ dữ liệu đám mây ngay" title="Đồng bộ dữ liệu Đám mây">
             <svg id="cloud-sync-refresh-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17"></path>
             </svg>
@@ -2108,7 +2121,7 @@
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"
                     style="width: 32px; height: 32px; color: var(--color-success); margin-bottom: 8px;">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 0-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                      d="M17 20h5v-2a4 4 0 0 0-4-4h-1 M9 20H2v-2a4 4 0 0 1 4-4h3a4 4 0 0 1 4 4v2z M11 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0z M20 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0z">
                     </path>
                   </svg>
                   <span class="drop-zone-title">Danh sách Khách hàng & Nhà cung cấp (xlsx)</span>
@@ -2783,7 +2796,39 @@
         </section>
 
         <!-- ==========================================================
-             7. TAB: THIẾT LẬP (SETTINGS)
+             7. TAB: BÁO CÁO KẾ TOÁN (REPORTS)
+             ========================================================== -->
+        <section id="view-reports" class="tab-view">
+          <div class="report-selector-bar">
+            <div class="form-group" style="min-width: 220px;">
+              <label class="form-label" for="select-report-type">Chọn loại báo cáo</label>
+              <select id="select-report-type" class="form-control" onchange="handleReportTypeChange()">
+                <option value="journal">Sổ Nhật ký chung</option>
+                <option value="ledger">Sổ Cái chi tiết tài khoản</option>
+                <option value="balance">Bảng Cân đối phát sinh</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="report-account-selector-wrapper" style="min-width: 220px; display: none;">
+              <label class="form-label" for="select-report-account">Chọn tài khoản</label>
+              <select id="select-report-account" class="form-control" onchange="generateReport()"></select>
+            </div>
+
+            <button type="button" class="btn btn-secondary" onclick="printReport()" style="margin-left: auto;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" style="width: 18px; height: 18px;">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
+                </path>
+              </svg>
+              In báo cáo
+            </button>
+          </div>
+
+          <div id="printable-report-area" aria-live="polite"></div>
+        </section>
+
+        <!-- ==========================================================
+             8. TAB: THIẾT LẬP (SETTINGS)
              ========================================================== -->
         <section id="view-settings" class="tab-view">
           <div class="dashboard-details-row">
@@ -2888,7 +2933,7 @@
               </div>
             </div>
 
-            <!-- Cấu hình Đồng bộ Đám mây (Supabase Cloud Database) -->
+            <!-- Lối tắt cấu hình Đồng bộ Đám mây (biểu mẫu nằm trong modal dùng chung) -->
             <div class="chart-card" data-role-required="admin" style="min-height: auto;">
               <span class="card-title"
                 style="color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
@@ -2900,49 +2945,10 @@
               </span>
               <p class="header-subtitle" style="margin-bottom: 12px;">Đồng bộ dữ liệu thời gian thực giữa nhiều máy bằng
                 cơ sở dữ liệu Supabase của riêng bạn.</p>
-
-              <form id="form-cloud-sync" onsubmit="saveCloudConfig(event)" class="form-grid"
-                style="grid-template-columns: 1fr; gap: 8px;">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                  <input type="checkbox" id="setting-cloud-enabled" onchange="toggleCloudSyncInputs()"
-                    style="width: 16px; height: 16px; cursor: pointer;" checked disabled>
-                  <label for="setting-cloud-enabled"
-                    style="font-weight: 600; cursor: pointer; color: var(--text-primary); font-size: 13px; margin: 0;">Kích
-                    hoạt Đồng bộ Đám mây (Bắt buộc ở chế độ Online-Only)</label>
-                </div>
-
-                <div id="cloud-sync-inputs-group"
-                  style="display: none; flex-direction: column; gap: 8px; border-top: 1px dashed var(--border-color); padding-top: 10px;">
-                  <div class="form-group">
-                    <label class="form-label" style="font-size: 11px;">Supabase URL</label>
-                    <input type="text" id="setting-cloud-supabase-url" class="form-control"
-                      placeholder="https://your-project.supabase.co"
-                      style="padding: 6px 10px; font-size: 12px;">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" style="font-size: 11px;">Supabase Anon Key</label>
-                    <input type="password" id="setting-cloud-supabase-key" class="form-control"
-                      placeholder="eyJhbGciOiJIUzI1NiIs..."
-                      style="padding: 6px 10px; font-size: 12px;">
-                  </div>
-                </div>
-
-                <div style="display: flex; gap: 10px; margin-top: 8px;">
-                  <button type="submit" class="btn btn-primary btn-sm"
-                    style="flex: 1; font-size: 12px; padding: 6px 12px;">
-                    Lưu & Đồng bộ ngay
-                  </button>
-                  <button type="button" id="btn-force-pull" class="btn btn-secondary btn-sm"
-                    onclick="forcePullFromCloud()" style="flex: 1; font-size: 12px; padding: 6px 12px; display: none;">
-                    Tải về từ Mây
-                  </button>
-                  <button type="button" id="btn-force-push" class="btn btn-secondary btn-sm"
-                    onclick="forcePushToCloud()"
-                    style="flex: 1; font-size: 12px; padding: 6px 12px; display: none; color: var(--color-success); border-color: var(--color-success);">
-                    Đẩy lên Mây
-                  </button>
-                </div>
-              </form>
+              <button type="button" class="btn btn-primary btn-sm" onclick="openCloudSyncModal()"
+                aria-haspopup="dialog" aria-controls="modal-cloud-sync">
+                Mở quản lý đồng bộ
+              </button>
             </div>
 
             <!-- Nhật ký Giám sát Lỗi và Click -->
@@ -3020,6 +3026,74 @@
   <!-- ==========================================================
        POPUP MODALS (CÁC HỘP THOẠI BIỂU MẪU NHẬP LIỆU)
        ========================================================== -->
+
+  <!-- MODAL: CẤU HÌNH & ĐỒNG BỘ ĐÁM MÂY -->
+  <div id="modal-cloud-sync" class="modal-overlay cloud-sync-modal" data-draft-disabled="true" aria-hidden="true">
+    <div class="modal-content-container modal-w-md modal-elevated">
+      <div class="modal-header">
+        <div>
+          <h3 class="card-title" id="modal-cloud-sync-title">Đồng bộ Đám mây</h3>
+          <p class="header-subtitle cloud-sync-modal-subtitle">Cấu hình Supabase và chủ động đồng bộ dữ liệu giữa các máy.</p>
+        </div>
+        <button type="button" class="icon-btn modal-close-btn" onclick="closeCloudSyncModal()"
+          aria-label="Đóng quản lý đồng bộ">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div id="cloud-sync-modal-status" class="cloud-sync-status-panel" role="status" aria-live="polite">
+          <span>Trạng thái kết nối</span>
+          <strong id="cloud-sync-modal-status-text">Mây: Tắt</strong>
+        </div>
+
+        <form id="form-cloud-sync" onsubmit="saveCloudConfig(event)" class="cloud-sync-form" autocomplete="off"
+          data-role-required="admin">
+          <label class="cloud-sync-toggle" for="setting-cloud-enabled">
+            <input type="checkbox" id="setting-cloud-enabled" onchange="toggleCloudSyncInputs()" checked>
+            <span>
+              <strong>Kích hoạt Đồng bộ Đám mây</strong>
+              <small>Có thể tắt để chỉ làm việc với dữ liệu cục bộ trên máy này.</small>
+            </span>
+          </label>
+
+          <div id="cloud-sync-inputs-group" class="cloud-sync-inputs">
+            <div class="form-group">
+              <label class="form-label" for="setting-cloud-supabase-url">Supabase URL</label>
+              <input type="url" id="setting-cloud-supabase-url" class="form-control"
+                placeholder="https://your-project.supabase.co" inputmode="url" spellcheck="false">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="setting-cloud-supabase-key">Supabase Anon Key</label>
+              <input type="password" id="setting-cloud-supabase-key" class="form-control"
+                placeholder="eyJhbGciOiJIUzI1NiIs..." autocomplete="new-password" spellcheck="false">
+            </div>
+          </div>
+
+          <div class="cloud-sync-config-actions" data-role-required="admin">
+            <button type="submit" id="btn-save-cloud-config" class="btn btn-primary">Lưu & kết nối</button>
+          </div>
+        </form>
+
+        <div class="cloud-sync-manual-section">
+          <div>
+            <h4>Đồng bộ thủ công</h4>
+            <p>“Đồng bộ ngay” hợp nhất thay đổi hai chiều. Hai thao tác bắt buộc bên dưới cần xác nhận riêng.</p>
+          </div>
+          <div class="cloud-sync-manual-actions">
+            <button type="button" id="btn-manual-cloud-sync" class="btn btn-primary"
+              onclick="manualIncrementalSync()">Đồng bộ ngay</button>
+            <button type="button" id="btn-force-pull" class="btn btn-secondary"
+              onclick="forcePullFromCloud()" style="display: none;">Tải toàn bộ từ Mây</button>
+            <button type="button" id="btn-force-push" class="btn btn-secondary cloud-sync-push-btn"
+              onclick="forcePushToCloud()" style="display: none;">Đẩy dữ liệu lên Mây</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeCloudSyncModal()">Đóng</button>
+      </div>
+    </div>
+  </div>
 
   <!-- A-1. MODAL: THÊM/SỬA ĐỐI TÁC -->
   <div id="modal-add-partner" class="modal-overlay">
@@ -4707,6 +4781,34 @@
               <option value="A4">A4</option>
               <option value="A5" selected>A5</option>
             </select>
+          </div>
+
+          <div id="voucher-printer-settings" class="voucher-print-sidebar-section">
+            <label class="voucher-print-field-label" for="voucher-printer-select">Máy in</label>
+            <div class="voucher-printer-select-row">
+              <select id="voucher-printer-select" class="form-control voucher-print-sidebar-select"
+                onchange="applyVoucherPrinterSelection(this.value)" aria-describedby="voucher-printer-status">
+                <option value="">Đang tải danh sách máy in…</option>
+              </select>
+              <button type="button" class="voucher-printer-refresh-btn" onclick="refreshVoucherPrinters(true)"
+                aria-label="Tải lại danh sách máy in" title="Tải lại danh sách máy in">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M5.64 15A7 7 0 0018 17.36M18.36 9A7 7 0 006 6.64"></path>
+                </svg>
+              </button>
+            </div>
+
+            <label class="voucher-direct-print-toggle" for="voucher-direct-print-enabled">
+              <input type="checkbox" id="voucher-direct-print-enabled"
+                onchange="applyVoucherDirectPrint(this.checked)" checked>
+              <span>
+                <strong>In trực tiếp, tự khớp khổ giấy</strong>
+                <small>Bỏ qua profile mặc định của driver cho riêng lệnh in này.</small>
+              </span>
+            </label>
+            <p id="voucher-printer-status" class="voucher-printer-status" role="status" aria-live="polite">
+              Ứng dụng sẽ gửi đúng khổ A5 theo lựa chọn phía trên.
+            </p>
           </div>
 
           <div class="voucher-print-sidebar-section">

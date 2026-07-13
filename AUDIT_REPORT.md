@@ -1,5 +1,28 @@
 # Audit dong bo cloud va UI
 
+## Bo sung audit 2026-07-13
+
+- Sua Rescue `push-candidates` chi danh dau dung cac khoa da truy van cloud; khong con bien toan bo voucher/san pham/doi tac thanh local-only. Gioi han 5 log chi tiet va them summary de tranh flood log.
+- Tach lookup doi tac thuan `findExistingPartner` khoi ham tu tao: go tung ky tu o form ban hang va validation doanh nghiep me khong con sinh partner rac.
+- Chan gui lai tombstone da co tren cloud; snapshot sau push giu dung metadata vua upload, cloud watermark rollback tu full-reconcile va doi Supabase project khong dung lai baseline cu.
+- Startup chua co cloud baseline bat buoc full reconcile, sau do dung ngay snapshot day du cho Rescue thay vi truy van lai hang tram batch ID.
+- Cloud moi duoc seed metadata tu du lieu local da nap (thong tin cong ty, so du dau ky...) bang insert-only; tranh cloud rong moi hon ghi de metadata local va tranh race hai may tao metadata.
+- Them chon may in va che do "In truc tiep, tu khop kho giay": app gui A4/A5 theo tung lenh in bang dung system device name, khong doi profile Windows toan cuc; neu may in bien mat/driver tu choi thi tu mo hop thoai in de chon lai.
+- Thay the the cau hinh cloud inline bi vo hieu hoa bang modal that, mo duoc tu badge tren header va tu trang Thiet lap; bo sung focus trap, ARIA, Escape dung modal tren cung, responsive desktop/mobile va khoa scroll nen.
+- Sua luu cau hinh cloud thanh bat dong bo co trang thai busy: khong bao thanh cong khi ket noi Supabase that bai, khong cho bam lap, va giu dung cau hinh `enabled: false` sau khi khoi dong lai.
+- Sua "Dong bo ngay" thanh dong bo hai chieu theo thu tu pull/merge roi push. Force pull va force push deu can xac nhan, bi khoa khi form chung tu dang mo hoac mot tac vu cloud khac dang chay.
+- Dong bo trang thai badge vao modal; nut thu cong an/disable dung theo trang thai ket noi va khoi phuc nhan nut sau khi hoan tat.
+- Sua cleanup tombstone theo typed cloud key: `p_SHARED` khong con bi xoa chi vi voucher `SHARED` dang ton tai. Tombstone cu khong prefix duoc chuan hoa ve voucher `v_` khi merge/push.
+- Khoi phuc phan he Bao cao ke toan bi mat khoi DOM/sidebar (Nhat ky chung, So Cai, Bang can doi phat sinh); sua link dashboard tro den trang khong ton tai, bo qua voucher import thieu `entries`, va escape du lieu nguoi dung khi render HTML bao cao.
+- Sua the kho: phieu tra hang mua la xuat kho (khong phai nhap kho), cong tat ca dong trung ma san pham trong mot chung tu, va dung gia von da ghi cho movement xuat.
+- Sua gia tri ton kho lich su de xu ly lap ma hang, ban tra lai, mua tra lai va dieu chinh kho theo cung chieu nghiep vu voi accounting engine.
+- Chan so luong <= 0, don gia am va chiet khau ngoai 0..100 tren cac form mua/ban/tra hang/bao gia/phieu mau; khong tu tao doi tac moi truoc khi dong hang va so chung tu cloud hop le.
+- Sua "Mo thu muc backup" dung IPC `shell.openPath` rieng thay vi gui `file://` qua whitelist HTTP(S). Backup JSON duoc validate, ghi atomic voi ten khong trung va bo qua file backup moi nhat neu file do bi hong.
+- Sua doc phieu mau Excel trong `excel/phieu mau`, chan path traversal/duoi file la; bo sung guard khong de JSON migration cu ghi de SQLite da co du lieu.
+- Bo sung CSP cho cua so in, cleanup cua so/file tam khi load that bai, timeout/gioi han kich thuoc/backpressure va single-flight cho bo tai cap nhat.
+- Bo sung full-shell Electron smoke test: startup error, duplicate ID, label/form target, toan bo sidebar, switchTab target, modal stack, cloud flow, report XSS va layout modal full viewport.
+- Dua test cong no bi bo sot truoc day vao `npm test`; them test platform, inventory, reports va app shell.
+
 ## Bo sung audit 2026-07-11
 
 - Sua hang doi dong bo V2: push trong luc startup/pull khong con bi bo roi; pull dang cho giu nguyen `forceFull`, `force` va ly do yeu cau.

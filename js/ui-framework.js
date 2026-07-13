@@ -9,6 +9,7 @@ let tabDirtyStates = {
   partners: true,
   debts: true,
   cash: true,
+  reports: true,
   settings: true
 };
 
@@ -74,6 +75,9 @@ function renderTabIfNeeded(tabId) {
     } else if (tabId === "cash") {
       filterCash();
       recalculateCashKpis();
+    } else if (tabId === "reports") {
+      if (typeof populateReportAccountDropdown === "function") populateReportAccountDropdown();
+      if (typeof generateReport === "function") generateReport();
     } else if (tabId === "settings") {
       if (typeof updateErrorLogsUI === "function") {
         updateErrorLogsUI();
@@ -126,7 +130,11 @@ function switchTab(tabId) {
       if (modal.classList.contains("workspace-tab-panel")) return; // Skip workspace tabs
       if (modal.style.display === "flex" || modal.style.display === "block") {
         openModals.push(modal.id);
+        teardownModalAccessibility(modal, modal.id);
         modal.style.display = "none";
+        if (modal.classList.contains("cloud-sync-modal")) {
+          document.body.classList.remove("cloud-sync-modal-open");
+        }
       }
     });
     activeModalsByTab[prevTabId] = openModals;
@@ -167,6 +175,7 @@ function switchTab(tabId) {
     partners: { title: "Danh mục Đối tác", sub: "Quản lý hồ sơ khách hàng, nhà cung cấp và thông tin liên hệ" },
     debts: { title: "Quản lý Công nợ", sub: "Sổ tổng hợp chi tiết công nợ phải thu (TK 131) và phải trả (TK 331)" },
     cash: { title: "Quỹ tiền Thu & Chi", sub: "Sổ quỹ tiền mặt, tiền gửi ngân hàng và hạch toán phiếu thu/chi" },
+    reports: { title: "Báo cáo kế toán", sub: "Sổ Nhật ký chung, Sổ Cái và Bảng Cân đối phát sinh" },
     settings: { title: "Thiết lập hệ thống", sub: "Cấu hình doanh nghiệp và quản lý cơ sở dữ liệu" }
   };
 
@@ -189,6 +198,10 @@ function switchTab(tabId) {
       const modal = document.getElementById(modalId);
       if (modal) {
         modal.style.display = "flex";
+        setupModalAccessibility(modal, modalId);
+        if (modal.classList.contains("cloud-sync-modal")) {
+          document.body.classList.add("cloud-sync-modal-open");
+        }
       }
     });
   }
@@ -208,52 +221,9 @@ function switchTab(tabId) {
 // 5. RENDER DỮ LIỆU PHÂN HỆ DASHBOARD (KPIs & OFFLINE CHART)
 function getInventoryValueAt(toDate) {
   if (!toDate) {
-    let totalInventoryVal = 0;
-    state.products.forEach(p => {
-      totalInventoryVal += p.totalValue || 0;
-    });
-    return totalInventoryVal;
+    return (state.products || []).reduce((sum, p) => sum + (Number(p && p.totalValue) || 0), 0);
   }
-
-  const productStocks = {};
-  const productValues = {};
-  state.products.forEach(p => {
-    productStocks[p.id] = p.initialStock || 0;
-    productValues[p.id] = (p.initialStock || 0) * (p.initialCost || 0);
-  });
-
-  const chronologicalVouchers = [...state.vouchers];
-  chronologicalVouchers.sort((a, b) => a.date.localeCompare(b.date));
-
-  chronologicalVouchers.forEach(v => {
-    if (v.date > toDate) return;
-    if (!v.items) return;
-
-    const seenInVoucher = new Set();
-
-    v.items.forEach(item => {
-      const pId = item.productId;
-      if (productStocks[pId] !== undefined) {
-        if (seenInVoucher.has(pId)) return;
-        seenInVoucher.add(pId);
-
-        if (v.type === "purchase") {
-          productStocks[pId] += item.qty;
-          productValues[pId] += item.amount;
-        } else if (v.type === "sales") {
-          productStocks[pId] -= item.qty;
-          productValues[pId] -= (item.cogsAmount || 0);
-        }
-      }
-    });
-  });
-
-  let totalVal = 0;
-  state.products.forEach(p => {
-    totalVal += productValues[p.id] || 0;
-  });
-
-  return totalVal;
+  return calculateInventoryValueAt(state.products, state.vouchers, toDate);
 }
 
 // Quản lý Modal
@@ -271,10 +241,9 @@ function trapModalFocus(e, modalId) {
   var modal = document.getElementById(modalId);
   if (!modal || (modal.style.display !== "flex" && modal.style.display !== "block")) return;
 
-  if (e.key === "Escape") {
-    closeModal(modalId);
-    return;
-  }
+  // Escape is handled once by the global modal stack listener, which can pick
+  // the top-most overlay. Per-modal handlers only own focus wrapping.
+  if (e.key === "Escape") return;
   if (e.key !== "Tab") return;
 
   var focusable = getModalFocusableElements(modal);
@@ -295,8 +264,15 @@ function trapModalFocus(e, modalId) {
 }
 
 function setupModalAccessibility(modal, modalId) {
+  // Avoid stacking duplicate keydown handlers when an opener is activated twice.
+  var existingState = _modalFocusState[modalId];
+  if (existingState && existingState.handler) {
+    document.removeEventListener("keydown", existingState.handler);
+  }
+
   modal.setAttribute("role", "dialog");
   modal.setAttribute("aria-modal", "true");
+  modal.setAttribute("aria-hidden", "false");
 
   var title = modal.querySelector(".card-title, .modal-header h3, h3");
   if (title) {
@@ -304,7 +280,9 @@ function setupModalAccessibility(modal, modalId) {
     modal.setAttribute("aria-labelledby", title.id);
   }
 
-  var prevFocus = document.activeElement;
+  var prevFocus = existingState && existingState.prevFocus
+    ? existingState.prevFocus
+    : document.activeElement;
   var handler = function (e) { trapModalFocus(e, modalId); };
   _modalFocusState[modalId] = { prevFocus: prevFocus, handler: handler };
   document.addEventListener("keydown", handler);
@@ -328,14 +306,19 @@ function teardownModalAccessibility(modal, modalId) {
   modal.removeAttribute("role");
   modal.removeAttribute("aria-modal");
   modal.removeAttribute("aria-labelledby");
+  modal.setAttribute("aria-hidden", "true");
 }
 
 function openModal(modalId) {
   const modal = document.getElementById(modalId);
   if (modal) {
+    const alreadyOpen = modal.style.display === "flex" || modal.style.display === "block";
     modal.style.display = "flex";
-    setupModalAccessibility(modal, modalId);
-    if (typeof window.checkAndRestoreDraft === "function") {
+    if (!alreadyOpen) setupModalAccessibility(modal, modalId);
+    if (modal.classList.contains("cloud-sync-modal")) {
+      document.body.classList.add("cloud-sync-modal-open");
+    }
+    if (modal.dataset.draftDisabled !== "true" && typeof window.checkAndRestoreDraft === "function") {
       window.checkAndRestoreDraft(modalId);
     }
   }
@@ -345,11 +328,14 @@ function closeModal(modalId) {
   const modal = document.getElementById(modalId);
   if (modal) {
     const form = modal.querySelector('form');
-    if (form && typeof window.saveFormDraftImmediately === "function") {
+    if (modal.dataset.draftDisabled !== "true" && form && typeof window.saveFormDraftImmediately === "function") {
       window.saveFormDraftImmediately(form.id);
     }
     teardownModalAccessibility(modal, modalId);
     modal.style.display = "none";
+    if (modal.classList.contains("cloud-sync-modal")) {
+      document.body.classList.remove("cloud-sync-modal-open");
+    }
   }
 }
 
@@ -1954,6 +1940,210 @@ function getVoucherPrintDestination() {
   return "printer";
 }
 
+let voucherSystemPrinters = [];
+let voucherPrinterLoadPromise = null;
+
+function getVoucherPrinterPreferences() {
+  const prefs = typeof getUserPrefs === "function" ? getUserPrefs() : {};
+  return {
+    directPrint: prefs.printDirectEnabled !== false,
+    deviceName: typeof prefs.printPrinterDeviceName === "string"
+      ? prefs.printPrinterDeviceName.trim()
+      : ""
+  };
+}
+
+function setVoucherPrinterStatus(message, state) {
+  const status = document.getElementById("voucher-printer-status");
+  if (!status) return;
+  status.textContent = message;
+  if (state) status.dataset.state = state;
+  else delete status.dataset.state;
+}
+
+function updateVoucherPrinterGuidance() {
+  const section = document.getElementById("voucher-printer-settings");
+  if (!section || section.hidden) return;
+
+  const paperSize = getPrintPaperSize();
+  const directToggle = document.getElementById("voucher-direct-print-enabled");
+  const printerSelect = document.getElementById("voucher-printer-select");
+  const directPrint = directToggle ? directToggle.checked : getVoucherPrinterPreferences().directPrint;
+  const selectedOption = printerSelect && printerSelect.selectedOptions
+    ? printerSelect.selectedOptions[0]
+    : null;
+  const printerLabel = selectedOption && selectedOption.value
+    ? selectedOption.textContent.replace(/\s*\(mặc định\)\s*$/, "")
+    : "máy in đã chọn";
+
+  if (directPrint && printerSelect && !printerSelect.disabled && printerSelect.value) {
+    setVoucherPrinterStatus(
+      `Ứng dụng sẽ gửi khổ ${paperSize} trực tiếp đến ${printerLabel}. Thiết lập này chỉ áp dụng cho lệnh in, không đổi profile Windows.`,
+      ""
+    );
+    return;
+  }
+
+  if (!directPrint) {
+    setVoucherPrinterStatus(
+      `Hộp thoại máy in sẽ mở. Hãy kiểm tra driver đang chọn đúng khổ ${paperSize} trước khi in.`,
+      "warning"
+    );
+  }
+}
+
+function syncVoucherPrinterControlsVisibility() {
+  const section = document.getElementById("voucher-printer-settings");
+  if (!section) return;
+  section.hidden = getVoucherPrintDestination() !== "printer";
+  if (!section.hidden) updateVoucherPrinterGuidance();
+}
+
+function applyVoucherPrinterSelection(deviceName) {
+  const resolved = typeof deviceName === "string" ? deviceName.trim() : "";
+  if (typeof saveUserPrefs === "function") {
+    saveUserPrefs({ printPrinterDeviceName: resolved });
+  }
+  updateVoucherPrinterGuidance();
+}
+
+function applyVoucherDirectPrint(enabled) {
+  const resolved = enabled !== false;
+  if (typeof saveUserPrefs === "function") {
+    saveUserPrefs({ printDirectEnabled: resolved });
+  }
+  const checkbox = document.getElementById("voucher-direct-print-enabled");
+  if (checkbox) checkbox.checked = resolved;
+  updateVoucherPrinterGuidance();
+}
+
+function renderVoucherPrinterOptions(printers) {
+  const select = document.getElementById("voucher-printer-select");
+  const directToggle = document.getElementById("voucher-direct-print-enabled");
+  if (!select) return;
+
+  const normalized = [];
+  const seen = new Set();
+  (Array.isArray(printers) ? printers : []).forEach((printer) => {
+    const name = typeof printer?.name === "string" ? printer.name.trim() : "";
+    if (!name || seen.has(name)) return;
+    seen.add(name);
+    normalized.push({
+      name,
+      displayName: typeof printer.displayName === "string" && printer.displayName.trim()
+        ? printer.displayName.trim()
+        : name,
+      isDefault: printer.isDefault === true
+    });
+  });
+  voucherSystemPrinters = normalized;
+
+  const prefs = getVoucherPrinterPreferences();
+  let selectedName = prefs.deviceName;
+  if (!selectedName) {
+    const initialPrinter = normalized.find((printer) => printer.isDefault) || normalized[0];
+    selectedName = initialPrinter ? initialPrinter.name : "";
+    if (selectedName && typeof saveUserPrefs === "function") {
+      saveUserPrefs({ printPrinterDeviceName: selectedName });
+    }
+  }
+
+  select.replaceChildren();
+  const savedPrinterMissing = !!selectedName && !seen.has(selectedName);
+  if (savedPrinterMissing) {
+    const missingOption = document.createElement("option");
+    missingOption.value = selectedName;
+    missingOption.textContent = `${selectedName} (không khả dụng)`;
+    select.appendChild(missingOption);
+  }
+
+  normalized.forEach((printer) => {
+    const option = document.createElement("option");
+    option.value = printer.name;
+    option.textContent = printer.displayName + (printer.isDefault ? " (mặc định)" : "");
+    select.appendChild(option);
+  });
+
+  if (!select.options.length) {
+    const emptyOption = document.createElement("option");
+    emptyOption.value = "";
+    emptyOption.textContent = "Không tìm thấy máy in";
+    select.appendChild(emptyOption);
+  }
+
+  select.value = selectedName;
+  select.disabled = normalized.length === 0;
+  if (directToggle) directToggle.disabled = normalized.length === 0;
+
+  if (savedPrinterMissing) {
+    setVoucherPrinterStatus(
+      "Máy in đã lưu hiện không khả dụng. Khi in, ứng dụng sẽ mở hộp thoại hệ thống để bạn chọn lại.",
+      "warning"
+    );
+  } else if (!normalized.length) {
+    setVoucherPrinterStatus(
+      "Không tìm thấy máy in hệ thống. Ứng dụng sẽ dùng hộp thoại in khi có thể.",
+      "error"
+    );
+  } else {
+    updateVoucherPrinterGuidance();
+  }
+}
+
+function refreshVoucherPrinters(force) {
+  const select = document.getElementById("voucher-printer-select");
+  const directToggle = document.getElementById("voucher-direct-print-enabled");
+  if (!select) return Promise.resolve([]);
+
+  if (!window.electronAPI || typeof window.electronAPI.getPrinters !== "function") {
+    select.replaceChildren();
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "Hộp thoại máy in hệ thống";
+    select.appendChild(option);
+    select.disabled = true;
+    if (directToggle) directToggle.disabled = true;
+    setVoucherPrinterStatus(
+      `Không thể chọn máy in trực tiếp trong môi trường này. Hãy kiểm tra khổ ${getPrintPaperSize()} trong hộp thoại in.`,
+      "warning"
+    );
+    return Promise.resolve([]);
+  }
+
+  if (!force && voucherSystemPrinters.length) {
+    renderVoucherPrinterOptions(voucherSystemPrinters);
+    return Promise.resolve(voucherSystemPrinters);
+  }
+  if (voucherPrinterLoadPromise) return voucherPrinterLoadPromise;
+
+  select.disabled = true;
+  if (directToggle) directToggle.disabled = true;
+  setVoucherPrinterStatus("Đang tải danh sách máy in…", "");
+  voucherPrinterLoadPromise = Promise.resolve(window.electronAPI.getPrinters())
+    .then((result) => {
+      if (result && result.ok === false) {
+        throw new Error(result.error || "Không thể đọc danh sách máy in");
+      }
+      const printers = Array.isArray(result) ? result : (Array.isArray(result?.printers) ? result.printers : []);
+      renderVoucherPrinterOptions(printers);
+      return voucherSystemPrinters;
+    })
+    .catch((error) => {
+      console.error("[Print] Không tải được danh sách máy in:", error);
+      voucherSystemPrinters = [];
+      renderVoucherPrinterOptions([]);
+      setVoucherPrinterStatus(
+        "Không tải được danh sách máy in. Khi in, ứng dụng sẽ mở hộp thoại hệ thống.",
+        "error"
+      );
+      return [];
+    })
+    .finally(() => {
+      voucherPrinterLoadPromise = null;
+    });
+  return voucherPrinterLoadPromise;
+}
+
 function setVoucherPrintDestination(dest) {
   const resolved = dest === "pdf" || dest === "excel" ? dest : "printer";
   if (typeof saveUserPrefs === "function") {
@@ -1961,6 +2151,7 @@ function setVoucherPrintDestination(dest) {
   }
   const radio = document.getElementById("voucher-print-dest-" + resolved);
   if (radio) radio.checked = true;
+  syncVoucherPrinterControlsVisibility();
 }
 
 function executeVoucherPrint(e) {
@@ -2230,9 +2421,12 @@ function syncVoucherPrintControls() {
     : "printer";
   const fontSelect = document.getElementById("voucher-preview-font-scale-select");
   const paperSelect = document.getElementById("voucher-preview-paper-size-select");
+  const directPrintToggle = document.getElementById("voucher-direct-print-enabled");
   if (fontSelect) fontSelect.value = String(fontScale);
   if (paperSelect) paperSelect.value = paperSize;
+  if (directPrintToggle) directPrintToggle.checked = prefs.printDirectEnabled !== false;
   setVoucherPrintDestination(printDest);
+  refreshVoucherPrinters(false);
   setVoucherPreviewZoomMode(voucherPreviewZoomMode || "fitPage");
   ensurePrintPageStyle(paperSize);
   fitVoucherPreviewModal(paperSize);
@@ -2351,6 +2545,7 @@ function applyPrintPaperSize(paperSize) {
   const selectEl = document.getElementById("voucher-preview-paper-size-select");
   if (selectEl) selectEl.value = paperSize;
   ensurePrintPageStyle(paperSize);
+  updateVoucherPrinterGuidance();
   applyPrintScaleToVoucherRoot(document.getElementById("voucher-print-area"));
   requestAnimationFrame(() => {
     resetVoucherPreviewPage();
@@ -2361,6 +2556,46 @@ function applyPrintPaperSize(paperSize) {
 }
 
 function hideVoucherPrintDropdown() {
+}
+
+function isVoucherPrintCanceled(result) {
+  if (!result || result.ok !== false) return false;
+  const code = String(result.code || "").toUpperCase();
+  const message = String(result.error || "");
+  return code === "CANCELED"
+    || code === "PRINT_CANCELED"
+    || code === "PRINT_CANCELLED"
+    || /cancel|cancell|hủy in/i.test(message);
+}
+
+function shouldFallbackToSystemPrintDialog(result) {
+  if (!result || result.ok !== false) return false;
+  const code = String(result.code || "").toUpperCase();
+  if ([
+    "PRINTER_ENUMERATION_FAILED",
+    "NO_PRINTERS",
+    "NO_DEFAULT_PRINTER",
+    "PRINTER_NOT_FOUND",
+    "INVALID_SETTINGS",
+    "INVALID_PRINTER_SETTINGS",
+    "UNSUPPORTED_PAPER",
+    "PRINT_FAILED"
+  ].includes(code)) {
+    return true;
+  }
+  const message = String(result.error || "");
+  return /printer.+not found|invalid printer settings|unsupported.+paper|không tìm thấy máy in|không hỗ trợ.+khổ giấy/i.test(message);
+}
+
+function getVoucherPrintFallbackNotice(result, paperSize) {
+  const code = String(result?.code || "").toUpperCase();
+  if (code === "PRINTER_NOT_FOUND") {
+    return "Không tìm thấy máy in đã lưu. Ứng dụng sẽ mở hộp thoại hệ thống để bạn chọn lại.";
+  }
+  if (["PRINTER_ENUMERATION_FAILED", "NO_PRINTERS", "NO_DEFAULT_PRINTER"].includes(code)) {
+    return "Không xác định được máy in trực tiếp. Ứng dụng sẽ mở hộp thoại hệ thống.";
+  }
+  return `Driver máy in không nhận thiết lập khổ ${paperSize}. Ứng dụng sẽ mở hộp thoại hệ thống để bạn kiểm tra lại.`;
 }
 
 async function printCurrentVoucher(e) {
@@ -2387,10 +2622,41 @@ async function printCurrentVoucher(e) {
 
   if (window.electronAPI && typeof window.electronAPI.printHtml === "function") {
     try {
-      const res = await window.electronAPI.printHtml(wrappedHtml, printFontScale, printPaperSize);
-      if (res && res.ok === false && res.error && res.error !== "Hủy in") {
+      const printerPrefs = getVoucherPrinterPreferences();
+      let printOptions = {
+        directPrint: printerPrefs.directPrint,
+        deviceName: printerPrefs.deviceName
+      };
+
+      if (printOptions.directPrint && !printOptions.deviceName) {
         if (typeof showToast === "function") {
-          showToast(`Lỗi in: ${res.error}`, "error");
+          showToast("Chưa có máy in được chọn. Ứng dụng sẽ mở hộp thoại máy in hệ thống.", "warning");
+        }
+        printOptions = { directPrint: false, deviceName: "" };
+      }
+
+      let res = await window.electronAPI.printHtml(
+        wrappedHtml,
+        printFontScale,
+        printPaperSize,
+        printOptions
+      );
+
+      if (printOptions.directPrint && shouldFallbackToSystemPrintDialog(res)) {
+        if (typeof showToast === "function") {
+          showToast(getVoucherPrintFallbackNotice(res, printPaperSize), "warning");
+        }
+        res = await window.electronAPI.printHtml(
+          wrappedHtml,
+          printFontScale,
+          printPaperSize,
+          { directPrint: false, deviceName: "" }
+        );
+      }
+
+      if (res && res.ok === false && !isVoucherPrintCanceled(res)) {
+        if (typeof showToast === "function") {
+          showToast(`Lỗi in: ${res.error || "Không rõ nguyên nhân"}`, "error");
         }
       }
     } catch (err) {

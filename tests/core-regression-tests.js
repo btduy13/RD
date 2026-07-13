@@ -56,6 +56,26 @@ function testStateDiff() {
   const diff = core.buildStateDelta(state, lastSavedState);
   assert.equal(diff.hasChanges, true);
   assert.equal(diff.delta.vouchers.upsert.length, 1);
+
+  const deletionState = {
+    vouchers: [{ id: 'SHARED' }, { id: 'ACTIVE-V' }],
+    products: [{ id: 'ACTIVE-P' }],
+    partners: [{ id: 'ACTIVE-PART' }],
+    cashEntries: [{ id: 'ACTIVE-CASH' }],
+    escrowItems: [{ id: 'ACTIVE-ESCROW' }],
+    deletedIds: ['SHARED', 'GONE'],
+    deletedCloudKeys: [
+      'p_SHARED', 'v_ACTIVE-V', 'p_ACTIVE-P', 'part_ACTIVE-PART',
+      'cash_ACTIVE-CASH', 'escrow_ACTIVE-ESCROW', 'SHARED', 'part_GONE'
+    ]
+  };
+  core.pruneResolvedDeletionMarkers(deletionState);
+  assert.deepEqual(Array.from(deletionState.deletedIds), ['GONE']);
+  assert.deepEqual(
+    Array.from(deletionState.deletedCloudKeys),
+    ['p_SHARED', 'part_GONE'],
+    'typed tombstones must survive unrelated active entities with the same raw ID'
+  );
   console.log('state-diff tests passed');
 }
 
@@ -80,6 +100,24 @@ function testAccountingEngine() {
   core.markAccountingValid(state);
   assert.equal(state._accountingValid, true);
   assert.ok(state._recalcWatermark);
+
+  const products = [{ id: 'P1', initialStock: 10, initialCost: 100 }];
+  const vouchers = [
+    {
+      id: 'NK1', type: 'purchase', date: '2026-01-02',
+      items: [
+        { productId: 'P1', qty: 2, price: 200, amount: 400 },
+        { productId: 'P1', qty: 3, price: 300, amount: 900 }
+      ]
+    },
+    { id: 'BH1', type: 'sales', date: '2026-01-03', items: [{ productId: 'P1', qty: 5, cogsAmount: 767 }] },
+    { id: 'TL1', type: 'purchase_return', date: '2026-01-04', items: [{ productId: 'P1', qty: 1, cogsAmount: 153 }] },
+    { id: 'BTL1', type: 'sales_return', date: '2026-01-05', items: [{ productId: 'P1', qty: 1, cogsAmount: 153 }] },
+    { id: 'DK1', type: 'inventory_adjust', date: '2026-01-06', items: [{ productId: 'P1', qty: 1, amount: 153, adjustDir: 'out' }] }
+  ];
+  assert.equal(core.calculateInventoryValueAt(products, vouchers, '2026-01-02'), 2300, 'all repeated product lines must affect historical inventory');
+  assert.equal(core.calculateInventoryValueAt(products, vouchers, '2026-01-04'), 1380, 'purchase returns must reduce historical inventory value');
+  assert.equal(core.calculateInventoryValueAt(products, vouchers, '2026-01-06'), 1380, 'returns and adjustments must follow accounting directions');
   console.log('accounting-engine tests passed');
 }
 

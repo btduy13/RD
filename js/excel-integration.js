@@ -1686,31 +1686,45 @@ function updateExcelHubUI() {
   }
 }
 
-// Tìm đối tác thông minh
-function resolvePartner(value, autoCreateType = "retail") {
+// Tra cứu đối tác hiện có mà không làm thay đổi state.
+// Dùng hàm này cho autocomplete, preview và validation.
+function findExistingPartner(value) {
   const val = (value || "").toString().trim();
-  if (!val) return { id: "DT_VANGLAI", name: "Khách hàng vãng lai" };
+  if (!val) return null;
+
+  const partners = Array.isArray(state.partners) ? state.partners : [];
 
   // Hỗ trợ định dạng "Tên đối tác (Mã đối tác)"
   const idInParens = extractIdFromParentheses(val);
   if (idInParens) {
-    let p = state.partners.find(item => String(item.id).toLowerCase() === idInParens.toLowerCase());
+    const p = partners.find(item => String(item.id).toLowerCase() === idInParens.toLowerCase());
     if (p) return p;
   }
 
   // 1. Tìm chính xác theo ID
-  let p = state.partners.find(item => String(item.id).toLowerCase() === val.toLowerCase());
+  let p = partners.find(item => String(item.id).toLowerCase() === val.toLowerCase());
   if (p) return p;
 
   // 2. Tìm chính xác theo Tên
-  p = state.partners.find(item => item.name.toLowerCase() === val.toLowerCase());
+  p = partners.find(item => String(item.name || "").toLowerCase() === val.toLowerCase());
   if (p) return p;
 
   // 2b. Cùng thương hiệu (vd. Green Home = Không Gian Xanh)
   if (typeof findPartnerByIdentity === "function") {
-    p = findPartnerByIdentity(val, state.partners);
+    p = findPartnerByIdentity(val, partners);
     if (p) return p;
   }
+
+  return null;
+}
+
+// Tìm đối tác thông minh; chỉ các luồng ghi dữ liệu mới dùng hàm này.
+function resolvePartner(value, autoCreateType = "retail") {
+  const val = (value || "").toString().trim();
+  if (!val) return { id: "DT_VANGLAI", name: "Khách hàng vãng lai" };
+
+  const existingPartner = findExistingPartner(val);
+  if (existingPartner) return existingPartner;
 
   // 3. Tạo đối tác mới tự động nếu không tồn tại (Bug B fix)
   const autoId = typeof getUniquePartnerId === "function"

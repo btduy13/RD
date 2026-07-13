@@ -61,6 +61,25 @@ function testPrintFontScalePersist() {
   console.log('print font scale persist passed');
 }
 
+function testPrinterPreferencesPersist() {
+  const storage = createStorage({});
+  const api = loadUserPrefsModule(storage);
+  assert.equal(api.getUserPrefs().printDirectEnabled, true);
+  assert.equal(api.getUserPrefs().printPrinterDeviceName, '');
+
+  api.saveUserPrefs({
+    printDirectEnabled: false,
+    printPrinterDeviceName: 'Brother_QL_820NWB'
+  });
+  const prefs = api.getUserPrefs();
+  const saved = JSON.parse(storage.getItem('rd_user_prefs'));
+  assert.equal(prefs.printDirectEnabled, false);
+  assert.equal(prefs.printPrinterDeviceName, 'Brother_QL_820NWB');
+  assert.equal(saved.printDirectEnabled, false);
+  assert.equal(saved.printPrinterDeviceName, 'Brother_QL_820NWB');
+  console.log('printer preferences persist passed');
+}
+
 function testPrintTemplatePersist() {
   const storage = createStorage({});
   const api = loadUserPrefsModule(storage);
@@ -76,5 +95,6 @@ function testPrintTemplatePersist() {
 testMigrateLegacyTheme();
 testSaveAndMergePrefs();
 testPrintFontScalePersist();
+testPrinterPreferencesPersist();
 testPrintTemplatePersist();
 console.log('user preferences tests passed');

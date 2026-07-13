@@ -19,16 +19,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveBackupOnExit: (jsonData) => ipcRenderer.invoke('save-backup-on-exit', jsonData),
   // Lấy đường dẫn thư mục backup
   getBackupDir: () => ipcRenderer.invoke('get-backup-dir'),
+  // Mở trực tiếp thư mục backup do ứng dụng quản lý
+  openBackupFolder: () => ipcRenderer.invoke('open-backup-folder'),
   // Ghi log gỡ lỗi đồng bộ
   writeLog: (content) => ipcRenderer.invoke('write-log', content),
   // Kích hoạt tiến trình in ấn hệ thống
   printWindow: () => ipcRenderer.invoke('print-window'),
+  getPrinters: () => ipcRenderer.invoke('get-printers'),
   // Xuất file PDF bản địa của OS (legacy — chụp cả cửa sổ)
   printToPDF: (filename) => ipcRenderer.invoke('print-to-pdf', filename),
   // Xuất HTML chứng từ thành PDF (cửa sổ ẩn — chỉ nội dung phiếu in)
   printHtmlToPDF: (html, filename, printFontScale, printPaperSize) => ipcRenderer.invoke('print-html-to-pdf', html, filename, printFontScale, printPaperSize),
   // In HTML chứng từ ra máy in (cùng bố cục với xuất PDF)
-  printHtml: (html, printFontScale, printPaperSize) => ipcRenderer.invoke('print-html', html, printFontScale, printPaperSize),
+  printHtml: (html, printFontScale, printPaperSize, printerOptions) => ipcRenderer.invoke('print-html', html, printFontScale, printPaperSize, printerOptions),
   // Lưu state ra file JSON (không giới hạn kích thước, thay thế localStorage)
   writeStateFile: (jsonData) => ipcRenderer.invoke('write-state-file', jsonData),
   // Đọc state từ file JSON

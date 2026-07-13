@@ -77,11 +77,11 @@ async function manualBackupNow() {
 
 // Mở thư mục backup trong File Explorer (chỉ hoạt động trong Electron)
 async function openBackupFolder() {
-  if (window.electronAPI && window.electronAPI.getBackupDir) {
+  if (window.electronAPI && typeof window.electronAPI.openBackupFolder === "function") {
     try {
-      const dir = await window.electronAPI.getBackupDir();
-      if (window.electronAPI.openExternalUrl) {
-        await window.electronAPI.openExternalUrl("file://" + dir.replace(/\\/g, '/'));
+      const result = await window.electronAPI.openBackupFolder();
+      if (!result || !result.ok) {
+        throw new Error(result && result.error ? result.error : "Không thể mở thư mục backup.");
       }
     } catch (err) {
       showToast("Không thể mở thư mục backup: " + err.message, "danger");
@@ -128,13 +128,72 @@ let cloudSyncSettings = {
   supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRybnJmZGJqenlmZmR4dHl0YnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NTUzNzAsImV4cCI6MjA5NjQzMTM3MH0.IZ1kL0dqL7WuKAIKKnmpcym4YUEnWJvZ9eIiext4Keg"
 };
 
+const CLOUD_SYNC_SETTINGS_KEY = "rd_accounting_cloud_settings";
+let cloudConfigSaveInProgress = false;
+
+function persistCloudSettings() {
+  localStorage.setItem(CLOUD_SYNC_SETTINGS_KEY, JSON.stringify(cloudSyncSettings));
+}
+
+function getCloudConfigElements() {
+  return {
+    form: document.getElementById("form-cloud-sync"),
+    enabledInput: document.getElementById("setting-cloud-enabled"),
+    inputsGroup: document.getElementById("cloud-sync-inputs-group"),
+    urlInput: document.getElementById("setting-cloud-supabase-url"),
+    keyInput: document.getElementById("setting-cloud-supabase-key"),
+    submitButton: document.getElementById("btn-save-cloud-config")
+  };
+}
+
+function isCloudConfigSaveInProgress() {
+  return cloudConfigSaveInProgress;
+}
+
+function setCloudConfigBusy(isBusy) {
+  cloudConfigSaveInProgress = !!isBusy;
+  const elements = getCloudConfigElements();
+
+  if (elements.form) elements.form.setAttribute("aria-busy", isBusy ? "true" : "false");
+  if (elements.submitButton) {
+    if (!elements.submitButton.dataset.idleLabel) {
+      elements.submitButton.dataset.idleLabel = elements.submitButton.textContent.trim();
+    }
+    elements.submitButton.disabled = !!isBusy;
+    elements.submitButton.textContent = isBusy
+      ? "Đang lưu & kết nối..."
+      : elements.submitButton.dataset.idleLabel;
+  }
+  if (elements.enabledInput) elements.enabledInput.disabled = !!isBusy;
+
+  ["btn-manual-cloud-sync", "btn-force-pull", "btn-force-push", "btn-cloud-sync-now"].forEach(id => {
+    const button = document.getElementById(id);
+    if (button) button.disabled = !!isBusy;
+  });
+
+  toggleCloudSyncInputs();
+  if (!isBusy && typeof window.refreshCloudSyncControls === "function") {
+    window.refreshCloudSyncControls();
+  }
+}
+
 function loadCloudSettings() {
   try {
-    const saved = localStorage.getItem("rd_accounting_cloud_settings");
+    const saved = localStorage.getItem(CLOUD_SYNC_SETTINGS_KEY);
     if (saved) {
-      const parsed = JSON.parse(saved);
-      // Chấp nhận cấu hình Supabase mới (có supabaseUrl)
-      if (parsed && parsed.supabaseUrl) {
+      let parsed = null;
+      try {
+        parsed = JSON.parse(saved);
+      } catch (parseError) {
+        console.warn("Cấu hình cloud đã lưu không hợp lệ; khôi phục cấu hình mặc định.", parseError);
+      }
+
+      // A disabled configuration may intentionally have blank credentials. Treat
+      // it as valid so turning cloud sync off survives an application restart.
+      const isSupportedConfig = parsed && typeof parsed === "object" && (
+        parsed.enabled === false || typeof parsed.supabaseUrl === "string"
+      );
+      if (isSupportedConfig) {
         cloudSyncSettings = {
           ...cloudSyncSettings,
           ...parsed,
@@ -143,22 +202,18 @@ function loadCloudSettings() {
       } else {
         // Cấu hình cũ (Firebase) hoặc không hợp lệ → ghi đè bằng cấu hình Supabase mặc định
         cloudSyncSettings.enabled = true;
-        localStorage.setItem("rd_accounting_cloud_settings", JSON.stringify(cloudSyncSettings));
+        persistCloudSettings();
       }
     } else {
       // Sử dụng cấu hình Supabase mặc định
       cloudSyncSettings.enabled = true;
-      localStorage.setItem("rd_accounting_cloud_settings", JSON.stringify(cloudSyncSettings));
+      persistCloudSettings();
     }
 
-    const chk = document.getElementById("setting-cloud-enabled");
-    if (chk) chk.checked = cloudSyncSettings.enabled !== false;
-
-    const urlInput = document.getElementById("setting-cloud-supabase-url");
-    if (urlInput) urlInput.value = cloudSyncSettings.supabaseUrl || "";
-
-    const keyInput = document.getElementById("setting-cloud-supabase-key");
-    if (keyInput) keyInput.value = cloudSyncSettings.supabaseAnonKey || "";
+    const elements = getCloudConfigElements();
+    if (elements.enabledInput) elements.enabledInput.checked = cloudSyncSettings.enabled !== false;
+    if (elements.urlInput) elements.urlInput.value = cloudSyncSettings.supabaseUrl || "";
+    if (elements.keyInput) elements.keyInput.value = cloudSyncSettings.supabaseAnonKey || "";
 
     toggleCloudSyncInputs();
   } catch (e) {
@@ -167,62 +222,118 @@ function loadCloudSettings() {
 }
 
 function toggleCloudSyncInputs() {
-  const chk = document.getElementById("setting-cloud-enabled");
-  const group = document.getElementById("cloud-sync-inputs-group");
-  if (chk && group) {
-    group.style.display = chk.checked ? "flex" : "none";
+  const elements = getCloudConfigElements();
+  if (!elements.enabledInput || !elements.inputsGroup) return;
+
+  const enabled = !!elements.enabledInput.checked;
+  const actionBusy = typeof window.isCloudSyncActionBusy === "function" && window.isCloudSyncActionBusy();
+  const inputsDisabled = !enabled || cloudConfigSaveInProgress || actionBusy;
+
+  elements.inputsGroup.hidden = !enabled;
+  elements.inputsGroup.style.display = enabled ? "flex" : "none";
+  elements.enabledInput.setAttribute("aria-expanded", enabled ? "true" : "false");
+  if (elements.urlInput) elements.urlInput.disabled = inputsDisabled;
+  if (elements.keyInput) elements.keyInput.disabled = inputsDisabled;
+}
+
+function isSupportedSupabaseUrl(value) {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
+  } catch (err) {
+    return false;
   }
 }
 
-function saveCloudConfig(e) {
+async function saveCloudConfig(e) {
+  if (e && typeof e.preventDefault === "function") e.preventDefault();
+  if (cloudConfigSaveInProgress) return false;
+  if (typeof window.isCloudSyncActionBusy === "function" && window.isCloudSyncActionBusy()) {
+    showToast("Vui lòng chờ thao tác đồng bộ hiện tại hoàn tất.", "warning");
+    return false;
+  }
+
+  const elements = getCloudConfigElements();
+  if (!elements.enabledInput || !elements.urlInput || !elements.keyInput) {
+    showToast("Không tìm thấy biểu mẫu cấu hình đám mây.", "danger");
+    return false;
+  }
+
+  const enabled = elements.enabledInput.checked;
+  const supabaseUrl = elements.urlInput.value.trim().replace(/\/+$/, "");
+  const supabaseAnonKey = elements.keyInput.value.trim();
+
+  if (enabled && (!supabaseUrl || !supabaseAnonKey)) {
+    showToast("Vui lòng điền Supabase URL và Anon Key!", "danger");
+    return false;
+  }
+  if (enabled && !isSupportedSupabaseUrl(supabaseUrl)) {
+    showToast("Supabase URL không hợp lệ. URL phải bắt đầu bằng http:// hoặc https://.", "danger");
+    elements.urlInput.focus();
+    return false;
+  }
+
+  setCloudConfigBusy(true);
   try {
-    e.preventDefault();
-
-    const enabled = document.getElementById("setting-cloud-enabled").checked;
-    const supabaseUrl = document.getElementById("setting-cloud-supabase-url").value.trim();
-    const supabaseAnonKey = document.getElementById("setting-cloud-supabase-key").value.trim();
-
-    if (enabled && (!supabaseUrl || !supabaseAnonKey)) {
-      showToast("Vui lòng điền Supabase URL và Anon Key!", "danger");
-      return;
-    }
-
     cloudSyncSettings = {
       enabled,
       supabaseUrl,
       supabaseAnonKey
     };
+    persistCloudSettings();
 
-    localStorage.setItem("rd_accounting_cloud_settings", JSON.stringify(cloudSyncSettings));
-    showToast("Cấu hình đám mây đã được lưu thành công!", "success");
-
-    if (enabled) {
-      initCloudSync();
-    } else {
-      if (realtimeChannel && supabaseClient) {
-        supabaseClient.removeChannel(realtimeChannel);
-        realtimeChannel = null;
+    if (!enabled) {
+      if (typeof window.disconnectCloudSync === "function") {
+        await window.disconnectCloudSync();
+      } else {
+        cloudSyncActive = false;
+        updateCloudSyncBadge(false, "Mây: Tắt", "#64748b");
       }
-      if (typeof stopCloudMetadataPolling === "function") {
-        stopCloudMetadataPolling();
-      }
-      if (typeof stopRealtimeReconnect === "function") {
-        stopRealtimeReconnect();
-      }
-      cloudSyncActive = false;
-      const forcePullBtn = document.getElementById("btn-force-pull");
-      if (forcePullBtn) forcePullBtn.style.display = "none";
-      const forcePushBtn = document.getElementById("btn-force-push");
-      if (forcePushBtn) forcePushBtn.style.display = "none";
-      updateCloudSyncBadge(false, "Mây: Tắt", "#64748b");
       showToast("Đã tắt đồng bộ trực tuyến đám mây.", "info");
+      return true;
     }
+
+    const connected = typeof window.initCloudSync === "function"
+      ? await window.initCloudSync()
+      : false;
+    if (connected) {
+      showToast("Đã lưu cấu hình và kết nối đám mây thành công!", "success");
+      return true;
+    }
+
+    showToast("Đã lưu cấu hình nhưng chưa thể kết nối. Hãy kiểm tra URL, Anon Key và Internet.", "danger");
+    return false;
   } catch (err) {
     if (typeof addErrorLog === "function") {
       addErrorLog("saveCloudConfig", err.message, err);
     }
+    showToast("Không thể lưu cấu hình đám mây: " + err.message, "danger");
+    return false;
+  } finally {
+    setCloudConfigBusy(false);
   }
 }
+
+function openCloudSyncModal() {
+  const modal = document.getElementById("modal-cloud-sync");
+  if (!modal) {
+    showToast("Không tìm thấy cửa sổ quản lý đồng bộ.", "danger");
+    return false;
+  }
+  if (modal.style.display !== "flex" && modal.style.display !== "block") {
+    loadCloudSettings();
+  }
+  openModal("modal-cloud-sync");
+  return true;
+}
+
+function closeCloudSyncModal() {
+  closeModal("modal-cloud-sync");
+}
+
 window.loadCloudSettings = loadCloudSettings;
 window.saveCloudConfig = saveCloudConfig;
 window.toggleCloudSyncInputs = toggleCloudSyncInputs;
+window.openCloudSyncModal = openCloudSyncModal;
+window.closeCloudSyncModal = closeCloudSyncModal;
+window.isCloudConfigSaveInProgress = isCloudConfigSaveInProgress;

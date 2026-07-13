@@ -402,8 +402,6 @@ async function handleReceiptSubmit(e) {
   const amount = parseInt(document.getElementById("receipt-amount").value.replace(/\D/g, "")) || 0;
   const desc = document.getElementById("receipt-desc").value.trim();
 
-  const partnerObj = resolvePartner(partnerVal);
-
   if (amount <= 0) {
     showToast("Số tiền phải lớn hơn 0!", "danger");
     return;
@@ -412,6 +410,7 @@ async function handleReceiptSubmit(e) {
   if (!beginVoucherSubmit(modalId, "Đang lưu phiếu thu...")) return;
 
   try {
+    const partnerObj = resolvePartner(partnerVal);
     const id = editingReceiptId || generateNextReceiptVoucherId();
 
     const updatedVoucher = {
@@ -481,8 +480,6 @@ async function handlePaymentSubmit(e) {
   const amount = parseInt(document.getElementById("payment-amount").value.replace(/\D/g, "")) || 0;
   const desc = document.getElementById("payment-desc").value.trim();
 
-  const partnerObj = resolvePartner(partnerVal);
-
   if (amount <= 0) {
     showToast("Số tiền phải lớn hơn 0!", "danger");
     return;
@@ -491,6 +488,7 @@ async function handlePaymentSubmit(e) {
   if (!beginVoucherSubmit(modalId, "Đang lưu phiếu chi...")) return;
 
   try {
+    const partnerObj = resolvePartner(partnerVal);
     const id = editingPaymentId || generateNextPaymentVoucherId();
 
     const updatedVoucher = {

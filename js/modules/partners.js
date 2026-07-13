@@ -60,9 +60,8 @@ function populateEnterpriseDatalist(datalistId = "partner-parent-datalist") {
 function resolveEnterpriseParent(inputVal) {
   const trimmed = (inputVal || "").trim();
   if (!trimmed) return null;
-  const resolved = resolvePartner(trimmed);
-  const parentP = state.partners.find(p => p.id === resolved.id && p.type === "enterprise");
-  return parentP || null;
+  const resolved = findExistingPartner(trimmed);
+  return resolved && resolved.type === "enterprise" ? resolved : null;
 }
 
 function propagatePartnerIdChange(oldId, newId, newName) {
@@ -998,13 +997,12 @@ function handlePartnerSubmit(e) {
           showToast("Vui lòng chọn Doanh nghiệp mẹ!", "danger");
           return;
         }
-        const resolvedParent = resolvePartner(parentInputVal);
-        parentId = resolvedParent.id;
-        const parentP = state.partners.find(p => p.id === parentId && p.type === 'enterprise');
+        const parentP = resolveEnterpriseParent(parentInputVal);
         if (!parentP) {
           showToast("Doanh nghiệp mẹ không hợp lệ hoặc không tồn tại!", "danger");
           return;
         }
+        parentId = parentP.id;
       } else {
         projectName = document.getElementById("partner-project-name").value.trim();
       }

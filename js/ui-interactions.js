@@ -860,7 +860,7 @@ function updateBreadcrumb(tabId, subTabId) {
   var tabNames = {
     dashboard: 'Tổng quan', purchase: 'Mua hàng', sales: 'Bán hàng',
     inventory: 'Kho hàng', partners: 'Khách hàng & NCC', debts: 'Công nợ',
-    cash: 'Quỹ tiền', logs: 'Nhật ký', 'excel-hub': 'Tích hợp Excel',
+    cash: 'Quỹ tiền', reports: 'Báo cáo kế toán', logs: 'Nhật ký', 'excel-hub': 'Tích hợp Excel',
     settings: 'Thiết lập'
   };
   var subTabNames = {
