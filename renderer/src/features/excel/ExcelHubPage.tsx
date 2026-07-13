@@ -10,6 +10,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { getLocalDateString } from "@/lib/formatters";
 import {
   Table,
   TableBody,
@@ -177,7 +178,7 @@ export function ExcelHubPage() {
   };
 
   const handleExportSubset = (kind: "vouchers" | "partners" | "products" | "full") => {
-    const date = new Date().toISOString().slice(0, 10);
+    const date = getLocalDateString();
     if (kind === "full") {
       downloadJson(`RD_Accounting_Backup_${date}.json`, JSON.parse(exportState()));
       toast("Đã xuất toàn bộ dữ liệu JSON", "success");

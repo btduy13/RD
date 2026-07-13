@@ -124,6 +124,17 @@ async function main() {
       state: document.getElementById('cloud-sync-modal-status').dataset.state
     };
 
+    cloudWriteGate.setStatus('syncing', 'Background sync test');
+    const syncingWriteGate = cloudWriteGate.getStatus();
+    const backgroundTask = syncV2StartTask('push', 'Background push test');
+    const taskWhileRunning = {
+      count: document.querySelectorAll('#cloud-sync-task-list .cloud-sync-task').length,
+      status: document.querySelector('#cloud-sync-task-list .cloud-sync-task').className
+    };
+    syncV2FinishTask(backgroundTask, true);
+    const taskAfterFinish = document.querySelector('#cloud-sync-task-list .cloud-sync-task').className;
+    cloudWriteGate.setStatus('ready', 'Ready');
+
     cloudSyncActive = true;
     supabaseClient = {};
     isStartupPullCompleted = true;
@@ -133,6 +144,13 @@ async function main() {
     pullAndMergeFromCloud = async () => { syncOrder.push('pull'); return true; };
     pushToCloud = async () => { syncOrder.push('push'); return true; };
     const manualSyncResult = await manualIncrementalSync();
+
+    initializeLastSavedState(state);
+    saveStateIsDirty = true;
+    const originalPersistStateDelta = persistStateDelta;
+    persistStateDelta = async () => ({ ok: true });
+    const synchronousSaveResult = await executeSaveState(true, { skipCloudPush: true });
+    persistStateDelta = originalPersistStateDelta;
 
     let forcePullCalls = 0;
     pullAndMergeFromCloud = async () => { forcePullCalls += 1; return true; };
@@ -209,8 +227,12 @@ async function main() {
       cloudOpenState,
       escapeStackState,
       cloudStatusMirror,
+      syncingWriteGate,
+      taskWhileRunning,
+      taskAfterFinish,
       syncOrder,
       manualSyncResult,
+      synchronousSaveResult,
       forcePullCancelState,
       cloudConfigSaveState,
       printerUiState,
@@ -239,8 +261,12 @@ async function main() {
   }, 'cloud modal should cover the viewport and expose dialog state');
   assert.deepEqual(result.escapeStackState, { cloudClosed: true, underlyingStillOpen: true }, 'Escape should close only the top-most modal');
   assert.deepEqual(result.cloudStatusMirror, { text: 'Mây: Lỗi kiểm tra', state: 'error' });
+  assert.deepEqual(result.syncingWriteGate, { status: 'syncing', detail: 'Background sync test', canWrite: true }, 'background syncing must not lock write controls');
+  assert.deepEqual(result.taskWhileRunning, { count: 1, status: 'cloud-sync-task cloud-sync-task-running' }, 'cloud modal must show the active background task');
+  assert.equal(result.taskAfterFinish, 'cloud-sync-task cloud-sync-task-done', 'cloud modal must retain completed task history');
   assert.deepEqual(result.syncOrder, ['pull', 'push'], 'manual cloud sync must run pull then push');
   assert.equal(result.manualSyncResult, true);
+  assert.equal(result.synchronousSaveResult, true, 'synchronous save must return the persistence result to voucher submit handlers');
   assert.deepEqual(result.forcePullCancelState, { result: false, calls: 0 }, 'cancelled force pull must not touch cloud');
   assert.deepEqual(result.cloudConfigSaveState, {
     result: false,

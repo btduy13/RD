@@ -604,8 +604,11 @@ function rebalanceEquity() {
 }
 
 // Xóa chứng từ khỏi sổ cái
-function deleteVoucher(id) {
+async function deleteVoucher(id) {
   if (confirm(`Bạn có chắc chắn muốn xóa và hủy ghi sổ chứng từ "${id}"? Việc này sẽ tính toán lại toàn bộ giá trị tồn kho và công nợ.`)) {
+    const vouchersBefore = JSON.parse(JSON.stringify(state.vouchers || []));
+    const deletedIdsBefore = [...(state.deletedIds || [])];
+    const deletedCloudKeysBefore = [...(state.deletedCloudKeys || [])];
     try {
       trackDeletedIds([id], 'voucher');
       state.vouchers = state.vouchers.filter(v => v.id !== id);
@@ -634,17 +637,17 @@ function deleteVoucher(id) {
         }
       }
 
-      showToast(`Đã xóa thành công chứng từ ${id}!`, "success");
-
-      // Trì hoãn công việc nặng (recalculate + render) sang frame tiếp theo
-      // để giải phóng main thread, tránh brick UI sau khi xóa
-      // H2 Fix: recalculateAccounting() already calls saveState() internally
-      setTimeout(() => {
-        recalculateAccounting();
-      }, 0);
+      recalculateAccounting(false);
+      await saveStateAndSyncVoucher();
+      showToast(`Đã xóa và đồng bộ chứng từ ${id} sang các máy trạm!`, "success");
+      refreshUI();
     } catch (err) {
+      state.vouchers = vouchersBefore;
+      state.deletedIds = deletedIdsBefore;
+      state.deletedCloudKeys = deletedCloudKeysBefore;
+      recalculateAccounting(false);
       console.error("Lỗi nghiêm trọng trong quá trình xóa chứng từ:", err);
-      showToast(`Có lỗi xảy ra khi xóa chứng từ: ${err.message}`, "danger");
+      showToast(`Không thể xóa trên cloud; chứng từ đã được khôi phục: ${err.message}`, "danger");
     }
   }
 }

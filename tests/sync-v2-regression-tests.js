@@ -185,6 +185,24 @@ function testFullPullRequiredWithoutBaselineOrAfterWatermarkRollback() {
   assert.equal(internals.syncV2ShouldUseFullPull(5000, true, 4999), true, "cloud watermark rollback must force a full reconcile");
 }
 
+function testConfirmedCacheRestoresIncrementalStartupBaseline() {
+  const { internals, sandbox, store } = loadSyncV2Internals({
+    cloudSyncSettings: { enabled: true, supabaseUrl: "https://example.supabase.co" }
+  });
+  sandbox.state.vouchers = [{ id: "PO-CACHED", _updatedAt: 7000 }];
+  sandbox.state._lastPulledCloudTs = 7000;
+  store.set("rd_accounting_sync_v2_dataset", internals.syncV2GetDatasetIdentity());
+
+  assert.equal(internals.syncV2RestoreBaselineFromConfirmedCache(), true);
+  assert.equal(sandbox.window.lastSyncState.vouchers[0].id, "PO-CACHED");
+  assert.notEqual(sandbox.window.lastSyncState.vouchers[0], sandbox.state.vouchers[0], "baseline must not alias live state");
+  assert.equal(internals.syncV2ShouldUseFullPull(7000, !!sandbox.window.lastSyncState, 7000), false);
+
+  internals.syncV2ResetCloudBaseline();
+  store.set("rd_accounting_sync_v2_dataset", "https://another-project.supabase.co|legacy");
+  assert.equal(internals.syncV2RestoreBaselineFromConfirmedCache(), false, "cache from another cloud dataset must be rejected");
+}
+
 function testPostPushSnapshotMatchesUploadedDeletionMetadata() {
   const { internals, sandbox } = loadSyncV2Internals();
   sandbox.window.lastSyncState = {
@@ -578,6 +596,7 @@ async function run() {
   testComputeDeltaSkipsAlreadySyncedVoucher();
   testComputeDeltaDoesNotReplayCloudKnownTombstones();
   testFullPullRequiredWithoutBaselineOrAfterWatermarkRollback();
+  testConfirmedCacheRestoresIncrementalStartupBaseline();
   testPostPushSnapshotMatchesUploadedDeletionMetadata();
   testChangingCloudClientResetsComparisonBaseline();
   testInternalSyncWorkCountsAsBusy();

@@ -13,26 +13,26 @@ const UNMATCHED_PARTNER_ID = "__UNMATCHED__";
 let pinnedUnmatchedDebt = null;
 
 function isUnmatchedDebt(d) {
-  return d && d.id === UNMATCHED_PARTNER_ID;
+    return d && d.id === UNMATCHED_PARTNER_ID;
 }
 
 function createEmptyDebtCounters() {
-  return { debit131: 0, credit131: 0, debit331: 0, credit331: 0 };
+    return { debit131: 0, credit131: 0, debit331: 0, credit331: 0 };
 }
 
 function getDebtOpeningBasis(partnerType, op) {
-  op = op || { debit: 0, credit: 0 };
-  if (partnerType === "supplier") {
-    return { debit131: 0, credit131: 0, debit331: op.debit || 0, credit331: op.credit || 0 };
-  }
-  return { debit131: op.debit || 0, credit131: op.credit || 0, debit331: 0, credit331: 0 };
+    op = op || { debit: 0, credit: 0 };
+    if (partnerType === "supplier") {
+        return { debit131: 0, credit131: 0, debit331: op.debit || 0, credit331: op.credit || 0 };
+    }
+    return { debit131: op.debit || 0, credit131: op.credit || 0, debit331: 0, credit331: 0 };
 }
 
 function accumulateDebtEntryLines(e, counters) {
-  if (e.debit && e.debit.startsWith("131")) counters.debit131 += e.amount;
-  if (e.credit && e.credit.startsWith("131")) counters.credit131 += e.amount;
-  if (e.credit && e.credit.startsWith("331")) counters.credit331 += e.amount;
-  if (e.debit && e.debit.startsWith("331")) counters.debit331 += e.amount;
+    if (e.debit && e.debit.startsWith("131")) counters.debit131 += e.amount;
+    if (e.credit && e.credit.startsWith("131")) counters.credit131 += e.amount;
+    if (e.credit && e.credit.startsWith("331")) counters.credit331 += e.amount;
+    if (e.debit && e.debit.startsWith("331")) counters.debit331 += e.amount;
 }
 
 // Quy tắc cấn trừ 131 + 331 (Bug A) — TÀI LIỆU THIẾT KẾ:
@@ -49,352 +49,356 @@ function accumulateDebtEntryLines(e, counters) {
 //   customer: PS Nợ = Nợ131 + Có331, PS Có = Có131 + Nợ331
 //   supplier: PS Nợ = Nợ131 + Nợ331, PS Có = Có131 + Có331 (thô, đúng T-account)
 function computeDebtSides(initialOpening, priorCounters, periodCounters, partnerType) {
-  const basis = getDebtOpeningBasis(partnerType, initialOpening);
+    const basis = getDebtOpeningBasis(partnerType, initialOpening);
 
-  const open131Debit = basis.debit131 + priorCounters.debit131;
-  const open131Credit = basis.credit131 + priorCounters.credit131;
-  const open331Debit = basis.debit331 + priorCounters.debit331;
-  const open331Credit = basis.credit331 + priorCounters.credit331;
+    const open131Debit = basis.debit131 + priorCounters.debit131;
+    const open131Credit = basis.credit131 + priorCounters.credit131;
+    const open331Debit = basis.debit331 + priorCounters.debit331;
+    const open331Credit = basis.credit331 + priorCounters.credit331;
 
-  const net131Open = open131Debit - open131Credit;
-  const net331Open = open331Credit - open331Debit;
+    const net131Open = open131Debit - open131Credit;
+    const net331Open = open331Credit - open331Debit;
 
-  const activity131 = open131Debit + open131Credit + periodCounters.debit131 + periodCounters.credit131;
-  const activity331 = open331Debit + open331Credit + periodCounters.debit331 + periodCounters.credit331;
+    const activity131 = open131Debit + open131Credit + periodCounters.debit131 + periodCounters.credit131;
+    const activity331 = open331Debit + open331Credit + periodCounters.debit331 + periodCounters.credit331;
 
-  // Vai trò quyết định cách diễn giải số phát sinh 331 (xem tài liệu thiết kế ở trên)
-  const roleSupplier = partnerType === "supplier" || (activity331 > 0 && activity131 === 0);
+    // Vai trò quyết định cách diễn giải số phát sinh 331 (xem tài liệu thiết kế ở trên)
+    const roleSupplier = partnerType === "supplier" || (activity331 > 0 && activity131 === 0);
 
-  const resolveSides = (net131, net331) => {
-    if (net131 > 0 && net331 > 0) {
-      return { debit: net131, credit: net331 };
-    }
-    const combined = roleSupplier ? (net331 - net131) : (net131 + net331);
-    if (roleSupplier) {
-      return combined >= 0 ? { debit: 0, credit: combined } : { debit: -combined, credit: 0 };
-    }
-    return combined >= 0 ? { debit: combined, credit: 0 } : { debit: 0, credit: -combined };
-  };
+    const resolveSides = (net131, net331) => {
+        if (net131 > 0 && net331 > 0) {
+            return { debit: net131, credit: net331 };
+        }
+        const combined = roleSupplier ? (net331 - net131) : (net131 + net331);
+        if (roleSupplier) {
+            return combined >= 0 ? { debit: 0, credit: combined } : { debit: -combined, credit: 0 };
+        }
+        return combined >= 0 ? { debit: combined, credit: 0 } : { debit: 0, credit: -combined };
+    };
 
-  const openSides = resolveSides(net131Open, net331Open);
+    const openSides = resolveSides(net131Open, net331Open);
 
-  const net131Close = net131Open + periodCounters.debit131 - periodCounters.credit131;
-  const net331Close = net331Open + periodCounters.credit331 - periodCounters.debit331;
-  const closeSides = resolveSides(net131Close, net331Close);
+    const net131Close = net131Open + periodCounters.debit131 - periodCounters.credit131;
+    const net331Close = net331Open + periodCounters.credit331 - periodCounters.debit331;
+    const closeSides = resolveSides(net131Close, net331Close);
 
-  const debitTrans = roleSupplier
-    ? periodCounters.debit131 + periodCounters.debit331
-    : periodCounters.debit131 + periodCounters.credit331;
-  const creditTrans = roleSupplier
-    ? periodCounters.credit131 + periodCounters.credit331
-    : periodCounters.credit131 + periodCounters.debit331;
+    const debitTrans = roleSupplier ?
+        periodCounters.debit131 + periodCounters.debit331 :
+        periodCounters.debit131 + periodCounters.credit331;
+    const creditTrans = roleSupplier ?
+        periodCounters.credit131 + periodCounters.credit331 :
+        periodCounters.credit131 + periodCounters.debit331;
 
-  return {
-    openingDebit: openSides.debit,
-    openingCredit: openSides.credit,
-    debitTrans,
-    creditTrans,
-    closingDebit: closeSides.debit,
-    closingCredit: closeSides.credit,
-    has131: activity131 > 0,
-    has331: activity331 > 0,
-    roleSupplier
-  };
+    return {
+        openingDebit: openSides.debit,
+        openingCredit: openSides.credit,
+        debitTrans,
+        creditTrans,
+        closingDebit: closeSides.debit,
+        closingCredit: closeSides.credit,
+        has131: activity131 > 0,
+        has331: activity331 > 0,
+        roleSupplier
+    };
 }
 
 function inferPartnerDebtRole(partnerType, has131, has331) {
-  if (partnerType === "both" || (has131 && has331)) return "both";
-  if (partnerType === "supplier" && !has131) return "supplier";
-  if (has331 && !has131) return "supplier";
-  return "customer";
+    if (partnerType === "both" || (has131 && has331)) return "both";
+    if (partnerType === "supplier" && !has131) return "supplier";
+    if (has331 && !has131) return "supplier";
+    return "customer";
 }
 
 /** Bút toán 131/331 — dùng entries có sẵn, hoặc suy từ paymentMethod / remainingDebt khi entries trống (nhập Excel, chưa recalc). */
 function getVoucherDebtEntries(v) {
-  if (!v) return [];
+    if (!v) return [];
 
-  const raw = v.entries;
-  if (Array.isArray(raw) && raw.length > 0) {
-    const hasDebtLine = raw.some(e =>
-      (e.debit && (e.debit.startsWith("131") || e.debit.startsWith("331"))) ||
-      (e.credit && (e.credit.startsWith("131") || e.credit.startsWith("331")))
-    );
-    if (hasDebtLine) return raw;
-  }
+    const raw = v.entries;
+    if (Array.isArray(raw) && raw.length > 0) {
+        const hasDebtLine = raw.some(e =>
+            (e.debit && (e.debit.startsWith("131") || e.debit.startsWith("331"))) ||
+            (e.credit && (e.credit.startsWith("131") || e.credit.startsWith("331")))
+        );
+        if (hasDebtLine) return raw;
+    }
 
-  if (typeof ensureRemainingDebt === "function") ensureRemainingDebt(v);
-  const amt = Number(v.remainingDebt ?? v.totalAmount ?? v.amount ?? 0);
-  const pm = String(v.paymentMethod || "");
+    if (typeof ensureRemainingDebt === "function") ensureRemainingDebt(v);
+    const amt = Number(v.remainingDebt ?? v.totalAmount ?? v.amount ?? 0);
+    const pm = String(v.paymentMethod || "");
 
-  switch (v.type) {
-    case "sales":
-      if (pm === "131" || pm.startsWith("131")) {
-        return [{ debit: "131", credit: "511", amount: amt }];
-      }
-      break;
-    case "purchase":
-      if (pm === "331" || pm.startsWith("331")) {
-        return [{ debit: "156", credit: "331", amount: amt }];
-      }
-      break;
-    case "receipt": {
-      const receiptAmt = Number(v.amount ?? amt);
-      if (receiptAmt > 0) {
-        return [{ debit: pm || "111", credit: "131", amount: receiptAmt }];
-      }
-      break;
+    switch (v.type) {
+        case "sales":
+            if (pm === "131" || pm.startsWith("131")) {
+                return [{ debit: "131", credit: "511", amount: amt }];
+            }
+            break;
+        case "purchase":
+            if (pm === "331" || pm.startsWith("331")) {
+                return [{ debit: "156", credit: "331", amount: amt }];
+            }
+            break;
+        case "receipt":
+            {
+                const receiptAmt = Number(v.amount ?? amt);
+                if (receiptAmt > 0) {
+                    return [{ debit: pm || "111", credit: "131", amount: receiptAmt }];
+                }
+                break;
+            }
+        case "payment":
+            {
+                const paymentAmt = Number(v.amount ?? amt);
+                if (paymentAmt > 0) {
+                    return [{ debit: "331", credit: pm || "111", amount: paymentAmt }];
+                }
+                break;
+            }
+        case "sales_return":
+            {
+                if (amt > 0) {
+                    const creditAcc = pm && pm !== "131" ? pm : "131";
+                    return [{ debit: "511", credit: creditAcc, amount: amt }];
+                }
+                break;
+            }
+        case "purchase_return":
+            {
+                if (amt > 0) {
+                    const debitAcc = pm && pm !== "331" ? pm : "331";
+                    return [{ debit: debitAcc, credit: "156", amount: amt }];
+                }
+                break;
+            }
+        default:
+            break;
     }
-    case "payment": {
-      const paymentAmt = Number(v.amount ?? amt);
-      if (paymentAmt > 0) {
-        return [{ debit: "331", credit: pm || "111", amount: paymentAmt }];
-      }
-      break;
-    }
-    case "sales_return": {
-      if (amt > 0) {
-        const creditAcc = pm && pm !== "131" ? pm : "131";
-        return [{ debit: "511", credit: creditAcc, amount: amt }];
-      }
-      break;
-    }
-    case "purchase_return": {
-      if (amt > 0) {
-        const debitAcc = pm && pm !== "331" ? pm : "331";
-        return [{ debit: debitAcc, credit: "156", amount: amt }];
-      }
-      break;
-    }
-    default:
-      break;
-  }
-  return [];
+    return [];
 }
 
 function extractLedgerAmountsFromVoucher(v, debtRole) {
-  let debitAmount = 0;
-  let creditAmount = 0;
-  const offsetAccountSet = new Set();
+    let debitAmount = 0;
+    let creditAmount = 0;
+    const offsetAccountSet = new Set();
 
-  getVoucherDebtEntries(v).forEach(e => {
-    const touches131 = (e.debit && e.debit.startsWith("131")) || (e.credit && e.credit.startsWith("131"));
-    const touches331 = (e.debit && e.debit.startsWith("331")) || (e.credit && e.credit.startsWith("331"));
-    let isRelevant = false;
-    if (debtRole === "customer") isRelevant = touches131;
-    else if (debtRole === "supplier") isRelevant = touches331;
-    else isRelevant = touches131 || touches331;
-    if (!isRelevant) return;
+    getVoucherDebtEntries(v).forEach(e => {
+        const touches131 = (e.debit && e.debit.startsWith("131")) || (e.credit && e.credit.startsWith("131"));
+        const touches331 = (e.debit && e.debit.startsWith("331")) || (e.credit && e.credit.startsWith("331"));
+        let isRelevant = false;
+        if (debtRole === "customer") isRelevant = touches131;
+        else if (debtRole === "supplier") isRelevant = touches331;
+        else isRelevant = touches131 || touches331;
+        if (!isRelevant) return;
 
-    if ((e.debit && e.debit.startsWith("131")) || (e.debit && e.debit.startsWith("331"))) {
-      debitAmount += e.amount;
-      if (e.credit) offsetAccountSet.add(e.credit);
-    } else if ((e.credit && e.credit.startsWith("131")) || (e.credit && e.credit.startsWith("331"))) {
-      creditAmount += e.amount;
-      if (e.debit) offsetAccountSet.add(e.debit);
-    }
-  });
+        if ((e.debit && e.debit.startsWith("131")) || (e.debit && e.debit.startsWith("331"))) {
+            debitAmount += e.amount;
+            if (e.credit) offsetAccountSet.add(e.credit);
+        } else if ((e.credit && e.credit.startsWith("131")) || (e.credit && e.credit.startsWith("331"))) {
+            creditAmount += e.amount;
+            if (e.debit) offsetAccountSet.add(e.debit);
+        }
+    });
 
-  return { debitAmount, creditAmount, offsetAccount: Array.from(offsetAccountSet).join(", ") };
+    return { debitAmount, creditAmount, offsetAccount: Array.from(offsetAccountSet).join(", ") };
 }
 
 function computePriorDebtCountersForPartner(partnerId, partnerType, fromDate) {
-  const prior = createEmptyDebtCounters();
-  if (!fromDate) return prior;
+    const prior = createEmptyDebtCounters();
+    if (!fromDate) return prior;
 
-  state.vouchers.forEach(v => {
-    if (v.partnerId !== partnerId) return;
-    if (v.date >= fromDate) return;
-    if (!v.entries) return;
-    v.entries.forEach(e => accumulateDebtEntryLines(e, prior));
-  });
-  return prior;
+    state.vouchers.forEach(v => {
+        if (v.partnerId !== partnerId) return;
+        if (v.date >= fromDate) return;
+        if (!v.entries) return;
+        v.entries.forEach(e => accumulateDebtEntryLines(e, prior));
+    });
+    return prior;
 }
 
 function refreshOpenPartnerLedgerModal() {
-  const modal = document.getElementById("modal-view-partner-ledger");
-  if (!modal) return;
-  const display = modal.style.display;
-  if (display === "none") return;
-  if (typeof window.getComputedStyle === "function") {
-    const st = window.getComputedStyle(modal);
-    if (st.display === "none") return;
-  }
-  if (activeLedgerTargetId && typeof renderLedgerForTarget === "function") {
-    renderLedgerForTarget(activeLedgerTargetId, activeLedgerCombined);
-  } else if (activePartnerNameForGroupedLedger && typeof viewGroupedPartnerLedger === "function") {
-    viewGroupedPartnerLedger(activePartnerNameForGroupedLedger);
-  } else if (activePartnerIdForLedger === UNMATCHED_PARTNER_ID && typeof viewUnmatchedPartnerLedger === "function") {
-    viewUnmatchedPartnerLedger();
-  } else if (activePartnerIdForLedger && typeof viewPartnerLedger === "function") {
-    viewPartnerLedger(activePartnerIdForLedger);
-  }
+    const modal = document.getElementById("modal-view-partner-ledger");
+    if (!modal) return;
+    const display = modal.style.display;
+    if (display === "none") return;
+    if (typeof window.getComputedStyle === "function") {
+        const st = window.getComputedStyle(modal);
+        if (st.display === "none") return;
+    }
+    if (activeLedgerTargetId && typeof renderLedgerForTarget === "function") {
+        renderLedgerForTarget(activeLedgerTargetId, activeLedgerCombined);
+    } else if (activePartnerNameForGroupedLedger && typeof viewGroupedPartnerLedger === "function") {
+        viewGroupedPartnerLedger(activePartnerNameForGroupedLedger);
+    } else if (activePartnerIdForLedger === UNMATCHED_PARTNER_ID && typeof viewUnmatchedPartnerLedger === "function") {
+        viewUnmatchedPartnerLedger();
+    } else if (activePartnerIdForLedger && typeof viewPartnerLedger === "function") {
+        viewPartnerLedger(activePartnerIdForLedger);
+    }
 }
 window.refreshOpenPartnerLedgerModal = refreshOpenPartnerLedgerModal;
 
 // --- Phân hệ Công nợ ---
 function getDebtDateRange() {
-  const period = document.getElementById("debt-period-filter") ? document.getElementById("debt-period-filter").value : "all";
-  let fromDate = "";
-  let toDate = "";
+    const period = document.getElementById("debt-period-filter") ? document.getElementById("debt-period-filter").value : "all";
+    let fromDate = "";
+    let toDate = "";
 
-  if (period === "month") {
-    const val = document.getElementById("debt-month-input") ? document.getElementById("debt-month-input").value : ""; // e.g. "2026-06"
-    if (val) {
-      const parts = val.split("-");
-      const year = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10);
+    if (period === "month") {
+        const val = document.getElementById("debt-month-input") ? document.getElementById("debt-month-input").value : ""; // e.g. "2026-06"
+        if (val) {
+            const parts = val.split("-");
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10);
 
-      const firstDay = new Date(year, month - 1, 1);
-      const lastDay = new Date(year, month, 0);
+            const firstDay = new Date(year, month - 1, 1);
+            const lastDay = new Date(year, month, 0);
 
-      const pad = (n) => n.toString().padStart(2, '0');
-      fromDate = `${firstDay.getFullYear()}-${pad(firstDay.getMonth() + 1)}-01`;
-      toDate = `${lastDay.getFullYear()}-${pad(lastDay.getMonth() + 1)}-${pad(lastDay.getDate())}`;
+            const pad = (n) => n.toString().padStart(2, '0');
+            fromDate = `${firstDay.getFullYear()}-${pad(firstDay.getMonth() + 1)}-01`;
+            toDate = `${lastDay.getFullYear()}-${pad(lastDay.getMonth() + 1)}-${pad(lastDay.getDate())}`;
+        }
+    } else if (period === "year") {
+        const year = document.getElementById("debt-year-select") ? document.getElementById("debt-year-select").value : "";
+        if (year) {
+            fromDate = `${year}-01-01`;
+            toDate = `${year}-12-31`;
+        }
+    } else if (period === "custom") {
+        fromDate = document.getElementById("debt-start-date") ? document.getElementById("debt-start-date").value : "";
+        toDate = document.getElementById("debt-end-date") ? document.getElementById("debt-end-date").value : "";
     }
-  } else if (period === "year") {
-    const year = document.getElementById("debt-year-select") ? document.getElementById("debt-year-select").value : "";
-    if (year) {
-      fromDate = `${year}-01-01`;
-      toDate = `${year}-12-31`;
-    }
-  } else if (period === "custom") {
-    fromDate = document.getElementById("debt-start-date") ? document.getElementById("debt-start-date").value : "";
-    toDate = document.getElementById("debt-end-date") ? document.getElementById("debt-end-date").value : "";
-  }
 
-  return { fromDate, toDate };
+    return { fromDate, toDate };
 }
 
 function changeDebtPeriodFilter() {
-  const period = document.getElementById("debt-period-filter") ? document.getElementById("debt-period-filter").value : "all";
+    const period = document.getElementById("debt-period-filter") ? document.getElementById("debt-period-filter").value : "all";
 
-  const monthWrap = document.getElementById("debt-month-filter-wrap");
-  const yearWrap = document.getElementById("debt-year-filter-wrap");
-  const customWrap = document.getElementById("debt-custom-filter-wrap");
+    const monthWrap = document.getElementById("debt-month-filter-wrap");
+    const yearWrap = document.getElementById("debt-year-filter-wrap");
+    const customWrap = document.getElementById("debt-custom-filter-wrap");
 
-  if (monthWrap) monthWrap.style.display = (period === "month") ? "inline-flex" : "none";
-  if (yearWrap) yearWrap.style.display = (period === "year") ? "inline-flex" : "none";
-  if (customWrap) customWrap.style.display = (period === "custom") ? "inline-flex" : "none";
+    if (monthWrap) monthWrap.style.display = (period === "month") ? "inline-flex" : "none";
+    if (yearWrap) yearWrap.style.display = (period === "year") ? "inline-flex" : "none";
+    if (customWrap) customWrap.style.display = (period === "custom") ? "inline-flex" : "none";
 
-  if (typeof filterDebts === "function") {
-    filterDebts();
-  }
-  if (typeof persistDebtsUIFromDOM === "function") {
-    persistDebtsUIFromDOM();
-  }
+    if (typeof filterDebts === "function") {
+        filterDebts();
+    }
+    if (typeof persistDebtsUIFromDOM === "function") {
+        persistDebtsUIFromDOM();
+    }
 }
 
 // --- Phân hệ Công nợ ---
 function calculatePartnerDebts(fromDate = "", toDate = "") {
-  const debts = {};
-  const partnerIds = new Set();
+    const debts = {};
+    const partnerIds = new Set();
 
-  state.partners.forEach(p => {
-    partnerIds.add(p.id);
-    const opening = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
-    debts[p.id] = {
-      id: p.id,
-      name: p.name,
-      type: p.type,
-      // Loại KHAI BÁO gốc — dùng để phân tab (Khách/NCC/Công ty) ổn định,
-      // vì `type` có thể bị đổi thành 'both' theo hoạt động thực tế (Bug A).
-      declaredType: p.type,
-      address: p.address || "",
-      taxCode: p.taxCode || "",
-      phone: p.phone || "",
-      initialOpeningDebit: opening.debit || 0,
-      initialOpeningCredit: opening.credit || 0,
-      priorCounters: createEmptyDebtCounters(),
-      periodCounters: createEmptyDebtCounters(),
-      openingDebit: 0,
-      openingCredit: 0,
-      debitTrans: 0,
-      creditTrans: 0,
-      closingDebit: 0,
-      closingCredit: 0
-    };
-  });
-
-  state.vouchers.forEach(v => {
-    if (toDate && v.date > toDate) return;
-    if (!v.entries || !v.partnerId) return;
-    if (!partnerIds.has(v.partnerId)) return;
-
-    const d = debts[v.partnerId];
-    const isPrior = fromDate && v.date < fromDate;
-    v.entries.forEach(e => {
-      accumulateDebtEntryLines(e, isPrior ? d.priorCounters : d.periodCounters);
+    state.partners.forEach(p => {
+        partnerIds.add(p.id);
+        const opening = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
+        debts[p.id] = {
+            id: p.id,
+            name: p.name,
+            type: p.type,
+            // Loại KHAI BÁO gốc — dùng để phân tab (Khách/NCC/Công ty) ổn định,
+            // vì `type` có thể bị đổi thành 'both' theo hoạt động thực tế (Bug A).
+            declaredType: p.type,
+            address: p.address || "",
+            taxCode: p.taxCode || "",
+            phone: p.phone || "",
+            initialOpeningDebit: opening.debit || 0,
+            initialOpeningCredit: opening.credit || 0,
+            priorCounters: createEmptyDebtCounters(),
+            periodCounters: createEmptyDebtCounters(),
+            openingDebit: 0,
+            openingCredit: 0,
+            debitTrans: 0,
+            creditTrans: 0,
+            closingDebit: 0,
+            closingCredit: 0
+        };
     });
-  });
 
-  // Bug B: gom chứng từ mồ côi (partnerId không khớp danh mục) vào bucket cảnh báo
-  const unmatchedPrior = createEmptyDebtCounters();
-  const unmatchedPeriod = createEmptyDebtCounters();
-  const orphanPartnerIds = new Set();
+    state.vouchers.forEach(v => {
+        if (toDate && v.date > toDate) return;
+        if (!v.entries || !v.partnerId) return;
+        if (!partnerIds.has(v.partnerId)) return;
 
-  state.vouchers.forEach(v => {
-    if (toDate && v.date > toDate) return;
-    if (!v.partnerId) return;
-    if (partnerIds.has(v.partnerId)) return;
-    orphanPartnerIds.add(v.partnerId);
-    const isPrior = fromDate && v.date < fromDate;
-    getVoucherDebtEntries(v).forEach(e => {
-      accumulateDebtEntryLines(e, isPrior ? unmatchedPrior : unmatchedPeriod);
+        const d = debts[v.partnerId];
+        const isPrior = fromDate && v.date < fromDate;
+        v.entries.forEach(e => {
+            accumulateDebtEntryLines(e, isPrior ? d.priorCounters : d.periodCounters);
+        });
     });
-  });
 
-  Object.keys(debts).forEach(id => {
-    const d = debts[id];
-    const opening = { debit: d.initialOpeningDebit, credit: d.initialOpeningCredit };
-    const sides = computeDebtSides(opening, d.priorCounters, d.periodCounters, d.type);
-    d.openingDebit = sides.openingDebit;
-    d.openingCredit = sides.openingCredit;
-    d.debitTrans = sides.debitTrans;
-    d.creditTrans = sides.creditTrans;
-    d.closingDebit = sides.closingDebit;
-    d.closingCredit = sides.closingCredit;
-    if (inferPartnerDebtRole(d.type, sides.has131, sides.has331) === "both") {
-      d.type = "both";
+    // Bug B: gom chứng từ mồ côi (partnerId không khớp danh mục) vào bucket cảnh báo
+    const unmatchedPrior = createEmptyDebtCounters();
+    const unmatchedPeriod = createEmptyDebtCounters();
+    const orphanPartnerIds = new Set();
+
+    state.vouchers.forEach(v => {
+        if (toDate && v.date > toDate) return;
+        if (!v.partnerId) return;
+        if (partnerIds.has(v.partnerId)) return;
+        orphanPartnerIds.add(v.partnerId);
+        const isPrior = fromDate && v.date < fromDate;
+        getVoucherDebtEntries(v).forEach(e => {
+            accumulateDebtEntryLines(e, isPrior ? unmatchedPrior : unmatchedPeriod);
+        });
+    });
+
+    Object.keys(debts).forEach(id => {
+        const d = debts[id];
+        const opening = { debit: d.initialOpeningDebit, credit: d.initialOpeningCredit };
+        const sides = computeDebtSides(opening, d.priorCounters, d.periodCounters, d.type);
+        d.openingDebit = sides.openingDebit;
+        d.openingCredit = sides.openingCredit;
+        d.debitTrans = sides.debitTrans;
+        d.creditTrans = sides.creditTrans;
+        d.closingDebit = sides.closingDebit;
+        d.closingCredit = sides.closingCredit;
+        if (inferPartnerDebtRole(d.type, sides.has131, sides.has331) === "both") {
+            d.type = "both";
+        }
+        delete d.priorCounters;
+        delete d.periodCounters;
+    });
+
+    if (orphanPartnerIds.size > 0) {
+        const orphanHas131 = (unmatchedPrior.debit131 + unmatchedPrior.credit131 + unmatchedPeriod.debit131 + unmatchedPeriod.credit131) > 0;
+        const orphanHas331 = (unmatchedPrior.debit331 + unmatchedPrior.credit331 + unmatchedPeriod.debit331 + unmatchedPeriod.credit331) > 0;
+        const orphanRole = inferPartnerDebtRole("both", orphanHas131, orphanHas331);
+        const unmatchedSides = computeDebtSides({ debit: 0, credit: 0 }, unmatchedPrior, unmatchedPeriod, orphanRole);
+        debts[UNMATCHED_PARTNER_ID] = {
+            id: UNMATCHED_PARTNER_ID,
+            name: `⚠ Chưa khớp đối tác (${orphanPartnerIds.size} mã)`,
+            type: "unmatched",
+            address: Array.from(orphanPartnerIds).slice(0, 5).join(", "),
+            taxCode: "",
+            phone: "",
+            initialOpeningDebit: 0,
+            initialOpeningCredit: 0,
+            openingDebit: unmatchedSides.openingDebit,
+            openingCredit: unmatchedSides.openingCredit,
+            debitTrans: unmatchedSides.debitTrans,
+            creditTrans: unmatchedSides.creditTrans,
+            closingDebit: unmatchedSides.closingDebit,
+            closingCredit: unmatchedSides.closingCredit,
+            orphanPartnerIds: Array.from(orphanPartnerIds)
+        };
     }
-    delete d.priorCounters;
-    delete d.periodCounters;
-  });
 
-  if (orphanPartnerIds.size > 0) {
-    const orphanHas131 = (unmatchedPrior.debit131 + unmatchedPrior.credit131 + unmatchedPeriod.debit131 + unmatchedPeriod.credit131) > 0;
-    const orphanHas331 = (unmatchedPrior.debit331 + unmatchedPrior.credit331 + unmatchedPeriod.debit331 + unmatchedPeriod.credit331) > 0;
-    const orphanRole = inferPartnerDebtRole("both", orphanHas131, orphanHas331);
-    const unmatchedSides = computeDebtSides({ debit: 0, credit: 0 }, unmatchedPrior, unmatchedPeriod, orphanRole);
-    debts[UNMATCHED_PARTNER_ID] = {
-      id: UNMATCHED_PARTNER_ID,
-      name: `⚠ Chưa khớp đối tác (${orphanPartnerIds.size} mã)`,
-      type: "unmatched",
-      address: Array.from(orphanPartnerIds).slice(0, 5).join(", "),
-      taxCode: "",
-      phone: "",
-      initialOpeningDebit: 0,
-      initialOpeningCredit: 0,
-      openingDebit: unmatchedSides.openingDebit,
-      openingCredit: unmatchedSides.openingCredit,
-      debitTrans: unmatchedSides.debitTrans,
-      creditTrans: unmatchedSides.creditTrans,
-      closingDebit: unmatchedSides.closingDebit,
-      closingCredit: unmatchedSides.closingCredit,
-      orphanPartnerIds: Array.from(orphanPartnerIds)
-    };
-  }
-
-  return Object.values(debts);
+    return Object.values(debts);
 }
 
 function appendUnmatchedDebtRow(tbody, d) {
-  const tr = document.createElement("tr");
-  tr.className = "debt-row-unmatched";
-  tr.setAttribute("data-type", "unmatched");
-  tr.setAttribute("data-id", UNMATCHED_PARTNER_ID);
-  const orphanIds = d.orphanPartnerIds || [];
-  const orphanPreview = orphanIds.slice(0, 4).join(", ") + (orphanIds.length > 4 ? "…" : "");
-  tr.innerHTML = `
+    const tr = document.createElement("tr");
+    tr.className = "debt-row-unmatched";
+    tr.setAttribute("data-type", "unmatched");
+    tr.setAttribute("data-id", UNMATCHED_PARTNER_ID);
+    const orphanIds = d.orphanPartnerIds || [];
+    const orphanPreview = orphanIds.slice(0, 4).join(", ") + (orphanIds.length > 4 ? "…" : "");
+    tr.innerHTML = `
     <td style="text-align:center;"></td>
     <td style="font-weight:bold; color:var(--color-danger);">⚠</td>
     <td style="font-weight:700;">
@@ -413,79 +417,79 @@ function appendUnmatchedDebtRow(tbody, d) {
         <button class="btn btn-secondary btn-sm" onclick="showUnmatchedPartnerIds()" style="padding:2px 8px;">${orphanIds.length} mã</button>
       </div>
     </td>`;
-  tbody.appendChild(tr);
+    tbody.appendChild(tr);
 }
 
 function showUnmatchedPartnerIds() {
-  const bucket = pinnedUnmatchedDebt;
-  if (!bucket || !bucket.orphanPartnerIds || bucket.orphanPartnerIds.length === 0) return;
-  const ids = bucket.orphanPartnerIds.join(", ");
-  if (typeof showToast === "function") {
-    showToast(`Mã chưa khớp danh mục (${bucket.orphanPartnerIds.length}): ${ids}`, "warning", 8000);
-  } else {
-    alert(`Chứng từ tham chiếu các mã không có trong danh mục đối tác:\n\n${ids}`);
-  }
+    const bucket = pinnedUnmatchedDebt;
+    if (!bucket || !bucket.orphanPartnerIds || bucket.orphanPartnerIds.length === 0) return;
+    const ids = bucket.orphanPartnerIds.join(", ");
+    if (typeof showToast === "function") {
+        showToast(`Mã chưa khớp danh mục (${bucket.orphanPartnerIds.length}): ${ids}`, "warning", 8000);
+    } else {
+        alert(`Chứng từ tham chiếu các mã không có trong danh mục đối tác:\n\n${ids}`);
+    }
 }
 
 function viewUnmatchedPartnerLedger() {
-  const { fromDate, toDate } = getDebtDateRange();
-  const allDebts = calculatePartnerDebts(fromDate, toDate);
-  const bucket = allDebts.find(d => isUnmatchedDebt(d));
-  if (!bucket || !bucket.orphanPartnerIds || bucket.orphanPartnerIds.length === 0) {
-    if (typeof showToast === "function") {
-      showToast("Không có chứng từ chưa khớp đối tác trong kỳ đã chọn", "info");
+    const { fromDate, toDate } = getDebtDateRange();
+    const allDebts = calculatePartnerDebts(fromDate, toDate);
+    const bucket = allDebts.find(d => isUnmatchedDebt(d));
+    if (!bucket || !bucket.orphanPartnerIds || bucket.orphanPartnerIds.length === 0) {
+        if (typeof showToast === "function") {
+            showToast("Không có chứng từ chưa khớp đối tác trong kỳ đã chọn", "info");
+        }
+        return;
     }
-    return;
-  }
-  pinnedUnmatchedDebt = bucket;
+    pinnedUnmatchedDebt = bucket;
 
-  activePartnerIdForLedger = UNMATCHED_PARTNER_ID;
-  activePartnerNameForGroupedLedger = "";
-  activeLedgerCombined = false;
-  activeLedgerTargetId = UNMATCHED_PARTNER_ID;
+    activePartnerIdForLedger = UNMATCHED_PARTNER_ID;
+    activePartnerNameForGroupedLedger = "";
+    activeLedgerCombined = false;
+    activeLedgerTargetId = UNMATCHED_PARTNER_ID;
 
-  const projTabsDiv = document.getElementById("partner-ledger-projects-tabs");
-  if (projTabsDiv) projTabsDiv.style.display = "none";
+    const projTabsDiv = document.getElementById("partner-ledger-projects-tabs");
+    if (projTabsDiv) projTabsDiv.style.display = "none";
 
-  const orphanIds = new Set(bucket.orphanPartnerIds);
-  const openingText = bucket.openingDebit > 0
-    ? `${formatVND(bucket.openingDebit)} (Nợ)`
-    : bucket.openingCredit > 0
-      ? `${formatVND(bucket.openingCredit)} (Có)`
-      : formatVND(0);
+    const orphanIds = new Set(bucket.orphanPartnerIds);
+    const openingText = bucket.openingDebit > 0 ?
+        `${formatVND(bucket.openingDebit)} (Nợ)` :
+        bucket.openingCredit > 0 ?
+        `${formatVND(bucket.openingCredit)} (Có)` :
+        formatVND(0);
 
-  let subtitle = `Chưa khớp đối tác — ${orphanIds.size} mã không có trong danh mục`;
-  if (fromDate || toDate) {
-    const formatD = (dStr) => {
-      if (!dStr) return "";
-      const pt = dStr.split("-");
-      return `${pt[2]}/${pt[1]}/${pt[0]}`;
-    };
-    subtitle += ` | Kỳ: ${fromDate ? "Từ " + formatD(fromDate) : ""} ${toDate ? "Đến " + formatD(toDate) : ""}`;
-  }
+    let subtitle = `Chưa khớp đối tác — ${orphanIds.size} mã không có trong danh mục`;
+    if (fromDate || toDate) {
+        const formatD = (dStr) => {
+            if (!dStr) return "";
+            const pt = dStr.split("-");
+            return `${pt[2]}/${pt[1]}/${pt[0]}`;
+        };
+        subtitle += ` | Kỳ: ${fromDate ? "Từ " + formatD(fromDate) : ""} ${toDate ? "Đến " + formatD(toDate) : ""}`;
+    }
 
-  document.getElementById("partner-ledger-subtitle").innerText = subtitle;
-  document.getElementById("partner-ledger-opening").innerText = openingText;
+    document.getElementById("partner-ledger-subtitle").innerText = subtitle;
+    document.getElementById("partner-ledger-opening").innerText = openingText;
 
-  const tbody = document.getElementById("partner-ledger-table-body");
-  tbody.innerHTML = "";
+    const tbody = document.getElementById("partner-ledger-table-body");
+    tbody.innerHTML = "";
 
-  let debitSum = 0;
-  let creditSum = 0;
-  const ledgerEntries = [];
+    let debitSum = 0;
+    let creditSum = 0;
+    const ledgerEntries = [];
 
-  state.vouchers.forEach(v => {
-    if (!v.partnerId || !orphanIds.has(v.partnerId)) return;
-    if (fromDate && v.date < fromDate) return;
-    if (toDate && v.date > toDate) return;
+    state.vouchers.forEach(v => {
+                if (!v.partnerId || !orphanIds.has(v.partnerId)) return;
+                if (fromDate && v.date < fromDate) return;
+                if (toDate && v.date > toDate) return;
 
-    const extracted = extractLedgerAmountsFromVoucher(v, "both");
-    const hasDebtAmounts = extracted.debitAmount > 0 || extracted.creditAmount > 0;
-    let desc = v.description || "";
-    if (!hasDebtAmounts) {
-      const noteAmt = Number(v.totalAmount ?? v.amount ?? 0);
-      const pmLabel = v.paymentMethod ? ` · HTTT: ${v.paymentMethod}` : "";
-      desc = `${desc}${desc ? " — " : ""}(Chưa có bút toán 131/331${noteAmt > 0 ? ` · ${formatVND(noteAmt)}` : ""}${pmLabel})`.trim();
+                const extracted = extractLedgerAmountsFromVoucher(v, "both");
+                const hasDebtAmounts = extracted.debitAmount > 0 || extracted.creditAmount > 0;
+                let desc = v.description || "";
+                if (!hasDebtAmounts) {
+                    const noteAmt = Number(v.totalAmount ?? v.amount ?? 0);
+                    const pmLabel = v.paymentMethod ? ` · HTTT: ${v.paymentMethod}` : "";
+                    desc = `${desc}${desc ? " — " : ""}(Chưa có bút toán 131/331${noteAmt > 0 ? ` · ${formatVND(noteAmt)}` : ""}${pmLabel})`.trim();
     }
 
     ledgerEntries.push({
@@ -3784,5 +3788,3 @@ document.addEventListener("DOMContentLoaded", () => {
     endDateInput.value = `${yyyy}-${mm}-${String(lastDay).padStart(2, '0')}`;
   }
 });
-
-

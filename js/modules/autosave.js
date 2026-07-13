@@ -101,6 +101,13 @@
         element.value = draft.fields?.[key] ?? fallback;
       });
 
+      // Phiếu mới (không phải sửa CT): luôn lấy ngày hôm nay theo giờ máy local,
+      // tránh giữ ngày cũ từ nháp / lệch UTC khi mở lại form.
+      if (!draft.editingId && config.fieldIds?.date && typeof getLocalDateString === "function") {
+        const dateEl = document.getElementById(config.fieldIds.date);
+        if (dateEl && "value" in dateEl) dateEl.value = getLocalDateString();
+      }
+
       if (typeof config.setEditingId === "function") config.setEditingId(draft.editingId || null);
       replaceDynamicFormTableRows(config.tbodyId, draft.items || []);
       if (typeof updateVoucherModeBadge === "function" && config.modalId) {

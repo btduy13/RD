@@ -3,6 +3,8 @@
 
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.github.com https://raw.githubusercontent.com https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
@@ -3087,6 +3089,15 @@
               onclick="forcePushToCloud()" style="display: none;">Đẩy dữ liệu lên Mây</button>
           </div>
         </div>
+
+        <div class="cloud-sync-task-section">
+          <div class="cloud-sync-task-heading">
+            <h4>Tác vụ đồng bộ</h4>
+            <small>Hoạt động nền gần nhất trên máy này</small>
+          </div>
+          <p id="cloud-sync-task-empty" class="cloud-sync-task-empty">Chưa có tác vụ đồng bộ.</p>
+          <ul id="cloud-sync-task-list" class="cloud-sync-task-list" aria-live="polite"></ul>
+        </div>
       </div>
 
       <div class="modal-footer">
@@ -5053,6 +5064,7 @@
   <script src="js/core/state-types.js"></script>
   <script src="js/core/state-diff.js"></script>
   <script src="js/core/persistence-bridge.js"></script>
+  <script src="js/core/online-write-gate.js"></script>
   <script src="js/core/user-preferences.js"></script>
   <script src="js/core/print-settings.js"></script>
   <script src="js/core/voucher-filters.js"></script>

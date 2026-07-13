@@ -1,127 +1,126 @@
-
 // Tìm hóa đơn bán hàng liên quan cho chứng từ phiếu thu/chi
 function findRelatedSalesVoucher(voucherId, description, partnerId, amount) {
-  const v = state.vouchers.find(x => x.id === voucherId);
-  if (!v) return null;
+    const v = state.vouchers.find(x => x.id === voucherId);
+    if (!v) return null;
 
-  // 1. Tìm theo số chứng từ bán hàng trong diễn giải (ví dụ: BH39244, BH-25-0001, BH 42026, v.v.)
-  const descStr = (description || v.description || "").toString();
-  const bhMatch = descStr.match(/BH\s*-?\s*\d+/i);
-  if (bhMatch) {
-    const matchedId = bhMatch[0].toUpperCase().replace(/\s/g, "").replace("-", ""); // Chuẩn hóa mã
-    const relatedSales = state.vouchers.find(x => x.type === "sales" && x.id.toUpperCase().replace("-", "") === matchedId);
-    if (relatedSales) return relatedSales;
-  }
-
-  // 2. Thử tìm bằng các số dài >= 3 trong diễn giải khớp với mã hóa đơn bán hàng
-  const numMatches = descStr.match(/\d+/g);
-  if (numMatches) {
-    for (const num of numMatches) {
-      if (num.length >= 3) {
-        // Chỉ so khớp nếu phần số của voucher ID bằng đúng num (không khớp substring gây false positive như năm 2026)
-        const relatedSales = state.vouchers.find(x => {
-          if (x.type !== "sales") return false;
-          const numericPart = x.id.replace(/^\D+/, "").replace(/-/g, "");
-          return numericPart === num;
-        });
+    // 1. Tìm theo số chứng từ bán hàng trong diễn giải (ví dụ: BH39244, BH-25-0001, BH 42026, v.v.)
+    const descStr = (description || v.description || "").toString();
+    const bhMatch = descStr.match(/BH\s*-?\s*\d+/i);
+    if (bhMatch) {
+        const matchedId = bhMatch[0].toUpperCase().replace(/\s/g, "").replace("-", ""); // Chuẩn hóa mã
+        const relatedSales = state.vouchers.find(x => x.type === "sales" && x.id.toUpperCase().replace("-", "") === matchedId);
         if (relatedSales) return relatedSales;
-      }
     }
-  }
 
-  // 3. Tìm hóa đơn bán hàng gần nhất của đối tác này có cùng số tiền
-  const amt = amount || v.amount || 0;
-  if (amt > 0) {
-    const relatedSales = state.vouchers.find(x => x.type === "sales" && String(x.partnerId) === String(partnerId) && Math.abs(x.totalAmount - amt) < 100);
-    if (relatedSales) return relatedSales;
-  }
+    // 2. Thử tìm bằng các số dài >= 3 trong diễn giải khớp với mã hóa đơn bán hàng
+    const numMatches = descStr.match(/\d+/g);
+    if (numMatches) {
+        for (const num of numMatches) {
+            if (num.length >= 3) {
+                // Chỉ so khớp nếu phần số của voucher ID bằng đúng num (không khớp substring gây false positive như năm 2026)
+                const relatedSales = state.vouchers.find(x => {
+                    if (x.type !== "sales") return false;
+                    const numericPart = x.id.replace(/^\D+/, "").replace(/-/g, "");
+                    return numericPart === num;
+                });
+                if (relatedSales) return relatedSales;
+            }
+        }
+    }
 
-  return null;
+    // 3. Tìm hóa đơn bán hàng gần nhất của đối tác này có cùng số tiền
+    const amt = amount || v.amount || 0;
+    if (amt > 0) {
+        const relatedSales = state.vouchers.find(x => x.type === "sales" && String(x.partnerId) === String(partnerId) && Math.abs(x.totalAmount - amt) < 100);
+        if (relatedSales) return relatedSales;
+    }
+
+    return null;
 }
 let filteredCashList = [];
 let editingReceiptId = null;
 let editingPaymentId = null;
 
 function resetReceiptForm() {
-  editingReceiptId = null;
-  const modalTitle = document.querySelector("#modal-add-receipt .card-title");
-  if (modalTitle) modalTitle.innerText = "Lập Phiếu Thu Tiền (Cash Receipt)";
-  if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-receipt", false);
-  const submitBtn = document.querySelector("#form-receipt button[type='submit']");
-  if (submitBtn) submitBtn.innerText = "Ghi sổ";
+    editingReceiptId = null;
+    const modalTitle = document.querySelector("#modal-add-receipt .card-title");
+    if (modalTitle) modalTitle.innerText = "Lập Phiếu Thu Tiền (Cash Receipt)";
+    if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-receipt", false);
+    const submitBtn = document.querySelector("#form-receipt button[type='submit']");
+    if (submitBtn) submitBtn.innerText = "Ghi sổ";
 }
 
 function resetPaymentForm() {
-  editingPaymentId = null;
-  const modalTitle = document.querySelector("#modal-add-payment .card-title");
-  if (modalTitle) modalTitle.innerText = "Lập Phiếu Chi Tiền (Cash Payment)";
-  if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-payment", false);
-  const submitBtn = document.querySelector("#form-payment button[type='submit']");
-  if (submitBtn) submitBtn.innerText = "Ghi sổ";
+    editingPaymentId = null;
+    const modalTitle = document.querySelector("#modal-add-payment .card-title");
+    if (modalTitle) modalTitle.innerText = "Lập Phiếu Chi Tiền (Cash Payment)";
+    if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-payment", false);
+    const submitBtn = document.querySelector("#form-payment button[type='submit']");
+    if (submitBtn) submitBtn.innerText = "Ghi sổ";
 }
 
 // --- Phân hệ Thu/Chi ---
 function recalculateCashKpis() {
-  const balance111 = getAccountBalance("111");
-  const balance112 = getAccountBalance("112");
+    const balance111 = getAccountBalance("111");
+    const balance112 = getAccountBalance("112");
 
-  let totalReceipts = 0;
-  let totalPayments = 0;
+    let totalReceipts = 0;
+    let totalPayments = 0;
 
-  state.vouchers.forEach(v => {
-    const isCashVoucher = v.type === "receipt" || v.type === "payment" || (v.type && v.type.startsWith("escrow_"));
-    if (!isCashVoucher) return;
+    state.vouchers.forEach(v => {
+        const isCashVoucher = v.type === "receipt" || v.type === "payment" || (v.type && v.type.startsWith("escrow_"));
+        if (!isCashVoucher) return;
 
-    if (v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay") {
-      totalReceipts += v.amount;
-    } else if (v.type === "payment" || v.type === "escrow_pay" || v.type === "escrow_refund_receive") {
-      totalPayments += v.amount;
-    }
-  });
+        if (v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay") {
+            totalReceipts += v.amount;
+        } else if (v.type === "payment" || v.type === "escrow_pay" || v.type === "escrow_refund_receive") {
+            totalPayments += v.amount;
+        }
+    });
 
-  const cashEl = document.getElementById("cash-kpi-cash");
-  const bankEl = document.getElementById("cash-kpi-bank");
-  const recEl = document.getElementById("cash-kpi-receipts");
-  const payEl = document.getElementById("cash-kpi-payments");
+    const cashEl = document.getElementById("cash-kpi-cash");
+    const bankEl = document.getElementById("cash-kpi-bank");
+    const recEl = document.getElementById("cash-kpi-receipts");
+    const payEl = document.getElementById("cash-kpi-payments");
 
-  if (cashEl) cashEl.innerText = formatVND(balance111);
-  if (bankEl) bankEl.innerText = formatVND(balance112);
-  if (recEl) recEl.innerText = formatVND(totalReceipts);
-  if (payEl) payEl.innerText = formatVND(totalPayments);
+    if (cashEl) cashEl.innerText = formatVND(balance111);
+    if (bankEl) bankEl.innerText = formatVND(balance112);
+    if (recEl) recEl.innerText = formatVND(totalReceipts);
+    if (payEl) payEl.innerText = formatVND(totalPayments);
 }
 
 function renderCashTable() {
-  const tbody = document.getElementById("cash-table-body");
-  if (!tbody) return;
+    const tbody = document.getElementById("cash-table-body");
+    if (!tbody) return;
 
-  const totalCount = filteredCashList.length;
-  const totalPages = Math.ceil(totalCount / itemsPerPage) || 1;
+    const totalCount = filteredCashList.length;
+    const totalPages = Math.ceil(totalCount / itemsPerPage) || 1;
 
-  if (cashPage > totalPages) cashPage = totalPages;
-  if (cashPage < 1) cashPage = 1;
+    if (cashPage > totalPages) cashPage = totalPages;
+    if (cashPage < 1) cashPage = 1;
 
-  const startIdx = (cashPage - 1) * itemsPerPage;
-  const endIdx = startIdx + itemsPerPage;
-  const pageItems = filteredCashList.slice(startIdx, endIdx);
+    const startIdx = (cashPage - 1) * itemsPerPage;
+    const endIdx = startIdx + itemsPerPage;
+    const pageItems = filteredCashList.slice(startIdx, endIdx);
 
-  tbody.innerHTML = "";
-  if (pageItems.length === 0) {
-    renderEmptyState(tbody, 10, 'Không tìm thấy chứng từ nào', 'Nhấn "Lập Phiếu Thu" hoặc "Lập Phiếu Chi" để thêm chứng từ');
-  } else {
-    pageItems.forEach(v => {
-      const typeLabel = (v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay") ? "Phiếu Thu" : "Phiếu Chi";
-      const isReceipt = v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay";
-      const methodLabel = v.paymentMethod === "111" ? "Tiền mặt (111)" : "Ngân hàng (112)";
+    tbody.innerHTML = "";
+    if (pageItems.length === 0) {
+        renderEmptyState(tbody, 10, 'Không tìm thấy chứng từ nào', 'Nhấn "Lập Phiếu Thu" hoặc "Lập Phiếu Chi" để thêm chứng từ');
+    } else {
+        pageItems.forEach(v => {
+                    const typeLabel = (v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay") ? "Phiếu Thu" : "Phiếu Chi";
+                    const isReceipt = v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay";
+                    const methodLabel = v.paymentMethod === "111" ? "Tiền mặt (111)" : "Ngân hàng (112)";
 
-      const tr = document.createElement("tr");
-      const escapedPartnerId = escapeHtmlAttr(v.partnerId);
-      const escapedVoucherId = escapeHtmlAttr(v.id);
-      const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
-      tr.className = "clickable-row";
-      tr.setAttribute("data-type", "voucher");
-      tr.setAttribute("data-subtype", v.type);
-      tr.setAttribute("data-id", escapedVoucherId);
-      tr.innerHTML = `
+                    const tr = document.createElement("tr");
+                    const escapedPartnerId = escapeHtmlAttr(v.partnerId);
+                    const escapedVoucherId = escapeHtmlAttr(v.id);
+                    const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
+                    tr.className = "clickable-row";
+                    tr.setAttribute("data-type", "voucher");
+                    tr.setAttribute("data-subtype", v.type);
+                    tr.setAttribute("data-id", escapedVoucherId);
+                    tr.innerHTML = `
         <td style="text-align: center;">
           <input type="checkbox" class="cash-checkbox" value="${escapedVoucherId}" onchange="updateBatchCashUI()">
         </td>
@@ -803,7 +802,7 @@ function exportSalesToExcel(detailed = true) {
 
       XLSX.utils.book_append_sheet(wb, ws, "SO CHI TIET BAN HANG");
       const suffix = fromDate || toDate ? `_${fromDate || ""}_${toDate || ""}` : "";
-      const outName = `SO_CHI_TIET_BAN_HANG_${new Date().toISOString().split('T')[0]}${suffix}.xlsx`;
+      const outName = `SO_CHI_TIET_BAN_HANG_${getLocalDateString()}${suffix}.xlsx`;
       XLSX.writeFile(wb, outName);
       showToast(`Đã xuất Excel: ${outName}`, "success");
     } else {
@@ -885,7 +884,7 @@ function exportSalesToExcel(detailed = true) {
 
       XLSX.utils.book_append_sheet(wb, ws, "Danh sach");
       const suffix = fromDate || toDate ? `_${fromDate || ""}_${toDate || ""}` : "";
-      const outName = `DANH_SACH_BAN_HANG_${new Date().toISOString().split('T')[0]}${suffix}.xlsx`;
+      const outName = `DANH_SACH_BAN_HANG_${getLocalDateString()}${suffix}.xlsx`;
       XLSX.writeFile(wb, outName);
       showToast(`Đã xuất Excel: ${outName}`, "success");
     }

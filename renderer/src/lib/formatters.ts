@@ -54,14 +54,20 @@ export function formatVND(value: number): string {
   return vndFormatter.format(value);
 }
 
-export function getLocalDateString(): string {
-  const tzOffset = new Date().getTimezoneOffset() * 60000;
-  return new Date(Date.now() - tzOffset).toISOString().split("T")[0];
+/** Local calendar YYYY-MM-DD — never use toISOString() (UTC) for date-only values. */
+export function getLocalDateString(date: Date = new Date()): string {
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  }
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export function formatDisplayDate(isoDate: string): string {
   if (!isoDate) return "";
-  const [y, m, d] = isoDate.split("-");
+  const raw = String(isoDate).trim().slice(0, 10);
+  const [y, m, d] = raw.split("-");
   if (!y || !m || !d) return isoDate;
   return `${d}/${m}/${y}`;
 }

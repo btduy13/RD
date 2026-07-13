@@ -1120,17 +1120,24 @@ function batchDeleteProducts() {
 
 
 
-function deleteProduct(prodId) {
+async function deleteProduct(prodId) {
   if (confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${prodId}"? Dữ liệu tồn kho liên quan có thể bị ảnh hưởng.`)) {
-    trackDeletedIds([prodId], 'product');
-    state.products = state.products.filter(p => p.id !== prodId);
-    showToast(`Đã xóa sản phẩm ${prodId}!`, "success");
-
-    // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
-    setTimeout(() => {
-      saveState();
-      recalculateAccounting();
-    }, 0);
+    const productsBefore = JSON.parse(JSON.stringify(state.products || []));
+    const deletedIdsBefore = [...(state.deletedIds || [])];
+    const deletedCloudKeysBefore = [...(state.deletedCloudKeys || [])];
+    try {
+      trackDeletedIds([prodId], 'product');
+      state.products = state.products.filter(p => p.id !== prodId);
+      recalculateAccounting(false);
+      await saveStateAndSyncVoucher();
+      showToast(`Đã xóa và đồng bộ sản phẩm ${prodId}!`, "success");
+    } catch (err) {
+      state.products = productsBefore;
+      state.deletedIds = deletedIdsBefore;
+      state.deletedCloudKeys = deletedCloudKeysBefore;
+      recalculateAccounting(false);
+      showToast(`Không thể xóa sản phẩm trên cloud; dữ liệu đã được khôi phục: ${err.message}`, "danger");
+    }
   }
 }
 

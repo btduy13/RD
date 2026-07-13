@@ -36,4 +36,13 @@ describe("getLocalDateString", () => {
   it("returns an ISO date string in YYYY-MM-DD format", () => {
     expect(getLocalDateString()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
+
+  it("uses local calendar date parts (not UTC toISOString)", () => {
+    const localMorning = new Date(2026, 6, 13, 0, 30, 0); // Jul 13 00:30 local
+    expect(getLocalDateString(localMorning)).toBe("2026-07-13");
+    // In timezones east of UTC, toISOString of local midnight shifts to previous day.
+    if (localMorning.getTimezoneOffset() < 0) {
+      expect(localMorning.toISOString().split("T")[0]).toBe("2026-07-12");
+    }
+  });
 });

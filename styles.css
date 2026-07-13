@@ -5604,6 +5604,77 @@ body.role-accountant [data-role-required="recalibrate"] {
   }
 }
 
+.cloud-sync-task-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color, #e2e8f0);
+}
+
+.cloud-sync-task-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cloud-sync-task-heading h4 { margin: 0; }
+.cloud-sync-task-heading small,
+.cloud-sync-task-empty { color: var(--text-muted, #64748b); }
+.cloud-sync-task-empty { margin: 10px 0 0; }
+
+.cloud-sync-task-list {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  margin: 10px 0 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.cloud-sync-task {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: var(--surface-subtle, #f8fafc);
+  border-left: 3px solid #94a3b8;
+}
+
+.cloud-sync-task strong { font-size: 12px; color: #64748b; }
+.cloud-sync-task small { color: var(--text-muted, #64748b); }
+.cloud-sync-task-running { border-left-color: #f59e0b; }
+.cloud-sync-task-running strong { color: #d97706; }
+.cloud-sync-task-done { border-left-color: #10b981; }
+.cloud-sync-task-done strong { color: #059669; }
+.cloud-sync-task-error { border-left-color: #ef4444; }
+.cloud-sync-task-error strong { color: #dc2626; }
+
+.online-write-gate-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  z-index: 12000;
+  max-width: min(680px, calc(100vw - 28px));
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.online-write-gate-banner[data-state="error"] {
+  border-color: #ef4444;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
 /* ==========================================================================
    UI/UX ENHANCEMENTS — ROUND 2
    ========================================================================== */

@@ -35,6 +35,16 @@ async function initApp() {
   }
 
   try {
+  window.localPersistenceHealthy = true;
+  if (window.electronAPI && typeof window.electronAPI.getDatabaseHealth === 'function') {
+    const databaseHealth = await window.electronAPI.getDatabaseHealth();
+    window.localPersistenceHealthy = !!(databaseHealth && databaseHealth.ok);
+    if (!window.localPersistenceHealthy) {
+      const reason = (databaseHealth && databaseHealth.error) || 'SQLite không thể khởi tạo.';
+      console.error('[SQLiteStore] Health check failed:', reason);
+      if (window.cloudWriteGate) window.cloudWriteGate.setStatus('error', `SQLite chưa sẵn sàng: ${reason}`);
+    }
+  }
   // M6: Obsolete localStorage migration removed (was running forever)
 
   // Khởi tạo từ cache cục bộ (nếu có) để giao diện hiển thị ngay lập tức
@@ -286,7 +296,7 @@ async function initApp() {
     loadCloudSettings();
   }
   if (typeof initCloudSync === "function") {
-    initCloudSync();
+    await initCloudSync();
   }
 
   // Các tích hợp tự động Excel sẽ được chạy tuần tự sau khi kéo dữ liệu đám mây hoàn tất
@@ -547,11 +557,15 @@ function pushActivityLogDirectly(actionType, description) {
   }
 }
 
-async function executeSaveState(sync = false) {
+async function executeSaveState(sync = false, options = {}) {
   if (!saveStateIsDirty) return;
 
   const doSave = async () => {
     try {
+      if (window.cloudWriteGate && !window.cloudWriteGate.canWrite()) {
+        console.warn('[StateFile] Bỏ qua ghi vì cloud chưa ở trạng thái sẵn sàng.');
+        return false;
+      }
       // Luôn cập nhật timestamp trước khi lưu và push
       state._lastModified = Date.now();
       if (state.schemaVersion === undefined) {
@@ -561,6 +575,15 @@ async function executeSaveState(sync = false) {
       // Dọn dẹp deletedIds: Loại bỏ bất kỳ ID nào hiện đang hoạt động trong hệ thống
       if (typeof pruneResolvedDeletionMarkers === "function") {
         pruneResolvedDeletionMarkers(state);
+      }
+
+      // Online-first: cloud xác nhận transaction trước khi cache SQLite được commit.
+      if (!options.skipCloudPush && typeof pushToCloud === "function") {
+        const cloudCommitted = await pushToCloud();
+        if (!cloudCommitted) {
+          console.error('[StateFile] Cloud không xác nhận thay đổi; không ghi cache cục bộ.');
+          return false;
+        }
       }
 
       let persisted = false;
@@ -613,10 +636,8 @@ async function executeSaveState(sync = false) {
         return;
       }
 
-      if (typeof pushToCloud === "function") {
-        pushToCloud();
-      }
       saveStateIsDirty = false;
+      return true;
     } catch (err) {
       console.error("Lỗi khi lưu trạng thái dữ liệu:", err);
     } finally {
@@ -628,7 +649,7 @@ async function executeSaveState(sync = false) {
   };
 
   if (sync) {
-    await doSave();
+    return await doSave();
   } else if (window.requestIdleCallback) {
     window.requestIdleCallback(() => { void doSave(); }, { timeout: 1000 });
   } else {
@@ -650,11 +671,25 @@ async function saveStateAndSyncVoucher() {
     saveStateTimeout = null;
   }
 
-  await executeSaveState(true);
-
-  if (typeof cloudSyncActive !== "undefined" && cloudSyncActive && typeof pushToCloud === "function") {
-    await pushToCloud();
+  // Persist locally first so the form never waits on a slow network request.
+  // The durable pending marker makes startup recover and retry an interrupted push.
+  const pendingToken = typeof window.markCloudWritePending === "function"
+    ? window.markCloudWritePending()
+    : null;
+  const saved = await executeSaveState(true, { skipCloudPush: true });
+  if (!saved) {
+    throw new Error("Không thể lưu chứng từ vào SQLite.");
   }
+  if (typeof pushToCloud === "function") {
+    void Promise.resolve(pushToCloud({ pendingToken })).then(cloudCommitted => {
+      if (!cloudCommitted && typeof showToast === "function") {
+        showToast("Chứng từ đã lưu trên máy và đang chờ đồng bộ cloud.", "warning");
+      }
+    }).catch(err => {
+      console.error("[StateFile] Background cloud push failed:", err);
+    });
+  }
+  return true;
 }
 
 window.saveStateAndSyncVoucher = saveStateAndSyncVoucher;

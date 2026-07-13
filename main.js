@@ -1035,6 +1035,20 @@ function requireDatabase() {
   return db;
 }
 
+function getDatabaseHealth() {
+  try {
+    const activeDb = requireDatabase();
+    activeDb.prepare('SELECT 1 AS ok').get();
+    return { ok: true, path: STATE_DB_PATH, schemaVersion: SCHEMA_VERSION };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err && err.message ? err.message : String(err),
+      recovery: 'Chạy npm run rebuild:native trong mã nguồn hoặc cài lại bản phát hành mới.'
+    };
+  }
+}
+
 function closeDatabase() {
   if (!db) return;
   try {
@@ -1444,6 +1458,8 @@ ipcMain.handle('read-state-file', async (event) => {
     return { ok: false, error: err.message };
   }
 });
+
+ipcMain.handle('get-database-health', async () => getDatabaseHealth());
 
 // Đọc backup gần nhất để phục hồi khi state file bị hỏng
 ipcMain.handle('read-latest-backup', async (event) => {

@@ -7,6 +7,7 @@ let cloudSyncActive = false;
 let isStartupPullCompleted = false;
 let realtimeChannel = null;
 let lastSyncState = window.lastSyncState || null;
+const SYNC_V2_DATASET_KEY = "rd_accounting_sync_v2_dataset";
 let isPulling = false;
 let isPushing = false;
 let pullPending = false;
@@ -24,8 +25,15 @@ let pushRetryTimeout = null;
 let scheduledPullTimer = null;
 let lastPullCompletedAt = 0;
 let manualCloudSyncAction = "";
+let cloudWorkspaceId = "00000000-0000-4000-8000-000000000001";
+let cloudSyncVersion = 0;
+let cloudUsesVersionedRpc = false;
+let syncV2WriteQueue = Promise.resolve();
+let syncV2TaskSequence = 0;
+const syncV2Tasks = [];
 
 const SYNC_V2_CHECKPOINT_KEY = "rd_accounting_last_pulled_cloud_ts";
+const SYNC_V2_PENDING_WRITE_KEY = "rd_accounting_cloud_push_pending";
 const SYNC_V2_TABLE = "rd_accounting_data";
 const SYNC_V2_METADATA_ID = "metadata";
 const SYNC_V2_PAGE_SIZE = 500;
@@ -33,7 +41,8 @@ const SYNC_V2_FULL_MAX_PAGES = 200;
 const SYNC_V2_DELTA_MAX_PAGES = 80;
 const SYNC_V2_BATCH_SIZE = 300;
 const SYNC_V2_DELETE_BATCH_SIZE = 100;
-const SYNC_V2_POLL_INTERVAL_MS = 15000;
+// Lightweight RPC polling keeps station-to-station visibility below 5 seconds.
+const SYNC_V2_POLL_INTERVAL_MS = 3000;
 const SYNC_V2_POLL_MIN_GAP_MS = 1500;
 const SYNC_V2_PULL_DEBOUNCE_MS = 450;
 const SYNC_V2_PRE_PUSH_PULL_COOLDOWN_MS = 2000;
@@ -413,27 +422,140 @@ function syncV2NoteLegacyLock(row, reason = "") {
 
 function withTimeout(promise, ms = 10000) {
   let timeoutId;
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  let request = promise;
+  if (controller && request && typeof request.abortSignal === "function") {
+    request = request.abortSignal(controller.signal);
+  }
   const timeoutPromise = new Promise((_, reject) => {
-    timeoutId = setTimeout(() => reject(new Error(`Cloud request timed out after ${ms}ms.`)), ms);
+    timeoutId = setTimeout(() => {
+      if (controller) controller.abort();
+      reject(new Error(`Cloud request timed out after ${ms}ms.`));
+    }, ms);
   });
   return Promise.race([
-    Promise.resolve(promise).finally(() => clearTimeout(timeoutId)),
+    Promise.resolve(request).finally(() => clearTimeout(timeoutId)),
     timeoutPromise
   ]);
 }
 
+function syncV2HasPendingLocalWrite() {
+  try {
+    return !!localStorage.getItem(SYNC_V2_PENDING_WRITE_KEY);
+  } catch (err) {
+    return false;
+  }
+}
+
+function syncV2GetPendingLocalWriteToken() {
+  try {
+    return localStorage.getItem(SYNC_V2_PENDING_WRITE_KEY) || "";
+  } catch (err) {
+    return "";
+  }
+}
+
+function markCloudWritePending() {
+  const token = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  try {
+    localStorage.setItem(SYNC_V2_PENDING_WRITE_KEY, token);
+  } catch (err) {
+    console.warn("[CloudSyncV2] Cannot persist pending-write marker:", err);
+  }
+  return token;
+}
+
+function syncV2ClearPendingLocalWrite(expectedToken = null) {
+  try {
+    if (expectedToken && localStorage.getItem(SYNC_V2_PENDING_WRITE_KEY) !== expectedToken) return false;
+    localStorage.removeItem(SYNC_V2_PENDING_WRITE_KEY);
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+window.markCloudWritePending = markCloudWritePending;
+
+function syncV2RenderTasks() {
+  const list = document.getElementById("cloud-sync-task-list");
+  const empty = document.getElementById("cloud-sync-task-empty");
+  if (!list) return;
+  list.innerHTML = "";
+  if (empty) empty.hidden = syncV2Tasks.length > 0;
+  syncV2Tasks.slice(0, 30).forEach(task => {
+    const item = document.createElement("li");
+    item.className = `cloud-sync-task cloud-sync-task-${task.status}`;
+    const title = document.createElement("span");
+    title.textContent = task.label;
+    const status = document.createElement("strong");
+    status.textContent = task.status === "running" ? "Đang chạy" : (task.status === "done" ? "Hoàn tất" : "Lỗi");
+    const time = document.createElement("small");
+    time.textContent = new Date(task.startedAt).toLocaleTimeString("vi-VN");
+    item.append(title, status, time);
+    list.appendChild(item);
+  });
+}
+
+function syncV2StartTask(type, label) {
+  const task = { id: ++syncV2TaskSequence, type, label, status: "running", startedAt: Date.now() };
+  syncV2Tasks.unshift(task);
+  if (syncV2Tasks.length > 50) syncV2Tasks.length = 50;
+  syncV2RenderTasks();
+  return task;
+}
+
+function syncV2FinishTask(task, ok) {
+  if (!task) return;
+  task.status = ok ? "done" : "error";
+  task.finishedAt = Date.now();
+  syncV2RenderTasks();
+}
+
+async function syncV2ReadWithRetry(createRequest, label, options = {}) {
+  const attempts = Math.max(1, Number(options.attempts) || 2);
+  const timeoutMs = Math.max(1000, Number(options.timeoutMs) || 15000);
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await withTimeout(createRequest(), timeoutMs);
+    } catch (err) {
+      lastError = err;
+      if (attempt >= attempts) break;
+      syncV2Log(`${label} failed (${attempt}/${attempts}): ${err.message}; retrying...`);
+      await new Promise(resolve => setTimeout(resolve, 350 * attempt));
+    }
+  }
+  throw lastError;
+}
+
 async function syncV2FetchMetadata(options = {}) {
+  if (cloudUsesVersionedRpc) {
+    const { data, error } = await supabaseClient.rpc("rd_cloud_status", {
+      p_workspace_id: cloudWorkspaceId
+    });
+    if (error) throw error;
+    const workspace = Array.isArray(data) ? data[0] : data;
+    cloudSyncVersion = Math.max(cloudSyncVersion, Number(workspace && workspace.sync_version) || 0);
+    return {
+      id: SYNC_V2_METADATA_ID,
+      data: {},
+      last_modified: cloudSyncVersion,
+      is_syncing: false,
+      updated_at: new Date().toISOString()
+    };
+  }
   // summaryOnly: skip the heavy `data` JSON blob when only timestamps/locks are needed (polling path).
   const columns = options.summaryOnly
     ? "id, last_modified, is_syncing, updated_at"
     : "id, data, last_modified, is_syncing, updated_at";
-  const { data, error } = await withTimeout(
-    supabaseClient
+  const { data, error } = await syncV2ReadWithRetry(
+    () => supabaseClient
       .from(SYNC_V2_TABLE)
       .select(columns)
       .eq("id", SYNC_V2_METADATA_ID)
       .maybeSingle(),
-    10000
+    "metadata read"
   );
   if (error) throw error;
   return data || null;
@@ -468,19 +590,23 @@ async function syncV2EnsureMetadataRow(options = {}) {
 }
 
 async function syncV2FetchLatestRowSummary() {
-  const { data, error } = await withTimeout(
-    supabaseClient
+  if (cloudUsesVersionedRpc) return { id: SYNC_V2_METADATA_ID, last_modified: cloudSyncVersion };
+  const { data, error } = await syncV2ReadWithRetry(
+    () => supabaseClient
       .from(SYNC_V2_TABLE)
       .select("id, last_modified")
       .order("last_modified", { ascending: false })
       .limit(1),
-    10000
+    "watermark read"
   );
   if (error) throw error;
   return (data && data[0]) || null;
 }
 
 function syncV2WatermarkFromRows(rows, metadataRow = null) {
+  if (cloudUsesVersionedRpc) {
+    return (rows || []).reduce((max, row) => Math.max(max, Number(row && row.sync_version) || 0), cloudSyncVersion);
+  }
   let watermark = Number(metadataRow && metadataRow.last_modified) || 0;
   (rows || []).forEach(row => {
     watermark = Math.max(watermark, Number(row && row.last_modified) || 0);
@@ -489,11 +615,91 @@ function syncV2WatermarkFromRows(rows, metadataRow = null) {
 }
 
 async function syncV2GetCloudWatermark(metadataRow = null) {
+  if (cloudUsesVersionedRpc) return cloudSyncVersion;
   const latest = await syncV2FetchLatestRowSummary();
   return Math.max(
     Number(metadataRow && metadataRow.last_modified) || 0,
     Number(latest && latest.last_modified) || 0
   );
+}
+
+function syncV2GetDatasetIdentity() {
+  let projectUrl = "";
+  try {
+    projectUrl = new URL(String(cloudSyncSettings && cloudSyncSettings.supabaseUrl || "")).origin.toLowerCase();
+  } catch (err) {
+    projectUrl = String(cloudSyncSettings && cloudSyncSettings.supabaseUrl || "").trim().toLowerCase();
+  }
+  return `${projectUrl}|${cloudWorkspaceId || "legacy"}`;
+}
+
+function syncV2GetStoredDatasetIdentity() {
+  const stateIdentity = String(typeof state !== "undefined" && state && state._cloudDatasetIdentity || "");
+  if (stateIdentity) return stateIdentity;
+  try {
+    return localStorage.getItem(SYNC_V2_DATASET_KEY) || "";
+  } catch (err) {
+    return "";
+  }
+}
+
+function syncV2PersistDatasetIdentity() {
+  const identity = syncV2GetDatasetIdentity();
+  if (typeof state !== "undefined" && state) state._cloudDatasetIdentity = identity;
+  try {
+    localStorage.setItem(SYNC_V2_DATASET_KEY, identity);
+  } catch (err) {
+    console.warn("[CloudSyncV2] Cannot persist cloud dataset identity:", err);
+  }
+}
+
+// In online-first mode SQLite only contains server-confirmed state. Reusing that
+// cache as the comparison baseline makes a normal restart an incremental pull,
+// without writing a second multi-megabyte snapshot to localStorage.
+function syncV2RestoreBaselineFromConfirmedCache() {
+  const checkpoint = getPullCheckpointTs();
+  if (syncV2HasPendingLocalWrite() || !(checkpoint > 0) || !state || syncV2GetStoredDatasetIdentity() !== syncV2GetDatasetIdentity()) {
+    return false;
+  }
+
+  const baseline = syncV2Clone(state);
+  baseline._cloudWatermark = checkpoint;
+  baseline._lastPulledCloudTs = checkpoint;
+  updateLastSyncState(baseline);
+  syncV2Log(`Restored confirmed cloud baseline from SQLite cache (checkpoint=${checkpoint}).`);
+  return true;
+}
+
+function syncV2SetWriteReady(detail) {
+  if (!window.cloudWriteGate) return;
+  if (window.localPersistenceHealthy === false) {
+    window.cloudWriteGate.setStatus("error", "SQLite chưa sẵn sàng; không thể ghi dữ liệu an toàn.");
+  } else {
+    window.cloudWriteGate.setStatus("ready", detail || "Cloud đã sẵn sàng.");
+  }
+}
+
+async function syncV2AuthenticateAndBootstrap() {
+  const { data, error } = await supabaseClient.rpc("rd_cloud_status", {
+    p_workspace_id: cloudWorkspaceId
+  });
+  if (error) {
+    const code = String(error.code || "");
+    const message = String(error.message || "").toLowerCase();
+    const missingRpc = code === "PGRST202" || code === "42883" ||
+      message.includes("rd_cloud_status") && (message.includes("not found") || message.includes("does not exist"));
+    if (missingRpc) {
+      cloudUsesVersionedRpc = false;
+      cloudSyncVersion = 0;
+      syncV2Log("Cloud chua co RPC V3; tiep tuc bang che do tuong thich schema hien tai.");
+      return;
+    }
+    throw error;
+  }
+  const workspace = Array.isArray(data) ? data[0] : data;
+  if (!workspace || !workspace.workspace_id) throw new Error("Cloud không trả về workspace hợp lệ.");
+  cloudSyncVersion = Number(workspace.sync_version) || 0;
+  cloudUsesVersionedRpc = true;
 }
 
 async function syncV2FetchAllRows() {
@@ -506,14 +712,19 @@ async function syncV2FetchAllRows() {
     }
     updateStartupStatus(`Dang tai cloud snapshot: trang ${page + 1}...`);
 
-    let query = supabaseClient
-      .from(SYNC_V2_TABLE)
-      .select("id, data, last_modified")
-      .order("id")
-      .limit(SYNC_V2_PAGE_SIZE);
-    if (lastSeenId) query = query.gt("id", lastSeenId);
-
-    const { data, error } = await withTimeout(query, 20000);
+    let request;
+    if (cloudUsesVersionedRpc) {
+      request = supabaseClient.rpc("rd_sync_snapshot", {
+        p_workspace_id: cloudWorkspaceId,
+        p_after_id: lastSeenId || null,
+        p_limit: SYNC_V2_PAGE_SIZE
+      });
+    } else {
+      let query = supabaseClient.from(SYNC_V2_TABLE).select("id, data, last_modified").order("id").limit(SYNC_V2_PAGE_SIZE);
+      if (lastSeenId) query = query.gt("id", lastSeenId);
+      request = query;
+    }
+    const { data, error } = await withTimeout(request, 20000);
     if (error) throw error;
     if (!data || data.length === 0) break;
 
@@ -532,27 +743,51 @@ async function syncV2FetchAllRows() {
 async function syncV2FetchRowsSince(sinceTs) {
   const rows = [];
   let lastSeenId = "";
+  let lastSeenVersion = Number(sinceTs) || 0;
 
   for (let page = 0; page < SYNC_V2_DELTA_MAX_PAGES; page++) {
     if (typeof updateCloudSyncBadge === "function") {
       updateCloudSyncBadge(false, `May: Quet thay doi (${page + 1})...`, "#f59e0b");
     }
 
-    let query = supabaseClient
-      .from(SYNC_V2_TABLE)
-      .select("id, data, last_modified")
-      .gt("last_modified", sinceTs)
-      .order("id")
-      .limit(SYNC_V2_PAGE_SIZE);
-    if (lastSeenId) query = query.gt("id", lastSeenId);
-
-    const { data, error } = await withTimeout(query, 15000);
+    let request;
+    let createLegacyRequest = null;
+    if (cloudUsesVersionedRpc) {
+      request = supabaseClient.rpc("rd_sync_delta", {
+        p_workspace_id: cloudWorkspaceId,
+        p_after_version: lastSeenVersion,
+        p_after_id: lastSeenId || null,
+        p_limit: SYNC_V2_PAGE_SIZE
+      });
+    } else {
+      createLegacyRequest = () => {
+        let query = supabaseClient
+          .from(SYNC_V2_TABLE)
+          .select("id, data, last_modified")
+          .order("last_modified", { ascending: true })
+          .order("id", { ascending: true })
+          .limit(SYNC_V2_PAGE_SIZE);
+        if (lastSeenId) {
+          // Keyset pagination by (last_modified, id). Filtering by id alone can
+          // skip rows and forces Postgres to sort every changed row on large data.
+          query = query.or(`last_modified.gt.${lastSeenVersion},and(last_modified.eq.${lastSeenVersion},id.gt.${lastSeenId})`);
+        } else {
+          query = query.gt("last_modified", lastSeenVersion);
+        }
+        return query;
+      };
+    }
+    const { data, error } = cloudUsesVersionedRpc
+      ? await withTimeout(request, 15000)
+      : await syncV2ReadWithRetry(createLegacyRequest, "delta page read", { timeoutMs: 20000 });
     if (error) throw error;
     if (!data || data.length === 0) break;
 
     rows.push(...data);
     if (data.length < SYNC_V2_PAGE_SIZE) break;
-    lastSeenId = data[data.length - 1].id;
+    const lastRow = data[data.length - 1];
+    lastSeenId = lastRow.id;
+    lastSeenVersion = Number(cloudUsesVersionedRpc ? lastRow.sync_version : lastRow.last_modified) || lastSeenVersion;
   }
 
   if (rows.length >= SYNC_V2_DELTA_MAX_PAGES * SYNC_V2_PAGE_SIZE) {
@@ -1130,6 +1365,9 @@ async function pullAndMergeFromCloud(options = {}) {
   }
 
   isPulling = true;
+  const syncTask = syncV2StartTask("pull", options.startup ? "Kiểm tra dữ liệu khi khởi động" : "Tải thay đổi từ cloud");
+  let syncTaskOk = false;
+  if (window.cloudWriteGate) window.cloudWriteGate.setStatus("syncing", "Đang tải và kiểm tra thay đổi từ cloud.");
   pullPending = false;
   pendingPullOptions = null;
   syncV2Log(`pullAndMergeFromCloud bat dau, ly do: ${options.reason || "unknown"}, forceFull: ${!!options.forceFull}`);
@@ -1155,6 +1393,8 @@ async function pullAndMergeFromCloud(options = {}) {
       } else if (cloudWatermark <= checkpoint && !options.retryFullIfNoChanges) {
         syncV2Log("Cloud watermark <= checkpoint, khong co thay doi, thoat.");
         updateCloudSyncBadge(true, "May: Da ket noi", "#10b981");
+        syncV2SetWriteReady("Cloud da san sang.");
+        syncTaskOk = true;
         return true;
       }
     }
@@ -1216,6 +1456,7 @@ async function pullAndMergeFromCloud(options = {}) {
 
     updateLastSyncState(cloudSnapshot);
     persistLastPulledCloudTs(watermark);
+    syncV2PersistDatasetIdentity();
     syncV2Log(`Ket qua merge: vouchers truoc=${vouchersBefore}, sau=${state.vouchers.length}, thay doi=${hasChanges ? "co" : "khong"}, pruned=${prunedCount}`);
 
     if (hasChanges) {
@@ -1232,12 +1473,16 @@ async function pullAndMergeFromCloud(options = {}) {
     }
 
     updateCloudSyncBadge(true, "May: Da ket noi", "#10b981");
+    syncV2SetWriteReady("Cloud đã sẵn sàng.");
+    syncTaskOk = true;
     return true;
   } catch (err) {
     if (typeof addErrorLog === "function") addErrorLog("CloudSyncV2.pull", err.message, err);
     updateCloudSyncBadge(false, "May: Loi ket noi", "#ef4444");
+    if (window.cloudWriteGate) window.cloudWriteGate.setStatus("error", "Không thể đồng bộ với cloud; dữ liệu cache chỉ được đọc.");
     throw err;
   } finally {
+    syncV2FinishTask(syncTask, syncTaskOk);
     isPulling = false;
     lastPullCompletedAt = Date.now();
     const queuedPull = takePendingPullOptions();
@@ -1253,10 +1498,11 @@ async function pullAndMergeFromCloud(options = {}) {
 async function pullFromCloudOnStartup() {
   if (!cloudSyncActive || !supabaseClient) return false;
 
-  // lastSyncState is intentionally NOT seeded from local cache (see state.js), because
-  // that cache may contain unpushed edits. Without a complete in-memory cloud baseline,
-  // an incremental response cannot safely become the comparison snapshot for computeDelta.
+  // Restore the server-confirmed SQLite cache as the baseline. The dataset identity
+  // prevents a checkpoint/snapshot from one Supabase project being reused for another.
   const startupCheckpoint = getPullCheckpointTs();
+  lastSyncState = window.lastSyncState || lastSyncState;
+  if (!lastSyncState) syncV2RestoreBaselineFromConfirmedCache();
   lastSyncState = window.lastSyncState || lastSyncState;
   const needFullPull = syncV2ShouldUseFullPull(startupCheckpoint, !!lastSyncState);
   updateStartupStatus(needFullPull ? "Dang full-reconcile du lieu cloud..." : "Dang dong bo thay doi tu cloud...");
@@ -1264,10 +1510,16 @@ async function pullFromCloudOnStartup() {
 
   try {
     await pullAndMergeFromCloud({ startup: true, forceFull: needFullPull, force: true, reason: "startup" });
-    await syncV2RescueLocalOnlyItems({ completeCloudSnapshot: true });
+    if (needFullPull) {
+      await syncV2RescueLocalOnlyItems({ completeCloudSnapshot: true });
+    }
     finishStartupPull();
     updateCloudSyncBadge(true, "May: Da ket noi", "#10b981");
     syncV2Log("Startup reconcile completed.");
+    if (syncV2HasPendingLocalWrite()) {
+      syncV2Log("Pending local cloud write detected; queued background recovery push.");
+      setTimeout(() => pushToCloud({ pendingToken: syncV2GetPendingLocalWriteToken() }), 300);
+    }
     return true;
   } catch (err) {
     console.error("[CloudSyncV2] Startup reconcile failed:", err);
@@ -1516,7 +1768,11 @@ async function syncV2RescueLocalOnlyItems(options = {}) {
 async function syncV2UpsertRows(rows) {
   for (let i = 0; i < rows.length; i += SYNC_V2_BATCH_SIZE) {
     const batch = rows.slice(i, i + SYNC_V2_BATCH_SIZE);
-    const { error } = await supabaseClient.from(SYNC_V2_TABLE).upsert(batch);
+    const { error } = await syncV2ReadWithRetry(
+      () => supabaseClient.from(SYNC_V2_TABLE).upsert(batch),
+      "cloud upsert",
+      { timeoutMs: 20000 }
+    );
     if (error) throw error;
   }
 }
@@ -1524,12 +1780,16 @@ async function syncV2UpsertRows(rows) {
 async function syncV2DeleteRows(ids) {
   for (let i = 0; i < ids.length; i += SYNC_V2_DELETE_BATCH_SIZE) {
     const batch = ids.slice(i, i + SYNC_V2_DELETE_BATCH_SIZE);
-    const { error } = await supabaseClient.from(SYNC_V2_TABLE).delete().in("id", batch);
+    const { error } = await syncV2ReadWithRetry(
+      () => supabaseClient.from(SYNC_V2_TABLE).delete().in("id", batch),
+      "cloud delete",
+      { timeoutMs: 20000 }
+    );
     if (error) throw error;
   }
 }
 
-async function pushToCloud() {
+async function syncV2PushNow() {
   if (!cloudSyncActive || !supabaseClient) return false;
   if (!isStartupPullCompleted) {
     pushPending = true;
@@ -1547,6 +1807,9 @@ async function pushToCloud() {
   }
 
   isPushing = true;
+  const syncTask = syncV2StartTask("push", "Day thay doi len cloud");
+  let syncTaskOk = false;
+  if (window.cloudWriteGate) window.cloudWriteGate.setStatus("syncing", "Đang ghi thay đổi lên cloud.");
   pushPending = false;
   updateCloudSyncBadge(false, "May: Dang day...", "#f59e0b");
 
@@ -1563,9 +1826,6 @@ async function pushToCloud() {
     const { rowsToUpsert, idsToDelete } = computeDelta();
     const entityRows = rowsToUpsert.filter(row => row.id !== SYNC_V2_METADATA_ID);
     const tombstoneRows = entityRows.filter(row => row.data && row.data._deleted);
-    if (entityRows.length > 0) await syncV2UpsertRows(entityRows);
-    if (idsToDelete.length > 0) await syncV2DeleteRows(idsToDelete);
-
     const finalRow = {
       id: SYNC_V2_METADATA_ID,
       data: finalMetadata,
@@ -1573,7 +1833,29 @@ async function pushToCloud() {
       is_syncing: false,
       updated_at: new Date().toISOString()
     };
-    await syncV2UpsertRows([finalRow]);
+    if (cloudUsesVersionedRpc) {
+      const updatedBy = window.currentUser
+        ? String(window.currentUser.username || window.currentUser.name || "app-user")
+        : "app-user";
+      const rpcRows = [...entityRows, finalRow];
+      const { data: rpcResult, error: rpcError } = await supabaseClient.rpc("rd_apply_sync_transaction", {
+        p_workspace_id: cloudWorkspaceId,
+        p_expected_sync_version: cloudSyncVersion,
+        p_rows: rpcRows,
+        p_updated_by: updatedBy
+      });
+      if (rpcError) throw rpcError;
+      if (!rpcResult || rpcResult.ok !== true) {
+        cloudSyncVersion = Number(rpcResult && rpcResult.sync_version) || cloudSyncVersion;
+        await pullAndMergeFromCloud({ reason: "version-conflict", force: true, forceFull: true, allowDuringPush: true });
+        throw new Error("Dữ liệu cloud vừa thay đổi trên máy khác. Đã tải bản mới; vui lòng thực hiện lại thao tác.");
+      }
+      cloudSyncVersion = Number(rpcResult.sync_version) || cloudSyncVersion;
+    } else {
+      if (entityRows.length > 0) await syncV2UpsertRows(entityRows);
+      if (idsToDelete.length > 0) await syncV2DeleteRows(idsToDelete);
+      await syncV2UpsertRows([finalRow]);
+    }
 
     if (tombstoneRows.length > 0) {
       state.deletedIds = [];
@@ -1591,12 +1873,15 @@ async function pushToCloud() {
     // bookkeeping trong luc push (_lastModified, _updatedAt, deletedIds da xoa) se duoc
     // luu o lan save/pull ke tiep va an toan neu mat (tombstone gui lai idempotent).
     syncV2Log(`Push completed: ${entityRows.length} upsert, ${tombstoneRows.length} tombstone, ${idsToDelete.length} physical delete.`);
+    syncTaskOk = true;
     updateCloudSyncBadge(true, "May: Da ket noi", "#10b981");
+    syncV2SetWriteReady("Cloud đã xác nhận thay đổi.");
     return true;
   } catch (err) {
     console.error("[CloudSyncV2] Push failed:", err);
     if (typeof addErrorLog === "function") addErrorLog("CloudSyncV2.push", err.message, err);
     updateCloudSyncBadge(false, "May: Loi day", "#ef4444");
+    if (window.cloudWriteGate) window.cloudWriteGate.setStatus("error", "Ghi cloud tạm thời thất bại; phần mềm vẫn hoạt động và sẽ thử lại.");
     if (!pushRetryTimeout) {
       pushRetryTimeout = setTimeout(() => {
         pushRetryTimeout = null;
@@ -1605,12 +1890,23 @@ async function pushToCloud() {
     }
     return false;
   } finally {
+    syncV2FinishTask(syncTask, syncTaskOk);
     isPushing = false;
     if (pushPending) {
       pushPending = false;
       setTimeout(() => pushToCloud(), 300);
     }
   }
+}
+
+function pushToCloud(options = {}) {
+  const pendingToken = options.pendingToken || null;
+  const queued = syncV2WriteQueue.then(() => syncV2PushNow());
+  void queued.then(ok => {
+    if (ok) syncV2ClearPendingLocalWrite(pendingToken);
+  });
+  syncV2WriteQueue = queued.catch(() => false);
+  return queued;
 }
 
 async function checkCloudMetadataForChanges(reason = "poll") {
@@ -1692,6 +1988,9 @@ function listenToCloudChanges() {
     realtimeChannel = null;
   }
 
+  const realtimeFilter = cloudUsesVersionedRpc && cloudWorkspaceId
+    ? `workspace_id=eq.${cloudWorkspaceId}`
+    : "id=eq.metadata";
   realtimeChannel = supabaseClient
     .channel("rd-accounting-sync-v2")
     .on(
@@ -1700,12 +1999,14 @@ function listenToCloudChanges() {
         event: "*",
         schema: "public",
         table: SYNC_V2_TABLE,
-        filter: "id=eq.metadata"
+        filter: realtimeFilter
       },
       payload => {
         const row = payload.new;
         if (!row) return;
+        if (row.updated_by && window.currentUser && row.updated_by === window.currentUser.username) return;
         if (row.data && row.data.lastModifiedBy === syncV2GetSessionId()) return;
+        if (cloudUsesVersionedRpc) cloudSyncVersion = Math.max(cloudSyncVersion, Number(row.sync_version) || 0);
         syncV2NoteLegacyLock(row, "realtime");
         scheduleCloudPull("realtime");
       }
@@ -1715,8 +2016,15 @@ function listenToCloudChanges() {
         // Realtime is healthy: polling is redundant. Keep the focus/visibility
         // change-check attached as a safety net.
         attachCloudFocusCheck();
-        stopCloudMetadataPolling();
-        syncV2Log("Realtime subscribed; metadata polling stopped (fallback only).");
+        if (cloudUsesVersionedRpc) {
+          // Direct table SELECT stays revoked; authenticated RPC polling is the
+          // authoritative change detector for station-key deployments.
+          startCloudMetadataPolling();
+          syncV2Log("Realtime subscribed; versioned RPC polling remains active.");
+        } else {
+          stopCloudMetadataPolling();
+          syncV2Log("Realtime subscribed; metadata polling stopped (fallback only).");
+        }
         checkCloudMetadataForChanges("realtime-subscribed");
       } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
         updateCloudSyncBadge(false, "May: Realtime fallback polling", "#f59e0b");
@@ -1751,7 +2059,8 @@ function refreshCloudSyncControls() {
     button.disabled = busy || !connected;
     button.setAttribute("aria-disabled", button.disabled ? "true" : "false");
   });
-  if (saveConfigBtn && !configBusy) saveConfigBtn.disabled = isCloudSyncActionBusy();
+  // Configuration must remain recoverable even when startup/authentication failed.
+  if (saveConfigBtn && !configBusy) saveConfigBtn.disabled = false;
 
   if (typeof window.toggleCloudSyncInputs === "function") {
     window.toggleCloudSyncInputs();
@@ -1853,6 +2162,10 @@ async function disconnectCloudSync() {
   realtimeChannel = null;
   supabaseClient = null;
   cloudSyncActive = false;
+  cloudWorkspaceId = "00000000-0000-4000-8000-000000000001";
+  cloudSyncVersion = 0;
+  cloudUsesVersionedRpc = false;
+  if (window.cloudWriteGate) window.cloudWriteGate.setStatus("read-only", "Cloud đã ngắt kết nối.");
   syncV2ResetCloudBaseline();
   isStartupPullCompleted = true;
   pullPending = false;
@@ -1866,6 +2179,7 @@ async function disconnectCloudSync() {
 }
 
 async function initCloudSync() {
+  if (window.cloudWriteGate) window.cloudWriteGate.setStatus("connecting", "Đang kết nối và xác thực cloud.");
   if (!cloudSyncSettings.enabled) {
     await disconnectCloudSync();
     return false;
@@ -1925,6 +2239,14 @@ async function startSupabaseClient() {
     refreshCloudSyncControls();
     updateCloudSyncBadge(false, "Mây: Đang kết nối...", "#f59e0b");
     supabaseClient = supabase.createClient(cloudSyncSettings.supabaseUrl, cloudSyncSettings.supabaseAnonKey);
+    await syncV2AuthenticateAndBootstrap();
+    if (syncV2GetStoredDatasetIdentity() !== syncV2GetDatasetIdentity()) {
+      persistLastPulledCloudTs(0);
+      syncV2ResetCloudBaseline();
+      syncV2Log("Cloud dataset changed or is not yet verified; one full baseline pull is required.");
+    } else {
+      syncV2RestoreBaselineFromConfirmedCache();
+    }
     cloudSyncActive = true;
 
     await syncV2EnsureMetadataRow();
@@ -1933,6 +2255,7 @@ async function startSupabaseClient() {
     listenToCloudChanges();
     startCloudMetadataPolling();
     refreshCloudSyncControls();
+    syncV2SetWriteReady("Cloud đã sẵn sàng.");
     return true;
   } catch (err) {
     console.error("[CloudSyncV2] Init failed:", err);
@@ -1944,6 +2267,7 @@ async function startSupabaseClient() {
     stopRealtimeReconnect();
     refreshCloudSyncControls();
     updateCloudSyncBadge(false, "Mây: Lỗi khởi tạo", "#ef4444");
+    if (window.cloudWriteGate) window.cloudWriteGate.setStatus("error", "Không thể xác thực hoặc tải dữ liệu cloud.");
     hideStartupOverlay();
     return false;
   }
@@ -2133,6 +2457,23 @@ async function fetchCloudMaxVoucherSequence(prefix, options = {}) {
   let from = 0;
   let maxNum = 0;
 
+  if (cloudUsesVersionedRpc) {
+    let afterId = null;
+    for (let page = 0; page < 30; page++) {
+      const { data, error } = await client.rpc("rd_ids_by_prefix", {
+        p_workspace_id: cloudWorkspaceId,
+        p_prefix: lower,
+        p_after_id: afterId,
+        p_limit: pageSize
+      });
+      if (error) throw error;
+      maxNum = Math.max(maxNum, getMaxVoucherSequenceFromRows(data || [], prefix, rowPrefix));
+      if (!data || data.length < pageSize) break;
+      afterId = data[data.length - 1].id;
+    }
+    return maxNum;
+  }
+
   for (let page = 0; page < 30; page++) {
     let query = client.from(SYNC_V2_TABLE).select("id, last_modified").gte("id", lower);
     if (upper) query = query.lt("id", upper);
@@ -2164,6 +2505,18 @@ async function tryReserveCloudVoucherId(voucherId, options = {}) {
   if (!client || !voucherId) return true;
   const now = Date.now();
   const lockId = `lock_${rowPrefix}${voucherId}`;
+  if (cloudUsesVersionedRpc) {
+    const updatedBy = window.currentUser ? String(window.currentUser.username || "app-user") : "app-user";
+    const { data, error } = await client.rpc("rd_reserve_voucher_id", {
+      p_workspace_id: cloudWorkspaceId,
+      p_lock_id: lockId,
+      p_data: { voucherId, rowPrefix, reservedBy: syncV2GetSessionId(), reservedAt: now },
+      p_updated_by: updatedBy
+    });
+    if (error) throw error;
+    cloudSyncVersion = Math.max(cloudSyncVersion, Number(data && data.sync_version) || 0);
+    return !!(data && data.reserved);
+  }
   const { error } = await client.from(SYNC_V2_TABLE).insert({
     id: lockId,
     data: { voucherId, rowPrefix, reservedBy: syncV2GetSessionId(), reservedAt: now },
@@ -2217,7 +2570,10 @@ async function fetchExistingCloudIdsByKeysFromClient(client, keys) {
   const uniqueKeys = Array.from(new Set((keys || []).filter(Boolean)));
   for (let i = 0; i < uniqueKeys.length; i += 100) {
     const batch = uniqueKeys.slice(i, i + 100);
-    const { data, error } = await client.from(SYNC_V2_TABLE).select("id").in("id", batch);
+    const request = cloudUsesVersionedRpc
+      ? client.rpc("rd_find_ids", { p_workspace_id: cloudWorkspaceId, p_ids: batch })
+      : client.from(SYNC_V2_TABLE).select("id").in("id", batch);
+    const { data, error } = await request;
     if (error) throw error;
     (data || []).forEach(row => row && row.id && existing.add(row.id));
   }
@@ -2264,6 +2620,8 @@ window.__syncV2Internals__ = {
   syncV2EnsureMetadataRow,
   syncV2ApplyPushToLastSyncState,
   syncV2ShouldUseFullPull,
+  syncV2GetDatasetIdentity,
+  syncV2RestoreBaselineFromConfirmedCache,
   syncV2ResetCloudBaseline,
   queuePendingPull,
   takePendingPullOptions

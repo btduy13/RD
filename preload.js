@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeStateFile: (jsonData) => ipcRenderer.invoke('write-state-file', jsonData),
   // Đọc state từ file JSON
   readStateFile: () => ipcRenderer.invoke('read-state-file'),
+  getDatabaseHealth: () => ipcRenderer.invoke('get-database-health'),
   // Đọc file backup gần nhất để phục hồi khi state bị hỏng
   readLatestBackup: () => ipcRenderer.invoke('read-latest-backup'),
   // Ghi phần chênh lệch (delta) ra SQLite

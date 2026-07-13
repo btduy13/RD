@@ -51,3 +51,4 @@ CREATE POLICY "Allow public delete" ON rd_accounting_data
 
 -- 5. Tạo index cho last_modified để tối ưu hóa truy vấn delta sync, tránh timeout
 CREATE INDEX IF NOT EXISTS idx_rd_accounting_data_last_modified ON rd_accounting_data(last_modified);
+CREATE INDEX IF NOT EXISTS idx_rd_accounting_data_delta_cursor ON rd_accounting_data(last_modified, id);

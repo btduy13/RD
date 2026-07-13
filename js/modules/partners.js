@@ -1138,22 +1138,33 @@ function handlePartnerSubmit(e) {
   if (typeof filterDebts === "function") filterDebts();
 }
 
-function deletePartner(id) {
+async function deletePartner(id) {
   const linkedCount = (state.vouchers || []).filter(v => v.partnerId === id).length;
   let confirmMsg = `Bạn có chắc chắn muốn xóa đối tác "${id}" không?`;
   if (linkedCount > 0) {
     confirmMsg = `Đối tác "${id}" còn ${linkedCount} chứng từ liên kết. Xóa sẽ làm các chứng từ này rơi vào nhóm "Chưa khớp đối tác" trên tab công nợ. Bạn có chắc muốn xóa?`;
   }
   if (confirm(confirmMsg)) {
-    trackDeletedIds([id], 'partner');
-    state.partners = state.partners.filter(p => p.id !== id);
-    if (state.partnerOpeningBalances && state.partnerOpeningBalances[id]) {
-      delete state.partnerOpeningBalances[id];
+    const partnersBefore = JSON.parse(JSON.stringify(state.partners || []));
+    const openingBefore = JSON.parse(JSON.stringify(state.partnerOpeningBalances || {}));
+    const deletedIdsBefore = [...(state.deletedIds || [])];
+    const deletedCloudKeysBefore = [...(state.deletedCloudKeys || [])];
+    try {
+      trackDeletedIds([id], 'partner');
+      state.partners = state.partners.filter(p => p.id !== id);
+      if (state.partnerOpeningBalances && state.partnerOpeningBalances[id]) delete state.partnerOpeningBalances[id];
+      await saveStateAndSyncVoucher();
+      initExcelIntegration();
+      filterPartners();
+      showToast(`Đã xóa và đồng bộ đối tác "${id}"!`, "success");
+    } catch (err) {
+      state.partners = partnersBefore;
+      state.partnerOpeningBalances = openingBefore;
+      state.deletedIds = deletedIdsBefore;
+      state.deletedCloudKeys = deletedCloudKeysBefore;
+      filterPartners();
+      showToast(`Không thể xóa đối tác trên cloud; dữ liệu đã được khôi phục: ${err.message}`, "danger");
     }
-    saveState();
-    initExcelIntegration();
-    filterPartners();
-    showToast(`Đã xóa đối tác "${id}"!`, "success");
   }
 }
 

@@ -311,12 +311,27 @@ function setupNumberFormattingEventListeners() {
   });
 }
 
-// Lấy ngày hiện tại ở định dạng YYYY-MM-DD theo giờ địa phương (tránh lỗi lệch múi giờ ở múi giờ UTC)
-function getLocalDateString() {
-  const tzOffset = new Date().getTimezoneOffset() * 60000;
-  return new Date(Date.now() - tzOffset).toISOString().split("T")[0];
+// Lấy ngày hiện tại ở định dạng YYYY-MM-DD theo giờ địa phương.
+// Dùng getFullYear/getMonth/getDate — không qua toISOString() (UTC) để tránh lệch 1 ngày (VN UTC+7).
+function getLocalDateString(date = new Date()) {
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  }
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 window.getLocalDateString = getLocalDateString;
+
+// Hiển thị YYYY-MM-DD → DD/MM/YYYY (không parse Date để tránh lệch múi giờ).
+function formatIsoDateDisplay(isoDate) {
+  if (!isoDate) return "";
+  const raw = String(isoDate).trim().slice(0, 10);
+  const [y, m, d] = raw.split("-");
+  if (!y || !m || !d) return String(isoDate);
+  return `${d}/${m}/${y}`;
+}
+window.formatIsoDateDisplay = formatIsoDateDisplay;
 
 // Hàm escape thuộc tính HTML và JavaScript để tránh lỗi vỡ chuỗi khi ID hoặc Tên chứa dấu nháy kép / nháy đơn / dấu gạch chéo ngược
 function escapeHtmlAttr(str) {
