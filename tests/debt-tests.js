@@ -115,8 +115,8 @@ function loadUtils(initialPartners) {
   return sandbox;
 }
 
-function loadSyncV2() {
-  const source = fs.readFileSync(path.join(repoRoot, "js", "sync-v2.js"), "utf8");
+function loadCloudSync() {
+  const source = fs.readFileSync(path.join(repoRoot, "js", "cloud-sync.js"), "utf8");
   const store = new Map();
   const sandbox = {
     console, Date, JSON, Number, Math, Array, Object, String, Set, Map, Promise,
@@ -132,7 +132,7 @@ function loadSyncV2() {
   };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
-  vm.runInContext(source, sandbox, { filename: "sync-v2.js" });
+  vm.runInContext(source, sandbox, { filename: "cloud-sync.js" });
   return sandbox;
 }
 
@@ -286,9 +286,9 @@ function testGetPartnerForVoucherStrict() {
 }
 
 function testOpeningBalanceTimestampMerge() {
-  const ctx = loadSyncV2();
-  const merge = ctx.syncV2MergeMetadata;
-  assert.equal(typeof merge, "function", "syncV2MergeMetadata should exist");
+  const ctx = loadCloudSync();
+  const merge = ctx.cloudSyncMergeMetadata;
+  assert.equal(typeof merge, "function", "cloudSyncMergeMetadata should exist");
 
   const localState = {
     _lastModified: 1000, // local snapshot cũ hơn cloud ở mức document

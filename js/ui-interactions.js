@@ -812,6 +812,12 @@ document.addEventListener('keydown', function (event) {
   if (menuButton) menuButton.setAttribute('aria-expanded', 'false');
 
   document.querySelectorAll('.sidebar-menu .menu-item a').forEach(function (link) {
+    var label = link.querySelector('span');
+    if (label) {
+      link.dataset.tooltip = label.textContent.trim();
+      link.setAttribute('aria-label', label.textContent.trim());
+      link.setAttribute('title', label.textContent.trim());
+    }
     link.setAttribute('role', 'button');
     link.setAttribute('tabindex', '0');
     if (link.parentElement && link.parentElement.classList.contains('active')) {

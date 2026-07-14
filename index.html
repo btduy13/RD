@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.github.com https://raw.githubusercontent.com https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; form-action 'self'">
+    content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://img.vietqr.io; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.github.com https://raw.githubusercontent.com https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
@@ -231,14 +231,14 @@
           </div>
 
           <!-- Chỉ báo đồng bộ Đám mây; bấm để mở bảng quản lý đồng bộ -->
-          <button type="button" id="cloud-sync-badge" class="header-status-chip sync-chip sync-icon-only"
+          <button type="button" id="cloud-sync-badge" class="header-status-chip sync-chip"
             onclick="openCloudSyncModal()" aria-haspopup="dialog" aria-controls="modal-cloud-sync"
             aria-label="Mây: Tắt" title="Mây: Tắt">
             <svg id="cloud-sync-icon" class="sync-cloud-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
             </svg>
             <span id="cloud-sync-status-glyph" class="sync-status-glyph" aria-hidden="true"></span>
-            <span id="cloud-sync-status-text" class="sr-only" role="status" aria-live="polite">Mây: Tắt</span>
+            <span id="cloud-sync-status-text" class="sync-status-text" role="status" aria-live="polite">Mây: Tắt</span>
           </button>
 
           <!-- Thông tin Người dùng & Đăng xuất -->
@@ -249,13 +249,6 @@
             aria-label="Đồng bộ dữ liệu đám mây ngay" title="Đồng bộ dữ liệu Đám mây">
             <svg id="cloud-sync-refresh-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17"></path>
-            </svg>
-          </button>
-
-          <!-- Nút chọn kiểu xem Bảng/Danh sách (Layout Selector) -->
-          <button class="icon-btn" onclick="if (typeof showToast === 'function') showToast('Đang ở chế độ xem bảng tiêu chuẩn', 'info');" title="Chế độ hiển thị">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7M17 18h3M17 14h3"></path>
             </svg>
           </button>
 
@@ -3035,7 +3028,7 @@
       <div class="modal-header">
         <div>
           <h3 class="card-title" id="modal-cloud-sync-title">Đồng bộ Đám mây</h3>
-          <p class="header-subtitle cloud-sync-modal-subtitle">Cấu hình Supabase và chủ động đồng bộ dữ liệu giữa các máy.</p>
+          <p class="header-subtitle cloud-sync-modal-subtitle">Dữ liệu trên máy mở ngay từ SQLite; mọi thay đổi cloud được xử lý ở nền.</p>
         </div>
         <button type="button" class="icon-btn modal-close-btn" onclick="closeCloudSyncModal()"
           aria-label="Đóng quản lý đồng bộ">×</button>
@@ -3043,8 +3036,16 @@
 
       <div class="modal-body">
         <div id="cloud-sync-modal-status" class="cloud-sync-status-panel" role="status" aria-live="polite">
-          <span>Trạng thái kết nối</span>
-          <strong id="cloud-sync-modal-status-text">Mây: Tắt</strong>
+          <div class="cloud-sync-status-icon" aria-hidden="true">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
+            </svg>
+          </div>
+          <div class="cloud-sync-status-copy">
+            <span>Trạng thái đồng bộ</span>
+            <strong id="cloud-sync-modal-status-text">Mây: Tắt</strong>
+          </div>
+          <span class="cloud-sync-mode-badge">Tự động nền</span>
         </div>
 
         <form id="form-cloud-sync" onsubmit="saveCloudConfig(event)" class="cloud-sync-form" autocomplete="off"
@@ -3053,7 +3054,7 @@
             <input type="checkbox" id="setting-cloud-enabled" onchange="toggleCloudSyncInputs()" checked>
             <span>
               <strong>Kích hoạt Đồng bộ Đám mây</strong>
-              <small>Có thể tắt để chỉ làm việc với dữ liệu cục bộ trên máy này.</small>
+              <small>Một cấu hình cloud dùng chung cho toàn bộ các trạm; người dùng không cần tài khoản cloud riêng.</small>
             </span>
           </label>
 
@@ -3078,7 +3079,7 @@
         <div class="cloud-sync-manual-section">
           <div>
             <h4>Đồng bộ thủ công</h4>
-            <p>“Đồng bộ ngay” hợp nhất thay đổi hai chiều. Hai thao tác bắt buộc bên dưới cần xác nhận riêng.</p>
+            <p>Kiểm tra delta mới nhất mà không tải lại toàn bộ dữ liệu. Các thao tác cưỡng bức chỉ hiện cho quản trị viên.</p>
           </div>
           <div class="cloud-sync-manual-actions">
             <button type="button" id="btn-manual-cloud-sync" class="btn btn-primary"
@@ -3093,7 +3094,7 @@
         <div class="cloud-sync-task-section">
           <div class="cloud-sync-task-heading">
             <h4>Tác vụ đồng bộ</h4>
-            <small>Hoạt động nền gần nhất trên máy này</small>
+            <small id="cloud-sync-task-summary">Hoạt động nền gần nhất trên máy này</small>
           </div>
           <p id="cloud-sync-task-empty" class="cloud-sync-task-empty">Chưa có tác vụ đồng bộ.</p>
           <ul id="cloud-sync-task-list" class="cloud-sync-task-list" aria-live="polite"></ul>
@@ -5076,7 +5077,7 @@
   <script src="js/core/table-render.js"></script>
   <script src="js/state.js"></script>
   <script src="js/accounting.js"></script>
-  <script src="js/sync-v2.js"></script>
+  <script src="js/cloud-sync.js"></script>
   <script src="js/excel-integration.js"></script>
   <script src="js/ui-framework.js"></script>
   <script src="js/core/voucher-template-editor.js"></script>

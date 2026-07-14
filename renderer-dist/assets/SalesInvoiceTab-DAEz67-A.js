@@ -1,1 +1,0 @@
-import{j as o}from"./index-ChygR4MU.js";import{S as t,a as r}from"./SalesTabContent-DVxII-PX.js";import"./VoucherForm-Dv7jKxh2.js";function e(){return o.jsx(t,{config:r})}export{e as SalesInvoiceTab};

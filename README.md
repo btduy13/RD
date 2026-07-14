@@ -57,4 +57,4 @@ Nếu bạn muốn khởi động ứng dụng bằng PowerShell hoặc Command 
 npm run test
 ```
 
-Bao gồm: đồng bộ cloud (`test:sync`), core diff/accounting (`test:core`), persistence (`test:persistence`).
+Bao gồm: đồng bộ cloud (`test:cloud-sync`), core diff/accounting (`test:core`), persistence (`test:persistence`).

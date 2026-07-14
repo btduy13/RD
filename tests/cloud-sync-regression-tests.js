@@ -4,10 +4,10 @@ const path = require("path");
 const vm = require("vm");
 
 const repoRoot = path.resolve(__dirname, "..");
-const syncV2Path = path.join(repoRoot, "js", "sync-v2.js");
-const syncV2Source = fs.readFileSync(syncV2Path, "utf8");
+const cloudSyncPath = path.join(repoRoot, "js", "cloud-sync.js");
+const cloudSyncSource = fs.readFileSync(cloudSyncPath, "utf8");
 
-function loadSyncV2Internals(overrides = {}) {
+function loadCloudSyncInternals(overrides = {}) {
   const store = new Map();
   const localStorage = {
     getItem(key) {
@@ -55,17 +55,17 @@ function loadSyncV2Internals(overrides = {}) {
 
   vm.createContext(sandbox);
   vm.runInContext(
-    `var lastSyncedCloudTs = 0;\nvar clientSessionId = "session-local";\n${syncV2Source}`,
+    `var lastSyncedCloudTs = 0;\nvar clientSessionId = "session-local";\n${cloudSyncSource}`,
     sandbox,
-    { filename: syncV2Path }
+    { filename: cloudSyncPath }
   );
 
-  assert.ok(sandbox.window.__syncV2Internals__, "sync-v2 internals should be exposed");
-  return { internals: sandbox.window.__syncV2Internals__, sandbox, store, vm };
+  assert.ok(sandbox.window.__cloudSyncInternals__, "cloud sync internals should be exposed");
+  return { internals: sandbox.window.__cloudSyncInternals__, sandbox, store, vm };
 }
 
 function testComputeDeltaDetectsUnpushedVoucherWhenLastSyncStateNull() {
-  const { internals, sandbox } = loadSyncV2Internals();
+  const { internals, sandbox } = loadCloudSyncInternals();
   sandbox.state.vouchers = [{
     id: "PO-0001",
     type: "purchase_order",
@@ -81,7 +81,7 @@ function testComputeDeltaDetectsUnpushedVoucherWhenLastSyncStateNull() {
 }
 
 function testComputeDeltaSkipsAlreadySyncedVoucher() {
-  const { internals, sandbox } = loadSyncV2Internals();
+  const { internals, sandbox } = loadCloudSyncInternals();
   const voucher = {
     id: "PO-0002",
     type: "purchase_order",
@@ -103,7 +103,7 @@ function testComputeDeltaSkipsAlreadySyncedVoucher() {
 }
 
 function testPruneDoesNotDropLocalOnlyVouchers() {
-  const { internals } = loadSyncV2Internals();
+  const { internals } = loadCloudSyncInternals();
   const merged = {
     vouchers: [{ id: "PO-OLD", _updatedAt: 1000 }],
     products: [],
@@ -116,13 +116,13 @@ function testPruneDoesNotDropLocalOnlyVouchers() {
   };
   const cloudSnapshot = { vouchers: [], products: [], partners: [] };
 
-  const pruned = internals.syncV2PruneStaleLocalOnlyItems(merged, localBefore, cloudSnapshot, 50000);
+  const pruned = internals.cloudSyncPruneStaleLocalOnlyItems(merged, localBefore, cloudSnapshot, 50000);
   assert.equal(pruned, 0, "prune must not remove local-only vouchers");
   assert.equal(merged.vouchers.length, 1, "local-only voucher must remain after pull merge");
 }
 
 function testMergeKeepsRemoteVoucherOnTimestampTieWithDifferentSession() {
-  const { internals } = loadSyncV2Internals();
+  const { internals } = loadCloudSyncInternals();
   const localState = {
     vouchers: [{
       id: "SO-100",
@@ -157,7 +157,7 @@ function testMergeKeepsRemoteVoucherOnTimestampTieWithDifferentSession() {
 }
 
 function testComputeDeltaDoesNotReplayCloudKnownTombstones() {
-  const { internals, sandbox } = loadSyncV2Internals();
+  const { internals, sandbox } = loadCloudSyncInternals();
   sandbox.state.deletedIds = ["OLD", "NEW"];
   sandbox.state.deletedCloudKeys = ["v_OLD", "p_NEW"];
   sandbox.state._lastModified = 7000;
@@ -178,33 +178,33 @@ function testComputeDeltaDoesNotReplayCloudKnownTombstones() {
 }
 
 function testFullPullRequiredWithoutBaselineOrAfterWatermarkRollback() {
-  const { internals } = loadSyncV2Internals();
-  assert.equal(internals.syncV2ShouldUseFullPull(5000, false), true, "a checkpoint alone is not a complete cloud baseline");
-  assert.equal(internals.syncV2ShouldUseFullPull(5000, true), false, "a complete baseline may use an incremental pull before the remote watermark is checked");
-  assert.equal(internals.syncV2ShouldUseFullPull(5000, true, 5000), false, "an equal watermark is safe with a complete baseline");
-  assert.equal(internals.syncV2ShouldUseFullPull(5000, true, 4999), true, "cloud watermark rollback must force a full reconcile");
+  const { internals } = loadCloudSyncInternals();
+  assert.equal(internals.cloudSyncShouldUseFullPull(5000, false), true, "a checkpoint alone is not a complete cloud baseline");
+  assert.equal(internals.cloudSyncShouldUseFullPull(5000, true), false, "a complete baseline may use an incremental pull before the remote watermark is checked");
+  assert.equal(internals.cloudSyncShouldUseFullPull(5000, true, 5000), false, "an equal watermark is safe with a complete baseline");
+  assert.equal(internals.cloudSyncShouldUseFullPull(5000, true, 4999), true, "cloud watermark rollback must force a full reconcile");
 }
 
 function testConfirmedCacheRestoresIncrementalStartupBaseline() {
-  const { internals, sandbox, store } = loadSyncV2Internals({
+  const { internals, sandbox, store } = loadCloudSyncInternals({
     cloudSyncSettings: { enabled: true, supabaseUrl: "https://example.supabase.co" }
   });
   sandbox.state.vouchers = [{ id: "PO-CACHED", _updatedAt: 7000 }];
   sandbox.state._lastPulledCloudTs = 7000;
-  store.set("rd_accounting_sync_v2_dataset", internals.syncV2GetDatasetIdentity());
+  store.set("rd_accounting_sync_dataset", internals.cloudSyncGetDatasetIdentity());
 
-  assert.equal(internals.syncV2RestoreBaselineFromConfirmedCache(), true);
+  assert.equal(internals.cloudSyncRestoreBaselineFromConfirmedCache(), true);
   assert.equal(sandbox.window.lastSyncState.vouchers[0].id, "PO-CACHED");
   assert.notEqual(sandbox.window.lastSyncState.vouchers[0], sandbox.state.vouchers[0], "baseline must not alias live state");
-  assert.equal(internals.syncV2ShouldUseFullPull(7000, !!sandbox.window.lastSyncState, 7000), false);
+  assert.equal(internals.cloudSyncShouldUseFullPull(7000, !!sandbox.window.lastSyncState, 7000), false);
 
-  internals.syncV2ResetCloudBaseline();
-  store.set("rd_accounting_sync_v2_dataset", "https://another-project.supabase.co|legacy");
-  assert.equal(internals.syncV2RestoreBaselineFromConfirmedCache(), false, "cache from another cloud dataset must be rejected");
+  internals.cloudSyncResetCloudBaseline();
+  store.set("rd_accounting_sync_dataset", "https://another-project.supabase.co|legacy");
+  assert.equal(internals.cloudSyncRestoreBaselineFromConfirmedCache(), false, "cache from another cloud dataset must be rejected");
 }
 
 function testPostPushSnapshotMatchesUploadedDeletionMetadata() {
-  const { internals, sandbox } = loadSyncV2Internals();
+  const { internals, sandbox } = loadCloudSyncInternals();
   sandbox.window.lastSyncState = {
     vouchers: [{ id: "GONE", _updatedAt: 100 }],
     products: [],
@@ -219,23 +219,23 @@ function testPostPushSnapshotMatchesUploadedDeletionMetadata() {
     _lastModified: 8000,
     lastModifiedBy: "session-local"
   };
-  const tombstone = internals.syncV2MakeTombstoneRow("v_GONE", 8000);
+  const tombstone = internals.cloudSyncMakeTombstoneRow("v_GONE", 8000);
 
-  internals.syncV2ApplyPushToLastSyncState([tombstone], 8000, pushedMetadata);
+  internals.cloudSyncApplyPushToLastSyncState([tombstone], 8000, pushedMetadata);
 
   assert.equal(sandbox.window.lastSyncState.vouchers.length, 0, "pushed tombstone must remove the entity from the cloud snapshot");
   assert.deepEqual(Array.from(sandbox.window.lastSyncState.deletedCloudKeys), ["v_GONE"], "snapshot must retain the exact deletion metadata uploaded to cloud");
 }
 
 function testChangingCloudClientResetsComparisonBaseline() {
-  const { internals, sandbox } = loadSyncV2Internals();
+  const { internals, sandbox } = loadCloudSyncInternals();
   sandbox.window.lastSyncState = { vouchers: [{ id: "OLD-CLOUD" }], products: [], partners: [] };
-  internals.syncV2ResetCloudBaseline();
+  internals.cloudSyncResetCloudBaseline();
   assert.equal(sandbox.window.lastSyncState, null, "a new cloud client must not reuse the previous project's comparison snapshot");
 }
 
 function testInternalSyncWorkCountsAsBusy() {
-  const { sandbox, vm } = loadSyncV2Internals();
+  const { sandbox, vm } = loadCloudSyncInternals();
   vm.runInContext(`
     isStartupPullCompleted = true;
     isPulling = false;
@@ -253,7 +253,7 @@ function testInternalSyncWorkCountsAsBusy() {
 }
 
 async function testNewCloudMetadataIsSeededFromLocalState() {
-  const { internals, sandbox, vm } = loadSyncV2Internals();
+  const { internals, sandbox, vm } = loadCloudSyncInternals();
   sandbox.state.companyName = "Local Company";
   sandbox.state.taxCode = "0312345678";
   sandbox.state.initialBalances = { "1111": 250000 };
@@ -282,7 +282,7 @@ async function testNewCloudMetadataIsSeededFromLocalState() {
     };
   `, sandbox);
 
-  const created = await internals.syncV2EnsureMetadataRow();
+  const created = await internals.cloudSyncEnsureMetadataRow();
   assert.equal(created.data.companyName, "Local Company", "new cloud metadata must preserve the loaded local company");
   assert.equal(created.data.taxCode, "0312345678");
   assert.equal(created.data.initialBalances["1111"], 250000, "new cloud metadata must preserve opening balances");
@@ -291,7 +291,7 @@ async function testNewCloudMetadataIsSeededFromLocalState() {
 }
 
 async function testConcurrentMetadataCreationDoesNotOverwriteWinner() {
-  const { internals, sandbox, vm } = loadSyncV2Internals();
+  const { internals, sandbox, vm } = loadCloudSyncInternals();
   sandbox.__metadataFetchCount = 0;
   sandbox.__insertCount = 0;
   vm.runInContext(`
@@ -323,13 +323,13 @@ async function testConcurrentMetadataCreationDoesNotOverwriteWinner() {
     };
   `, sandbox);
 
-  const winner = await internals.syncV2EnsureMetadataRow();
+  const winner = await internals.cloudSyncEnsureMetadataRow();
   assert.equal(sandbox.__insertCount, 1);
   assert.equal(winner.data.companyName, "Other Client", "a concurrent creator's metadata must be adopted, not overwritten");
 }
 
 function testTypedTombstoneDoesNotDeleteOtherEntityWithSameId() {
-  const { internals } = loadSyncV2Internals();
+  const { internals } = loadCloudSyncInternals();
   const localState = {
     vouchers: [{ id: "SHARED", _updatedAt: 100 }],
     products: [{ id: "SHARED", _updatedAt: 100 }],
@@ -360,8 +360,8 @@ function testTypedTombstoneDoesNotDeleteOtherEntityWithSameId() {
 }
 
 function testLegacyUntypedTombstoneStillDeletesVoucher() {
-  const { internals } = loadSyncV2Internals();
-  const deleted = internals.syncV2GetDeletedIdsByState({
+  const { internals } = loadCloudSyncInternals();
+  const deleted = internals.cloudSyncGetDeletedIdsByState({
     deletedIds: ["OLD-VOUCHER"],
     deletedCloudKeys: ["OLDER-VOUCHER"]
   });
@@ -369,15 +369,15 @@ function testLegacyUntypedTombstoneStillDeletesVoucher() {
   assert.equal(deleted.vouchers.has("OLDER-VOUCHER"), true, "legacy unprefixed cloud tombstones must target vouchers");
   assert.equal(deleted.products.has("OLD-VOUCHER"), false, "legacy voucher deletion must not spill into products");
 
-  assert.equal(internals.syncV2NormalizeDeletedCloudKey("OLDER-VOUCHER"), "v_OLDER-VOUCHER");
-  const row = internals.syncV2MakeTombstoneRow("OLDER-VOUCHER", 123);
+  assert.equal(internals.cloudSyncNormalizeDeletedCloudKey("OLDER-VOUCHER"), "v_OLDER-VOUCHER");
+  const row = internals.cloudSyncMakeTombstoneRow("OLDER-VOUCHER", 123);
   assert.equal(row.id, "v_OLDER-VOUCHER", "legacy tombstones must be uploaded with the voucher prefix");
   assert.equal(row.data.id, "OLDER-VOUCHER");
   assert.equal(row.data._deletedEntity, "voucher");
 }
 
 function testQueuedPullPreservesStrongestRequest() {
-  const { internals } = loadSyncV2Internals();
+  const { internals } = loadCloudSyncInternals();
   internals.queuePendingPull({ reason: "realtime" });
   internals.queuePendingPull({ reason: "manual-full", force: true, forceFull: true });
   const queued = internals.takePendingPullOptions();
@@ -388,7 +388,7 @@ function testQueuedPullPreservesStrongestRequest() {
 }
 
 async function testRescueRemovesStuckVoucherFromLastSyncState() {
-  const { internals, sandbox, vm } = loadSyncV2Internals();
+  const { internals, sandbox, vm } = loadCloudSyncInternals();
 
   sandbox.__cloudKeys = new Set();
   sandbox.__saveCalled = false;
@@ -426,17 +426,17 @@ async function testRescueRemovesStuckVoucherFromLastSyncState() {
     partners: []
   };
 
-  const changed = await vm.runInContext(`__syncV2Internals__.syncV2RescueLocalOnlyItems()`, sandbox);
+  const changed = await vm.runInContext(`__cloudSyncInternals__.cloudSyncRescueLocalOnlyItems()`, sandbox);
   assert.equal(changed, true, "rescue should detect local-only voucher");
   assert.equal(sandbox.window.lastSyncState.vouchers.length, 0, "stuck voucher must be removed from lastSyncState");
   assert.equal(sandbox.__saveCalled, true, "rescue should trigger save after marking items");
 
-  const delta = vm.runInContext(`__syncV2Internals__.computeDelta()`, sandbox);
+  const delta = vm.runInContext(`__cloudSyncInternals__.computeDelta()`, sandbox);
   assert.ok(delta.rowsToUpsert.some(row => row.id === "v_PO-STUCK"), "rescued voucher must be eligible for push");
 }
 
 function testRescueCandidateKeysOnlyChecksPushDiff() {
-  const { internals, sandbox } = loadSyncV2Internals();
+  const { internals, sandbox } = loadCloudSyncInternals();
   sandbox.state.vouchers = [
     { id: "PO-1", type: "purchase_order", _updatedAt: 1000 },
     { id: "PO-2", type: "purchase_order", _updatedAt: 2000 }
@@ -447,12 +447,12 @@ function testRescueCandidateKeysOnlyChecksPushDiff() {
     partners: []
   };
 
-  const keys = internals.syncV2GetRescueCandidateKeys();
+  const keys = internals.cloudSyncGetRescueCandidateKeys();
   assert.deepEqual(keys, ["v_PO-2"], "rescue candidates should only include rows that differ from lastSyncState");
 }
 
 async function testCandidateRescueDoesNotTouchUnchangedNonCandidates() {
-  const { sandbox, vm } = loadSyncV2Internals();
+  const { sandbox, vm } = loadCloudSyncInternals();
 
   sandbox.__queriedKeys = [];
   vm.runInContext(`
@@ -479,14 +479,14 @@ async function testCandidateRescueDoesNotTouchUnchangedNonCandidates() {
   sandbox.window.lastSyncState = {
     vouchers: [
       JSON.parse(JSON.stringify(unchanged)),
-      { id: "PO-CHANGED", type: "purchase_order", total: 200, _updatedAt: 2000 }
+      { id: "PO-CHANGED", type: "purchase_order", total: 200, _updatedAt: 1999 }
     ],
     products: [],
     partners: []
   };
 
   const changed = await vm.runInContext(
-    `__syncV2Internals__.syncV2RescueLocalOnlyItems({ triggerSave: false, candidateKeysOnly: true })`,
+    `__cloudSyncInternals__.cloudSyncRescueLocalOnlyItems({ triggerSave: false, candidateKeysOnly: true })`,
     sandbox
   );
 
@@ -505,7 +505,7 @@ async function testCandidateRescueDoesNotTouchUnchangedNonCandidates() {
 }
 
 async function testStartupRescueReusesCompleteCloudBaseline() {
-  const { sandbox, vm } = loadSyncV2Internals();
+  const { sandbox, vm } = loadCloudSyncInternals();
 
   sandbox.__cloudLookupCalls = 0;
   vm.runInContext(`
@@ -529,7 +529,7 @@ async function testStartupRescueReusesCompleteCloudBaseline() {
   };
 
   const changed = await vm.runInContext(
-    `__syncV2Internals__.syncV2RescueLocalOnlyItems({ triggerSave: false, completeCloudSnapshot: true })`,
+    `__cloudSyncInternals__.cloudSyncRescueLocalOnlyItems({ triggerSave: false, completeCloudSnapshot: true })`,
     sandbox
   );
 
@@ -550,7 +550,7 @@ async function testRescueLogsAreCappedAndSummarized() {
     warn() {},
     error() {}
   };
-  const { sandbox, vm } = loadSyncV2Internals({ console: quietConsole });
+  const { sandbox, vm } = loadCloudSyncInternals({ console: quietConsole });
 
   vm.runInContext(`
     cloudSyncActive = true;
@@ -575,7 +575,7 @@ async function testRescueLogsAreCappedAndSummarized() {
   sandbox.window.lastSyncState = { vouchers: [], products: [], partners: [] };
 
   await vm.runInContext(
-    `__syncV2Internals__.syncV2RescueLocalOnlyItems({ triggerSave: false })`,
+    `__cloudSyncInternals__.cloudSyncRescueLocalOnlyItems({ triggerSave: false })`,
     sandbox
   );
 
@@ -588,6 +588,80 @@ async function testRescueLogsAreCappedAndSummarized() {
   assert.ok(
     logs.some(line => line.includes("suppressed 3 additional per-item log(s)")),
     "rescue should report how many per-item logs were suppressed"
+  );
+}
+
+function testPostgrestCursorQuoting() {
+  const { internals } = loadCloudSyncInternals();
+  assert.equal(
+    internals.cloudSyncQuotePostgrestLogicValue('part_105/38/10NGODUCKE(Mùi).'),
+    '"part_105/38/10NGODUCKE(Mùi)."'
+  );
+  assert.equal(internals.cloudSyncQuotePostgrestLogicValue('part_a,b(c).'), '"part_a,b(c)."');
+  assert.equal(internals.cloudSyncQuotePostgrestLogicValue('part_"quoted"\\path'), '"part_\\"quoted\\"\\\\path"');
+}
+
+function testDerivedEntityChangesDoNotFanOutToCloud() {
+  const { internals } = loadCloudSyncInternals();
+  const previous = { id: 'P-1', stock: 10, avgCost: 5, _updatedAt: 100, _sessionId: 'remote' };
+  assert.equal(
+    internals.cloudSyncEntityNeedsPush(previous, { ...previous, stock: 9, avgCost: 6 }),
+    false,
+    'derived recalculation at the same entity version must not trigger an upsert'
+  );
+  assert.equal(
+    internals.cloudSyncEntityNeedsPush(previous, { ...previous, stock: 9, _updatedAt: 101, _sessionId: 'local' }),
+    true,
+    'a user edit with a newer entity version must be pushed'
+  );
+  assert.equal(
+    internals.cloudSyncEntityNeedsPush(previous, { ...previous, stock: 8, _updatedAt: 90, _sessionId: 'session-local' }),
+    true,
+    'a local-session edit must survive a cloud clock ahead of the station clock'
+  );
+  assert.equal(internals.cloudSyncEntityNeedsPush(null, { id: 'NEW', _updatedAt: 1 }), true);
+}
+
+async function testLegacyDeltaSecondPageQuotesSpecialCursor() {
+  const requests = [];
+  const firstPage = Array.from({ length: 500 }, (_, index) => ({
+    id: index === 499 ? 'part_105/38/10NGODUCKE(Mùi).' : `part_${String(index).padStart(4, '0')}`,
+    data: { id: `P-${index}` },
+    last_modified: 1783933101796
+  }));
+  const secondPage = [
+    { id: 'part_z-next', data: { id: 'P-NEXT' }, last_modified: 1783933101796 },
+    { id: 'v_after', data: { id: 'V-AFTER' }, last_modified: 1783933101797 }
+  ];
+
+  function createQuery() {
+    const capture = { gt: [], or: '' };
+    const query = {
+      select() { return this; },
+      order() { return this; },
+      limit() { return this; },
+      gt(column, value) { capture.gt.push([column, value]); return this; },
+      or(filter) { capture.or = filter; return this; },
+      then(resolve, reject) {
+        requests.push(capture);
+        const data = requests.length === 1 ? firstPage : secondPage;
+        return Promise.resolve({ data, error: null }).then(resolve, reject);
+      }
+    };
+    return query;
+  }
+
+  const client = { from() { return createQuery(); } };
+  const { sandbox, vm } = loadCloudSyncInternals({ __legacyClient: client });
+  vm.runInContext('supabaseClient = __legacyClient; cloudUsesVersionedRpc = false;', sandbox);
+  const rows = await vm.runInContext('__cloudSyncInternals__.cloudSyncFetchRowsSince(1783933000000)', sandbox);
+
+  assert.equal(rows.length, 502, 'delta pagination must include both pages');
+  assert.equal(new Set(rows.map(row => row.id)).size, 502, 'delta pagination must not duplicate rows');
+  assert.equal(requests.length, 2, 'a 500-row first page must request the next cursor page');
+  assert.equal(
+    requests[1].or,
+    'last_modified.gt.1783933101796,and(last_modified.eq.1783933101796,id.gt."part_105/38/10NGODUCKE(Mùi).")'
   );
 }
 
@@ -611,8 +685,11 @@ async function run() {
   await testCandidateRescueDoesNotTouchUnchangedNonCandidates();
   await testStartupRescueReusesCompleteCloudBaseline();
   await testRescueLogsAreCappedAndSummarized();
+  testPostgrestCursorQuoting();
+  testDerivedEntityChangesDoNotFanOutToCloud();
+  await testLegacyDeltaSecondPageQuotesSpecialCursor();
   await testRescueRemovesStuckVoucherFromLastSyncState();
-  console.log("sync-v2 regression tests passed");
+  console.log("cloud sync regression tests passed");
 }
 
 run().catch(err => {

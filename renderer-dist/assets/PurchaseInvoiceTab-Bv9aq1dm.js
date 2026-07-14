@@ -1,1 +1,0 @@
-import{j as o}from"./index-ChygR4MU.js";import{P as r,a as t}from"./PurchaseTabContent-BKyijtO7.js";import"./VoucherForm-Dv7jKxh2.js";function e(){return o.jsx(r,{config:t})}export{e as PurchaseInvoiceTab};

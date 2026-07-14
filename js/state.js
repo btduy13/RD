@@ -296,7 +296,16 @@ async function initApp() {
     loadCloudSettings();
   }
   if (typeof initCloudSync === "function") {
-    await initCloudSync();
+    // SQLite is the startup cache and must make the application usable without
+    // waiting for Supabase. Cloud bootstrap can legitimately take tens of
+    // seconds on a slow link (or while a large delta is being paged), so keep
+    // it observable but run it behind the already-rendered application shell.
+    window.cloudStartupPromise = Promise.resolve()
+      .then(() => initCloudSync())
+      .catch(err => {
+        console.error("[CloudSync] Background startup failed:", err);
+        return false;
+      });
   }
 
   // Các tích hợp tự động Excel sẽ được chạy tuần tự sau khi kéo dữ liệu đám mây hoàn tất
@@ -420,9 +429,12 @@ function cleanNumericVouchers() {
 // Biến phục vụ tối ưu lưu trữ (Debounce saveState để tránh đơ UI khi dữ liệu lớn)
 let saveStateTimeout = null;
 let saveStateIsDirty = false;
+let saveStateRevision = 0;
+let saveStateQueue = Promise.resolve();
 
 function saveState() {
   saveStateIsDirty = true;
+  saveStateRevision += 1;
   if (typeof window.clearActiveFormDraft === "function") {
     window.clearActiveFormDraft();
   }
@@ -537,6 +549,7 @@ function logDeltaActivity(diffResult, currentVouchers, currentProducts, currentP
 
 function saveStateSync() {
   saveStateIsDirty = true;
+  saveStateRevision += 1;
   return executeSaveState(true);
 }
 
@@ -557,14 +570,30 @@ function pushActivityLogDirectly(actionType, description) {
   }
 }
 
+function queueBackgroundCloudPush(pendingToken = null) {
+  if (typeof pushToCloud !== "function") return;
+  void Promise.resolve(pushToCloud({ pendingToken })).then(cloudCommitted => {
+    if (!cloudCommitted && typeof showToast === "function") {
+      showToast("Dữ liệu đã lưu trên máy và đang chờ đồng bộ cloud.", "warning");
+    }
+  }).catch(err => {
+    console.error("[StateFile] Background cloud push failed:", err);
+  });
+}
+
 async function executeSaveState(sync = false, options = {}) {
   if (!saveStateIsDirty) return;
 
   const doSave = async () => {
+    const revisionAtStart = saveStateRevision;
+    const saveStartedAt = Date.now();
+    let savePhase = "prepare";
+    const slowSaveTimer = setTimeout(() => {
+      console.warn(`[StateFile] Local persistence is still running after 5000ms (phase=${savePhase}).`);
+    }, 5000);
     try {
       if (window.cloudWriteGate && !window.cloudWriteGate.canWrite()) {
-        console.warn('[StateFile] Bỏ qua ghi vì cloud chưa ở trạng thái sẵn sàng.');
-        return false;
+        console.warn('[StateFile] Cloud chưa sẵn sàng; vẫn lưu SQLite và xếp hàng đợi đồng bộ nền.');
       }
       // Luôn cập nhật timestamp trước khi lưu và push
       state._lastModified = Date.now();
@@ -577,19 +606,12 @@ async function executeSaveState(sync = false, options = {}) {
         pruneResolvedDeletionMarkers(state);
       }
 
-      // Online-first: cloud xác nhận transaction trước khi cache SQLite được commit.
-      if (!options.skipCloudPush && typeof pushToCloud === "function") {
-        const cloudCommitted = await pushToCloud();
-        if (!cloudCommitted) {
-          console.error('[StateFile] Cloud không xác nhận thay đổi; không ghi cache cục bộ.');
-          return false;
-        }
-      }
-
       let persisted = false;
 
       if (!lastSavedState) {
+        savePhase = "serialize-full-state";
         const jsonString = JSON.stringify(state);
+        savePhase = "persist-full-state";
         const result = await persistFullState(jsonString);
         if (result && result.ok) {
           initializeLastSavedState(state);
@@ -605,6 +627,7 @@ async function executeSaveState(sync = false, options = {}) {
           pushActivityLogDirectly("Thay đổi cấu hình", `Đã chuyển chế độ kế toán sang ${state.accountingStandard}`);
         }
 
+        savePhase = "build-delta";
         const diffResult = buildStateDelta(state, lastSavedState);
         if (diffResult.hasChanges) {
           logDeltaActivity(
@@ -614,13 +637,16 @@ async function executeSaveState(sync = false, options = {}) {
             state.partners || []
           );
 
+          savePhase = "refresh-delta";
           const refreshedDiff = buildStateDelta(state, lastSavedState);
+          savePhase = "persist-delta";
           const result = await persistStateDelta(refreshedDiff.delta);
           if (result && result.ok) {
             applyDeltaToSnapshot(lastSavedState, refreshedDiff.delta);
             persisted = true;
           } else {
             console.error('[StateFile] Ghi delta thất bại:', result && result.error);
+            savePhase = "persist-full-fallback";
             const fallback = await persistFullState(JSON.stringify(state));
             if (fallback && fallback.ok) {
               initializeLastSavedState(state);
@@ -636,11 +662,18 @@ async function executeSaveState(sync = false, options = {}) {
         return;
       }
 
-      saveStateIsDirty = false;
+      if (saveStateRevision === revisionAtStart) {
+        saveStateIsDirty = false;
+      }
       return true;
     } catch (err) {
       console.error("Lỗi khi lưu trạng thái dữ liệu:", err);
     } finally {
+      clearTimeout(slowSaveTimer);
+      const elapsed = Date.now() - saveStartedAt;
+      if (elapsed >= 2000) {
+        console.warn(`[StateFile] Local persistence completed in ${elapsed}ms (last phase=${savePhase}).`);
+      }
       if (saveStateTimeout) {
         clearTimeout(saveStateTimeout);
         saveStateTimeout = null;
@@ -648,12 +681,29 @@ async function executeSaveState(sync = false, options = {}) {
     }
   };
 
+  const enqueueSave = () => {
+    const queued = saveStateQueue.then(doSave, doSave);
+    saveStateQueue = queued.catch(() => false);
+    return queued;
+  };
+
+  const saveThenQueueCloud = async () => {
+    const saved = await enqueueSave();
+    if (saved && !options.skipCloudPush && typeof pushToCloud === "function") {
+      const pendingToken = typeof window.markCloudWritePending === "function"
+        ? window.markCloudWritePending()
+        : null;
+      queueBackgroundCloudPush(pendingToken);
+    }
+    return saved;
+  };
+
   if (sync) {
-    return await doSave();
+    return await saveThenQueueCloud();
   } else if (window.requestIdleCallback) {
-    window.requestIdleCallback(() => { void doSave(); }, { timeout: 1000 });
+    window.requestIdleCallback(() => { void saveThenQueueCloud(); }, { timeout: 1000 });
   } else {
-    setTimeout(() => { void doSave(); }, 50);
+    setTimeout(() => { void saveThenQueueCloud(); }, 50);
   }
 }
 
@@ -666,6 +716,7 @@ window.saveStateSync = saveStateSync;
  */
 async function saveStateAndSyncVoucher() {
   saveStateIsDirty = true;
+  saveStateRevision += 1;
   if (saveStateTimeout) {
     clearTimeout(saveStateTimeout);
     saveStateTimeout = null;
@@ -680,15 +731,7 @@ async function saveStateAndSyncVoucher() {
   if (!saved) {
     throw new Error("Không thể lưu chứng từ vào SQLite.");
   }
-  if (typeof pushToCloud === "function") {
-    void Promise.resolve(pushToCloud({ pendingToken })).then(cloudCommitted => {
-      if (!cloudCommitted && typeof showToast === "function") {
-        showToast("Chứng từ đã lưu trên máy và đang chờ đồng bộ cloud.", "warning");
-      }
-    }).catch(err => {
-      console.error("[StateFile] Background cloud push failed:", err);
-    });
-  }
+  queueBackgroundCloudPush(pendingToken);
   return true;
 }
 
@@ -724,7 +767,7 @@ async function autoSaveBeforeClose() {
     await executeSaveState(true);
 
     // 3. Nếu Cloud đang kết nối VÀ có thay đổi cần đẩy -> đồng bộ lên Cloud
-    // H6 Fix: Guard against sync.js variables being undefined if sync.js failed to load
+    // Guard the optional cloud engine so local persistence remains independent.
     if (typeof cloudSyncActive !== 'undefined' && cloudSyncActive && typeof supabaseClient !== 'undefined' && supabaseClient) {
       const alreadyPushing = typeof isPushing !== 'undefined' && isPushing;
       

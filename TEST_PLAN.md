@@ -10,8 +10,8 @@ npm run test
 
 Ky vong:
 
-- `sync regression tests passed`.
-- Khong co loi cu phap trong `js/sync.js`.
+- `cloud sync regression tests passed`.
+- Khong co loi cu phap trong `js/cloud-sync.js`.
 - Comparator sync bat duoc thay doi long nhau cua voucher, product, partner.
 - Checkpoint pull cloud dung key rieng `rd_accounting_last_pulled_cloud_ts`.
 - Modal lap phieu dang mo se duoc nhan dien de hoan pull cloud.

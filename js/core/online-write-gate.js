@@ -6,9 +6,9 @@
   let detail = "Đang kết nối dữ liệu đám mây...";
 
   function canWrite() {
-    // Sync is background activity, not a read-only state. A transient cloud
-    // error remains retryable so the whole application is never frozen.
-    return status === "ready" || status === "syncing" || status === "error";
+    // Cloud connectivity never freezes business entry. SQLite is the durable
+    // local queue; only a broken local database makes writing unsafe.
+    return root.localPersistenceHealthy !== false;
   }
 
   function ensureBanner() {

@@ -45,6 +45,6 @@ for (const name of ['deleteVoucher', 'deleteProduct', 'deletePartner']) {
   assert.match(excerpt, /Before/, `${name} must keep rollback state`);
 }
 
-assert.match(index, /js\/sync-v2\.js/);
-assert.doesNotMatch(index, /<script[^>]+js\/sync\.js/);
+assert.match(index, /js\/cloud-sync\.js/);
+assert.equal((index.match(/<script[^>]+js\/cloud-sync\.js/g) || []).length, 1);
 console.log(`workflow sync coverage passed (${forms.length} business forms)`);

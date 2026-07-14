@@ -126,12 +126,12 @@ async function main() {
 
     cloudWriteGate.setStatus('syncing', 'Background sync test');
     const syncingWriteGate = cloudWriteGate.getStatus();
-    const backgroundTask = syncV2StartTask('push', 'Background push test');
+    const backgroundTask = cloudSyncStartTask('push', 'Background push test');
     const taskWhileRunning = {
       count: document.querySelectorAll('#cloud-sync-task-list .cloud-sync-task').length,
       status: document.querySelector('#cloud-sync-task-list .cloud-sync-task').className
     };
-    syncV2FinishTask(backgroundTask, true);
+    cloudSyncFinishTask(backgroundTask, true);
     const taskAfterFinish = document.querySelector('#cloud-sync-task-list .cloud-sync-task').className;
     cloudWriteGate.setStatus('ready', 'Ready');
 

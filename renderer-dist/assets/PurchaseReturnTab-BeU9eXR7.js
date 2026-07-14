@@ -1,1 +1,0 @@
-import{j as r}from"./index-ChygR4MU.js";import{P as t,c as o}from"./PurchaseTabContent-BKyijtO7.js";import"./VoucherForm-Dv7jKxh2.js";function e(){return r.jsx(t,{config:o})}export{e as PurchaseReturnTab};
