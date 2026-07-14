@@ -32,7 +32,7 @@ assert.match(migration, /revoke all on public\.rd_accounting_data from anon/i);
 assert.doesNotMatch(migration, /station_key|STATION_FORBIDDEN/i);
 assert.doesNotMatch(syncSource, /signInWithPassword|auth\.getSession/);
 assert.match(syncSource, /PGRST202/);
-assert.match(syncSource, /che do tuong thich schema hien tai/);
+assert.match(syncSource, /schema tương thích hiện tại/);
 const startClientSource = syncSource.slice(
   syncSource.indexOf('async function startSupabaseClient()'),
   syncSource.indexOf('async function forcePullFromCloud()')

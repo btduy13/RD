@@ -1648,7 +1648,7 @@ async function getReleaseAssetUrl(version) {
     console.error("Lỗi lấy assets qua Releases API:", err);
   }
   // URL mặc định dự phòng nếu API GitHub quá giới hạn
-  return `https://github.com/btduy13/RD/releases/download/v${version}/K.toan.R.ng.Dong.Setup.${version}.exe`;
+  return `https://github.com/btduy13/RD/releases/download/v${version}/rd-accounting-setup-${version}.exe`;
 }
 
 // Giao diện hiển thị Tiến trình tải về (Progress bar) trực quan
