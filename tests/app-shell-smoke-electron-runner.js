@@ -99,6 +99,41 @@ async function main() {
       && document.getElementById('printable-report-area').textContent.includes('<img src=x');
     state.vouchers = previousVouchers;
 
+    const previousProducts = state.products;
+    state.products = [{ id: 'DISCOUNT-PRODUCT', name: 'Sản phẩm kiểm thử', unit: 'Cái' }];
+    const discountVisibilityByType = {};
+    const discountVoucherTypes = ['purchase_order', 'purchase', 'purchase_return', 'sales_return', 'sales', 'sales_quotation'];
+    for (const type of discountVoucherTypes) {
+      const id = 'DISCOUNT-VISIBILITY-' + type;
+      const baseVoucher = {
+        id,
+        type,
+        date: '2026-07-15',
+        partnerId: '',
+        partnerName: 'Đối tác kiểm thử',
+        description: 'Kiểm tra hiển thị chiết khấu',
+        totalAmount: 2000
+      };
+      state.vouchers = [{
+        ...baseVoucher,
+        items: [{ productId: 'DISCOUNT-PRODUCT', qty: 2, price: 1000, discount: 0, amount: 2000 }]
+      }];
+      viewVoucher(id);
+      const hiddenWithoutDiscount = !document.getElementById('voucher-print-area').textContent.includes('Số tiền chiết khấu');
+
+      state.vouchers = [{
+        ...baseVoucher,
+        totalAmount: 1800,
+        items: [{ productId: 'DISCOUNT-PRODUCT', qty: 2, price: 1000, discount: 10, amount: 1800 }]
+      }];
+      viewVoucher(id);
+      const shownWithDiscount = document.getElementById('voucher-print-area').textContent.includes('Số tiền chiết khấu');
+      discountVisibilityByType[type] = { hiddenWithoutDiscount, shownWithDiscount };
+    }
+    closeModal('modal-view-voucher');
+    state.vouchers = previousVouchers;
+    state.products = previousProducts;
+
     openCloudSyncModal();
     const cloudModal = document.getElementById('modal-cloud-sync');
     const cloudBounds = cloudModal.getBoundingClientRect();
@@ -220,6 +255,7 @@ async function main() {
       missingSwitchTargets: Array.from(new Set(missingSwitchTargets)),
       reportHandlesMissingEntries,
       reportEscapesHtml,
+      discountVisibilityByType,
       windowErrors: window.__rdAuditErrors || [],
       hasState: typeof state === 'object' && Array.isArray(state.vouchers),
       hasVisibleContent: !!document.querySelector('.content-body .tab-view.active-tab'),
@@ -251,6 +287,14 @@ async function main() {
   assert.deepEqual(result.missingSwitchTargets, [], `switchTab targets missing views/menu items: ${result.missingSwitchTargets.join(', ')}`);
   assert.equal(result.reportHandlesMissingEntries, true, 'reports must tolerate imported vouchers without journal entries');
   assert.equal(result.reportEscapesHtml, true, 'report fields must render user data as text, not executable markup');
+  const expectedDiscountVisibility = {
+    hiddenWithoutDiscount: true,
+    shownWithDiscount: true
+  };
+  for (const type of ['purchase_order', 'purchase', 'purchase_return', 'sales_return', 'sales', 'sales_quotation']) {
+    assert.deepEqual(result.discountVisibilityByType[type], expectedDiscountVisibility,
+      `${type} vouchers must hide zero discount totals and show real discounts`);
+  }
   assert.deepEqual(result.windowErrors, [], `startup browser errors: ${result.windowErrors.join('; ')}`);
   assert.deepEqual(consoleErrors, [], `startup console errors: ${consoleErrors.join('; ')}`);
   assert.equal(result.hasState, true, 'application state should initialize');

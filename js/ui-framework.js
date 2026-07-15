@@ -400,12 +400,14 @@ function viewVoucher(id) {
     // Đơn đặt hàng (Mẫu đơn đặt hàng)
     let grossTotal = 0;
     let totalDiscount = 0;
+    let hasItemDiscount = false;
     (v.items || []).forEach(item => {
       const itemGross = (item.qty || 0) * (item.price || 0);
       let discountPercent = item.discount || 0;
       if (discountPercent > 100) {
         discountPercent = itemGross > 0 ? (discountPercent / itemGross) * 100 : 0;
       }
+      if (discountPercent > 0) hasItemDiscount = true;
       const itemDiscountVal = itemGross * (discountPercent / 100);
       grossTotal += itemGross;
       totalDiscount += itemDiscountVal;
@@ -491,11 +493,11 @@ function viewVoucher(id) {
               <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVNDNoSymbol(grossTotal)}</td>
               <td style="border:1px solid #000; border-top:1.5px solid #000;"></td>
             </tr>
-            <tr>
+            ${hasItemDiscount ? `<tr>
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">Số tiền chiết khấu:</td>
               <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">${formatVNDNoSymbol(totalDiscount)}</td>
               <td style="border:1px solid #000;"></td>
-            </tr>
+            </tr>` : ""}
             <tr style="background-color:#e5e7eb;">
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; text-transform:uppercase;">Tổng cộng tiền đặt hàng:</td>
               <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; color:var(--color-primary);">${formatVNDNoSymbol(v.totalAmount)} đ</td>
@@ -541,12 +543,14 @@ function viewVoucher(id) {
     // Mua hàng → Phiếu Nhập Kho theo style của Bán Hàng
     let grossTotal = 0;
     let totalDiscount = 0;
+    let hasItemDiscount = false;
     (v.items || []).forEach(item => {
       const itemGross = (item.qty || 0) * (item.price || 0);
       let discountPercent = item.discount || 0;
       if (discountPercent > 100) {
         discountPercent = itemGross > 0 ? (discountPercent / itemGross) * 100 : 0;
       }
+      if (discountPercent > 0) hasItemDiscount = true;
       const itemDiscountVal = itemGross * (discountPercent / 100);
       grossTotal += itemGross;
       totalDiscount += itemDiscountVal;
@@ -625,11 +629,11 @@ function viewVoucher(id) {
               <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVNDNoSymbol(grossTotal)}</td>
               <td style="border:1px solid #000; border-top:1.5px solid #000;"></td>
             </tr>
-            <tr>
+            ${hasItemDiscount ? `<tr>
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">Số tiền chiết khấu:</td>
               <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">${formatVNDNoSymbol(totalDiscount)}</td>
               <td style="border:1px solid #000;"></td>
-            </tr>
+            </tr>` : ""}
             ${v.taxAmount > 0 ? `<tr>
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right;">Thuế GTGT (${v.taxRate || 0}%):</td>
               <td style="border:1px solid #000; padding:4px 8px; text-align:right;">${formatVNDNoSymbol(v.taxAmount || 0)}</td>
@@ -664,7 +668,18 @@ function viewVoucher(id) {
   } else if (v.type === "purchase_return") {
     // Mua trả lại → PHIẾU XUẤT KHO TRẢ NCC (hàng ĐI RA khỏi kho)
     let grossTotal = 0;
-    (v.items || []).forEach(item => { grossTotal += item.amount || ((item.qty || 0) * (item.price || 0)); });
+    let totalDiscount = 0;
+    let hasItemDiscount = false;
+    (v.items || []).forEach(item => {
+      const itemGross = (item.qty || 0) * (item.price || 0);
+      let discountPercent = Number(item.discount) || 0;
+      if (discountPercent > 100) {
+        discountPercent = itemGross > 0 ? (discountPercent / itemGross) * 100 : 0;
+      }
+      if (discountPercent > 0) hasItemDiscount = true;
+      grossTotal += itemGross;
+      totalDiscount += itemGross * (discountPercent / 100);
+    });
     const partner_pr = getPartnerForVoucher(v) || {};
     const isTT133pr = std === 'TT133';
     content = `
@@ -715,6 +730,7 @@ function viewVoucher(id) {
             ${(v.items || []).map((item, idx) => {
       const prod = (state.products || []).find(p => String(p.id) === String(item.productId)) || { name: item.productId || 'SP' };
       const amt = item.amount || ((item.qty || 0) * (item.price || 0));
+      const discountPercent = Number(item.discount) || 0;
       return `<tr>
                 <td style="border:1px solid #000; padding:4px; text-align:center;">${idx + 1}</td>
                 <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${prod.name}</td>
@@ -722,18 +738,28 @@ function viewVoucher(id) {
                 <td style="border:1px solid #000; padding:4px; text-align:right;">${item.qty || 0}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVNDNoSymbol(item.price || 0)}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVNDNoSymbol(amt)}</td>
-                <td style="border:1px solid #000; padding:4px;"></td>
+                <td style="border:1px solid #000; padding:4px; text-align:center;">${discountPercent > 0 ? discountPercent : "0"}</td>
               </tr>`;
     }).join('')}
+            <tr>
+              <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; border-top:1.5px solid #000;">Cộng tiền hàng trả:</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; border-top:1.5px solid #000;">${formatVNDNoSymbol(grossTotal)}</td>
+              <td style="border:1px solid #000; border-top:1.5px solid #000;"></td>
+            </tr>
+            ${hasItemDiscount ? `<tr>
+              <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">Số tiền chiết khấu:</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">${formatVNDNoSymbol(totalDiscount)}</td>
+              <td style="border:1px solid #000;"></td>
+            </tr>` : ""}
             <tr style="background-color:#f9fafb;">
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; text-transform:uppercase; border-top:1.5px solid #000;">Tổng cộng tiền trả NCC:</td>
-              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; border-top:1.5px solid #000;">${formatVNDNoSymbol(grossTotal)} đ</td>
+              <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; border-top:1.5px solid #000;">${formatVNDNoSymbol(v.totalAmount || (grossTotal - totalDiscount))} đ</td>
               <td style="border:1px solid #000; border-top:1.5px solid #000;"></td>
             </tr>
           </tbody>
         </table>
         <div style="margin-bottom:12px; font-size: 13px;">
-          <strong>Số tiền viết bằng chữ:</strong> <span style="font-style:italic;">${numberToVietnameseWords(v.totalAmount || grossTotal)}</span>
+          <strong>Số tiền viết bằng chữ:</strong> <span style="font-style:italic;">${numberToVietnameseWords(v.totalAmount || (grossTotal - totalDiscount))}</span>
         </div>
         <!-- Chữ ký -->
         <div class="voucher-signatures" style="display:flex; justify-content:space-between; text-align:center; margin-top:12px; font-size: 12.5px;">
@@ -751,8 +777,10 @@ function viewVoucher(id) {
     // Hàng bán trả lại → PHIẾU NHẬP KHO HÀNG BÁN TRẢ LẠI (hàng ĐI VÀO kho)
     let grossTotal = 0; // Tổng cộng trước chiết khấu
     let totalDiscount = 0; // Tổng chiết khấu
+    let hasItemDiscount = false;
     (v.items || []).forEach(item => {
       const itemGross = (item.qty || 0) * (item.price || 0);
+      if (Number(item.discount) > 0) hasItemDiscount = true;
       grossTotal += itemGross;
       totalDiscount += (itemGross - (item.amount || 0));
     });
@@ -824,11 +852,11 @@ function viewVoucher(id) {
               <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold;">${formatVNDNoSymbol(grossTotal)}</td>
               <td style="border:1px solid #000; border-top:1.5px solid #000;"></td>
             </tr>
-            <tr>
+            ${hasItemDiscount ? `<tr>
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">Số tiền chiết khấu:</td>
               <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:500;">${formatVNDNoSymbol(totalDiscount)}</td>
               <td style="border:1px solid #000;"></td>
-            </tr>
+            </tr>` : ""}
             <tr style="background-color:#f9fafb;">
               <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; text-transform:uppercase;">Tổng tiền trả lại khách:</td>
               <td style="border:1px solid #000; padding:4px 8px; text-align:right; font-weight:bold; color:#dc2626;">${formatVNDNoSymbol(v.totalAmount || (grossTotal - totalDiscount))} đ</td>
@@ -855,6 +883,7 @@ function viewVoucher(id) {
     // Bán hàng -> Phiếu giao hàng / hóa đơn bán hàng theo chuẩn mẫu thực tế của Rạng Đông
     let grossTotal = 0;
     let totalDiscount = 0;
+    let hasItemDiscount = false;
 
     v.items.forEach(item => {
       const itemGross = (item.qty || 0) * (item.price || 0);
@@ -862,6 +891,7 @@ function viewVoucher(id) {
       if (discountPercent > 100) {
         discountPercent = itemGross > 0 ? (discountPercent / itemGross) * 100 : 0;
       }
+      if (discountPercent > 0) hasItemDiscount = true;
       const itemDiscountVal = itemGross * (discountPercent / 100);
       grossTotal += itemGross;
       totalDiscount += itemDiscountVal;
@@ -945,11 +975,11 @@ function viewVoucher(id) {
               <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold;" class="font-numeric">${formatVNDNoSymbol(grossTotal)}</td>
               <td style="border: 1px solid #000; border-top: 1.5px solid #000;"></td>
             </tr>
-            <tr>
+            ${hasItemDiscount ? `<tr>
               <td colspan="5" style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: 500;">Số tiền chiết khấu:</td>
               <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: 500;" class="font-numeric">${formatVNDNoSymbol(totalDiscount)}</td>
               <td style="border: 1px solid #000;"></td>
-            </tr>
+            </tr>` : ""}
             <tr style="background-color: #f9fafb;">
               <td colspan="5" style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold; text-transform: uppercase;">Tổng tiền thanh toán:</td>
               <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold;" class="font-numeric">${formatVNDNoSymbol(v.totalAmount)} đ</td>
@@ -995,6 +1025,7 @@ function viewVoucher(id) {
     // Báo giá -> Phiếu báo giá chi tiết
     let grossTotal = 0;
     let totalDiscount = 0;
+    let hasItemDiscount = false;
 
     v.items.forEach(item => {
       const itemGross = (item.qty || 0) * (item.price || 0);
@@ -1002,6 +1033,7 @@ function viewVoucher(id) {
       if (discountPercent > 100) {
         discountPercent = itemGross > 0 ? (discountPercent / itemGross) * 100 : 0;
       }
+      if (discountPercent > 0) hasItemDiscount = true;
       const itemDiscountVal = itemGross * (discountPercent / 100);
       grossTotal += itemGross;
       totalDiscount += itemDiscountVal;
@@ -1085,11 +1117,11 @@ function viewVoucher(id) {
               <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold;" class="font-numeric">${formatVNDNoSymbol(grossTotal)}</td>
               <td style="border: 1px solid #000; border-top: 1.5px solid #000;"></td>
             </tr>
-            <tr>
+            ${hasItemDiscount ? `<tr>
               <td colspan="5" style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: 500;">Số tiền chiết khấu:</td>
               <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: 500;" class="font-numeric">${formatVNDNoSymbol(totalDiscount)}</td>
               <td style="border: 1px solid #000;"></td>
-            </tr>
+            </tr>` : ""}
             <tr style="background-color: #f9fafb;">
               <td colspan="5" style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold; text-transform: uppercase;">Tổng cộng giá trị báo giá:</td>
               <td style="border: 1px solid #000; padding: 4px 8px; text-align: right; font-weight: bold;" class="font-numeric">${formatVNDNoSymbol(v.totalAmount)} đ</td>
