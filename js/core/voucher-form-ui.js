@@ -639,12 +639,13 @@ function recalculateDynamicFormTable(tbodyId) {
     const discount = row.querySelector(".item-discount")
       ? parseDynamicDiscount(row.querySelector(".item-discount").value)
       : 0;
-    const amount = typeof config.calculateAmount === "function"
+    const netAmount = typeof config.calculateAmount === "function"
       ? config.calculateAmount({ qty, price, discount, row })
       : Math.round(qty * price * (1 - discount / 100));
-    subtotal += amount;
+    const grossAmount = Math.round(qty * price);
+    subtotal += netAmount;
     const amountDisplay = row.querySelector(".item-total-display");
-    if (amountDisplay) amountDisplay.textContent = formatDynamicMoney(amount);
+    if (amountDisplay) amountDisplay.textContent = formatDynamicMoney(grossAmount);
   });
 
   const totals = config.totals || {};

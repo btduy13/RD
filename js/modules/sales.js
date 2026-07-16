@@ -1401,7 +1401,7 @@ function exportSalesReturnsToExcel() {
     const wb = XLSX.utils.book_new();
     const ws = {};
     const merges = [];
-    const today = new Date().toLocaleDateString('vi-VN');
+    const today = formatDateDisplay(new Date());
     const NCOLS = 19;
 
     const thin = { style: "thin", color: { rgb: "BBBBBB" } };
@@ -1432,7 +1432,7 @@ function exportSalesReturnsToExcel() {
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: NCOLS - 1 } });
     sc(1, 0, "SỔ CHI TIẾT HÀNG BÁN TRẢ LẠI", 's', { font: fntT, alignment: cC });
     merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: NCOLS - 1 } });
-    sc(2, 0, `Từ ngày: ${fromDate || 'đầu kỳ'}   Đến ngày: ${toDate || today}`, 's', { font: fntSub, alignment: cC });
+    sc(2, 0, `Từ ngày: ${fromDate ? formatDateDisplay(fromDate) : 'đầu kỳ'}   Đến ngày: ${toDate ? formatDateDisplay(toDate) : today}`, 's', { font: fntSub, alignment: cC });
     merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: NCOLS - 1 } });
 
     // Cùng cấu trúc cột SO_CHI_TIET_BAN_HANG — MISA nhận import ngược
@@ -1486,8 +1486,8 @@ function exportSalesReturnsToExcel() {
           const prod = (state.products || []).find(p => String(p.id) === String(item.productId));
           const qty = item.qty || 0;
           const price = item.price || 0;
-          const grossAmt = item.amount || (qty * price);
-          const ckAmt = item.discount ? grossAmt * (item.discount / 100) : 0;
+          const grossAmt = getVoucherLineGrossAmount(item);
+          const ckAmt = getVoucherLineDiscountAmount(item);
           writeRow(item.productId || "", prod ? prod.name : (item.productName || item.productId || ""), prod ? (prod.unit || "Cái") : (item.unit || "Cái"), qty, price, grossAmt, ckAmt);
         });
       } else {
@@ -2137,11 +2137,11 @@ function exportQuotationsToExcel() {
       ws[key] = cell;
     };
 
-    const today = new Date().toLocaleDateString('vi-VN');
+    const today = formatDateDisplay(new Date());
     sc(0, 0, (state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông") + " — DANH SÁCH BÁO GIÁ", 's', { font: fntT, alignment: cC });
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 9 } });
 
-    sc(1, 0, `Từ ngày: ${fromDate || 'đầu kỳ'}   Đến ngày: ${toDate || today}`, 's', { font: fntSub, alignment: cC });
+    sc(1, 0, `Từ ngày: ${fromDate ? formatDateDisplay(fromDate) : 'đầu kỳ'}   Đến ngày: ${toDate ? formatDateDisplay(toDate) : today}`, 's', { font: fntSub, alignment: cC });
     merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 9 } });
 
     const headers = ["Ngày báo giá", "Số báo giá", "Khách hàng", "Diễn giải", "Mã hàng", "Tên hàng", "ĐVT", "Số lượng", "Đơn giá", "Tổng thanh toán"];
@@ -2168,9 +2168,10 @@ function exportQuotationsToExcel() {
         sc(rowIdx, 6, prod.unit || "Cái", 's', bs(cC));
         sc(rowIdx, 7, item.qty, 'n', bs(cR), "#,##0.0");
         sc(rowIdx, 8, item.price, 'n', bs(cR), numFmt);
-        sc(rowIdx, 9, item.amount, 'n', bs(cR), numFmt);
+        const grossAmount = getVoucherLineGrossAmount(item);
+        sc(rowIdx, 9, grossAmount, 'n', bs(cR), numFmt);
 
-        totalAmt += item.amount;
+        totalAmt += grossAmount;
         rowIdx++;
       });
     });

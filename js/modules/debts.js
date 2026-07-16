@@ -517,7 +517,7 @@ function viewUnmatchedPartnerLedger() {
       tr.setAttribute("data-type", "voucher");
       tr.setAttribute("data-id", escapedViewId);
       tr.innerHTML = `
-        <td>${le.date || ""}</td>
+        <td>${formatDateDisplay(le.date)}</td>
         <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${le.id}</a> <span style="font-size:11px; color:var(--color-danger); font-weight:700;">[${escapeHtmlAttr(le.partnerId)}]</span></td>
         <td>${le.desc || ""}</td>
         <td style="text-align:center; font-weight:700;">${le.offsetAccount || ""}</td>
@@ -1126,7 +1126,7 @@ function viewGroupedPartnerLedger(partnerName) {
         ? ` <span style="font-size:11px; color:var(--text-muted); font-style:italic;">[${le.partnerId}]</span>`
         : '';
       tr.innerHTML = `
-        <td>${le.date}</td>
+        <td>${formatDateDisplay(le.date)}</td>
         <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${le.id}</a>${partnerIdNote}</td>
         <td>${le.desc}</td>
         <td style="text-align:center; font-weight:700;">${le.offsetAccount}</td>
@@ -1279,7 +1279,7 @@ function viewLedgerByIds(partnerIds, groupName) {
       const partnerNote = matchingPartners.length > 1
         ? ` <span style="font-size:11px; color:var(--text-muted); font-style:italic;">[${le.partnerId}]</span>` : '';
       tr2.innerHTML = `
-        <td>${le.date}</td>
+        <td>${formatDateDisplay(le.date)}</td>
         <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${le.id}</a>${partnerNote}</td>
         <td>${le.desc}</td>
         <td style="text-align:center; font-weight:700;">${le.offsetAccount}</td>
@@ -1520,7 +1520,7 @@ function renderLedgerForTarget(targetId, isCombined) {
       const partnerNote = isCombined ? ` <span style="font-size:11px; color:var(--text-muted); font-style:italic;">[${le.partnerId}]</span>` : '';
 
       tr.innerHTML = `
-        <td>${le.date}</td>
+        <td>${formatDateDisplay(le.date)}</td>
         <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${displayId}</a>${partnerNote}</td>
         <td>${le.desc}</td>
         <td style="text-align:center; font-weight:700;">${le.offsetAccount}</td>
@@ -1566,7 +1566,7 @@ function renderLedgerOrdersForTarget(matchingIds) {
 
       tr.innerHTML = `
         <td style="font-weight:bold;"><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedId}'); return false;" style="color:var(--color-primary);">${v.id}</a></td>
-        <td>${v.date}</td>
+        <td>${formatDateDisplay(v.date)}</td>
         <td>${v.description || ""}</td>
         <td style="text-align:right;" class="font-numeric">${formatVND(v.totalAmount).replace("đ", "")}</td>
         <td style="text-align:right; font-weight:700; color:var(--color-warning);" class="font-numeric">${formatVND(v.remainingDebt).replace("đ", "")}</td>
@@ -1711,7 +1711,7 @@ async function exportPartnerDebtExcel(partnerId) {
     };
 
     let fromDateStr = fromDate ? formatD(fromDate) : "01/01/2026";
-    let toDateStr = toDate ? formatD(toDate) : new Date().toLocaleDateString('vi-VN');
+    let toDateStr = toDate ? formatD(toDate) : formatDateDisplay(new Date());
 
     if (!fromDate && ledgerEntries.length > 0) {
       const dates = ledgerEntries.map(e => new Date(e.date));
@@ -1792,7 +1792,7 @@ async function exportPartnerDebtExcel(partnerId) {
     merges.push({ s: { r: 5, c: 0 }, e: { r: 5, c: 4 } });
 
     // --- ROW 6: Print date ---
-    setCell("A7", `Ngày in: ${new Date().toLocaleDateString('vi-VN')}`, "s",
+    setCell("A7", `Ngày in: ${formatDateDisplay(new Date())}`, "s",
       { font: fontSubtitle, alignment: alignCenter });
     merges.push({ s: { r: 6, c: 0 }, e: { r: 6, c: 4 } });
 
@@ -2371,7 +2371,7 @@ function renderPartnerLedgerOrders() {
     tr.setAttribute("data-id", escapedOrderId);
     tr.innerHTML = `
       <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedOrderId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${o.id}</a></td>
-      <td>${o.date}</td>
+      <td>${formatDateDisplay(o.date)}</td>
       <td>${o.description}</td>
       <td style="text-align:right; font-weight:500;">${formatVND(totalAmt).replace("đ", "")}</td>
       <td style="text-align:right; font-weight:700; color:${o.remainingDebt > 0 ? 'var(--color-warning)' : 'var(--color-success)'};">${formatVND(o.remainingDebt).replace("đ", "")}</td>
@@ -3666,8 +3666,9 @@ function exportCompanyToExcel(companyName, childPartnerIds) {
           setCell(ws2, r2, 6, item.qty || 0, 'n', bs(cR), '#,##0.##');
           setCell(ws2, r2, 7, item.price || 0, 'n', bs(cR), numFmt);
           setCell(ws2, r2, 8, item.discount || 0, 'n', bs(cC), '0.##"%"');
-          setCell(ws2, r2, 9, item.amount || 0, 'n', bs(cR), numFmt);
-          grandTotal += item.amount || 0;
+          const grossAmount = getVoucherLineGrossAmount(item);
+          setCell(ws2, r2, 9, grossAmount, 'n', bs(cR), numFmt);
+          grandTotal += grossAmount;
           rowIdx++; r2++;
         });
       });

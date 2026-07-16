@@ -325,13 +325,55 @@ window.getLocalDateString = getLocalDateString;
 
 // Hiển thị YYYY-MM-DD → DD/MM/YYYY (không parse Date để tránh lệch múi giờ).
 function formatIsoDateDisplay(isoDate) {
-  if (!isoDate) return "";
-  const raw = String(isoDate).trim().slice(0, 10);
-  const [y, m, d] = raw.split("-");
-  if (!y || !m || !d) return String(isoDate);
-  return `${d}/${m}/${y}`;
+  return formatDateDisplay(isoDate);
 }
 window.formatIsoDateDisplay = formatIsoDateDisplay;
+
+// Chuẩn hiển thị ngày duy nhất trên toàn ứng dụng: DD/MM/YYYY.
+// Giá trị lưu trữ và input[type=date] vẫn dùng ISO YYYY-MM-DD để lọc/sắp xếp chính xác.
+function formatDateDisplay(value) {
+  if (value === undefined || value === null || value === "") return "";
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return "";
+    return `${String(value.getDate()).padStart(2, "0")}/${String(value.getMonth() + 1).padStart(2, "0")}/${value.getFullYear()}`;
+  }
+
+  const raw = String(value).trim();
+  const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s].*)?$/);
+  if (isoMatch) return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`;
+
+  const displayMatch = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+  if (displayMatch) {
+    return `${displayMatch[1].padStart(2, "0")}/${displayMatch[2].padStart(2, "0")}/${displayMatch[3]}`;
+  }
+  return raw;
+}
+window.formatDateDisplay = formatDateDisplay;
+
+function getVoucherLineGrossAmount(item) {
+  const qty = Number(item && item.qty) || 0;
+  const price = Number(item && item.price) || 0;
+  return Math.round(qty * price);
+}
+window.getVoucherLineGrossAmount = getVoucherLineGrossAmount;
+
+function getVoucherLineDiscountPercent(item) {
+  const gross = getVoucherLineGrossAmount(item);
+  const rawDiscount = Number(item && item.discount) || 0;
+  if (rawDiscount <= 0) return 0;
+  return rawDiscount > 100 && gross > 0 ? (rawDiscount / gross) * 100 : rawDiscount;
+}
+window.getVoucherLineDiscountPercent = getVoucherLineDiscountPercent;
+
+function getVoucherLineDiscountAmount(item) {
+  return getVoucherLineGrossAmount(item) * (getVoucherLineDiscountPercent(item) / 100);
+}
+window.getVoucherLineDiscountAmount = getVoucherLineDiscountAmount;
+
+function getVoucherLineNetAmount(item) {
+  return Math.round(getVoucherLineGrossAmount(item) - getVoucherLineDiscountAmount(item));
+}
+window.getVoucherLineNetAmount = getVoucherLineNetAmount;
 
 // Hàm escape thuộc tính HTML và JavaScript để tránh lỗi vỡ chuỗi khi ID hoặc Tên chứa dấu nháy kép / nháy đơn / dấu gạch chéo ngược
 function escapeHtmlAttr(str) {

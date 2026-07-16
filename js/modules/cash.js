@@ -647,7 +647,7 @@ function exportSalesToExcel(detailed = true) {
     const wb = XLSX.utils.book_new();
     const ws = {};
     const merges = [];
-    const today = new Date().toLocaleDateString('vi-VN');
+    const today = formatDateDisplay(new Date());
 
     const thin = { style: "thin", color: { rgb: "BBBBBB" } };
     const b4 = { top: thin, bottom: thin, left: thin, right: thin };
@@ -689,7 +689,7 @@ function exportSalesToExcel(detailed = true) {
       merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: NCOLS - 1 } });
 
       // ROW 2: Phạm vi ngày
-      sc(2, 0, `Từ ngày: ${fromDate || 'đầu kỳ'}   Đến ngày: ${toDate || today}`, 's', { font: fntSub, alignment: cC });
+      sc(2, 0, `Từ ngày: ${fromDate ? formatDateDisplay(fromDate) : 'đầu kỳ'}   Đến ngày: ${toDate ? formatDateDisplay(toDate) : today}`, 's', { font: fntSub, alignment: cC });
       merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: NCOLS - 1 } });
 
       // ROW 3: Headers (đúng tên cột MISA để có thể import lại)
@@ -818,7 +818,7 @@ function exportSalesToExcel(detailed = true) {
       merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: NCOLS - 1 } });
 
       // ROW 2: Phạm vi ngày
-      sc(2, 0, `Từ ngày: ${fromDate || 'đầu kỳ'}   Đến ngày: ${toDate || today}`, 's', { font: fntSub, alignment: cC });
+      sc(2, 0, `Từ ngày: ${fromDate ? formatDateDisplay(fromDate) : 'đầu kỳ'}   Đến ngày: ${toDate ? formatDateDisplay(toDate) : today}`, 's', { font: fntSub, alignment: cC });
       merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: NCOLS - 1 } });
 
       // ROW 3: Headers

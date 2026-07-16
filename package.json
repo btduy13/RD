@@ -1,6 +1,6 @@
 {
   "name": "rd-accounting",
-  "version": "3.3.4",
+  "version": "3.3.5",
   "description": "Phần mềm kế toán độc lập Công ty Cổ phần Rạng Đông",
   "main": "main.js",
   "scripts": {
@@ -30,7 +30,6 @@
     "test:inventory": "node tests/inventory-regression-tests.js",
     "test:shell": "node tests/app-shell-smoke-tests.js",
     "db:dedupe-products": "electron scripts/db-migrate-product-dedupe.js",
-    "package-win": "electron-packager . rd-accounting --platform=win32 --arch=x64 --out=dist --overwrite --ignore=dist",
     "build-win": "electron-builder build --win --x64"
   },
   "keywords": [
@@ -43,16 +42,10 @@
   "devDependencies": {
     "@electron/rebuild": "^4.0.4",
     "electron": "^31.0.0",
-    "electron-builder": "^26.8.1",
-    "electron-packager": "^17.1.2",
-    "electron-winstaller": "^5.4.0"
+    "electron-builder": "^26.8.1"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.108.1",
-    "better-sqlite3": "^12.11.1",
-    "exceljs": "^4.4.0",
-    "xlsx": "^0.18.5",
-    "xlsx-js-style": "^1.2.0"
+    "better-sqlite3": "^12.11.1"
   },
   "build": {
     "appId": "com.rangdong.accounting",
@@ -84,7 +77,6 @@
       "preload.js",
       "logo.jpg",
       "icon.ico",
-      "images (1).png",
       "xlsx.full.min.js",
       "prepopulated_database.js",
       "package.json",

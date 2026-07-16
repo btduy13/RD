@@ -685,8 +685,8 @@ function exportPurchasesToExcel(detailed = true) {
     const ws = {};
     const merges = [];
 
-    const fromStr = fromDate ? new Date(fromDate).toLocaleDateString('vi-VN') : '01/01/' + new Date().getFullYear();
-    const toStr = toDate ? new Date(toDate).toLocaleDateString('vi-VN') : new Date().toLocaleDateString('vi-VN');
+    const fromStr = fromDate ? formatDateDisplay(fromDate) : '01/01/' + new Date().getFullYear();
+    const toStr = toDate ? formatDateDisplay(toDate) : formatDateDisplay(new Date());
 
     const thin = { style: "thin", color: { rgb: "BBBBBB" } };
     const b4 = { top: thin, bottom: thin, left: thin, right: thin };
@@ -772,8 +772,8 @@ function exportPurchasesToExcel(detailed = true) {
             const prod = (state.products || []).find(p => String(p.id) === String(item.productId));
             const qty = item.qty || 0;
             const price = item.price || 0;
-            const grossAmt = item.amount || (qty * price);
-            const ckAmt = item.discount ? grossAmt * (item.discount / 100) : 0;
+            const grossAmt = getVoucherLineGrossAmount(item);
+            const ckAmt = getVoucherLineDiscountAmount(item);
             writeRow(
               item.productId || "",
               prod ? prod.name : (item.productName || item.productId || ""),
@@ -1542,8 +1542,8 @@ function exportPurchaseOrdersToExcel() {
       ws[key] = cell;
     };
 
-    const today = new Date().toLocaleDateString('vi-VN');
-    let dateRangeText = `Từ ngày: ${fromDate || 'đầu kỳ'}   Đến ngày: ${toDate || today}`;
+    const today = formatDateDisplay(new Date());
+    let dateRangeText = `Từ ngày: ${fromDate ? formatDateDisplay(fromDate) : 'đầu kỳ'}   Đến ngày: ${toDate ? formatDateDisplay(toDate) : today}`;
 
     // --- ROW 0: Tiêu đề chính ---
     const compName = state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông";
@@ -1595,13 +1595,13 @@ function exportPurchaseOrdersToExcel() {
           setCell(ws, rowIdx, 14, item.price || 0, 'n', numStyle(cRight), numFmt);
           setCell(ws, rowIdx, 15, 0, 'n', numStyle(cRight), numFmt);
           setCell(ws, rowIdx, 16, 0, 'n', numStyle(cRight), numFmt);
-          setCell(ws, rowIdx, 17, itemGross - discVal, 'n', numStyle(cRight), numFmt);
+          setCell(ws, rowIdx, 17, itemGross, 'n', numStyle(cRight), numFmt);
           setCell(ws, rowIdx, 18, discVal, 'n', numStyle(cRight), numFmt);
           setCell(ws, rowIdx, 19, 0, 'n', numStyle(cRight), "#,##0.##");
           setCell(ws, rowIdx, 20, 0, 'n', numStyle(cRight), numFmt);
           setCell(ws, rowIdx, 21, 0, 'n', numStyle(cRight), numFmt);
 
-          totalGross += itemGross - discVal;
+          totalGross += itemGross;
           rowIdx++;
         });
       } else {
@@ -2245,7 +2245,7 @@ function exportPurchaseReturnsToExcel() {
     const wb = XLSX.utils.book_new();
     const ws = {};
     const merges = [];
-    const today = new Date().toLocaleDateString('vi-VN');
+    const today = formatDateDisplay(new Date());
     const NCOLS = 16;
 
     const thin = { style: "thin", color: { rgb: "BBBBBB" } };
@@ -2276,7 +2276,7 @@ function exportPurchaseReturnsToExcel() {
     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: NCOLS - 1 } });
     sc(1, 0, "SỔ CHI TIẾT HÀNG TRẢ LẠI MUA", 's', { font: fntT, alignment: cC });
     merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: NCOLS - 1 } });
-    sc(2, 0, `Từ ngày: ${fromDate || 'đầu kỳ'}   Đến ngày: ${toDate || today}`, 's', { font: fntSub, alignment: cC });
+    sc(2, 0, `Từ ngày: ${fromDate ? formatDateDisplay(fromDate) : 'đầu kỳ'}   Đến ngày: ${toDate ? formatDateDisplay(toDate) : today}`, 's', { font: fntSub, alignment: cC });
     merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: NCOLS - 1 } });
 
     const headers = [
@@ -2324,8 +2324,8 @@ function exportPurchaseReturnsToExcel() {
           const prod = (state.products || []).find(p => String(p.id) === String(item.productId));
           const qty = item.qty || 0;
           const price = item.price || 0;
-          const grossAmt = item.amount || (qty * price);
-          const ckAmt = item.discount ? grossAmt * (item.discount / 100) : 0;
+          const grossAmt = getVoucherLineGrossAmount(item);
+          const ckAmt = getVoucherLineDiscountAmount(item);
           writeRow(item.productId || "", prod ? prod.name : (item.productName || item.productId || ""), prod ? (prod.unit || "Cái") : (item.unit || "Cái"), qty, price, grossAmt, ckAmt);
         });
       } else {

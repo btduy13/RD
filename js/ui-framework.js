@@ -434,7 +434,7 @@ function viewVoucher(id) {
         
         <div class="voucher-title-area">
           <span class="voucher-title">ĐƠN ĐẶT HÀNG</span><br>
-          <span class="voucher-subtitle">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</span>
+          <span class="voucher-subtitle">Ngày ${formatDateDisplay(v.date)}</span>
         </div>
         
         <div class="voucher-entries-note">
@@ -474,7 +474,7 @@ function viewVoucher(id) {
         discountPercent = itemGross > 0 ? Math.round((discountPercent / itemGross) * 100 * 100) / 100 : 0;
       }
       const gcVal = discountPercent > 0 ? `${discountPercent}` : "0";
-      const amt = item.amount || (itemGross - (itemGross * (discountPercent / 100)));
+      const amt = getVoucherLineGrossAmount(item);
       return `
                 <tr>
                   <td style="border:1px solid #000; padding:4px; text-align:center;">${idx + 1}</td>
@@ -574,12 +574,12 @@ function viewVoucher(id) {
         <!-- Tiêu đề -->
         <div style="text-align:center; margin-bottom:6px;">
           <div class="voucher-document-title">PHIẾU NHẬP KHO</div>
-          <div style="font-size: 12px; font-style:italic;">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</div>
+          <div style="font-size: 12px; font-style:italic;">Ngày ${formatDateDisplay(v.date)}</div>
         </div>
         <!-- Thông tin -->
         <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size: 12.5px;">
           <div><strong>Nhà cung cấp:</strong> <span style="font-size: 14px; font-weight:bold;">${partnerName}</span></div>
-          <div style="text-align:right;"><strong>Ngày:</strong> ${v.date.substring(8, 10)}/${v.date.substring(5, 7)}/${v.date.substring(2, 4)}</div>
+          <div style="text-align:right;"><strong>Ngày:</strong> ${formatDateDisplay(v.date)}</div>
           <div><strong>Điện thoại:</strong> <span>${partner_p.phone || '-'}</span></div>
           <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size: 13px;">${v.id}</span></div>
           <div style="grid-column:span 2;"><strong>Địa chỉ NCC:</strong> <span>${partner_p.address || '-'}</span></div>
@@ -612,7 +612,7 @@ function viewVoucher(id) {
         discountPercent = itemGross > 0 ? Math.round((discountPercent / itemGross) * 100 * 100) / 100 : 0;
       }
       const gcVal = discountPercent > 0 ? `${discountPercent}` : "0";
-      const amt = item.amount || (itemGross - (itemGross * (discountPercent / 100)));
+      const amt = getVoucherLineGrossAmount(item);
 
       return `<tr>
                 <td style="border:1px solid #000; padding:4px; text-align:center;">${idx + 1}</td>
@@ -699,12 +699,12 @@ function viewVoucher(id) {
         <!-- Tiêu đề -->
         <div style="text-align:center; margin-bottom:6px;">
           <div class="voucher-document-title">PHIẾU XUẤT KHO TRẢ NHÀ CUNG CẤP</div>
-          <div style="font-size: 12px; font-style:italic;">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</div>
+          <div style="font-size: 12px; font-style:italic;">Ngày ${formatDateDisplay(v.date)}</div>
         </div>
         <!-- Thông tin -->
         <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size: 12.5px;">
           <div><strong>Nhà cung cấp:</strong> <span style="font-size: 14px; font-weight:bold;">${partnerName}</span></div>
-          <div style="text-align:right;"><strong>Ngày:</strong> ${v.date.substring(8, 10)}/${v.date.substring(5, 7)}/${v.date.substring(2, 4)}</div>
+          <div style="text-align:right;"><strong>Ngày:</strong> ${formatDateDisplay(v.date)}</div>
           <div><strong>Điện thoại:</strong> <span>${partner_pr.phone || '-'}</span></div>
           <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size: 13px;">${v.id}</span></div>
           <div style="grid-column:span 2;"><strong>Địa chỉ NCC:</strong> <span>${partner_pr.address || '-'}</span></div>
@@ -729,7 +729,7 @@ function viewVoucher(id) {
           <tbody>
             ${(v.items || []).map((item, idx) => {
       const prod = (state.products || []).find(p => String(p.id) === String(item.productId)) || { name: item.productId || 'SP' };
-      const amt = item.amount || ((item.qty || 0) * (item.price || 0));
+      const amt = getVoucherLineGrossAmount(item);
       const discountPercent = Number(item.discount) || 0;
       return `<tr>
                 <td style="border:1px solid #000; padding:4px; text-align:center;">${idx + 1}</td>
@@ -782,7 +782,7 @@ function viewVoucher(id) {
       const itemGross = (item.qty || 0) * (item.price || 0);
       if (Number(item.discount) > 0) hasItemDiscount = true;
       grossTotal += itemGross;
-      totalDiscount += (itemGross - (item.amount || 0));
+      totalDiscount += getVoucherLineDiscountAmount(item);
     });
     const partner_sr = getPartnerForVoucher(v) || {};
     const creditAccSR = (v.paymentMethod && v.paymentMethod !== '131') ? v.paymentMethod : '131';
@@ -803,12 +803,12 @@ function viewVoucher(id) {
         <!-- Tiêu đề -->
         <div style="text-align:center; margin-bottom:6px;">
           <div class="voucher-document-title">PHIẾU NHẬP KHO HÀNG BÁN TRẢ LẠI</div>
-          <div style="font-size: 12px; font-style:italic;">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</div>
+          <div style="font-size: 12px; font-style:italic;">Ngày ${formatDateDisplay(v.date)}</div>
         </div>
         <!-- Thông tin -->
         <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size: 12.5px;">
           <div><strong>Khách hàng trả lại:</strong> <span style="font-size: 14px; font-weight:bold;">${partnerName}</span></div>
-          <div style="text-align:right;"><strong>Ngày:</strong> ${v.date.substring(8, 10)}/${v.date.substring(5, 7)}/${v.date.substring(2, 4)}</div>
+          <div style="text-align:right;"><strong>Ngày:</strong> ${formatDateDisplay(v.date)}</div>
           <div><strong>Điện thoại:</strong> <span>${partner_sr.phone || '-'}</span></div>
           <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size: 13px;">${v.id}</span></div>
           <div style="grid-column:span 2;"><strong>Địa chỉ:</strong> <span>${partner_sr.address || '-'}</span></div>
@@ -834,7 +834,7 @@ function viewVoucher(id) {
           <tbody>
             ${(v.items || []).map((item, idx) => {
       const prod = (state.products || []).find(p => String(p.id) === String(item.productId)) || { name: item.productId || 'SP' };
-      const amt = item.amount || ((item.qty || 0) * (item.price || 0));
+      const amt = getVoucherLineGrossAmount(item);
       const discPercent = Math.round(item.discount || 0);
       const disc = discPercent > 0 ? discPercent + '%' : '0';
       return `<tr>
@@ -913,7 +913,7 @@ function viewVoucher(id) {
             <strong>Tên khách hàng:</strong> <span style="font-size: 12.5px; font-weight: bold;">${partnerName}</span>
           </div>
           <div style="text-align: right;">
-            <strong>Ngày:</strong> ${v.date.substring(8, 10)}/${v.date.substring(5, 7)}/${v.date.substring(2, 4)}
+            <strong>Ngày:</strong> ${formatDateDisplay(v.date)}
           </div>
           
           <div>
@@ -963,7 +963,7 @@ function viewVoucher(id) {
                   <td style="border: 1px solid #000; padding: 4px 2px; text-align: center;">${prod.unit || "Cái"}</td>
                   <td style="border: 1px solid #000; padding: 4px 2px; text-align: right;" class="font-numeric">${qtyFormatted}</td>
                   <td style="border: 1px solid #000; padding: 4px 3px; text-align: right;" class="font-numeric">${formatVNDNoSymbol(item.price)}</td>
-                  <td style="border: 1px solid #000; padding: 4px 3px; text-align: right; font-weight: bold;" class="font-numeric">${formatVNDNoSymbol(item.amount)}</td>
+                  <td style="border: 1px solid #000; padding: 4px 3px; text-align: right; font-weight: bold;" class="font-numeric">${formatVNDNoSymbol(getVoucherLineGrossAmount(item))}</td>
                   <td style="border: 1px solid #000; padding: 4px 2px; text-align: center;" class="voucher-col-gc">${gcVal}</td>
                 </tr>
               `;
@@ -1055,7 +1055,7 @@ function viewVoucher(id) {
             <strong>Kính gửi khách hàng:</strong> <span style="font-size: 12.5px; font-weight: bold;">${partnerName}</span>
           </div>
           <div style="text-align: right;">
-            <strong>Ngày lập:</strong> ${v.date.substring(8, 10)}/${v.date.substring(5, 7)}/${v.date.substring(2, 4)}
+            <strong>Ngày lập:</strong> ${formatDateDisplay(v.date)}
           </div>
           
           <div>
@@ -1105,7 +1105,7 @@ function viewVoucher(id) {
                   <td style="border: 1px solid #000; padding: 4px 2px; text-align: center;">${prod.unit || "Cái"}</td>
                   <td style="border: 1px solid #000; padding: 4px 2px; text-align: right;" class="font-numeric">${qtyFormatted}</td>
                   <td style="border: 1px solid #000; padding: 4px 3px; text-align: right;" class="font-numeric">${formatVNDNoSymbol(item.price)}</td>
-                  <td style="border: 1px solid #000; padding: 4px 3px; text-align: right; font-weight: bold;" class="font-numeric">${formatVNDNoSymbol(item.amount)}</td>
+                  <td style="border: 1px solid #000; padding: 4px 3px; text-align: right; font-weight: bold;" class="font-numeric">${formatVNDNoSymbol(getVoucherLineGrossAmount(item))}</td>
                   <td style="border: 1px solid #000; padding: 4px 2px; text-align: center;" class="voucher-col-gc">${gcVal}</td>
                 </tr>
               `;
@@ -1179,7 +1179,7 @@ function viewVoucher(id) {
 
         <div style="text-align:center; margin: 12px 0;">
           <div class="voucher-document-title">PHIẾU ĐIỀU CHỈNH TỒN KHO</div>
-          <div style="font-style:italic; font-size: 13px; margin-top: 4px;">Ngày ${v.date ? v.date.substring(8, 10) + " tháng " + v.date.substring(5, 7) + " năm " + v.date.substring(0, 4) : ""}</div>
+          <div style="font-style:italic; font-size: 13px; margin-top: 4px;">Ngày ${formatDateDisplay(v.date)}</div>
         </div>
 
         <div style="margin-bottom: 12px;">
@@ -1298,7 +1298,7 @@ function viewVoucher(id) {
         <!-- TIÊU ĐỀ -->
         <div style="text-align:center; margin-bottom:8px;">
           <div class="voucher-document-title">${title}</div>
-          <div style="font-size: 12px; font-style:italic;">Ngày ${v.date.substring(8, 10)} tháng ${v.date.substring(5, 7)} năm ${v.date.substring(0, 4)}</div>
+          <div style="font-size: 12px; font-style:italic;">Ngày ${formatDateDisplay(v.date)}</div>
         </div>
 
         <!-- THÔNG TIN PHIẾU -->
@@ -2835,10 +2835,7 @@ function exportVoucherToExcel(id) {
   else if (v.type === "payment" || v.type === "escrow_refund_pay") title = "PHIẾU CHI";
 
   if (v.date) {
-    const y = v.date.substring(0, 4);
-    const m = v.date.substring(5, 7);
-    const d = v.date.substring(8, 10);
-    subtitle = `Ngày ${d} tháng ${m} năm ${y}`;
+    subtitle = `Ngày ${formatDateDisplay(v.date)}`;
   }
 
   rows.push([title, "", "", "", "", ""]);
@@ -2879,7 +2876,7 @@ function exportVoucherToExcel(id) {
 
     v.items.forEach(item => {
       const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: item.productId || "Sản phẩm", unit: "Cái" };
-      const itemAmt = item.amount || ((item.qty || 0) * (item.price || 0));
+      const itemAmt = getVoucherLineGrossAmount(item);
       grossTotal += (item.qty || 0) * (item.price || 0);
 
       let discountVal = 0;

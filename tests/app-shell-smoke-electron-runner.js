@@ -97,6 +97,8 @@ async function main() {
     const reportHandlesMissingEntries = document.getElementById('printable-report-area').textContent.includes('NO-ENTRIES') === false;
     const reportEscapesHtml = document.querySelector('#printable-report-area img') === null
       && document.getElementById('printable-report-area').textContent.includes('<img src=x');
+    const reportUsesDisplayDate = document.getElementById('printable-report-area').textContent.includes('02/01/2026')
+      && !document.getElementById('printable-report-area').textContent.includes('2026-01-02');
     state.vouchers = previousVouchers;
 
     const previousProducts = state.products;
@@ -128,7 +130,12 @@ async function main() {
       }];
       viewVoucher(id);
       const shownWithDiscount = document.getElementById('voucher-print-area').textContent.includes('Số tiền chiết khấu');
-      discountVisibilityByType[type] = { hiddenWithoutDiscount, shownWithDiscount };
+      const firstProductRow = document.querySelector('#voucher-print-area table tbody tr');
+      const grossLineValue = firstProductRow && firstProductRow.cells[5]
+        ? firstProductRow.cells[5].textContent.trim()
+        : '';
+      const fullDateShown = document.getElementById('voucher-print-area').textContent.includes('15/07/2026');
+      discountVisibilityByType[type] = { hiddenWithoutDiscount, shownWithDiscount, grossLineValue, fullDateShown };
     }
     closeModal('modal-view-voucher');
     state.vouchers = previousVouchers;
@@ -255,6 +262,13 @@ async function main() {
       missingSwitchTargets: Array.from(new Set(missingSwitchTargets)),
       reportHandlesMissingEntries,
       reportEscapesHtml,
+      reportUsesDisplayDate,
+      formatDateSamples: [
+        formatDateDisplay('2026-07-05'),
+        formatDateDisplay('5/7/2026'),
+        getVoucherLineGrossAmount({ qty: 2, price: 1000, discount: 10, amount: 1800 }),
+        getVoucherLineNetAmount({ qty: 2, price: 1000, discount: 10, amount: 1800 })
+      ],
       discountVisibilityByType,
       windowErrors: window.__rdAuditErrors || [],
       hasState: typeof state === 'object' && Array.isArray(state.vouchers),
@@ -287,9 +301,13 @@ async function main() {
   assert.deepEqual(result.missingSwitchTargets, [], `switchTab targets missing views/menu items: ${result.missingSwitchTargets.join(', ')}`);
   assert.equal(result.reportHandlesMissingEntries, true, 'reports must tolerate imported vouchers without journal entries');
   assert.equal(result.reportEscapesHtml, true, 'report fields must render user data as text, not executable markup');
+  assert.equal(result.reportUsesDisplayDate, true, 'reports must display dates as dd/mm/yyyy');
+  assert.deepEqual(result.formatDateSamples, ['05/07/2026', '05/07/2026', 2000, 1800]);
   const expectedDiscountVisibility = {
     hiddenWithoutDiscount: true,
-    shownWithDiscount: true
+    shownWithDiscount: true,
+    grossLineValue: '2.000',
+    fullDateShown: true
   };
   for (const type of ['purchase_order', 'purchase', 'purchase_return', 'sales_return', 'sales', 'sales_quotation']) {
     assert.deepEqual(result.discountVisibilityByType[type], expectedDiscountVisibility,

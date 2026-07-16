@@ -365,7 +365,7 @@ function renderStockLedger() {
       runningStock += movement.inQty;
       html += `
         <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
-          <td>${v.date}</td>
+          <td>${formatDateDisplay(v.date)}</td>
           <td class="font-numeric" style="color:var(--color-primary); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${v.id}</td>
           <td class="text-right font-numeric" style="color: var(--color-primary); font-weight:700;">+${item.qty}</td>
           <td class="text-right font-numeric">-</td>
@@ -376,7 +376,7 @@ function renderStockLedger() {
       runningStock += movement.inQty;
       html += `
         <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
-          <td>${v.date}</td>
+          <td>${formatDateDisplay(v.date)}</td>
           <td class="font-numeric" style="color:var(--color-success); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${v.id}</td>
           <td class="text-right font-numeric" style="color: var(--color-success); font-weight:700;">+${item.qty}</td>
           <td class="text-right font-numeric">-</td>
@@ -387,7 +387,7 @@ function renderStockLedger() {
       runningStock -= movement.outQty;
       html += `
         <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
-          <td>${v.date}</td>
+          <td>${formatDateDisplay(v.date)}</td>
           <td class="font-numeric" style="color:var(--color-success); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${v.id}</td>
           <td class="text-right font-numeric">-</td>
           <td class="text-right font-numeric" style="color: var(--color-warning); font-weight:700;">-${item.qty}</td>
@@ -399,7 +399,7 @@ function renderStockLedger() {
         runningStock += movement.inQty;
         html += `
           <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
-            <td>${v.date}</td>
+            <td>${formatDateDisplay(v.date)}</td>
             <td class="font-numeric" style="color:var(--color-warning); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${v.id}</td>
             <td class="text-right font-numeric" style="color: var(--color-warning); font-weight:700;">+${item.qty}</td>
             <td class="text-right font-numeric">-</td>
@@ -410,7 +410,7 @@ function renderStockLedger() {
         runningStock -= movement.outQty;
         html += `
           <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
-            <td>${v.date}</td>
+            <td>${formatDateDisplay(v.date)}</td>
             <td class="font-numeric" style="color:var(--color-warning); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${v.id}</td>
             <td class="text-right font-numeric">-</td>
             <td class="text-right font-numeric" style="color: var(--color-warning); font-weight:700;">-${item.qty}</td>

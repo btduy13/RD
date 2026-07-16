@@ -1,5 +1,0 @@
-{"sessionId":"b89837","location":"accounting.ts:recalculateAccounting:end","message":"recalculate complete","data":{"voucherCount":1,"hasShouldSave":true,"hasRefreshUI":true},"timestamp":1783049603992,"hypothesisId":"H2"}
-{"sessionId":"b89837","location":"accounting.ts:recalculateAccounting:end","message":"recalculate complete","data":{"voucherCount":1,"hasShouldSave":true,"hasRefreshUI":true},"timestamp":1783049604006,"hypothesisId":"H2"}
-{"sessionId":"b89837","location":"app-store.ts:loadState:afterDisk","message":"loadStateFromDisk result","data":{"loaded":false,"voucherCount":0,"partnerCount":0,"hasElectronApi":true},"timestamp":1783049629675,"hypothesisId":"H5"}
-{"sessionId":"b89837","location":"accounting.ts:recalculateAccounting:end","message":"recalculate complete","data":{"voucherCount":0,"hasShouldSave":false,"hasRefreshUI":false},"timestamp":1783049629676,"hypothesisId":"H2"}
-{"sessionId":"b89837","location":"app-store.ts:loadState:success","message":"loadState complete","data":{"voucherCount":0,"partnerCount":0,"productCount":0},"timestamp":1783049629676,"hypothesisId":"H5"}

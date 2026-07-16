@@ -107,6 +107,8 @@ async function main() {
       { productId: 'SP2', desc: 'Hai', qty: 1, price: 500, discount: 0 }
     ]);
     const totals = recalculateDynamicFormTable('sales-items-body');
+    const grossLineDisplays = Array.from(salesBody.querySelectorAll('.item-total-display'))
+      .map(el => parseDynamicMoney(el.textContent));
     const serialized = serializeDynamicFormTable('sales-items-body');
 
     const firstRow = salesBody.rows[0];
@@ -144,6 +146,7 @@ async function main() {
       bulkRowCount: rowIds.length,
       uniqueRowIds: new Set(rowIds).size,
       totals,
+      grossLineDisplays,
       serialized,
       insertedAfterFirst,
       minimumRowPreserved,
@@ -181,6 +184,7 @@ async function main() {
   assert.equal(result.bulkRowCount, 60);
   assert.equal(result.uniqueRowIds, 60);
   assert.deepEqual(result.totals, { subtotal: 2300, taxAmount: 230, total: 2530 });
+  assert.deepEqual(result.grossLineDisplays, [2000, 500], 'Thành tiền từng dòng phải bằng số lượng × đơn giá, chưa trừ chiết khấu');
   assert.equal(result.serialized[0].desc, 'Một');
   assert.equal(result.insertedAfterFirst, true);
   assert.equal(result.minimumRowPreserved, true);

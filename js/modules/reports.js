@@ -88,7 +88,7 @@ function generateReport() {
           totalVal += e.amount;
           html += `
             <tr>
-              <td style="border:1px solid #000; padding:6px; color:#000;">${idx === 0 ? escapeReportText(v.date) : ""}</td>
+              <td style="border:1px solid #000; padding:6px; color:#000;">${idx === 0 ? escapeReportText(formatDateDisplay(v.date)) : ""}</td>
               <td style="border:1px solid #000; padding:6px; color:#000; font-weight:700;">${idx === 0 ? escapeReportText(v.id) : ""}</td>
               <td style="border:1px solid #000; padding:6px; color:#000;">${escapeReportText(e.desc)}</td>
               <td style="border:1px solid #000; padding:6px; color:#000; text-align:center; font-weight:700;">${escapeReportText(e.debit)}</td>
@@ -183,7 +183,7 @@ function generateReport() {
 
         html += `
           <tr>
-            <td style="border:1px solid #000; padding:6px; color:#000;">${escapeReportText(v.date)}</td>
+            <td style="border:1px solid #000; padding:6px; color:#000;">${escapeReportText(formatDateDisplay(v.date))}</td>
             <td style="border:1px solid #000; padding:6px; color:#000; font-weight:700;">${escapeReportText(v.id)}</td>
             <td style="border:1px solid #000; padding:6px; color:#000;">${escapeReportText(e.desc)}</td>
             <td style="border:1px solid #000; padding:6px; color:#000; text-align:center; font-weight:700;">${escapeReportText(oppositeAcct)}</td>
@@ -442,4 +442,3 @@ window.handleReportTypeChange = handleReportTypeChange;
 window.generateReport = generateReport;
 window.printReport = printReport;
 window.calculateTrialBalance = calculateTrialBalance;
-

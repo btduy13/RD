@@ -242,7 +242,7 @@ function renderDashboardDebts() {
         tr.innerHTML = `
           <td><a href="#" onclick="viewPartnerLedger('${escapeHtmlAttr(item.partnerId)}'); return false;" style="font-weight:600; color:var(--text-primary); text-decoration:underline;">${item.partnerName}</a></td>
           <td style="text-align:right; font-weight:700; color:var(--color-warning);" class="font-numeric">${formatVND(item.remainingDebt).replace("đ", "")}</td>
-          <td>${item.date}</td>
+          <td>${formatDateDisplay(item.date)}</td>
           <td style="text-align:center;"><span class="badge ${dayClass}">${dayLabel}</span></td>
         `;
         agedTbody.appendChild(tr);
@@ -340,7 +340,7 @@ function renderRecentActivities() {
       <div class="activity-item type-${v.type}">
         <div class="activity-desc">
           <span class="activity-title">${v.description}</span>
-          <span class="activity-date">${v.date} &bull; ${v.id}</span>
+          <span class="activity-date">${formatDateDisplay(v.date)} &bull; ${v.id}</span>
         </div>
         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
           <span class="activity-price font-numeric">${formatVND(amount)}</span>
