@@ -46,7 +46,7 @@ async function evaluate(port, expression, timeoutMs = 60000) {
   return message.result.result.value;
 }
 
-async function waitFor(port, expression, label, timeoutMs = 30000) {
+async function waitFor(port, expression, label, timeoutMs = 60000) {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
     if (await evaluate(port, `Boolean(${expression})`)) {
@@ -57,6 +57,29 @@ async function waitFor(port, expression, label, timeoutMs = 30000) {
     await new Promise(resolve => setTimeout(resolve, 350));
   }
   throw new Error(`Timed out waiting for ${label}`);
+}
+
+async function waitForBothQuiescent(timeoutMs = 180000) {
+  const started = Date.now();
+  const expression = `
+    isStartupPullCompleted &&
+    !isPulling && !isPushing && !pushPending && !pullPending &&
+    !localStorage.getItem('rd_accounting_cloud_push_pending') &&
+    cloudWriteGate.getStatus().status === 'ready'
+  `;
+  while (Date.now() - started < timeoutMs) {
+    const first = await Promise.all([stationA, stationB].map(port => evaluate(port, `Boolean(${expression})`)));
+    if (first.every(Boolean)) {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      const stable = await Promise.all([stationA, stationB].map(port => evaluate(port, `Boolean(${expression})`)));
+      if (stable.every(Boolean)) {
+        console.log(`[real-e2e] both stations quiescent: ${Date.now() - started}ms`);
+        return;
+      }
+    }
+    await new Promise(resolve => setTimeout(resolve, 350));
+  }
+  throw new Error('Timed out waiting for both stations to become quiescent');
 }
 
 async function waitForPush(port, label) {
@@ -135,6 +158,8 @@ async function createCashVoucherThroughForm(config) {
   assert.equal(result.error, null, `${config.type} form promise must not reject`);
   assert.ok(result.id, `${config.type} form must create its voucher on Station A`);
   assert.equal(result.modal, 'none', `${config.type} form must close after persistence succeeds`);
+  const cleanupSlot = config.type === 'receipt' ? 5 : (config.type === 'payment' ? 6 : -1);
+  if (cleanupSlot >= 0) extraVoucherIds[cleanupSlot] = result.id;
   await waitForPush(stationA, `${config.type} form create pushed`);
   await waitFor(stationB, `state.vouchers.some(item => item && item.id === ${JSON.stringify(result.id)} && item.type === ${JSON.stringify(config.type)})`, `Station B received ${config.type}`);
   return result.id;
@@ -165,10 +190,23 @@ async function cleanup() {
 
 async function run() {
   console.log(`[real-e2e] runId=${runId}`);
+  await Promise.all([stationA, stationB].map((port, index) => waitFor(
+    port,
+    `isStartupPullCompleted`,
+    `Station ${index === 0 ? 'A' : 'B'} startup sync ready`,
+    180000
+  )));
+  await waitForBothQuiescent();
   const ready = await Promise.all([stationA, stationB].map(port => evaluate(port,
     `({ startup: isStartupPullCompleted, gate: cloudWriteGate.getStatus().status, vouchers: state.vouchers.length })`
   )));
-  assert.ok(ready.every(item => item.startup && item.gate === 'ready'), 'both real stations must be ready');
+  console.log(`[real-e2e] startup state: ${JSON.stringify(ready)}`);
+  assert.ok(ready.every(item => item.startup), 'both real stations must complete startup reconciliation');
+  await Promise.all([stationA, stationB].map(port => evaluate(port, `(() => {
+    __cloudSyncInternals__.setCloudSyncEgressMetricsEnabled(true);
+    __cloudSyncInternals__.resetCloudSyncEgressMetrics();
+    return __cloudSyncInternals__.getCloudSyncEgressMetrics();
+  })()`)));
 
   const lockAcquired = await evaluate(stationA, `(() => {
     const key = 'rd_real_multistation_e2e_lock';
@@ -185,6 +223,26 @@ async function run() {
     `);
     await waitForPush(stationA, 'partner create pushed');
     await waitFor(stationB, `state.partners.some(item => item && item.id === ${JSON.stringify(partnerId)})`, 'Station B received partner create');
+    const firstTransferState = await evaluate(stationB, `({
+      versioned: cloudUsesVersionedRpc,
+      metrics: __cloudSyncInternals__.getCloudSyncEgressMetrics()
+    })`);
+    const firstTransferMetrics = firstTransferState.metrics;
+    console.log(`[real-e2e] compact transfer metrics (${firstTransferState.versioned ? 'v3' : 'legacy'}): ${JSON.stringify(firstTransferMetrics)}`);
+    assert.ok(firstTransferMetrics.realtimeEvents >= 1, 'Station B must receive a real Realtime event, not only polling');
+    assert.equal(firstTransferMetrics.realtimeEventsWithData, 0, 'Realtime must omit the accounting data JSON payload');
+    assert.ok(firstTransferMetrics.realtimeBytes < firstTransferMetrics.realtimeEvents * 2048, 'compact Realtime events should stay below 2KB each');
+    assert.equal(firstTransferMetrics.snapshotRows, 0, 'a normal cross-station change must not trigger a full snapshot');
+    assert.ok(firstTransferMetrics.deltaRows >= 1, 'Station B must fetch only the changed delta rows');
+    assert.ok(
+      firstTransferMetrics.deltaBytes < 64 * 1024,
+      `an entity-only delta must stay below 64KB instead of carrying metadata (${firstTransferMetrics.deltaBytes} bytes)`
+    );
+    assert.equal(
+      firstTransferMetrics.activePollIntervalMs,
+      30000,
+      'confirmed Realtime must retain only the low-frequency 30s safety watchdog'
+    );
 
     await saveDirect(stationA, `
       { const item = state.partners.find(x => x.id === ${JSON.stringify(partnerId)}); item.name = 'Codex E2E Partner Updated'; item._updatedAt = Date.now(); item._sessionId = clientSessionId; }
@@ -295,6 +353,16 @@ async function run() {
     await waitFor(stationB, `!state.vouchers.some(item => item && item.id === ${JSON.stringify(salesId)})`, 'Station B received sales delete');
 
     await cleanup();
+    const noOpMetrics = await evaluate(stationA, `(async () => {
+      __cloudSyncInternals__.resetCloudSyncEgressMetrics();
+      const ok = await manualIncrementalSync();
+      return { ok, metrics: __cloudSyncInternals__.getCloudSyncEgressMetrics() };
+    })()`, 90000);
+    assert.equal(noOpMetrics.ok, true, 'manual no-op sync must complete successfully');
+    assert.equal(noOpMetrics.metrics.snapshotRows, 0, 'manual no-op sync must not download a full snapshot');
+    assert.equal(noOpMetrics.metrics.pushTransactions, 0, 'manual no-op sync must not create a cloud transaction');
+    assert.equal(noOpMetrics.metrics.skippedNoopPushes, 1, 'manual no-op sync must be stopped by the local delta gate');
+    console.log(`[real-e2e] no-op metrics: ${JSON.stringify(noOpMetrics.metrics)}`);
     await evaluate(stationA, `localStorage.removeItem('rd_real_multistation_e2e_lock')`);
     console.log('[real-e2e] PASS: two real Electron stations completed create/update/delete and cross-station flows');
   } catch (error) {

@@ -68,6 +68,11 @@ for (const [prefix, type] of ENTITY_CASES) {
   assert.equal(b.cache.size, 30000); assert.ok(elapsed < 5000, `30k reconcile: ${elapsed}ms`);
 }
 const source = fs.readFileSync(path.join(__dirname, '..', 'js', 'cloud-sync.js'), 'utf8');
-const pollMs = Number(source.match(/CLOUD_SYNC_POLL_INTERVAL_MS\s*=\s*(\d+)/)[1]);
-assert.ok(pollMs <= 5000, `station propagation can exceed 5s: ${pollMs}ms`);
-console.log(`multi-station cloud tests passed (${ENTITY_CASES.length} entity flows, poll <= ${pollMs}ms)`);
+const fallbackPollMs = Number(source.match(/CLOUD_SYNC_FALLBACK_POLL_INTERVAL_MS\s*=\s*(\d+)/)[1]);
+const confirmedRealtimePollMs = Number(source.match(/CLOUD_SYNC_CONFIRMED_REALTIME_POLL_INTERVAL_MS\s*=\s*(\d+)/)[1]);
+assert.ok(fallbackPollMs <= 5000, `fallback station propagation can exceed 5s: ${fallbackPollMs}ms`);
+assert.ok(
+  confirmedRealtimePollMs >= fallbackPollMs * 6,
+  `confirmed Realtime should substantially relax polling: ${confirmedRealtimePollMs}ms`
+);
+console.log(`multi-station cloud tests passed (${ENTITY_CASES.length} entity flows, fallback ${fallbackPollMs}ms / confirmed ${confirmedRealtimePollMs}ms)`);

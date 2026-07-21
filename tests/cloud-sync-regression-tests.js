@@ -376,6 +376,39 @@ function testLegacyUntypedTombstoneStillDeletesVoucher() {
   assert.equal(row.data._deletedEntity, "voucher");
 }
 
+function testNewerActiveRowClearsStaleMetadataDeletionMarker() {
+  const { internals } = loadCloudSyncInternals();
+  const recreated = internals.cloudSyncStateFromRows([
+    {
+      id: 'metadata',
+      data: { deletedIds: ['PT-REUSED'], deletedCloudKeys: ['v_PT-REUSED'] },
+      last_modified: 100
+    },
+    {
+      id: 'v_PT-REUSED',
+      data: { id: 'PT-REUSED', type: 'receipt', _updatedAt: 200 },
+      last_modified: 200
+    }
+  ], { watermark: 200 }).state;
+  assert.equal(recreated.vouchers.some(item => item.id === 'PT-REUSED'), true, 'a newer recreated voucher must beat stale metadata deletion markers');
+  assert.equal(recreated.deletedIds.includes('PT-REUSED'), false);
+  assert.equal(recreated.deletedCloudKeys.includes('v_PT-REUSED'), false);
+
+  const deleted = internals.cloudSyncStateFromRows([
+    {
+      id: 'metadata',
+      data: { deletedIds: ['PT-OLD'], deletedCloudKeys: ['v_PT-OLD'] },
+      last_modified: 300
+    },
+    {
+      id: 'v_PT-OLD',
+      data: { id: 'PT-OLD', type: 'receipt', _updatedAt: 200 },
+      last_modified: 200
+    }
+  ], { watermark: 300 }).state;
+  assert.equal(deleted.vouchers.some(item => item.id === 'PT-OLD'), false, 'a newer metadata deletion must still suppress an older active row');
+}
+
 function testQueuedPullPreservesStrongestRequest() {
   const { internals } = loadCloudSyncInternals();
   internals.queuePendingPull({ reason: "realtime" });
@@ -622,6 +655,171 @@ function testDerivedEntityChangesDoNotFanOutToCloud() {
   assert.equal(internals.cloudSyncEntityNeedsPush(null, { id: 'NEW', _updatedAt: 1 }), true);
 }
 
+async function testNoOpPushDoesNotTouchCloud() {
+  let cloudCalls = 0;
+  const client = {
+    rpc() { cloudCalls += 1; throw new Error('no-op push must not call RPC'); },
+    from() { cloudCalls += 1; throw new Error('no-op push must not query a table'); }
+  };
+  const { sandbox, vm } = loadCloudSyncInternals({ __noOpClient: client });
+  const result = await vm.runInContext(`
+    cloudSyncActive = true;
+    isStartupPullCompleted = true;
+    supabaseClient = __noOpClient;
+    lastPullCompletedAt = Date.now();
+    state._lastModified = 1000;
+    lastSyncState = JSON.parse(JSON.stringify(state));
+    window.lastSyncState = lastSyncState;
+    __cloudSyncInternals__.setCloudSyncEgressMetricsEnabled(true);
+    __cloudSyncInternals__.resetCloudSyncEgressMetrics();
+    cloudSyncPushNow();
+  `, sandbox);
+
+  assert.equal(result, true, 'an already-synced station should treat a no-op push as successful');
+  assert.equal(cloudCalls, 0, 'a no-op push must not create database or Realtime egress');
+  assert.equal(sandbox.window.__cloudSyncInternals__.getCloudSyncEgressMetrics().skippedNoopPushes, 1);
+}
+
+function testEntityOnlyDeltaUsesLightweightSignalInsteadOfMetadata() {
+  const { internals, sandbox } = loadCloudSyncInternals();
+  sandbox.state.cashEntries = [{ id: 'CASH-BASELINE', amount: 10 }];
+  sandbox.state._accountingValid = true;
+  sandbox.state._accountingValidTs = 900;
+  sandbox.state._recalcWatermark = { voucherCount: 0, productCount: 0, lastModified: 1000 };
+  sandbox.state._cloudDatasetIdentity = 'local-runtime-a';
+  sandbox.state._lastModified = 1000;
+  sandbox.window.lastSyncState = JSON.parse(JSON.stringify(sandbox.state));
+
+  sandbox.state.partners.push({
+    id: 'PART-SIGNAL',
+    name: 'Signal Test',
+    _updatedAt: 2000,
+    _sessionId: 'session-local'
+  });
+  sandbox.state._accountingValidTs = 1900;
+  sandbox.state._recalcWatermark = { voucherCount: 0, productCount: 0, lastModified: 2000 };
+  sandbox.state._cloudDatasetIdentity = 'local-runtime-b';
+  sandbox.state._lastModified = 2000;
+
+  const delta = internals.computeDelta();
+  assert.ok(delta.rowsToUpsert.some(row => row.id === 'part_PART-SIGNAL'));
+  assert.equal(
+    delta.rowsToUpsert.some(row => row.id === 'metadata'),
+    false,
+    'an entity edit and station-local accounting cache refresh must not re-upload the large metadata JSON'
+  );
+
+  const signal = internals.cloudSyncMakeSignalRow(2000);
+  assert.equal(signal.id, 'sync_signal');
+  assert.deepEqual(Object.keys(signal.data), ['lastModifiedBy']);
+  assert.ok(JSON.stringify(signal).length < 256, 'the workspace change signal must remain tiny');
+
+  internals.cloudSyncApplyPushToLastSyncState(
+    delta.rowsToUpsert.filter(row => row.id !== 'metadata'),
+    2000,
+    null
+  );
+  assert.equal(sandbox.window.lastSyncState.companyName, 'Test Co');
+  assert.equal(sandbox.window.lastSyncState.cashEntries[0].id, 'CASH-BASELINE');
+  assert.equal(sandbox.window.lastSyncState._cloudWatermark, 2000);
+}
+
+function testRealMetadataChangeStillUploadsMetadata() {
+  const { internals, sandbox } = loadCloudSyncInternals();
+  sandbox.state._lastModified = 1000;
+  sandbox.window.lastSyncState = JSON.parse(JSON.stringify(sandbox.state));
+  sandbox.state.companyName = 'Updated Company';
+  sandbox.state._lastModified = 2000;
+
+  const delta = internals.computeDelta();
+  assert.ok(
+    delta.rowsToUpsert.some(row => row.id === 'metadata'),
+    'a real metadata content edit must still upload metadata'
+  );
+}
+
+function testRealtimeSubscriptionUsesOneCompactSignalEvent() {
+  const capture = {};
+  const channel = {
+    on(type, filter, callback) {
+      capture.type = type;
+      capture.filter = filter;
+      capture.callback = callback;
+      return this;
+    },
+    subscribe(callback) {
+      capture.statusCallback = callback;
+      return this;
+    }
+  };
+  const client = {
+    channel(name) { capture.channelName = name; return channel; },
+    removeChannel() {}
+  };
+  const { sandbox, vm } = loadCloudSyncInternals({
+    __realtimeClient: client,
+    currentUser: { username: 'shared-user' },
+    addEventListener() {},
+    setInterval() { return 1; },
+    clearInterval() {},
+    document: { getElementById() { return null; }, addEventListener() {}, hidden: false }
+  });
+
+  const ownToken = vm.runInContext(`
+    cloudSyncActive = true;
+    supabaseClient = __realtimeClient;
+    cloudUsesVersionedRpc = true;
+    __cloudSyncInternals__.setCloudSyncEgressMetricsEnabled(true);
+    __cloudSyncInternals__.resetCloudSyncEgressMetrics();
+    __cloudSyncInternals__.listenToCloudChanges();
+    __cloudSyncInternals__.cloudSyncGetUpdatedByToken();
+  `, sandbox);
+
+  assert.equal(capture.type, 'postgres_changes');
+  assert.equal(
+    capture.filter.filter,
+    'workspace_id=eq.00000000-0000-4000-8000-000000000001,id=eq.sync_signal',
+    'Realtime must emit only the lightweight signal row for each sync transaction'
+  );
+  assert.deepEqual(
+    Array.from(capture.filter.select),
+    ['workspace_id', 'id', 'sync_version', 'updated_by'],
+    'Realtime must not include the accounting data JSON payload'
+  );
+  assert.equal(ownToken, 'shared-user|session-local');
+  assert.equal(sandbox.window.__cloudSyncInternals__.cloudSyncIsOwnUpdatedByToken('shared-user|other-session'), false);
+
+  capture.callback({
+    new: {
+      workspace_id: '00000000-0000-4000-8000-000000000001',
+      id: 'sync_signal',
+      sync_version: 10,
+      updated_by: ownToken
+    }
+  });
+  const metrics = sandbox.window.__cloudSyncInternals__.getCloudSyncEgressMetrics();
+  assert.equal(metrics.realtimeEvents, 1);
+  assert.equal(metrics.realtimeEventsWithData, 0);
+  assert.equal(metrics.realtimeChangeConfirmed, true);
+  assert.equal(metrics.activePollIntervalMs, 30000);
+}
+
+function testRoutineIncrementalPathsNeverRequestFullFallback() {
+  assert.doesNotMatch(
+    cloudSyncSource,
+    /reason:\s*"(?:manual|deferred)"[^\n}]*retryFullIfNoChanges:\s*true/,
+    'routine manual/deferred sync must not convert an empty delta into a full snapshot'
+  );
+}
+
+function testRoutineWatermarkChecksUseMetadataSummary() {
+  const summaryReads = cloudSyncSource.match(/cloudSyncEnsureMetadataRow\(\{\s*summaryOnly:\s*true\s*\}\)/g) || [];
+  assert.ok(
+    summaryReads.length >= 4,
+    `pull, pre-push, push, and polling paths must avoid the full metadata JSON (found ${summaryReads.length})`
+  );
+}
+
 async function testLegacyDeltaSecondPageQuotesSpecialCursor() {
   const requests = [];
   const firstPage = Array.from({ length: 500 }, (_, index) => ({
@@ -680,6 +878,7 @@ async function run() {
   testMergeKeepsRemoteVoucherOnTimestampTieWithDifferentSession();
   testTypedTombstoneDoesNotDeleteOtherEntityWithSameId();
   testLegacyUntypedTombstoneStillDeletesVoucher();
+  testNewerActiveRowClearsStaleMetadataDeletionMarker();
   testQueuedPullPreservesStrongestRequest();
   testRescueCandidateKeysOnlyChecksPushDiff();
   await testCandidateRescueDoesNotTouchUnchangedNonCandidates();
@@ -687,6 +886,12 @@ async function run() {
   await testRescueLogsAreCappedAndSummarized();
   testPostgrestCursorQuoting();
   testDerivedEntityChangesDoNotFanOutToCloud();
+  testRoutineIncrementalPathsNeverRequestFullFallback();
+  testRoutineWatermarkChecksUseMetadataSummary();
+  testEntityOnlyDeltaUsesLightweightSignalInsteadOfMetadata();
+  testRealMetadataChangeStillUploadsMetadata();
+  testRealtimeSubscriptionUsesOneCompactSignalEvent();
+  await testNoOpPushDoesNotTouchCloud();
   await testLegacyDeltaSecondPageQuotesSpecialCursor();
   await testRescueRemovesStuckVoucherFromLastSyncState();
   console.log("cloud sync regression tests passed");
