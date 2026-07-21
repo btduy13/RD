@@ -2677,6 +2677,7 @@ select.vie-control {
   font-size: calc(var(--voucher-template-title-font-size, 18px) * 0.6) !important;
   text-transform: uppercase;
   line-height: 1.2;
+  white-space: nowrap;
 }
 .voucher-rd-co-addr,
 .voucher-rd-co-tel {
@@ -2685,6 +2686,9 @@ select.vie-control {
   line-height: 1.2;
   word-wrap: break-word;
   overflow-wrap: break-word;
+}
+.voucher-rd-co-addr {
+  white-space: nowrap;
 }
 .voucher-rd-co-tel {
   font-weight: 500;
@@ -5228,6 +5232,36 @@ body.light-theme .table-card {
 /* Card header bar: shrink-0 */
 .card-header-bar {
   flex-shrink: 0;
+}
+
+.cash-filtered-totals {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 13px;
+}
+
+.cash-filtered-total {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.cash-filtered-total strong {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cash-filtered-total--receipt strong {
+  color: var(--color-success);
+}
+
+.cash-filtered-total--payment strong {
+  color: var(--color-danger);
 }
 
 /* Table responsive / wrapper: flex-1, min-height 0, overflow auto */

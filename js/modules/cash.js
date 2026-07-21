@@ -89,6 +89,29 @@ function recalculateCashKpis() {
     if (payEl) payEl.innerText = formatVND(totalPayments);
 }
 
+function calculateCashListTotals(vouchers) {
+    return (Array.isArray(vouchers) ? vouchers : []).reduce((totals, voucher) => {
+        const amount = Number(voucher.amount ?? voucher.totalAmount ?? 0);
+        if (!Number.isFinite(amount)) return totals;
+
+        if (voucher.type === "receipt" || voucher.type === "escrow_receive" || voucher.type === "escrow_refund_pay") {
+            totals.receipts += amount;
+        } else if (voucher.type === "payment" || voucher.type === "escrow_pay" || voucher.type === "escrow_refund_receive") {
+            totals.payments += amount;
+        }
+        return totals;
+    }, { receipts: 0, payments: 0 });
+}
+
+function renderCashListTotals(vouchers) {
+    const totals = calculateCashListTotals(vouchers);
+    const receiptEl = document.getElementById("cash-filtered-receipt-total");
+    const paymentEl = document.getElementById("cash-filtered-payment-total");
+
+    if (receiptEl) receiptEl.innerText = formatVND(totals.receipts);
+    if (paymentEl) paymentEl.innerText = formatVND(totals.payments);
+}
+
 function renderCashTable() {
     const tbody = document.getElementById("cash-table-body");
     if (!tbody) return;
@@ -102,6 +125,8 @@ function renderCashTable() {
     const startIdx = (cashPage - 1) * itemsPerPage;
     const endIdx = startIdx + itemsPerPage;
     const pageItems = filteredCashList.slice(startIdx, endIdx);
+
+    renderCashListTotals(filteredCashList);
 
     tbody.innerHTML = "";
     if (pageItems.length === 0) {
@@ -981,6 +1006,7 @@ function batchDeleteCash() {
 // Cash
 window.filterCash = filterCash;
 window.recalculateCashKpis = recalculateCashKpis;
+window.calculateCashListTotals = calculateCashListTotals;
 window.changeCashPage = changeCashPage;
 window.clearCashDateFilter = clearCashDateFilter;
 window.toggleSelectAllCash = toggleSelectAllCash;

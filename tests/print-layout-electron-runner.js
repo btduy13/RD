@@ -20,8 +20,8 @@ const sampleVoucherHtml = `
       </div>
       <div class="voucher-rd-header-info">
         <div class="voucher-rd-co-name">CÔNG TY CỔ PHẦN SX VÀ ĐT PHÁT TRIỂN RẠNG ĐÔNG</div>
-        <div class="voucher-rd-co-unit">TRUNG TÂM PP BẢO HÀNH-MÁY NƯỚC NÓNG NLMT SOLARKYO</div>
-        <div class="voucher-rd-co-addr">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh</div>
+        <div class="voucher-rd-co-unit">TT PP BẢO HÀNH-MÁY NƯỚC NÓNG NLMT SOLARKYO</div>
+        <div class="voucher-rd-co-addr">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, TP. Hồ Chí Minh</div>
         <div class="voucher-rd-co-tel">Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074</div>
       </div>
       <div class="voucher-rd-header-qr">
@@ -94,10 +94,14 @@ async function main() {
     const root = document.querySelector(".printable-voucher");
     const title = document.querySelector(".voucher-document-title");
     const company = document.querySelector(".voucher-rd-co-name");
+    const unit = document.querySelector(".voucher-rd-co-unit");
+    const address = document.querySelector(".voucher-rd-co-addr");
     const tableCell = document.querySelector(".voucher-table td");
     const rootStyle = getComputedStyle(root);
     const titleStyle = getComputedStyle(title);
     const companyStyle = getComputedStyle(company);
+    const unitStyle = getComputedStyle(unit);
+    const addressStyle = getComputedStyle(address);
     const cellStyle = getComputedStyle(tableCell);
     const header = document.querySelector(".voucher-rd-header");
     const headerStyle = getComputedStyle(header);
@@ -122,6 +126,12 @@ async function main() {
       companyWhiteSpace: companyStyle.whiteSpace,
       companyScrollWidth: company.scrollWidth,
       companyClientWidth: company.clientWidth,
+      unitWhiteSpace: unitStyle.whiteSpace,
+      unitScrollWidth: unit.scrollWidth,
+      unitClientWidth: unit.clientWidth,
+      addressWhiteSpace: addressStyle.whiteSpace,
+      addressScrollWidth: address.scrollWidth,
+      addressClientWidth: address.clientWidth,
       cellFontSize: cellStyle.fontSize,
       bodyScrollWidth: document.body.scrollWidth,
       viewportWidth: document.documentElement.clientWidth
@@ -142,6 +152,10 @@ async function main() {
   assert(metrics.titleScrollWidth <= metrics.titleClientWidth + 1, "voucher title is clipped/overflowing");
   assert.equal(metrics.companyWhiteSpace, "nowrap");
   assert(metrics.companyScrollWidth <= metrics.companyClientWidth + 1, "company title is clipped/overflowing");
+  assert.equal(metrics.unitWhiteSpace, "nowrap");
+  assert(metrics.unitScrollWidth <= metrics.unitClientWidth + 1, "abbreviated unit title is clipped/overflowing");
+  assert.equal(metrics.addressWhiteSpace, "nowrap");
+  assert(metrics.addressScrollWidth <= metrics.addressClientWidth + 1, "abbreviated company address is clipped/overflowing");
   assert.equal(metrics.cellFontSize, "13px");
   assert(metrics.bodyScrollWidth <= metrics.viewportWidth + 1, "print document has horizontal overflow");
 

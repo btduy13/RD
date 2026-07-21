@@ -357,8 +357,8 @@ function renderRdBrandedHeader(qrAmount, withQr, qrAddInfo) {
           </div>
           <div class="voucher-rd-header-info">
             <div class="voucher-rd-co-name">CÔNG TY CỔ PHẦN SX VÀ ĐT PHÁT TRIỂN RẠNG ĐÔNG</div>
-            <div class="voucher-rd-co-unit">TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKYO</div>
-            <div class="voucher-rd-co-addr">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh</div>
+            <div class="voucher-rd-co-unit">TT PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKYO</div>
+            <div class="voucher-rd-co-addr">Địa chỉ: 255 Trương Công Định, Phường Vũng Tàu, TP. Hồ Chí Minh</div>
             <div class="voucher-rd-co-tel">Tel: 0254.3543551 – Hotline: 0913 693 485 - 0913 128 074</div>
           </div>${qrBlock}
         </div>`;
@@ -392,7 +392,8 @@ function viewVoucher(id) {
 
   let content = "";
   const companyName = state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông";
-  const companyAddr = state.address || "255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh";
+  const companyAddr = (state.address || "255 Trương Công Định, Phường Vũng Tàu, TP. Hồ Chí Minh")
+    .replace(/Thành\s+Phố/giu, "TP.");
   const companyTax = state.taxCode || "0100101438";
 
   // TIÊU ĐỀ CHỨNG TỪ THEO CHUẨN IN ẤN
@@ -2809,14 +2810,15 @@ function exportVoucherToExcel(id) {
   }
 
   const companyName = state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông";
-  const companyAddr = state.address || "255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh";
+  const companyAddr = (state.address || "255 Trương Công Định, Phường Vũng Tàu, TP. Hồ Chí Minh")
+    .replace(/Thành\s+Phố/giu, "TP.");
   const companyTax = state.taxCode || "0100101438";
 
   const rows = [];
 
   // Header
   rows.push([companyName, "", "", "", "", "Mẫu số: " + (v.type === "purchase" ? "C21-DN" : v.type === "sales" ? "01-VT" : "01-TT")]);
-  rows.push(["TRUNG TÂM PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKYO", "", "", "", "", "Quyển số: ........"]);
+  rows.push(["TT PP BẢO HÀNH–MÁY NƯỚC NÓNG NLMT SOLARKYO", "", "", "", "", "Quyển số: ........"]);
   rows.push(["Địa chỉ: " + companyAddr, "", "", "", "", "Số: " + v.id]);
   rows.push(["MST: " + companyTax + " | Tel: 0254.3543551", "", "", "", "", ""]);
   rows.push(["", "", "", "", "", ""]); // Blank row
