@@ -38,6 +38,7 @@ Chuan bi:
 | SYNC-09 | Tat cloud sync | Bo tick cloud sync, luu config, khoi dong lai. | Checkbox van tat, app khong tu bat lai sync. |
 | SYNC-10 | May B tu thay don moi khong restart | Mo app tren ca 2 may. May A lap va luu 1 hoa don ban hang moi. Giu may B dang mo o tab Ban hang, khong restart. | Sau khi may A push xong, may B tu phat hien metadata cloud moi va hien don moi trong vai giay; khong can reset phan mem. |
 | SYNC-11 | Realtime bi loi/khong bat tren Supabase | Tam thoi chan realtime hoac quan sat khi kenh realtime loi, sau do may A tao don moi. | Vong polling metadata van tu kich hoat pull tren may B; badge khong bi treo o trang thai loi ma khong dong bo. |
+| SYNC-12 | Tao phieu thu/chi dong thoi | A va B cung lap phieu thu hoac phieu chi tu cung mot snapshot va bam luu gan nhu dong thoi. | Moi may duoc cap mot ma PT/PC rieng tren cloud; ca hai phieu con ton tai sau pull/restart, khong co phieu nao ghi de phieu kia. |
 
 ## 3. Test cong no va so lieu
 

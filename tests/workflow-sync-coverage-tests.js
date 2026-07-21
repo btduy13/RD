@@ -5,6 +5,7 @@ const root = path.resolve(__dirname, '..');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const sources = ['purchase.js', 'sales.js', 'cash.js', 'inventory.js', 'partners.js', 'debts.js']
   .map(name => fs.readFileSync(path.join(root, 'js', 'modules', name), 'utf8')).join('\n');
+const cashSource = fs.readFileSync(path.join(root, 'js', 'modules', 'cash.js'), 'utf8');
 const accounting = fs.readFileSync(path.join(root, 'js', 'accounting.js'), 'utf8');
 
 const forms = [...index.matchAll(/<form\b[^>]*id="([^"]+)"[^>]*onsubmit="([A-Za-z0-9_]+)\(event\)"/g)]
@@ -20,6 +21,14 @@ for (const handler of ['handlePurchaseSubmit', 'handlePurchaseOrderSubmit', 'han
   assert.ok(start >= 0, `${handler} must be async`);
   const excerpt = sources.slice(start, start + 9000);
   assert.match(excerpt, /await\s+saveStateAndSyncVoucher\(\)/, `${handler} must wait for cloud acknowledgement`);
+}
+
+for (const [handler, prefix] of [['handleReceiptSubmit', 'PT'], ['handlePaymentSubmit', 'PC']]) {
+  const start = cashSource.search(new RegExp(`async\\s+function\\s+${handler}\\s*\\(`));
+  assert.ok(start >= 0, `${handler} missing`);
+  const excerpt = cashSource.slice(start, start + 5000);
+  assert.match(excerpt, /await\s+ensureCloudSafeVoucherIdForSave\s*\(/, `${handler} must reserve a cloud-safe voucher id`);
+  assert.match(excerpt, new RegExp(`prefix:\\s*["']${prefix}["']`), `${handler} must reserve the ${prefix} sequence`);
 }
 
 for (const [name, type] of [

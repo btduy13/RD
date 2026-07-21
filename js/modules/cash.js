@@ -410,7 +410,16 @@ async function handleReceiptSubmit(e) {
 
   try {
     const partnerObj = resolvePartner(partnerVal);
-    const id = editingReceiptId || generateNextReceiptVoucherId();
+    let id = editingReceiptId || generateNextReceiptVoucherId();
+
+    if (!editingReceiptId && typeof ensureCloudSafeVoucherIdForSave === "function") {
+      setVoucherFormStatus(modalId, "Đang kiểm tra số phiếu thu trên cloud...", "cloud");
+      id = await ensureCloudSafeVoucherIdForSave({
+        currentId: id,
+        prefix: "PT",
+        fallbackBase: 13122
+      });
+    }
 
     const updatedVoucher = {
       id,
@@ -488,7 +497,16 @@ async function handlePaymentSubmit(e) {
 
   try {
     const partnerObj = resolvePartner(partnerVal);
-    const id = editingPaymentId || generateNextPaymentVoucherId();
+    let id = editingPaymentId || generateNextPaymentVoucherId();
+
+    if (!editingPaymentId && typeof ensureCloudSafeVoucherIdForSave === "function") {
+      setVoucherFormStatus(modalId, "Đang kiểm tra số phiếu chi trên cloud...", "cloud");
+      id = await ensureCloudSafeVoucherIdForSave({
+        currentId: id,
+        prefix: "PC",
+        fallbackBase: 7194
+      });
+    }
 
     const updatedVoucher = {
       id,
