@@ -1,6 +1,6 @@
 {
   "name": "rd-accounting",
-  "version": "3.3.7",
+  "version": "3.3.8",
   "description": "Phần mềm kế toán độc lập Công ty Cổ phần Rạng Đông",
   "main": "main.js",
   "scripts": {
@@ -12,6 +12,7 @@
     "test:online-sync": "node tests/online-sync-contract-tests.js",
     "test:multi-station": "node tests/multi-station-cloud-tests.js",
     "test:real-multistation": "node tests/real-multistation-e2e.js",
+    "test:distributed-multistation": "node tests/distributed-multistation-e2e.js",
     "test:workflow-sync": "node tests/workflow-sync-coverage-tests.js",
     "test:core": "node tests/core-regression-tests.js",
     "test:persistence": "node tests/persistence-regression-tests.js",

@@ -435,6 +435,7 @@ async function handleReceiptSubmit(e) {
 
   try {
     const partnerObj = resolvePartner(partnerVal);
+    const isEdit = !!editingReceiptId;
     let id = editingReceiptId || generateNextReceiptVoucherId();
 
     if (!editingReceiptId && typeof ensureCloudSafeVoucherIdForSave === "function") {
@@ -473,10 +474,8 @@ async function handleReceiptSubmit(e) {
       }
       editingReceiptId = null;
       resetReceiptForm();
-      showToast("Cập nhật phiếu thu thành công!", "success");
     } else {
       state.vouchers.push(updatedVoucher);
-      showToast("Lập phiếu thu thành công!", "success");
     }
 
     setVoucherFormStatus(modalId, "Đang đồng bộ máy khác...", "sync");
@@ -484,6 +483,7 @@ async function handleReceiptSubmit(e) {
     await saveStateAndSyncVoucher();
 
     closeModal(modalId);
+    showToast(isEdit ? "Cập nhật phiếu thu thành công!" : "Lập phiếu thu thành công!", "success");
     document.getElementById("form-receipt").reset();
 
     filterCash();
@@ -522,6 +522,7 @@ async function handlePaymentSubmit(e) {
 
   try {
     const partnerObj = resolvePartner(partnerVal);
+    const isEdit = !!editingPaymentId;
     let id = editingPaymentId || generateNextPaymentVoucherId();
 
     if (!editingPaymentId && typeof ensureCloudSafeVoucherIdForSave === "function") {
@@ -560,10 +561,8 @@ async function handlePaymentSubmit(e) {
       }
       editingPaymentId = null;
       resetPaymentForm();
-      showToast("Cập nhật phiếu chi thành công!", "success");
     } else {
       state.vouchers.push(updatedVoucher);
-      showToast("Lập phiếu chi thành công!", "success");
     }
 
     setVoucherFormStatus(modalId, "Đang đồng bộ máy khác...", "sync");
@@ -571,6 +570,7 @@ async function handlePaymentSubmit(e) {
     await saveStateAndSyncVoucher();
 
     closeModal(modalId);
+    showToast(isEdit ? "Cập nhật phiếu chi thành công!" : "Lập phiếu chi thành công!", "success");
     document.getElementById("form-payment").reset();
 
     filterCash();

@@ -7,6 +7,7 @@ const sources = ['purchase.js', 'sales.js', 'cash.js', 'inventory.js', 'partners
   .map(name => fs.readFileSync(path.join(root, 'js', 'modules', name), 'utf8')).join('\n');
 const cashSource = fs.readFileSync(path.join(root, 'js', 'modules', 'cash.js'), 'utf8');
 const accounting = fs.readFileSync(path.join(root, 'js', 'accounting.js'), 'utf8');
+const stateSource = fs.readFileSync(path.join(root, 'js', 'state.js'), 'utf8');
 
 const forms = [...index.matchAll(/<form\b[^>]*id="([^"]+)"[^>]*onsubmit="([A-Za-z0-9_]+)\(event\)"/g)]
   .map(match => ({ id: match[1], handler: match[2] }))
@@ -22,6 +23,18 @@ for (const handler of ['handlePurchaseSubmit', 'handlePurchaseOrderSubmit', 'han
   const excerpt = sources.slice(start, start + 9000);
   assert.match(excerpt, /await\s+saveStateAndSyncVoucher\(\)/, `${handler} must wait for cloud acknowledgement`);
 }
+
+const saveAndSyncStart = stateSource.search(/async\s+function\s+saveStateAndSyncVoucher\s*\(/);
+assert.ok(saveAndSyncStart >= 0, 'saveStateAndSyncVoucher missing');
+const saveAndSyncExcerpt = stateSource.slice(saveAndSyncStart, saveAndSyncStart + 3000);
+assert.match(saveAndSyncExcerpt, /await\s+pushToCloud\s*\(\s*\{\s*pendingToken\s*\}\s*\)/, 'voucher persistence must await the first cloud commit attempt');
+assert.doesNotMatch(saveAndSyncExcerpt, /queueBackgroundCloudPush\s*\(/, 'voucher persistence must not report success immediately after only queueing the cloud push');
+
+const closeStart = stateSource.search(/async\s+function\s+autoSaveBeforeClose\s*\(/);
+assert.ok(closeStart >= 0, 'autoSaveBeforeClose missing');
+const closeExcerpt = stateSource.slice(closeStart, closeStart + 3500);
+assert.match(closeExcerpt, /getPendingCloudWriteToken/, 'close flush must inspect the durable pending cloud write');
+assert.match(closeExcerpt, /await\s+waitForPushToComplete\s*\(\s*7000\s*\)/, 'close flush must wait for the queued cloud write');
 
 for (const [handler, prefix] of [['handleReceiptSubmit', 'PT'], ['handlePaymentSubmit', 'PC']]) {
   const start = cashSource.search(new RegExp(`async\\s+function\\s+${handler}\\s*\\(`));

@@ -722,26 +722,56 @@ async function saveStateAndSyncVoucher() {
     saveStateTimeout = null;
   }
 
-  // Persist locally first so the form never waits on a slow network request.
-  // The durable pending marker makes startup recover and retry an interrupted push.
-  const pendingToken = typeof window.markCloudWritePending === "function"
+  // Persist locally first, then wait for the first cloud commit attempt before
+  // the business form reports success. Previously this function queued the
+  // push and returned immediately, so a user could close the app while the
+  // order existed only in SQLite and other stations never saw it.
+  const cloudExpected = typeof cloudSyncSettings !== "undefined"
+    ? cloudSyncSettings.enabled !== false
+    : typeof window.markCloudWritePending === "function";
+  const cloudCanCommit = typeof cloudSyncActive !== "undefined" && cloudSyncActive &&
+    typeof supabaseClient !== "undefined" && !!supabaseClient &&
+    typeof pushToCloud === "function";
+  const pendingToken = cloudExpected && typeof window.markCloudWritePending === "function"
     ? window.markCloudWritePending()
     : null;
   const saved = await executeSaveState(true, { skipCloudPush: true });
   if (!saved) {
     throw new Error("Không thể lưu chứng từ vào SQLite.");
   }
-  queueBackgroundCloudPush(pendingToken);
+
+  if (cloudCanCommit) {
+    let cloudCommitted = await pushToCloud({ pendingToken });
+    if (!cloudCommitted && pendingToken) {
+      await waitForPushToComplete(7000);
+      cloudCommitted = typeof window.getPendingCloudWriteToken !== "function" ||
+        window.getPendingCloudWriteToken() !== pendingToken;
+    }
+    if (!cloudCommitted) {
+      console.warn("[StateFile] Chứng từ đã lưu SQLite nhưng cloud chưa xác nhận; giữ pending marker để tự thử lại.");
+      if (typeof showToast === "function") {
+        showToast("Chứng từ đã lưu trên máy này và đang chờ đồng bộ sang máy khác.", "warning");
+      }
+    }
+  } else if (pendingToken && typeof showToast === "function") {
+    showToast("Chứng từ đã lưu trên máy này; cloud chưa kết nối nên sẽ tự đồng bộ lại.", "warning");
+  }
   return true;
 }
 
 window.saveStateAndSyncVoucher = saveStateAndSyncVoucher;
 
-async function waitForPushToComplete(maxWaitMs = 3000) {
+async function waitForPushToComplete(maxWaitMs = 7000) {
   const startTime = Date.now();
-  while (typeof isPushing !== 'undefined' && isPushing) {
+  while (true) {
+    const pushing = typeof isPushing !== 'undefined' && isPushing;
+    const queued = typeof pushPending !== 'undefined' && pushPending;
+    const pendingToken = typeof window.getPendingCloudWriteToken === 'function'
+      ? window.getPendingCloudWriteToken()
+      : '';
+    if (!pushing && !queued && !pendingToken) break;
     if (Date.now() - startTime > maxWaitMs) {
-      console.warn('[AutoSave] Hết thời gian chờ đồng bộ đám mây.');
+      console.warn('[AutoSave] Hết thời gian chờ hàng đợi đồng bộ đám mây.');
       break;
     }
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -770,18 +800,21 @@ async function autoSaveBeforeClose() {
     // Guard the optional cloud engine so local persistence remains independent.
     if (typeof cloudSyncActive !== 'undefined' && cloudSyncActive && typeof supabaseClient !== 'undefined' && supabaseClient) {
       const alreadyPushing = typeof isPushing !== 'undefined' && isPushing;
+      const pendingToken = typeof window.getPendingCloudWriteToken === 'function'
+        ? window.getPendingCloudWriteToken()
+        : '';
       
-      if (wasDirty) {
+      if (wasDirty || pendingToken) {
         state._lastModified = Date.now();
         if (alreadyPushing) {
           pushPending = true;
         } else {
-          await pushToCloud();
+          await pushToCloud({ pendingToken: pendingToken || null });
         }
       }
       
-      // Chờ cho tất cả tiến trình đẩy đang chạy hoàn tất (tối đa 3 giây)
-      await waitForPushToComplete(3000);
+      // Chờ cả push đang chạy, push đã xếp hàng và durable pending marker.
+      await waitForPushToComplete(7000);
       console.log("[AutoSave] Đã đảm bảo tất cả dữ liệu được đẩy lên Cloud trước khi đóng.");
     } else {
       console.log("[AutoSave] Cloud không kết nối hoặc không có thay đổi mới, chỉ lưu cục bộ.");

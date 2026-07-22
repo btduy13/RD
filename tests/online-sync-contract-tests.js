@@ -15,6 +15,14 @@ assert.doesNotMatch(gateSource, /status === "ready" \|\| status === "syncing"/);
 assert.match(stateSource, /executeSaveState\(true, \{ skipCloudPush: true \}\)/);
 assert.match(stateSource, /if \(sync\) \{\s*return await saveThenQueueCloud\(\);/);
 assert.match(stateSource, /void Promise\.resolve\(pushToCloud\(\{ pendingToken \}\)\)/);
+const voucherSaveSource = stateSource.slice(
+  stateSource.indexOf('async function saveStateAndSyncVoucher()'),
+  stateSource.indexOf('window.saveStateAndSyncVoucher = saveStateAndSyncVoucher;')
+);
+assert.match(voucherSaveSource, /await pushToCloud\(\{ pendingToken \}\)/);
+assert.doesNotMatch(voucherSaveSource, /queueBackgroundCloudPush\(/);
+assert.match(voucherSaveSource, /await waitForPushToComplete\(7000\)/);
+assert.match(voucherSaveSource, /cloudExpected[\s\S]*markCloudWritePending\(\)/);
 assert.doesNotMatch(stateSource, /await initCloudSync\(\)/);
 assert.match(stateSource, /window\.cloudStartupPromise = Promise\.resolve\(\)[\s\S]*\.then\(\(\) => initCloudSync\(\)\)/);
 assert.match(syncSource, /CLOUD_SYNC_PENDING_WRITE_KEY/);

@@ -10,6 +10,7 @@ const productId = `${runId}-PROD`;
 const salesId = `${runId}-SALE`;
 const voucherTypes = ['purchase', 'purchase_order', 'sales_return', 'purchase_return', 'sales_quotation', 'receipt', 'payment'];
 const extraVoucherIds = voucherTypes.map(type => `${runId}-${type.toUpperCase()}`);
+const concurrentVoucherIds = [];
 
 async function debuggerUrl(port) {
   const pages = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
@@ -48,15 +49,34 @@ async function evaluate(port, expression, timeoutMs = 60000) {
 
 async function waitFor(port, expression, label, timeoutMs = 60000) {
   const started = Date.now();
+  let lastTransientError = null;
   while (Date.now() - started < timeoutMs) {
-    if (await evaluate(port, `Boolean(${expression})`)) {
-      const elapsed = Date.now() - started;
-      console.log(`[real-e2e] ${label}: ${elapsed}ms`);
-      return elapsed;
+    try {
+      if (await evaluate(port, `Boolean(${expression})`)) {
+        const elapsed = Date.now() - started;
+        console.log(`[real-e2e] ${label}: ${elapsed}ms`);
+        return elapsed;
+      }
+      lastTransientError = null;
+    } catch (error) {
+      // The remote-debugging port opens before index.html and its scripts have
+      // finished loading. Treat missing globals during that short bootstrap
+      // window as "not ready" instead of failing the entire multi-station run.
+      const message = String(error && error.message || error);
+      const transientBootstrapError = [
+        'ReferenceError',
+        'Cannot access',
+        'fetch failed',
+        'ECONNREFUSED',
+        'No Electron page'
+      ].some(token => message.includes(token) || String(error && error.cause || '').includes(token));
+      if (!transientBootstrapError) throw error;
+      lastTransientError = error;
     }
     await new Promise(resolve => setTimeout(resolve, 350));
   }
-  throw new Error(`Timed out waiting for ${label}`);
+  const detail = lastTransientError ? `; last bootstrap error: ${lastTransientError.message}` : '';
+  throw new Error(`Timed out waiting for ${label}${detail}`);
 }
 
 async function waitForBothQuiescent(timeoutMs = 180000) {
@@ -93,6 +113,107 @@ async function waitForPush(port, label) {
 
 async function saveDirect(port, body) {
   return evaluate(port, `(async () => { ${body}; await saveStateAndSyncVoucher(); return true; })()`, 60000);
+}
+
+async function startConcurrentItemVoucher(port, stationLabel, config) {
+  const description = `${runId} concurrent ${config.type} station ${stationLabel}`;
+  const payload = JSON.stringify(config);
+  await evaluate(port, `(() => {
+    const config = ${payload};
+    clearActiveFormDraft(config.formId);
+    window[config.resetName]();
+    openModal(config.modalId);
+    document.getElementById(config.idField).value = '';
+    document.getElementById(config.partnerField).value = 'Codex E2E Partner Updated (${partnerId})';
+    document.getElementById(config.dateField).value = '2026-07-13';
+    document.getElementById(config.paymentField).value = config.payment;
+    document.getElementById(config.descField).value = ${JSON.stringify(description)};
+    if (config.taxField) document.getElementById(config.taxField).value = '0';
+    replaceDynamicFormTableRows(config.tbodyId, [{
+      productId: ${JSON.stringify(productId)}, desc: 'Codex concurrent line', qty: 1, price: 1, discount: 0
+    }]);
+    window.__realE2eConcurrentError = null;
+    window.__realE2eConcurrentPromise = Promise.resolve(window[config.handlerName]({ preventDefault() {} }))
+      .catch(error => { window.__realE2eConcurrentError = String(error && (error.stack || error.message) || error); });
+    return true;
+  })()`);
+  return { port, stationLabel, config, description };
+}
+
+async function startConcurrentCashVoucher(port, stationLabel, config) {
+  const description = `${runId} concurrent ${config.type} station ${stationLabel}`;
+  const payload = JSON.stringify(config);
+  await evaluate(port, `(() => {
+    const config = ${payload};
+    window[config.resetName]();
+    document.getElementById(config.formId).reset();
+    openModal(config.modalId);
+    document.getElementById(config.dateField).value = '2026-07-13';
+    document.getElementById(config.partnerField).value = 'Codex E2E Partner Updated (${partnerId})';
+    document.getElementById(config.debitField).value = config.debit;
+    document.getElementById(config.creditField).value = config.credit;
+    document.getElementById(config.amountField).value = '1';
+    document.getElementById(config.descField).value = ${JSON.stringify(description)};
+    window.__realE2eConcurrentError = null;
+    window.__realE2eConcurrentPromise = Promise.resolve(window[config.handlerName]({ preventDefault() {} }))
+      .catch(error => { window.__realE2eConcurrentError = String(error && (error.stack || error.message) || error); });
+    return true;
+  })()`);
+  return { port, stationLabel, config, description };
+}
+
+async function finishConcurrentVoucher(started) {
+  const { port, stationLabel, config, description } = started;
+  await waitFor(port, `!isVoucherFormBusy(${JSON.stringify(config.modalId)})`, `${config.type} concurrent form ${stationLabel} completed`, 90000);
+  const result = await evaluate(port, `(() => {
+    const voucher = state.vouchers.find(item => item && item.type === ${JSON.stringify(config.type)} && item.description === ${JSON.stringify(description)});
+    return {
+      id: voucher && voucher.id,
+      error: window.__realE2eConcurrentError,
+      modal: document.getElementById(${JSON.stringify(config.modalId)}).style.display
+    };
+  })()`);
+  assert.equal(result.error, null, `${config.type} concurrent form ${stationLabel} must not reject`);
+  assert.ok(result.id, `${config.type} concurrent form ${stationLabel} must create a local voucher`);
+  assert.equal(result.modal, 'none', `${config.type} concurrent form ${stationLabel} must close after local persistence`);
+  return { ...result, port, stationLabel, description };
+}
+
+async function createConcurrentVoucherPair(config) {
+  const starter = config.kind === 'cash' ? startConcurrentCashVoucher : startConcurrentItemVoucher;
+  const started = await Promise.all([
+    starter(stationA, 'A', config),
+    starter(stationB, 'B', config)
+  ]);
+  const results = await Promise.all(started.map(finishConcurrentVoucher));
+  assert.notEqual(results[0].id, results[1].id, `${config.type} concurrent saves must reserve different cloud IDs`);
+  concurrentVoucherIds.push(...results.map(result => result.id));
+
+  await Promise.all(results.map(result => waitForPush(result.port, `${config.type} concurrent push ${result.stationLabel}`)));
+  const idsJson = JSON.stringify(results.map(result => result.id));
+  await Promise.all([stationA, stationB].map((port, index) => waitFor(
+    port,
+    `${idsJson}.every(id => state.vouchers.some(item => item && item.id === id && item.type === ${JSON.stringify(config.type)}))`,
+    `Station ${index === 0 ? 'A' : 'B'} retained both concurrent ${config.type} vouchers`,
+    90000
+  )));
+
+  // A full reconciliation is the closest in-process equivalent to a cold
+  // restart: rebuild state from every cloud row, then merge pending local data.
+  await Promise.all([stationA, stationB].map(port => evaluate(
+    port,
+    `pullAndMergeFromCloud({ reason: 'real-e2e-concurrent-${config.type}', force: true, forceFull: true })`,
+    120000
+  )));
+  await Promise.all([stationA, stationB].map((port, index) => waitFor(
+    port,
+    `${idsJson}.every(id => state.vouchers.some(item => item && item.id === id && item.type === ${JSON.stringify(config.type)}))`,
+    `Station ${index === 0 ? 'A' : 'B'} retained both ${config.type} vouchers after full reconcile`,
+    90000
+  )));
+
+  console.log(`[real-e2e] concurrent ${config.type} IDs: ${results.map(result => result.id).join(', ')}`);
+  return results.map(result => result.id);
 }
 
 async function createItemVoucherThroughForm(config, voucherId) {
@@ -166,7 +287,7 @@ async function createCashVoucherThroughForm(config) {
 }
 
 async function cleanup() {
-  const idsJson = JSON.stringify([salesId, ...extraVoucherIds]);
+  const idsJson = JSON.stringify(Array.from(new Set([salesId, ...extraVoucherIds, ...concurrentVoucherIds])));
   await evaluate(stationA, `(async () => {
     const voucherIds = ${idsJson};
     voucherIds.forEach(id => {
@@ -262,6 +383,27 @@ async function run() {
     await waitForPush(stationA, 'product update pushed');
     await waitFor(stationB, `state.products.some(item => item && item.id === ${JSON.stringify(productId)} && item.salePrice1 === 2)`, 'Station B received product update');
 
+    await createConcurrentVoucherPair({
+      kind: 'item', type: 'sales', formId: 'form-sales', modalId: 'modal-add-sales', resetName: 'resetSalesForm', handlerName: 'handleSalesSubmit',
+      tbodyId: 'sales-form-items-body', idField: 'sale-id', partnerField: 'sale-partner', dateField: 'sale-date', paymentField: 'sale-payment',
+      descField: 'sale-desc', taxField: 'sale-tax-rate', payment: '131'
+    });
+    await createConcurrentVoucherPair({
+      kind: 'item', type: 'purchase', formId: 'form-purchase', modalId: 'modal-add-purchase', resetName: 'resetPurchaseForm', handlerName: 'handlePurchaseSubmit',
+      tbodyId: 'purchase-form-items-body', idField: 'pur-id', partnerField: 'pur-partner', dateField: 'pur-date', paymentField: 'pur-payment',
+      descField: 'pur-desc', taxField: 'pur-tax-rate', payment: '331'
+    });
+    await createConcurrentVoucherPair({
+      kind: 'cash', type: 'receipt', formId: 'form-receipt', modalId: 'modal-add-receipt', resetName: 'resetReceiptForm', handlerName: 'handleReceiptSubmit',
+      dateField: 'receipt-date', partnerField: 'receipt-partner', debitField: 'receipt-debit', creditField: 'receipt-credit', amountField: 'receipt-amount',
+      descField: 'receipt-desc', debit: '111', credit: '131'
+    });
+    await createConcurrentVoucherPair({
+      kind: 'cash', type: 'payment', formId: 'form-payment', modalId: 'modal-add-payment', resetName: 'resetPaymentForm', handlerName: 'handlePaymentSubmit',
+      dateField: 'payment-date', partnerField: 'payment-partner', debitField: 'payment-debit', creditField: 'payment-credit', amountField: 'payment-amount',
+      descField: 'payment-desc', debit: '331', credit: '111'
+    });
+
     await evaluate(stationA, `(() => {
       const originalSafeId = getCloudSafeVoucherId;
       getCloudSafeVoucherId = async options => options.currentId;
@@ -286,7 +428,7 @@ async function run() {
         .finally(() => { getCloudSafeVoucherId = originalSafeId; });
       return true;
     })()`);
-    await waitFor(stationA, `!salesSubmitInProgress`, 'sales form create completed', 90000);
+    await waitFor(stationA, `!isVoucherFormBusy('modal-add-sales')`, 'sales form create completed', 90000);
     const salesResult = await evaluate(stationA, `({
       exists: state.vouchers.some(item => item.id === ${JSON.stringify(salesId)}),
       modal: document.getElementById('modal-add-sales').style.display,
@@ -306,7 +448,7 @@ async function run() {
         .catch(error => { window.__realE2eSalesError = String(error && (error.stack || error.message) || error); });
       return true;
     })()`);
-    await waitFor(stationA, `!salesSubmitInProgress`, 'sales form update completed', 90000);
+    await waitFor(stationA, `!isVoucherFormBusy('modal-add-sales')`, 'sales form update completed', 90000);
     const salesUpdateResult = await evaluate(stationA, `({
       updated: state.vouchers.some(item => item.id === ${JSON.stringify(salesId)} && item.description === 'Codex E2E sales updated'),
       modal: document.getElementById('modal-add-sales').style.display,

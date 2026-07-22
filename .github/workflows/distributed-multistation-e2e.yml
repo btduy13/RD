@@ -1,0 +1,42 @@
+name: Distributed multi-station E2E
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: distributed-multistation-e2e
+  cancel-in-progress: false
+
+jobs:
+  station:
+    name: Station ${{ matrix.station }}
+    runs-on: windows-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        station: [A, B]
+    env:
+      RD_STATION: ${{ matrix.station }}
+      RD_DISTRIBUTED_RUN_ID: GH-${{ github.run_id }}-${{ github.run_attempt }}
+      RD_DEBUG_PORT: 19500
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install application dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run RD Accounting on this station
+        run: node tests/distributed-multistation-e2e.js

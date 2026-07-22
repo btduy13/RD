@@ -623,6 +623,7 @@ function cloudSyncClearPendingLocalWrite(expectedToken = null) {
 }
 
 window.markCloudWritePending = markCloudWritePending;
+window.getPendingCloudWriteToken = cloudSyncGetPendingLocalWriteToken;
 
 function cloudSyncRenderTasks() {
   const list = document.getElementById("cloud-sync-task-list");
