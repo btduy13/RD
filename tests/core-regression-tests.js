@@ -56,6 +56,28 @@ function testStateDiff() {
   const diff = core.buildStateDelta(state, lastSavedState);
   assert.equal(diff.hasChanges, true);
   assert.equal(diff.delta.vouchers.upsert.length, 1);
+  state._pendingCloudWrite = { token: 'pending-1', manifest: { version: 1, token: 'pending-1', rowIds: ['v_BH1'] } };
+  const pendingDiff = core.buildStateDelta(state, lastSavedState);
+  assert.deepEqual(
+    JSON.parse(pendingDiff.delta.metadata._pendingCloudWrite),
+    state._pendingCloudWrite,
+    'crash-recovery marker must be written through the SQLite metadata delta'
+  );
+  lastSavedState._pendingCloudWrite = JSON.parse(JSON.stringify(state._pendingCloudWrite));
+  state._pendingCloudWrite = null;
+  const clearedPendingDiff = core.buildStateDelta(state, lastSavedState);
+  assert.equal(
+    clearedPendingDiff.delta.metadata._pendingCloudWrite,
+    'null',
+    'clearing the crash-recovery marker must persist an explicit SQLite null'
+  );
+  state._cloudDatasetIdentity = 'https://example.supabase.co|workspace-v3';
+  const datasetDiff = core.buildStateDelta(state, lastSavedState);
+  assert.equal(
+    JSON.parse(datasetDiff.delta.metadata._cloudDatasetIdentity),
+    state._cloudDatasetIdentity,
+    'cloud dataset identity must be written through the durable SQLite metadata delta'
+  );
 
   const deletionState = {
     vouchers: [{ id: 'SHARED' }, { id: 'ACTIVE-V' }],

@@ -1605,35 +1605,87 @@ function createDefaultSalesExcelRow(v) {
 
 let productOptionsHTML = "";
 let productOptionsSalesHTML = "";
+let accountingDatalistLazyLoadingBound = false;
+const ACCOUNTING_DATALIST_RESULT_LIMIT = 250;
+
+function accountingDatalistOptionValue(value) {
+    return typeof escapeHtmlAttr === "function"
+        ? escapeHtmlAttr(String(value || ""))
+        : String(value || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function refreshPartnerDatalist(query = "") {
+    const datalist = document.getElementById("datalist-partners");
+    if (!datalist) return;
+    const needle = String(query || "").trim().toLocaleLowerCase("vi-VN");
+    if (needle.length < 2) {
+        datalist.replaceChildren();
+        return;
+    }
+    const partners = Array.isArray(state.partners) ? state.partners : [];
+    const partnersById = new Map(
+        partners.filter(partner => partner && partner.id).map(partner => [partner.id, partner])
+    );
+    const matches = [];
+    for (const partner of partners) {
+        if (!partner) continue;
+        const searchable = `${partner.name || ""} ${partner.id || ""} ${partner.phone || ""}`.toLocaleLowerCase("vi-VN");
+        if (!searchable.includes(needle)) continue;
+        const typeLabel = partner.type === "supplier" ? "NCC" : (partner.type === "enterprise" ? "DN" : (partner.type === "project" ? "CT" : "KL"));
+        let parentInfo = "";
+        if (partner.type === "project" && partner.parentId) {
+            const parent = partnersById.get(partner.parentId);
+            if (parent) parentInfo = ` - Thuộc: ${parent.name}`;
+        }
+        matches.push(`<option value="${accountingDatalistOptionValue(`${partner.name || ""} (${partner.id || ""})`)}">[${typeLabel}${accountingDatalistOptionValue(parentInfo)}]</option>`);
+        if (matches.length >= ACCOUNTING_DATALIST_RESULT_LIMIT) break;
+    }
+    datalist.innerHTML = matches.join("");
+}
+
+function refreshProductDatalists(query = "") {
+    const salesDatalist = document.getElementById("datalist-sales-products");
+    const purchaseDatalist = document.getElementById("datalist-purchase-products");
+    const needle = String(query || "").trim().toLocaleLowerCase("vi-VN");
+    if (needle.length < 2) {
+        if (salesDatalist) salesDatalist.replaceChildren();
+        if (purchaseDatalist) purchaseDatalist.replaceChildren();
+        return;
+    }
+    const matches = [];
+    for (const product of (Array.isArray(state.products) ? state.products : [])) {
+        if (!product) continue;
+        const searchable = `${product.name || ""} ${product.id || ""}`.toLocaleLowerCase("vi-VN");
+        if (!searchable.includes(needle)) continue;
+        matches.push(`<option value="${accountingDatalistOptionValue(`${product.name || ""} (${product.id || ""})`)}">(Tồn: ${Number(product.stock) || 0})</option>`);
+        if (matches.length >= ACCOUNTING_DATALIST_RESULT_LIMIT) break;
+    }
+    const html = matches.join("");
+    if (salesDatalist) salesDatalist.innerHTML = html;
+    if (purchaseDatalist) purchaseDatalist.innerHTML = html;
+}
+
+function initAccountingDatalistLazyLoading() {
+    if (accountingDatalistLazyLoadingBound) return;
+    accountingDatalistLazyLoadingBound = true;
+    const refreshForInput = input => {
+        if (!input || typeof input.getAttribute !== "function") return;
+        const listId = input.getAttribute("list");
+        if (listId === "datalist-partners") refreshPartnerDatalist(input.value);
+        if (listId === "datalist-sales-products" || listId === "datalist-purchase-products") {
+            refreshProductDatalists(input.value);
+        }
+    };
+    document.addEventListener("input", event => refreshForInput(event.target));
+    document.addEventListener("focusin", event => refreshForInput(event.target));
+}
 
 // Khởi tạo cache sản phẩm và datalist đối tác
 function initExcelIntegration() {
     cacheProductOptions();
-
-    // Nạp datalist partners
-    const datalist = document.getElementById("datalist-partners");
-    if (datalist && state.partners) {
-        datalist.innerHTML = state.partners.map(p => {
-            const typeLabel = p.type === 'supplier' ? 'NCC' : (p.type === 'enterprise' ? 'DN' : (p.type === 'project' ? 'CT' : 'KL'));
-            let parentInfo = "";
-            if (p.type === 'project' && p.parentId) {
-                const parent = state.partners.find(parent => parent.id === p.parentId);
-                if (parent) parentInfo = ` - Thuộc: ${parent.name}`;
-            }
-            return `<option value="${p.name} (${p.id})">[${typeLabel}${parentInfo}]</option>`;
-        }).join("");
-    }
-
-    // Nạp datalist sản phẩm phục vụ autocomplete trong hóa đơn bán hàng & mua hàng
-    const productDatalist = document.getElementById("datalist-sales-products");
-    const purchaseProductDatalist = document.getElementById("datalist-purchase-products");
-    if (state.products) {
-        const optionsHTML = state.products.map(p =>
-            `<option value="${p.name} (${p.id})">(Tồn: ${p.stock})</option>`
-        ).join("");
-        if (productDatalist) productDatalist.innerHTML = optionsHTML;
-        if (purchaseProductDatalist) purchaseProductDatalist.innerHTML = optionsHTML;
-    }
+    refreshPartnerDatalist("");
+    refreshProductDatalists("");
+    initAccountingDatalistLazyLoading();
 
     // Khởi tạo các sự kiện kéo thả (Drag & Drop) cho Excel Drop Zones
     initExcelDragAndDrop();
@@ -1646,17 +1698,7 @@ function initExcelIntegration() {
 function cacheProductOptions() {
     if (!state.products) return;
     productOptionsHTML = state.products.map(p => `<option value="${p.name} (${p.id})">(Tồn: ${p.stock})</option>`).join("");
-    productOptionsSalesHTML = state.products.map(p => `<option value="${p.name} (${p.id})">(Tồn: ${p.stock})</option>`).join("");
-
-    const productDatalist = document.getElementById("datalist-sales-products");
-    const purchaseProductDatalist = document.getElementById("datalist-purchase-products");
-    if (state.products) {
-        const optionsHTML = state.products.map(p =>
-            `<option value="${p.name} (${p.id})">(Tồn: ${p.stock})</option>`
-        ).join("");
-        if (productDatalist) productDatalist.innerHTML = optionsHTML;
-        if (purchaseProductDatalist) purchaseProductDatalist.innerHTML = optionsHTML;
-    }
+    productOptionsSalesHTML = productOptionsHTML;
 }
 
 // Hàm cập nhật datalist sản phẩm (Backward-compatibility)

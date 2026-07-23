@@ -286,10 +286,9 @@ async function initApp() {
     setTimeout(() => recalculateAccounting(false), 50);
   }
 
-  // Tách số điện thoại từ địa chỉ tự động nếu có
-  if (typeof autoExtractPhonesAndCleanAddresses === "function") {
-    autoExtractPhonesAndCleanAddresses();
-  }
+  // Phone/address cleanup remains available as an explicit maintenance action.
+  // Running it on every station startup mutates partner data and creates a
+  // redundant save/push storm when many machines open at the same time.
 
   // Nạp cấu hình & khởi tạo đồng bộ trực tuyến
   if (typeof loadCloudSettings === "function") {
@@ -460,6 +459,10 @@ function initializeLastSavedState(loadedState) {
     partnerOpeningBalanceTs: JSON.parse(JSON.stringify(loadedState.partnerOpeningBalanceTs || {})),
     deletedIds: [...(loadedState.deletedIds || [])],
     deletedCloudKeys: [...(loadedState.deletedCloudKeys || [])],
+    _cloudDatasetIdentity: loadedState._cloudDatasetIdentity || "",
+    _pendingCloudWrite: loadedState._pendingCloudWrite
+      ? JSON.parse(JSON.stringify(loadedState._pendingCloudWrite))
+      : null,
     cashEntries: JSON.parse(JSON.stringify(loadedState.cashEntries || [])),
     escrowItems: JSON.parse(JSON.stringify(loadedState.escrowItems || [])),
     salesTemplatesData: JSON.parse(JSON.stringify(loadedState.salesTemplatesData || [])),
@@ -551,6 +554,12 @@ function saveStateSync() {
   saveStateIsDirty = true;
   saveStateRevision += 1;
   return executeSaveState(true);
+}
+
+function persistStateLocallyWithoutCloud() {
+  saveStateIsDirty = true;
+  saveStateRevision += 1;
+  return executeSaveState(true, { skipCloudPush: true });
 }
 
 // Helper to push logs directly to state.actionLogs without triggering saveState loop
@@ -688,11 +697,15 @@ async function executeSaveState(sync = false, options = {}) {
   };
 
   const saveThenQueueCloud = async () => {
+    // Create the durable marker before SQLite persistence. If the process dies
+    // immediately after the database commit, startup can still distinguish
+    // local-only changes from the confirmed cloud baseline.
+    const pendingToken = !options.skipCloudPush && typeof pushToCloud === "function" &&
+      typeof window.markCloudWritePending === "function"
+      ? window.markCloudWritePending()
+      : null;
     const saved = await enqueueSave();
     if (saved && !options.skipCloudPush && typeof pushToCloud === "function") {
-      const pendingToken = typeof window.markCloudWritePending === "function"
-        ? window.markCloudWritePending()
-        : null;
       queueBackgroundCloudPush(pendingToken);
     }
     return saved;
@@ -709,6 +722,7 @@ async function executeSaveState(sync = false, options = {}) {
 
 window.initializeLastSavedState = initializeLastSavedState;
 window.saveStateSync = saveStateSync;
+window.persistStateLocallyWithoutCloud = persistStateLocallyWithoutCloud;
 
 /**
  * Immediate local save + cloud push for vouchers/orders.

@@ -9,7 +9,7 @@ const migration = fs.readFileSync(path.join(root, 'supabase_online_v3_migration.
 const packageJson = require(path.join(root, 'package.json'));
 assert.match(packageJson.scripts.postinstall, /electron-rebuild.+better-sqlite3/);
 assert.doesNotMatch(stateSource, /cloudCommitted = await pushToCloud\(\)/);
-assert.match(stateSource, /const saved = await enqueueSave\(\);[\s\S]*queueBackgroundCloudPush\(pendingToken\)/);
+assert.match(stateSource, /const pendingToken =[\s\S]*markCloudWritePending\(\)[\s\S]*const saved = await enqueueSave\(\);[\s\S]*queueBackgroundCloudPush\(pendingToken\)/);
 assert.match(gateSource, /root\.localPersistenceHealthy !== false/);
 assert.doesNotMatch(gateSource, /status === "ready" \|\| status === "syncing"/);
 assert.match(stateSource, /executeSaveState\(true, \{ skipCloudPush: true \}\)/);
@@ -27,14 +27,38 @@ assert.doesNotMatch(stateSource, /await initCloudSync\(\)/);
 assert.match(stateSource, /window\.cloudStartupPromise = Promise\.resolve\(\)[\s\S]*\.then\(\(\) => initCloudSync\(\)\)/);
 assert.match(syncSource, /CLOUD_SYNC_PENDING_WRITE_KEY/);
 assert.match(syncSource, /Pending local cloud write detected/);
+assert.match(syncSource, /state\._pendingCloudWrite = \{ token, manifest, createdAt: Date\.now\(\) \}/);
+assert.match(syncSource, /'_lastModified', '_lastPulledCloudTs', '_cloudDatasetIdentity', '_pendingCloudWrite'/);
+assert.match(stateSource, /function persistStateLocallyWithoutCloud\(\)/);
 assert.match(syncSource, /cloudSyncWriteQueue\.then/);
 assert.match(syncSource, /"cloud upsert",\s*\{ timeoutMs: 20000 \}/);
 assert.match(gateSource, /data-role-required/);
 assert.match(syncSource, /rd_apply_sync_transaction/);
 assert.match(syncSource, /p_expected_sync_version: cloudSyncVersion/);
 assert.match(syncSource, /reason: "version-conflict"/);
+assert.match(syncSource, /CLOUD_SYNC_VERSION_CONFLICT_MAX_RETRIES = 20/);
+assert.match(syncSource, /incremental reconcile and retry/);
+assert.match(syncSource, /snapshot page \$\{page \+ 1\} read/);
+assert.match(syncSource, /\{ attempts: 10, timeoutMs: 20000 \}/);
+assert.match(syncSource, /Math\.min\(10000, 350 \* \(2 \*\* \(attempt - 1\)\)\)/);
+assert.match(syncSource, /voucher id prefix \$\{lower\} page \$\{page \+ 1\}/);
+assert.match(syncSource, /voucher id reservation \$\{voucherId\}/);
+assert.match(syncSource, /\.not\("id", "like", "lock_%"\)/);
+assert.match(syncSource, /rowPrefix\.startsWith\("lock_"\)[\s\S]*Date\.now\(\) - 15 \* 60 \* 1000/);
+assert.doesNotMatch(
+  syncSource,
+  /reason:\s*"version-conflict"[^\n}]*forceFull:\s*true/,
+  'transaction conflicts must reconcile incrementally instead of downloading a full snapshot'
+);
+assert.match(syncSource, /CLOUD_SYNC_LEGACY_OVERLAP_MS = 2 \* 60 \* 1000/);
+assert.match(syncSource, /legacyOverlap: !needFullPull && !cloudUsesVersionedRpc/);
+assert.match(syncSource, /scheduleCloudPull\("realtime", \{ legacyOverlap: !cloudUsesVersionedRpc \}\)/);
 assert.match(migration, /for update;/i);
 assert.match(migration, /on conflict\s*\(workspace_id,\s*id\)/i);
+assert.match(migration, /d\.id not like 'lock\\_%' escape '\\'/i);
+assert.match(migration, /delete from public\.rd_accounting_data[\s\S]*id like 'lock\\_%'/i);
+assert.match(migration, /alter table public\.rd_workspaces enable row level security/i);
+assert.match(migration, /revoke execute on function public\.rd_apply_sync_transaction\(uuid,bigint,jsonb,text\) from public/i);
 assert.match(migration, /drop policy if exists "Allow public update"/i);
 assert.match(migration, /revoke all on public\.rd_accounting_data from anon/i);
 assert.doesNotMatch(migration, /station_key|STATION_FORBIDDEN/i);

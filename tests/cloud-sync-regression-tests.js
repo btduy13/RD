@@ -203,6 +203,189 @@ function testConfirmedCacheRestoresIncrementalStartupBaseline() {
   assert.equal(internals.cloudSyncRestoreBaselineFromConfirmedCache(), false, "cache from another cloud dataset must be rejected");
 }
 
+function testPendingVoucherManifestKeepsIncrementalStartupSafe() {
+  const { internals, sandbox, store, vm } = loadCloudSyncInternals({
+    cloudSyncSettings: { enabled: true, supabaseUrl: "https://example.supabase.co" }
+  });
+  const untouched = { id: "PO-UNTOUCHED", type: "purchase_order", _updatedAt: 1000, _sessionId: "remote" };
+  const original = { id: "PT-EDIT", type: "receipt", amount: 10, _updatedAt: 1000, _sessionId: "remote" };
+  sandbox.state.vouchers = [
+    untouched,
+    { ...original, amount: 20, _updatedAt: 2000, _sessionId: "session-local" },
+    { id: "PC-NEW", type: "payment", amount: 30, _updatedAt: 2000, _sessionId: "session-local" }
+  ];
+  sandbox.state._lastPulledCloudTs = 7000;
+  sandbox.window.lastSyncState = {
+    ...JSON.parse(JSON.stringify(sandbox.state)),
+    vouchers: [JSON.parse(JSON.stringify(untouched)), JSON.parse(JSON.stringify(original))]
+  };
+  store.set("rd_accounting_sync_dataset", internals.cloudSyncGetDatasetIdentity());
+
+  const token = vm.runInContext("markCloudWritePending()", sandbox);
+  const manifest = internals.cloudSyncGetPendingWriteManifest();
+  assert.equal(manifest.token, token);
+  assert.deepEqual(Array.from(manifest.rowIds).sort(), ["v_PC-NEW", "v_PT-EDIT"]);
+  assert.equal(manifest.metadataDirty, false);
+  assert.equal(sandbox.state._pendingCloudWrite.token, token, "pending marker must be included in the SQLite state");
+
+  store.delete("rd_accounting_cloud_push_pending");
+  store.delete("rd_accounting_cloud_push_pending_manifest");
+  assert.equal(sandbox.window.getPendingCloudWriteToken(), token, "SQLite marker must survive immediate process death before Local Storage flush");
+  assert.deepEqual(
+    Array.from(internals.cloudSyncGetPendingWriteManifest().rowIds).sort(),
+    ["v_PC-NEW", "v_PT-EDIT"],
+    "SQLite manifest must recover the exact unsynced rows"
+  );
+
+  internals.cloudSyncResetCloudBaseline();
+  assert.equal(internals.cloudSyncRestoreBaselineFromConfirmedCache(), true);
+  assert.deepEqual(
+    Array.from(sandbox.window.lastSyncState.vouchers, item => item.id),
+    ["PO-UNTOUCHED"],
+    "pending rows must be absent only from the synthetic cloud baseline"
+  );
+  const retryDelta = internals.computeDelta();
+  assert.deepEqual(
+    Array.from(retryDelta.rowsToUpsert.filter(row => row.id.startsWith("v_")), row => row.id).sort(),
+    ["v_PC-NEW", "v_PT-EDIT"],
+    "pending create and edit must remain uploadable after an incremental restart"
+  );
+}
+
+function testPendingMarkerClearsFromSQLiteWhenLocalStorageFails() {
+  let localPersistCalls = 0;
+  const { internals, sandbox, store } = loadCloudSyncInternals({
+    persistStateLocallyWithoutCloud: async () => {
+      localPersistCalls += 1;
+    }
+  });
+  const token = "sqlite-only-token";
+  sandbox.state._pendingCloudWrite = {
+    token,
+    manifest: { version: 1, token, rowIds: ["v_PT-LOCAL"], metadataDirty: false },
+    createdAt: Date.now()
+  };
+  store.set("rd_accounting_cloud_push_pending", token);
+  sandbox.localStorage.getItem = () => {
+    throw new Error("Local Storage unavailable");
+  };
+  sandbox.localStorage.removeItem = () => {
+    throw new Error("Local Storage unavailable");
+  };
+
+  assert.equal(internals.cloudSyncClearPendingLocalWrite(token), true);
+  assert.equal(sandbox.state._pendingCloudWrite, null, "SQLite fallback marker must be cleared explicitly");
+  assert.equal(localPersistCalls, 1, "cleared SQLite marker must be persisted locally");
+}
+
+function testDurableNullMarkerIgnoresStaleLocalStorage() {
+  const { sandbox, store } = loadCloudSyncInternals();
+  sandbox.state._pendingCloudWrite = null;
+  store.set("rd_accounting_cloud_push_pending", "stale-browser-token");
+  store.set("rd_accounting_cloud_push_pending_manifest", JSON.stringify({
+    version: 1,
+    token: "stale-browser-token",
+    rowIds: ["v_STALE"],
+    metadataDirty: false
+  }));
+
+  assert.equal(
+    sandbox.window.getPendingCloudWriteToken(),
+    "",
+    "an explicit durable null marker must override stale Chromium Local Storage"
+  );
+}
+
+function testCommittedTransactionClearsCoveredRotatedMarker() {
+  let localPersistCalls = 0;
+  const { internals, sandbox, store } = loadCloudSyncInternals({
+    persistStateLocallyWithoutCloud: async () => {
+      localPersistCalls += 1;
+    }
+  });
+  sandbox.window.lastSyncState = JSON.parse(JSON.stringify(sandbox.state));
+  const rotatedToken = "rotated-after-push-start";
+  sandbox.state._pendingCloudWrite = {
+    token: rotatedToken,
+    manifest: { version: 1, token: rotatedToken, rowIds: ["v_ALREADY-COMMITTED"], metadataDirty: false },
+    createdAt: Date.now()
+  };
+  store.set("rd_accounting_cloud_push_pending", rotatedToken);
+
+  assert.equal(internals.cloudSyncClearPendingLocalWrite("transaction-token"), true);
+  assert.equal(sandbox.state._pendingCloudWrite, null);
+  assert.equal(store.has("rd_accounting_cloud_push_pending"), false);
+  assert.equal(localPersistCalls, 1);
+}
+
+function testCommittedTransactionKeepsRotatedMarkerWithRemainingDelta() {
+  const { internals, sandbox, store } = loadCloudSyncInternals();
+  sandbox.window.lastSyncState = JSON.parse(JSON.stringify(sandbox.state));
+  sandbox.state.vouchers.push({
+    id: "PT-STILL-LOCAL",
+    type: "receipt",
+    amount: 50,
+    _updatedAt: Date.now()
+  });
+  const rotatedToken = "rotated-with-new-change";
+  sandbox.state._pendingCloudWrite = {
+    token: rotatedToken,
+    manifest: { version: 1, token: rotatedToken, rowIds: ["v_PT-STILL-LOCAL"], metadataDirty: false },
+    createdAt: Date.now()
+  };
+  store.set("rd_accounting_cloud_push_pending", rotatedToken);
+
+  assert.equal(internals.cloudSyncClearPendingLocalWrite("transaction-token"), false);
+  assert.equal(sandbox.state._pendingCloudWrite.token, rotatedToken);
+  assert.equal(store.get("rd_accounting_cloud_push_pending"), rotatedToken);
+}
+
+function testPendingMetadataChangeStillRequiresFullStartup() {
+  const { internals, sandbox, store, vm } = loadCloudSyncInternals({
+    cloudSyncSettings: { enabled: true, supabaseUrl: "https://example.supabase.co" }
+  });
+  sandbox.state._lastPulledCloudTs = 7000;
+  sandbox.window.lastSyncState = JSON.parse(JSON.stringify(sandbox.state));
+  sandbox.state.companyName = "Locally changed company";
+  store.set("rd_accounting_sync_dataset", internals.cloudSyncGetDatasetIdentity());
+
+  vm.runInContext("markCloudWritePending()", sandbox);
+  assert.equal(internals.cloudSyncGetPendingWriteManifest().metadataDirty, true);
+  internals.cloudSyncResetCloudBaseline();
+  assert.equal(
+    internals.cloudSyncRestoreBaselineFromConfirmedCache(),
+    false,
+    "metadata without a compact confirmed baseline must retain the full-reconcile safety fallback"
+  );
+}
+
+function testPendingTombstoneSurvivesIncrementalStartup() {
+  const { internals, sandbox, store, vm } = loadCloudSyncInternals({
+    cloudSyncSettings: { enabled: true, supabaseUrl: "https://example.supabase.co" }
+  });
+  const removed = { id: "PT-REMOVED", type: "receipt", _updatedAt: 1000 };
+  sandbox.state.vouchers = [];
+  sandbox.state.deletedIds = [removed.id];
+  sandbox.state.deletedCloudKeys = [`v_${removed.id}`];
+  sandbox.state._lastPulledCloudTs = 7000;
+  sandbox.window.lastSyncState = {
+    ...JSON.parse(JSON.stringify(sandbox.state)),
+    vouchers: [removed],
+    deletedIds: [],
+    deletedCloudKeys: []
+  };
+  store.set("rd_accounting_sync_dataset", internals.cloudSyncGetDatasetIdentity());
+
+  vm.runInContext("markCloudWritePending()", sandbox);
+  internals.cloudSyncResetCloudBaseline();
+  assert.equal(internals.cloudSyncRestoreBaselineFromConfirmedCache(), true);
+  const retryDelta = internals.computeDelta();
+  assert.ok(
+    retryDelta.rowsToUpsert.some(row => row.id === "v_PT-REMOVED" && row.data && row.data._deleted),
+    "a pending delete must remain a tombstone after incremental startup restoration"
+  );
+}
+
 function testPostPushSnapshotMatchesUploadedDeletionMetadata() {
   const { internals, sandbox } = loadCloudSyncInternals();
   sandbox.window.lastSyncState = {
@@ -820,6 +1003,15 @@ function testRoutineWatermarkChecksUseMetadataSummary() {
   );
 }
 
+function testRequestRetryClassificationSkipsPermanentConflicts() {
+  const { internals } = loadCloudSyncInternals();
+  assert.equal(internals.cloudSyncShouldRetryRequestError({ code: "23505", message: "duplicate key" }), false);
+  assert.equal(internals.cloudSyncShouldRetryRequestError({ status: 409, message: "duplicate key violates unique constraint" }), false);
+  assert.equal(internals.cloudSyncShouldRetryRequestError({ code: "PGRST202", message: "missing rpc" }), false);
+  assert.equal(internals.cloudSyncShouldRetryRequestError({ code: "57014", message: "statement timeout" }), true);
+  assert.equal(internals.cloudSyncShouldRetryRequestError({ status: 429, message: "rate limit" }), true);
+}
+
 async function testLegacyDeltaSecondPageQuotesSpecialCursor() {
   const requests = [];
   const firstPage = Array.from({ length: 500 }, (_, index) => ({
@@ -833,9 +1025,10 @@ async function testLegacyDeltaSecondPageQuotesSpecialCursor() {
   ];
 
   function createQuery() {
-    const capture = { gt: [], or: '' };
+    const capture = { gt: [], not: [], or: '' };
     const query = {
       select() { return this; },
+      not(column, operator, value) { capture.not.push([column, operator, value]); return this; },
       order() { return this; },
       limit() { return this; },
       gt(column, value) { capture.gt.push([column, value]); return this; },
@@ -857,6 +1050,7 @@ async function testLegacyDeltaSecondPageQuotesSpecialCursor() {
   assert.equal(rows.length, 502, 'delta pagination must include both pages');
   assert.equal(new Set(rows.map(row => row.id)).size, 502, 'delta pagination must not duplicate rows');
   assert.equal(requests.length, 2, 'a 500-row first page must request the next cursor page');
+  assert.deepEqual(requests[0].not, [['id', 'like', 'lock_%']], 'delta reads must exclude voucher reservation locks');
   assert.equal(
     requests[1].or,
     'last_modified.gt.1783933101796,and(last_modified.eq.1783933101796,id.gt."part_105/38/10NGODUCKE(Mùi).")'
@@ -869,6 +1063,13 @@ async function run() {
   testComputeDeltaDoesNotReplayCloudKnownTombstones();
   testFullPullRequiredWithoutBaselineOrAfterWatermarkRollback();
   testConfirmedCacheRestoresIncrementalStartupBaseline();
+  testPendingVoucherManifestKeepsIncrementalStartupSafe();
+  testPendingMarkerClearsFromSQLiteWhenLocalStorageFails();
+  testDurableNullMarkerIgnoresStaleLocalStorage();
+  testCommittedTransactionClearsCoveredRotatedMarker();
+  testCommittedTransactionKeepsRotatedMarkerWithRemainingDelta();
+  testPendingMetadataChangeStillRequiresFullStartup();
+  testPendingTombstoneSurvivesIncrementalStartup();
   testPostPushSnapshotMatchesUploadedDeletionMetadata();
   testChangingCloudClientResetsComparisonBaseline();
   testInternalSyncWorkCountsAsBusy();
@@ -888,6 +1089,7 @@ async function run() {
   testDerivedEntityChangesDoNotFanOutToCloud();
   testRoutineIncrementalPathsNeverRequestFullFallback();
   testRoutineWatermarkChecksUseMetadataSummary();
+  testRequestRetryClassificationSkipsPermanentConflicts();
   testEntityOnlyDeltaUsesLightweightSignalInsteadOfMetadata();
   testRealMetadataChangeStillUploadsMetadata();
   testRealtimeSubscriptionUsesOneCompactSignalEvent();

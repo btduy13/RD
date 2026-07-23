@@ -26,6 +26,7 @@ let lastRealtimeFilter = "";
 let lastRealtimeSelect = [];
 let lastCloudMetadataPollAt = 0;
 let lastCheckpointRecoveryAt = 0;
+let lastLegacyOverlapPullAt = 0;
 let lastPulledCloudWatermark = 0;
 let pushRetryTimeout = null;
 let scheduledPullTimer = null;
@@ -40,6 +41,7 @@ const cloudSyncTasks = [];
 
 const CLOUD_SYNC_CHECKPOINT_KEY = "rd_accounting_last_pulled_cloud_ts";
 const CLOUD_SYNC_PENDING_WRITE_KEY = "rd_accounting_cloud_push_pending";
+const CLOUD_SYNC_PENDING_WRITE_MANIFEST_KEY = "rd_accounting_cloud_push_pending_manifest";
 const CLOUD_SYNC_TABLE = "rd_accounting_data";
 const CLOUD_SYNC_METADATA_ID = "metadata";
 // A tiny row used only as the workspace change notification/watermark. Entity
@@ -61,6 +63,28 @@ const CLOUD_SYNC_PRE_PUSH_PULL_COOLDOWN_MS = 2000;
 const CLOUD_SYNC_STALE_LOCK_MS = 30 * 60 * 1000;
 const CLOUD_SYNC_RECOVERY_GAP_MS = 60 * 1000;
 const CLOUD_SYNC_RECONNECT_DELAY_MS = 5000;
+const CLOUD_SYNC_LEGACY_OVERLAP_MS = 2 * 60 * 1000;
+const CLOUD_SYNC_LEGACY_OVERLAP_INTERVAL_MS = 30 * 1000;
+const CLOUD_SYNC_VERSION_CONFLICT_MAX_RETRIES = 20;
+const CLOUD_SYNC_VERSION_CONFLICT_BASE_DELAY_MS = 40;
+
+const cloudSyncStartupMetrics = {
+  active: false,
+  connectStartedAt: 0,
+  pullStartedAt: 0,
+  completedAt: 0,
+  connectMs: 0,
+  pullMs: 0,
+  mode: "",
+  checkpoint: 0,
+  snapshotPages: 0,
+  snapshotRows: 0,
+  deltaPages: 0,
+  deltaRows: 0,
+  ok: false,
+  error: ""
+};
+window.cloudSyncStartupMetrics = cloudSyncStartupMetrics;
 
 const CLOUD_SYNC_ENTITY_DEFS = [
   { stateKey: "vouchers", rowPrefix: "v_", deleteType: "voucher" },
@@ -506,6 +530,7 @@ function cloudSyncSplitMetadata(sourceState) {
     _accountingValid,
     _accountingValidTs,
     _recalcWatermark,
+    _pendingCloudWrite,
     ...metadata
   } = sourceState || {};
   return metadata;
@@ -587,6 +612,9 @@ function withTimeout(promise, ms = 10000) {
 }
 
 function cloudSyncHasPendingLocalWrite() {
+  if (state && Object.prototype.hasOwnProperty.call(state, "_pendingCloudWrite")) {
+    return !!(state._pendingCloudWrite && state._pendingCloudWrite.token);
+  }
   try {
     return !!localStorage.getItem(CLOUD_SYNC_PENDING_WRITE_KEY);
   } catch (err) {
@@ -595,6 +623,9 @@ function cloudSyncHasPendingLocalWrite() {
 }
 
 function cloudSyncGetPendingLocalWriteToken() {
+  if (state && Object.prototype.hasOwnProperty.call(state, "_pendingCloudWrite")) {
+    return state._pendingCloudWrite && state._pendingCloudWrite.token || "";
+  }
   try {
     return localStorage.getItem(CLOUD_SYNC_PENDING_WRITE_KEY) || "";
   } catch (err) {
@@ -602,24 +633,108 @@ function cloudSyncGetPendingLocalWriteToken() {
   }
 }
 
+function cloudSyncGetPendingWriteManifest() {
+  try {
+    const raw = localStorage.getItem(CLOUD_SYNC_PENDING_WRITE_MANIFEST_KEY);
+    const parsed = raw
+      ? JSON.parse(raw)
+      : state && state._pendingCloudWrite && state._pendingCloudWrite.manifest;
+    if (!parsed || parsed.version !== 1 || !parsed.token || !Array.isArray(parsed.rowIds)) return null;
+    return parsed;
+  } catch (err) {
+    const parsed = state && state._pendingCloudWrite && state._pendingCloudWrite.manifest;
+    return parsed && parsed.version === 1 && parsed.token && Array.isArray(parsed.rowIds) ? parsed : null;
+  }
+}
+
+function cloudSyncCapturePendingWriteManifest(token) {
+  try {
+    lastSyncState = window.lastSyncState || lastSyncState;
+    if (!lastSyncState) return null;
+    const pendingDelta = computeDelta();
+    const manifest = {
+      version: 1,
+      token,
+      rowIds: pendingDelta.rowsToUpsert
+        .filter(row => row && row.id && row.id !== CLOUD_SYNC_METADATA_ID && row.id !== CLOUD_SYNC_SIGNAL_ID)
+        .map(row => row.id),
+      metadataDirty: pendingDelta.rowsToUpsert.some(row => row && row.id === CLOUD_SYNC_METADATA_ID)
+    };
+    state._pendingCloudWrite = { token, manifest, createdAt: Date.now() };
+    localStorage.setItem(CLOUD_SYNC_PENDING_WRITE_MANIFEST_KEY, JSON.stringify(manifest));
+    return manifest;
+  } catch (err) {
+    console.warn("[CloudSync] Cannot persist pending-write manifest:", err);
+    try {
+      localStorage.removeItem(CLOUD_SYNC_PENDING_WRITE_MANIFEST_KEY);
+    } catch (cleanupErr) {}
+    return null;
+  }
+}
+
 function markCloudWritePending() {
   const token = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
   try {
     localStorage.setItem(CLOUD_SYNC_PENDING_WRITE_KEY, token);
+    const manifest = cloudSyncCapturePendingWriteManifest(token);
+    if (!manifest) state._pendingCloudWrite = { token, manifest: null, createdAt: Date.now() };
   } catch (err) {
     console.warn("[CloudSync] Cannot persist pending-write marker:", err);
+    state._pendingCloudWrite = { token, manifest: null, createdAt: Date.now() };
   }
   return token;
 }
 
 function cloudSyncClearPendingLocalWrite(expectedToken = null) {
+  let localToken = "";
   try {
-    if (expectedToken && localStorage.getItem(CLOUD_SYNC_PENDING_WRITE_KEY) !== expectedToken) return false;
-    localStorage.removeItem(CLOUD_SYNC_PENDING_WRITE_KEY);
-    return true;
+    localToken = localStorage.getItem(CLOUD_SYNC_PENDING_WRITE_KEY) || "";
   } catch (err) {
-    return false;
+    console.warn("[CloudSync] Cannot read pending-write marker from Local Storage:", err);
   }
+  const stateToken = state && state._pendingCloudWrite && state._pendingCloudWrite.token || "";
+  const currentToken = localToken || stateToken;
+  let clearRotatedMarker = false;
+  if (expectedToken && currentToken && currentToken !== expectedToken) {
+    // A second autosave can rotate the marker while the first transaction is
+    // in flight. If that transaction already covered every current delta, the
+    // newer marker is stale and must not force a full startup forever. Never
+    // clear it while any entity/metadata change still differs from the
+    // server-confirmed baseline.
+    lastSyncState = window.lastSyncState || lastSyncState;
+    const remainingDelta = lastSyncState ? computeDelta() : null;
+    if (
+      !remainingDelta ||
+      remainingDelta.rowsToUpsert.length > 0 ||
+      remainingDelta.idsToDelete.length > 0
+    ) {
+      return false;
+    }
+    cloudSyncLog("Clearing a rotated pending marker already covered by the committed transaction.");
+    clearRotatedMarker = true;
+  }
+
+  try {
+    localStorage.removeItem(CLOUD_SYNC_PENDING_WRITE_KEY);
+    localStorage.removeItem(CLOUD_SYNC_PENDING_WRITE_MANIFEST_KEY);
+  } catch (err) {
+    console.warn("[CloudSync] Cannot clear pending-write marker from Local Storage:", err);
+  }
+  if (
+    state &&
+    state._pendingCloudWrite &&
+    (clearRotatedMarker || !expectedToken || state._pendingCloudWrite.token === expectedToken)
+  ) {
+    // Persist an explicit null. Deleting the property produces `undefined`,
+    // which JSON drops from a delta payload and leaves the old token in SQLite.
+    state._pendingCloudWrite = null;
+    if (typeof window.persistStateLocallyWithoutCloud === "function") {
+      void Promise.resolve(window.persistStateLocallyWithoutCloud()).catch(err => {
+        console.warn("[CloudSync] Cannot persist cleared pending-write marker:", err);
+      });
+    }
+  }
+  return true;
 }
 
 window.markCloudWritePending = markCloudWritePending;
@@ -669,19 +784,49 @@ function cloudSyncFinishTask(task, ok) {
   cloudSyncRenderTasks();
 }
 
+function cloudSyncShouldRetryRequestError(error) {
+  if (!error) return false;
+  const code = String(error.code || "").toUpperCase();
+  const status = Number(error.status || error.statusCode) || 0;
+  const message = String(error.message || error).toLowerCase();
+  if (
+    code === "23505" ||
+    code === "PGRST202" ||
+    code === "42883" ||
+    message.includes("duplicate key") ||
+    message.includes("unique constraint")
+  ) return false;
+  if (status >= 400 && status < 500 && ![408, 409, 425, 429].includes(status)) return false;
+  return status >= 500 ||
+    [408, 409, 425, 429].includes(status) ||
+    code === "57014" ||
+    message.includes("timeout") ||
+    message.includes("timed out") ||
+    message.includes("canceling statement") ||
+    message.includes("fetch failed") ||
+    message.includes("network") ||
+    message.includes("gateway") ||
+    message.includes("rate limit") ||
+    message.includes("temporarily unavailable");
+}
+
 async function cloudSyncReadWithRetry(createRequest, label, options = {}) {
   const attempts = Math.max(1, Number(options.attempts) || 2);
   const timeoutMs = Math.max(1000, Number(options.timeoutMs) || 15000);
   let lastError;
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
-      return await withTimeout(createRequest(), timeoutMs);
+      const result = await withTimeout(createRequest(), timeoutMs);
+      if (!result || !result.error || attempt >= attempts || !cloudSyncShouldRetryRequestError(result.error)) return result;
+      lastError = result.error;
+      cloudSyncLog(`${label} failed (${attempt}/${attempts}): ${lastError.message}; retrying...`);
     } catch (err) {
       lastError = err;
       if (attempt >= attempts) break;
       cloudSyncLog(`${label} failed (${attempt}/${attempts}): ${err.message}; retrying...`);
-      await new Promise(resolve => setTimeout(resolve, 350 * attempt));
     }
+    const retryDelayMs = Math.min(10000, 350 * (2 ** (attempt - 1))) + Math.floor(Math.random() * 350);
+    await new Promise(resolve => setTimeout(resolve, retryDelayMs));
   }
   throw lastError;
 }
@@ -824,15 +969,58 @@ function cloudSyncPersistDatasetIdentity() {
 // without writing a second multi-megabyte snapshot to localStorage.
 function cloudSyncRestoreBaselineFromConfirmedCache() {
   const checkpoint = getPullCheckpointTs();
-  if (cloudSyncHasPendingLocalWrite() || !(checkpoint > 0) || !state || cloudSyncGetStoredDatasetIdentity() !== cloudSyncGetDatasetIdentity()) {
+  if (!(checkpoint > 0) || !state) {
+    cloudSyncLog(`Confirmed cache rejected: checkpoint=${checkpoint}, state=${state ? "loaded" : "missing"}.`);
+    return false;
+  }
+  const storedDatasetIdentity = cloudSyncGetStoredDatasetIdentity();
+  const currentDatasetIdentity = cloudSyncGetDatasetIdentity();
+  if (storedDatasetIdentity !== currentDatasetIdentity) {
+    cloudSyncLog(`Confirmed cache rejected: dataset identity mismatch (${storedDatasetIdentity || "missing"} != ${currentDatasetIdentity}).`);
     return false;
   }
 
   const baseline = cloudSyncClone(state);
+  const pendingToken = cloudSyncGetPendingLocalWriteToken();
+  if (pendingToken) {
+    const manifest = cloudSyncGetPendingWriteManifest();
+    if (
+      !manifest ||
+      manifest.token !== pendingToken ||
+      manifest.metadataDirty ||
+      manifest.rowIds.length === 0
+    ) {
+      cloudSyncLog(
+        `Confirmed cache rejected: pending manifest unsafe ` +
+        `(present=${!!manifest}, tokenMatch=${!!manifest && manifest.token === pendingToken}, ` +
+        `metadataDirty=${!!manifest && !!manifest.metadataDirty}, rows=${manifest && manifest.rowIds.length || 0}).`
+      );
+      return false;
+    }
+
+    // SQLite already contains these local edits. Remove only their rows from
+    // the synthetic cloud baseline so an incremental startup still uploads
+    // them instead of treating them as server-confirmed.
+    manifest.rowIds.forEach(rowId => {
+      const def = cloudSyncGetRowDef(rowId);
+      if (!def) return;
+      const entityId = cloudSyncGetEntityIdFromRowId(rowId, def);
+      baseline[def.stateKey] = (baseline[def.stateKey] || [])
+        .filter(item => !item || String(item.id) !== String(entityId));
+      baseline.deletedCloudKeys = (baseline.deletedCloudKeys || [])
+        .filter(key => cloudSyncNormalizeDeletedCloudKey(key) !== cloudSyncNormalizeDeletedCloudKey(rowId));
+      if (def.stateKey === "vouchers") {
+        baseline.deletedIds = (baseline.deletedIds || [])
+          .filter(id => String(id) !== String(entityId));
+      }
+    });
+    cloudSyncLog(`Restored pending-aware baseline from SQLite (${manifest.rowIds.length} local row(s), checkpoint=${checkpoint}).`);
+  } else {
+    cloudSyncLog(`Restored confirmed cloud baseline from SQLite cache (checkpoint=${checkpoint}).`);
+  }
   baseline._cloudWatermark = checkpoint;
   baseline._lastPulledCloudTs = checkpoint;
   updateLastSyncState(baseline);
-  cloudSyncLog(`Restored confirmed cloud baseline from SQLite cache (checkpoint=${checkpoint}).`);
   return true;
 }
 
@@ -882,20 +1070,35 @@ async function cloudSyncFetchAllRows() {
     }
     updateStartupStatus(`Dang tai cloud snapshot: trang ${page + 1}...`);
 
-    let request;
+    let createRequest;
     if (cloudUsesVersionedRpc) {
-      request = supabaseClient.rpc("rd_sync_snapshot", {
+      createRequest = () => supabaseClient.rpc("rd_sync_snapshot", {
         p_workspace_id: cloudWorkspaceId,
         p_after_id: lastSeenId || null,
         p_limit: CLOUD_SYNC_PAGE_SIZE
       });
     } else {
-      let query = supabaseClient.from(CLOUD_SYNC_TABLE).select("id, data, last_modified").order("id").limit(CLOUD_SYNC_PAGE_SIZE);
-      if (lastSeenId) query = query.gt("id", lastSeenId);
-      request = query;
+      createRequest = () => {
+        let query = supabaseClient
+          .from(CLOUD_SYNC_TABLE)
+          .select("id, data, last_modified")
+          .not("id", "like", "lock_%")
+          .order("id")
+          .limit(CLOUD_SYNC_PAGE_SIZE);
+        if (lastSeenId) query = query.gt("id", lastSeenId);
+        return query;
+      };
     }
-    const { data, error } = await withTimeout(request, 20000);
+    const { data, error } = await cloudSyncReadWithRetry(
+      createRequest,
+      `snapshot page ${page + 1} read`,
+      { attempts: 10, timeoutMs: 20000 }
+    );
     if (error) throw error;
+    if (cloudSyncStartupMetrics.active) {
+      cloudSyncStartupMetrics.snapshotPages += 1;
+      cloudSyncStartupMetrics.snapshotRows += Array.isArray(data) ? data.length : 0;
+    }
     cloudSyncRecordIncoming("snapshot", data || [], Array.isArray(data) ? data.length : 0);
     if (!data || data.length === 0) break;
 
@@ -944,6 +1147,7 @@ async function cloudSyncFetchRowsSince(sinceTs) {
         let query = supabaseClient
           .from(CLOUD_SYNC_TABLE)
           .select("id, data, last_modified")
+          .not("id", "like", "lock_%")
           .order("last_modified", { ascending: true })
           .order("id", { ascending: true })
           .limit(CLOUD_SYNC_PAGE_SIZE);
@@ -962,6 +1166,10 @@ async function cloudSyncFetchRowsSince(sinceTs) {
       ? await withTimeout(request, 15000)
       : await cloudSyncReadWithRetry(createLegacyRequest, "delta page read", { timeoutMs: 20000 });
     if (error) throw error;
+    if (cloudSyncStartupMetrics.active) {
+      cloudSyncStartupMetrics.deltaPages += 1;
+      cloudSyncStartupMetrics.deltaRows += Array.isArray(data) ? data.length : 0;
+    }
     cloudSyncRecordIncoming("delta", data || [], Array.isArray(data) ? data.length : 0);
     if (!data || data.length === 0) break;
 
@@ -1380,7 +1588,7 @@ async function cloudSyncPersistPullDeltaToCache(mergedState, changedIdsByEntity 
     const metadataKeys = [
       'companyName', 'address', 'taxCode', 'accountingStandard',
       'initialBalances', 'partnerOpeningBalances', 'partnerOpeningBalanceTs', 'deletedIds', 'deletedCloudKeys',
-      '_lastModified', '_lastPulledCloudTs',
+      '_lastModified', '_lastPulledCloudTs', '_cloudDatasetIdentity', '_pendingCloudWrite',
       'cashEntries', 'escrowItems', 'salesTemplatesData', 'users', 'actionLogs'
     ];
     metadataKeys.forEach(key => {
@@ -1586,6 +1794,10 @@ async function pullAndMergeFromCloud(options = {}) {
     cloudSyncNoteLegacyLock(metadata, options.reason || "pull");
 
     const checkpoint = options.forceFull ? 0 : getPullCheckpointTs();
+    const legacyOverlap = !cloudUsesVersionedRpc && options.legacyOverlap === true && checkpoint > 0;
+    const fetchCheckpoint = legacyOverlap
+      ? Math.max(0, checkpoint - CLOUD_SYNC_LEGACY_OVERLAP_MS)
+      : checkpoint;
     lastSyncState = window.lastSyncState || lastSyncState;
     const hasCompleteBaseline = !!lastSyncState;
     let rows;
@@ -1599,7 +1811,7 @@ async function pullAndMergeFromCloud(options = {}) {
       if (cloudSyncShouldUseFullPull(checkpoint, true, cloudWatermark)) {
         cloudSyncLog(`Cloud watermark rollback detected (${cloudWatermark} < ${checkpoint}); forcing full reconcile.`);
         useFullPull = true;
-      } else if (cloudWatermark <= checkpoint && !options.retryFullIfNoChanges) {
+      } else if (cloudWatermark <= checkpoint && !options.retryFullIfNoChanges && !legacyOverlap) {
         cloudSyncLog("Cloud watermark <= checkpoint, khong co thay doi, thoat.");
         updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
         cloudSyncSetWriteReady("Cloud da san sang.");
@@ -1615,8 +1827,8 @@ async function pullAndMergeFromCloud(options = {}) {
       cloudSnapshot = cloudSyncStateFromRows(rows, { watermark }).state;
     } else {
       cloudSyncLog(`Kiem tra incremental: cloudWatermark=${cloudWatermark}, checkpoint=${checkpoint}`);
-      rows = await cloudSyncFetchRowsSince(checkpoint);
-      cloudSyncLog(`Da tai ${rows.length} dong thay doi tu cloud since ${checkpoint}`);
+      rows = await cloudSyncFetchRowsSince(fetchCheckpoint);
+      cloudSyncLog(`Da tai ${rows.length} dong thay doi tu cloud since ${fetchCheckpoint}${legacyOverlap ? " (legacy overlap)" : ""}`);
       if (rows.length === 0 && options.retryFullIfNoChanges) {
         cloudSyncLog("Khong co dong thay doi incremental, thuc hien full pull de bao dam...");
         rows = await cloudSyncFetchAllRows();
@@ -1660,12 +1872,20 @@ async function pullAndMergeFromCloud(options = {}) {
     // From here until `state` is updated there must be NO awaits: the merge
     // reads the live state and user edits mid-merge would otherwise be lost.
     const vouchersBefore = Array.isArray(state.vouchers) ? state.vouchers.length : 0;
+    const hasDurablePendingField = Object.prototype.hasOwnProperty.call(state, "_pendingCloudWrite");
+    const durablePendingWrite = hasDurablePendingField
+      ? cloudSyncClone(state._pendingCloudWrite)
+      : undefined;
     const mergeResult = cloudSyncMergeStatesCore(state, cloudSnapshot, {
       cloneWinners: true,
       cloneMetadata: true,
       collectStats: true
     });
     const merged = mergeResult.state;
+    // This marker is machine-local crash-recovery state and is deliberately
+    // excluded from cloud metadata. Preserve it when the merge replaces the
+    // top-level state object.
+    if (hasDurablePendingField) merged._pendingCloudWrite = durablePendingWrite;
     const stats = mergeResult.stats;
     const prunedCount = cloudSyncPruneStaleLocalOnlyItems(merged, state, cloudSnapshot, checkpoint);
     const hasChanges = stats.changed || prunedCount > 0;
@@ -1733,15 +1953,29 @@ async function pullFromCloudOnStartup() {
   if (!lastSyncState) cloudSyncRestoreBaselineFromConfirmedCache();
   lastSyncState = window.lastSyncState || lastSyncState;
   const needFullPull = cloudSyncShouldUseFullPull(startupCheckpoint, !!lastSyncState);
+  cloudSyncStartupMetrics.pullStartedAt = Date.now();
+  cloudSyncStartupMetrics.mode = needFullPull ? "full" : "incremental";
+  cloudSyncStartupMetrics.checkpoint = startupCheckpoint;
   updateStartupStatus(needFullPull ? "Dang full-reconcile du lieu cloud..." : "Dang dong bo thay doi tu cloud...");
   cloudSyncLog(`Startup pull mode: ${needFullPull ? "full" : `incremental (checkpoint=${startupCheckpoint})`}.`);
 
   try {
-    await pullAndMergeFromCloud({ startup: true, forceFull: needFullPull, force: true, reason: "startup" });
+    await pullAndMergeFromCloud({
+      startup: true,
+      forceFull: needFullPull,
+      force: true,
+      legacyOverlap: !needFullPull && !cloudUsesVersionedRpc,
+      reason: "startup"
+    });
     if (needFullPull) {
       await cloudSyncRescueLocalOnlyItems({ completeCloudSnapshot: true });
     }
     finishStartupPull();
+    cloudSyncStartupMetrics.completedAt = Date.now();
+    cloudSyncStartupMetrics.pullMs = cloudSyncStartupMetrics.completedAt - cloudSyncStartupMetrics.pullStartedAt;
+    cloudSyncStartupMetrics.connectMs = cloudSyncStartupMetrics.completedAt - cloudSyncStartupMetrics.connectStartedAt;
+    cloudSyncStartupMetrics.ok = true;
+    cloudSyncStartupMetrics.active = false;
     updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
     cloudSyncLog("Startup reconcile completed.");
     if (cloudSyncHasPendingLocalWrite()) {
@@ -1754,6 +1988,12 @@ async function pullFromCloudOnStartup() {
     if (typeof addErrorLog === "function") addErrorLog("CloudSync.startup", err.message, err);
     updateCloudSyncBadge(false, "Mây: Lỗi tải khi khởi động", "#ef4444");
     finishStartupPull();
+    cloudSyncStartupMetrics.completedAt = Date.now();
+    cloudSyncStartupMetrics.pullMs = cloudSyncStartupMetrics.completedAt - cloudSyncStartupMetrics.pullStartedAt;
+    cloudSyncStartupMetrics.connectMs = cloudSyncStartupMetrics.completedAt - cloudSyncStartupMetrics.connectStartedAt;
+    cloudSyncStartupMetrics.ok = false;
+    cloudSyncStartupMetrics.error = String(err && err.message || err);
+    cloudSyncStartupMetrics.active = false;
     return false;
   }
 }
@@ -2027,6 +2267,44 @@ async function cloudSyncDeleteRows(ids) {
   }
 }
 
+function cloudSyncBuildPushPayload(pushTs) {
+  const { rowsToUpsert, idsToDelete } = computeDelta();
+  const entityRows = rowsToUpsert.filter(row => row.id !== CLOUD_SYNC_METADATA_ID);
+  const metadataDeltaRow = rowsToUpsert.find(row => row.id === CLOUD_SYNC_METADATA_ID) || null;
+  const finalMetadata = metadataDeltaRow ? cloudSyncBuildMetadataForPush(pushTs) : null;
+  const tombstoneRows = entityRows.filter(row => row.data && row.data._deleted);
+  const finalMetadataRow = finalMetadata
+    ? {
+        id: CLOUD_SYNC_METADATA_ID,
+        data: finalMetadata,
+        last_modified: pushTs,
+        is_syncing: false,
+        updated_at: new Date().toISOString()
+      }
+    : null;
+  const signalRow = cloudSyncMakeSignalRow(pushTs);
+  return {
+    rowsToUpsert,
+    idsToDelete,
+    entityRows,
+    finalMetadata,
+    tombstoneRows,
+    finalMetadataRow,
+    signalRow,
+    rowsForPush: [
+      ...entityRows,
+      ...(finalMetadataRow ? [finalMetadataRow] : []),
+      signalRow
+    ]
+  };
+}
+
+function cloudSyncVersionConflictDelay(attempt) {
+  const exponential = Math.min(1000, CLOUD_SYNC_VERSION_CONFLICT_BASE_DELAY_MS * Math.pow(1.45, attempt));
+  const jitter = Math.floor(Math.random() * CLOUD_SYNC_VERSION_CONFLICT_BASE_DELAY_MS * 4);
+  return new Promise(resolve => setTimeout(resolve, exponential + jitter));
+}
+
 async function cloudSyncPushNow() {
   if (!cloudSyncActive || !supabaseClient) return false;
   if (!isStartupPullCompleted) {
@@ -2071,75 +2349,70 @@ async function cloudSyncPushNow() {
 
     const metadataBefore = await cloudSyncEnsureMetadataRow({ summaryOnly: true });
     const cloudWatermarkBefore = await cloudSyncGetCloudWatermark(metadataBefore);
-    const pushTs = Math.max(Date.now(), Number(state._lastModified) || 0, cloudWatermarkBefore + 1);
+    let pushTs = Math.max(Date.now(), Number(state._lastModified) || 0, cloudWatermarkBefore + 1);
     state._lastModified = pushTs;
 
-    const { rowsToUpsert, idsToDelete } = computeDelta();
-    const entityRows = rowsToUpsert.filter(row => row.id !== CLOUD_SYNC_METADATA_ID);
-    const metadataDeltaRow = rowsToUpsert.find(row => row.id === CLOUD_SYNC_METADATA_ID) || null;
-    const finalMetadata = metadataDeltaRow ? cloudSyncBuildMetadataForPush(pushTs) : null;
-    const tombstoneRows = entityRows.filter(row => row.data && row.data._deleted);
-    const finalMetadataRow = finalMetadata
-      ? {
-          id: CLOUD_SYNC_METADATA_ID,
-          data: finalMetadata,
-          last_modified: pushTs,
-          is_syncing: false,
-          updated_at: new Date().toISOString()
-        }
-      : null;
-    const signalRow = cloudSyncMakeSignalRow(pushTs);
-    const rowsForPush = [
-      ...entityRows,
-      ...(finalMetadataRow ? [finalMetadataRow] : []),
-      signalRow
-    ];
+    let pushPayload = cloudSyncBuildPushPayload(pushTs);
     if (cloudUsesVersionedRpc) {
       const updatedBy = cloudSyncGetUpdatedByToken();
       // Do not retry a write transaction blindly: the server may have committed
       // even when its response was lost. A timeout leaves the durable pending
       // marker in place so the next reconciliation can decide safely.
-      const { data: rpcResult, error: rpcError } = await withTimeout(
-        supabaseClient.rpc("rd_apply_sync_transaction", {
-          p_workspace_id: cloudWorkspaceId,
-          p_expected_sync_version: cloudSyncVersion,
-          p_rows: rowsForPush,
-          p_updated_by: updatedBy
-        }),
-        20000
-      );
-      if (rpcError) throw rpcError;
-      if (!rpcResult || rpcResult.ok !== true) {
-        cloudSyncVersion = Number(rpcResult && rpcResult.sync_version) || cloudSyncVersion;
-        await pullAndMergeFromCloud({ reason: "version-conflict", force: true, forceFull: true, allowDuringPush: true });
-        throw new Error("Dữ liệu cloud vừa thay đổi trên máy khác. Đã tải bản mới; vui lòng thực hiện lại thao tác.");
+      let transactionCommitted = false;
+      for (let attempt = 0; attempt <= CLOUD_SYNC_VERSION_CONFLICT_MAX_RETRIES; attempt++) {
+        if (pushPayload.rowsToUpsert.length === 0 && pushPayload.idsToDelete.length === 0) break;
+        const { data: rpcResult, error: rpcError } = await withTimeout(
+          supabaseClient.rpc("rd_apply_sync_transaction", {
+            p_workspace_id: cloudWorkspaceId,
+            p_expected_sync_version: cloudSyncVersion,
+            p_rows: pushPayload.rowsForPush,
+            p_updated_by: updatedBy
+          }),
+          20000
+        );
+        if (rpcError) throw rpcError;
+        if (rpcResult && rpcResult.ok === true) {
+          cloudSyncVersion = Number(rpcResult.sync_version) || cloudSyncVersion;
+          transactionCommitted = true;
+          break;
+        }
+        if (!rpcResult || rpcResult.conflict !== true || attempt >= CLOUD_SYNC_VERSION_CONFLICT_MAX_RETRIES) {
+          throw new Error("Cloud transaction conflict retry limit reached.");
+        }
+
+        cloudSyncVersion = Number(rpcResult.sync_version) || cloudSyncVersion;
+        cloudSyncLog(`Version conflict at ${cloudSyncVersion}; incremental reconcile and retry ${attempt + 1}/${CLOUD_SYNC_VERSION_CONFLICT_MAX_RETRIES}.`);
+        await pullAndMergeFromCloud({ reason: "version-conflict", force: true, allowDuringPush: true });
+        await cloudSyncVersionConflictDelay(attempt);
+        pushTs = Math.max(pushTs, Date.now(), Number(state._lastModified) || 0);
+        state._lastModified = pushTs;
+        pushPayload = cloudSyncBuildPushPayload(pushTs);
       }
-      cloudSyncVersion = Number(rpcResult.sync_version) || cloudSyncVersion;
-      if (cloudSyncEgressMetrics.enabled) {
+      if (transactionCommitted && cloudSyncEgressMetrics.enabled) {
         cloudSyncEgressMetrics.pushTransactions += 1;
-        cloudSyncEgressMetrics.pushRows += rowsForPush.length;
+        cloudSyncEgressMetrics.pushRows += pushPayload.rowsForPush.length;
       }
     } else {
-      if (entityRows.length > 0) await cloudSyncUpsertRows(entityRows);
-      if (idsToDelete.length > 0) await cloudSyncDeleteRows(idsToDelete);
-      if (finalMetadataRow) await cloudSyncUpsertRows([finalMetadataRow]);
+      if (pushPayload.entityRows.length > 0) await cloudSyncUpsertRows(pushPayload.entityRows);
+      if (pushPayload.idsToDelete.length > 0) await cloudSyncDeleteRows(pushPayload.idsToDelete);
+      if (pushPayload.finalMetadataRow) await cloudSyncUpsertRows([pushPayload.finalMetadataRow]);
       // Keep the signal last so subscribers only pull after every entity and
       // optional metadata row in this logical transaction is visible.
-      await cloudSyncUpsertRows([signalRow]);
+      await cloudSyncUpsertRows([pushPayload.signalRow]);
       if (cloudSyncEgressMetrics.enabled) {
         cloudSyncEgressMetrics.pushTransactions += 1;
-        cloudSyncEgressMetrics.pushRows += rowsForPush.length + idsToDelete.length;
+        cloudSyncEgressMetrics.pushRows += pushPayload.rowsForPush.length + pushPayload.idsToDelete.length;
       }
     }
 
-    if (tombstoneRows.length > 0) {
+    if (pushPayload.tombstoneRows.length > 0) {
       state.deletedIds = [];
       state.deletedCloudKeys = [];
     }
     state._cloudWatermark = pushTs;
     // [Perf] Cap nhat snapshot dong bo bang cach ap dung dung cac dong vua day,
     // thay vi deep-clone toan bo state (gay dung hinh UI voi du lieu lon).
-    cloudSyncApplyPushToLastSyncState(entityRows, pushTs, finalMetadata);
+    cloudSyncApplyPushToLastSyncState(pushPayload.entityRows, pushTs, pushPayload.finalMetadata);
     // [Fix] KHÔNG cập nhật checkpoint watermark của pull khi push, để luồng check/pull 
     // tiếp theo tải về và hợp nhất đầy đủ các thay đổi song song trên cloud (ví dụ đơn bị xóa).
     // persistLastPulledCloudTs(pushTs);
@@ -2147,7 +2420,7 @@ async function cloudSyncPushNow() {
     // executeSaveState (js/state.js) luu qua duong delta truoc khi push. Cac thay doi
     // bookkeeping trong luc push (_lastModified, _updatedAt, deletedIds da xoa) se duoc
     // luu o lan save/pull ke tiep va an toan neu mat (tombstone gui lai idempotent).
-    cloudSyncLog(`Push completed: ${entityRows.length} entity upsert, ${finalMetadataRow ? 1 : 0} metadata, ${tombstoneRows.length} tombstone, ${idsToDelete.length} physical delete.`);
+    cloudSyncLog(`Push completed: ${pushPayload.entityRows.length} entity upsert, ${pushPayload.finalMetadataRow ? 1 : 0} metadata, ${pushPayload.tombstoneRows.length} tombstone, ${pushPayload.idsToDelete.length} physical delete.`);
     syncTaskOk = true;
     updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
     cloudSyncSetWriteReady("Cloud đã xác nhận thay đổi.");
@@ -2210,6 +2483,15 @@ async function checkCloudMetadataForChanges(reason = "poll") {
       lastCheckpointRecoveryAt = now;
       cloudSyncLog(`Checkpoint skew recovery (${reason}): local ${checkpoint}, cloud ${cloudWatermark}.`);
       scheduleCloudPull(`${reason}-checkpoint-recovery`, { forceFull: true });
+      return;
+    }
+
+    if (
+      !cloudUsesVersionedRpc &&
+      now - lastLegacyOverlapPullAt >= CLOUD_SYNC_LEGACY_OVERLAP_INTERVAL_MS
+    ) {
+      lastLegacyOverlapPullAt = now;
+      scheduleCloudPull(`${reason}-legacy-overlap`, { legacyOverlap: true });
     }
   } catch (err) {
     console.warn("[CloudSync] Metadata check failed:", err);
@@ -2318,7 +2600,7 @@ function listenToCloudChanges() {
         if (row.data && row.data.lastModifiedBy === cloudSyncGetSessionId()) return;
         if (cloudUsesVersionedRpc) cloudSyncVersion = Math.max(cloudSyncVersion, Number(row.sync_version) || 0);
         cloudSyncNoteLegacyLock(row, "realtime");
-        scheduleCloudPull("realtime");
+        scheduleCloudPull("realtime", { legacyOverlap: !cloudUsesVersionedRpc });
       }
     )
       .subscribe(status => {
@@ -2518,6 +2800,22 @@ async function initCloudSync() {
 
 async function startSupabaseClient() {
   try {
+    Object.assign(cloudSyncStartupMetrics, {
+      active: true,
+      connectStartedAt: Date.now(),
+      pullStartedAt: 0,
+      completedAt: 0,
+      connectMs: 0,
+      pullMs: 0,
+      mode: "",
+      checkpoint: 0,
+      snapshotPages: 0,
+      snapshotRows: 0,
+      deltaPages: 0,
+      deltaRows: 0,
+      ok: false,
+      error: ""
+    });
     stopCloudMetadataPolling();
     stopRealtimeReconnect();
     realtimeChangeConfirmed = false;
@@ -2578,6 +2876,11 @@ async function startSupabaseClient() {
     refreshCloudSyncControls();
     updateCloudSyncBadge(false, "Mây: Lỗi khởi tạo", "#ef4444");
     if (window.cloudWriteGate) window.cloudWriteGate.setStatus("error", "Không thể xác thực hoặc tải dữ liệu cloud.");
+    cloudSyncStartupMetrics.completedAt = Date.now();
+    cloudSyncStartupMetrics.connectMs = cloudSyncStartupMetrics.completedAt - cloudSyncStartupMetrics.connectStartedAt;
+    cloudSyncStartupMetrics.ok = false;
+    cloudSyncStartupMetrics.error = String(err && err.message || err);
+    cloudSyncStartupMetrics.active = false;
     hideStartupOverlay();
     return false;
   }
@@ -2775,12 +3078,16 @@ async function fetchCloudMaxVoucherSequence(prefix, options = {}) {
   if (cloudUsesVersionedRpc) {
     let afterId = null;
     for (let page = 0; page < 30; page++) {
-      const { data, error } = await client.rpc("rd_ids_by_prefix", {
-        p_workspace_id: cloudWorkspaceId,
-        p_prefix: lower,
-        p_after_id: afterId,
-        p_limit: pageSize
-      });
+      const { data, error } = await cloudSyncReadWithRetry(
+        () => client.rpc("rd_ids_by_prefix", {
+          p_workspace_id: cloudWorkspaceId,
+          p_prefix: lower,
+          p_after_id: afterId,
+          p_limit: pageSize
+        }),
+        `voucher id prefix ${lower} page ${page + 1}`,
+        { attempts: 6, timeoutMs: 20000 }
+      );
       if (error) throw error;
       maxNum = Math.max(maxNum, getMaxVoucherSequenceFromRows(data || [], prefix, rowPrefix));
       if (!data || data.length < pageSize) break;
@@ -2790,9 +3097,18 @@ async function fetchCloudMaxVoucherSequence(prefix, options = {}) {
   }
 
   for (let page = 0; page < 30; page++) {
-    let query = client.from(CLOUD_SYNC_TABLE).select("id, last_modified").gte("id", lower);
-    if (upper) query = query.lt("id", upper);
-    const { data, error } = await query.order("id").range(from, from + pageSize - 1);
+    const { data, error } = await cloudSyncReadWithRetry(
+      () => {
+        let query = client.from(CLOUD_SYNC_TABLE).select("id, last_modified").gte("id", lower);
+        if (upper) query = query.lt("id", upper);
+        if (rowPrefix.startsWith("lock_")) {
+          query = query.gte("last_modified", Date.now() - 15 * 60 * 1000);
+        }
+        return query.order("id").range(from, from + pageSize - 1);
+      },
+      `voucher id prefix ${lower} page ${page + 1}`,
+      { attempts: 6, timeoutMs: 20000 }
+    );
     if (error) throw error;
     maxNum = Math.max(maxNum, getMaxVoucherSequenceFromRows(data || [], prefix, rowPrefix));
     if (!data || data.length < pageSize) break;
@@ -2822,23 +3138,31 @@ async function tryReserveCloudVoucherId(voucherId, options = {}) {
   const lockId = `lock_${rowPrefix}${voucherId}`;
   if (cloudUsesVersionedRpc) {
     const updatedBy = cloudSyncGetUpdatedByToken();
-    const { data, error } = await client.rpc("rd_reserve_voucher_id", {
-      p_workspace_id: cloudWorkspaceId,
-      p_lock_id: lockId,
-      p_data: { voucherId, rowPrefix, reservedBy: cloudSyncGetSessionId(), reservedAt: now },
-      p_updated_by: updatedBy
-    });
+    const { data, error } = await cloudSyncReadWithRetry(
+      () => client.rpc("rd_reserve_voucher_id", {
+        p_workspace_id: cloudWorkspaceId,
+        p_lock_id: lockId,
+        p_data: { voucherId, rowPrefix, reservedBy: cloudSyncGetSessionId(), reservedAt: now },
+        p_updated_by: updatedBy
+      }),
+      `voucher id reservation ${voucherId}`,
+      { attempts: 6, timeoutMs: 20000 }
+    );
     if (error) throw error;
     cloudSyncVersion = Math.max(cloudSyncVersion, Number(data && data.sync_version) || 0);
     return !!(data && data.reserved);
   }
-  const { error } = await client.from(CLOUD_SYNC_TABLE).insert({
-    id: lockId,
-    data: { voucherId, rowPrefix, reservedBy: cloudSyncGetSessionId(), reservedAt: now },
-    last_modified: now,
-    is_syncing: false,
-    updated_at: new Date().toISOString()
-  });
+  const { error } = await cloudSyncReadWithRetry(
+    () => client.from(CLOUD_SYNC_TABLE).insert({
+      id: lockId,
+      data: { voucherId, rowPrefix, reservedBy: cloudSyncGetSessionId(), reservedAt: now },
+      last_modified: now,
+      is_syncing: false,
+      updated_at: new Date().toISOString()
+    }),
+    `voucher id reservation ${voucherId}`,
+    { attempts: 6, timeoutMs: 20000 }
+  );
   if (!error) return true;
   if (isCloudDuplicateKeyError(error)) return false;
   throw error;
@@ -2885,10 +3209,13 @@ async function fetchExistingCloudIdsByKeysFromClient(client, keys) {
   const uniqueKeys = Array.from(new Set((keys || []).filter(Boolean)));
   for (let i = 0; i < uniqueKeys.length; i += 100) {
     const batch = uniqueKeys.slice(i, i + 100);
-    const request = cloudUsesVersionedRpc
-      ? client.rpc("rd_find_ids", { p_workspace_id: cloudWorkspaceId, p_ids: batch })
-      : client.from(CLOUD_SYNC_TABLE).select("id").in("id", batch);
-    const { data, error } = await request;
+    const { data, error } = await cloudSyncReadWithRetry(
+      () => cloudUsesVersionedRpc
+        ? client.rpc("rd_find_ids", { p_workspace_id: cloudWorkspaceId, p_ids: batch })
+        : client.from(CLOUD_SYNC_TABLE).select("id").in("id", batch),
+      `existing cloud ids batch ${Math.floor(i / 100) + 1}`,
+      { attempts: 4, timeoutMs: 20000 }
+    );
     if (error) throw error;
     (data || []).forEach(row => row && row.id && existing.add(row.id));
   }
@@ -2950,6 +3277,10 @@ window.__cloudSyncInternals__ = {
   cloudSyncGetDatasetIdentity,
   cloudSyncRestoreBaselineFromConfirmedCache,
   cloudSyncResetCloudBaseline,
+  cloudSyncGetPendingWriteManifest,
+  cloudSyncCapturePendingWriteManifest,
+  cloudSyncClearPendingLocalWrite,
+  cloudSyncShouldRetryRequestError,
   queuePendingPull,
   takePendingPullOptions
 };

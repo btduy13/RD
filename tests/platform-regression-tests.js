@@ -106,6 +106,14 @@ function testPlatformWiring() {
   assert(main.includes("ipcMain.handle('open-backup-folder'"));
   assert(main.includes('readLatestValidJsonBackup(BACKUP_DIR)'));
   assert(main.includes("app.on('will-quit'"));
+  assert(
+    main.includes("if (migratedLegacyState && fs.existsSync(oldBackupDir)"),
+    'legacy backup files must only be copied when a legacy state/database was actually migrated'
+  );
+  assert(main.includes("stmtMetadata.run('_pendingCloudWrite'"));
+  assert(main.includes("row.key === '_pendingCloudWrite'"));
+  assert(main.includes("stmtMetadata.run('_cloudDatasetIdentity'"));
+  assert(main.includes("row.key === '_cloudDatasetIdentity'"));
 }
 
 testBackupStore();

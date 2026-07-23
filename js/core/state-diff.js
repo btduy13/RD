@@ -185,7 +185,7 @@ function buildStateDelta(state, lastSavedState) {
   const metadataKeys = [
     "companyName", "address", "taxCode", "accountingStandard",
     "initialBalances", "partnerOpeningBalances", "partnerOpeningBalanceTs",
-    "deletedIds", "deletedCloudKeys", "_lastPulledCloudTs",
+    "deletedIds", "deletedCloudKeys", "_lastPulledCloudTs", "_cloudDatasetIdentity", "_pendingCloudWrite",
     "cashEntries", "escrowItems", "salesTemplatesData", "users", "actionLogs",
     "schemaVersion", "_accountingValid", "_accountingValidTs", "_recalcWatermark"
   ];

@@ -8,6 +8,7 @@ const sources = ['purchase.js', 'sales.js', 'cash.js', 'inventory.js', 'partners
 const cashSource = fs.readFileSync(path.join(root, 'js', 'modules', 'cash.js'), 'utf8');
 const accounting = fs.readFileSync(path.join(root, 'js', 'accounting.js'), 'utf8');
 const stateSource = fs.readFileSync(path.join(root, 'js', 'state.js'), 'utf8');
+const excelSource = fs.readFileSync(path.join(root, 'js', 'excel-integration.js'), 'utf8');
 
 const forms = [...index.matchAll(/<form\b[^>]*id="([^"]+)"[^>]*onsubmit="([A-Za-z0-9_]+)\(event\)"/g)]
   .map(match => ({ id: match[1], handler: match[2] }))
@@ -69,4 +70,25 @@ for (const name of ['deleteVoucher', 'deleteProduct', 'deletePartner']) {
 
 assert.match(index, /js\/cloud-sync\.js/);
 assert.equal((index.match(/<script[^>]+js\/cloud-sync\.js/g) || []).length, 1);
+const excelInitSource = excelSource.slice(
+  excelSource.indexOf('function initExcelIntegration()'),
+  excelSource.indexOf('function cacheProductOptions()')
+);
+assert.match(excelSource, /ACCOUNTING_DATALIST_RESULT_LIMIT = 250/);
+assert.match(excelSource, /function refreshPartnerDatalist\(/);
+assert.match(excelSource, /function initAccountingDatalistLazyLoading\(/);
+assert.doesNotMatch(
+  excelInitSource,
+  /state\.partners\.map\(|productDatalist\.innerHTML|purchaseProductDatalist\.innerHTML/,
+  'startup must not materialize the full partner/product catalogs into datalist DOM nodes'
+);
+const initAppSource = stateSource.slice(
+  stateSource.indexOf('async function initApp()'),
+  stateSource.indexOf('function cleanNumericVouchers()')
+);
+assert.doesNotMatch(
+  initAppSource,
+  /autoExtractPhonesAndCleanAddresses\(\)/,
+  'startup must not mutate partner addresses and queue redundant cloud writes on every station'
+);
 console.log(`workflow sync coverage passed (${forms.length} business forms)`);

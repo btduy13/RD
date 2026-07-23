@@ -871,6 +871,8 @@ function getEmptyStateObject() {
     partnerOpeningBalanceTs: {},
     deletedIds: [],
     deletedCloudKeys: [],
+    _cloudDatasetIdentity: '',
+    _pendingCloudWrite: null,
     products: [],
     partners: [],
     vouchers: [],
@@ -917,12 +919,14 @@ function migrateFromOldPathsIfNecessary() {
   try {
     ensureStateDir();
     ensureBackupDir();
+    let migratedLegacyState = false;
 
     // 1. Di trú CSDL SQLite (rd_local.db)
     const oldDbPath = path.join(__dirname, 'data', 'rd_local.db');
     if (fs.existsSync(oldDbPath) && !fs.existsSync(STATE_DB_PATH) && !oldDbPath.includes('.asar')) {
       console.log('[SQLiteStore] Phát hiện CSDL cũ tại thư mục cài đặt. Di chuyển sang AppData...');
       fs.copyFileSync(oldDbPath, STATE_DB_PATH);
+      migratedLegacyState = true;
       console.log('[SQLiteStore] Đã sao chép rd_local.db sang AppData thành công.');
     }
 
@@ -931,12 +935,13 @@ function migrateFromOldPathsIfNecessary() {
     if (fs.existsSync(oldJsonPath) && !fs.existsSync(STATE_FILE_PATH) && !oldJsonPath.includes('.asar')) {
       console.log('[SQLiteStore] Phát hiện file rd_state.json cũ tại thư mục cài đặt. Di chuyển sang AppData...');
       fs.copyFileSync(oldJsonPath, STATE_FILE_PATH);
+      migratedLegacyState = true;
       console.log('[SQLiteStore] Đã sao chép rd_state.json sang AppData thành công.');
     }
 
     // 3. Di trú các bản sao lưu từ thư mục cài đặt/backup cũ sang AppData/backup mới
     const oldBackupDir = path.join(__dirname, 'backup');
-    if (fs.existsSync(oldBackupDir) && !oldBackupDir.includes('.asar')) {
+    if (migratedLegacyState && fs.existsSync(oldBackupDir) && !oldBackupDir.includes('.asar')) {
       const files = fs.readdirSync(oldBackupDir);
       files.forEach(f => {
         const oldF = path.join(oldBackupDir, f);
@@ -1118,6 +1123,8 @@ function saveStateToSQLite(stateObj) {
     stmtMetadata.run('deletedCloudKeys', JSON.stringify(stateObj.deletedCloudKeys || []));
     stmtMetadata.run('_lastModified', JSON.stringify(stateObj._lastModified || Date.now()));
     stmtMetadata.run('_lastPulledCloudTs', JSON.stringify(stateObj._lastPulledCloudTs || 0));
+    stmtMetadata.run('_cloudDatasetIdentity', JSON.stringify(stateObj._cloudDatasetIdentity || ''));
+    stmtMetadata.run('_pendingCloudWrite', JSON.stringify(stateObj._pendingCloudWrite || null));
     stmtMetadata.run('schemaVersion', JSON.stringify(stateObj.schemaVersion || SCHEMA_VERSION));
     stmtMetadata.run('_accountingValid', JSON.stringify(!!stateObj._accountingValid));
     stmtMetadata.run('_accountingValidTs', JSON.stringify(stateObj._accountingValidTs || 0));
@@ -1313,6 +1320,8 @@ function readStateFromSQLite() {
       else if (row.key === 'deletedCloudKeys') stateObj.deletedCloudKeys = parsedVal;
       else if (row.key === '_lastModified') stateObj._lastModified = parsedVal;
       else if (row.key === '_lastPulledCloudTs') stateObj._lastPulledCloudTs = parsedVal;
+      else if (row.key === '_cloudDatasetIdentity') stateObj._cloudDatasetIdentity = parsedVal;
+      else if (row.key === '_pendingCloudWrite') stateObj._pendingCloudWrite = parsedVal;
       else if (row.key === 'partnerOpeningBalanceTs') stateObj.partnerOpeningBalanceTs = parsedVal;
       else if (row.key === 'schemaVersion') stateObj.schemaVersion = parsedVal;
       else if (row.key === '_accountingValid') stateObj._accountingValid = parsedVal;
