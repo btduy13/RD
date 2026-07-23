@@ -77,6 +77,20 @@ const excelInitSource = excelSource.slice(
 assert.match(excelSource, /ACCOUNTING_DATALIST_RESULT_LIMIT = 250/);
 assert.match(excelSource, /function refreshPartnerDatalist\(/);
 assert.match(excelSource, /function initAccountingDatalistLazyLoading\(/);
+const lazyDatalistSource = excelSource.slice(
+  excelSource.indexOf('function initAccountingDatalistLazyLoading()'),
+  excelSource.indexOf('// Khởi tạo cache sản phẩm')
+);
+assert.match(
+  lazyDatalistSource,
+  /getAttribute\("list"\)\s*\|\|\s*input\.getAttribute\("data-list"\)/,
+  'lazy suggestions must recognize inputs initialized by the custom autocomplete'
+);
+assert.match(
+  lazyDatalistSource,
+  /addEventListener\("input"[^;]+,\s*true\)/,
+  'lazy suggestions must load before the autocomplete renders its dropdown'
+);
 assert.doesNotMatch(
   excelInitSource,
   /state\.partners\.map\(|productDatalist\.innerHTML|purchaseProductDatalist\.innerHTML/,

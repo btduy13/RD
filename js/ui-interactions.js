@@ -1322,7 +1322,9 @@ window.hideDebtsExportDropdown = hideDebtsExportDropdown;
 function getActiveLookupType(activeEl) {
   if (!activeEl || activeEl.tagName !== 'INPUT') return null;
   
-  const listAttr = activeEl.getAttribute('list') || '';
+  // Custom autocomplete moves the native datalist id to `data-list` after
+  // the first focus. Keep F3 lookup working for initialized inputs as well.
+  const listAttr = activeEl.getAttribute('list') || activeEl.getAttribute('data-list') || '';
   const idAttr = (activeEl.id || '').toLowerCase();
   const nameAttr = (activeEl.name || '').toLowerCase();
   

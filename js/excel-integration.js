@@ -1670,14 +1670,19 @@ function initAccountingDatalistLazyLoading() {
     accountingDatalistLazyLoadingBound = true;
     const refreshForInput = input => {
         if (!input || typeof input.getAttribute !== "function") return;
-        const listId = input.getAttribute("list");
+        // The custom autocomplete replaces the native `list` attribute with
+        // `data-list`. Support both so lazy loading keeps working after the
+        // input has been initialized.
+        const listId = input.getAttribute("list") || input.getAttribute("data-list");
         if (listId === "datalist-partners") refreshPartnerDatalist(input.value);
         if (listId === "datalist-sales-products" || listId === "datalist-purchase-products") {
             refreshProductDatalists(input.value);
         }
     };
-    document.addEventListener("input", event => refreshForInput(event.target));
-    document.addEventListener("focusin", event => refreshForInput(event.target));
+    // Populate the datalist in the capture phase, before the autocomplete's
+    // target/bubble handlers try to render the suggestion dropdown.
+    document.addEventListener("input", event => refreshForInput(event.target), true);
+    document.addEventListener("focusin", event => refreshForInput(event.target), true);
 }
 
 // Khởi tạo cache sản phẩm và datalist đối tác

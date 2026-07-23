@@ -351,6 +351,94 @@ async function main() {
   }, 'printer UI must persist the device, send A5 directly, and fall back to the system dialog');
   assert.deepEqual(result.cloudClosedState, { ariaHidden: 'true', bodyLocked: false });
 
+  const autocompleteResult = await win.webContents.executeJavaScript(`(async () => {
+    const waitForUi = () => new Promise(resolve => setTimeout(resolve, 20));
+    const failures = [];
+    const checked = [];
+
+    state.partners = [
+      { id: 'KH-AUTO', name: 'Anh Auto', type: 'customer', phone: '0909000000' },
+      { id: 'NCC-AUTO', name: 'Nhà cung cấp Auto', type: 'supplier', phone: '0908000000' }
+    ];
+    state.products = [
+      { id: 'SP-AUTO', name: 'Sản phẩm Auto', stock: 42, salePrice1: 12345, avgCost: 6789 }
+    ];
+
+    async function checkInput(input, modalId, expectedList, expectedType, label) {
+      if (!input) {
+        failures.push(label + ': missing input');
+        return;
+      }
+
+      openModal(modalId);
+      input.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+      input.value = 'Auto';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await waitForUi();
+
+      const dataList = input.getAttribute('data-list');
+      const datalist = document.getElementById(expectedList);
+      const dropdown = document.querySelector('.custom-autocomplete-dropdown');
+      const optionCount = datalist ? datalist.querySelectorAll('option').length : 0;
+      const dropdownCount = dropdown ? dropdown.querySelectorAll('.autocomplete-option').length : 0;
+      const lookupType = getActiveLookupType(input);
+
+      if (dataList !== expectedList) failures.push(label + ': data-list=' + dataList);
+      if (input.hasAttribute('list')) failures.push(label + ': native list was not initialized');
+      if (optionCount < 1) failures.push(label + ': lazy datalist is empty');
+      if (dropdownCount < 1) failures.push(label + ': suggestion dropdown is empty');
+      if (lookupType !== expectedType) failures.push(label + ': F3 type=' + lookupType);
+      checked.push({ label, optionCount, dropdownCount, lookupType });
+
+      closeCustomDropdown();
+      closeModal(modalId);
+    }
+
+    const partnerForms = [
+      ['receipt-partner', 'modal-add-receipt'],
+      ['payment-partner', 'modal-add-payment'],
+      ['pur-partner', 'modal-add-purchase'],
+      ['ret-partner', 'modal-add-purchase-return'],
+      ['pur-order-partner', 'modal-add-purchase-order'],
+      ['sale-partner', 'modal-add-sales'],
+      ['quotation-partner', 'modal-add-sales-quotation'],
+      ['sales-ret-partner', 'modal-add-sales-return']
+    ];
+    for (const [inputId, modalId] of partnerForms) {
+      await checkInput(
+        document.getElementById(inputId),
+        modalId,
+        'datalist-partners',
+        'partner',
+        inputId
+      );
+    }
+
+    const productForms = [
+      ['purchase-form-items-body', 'modal-add-purchase', 'datalist-purchase-products'],
+      ['purchase-return-form-items-body', 'modal-add-purchase-return', 'datalist-purchase-products'],
+      ['purchase-order-form-items-body', 'modal-add-purchase-order', 'datalist-purchase-products'],
+      ['sales-form-items-body', 'modal-add-sales', 'datalist-sales-products'],
+      ['quotation-form-items-body', 'modal-add-sales-quotation', 'datalist-sales-products'],
+      ['sales-return-form-items-body', 'modal-add-sales-return', 'datalist-sales-products'],
+      ['template-form-items-body', 'modal-edit-template', 'datalist-sales-products']
+    ];
+    for (const [tbodyId, modalId, listId] of productForms) {
+      replaceDynamicFormTableRows(tbodyId, []);
+      const input = document.querySelector('#' + tbodyId + ' .item-productId');
+      await checkInput(input, modalId, listId, 'product', tbodyId);
+    }
+
+    return { failures, checked };
+  })()`, true);
+  assert.deepEqual(
+    autocompleteResult.failures,
+    [],
+    `autocomplete failures: ${autocompleteResult.failures.join('; ')}`
+  );
+  assert.equal(autocompleteResult.checked.length, 15, 'all partner and product entry forms must expose suggestions');
+  console.log(`[app-shell-smoke] autocomplete verified on ${autocompleteResult.checked.length} real form inputs`);
+
   if (process.env.RD_AUDIT_SCREENSHOT_DIR) {
     fs.mkdirSync(process.env.RD_AUDIT_SCREENSHOT_DIR, { recursive: true });
     await win.webContents.executeJavaScript(`(() => {
