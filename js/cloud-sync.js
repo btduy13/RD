@@ -19,8 +19,12 @@ let deferredCloudPullReason = "";
 let cloudMetadataPollTimer = null;
 let cloudMetadataInitialPollTimer = null;
 let activeCloudMetadataPollIntervalMs = 0;
+let cloudMetadataCheckInFlight = false;
+let cloudMetadataFailureCount = 0;
+let cloudMetadataNextAttemptAt = 0;
 let cloudFocusCheckAttached = false;
 let realtimeReconnectTimer = null;
+let realtimeReconnectAttempt = 0;
 let realtimeChangeConfirmed = false;
 let lastRealtimeFilter = "";
 let lastRealtimeSelect = [];
@@ -29,6 +33,7 @@ let lastCheckpointRecoveryAt = 0;
 let lastLegacyOverlapPullAt = 0;
 let lastPulledCloudWatermark = 0;
 let pushRetryTimeout = null;
+let pushRetryAttempt = 0;
 let scheduledPullTimer = null;
 let lastPullCompletedAt = 0;
 let manualCloudSyncAction = "";
@@ -36,6 +41,9 @@ let cloudWorkspaceId = "00000000-0000-4000-8000-000000000001";
 let cloudSyncVersion = 0;
 let cloudUsesVersionedRpc = false;
 let cloudSyncWriteQueue = Promise.resolve();
+let cloudStartupConnectPromise = null;
+let cloudStartupReconnectTimer = null;
+let cloudStartupReconnectAttempt = 0;
 let cloudSyncTaskSequence = 0;
 const cloudSyncTasks = [];
 
@@ -62,7 +70,11 @@ const CLOUD_SYNC_PULL_DEBOUNCE_MS = 1500;
 const CLOUD_SYNC_PRE_PUSH_PULL_COOLDOWN_MS = 2000;
 const CLOUD_SYNC_STALE_LOCK_MS = 30 * 60 * 1000;
 const CLOUD_SYNC_RECOVERY_GAP_MS = 60 * 1000;
-const CLOUD_SYNC_RECONNECT_DELAY_MS = 5000;
+const CLOUD_SYNC_REALTIME_RECONNECT_BASE_MS = 15000;
+const CLOUD_SYNC_STARTUP_RECONNECT_BASE_MS = 30000;
+const CLOUD_SYNC_PUSH_RETRY_BASE_MS = 30000;
+const CLOUD_SYNC_FAILURE_BACKOFF_MAX_MS = 5 * 60 * 1000;
+const CLOUD_SYNC_METADATA_FAILURE_BASE_MS = 15000;
 const CLOUD_SYNC_LEGACY_OVERLAP_MS = 2 * 60 * 1000;
 const CLOUD_SYNC_LEGACY_OVERLAP_INTERVAL_MS = 30 * 1000;
 const CLOUD_SYNC_VERSION_CONFLICT_MAX_RETRIES = 20;
@@ -178,6 +190,29 @@ function cloudSyncLog(message) {
   if (window.electronAPI && typeof window.electronAPI.writeLog === "function") {
     window.electronAPI.writeLog(`[CloudSync] ${message}`).catch(err => console.error("CloudSync log error:", err));
   }
+}
+
+function cloudSyncErrorSummary(error) {
+  if (!error) return "Unknown cloud error";
+  const raw = String(error.message || error);
+  const status = Number(error.status || error.statusCode) || 0;
+  const htmlCode = raw.match(/error code\s*(\d{3})/i);
+  const code = status || Number(htmlCode && htmlCode[1]) || 0;
+  if (/<(?:!doctype|html|head|body)\b/i.test(raw)) {
+    const title = raw.match(/<title>([^<]+)<\/title>/i);
+    const titleText = title ? title[1].replace(/\s+/g, " ").trim() : "Cloud gateway error";
+    return code ? `Cloud HTTP ${code}: ${titleText}` : titleText;
+  }
+  const compact = raw.replace(/\s+/g, " ").trim();
+  const prefix = code && !compact.includes(String(code)) ? `Cloud HTTP ${code}: ` : "";
+  return `${prefix}${compact || "Unknown cloud error"}`.slice(0, 320);
+}
+
+function cloudSyncGetBackoffDelayMs(attempt, baseMs, maxMs = CLOUD_SYNC_FAILURE_BACKOFF_MAX_MS, randomValue = Math.random()) {
+  const safeAttempt = Math.max(1, Number(attempt) || 1);
+  const exponential = Math.min(maxMs, Math.max(1, Number(baseMs) || 1) * (2 ** (safeAttempt - 1)));
+  const jitter = Math.floor(exponential * 0.5 * Math.max(0, Math.min(1, Number(randomValue) || 0)));
+  return Math.min(maxMs, exponential + jitter);
 }
 
 function updateStartupStatus(text) {
@@ -841,11 +876,11 @@ async function cloudSyncReadWithRetry(createRequest, label, options = {}) {
       const result = await withTimeout(createRequest(), timeoutMs);
       if (!result || !result.error || attempt >= attempts || !cloudSyncShouldRetryRequestError(result.error)) return result;
       lastError = result.error;
-      cloudSyncLog(`${label} failed (${attempt}/${attempts}): ${lastError.message}; retrying...`);
+      cloudSyncLog(`${label} failed (${attempt}/${attempts}): ${cloudSyncErrorSummary(lastError)}; retrying...`);
     } catch (err) {
       lastError = err;
       if (attempt >= attempts) break;
-      cloudSyncLog(`${label} failed (${attempt}/${attempts}): ${err.message}; retrying...`);
+      cloudSyncLog(`${label} failed (${attempt}/${attempts}): ${cloudSyncErrorSummary(err)}; retrying...`);
     }
     const retryDelayMs = Math.min(10000, 350 * (2 ** (attempt - 1))) + Math.floor(Math.random() * 350);
     await new Promise(resolve => setTimeout(resolve, retryDelayMs));
@@ -1061,12 +1096,10 @@ async function cloudSyncAuthenticateAndBootstrap() {
       p_workspace_id: cloudWorkspaceId
     }),
     "cloud bootstrap",
-    // Ten stations can cold-start together after a power/network recovery.
-    // Keep this lightweight status RPC retrying instead of abandoning cloud
-    // initialization after two transient gateway/database timeouts. This does
-    // not download accounting rows and therefore does not reintroduce the
-    // startup egress of a full pull.
-    { attempts: 5, timeoutMs: 20000 }
+    // Use one bounded probe per startup cycle. Longer recovery is handled by
+    // the jittered outer reconnect loop so several stations cannot hammer an
+    // already saturated database with overlapping immediate attempts.
+    { attempts: 1, timeoutMs: 12000 }
   );
   if (error) {
     const code = String(error.code || "");
@@ -2379,6 +2412,7 @@ async function cloudSyncPushNow() {
       syncTaskOk = true;
       updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
       cloudSyncSetWriteReady("Cloud đã đồng bộ; không có thay đổi cần đẩy.");
+      pushRetryAttempt = 0;
       return true;
     }
 
@@ -2469,17 +2503,22 @@ async function cloudSyncPushNow() {
     syncTaskOk = true;
     updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
     cloudSyncSetWriteReady("Cloud đã xác nhận thay đổi.");
+    pushRetryAttempt = 0;
     return true;
   } catch (err) {
-    console.error("[CloudSync] Push failed:", err);
-    if (typeof addErrorLog === "function") addErrorLog("CloudSync.push", err.message, err);
+    const errorSummary = cloudSyncErrorSummary(err);
+    console.error(`[CloudSync] Push failed: ${errorSummary}`);
+    if (typeof addErrorLog === "function") addErrorLog("CloudSync.push", errorSummary);
     updateCloudSyncBadge(false, "Mây: Lỗi đẩy dữ liệu", "#ef4444");
     if (window.cloudWriteGate) window.cloudWriteGate.setStatus("error", "Ghi cloud tạm thời thất bại; phần mềm vẫn hoạt động và sẽ thử lại.");
     if (!pushRetryTimeout) {
+      pushRetryAttempt += 1;
+      const delayMs = cloudSyncGetBackoffDelayMs(pushRetryAttempt, CLOUD_SYNC_PUSH_RETRY_BASE_MS);
+      cloudSyncLog(`Push retry ${pushRetryAttempt} scheduled in ${Math.ceil(delayMs / 1000)}s.`);
       pushRetryTimeout = setTimeout(() => {
         pushRetryTimeout = null;
         if (cloudSyncActive && supabaseClient) pushToCloud();
-      }, 5000);
+      }, delayMs);
     }
     return false;
   } finally {
@@ -2487,7 +2526,7 @@ async function cloudSyncPushNow() {
     isPushing = false;
     if (pushPending) {
       pushPending = false;
-      setTimeout(() => pushToCloud(), 300);
+      if (syncTaskOk) setTimeout(() => pushToCloud(), 300);
     }
   }
 }
@@ -2505,8 +2544,10 @@ function pushToCloud(options = {}) {
 async function checkCloudMetadataForChanges(reason = "poll") {
   if (!cloudSyncActive || !supabaseClient || isPulling || isPushing) return;
   const now = Date.now();
+  if (cloudMetadataCheckInFlight || now < cloudMetadataNextAttemptAt) return;
   if (now - lastCloudMetadataPollAt < CLOUD_SYNC_POLL_MIN_GAP_MS) return;
   lastCloudMetadataPollAt = now;
+  cloudMetadataCheckInFlight = true;
   if (cloudSyncEgressMetrics.enabled && String(reason).startsWith("poll")) {
     cloudSyncEgressMetrics.pollChecks += 1;
   }
@@ -2514,6 +2555,8 @@ async function checkCloudMetadataForChanges(reason = "poll") {
   try {
     // Lightweight summary only: the full metadata `data` blob is fetched later by the pull itself.
     const metadata = await cloudSyncEnsureMetadataRow({ summaryOnly: true });
+    cloudMetadataFailureCount = 0;
+    cloudMetadataNextAttemptAt = 0;
     cloudSyncNoteLegacyLock(metadata, reason);
 
     const cloudWatermark = await cloudSyncGetCloudWatermark(metadata);
@@ -2539,7 +2582,15 @@ async function checkCloudMetadataForChanges(reason = "poll") {
       scheduleCloudPull(`${reason}-legacy-overlap`, { legacyOverlap: true });
     }
   } catch (err) {
-    console.warn("[CloudSync] Metadata check failed:", err);
+    cloudMetadataFailureCount += 1;
+    const delayMs = cloudSyncGetBackoffDelayMs(
+      cloudMetadataFailureCount,
+      CLOUD_SYNC_METADATA_FAILURE_BASE_MS
+    );
+    cloudMetadataNextAttemptAt = Date.now() + delayMs;
+    console.warn(`[CloudSync] Metadata check failed: ${cloudSyncErrorSummary(err)}; retry in ${Math.ceil(delayMs / 1000)}s.`);
+  } finally {
+    cloudMetadataCheckInFlight = false;
   }
 }
 
@@ -2586,22 +2637,28 @@ function startCloudMetadataPolling(options = {}) {
   }
 }
 
-function stopRealtimeReconnect() {
+function stopRealtimeReconnect(resetAttempt = false) {
   if (realtimeReconnectTimer) {
     clearTimeout(realtimeReconnectTimer);
     realtimeReconnectTimer = null;
   }
+  if (resetAttempt) realtimeReconnectAttempt = 0;
 }
 
 function reconnectRealtimeLater(reason) {
   if (!cloudSyncActive || !supabaseClient || realtimeReconnectTimer) return;
+  realtimeReconnectAttempt += 1;
+  const delayMs = cloudSyncGetBackoffDelayMs(
+    realtimeReconnectAttempt,
+    CLOUD_SYNC_REALTIME_RECONNECT_BASE_MS
+  );
+  cloudSyncLog(`Realtime reconnect ${realtimeReconnectAttempt} scheduled in ${Math.ceil(delayMs / 1000)}s (${reason || "unknown"}).`);
   realtimeReconnectTimer = setTimeout(() => {
     realtimeReconnectTimer = null;
     if (cloudSyncActive && supabaseClient) {
       listenToCloudChanges();
-      checkCloudMetadataForChanges(`realtime-reconnect-${reason || "unknown"}`);
     }
-  }, CLOUD_SYNC_RECONNECT_DELAY_MS);
+  }, delayMs);
 }
 
 function listenToCloudChanges() {
@@ -2652,6 +2709,7 @@ function listenToCloudChanges() {
     )
       .subscribe(status => {
       if (status === "SUBSCRIBED") {
+        realtimeReconnectAttempt = 0;
         // Realtime is healthy; keep focus/visibility and low-frequency summary
         // checks as safety nets for an individually missed event.
         attachCloudFocusCheck();
@@ -2660,7 +2718,7 @@ function listenToCloudChanges() {
         // confirmed interval heals that gap for only ~110 response bytes/check.
         startCloudMetadataPolling();
         cloudSyncLog(`Realtime subscribed; ${cloudUsesVersionedRpc ? "versioned RPC" : "legacy summary"} watchdog active.`);
-        checkCloudMetadataForChanges("realtime-subscribed");
+        void checkCloudMetadataForChanges("realtime-subscribed");
       } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
         realtimeChangeConfirmed = false;
         updateCloudSyncBadge(false, "Mây: Realtime gián đoạn, đang kiểm tra định kỳ", "#f59e0b");
@@ -2779,7 +2837,11 @@ function canStartManualCloudSync() {
 
 async function disconnectCloudSync() {
   stopCloudMetadataPolling();
-  stopRealtimeReconnect();
+  stopRealtimeReconnect(true);
+  stopCloudStartupReconnect(true);
+  cloudMetadataCheckInFlight = false;
+  cloudMetadataFailureCount = 0;
+  cloudMetadataNextAttemptAt = 0;
   realtimeChangeConfirmed = false;
   if (scheduledPullTimer) {
     clearTimeout(scheduledPullTimer);
@@ -2789,6 +2851,7 @@ async function disconnectCloudSync() {
     clearTimeout(pushRetryTimeout);
     pushRetryTimeout = null;
   }
+  pushRetryAttempt = 0;
   if (realtimeChannel && supabaseClient) {
     try {
       await Promise.resolve(supabaseClient.removeChannel(realtimeChannel));
@@ -2823,6 +2886,7 @@ async function initCloudSync() {
   }
 
   if (!cloudSyncSettings.supabaseUrl || !cloudSyncSettings.supabaseAnonKey) {
+    stopCloudStartupReconnect(true);
     cloudSyncActive = false;
     supabaseClient = null;
     isStartupPullCompleted = true;
@@ -2833,6 +2897,7 @@ async function initCloudSync() {
   }
 
   if (typeof supabase === "undefined" || !supabase.createClient) {
+    stopCloudStartupReconnect(true);
     cloudSyncActive = false;
     supabaseClient = null;
     isStartupPullCompleted = true;
@@ -2846,6 +2911,63 @@ async function initCloudSync() {
 }
 
 async function startSupabaseClient() {
+  if (cloudStartupConnectPromise) return cloudStartupConnectPromise;
+  cloudStartupConnectPromise = cloudSyncStartSupabaseClientAttempt();
+  try {
+    return await cloudStartupConnectPromise;
+  } finally {
+    cloudStartupConnectPromise = null;
+  }
+}
+
+function stopCloudStartupReconnect(resetAttempt = false) {
+  if (cloudStartupReconnectTimer) {
+    clearTimeout(cloudStartupReconnectTimer);
+    cloudStartupReconnectTimer = null;
+  }
+  if (resetAttempt) cloudStartupReconnectAttempt = 0;
+}
+
+function scheduleCloudStartupReconnect(error) {
+  if (
+    cloudStartupReconnectTimer ||
+    !cloudSyncSettings.enabled ||
+    !cloudSyncSettings.supabaseUrl ||
+    !cloudSyncSettings.supabaseAnonKey ||
+    typeof supabase === "undefined" ||
+    !supabase.createClient ||
+    !cloudSyncShouldRetryRequestError(error)
+  ) return 0;
+
+  cloudStartupReconnectAttempt += 1;
+  const delayMs = cloudSyncGetBackoffDelayMs(
+    cloudStartupReconnectAttempt,
+    CLOUD_SYNC_STARTUP_RECONNECT_BASE_MS
+  );
+  cloudStartupReconnectTimer = setTimeout(() => {
+    cloudStartupReconnectTimer = null;
+    if (cloudSyncSettings.enabled) void startSupabaseClient();
+  }, delayMs);
+  cloudSyncLog(`Startup reconnect ${cloudStartupReconnectAttempt} scheduled in ${Math.ceil(delayMs / 1000)}s.`);
+  return delayMs;
+}
+
+function getCloudRecoveryState() {
+  return {
+    startupConnectInFlight: !!cloudStartupConnectPromise,
+    startupReconnectScheduled: !!cloudStartupReconnectTimer,
+    startupReconnectAttempt: cloudStartupReconnectAttempt,
+    pushRetryScheduled: !!pushRetryTimeout,
+    pushRetryAttempt,
+    realtimeReconnectScheduled: !!realtimeReconnectTimer,
+    realtimeReconnectAttempt,
+    metadataCheckInFlight: cloudMetadataCheckInFlight,
+    metadataFailureCount: cloudMetadataFailureCount,
+    metadataNextAttemptAt: cloudMetadataNextAttemptAt
+  };
+}
+
+async function cloudSyncStartSupabaseClientAttempt() {
   try {
     Object.assign(cloudSyncStartupMetrics, {
       active: true,
@@ -2864,7 +2986,10 @@ async function startSupabaseClient() {
       error: ""
     });
     stopCloudMetadataPolling();
-    stopRealtimeReconnect();
+    stopRealtimeReconnect(true);
+    cloudMetadataCheckInFlight = false;
+    cloudMetadataFailureCount = 0;
+    cloudMetadataNextAttemptAt = 0;
     realtimeChangeConfirmed = false;
     lastRealtimeFilter = "";
     lastRealtimeSelect = [];
@@ -2876,6 +3001,7 @@ async function startSupabaseClient() {
       clearTimeout(pushRetryTimeout);
       pushRetryTimeout = null;
     }
+    pushRetryAttempt = 0;
     pullPending = false;
     pendingPullOptions = null;
     pushPending = false;
@@ -2911,22 +3037,36 @@ async function startSupabaseClient() {
     startCloudMetadataPolling();
     refreshCloudSyncControls();
     cloudSyncSetWriteReady("Cloud đã sẵn sàng.");
+    stopCloudStartupReconnect(true);
     return true;
   } catch (err) {
-    console.error("[CloudSync] Init failed:", err);
-    if (typeof addErrorLog === "function") addErrorLog("CloudSync.init", err.message, err);
+    const errorSummary = cloudSyncErrorSummary(err);
+    console.error(`[CloudSync] Init failed: ${errorSummary}`);
+    if (typeof addErrorLog === "function") addErrorLog("CloudSync.init", errorSummary);
     cloudSyncActive = false;
     supabaseClient = null;
     isStartupPullCompleted = true;
     stopCloudMetadataPolling();
-    stopRealtimeReconnect();
+    stopRealtimeReconnect(true);
     refreshCloudSyncControls();
-    updateCloudSyncBadge(false, "Mây: Lỗi khởi tạo", "#ef4444");
-    if (window.cloudWriteGate) window.cloudWriteGate.setStatus("error", "Không thể xác thực hoặc tải dữ liệu cloud.");
+    const retryDelayMs = scheduleCloudStartupReconnect(err);
+    updateCloudSyncBadge(
+      false,
+      retryDelayMs ? "Mây: Tạm gián đoạn, sẽ tự kết nối lại" : "Mây: Lỗi khởi tạo",
+      retryDelayMs ? "#f59e0b" : "#ef4444"
+    );
+    if (window.cloudWriteGate) {
+      window.cloudWriteGate.setStatus(
+        retryDelayMs ? "read-only" : "error",
+        retryDelayMs
+          ? `Cloud tạm gián đoạn; dữ liệu vẫn lưu trên máy và sẽ tự kết nối lại sau khoảng ${Math.ceil(retryDelayMs / 1000)} giây.`
+          : "Không thể xác thực hoặc tải dữ liệu cloud."
+      );
+    }
     cloudSyncStartupMetrics.completedAt = Date.now();
     cloudSyncStartupMetrics.connectMs = cloudSyncStartupMetrics.completedAt - cloudSyncStartupMetrics.connectStartedAt;
     cloudSyncStartupMetrics.ok = false;
-    cloudSyncStartupMetrics.error = String(err && err.message || err);
+    cloudSyncStartupMetrics.error = errorSummary;
     cloudSyncStartupMetrics.active = false;
     hideStartupOverlay();
     return false;
@@ -3328,6 +3468,11 @@ window.__cloudSyncInternals__ = {
   cloudSyncCapturePendingWriteManifest,
   cloudSyncClearPendingLocalWrite,
   cloudSyncShouldRetryRequestError,
+  cloudSyncErrorSummary,
+  cloudSyncGetBackoffDelayMs,
+  scheduleCloudStartupReconnect,
+  stopCloudStartupReconnect,
+  getCloudRecoveryState,
   queuePendingPull,
   takePendingPullOptions
 };

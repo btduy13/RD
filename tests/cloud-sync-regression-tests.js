@@ -1125,6 +1125,20 @@ function testRequestRetryClassificationSkipsPermanentConflicts() {
   assert.equal(internals.cloudSyncShouldRetryRequestError({ code: "PGRST202", message: "missing rpc" }), false);
   assert.equal(internals.cloudSyncShouldRetryRequestError({ code: "57014", message: "statement timeout" }), true);
   assert.equal(internals.cloudSyncShouldRetryRequestError({ status: 429, message: "rate limit" }), true);
+  assert.equal(internals.cloudSyncShouldRetryRequestError({ status: 522, message: "Connection timed out" }), true);
+}
+
+function testCloudFailureSummariesAndBackoffStayBounded() {
+  const { internals } = loadCloudSyncInternals();
+  const html = '<!DOCTYPE html><html><head><title>supabase.co | 522: Connection timed out</title></head><body>Error code 522</body></html>';
+  assert.equal(
+    internals.cloudSyncErrorSummary({ message: html }),
+    'Cloud HTTP 522: supabase.co | 522: Connection timed out',
+    'Cloudflare HTML must not be copied wholesale into the application log'
+  );
+  assert.equal(internals.cloudSyncGetBackoffDelayMs(1, 30000, 300000, 0), 30000);
+  assert.equal(internals.cloudSyncGetBackoffDelayMs(2, 30000, 300000, 0), 60000);
+  assert.equal(internals.cloudSyncGetBackoffDelayMs(10, 30000, 300000, 1), 300000);
 }
 
 async function testLegacyDeltaSecondPageQuotesSpecialCursor() {
@@ -1205,6 +1219,7 @@ async function run() {
   testRoutineIncrementalPathsNeverRequestFullFallback();
   testRoutineWatermarkChecksUseMetadataSummary();
   testRequestRetryClassificationSkipsPermanentConflicts();
+  testCloudFailureSummariesAndBackoffStayBounded();
   testEntityOnlyDeltaUsesLightweightSignalInsteadOfMetadata();
   testRealMetadataChangeStillUploadsMetadata();
   testLocalAuditLogsDoNotCreateCloudDeltaAndSurviveMerge();

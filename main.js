@@ -168,7 +168,15 @@ function createWindow() {
           console.log('--- LOCAL_STORAGE_VOUCHER_TYPES: ' + JSON.stringify(types));
           
           const errLogs = await mainWindow.webContents.executeJavaScript("localStorage.getItem('rd_accounting_error_logs')");
-          console.log('--- LOCAL_STORAGE_ERRORS: ' + errLogs);
+          let errorLogCount = 0;
+          try {
+            const parsedErrorLogs = JSON.parse(errLogs || '[]');
+            errorLogCount = Array.isArray(parsedErrorLogs) ? parsedErrorLogs.length : 0;
+          } catch (error) {}
+          console.log('--- LOCAL_STORAGE_ERRORS_SUMMARY: ' + JSON.stringify({
+            count: errorLogCount,
+            bytes: Buffer.byteLength(errLogs || '', 'utf8')
+          }));
           const restoreV6 = await mainWindow.webContents.executeJavaScript("localStorage.getItem('db_restore_v6')");
           console.log('--- LOCAL_STORAGE_RESTORE_V6: ' + restoreV6);
           const cloudStatus = await mainWindow.webContents.executeJavaScript("({ active: cloudSyncActive, hasClient: !!supabaseClient, hasSupabase: typeof supabase !== 'undefined', badge: document.getElementById('cloud-sync-status-text') ? document.getElementById('cloud-sync-status-text').innerText : 'no badge' })");

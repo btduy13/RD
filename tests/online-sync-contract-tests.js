@@ -60,9 +60,14 @@ assert.match(syncSource, /actionLogs,[\s\S]*deletedIds,[\s\S]*deletedCloudKeys,[
 assert.match(syncSource, /persistLastPulledCloudTs\(committedCloudWatermark\)/);
 assert.match(
   syncSource,
-  /"cloud bootstrap",[\s\S]{0,700}\{ attempts: 5, timeoutMs: 20000 \}/,
-  'simultaneous cold starts must retry the lightweight status RPC without forcing a snapshot'
+  /"cloud bootstrap",[\s\S]{0,700}\{ attempts: 1, timeoutMs: 12000 \}/,
+  'each cold-start cycle must use one bounded probe before the jittered reconnect loop takes over'
 );
+assert.match(syncSource, /CLOUD_SYNC_STARTUP_RECONNECT_BASE_MS = 30000/);
+assert.match(syncSource, /CLOUD_SYNC_PUSH_RETRY_BASE_MS = 30000/);
+assert.match(syncSource, /cloudMetadataCheckInFlight \|\| now < cloudMetadataNextAttemptAt/);
+assert.doesNotMatch(syncSource, /CLOUD_SYNC_RECONNECT_DELAY_MS = 5000/);
+assert.doesNotMatch(syncSource, /pushRetryTimeout = setTimeout\([\s\S]{0,220}, 5000\)/);
 assert.match(migration, /for update;/i);
 assert.match(migration, /on conflict\s*\(workspace_id,\s*id\)/i);
 assert.match(migration, /d\.id not like 'lock\\_%' escape '\\'/i);
