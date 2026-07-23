@@ -386,19 +386,17 @@ function testPendingTombstoneSurvivesIncrementalStartup() {
   );
 }
 
-function testPostPushSnapshotMatchesUploadedDeletionMetadata() {
+function testPostPushSnapshotRetainsConfirmedTombstonesWithoutMetadata() {
   const { internals, sandbox } = loadCloudSyncInternals();
   sandbox.window.lastSyncState = {
     vouchers: [{ id: "GONE", _updatedAt: 100 }],
     products: [],
     partners: [],
-    deletedIds: [],
-    deletedCloudKeys: []
+    deletedIds: ["OLDER"],
+    deletedCloudKeys: ["v_OLDER"]
   };
   const pushedMetadata = {
     companyName: "Test Co",
-    deletedIds: ["GONE"],
-    deletedCloudKeys: ["v_GONE"],
     _lastModified: 8000,
     lastModifiedBy: "session-local"
   };
@@ -407,7 +405,20 @@ function testPostPushSnapshotMatchesUploadedDeletionMetadata() {
   internals.cloudSyncApplyPushToLastSyncState([tombstone], 8000, pushedMetadata);
 
   assert.equal(sandbox.window.lastSyncState.vouchers.length, 0, "pushed tombstone must remove the entity from the cloud snapshot");
-  assert.deepEqual(Array.from(sandbox.window.lastSyncState.deletedCloudKeys), ["v_GONE"], "snapshot must retain the exact deletion metadata uploaded to cloud");
+  assert.deepEqual(
+    Array.from(sandbox.window.lastSyncState.deletedCloudKeys).sort(),
+    ["v_GONE", "v_OLDER"],
+    "snapshot must retain old confirmed tombstones and add the newly pushed tombstone without metadata"
+  );
+  sandbox.state.deletedIds = ["OLDER", "GONE"];
+  sandbox.state.deletedCloudKeys = ["v_OLDER", "v_GONE"];
+  sandbox.state.vouchers = [];
+  const retryDelta = internals.computeDelta();
+  assert.equal(
+    retryDelta.rowsToUpsert.filter(row => row.data && row.data._deleted).length,
+    0,
+    "a later entity-only push must not replay the full tombstone history"
+  );
 }
 
 function testChangingCloudClientResetsComparisonBaseline() {
@@ -909,15 +920,67 @@ function testEntityOnlyDeltaUsesLightweightSignalInsteadOfMetadata() {
 
 function testRealMetadataChangeStillUploadsMetadata() {
   const { internals, sandbox } = loadCloudSyncInternals();
+  sandbox.state.actionLogs = [{ timestamp: 1000, action: 'local audit' }];
+  sandbox.state.deletedIds = ['OLD'];
+  sandbox.state.deletedCloudKeys = ['v_OLD'];
   sandbox.state._lastModified = 1000;
   sandbox.window.lastSyncState = JSON.parse(JSON.stringify(sandbox.state));
   sandbox.state.companyName = 'Updated Company';
+  sandbox.state.actionLogs.unshift({ timestamp: 2000, action: 'new local audit' });
   sandbox.state._lastModified = 2000;
 
   const delta = internals.computeDelta();
+  const metadataRow = delta.rowsToUpsert.find(row => row.id === 'metadata');
   assert.ok(
-    delta.rowsToUpsert.some(row => row.id === 'metadata'),
+    metadataRow,
     'a real metadata content edit must still upload metadata'
+  );
+  assert.equal(metadataRow.data.actionLogs, undefined, 'machine-local audit logs must not enter cloud metadata');
+  assert.equal(metadataRow.data.deletedIds, undefined, 'typed tombstones replace deletedIds metadata');
+  assert.equal(metadataRow.data.deletedCloudKeys, undefined, 'typed tombstones replace deletedCloudKeys metadata');
+}
+
+function testLocalAuditLogsDoNotCreateCloudDeltaAndSurviveMerge() {
+  const { internals, sandbox } = loadCloudSyncInternals();
+  sandbox.state.actionLogs = [{ timestamp: 1000, action: 'baseline local audit' }];
+  sandbox.state._lastModified = 1000;
+  sandbox.window.lastSyncState = JSON.parse(JSON.stringify(sandbox.state));
+
+  sandbox.state.actionLogs.unshift({ timestamp: 2000, action: 'voucher saved locally' });
+  sandbox.state._lastModified = 2000;
+  const delta = internals.computeDelta();
+  assert.equal(
+    delta.rowsToUpsert.some(row => row.id === 'metadata'),
+    false,
+    'appending an audit log must not fan out the multi-megabyte metadata row'
+  );
+
+  const cloudState = JSON.parse(JSON.stringify(sandbox.window.lastSyncState));
+  cloudState.companyName = 'Cloud Company';
+  cloudState.actionLogs = [{ timestamp: 3000, action: 'stale shared audit' }];
+  cloudState._lastModified = 3000;
+  const merged = internals.mergeStates(sandbox.state, cloudState);
+  assert.deepEqual(
+    Array.from(merged.actionLogs, item => item.action),
+    ['voucher saved locally', 'baseline local audit'],
+    'cloud pulls must preserve the station-local audit history'
+  );
+}
+
+function testDerivedDeletionArraysOnlyCreateTypedTombstones() {
+  const { internals, sandbox } = loadCloudSyncInternals();
+  sandbox.state._lastModified = 1000;
+  sandbox.window.lastSyncState = JSON.parse(JSON.stringify(sandbox.state));
+  sandbox.state.deletedIds = ['PT-LOCAL-DELETE'];
+  sandbox.state.deletedCloudKeys = ['v_PT-LOCAL-DELETE'];
+  sandbox.state._lastModified = 2000;
+
+  const delta = internals.computeDelta();
+  assert.ok(delta.rowsToUpsert.some(row => row.id === 'v_PT-LOCAL-DELETE' && row.data._deleted));
+  assert.equal(
+    delta.rowsToUpsert.some(row => row.id === 'metadata'),
+    false,
+    'derived deletion arrays must not duplicate typed tombstones in metadata'
   );
 }
 
@@ -961,7 +1024,7 @@ function testRealtimeSubscriptionUsesOneCompactSignalEvent() {
   assert.equal(capture.type, 'postgres_changes');
   assert.equal(
     capture.filter.filter,
-    'workspace_id=eq.00000000-0000-4000-8000-000000000001,id=eq.sync_signal',
+    'id=eq.sync_signal',
     'Realtime must emit only the lightweight signal row for each sync transaction'
   );
   assert.deepEqual(
@@ -984,7 +1047,59 @@ function testRealtimeSubscriptionUsesOneCompactSignalEvent() {
   assert.equal(metrics.realtimeEvents, 1);
   assert.equal(metrics.realtimeEventsWithData, 0);
   assert.equal(metrics.realtimeChangeConfirmed, true);
-  assert.equal(metrics.activePollIntervalMs, 30000);
+  assert.equal(metrics.activePollIntervalMs, 120000);
+}
+
+async function testCommittedV3PushAcknowledgesOwnVersionWithoutEchoPull() {
+  const calls = [];
+  const client = {
+    async rpc(name, params) {
+      calls.push({ name, params });
+      if (name === 'rd_find_ids') return { data: [], error: null };
+      if (name === 'rd_cloud_status') return {
+        data: [{ workspace_id: '00000000-0000-4000-8000-000000000001', sync_version: 40 }],
+        error: null
+      };
+      if (name === 'rd_apply_sync_transaction') {
+        return { data: { ok: true, conflict: false, sync_version: 41 }, error: null };
+      }
+      throw new Error(`unexpected RPC ${name}`);
+    }
+  };
+  const { sandbox, store, vm } = loadCloudSyncInternals({ __versionedClient: client });
+  const result = await vm.runInContext(`
+    cloudSyncActive = true;
+    isStartupPullCompleted = true;
+    cloudUsesVersionedRpc = true;
+    cloudSyncVersion = 40;
+    supabaseClient = __versionedClient;
+    lastPullCompletedAt = Date.now();
+    state._lastPulledCloudTs = 40;
+    state.actionLogs = [{ timestamp: 2000, action: 'local only' }];
+    lastSyncState = JSON.parse(JSON.stringify(state));
+    window.lastSyncState = lastSyncState;
+    state.vouchers.push({
+      id: 'PT-EGRESS',
+      type: 'receipt',
+      amount: 100,
+      _updatedAt: 2000,
+      _sessionId: clientSessionId
+    });
+    state._lastModified = 2000;
+    cloudSyncPushNow();
+  `, sandbox);
+
+  assert.equal(result, true);
+  assert.equal(sandbox.state._lastPulledCloudTs, 41);
+  assert.equal(store.get('rd_accounting_last_pulled_cloud_ts'), '41');
+  assert.equal(sandbox.window.lastSyncState._cloudWatermark, 41);
+  const transaction = calls.find(call => call.name === 'rd_apply_sync_transaction');
+  assert.ok(transaction, 'V3 push must use the transactional RPC');
+  assert.equal(
+    transaction.params.p_rows.some(row => row.id === 'metadata'),
+    false,
+    'a voucher plus local audit log must remain an entity-only transaction'
+  );
 }
 
 function testRoutineIncrementalPathsNeverRequestFullFallback() {
@@ -1070,7 +1185,7 @@ async function run() {
   testCommittedTransactionKeepsRotatedMarkerWithRemainingDelta();
   testPendingMetadataChangeStillRequiresFullStartup();
   testPendingTombstoneSurvivesIncrementalStartup();
-  testPostPushSnapshotMatchesUploadedDeletionMetadata();
+  testPostPushSnapshotRetainsConfirmedTombstonesWithoutMetadata();
   testChangingCloudClientResetsComparisonBaseline();
   testInternalSyncWorkCountsAsBusy();
   await testNewCloudMetadataIsSeededFromLocalState();
@@ -1092,7 +1207,10 @@ async function run() {
   testRequestRetryClassificationSkipsPermanentConflicts();
   testEntityOnlyDeltaUsesLightweightSignalInsteadOfMetadata();
   testRealMetadataChangeStillUploadsMetadata();
+  testLocalAuditLogsDoNotCreateCloudDeltaAndSurviveMerge();
+  testDerivedDeletionArraysOnlyCreateTypedTombstones();
   testRealtimeSubscriptionUsesOneCompactSignalEvent();
+  await testCommittedV3PushAcknowledgesOwnVersionWithoutEchoPull();
   await testNoOpPushDoesNotTouchCloud();
   await testLegacyDeltaSecondPageQuotesSpecialCursor();
   await testRescueRemovesStuckVoucherFromLastSyncState();

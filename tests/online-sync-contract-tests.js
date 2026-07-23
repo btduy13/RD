@@ -6,6 +6,7 @@ const syncSource = fs.readFileSync(path.join(root, 'js', 'cloud-sync.js'), 'utf8
 const stateSource = fs.readFileSync(path.join(root, 'js', 'state.js'), 'utf8');
 const gateSource = fs.readFileSync(path.join(root, 'js', 'core', 'online-write-gate.js'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'supabase_online_v3_migration.sql'), 'utf8');
+const egressMigration = fs.readFileSync(path.join(root, 'supabase_online_v4_egress_migration.sql'), 'utf8');
 const packageJson = require(path.join(root, 'package.json'));
 assert.match(packageJson.scripts.postinstall, /electron-rebuild.+better-sqlite3/);
 assert.doesNotMatch(stateSource, /cloudCommitted = await pushToCloud\(\)/);
@@ -53,6 +54,15 @@ assert.doesNotMatch(
 assert.match(syncSource, /CLOUD_SYNC_LEGACY_OVERLAP_MS = 2 \* 60 \* 1000/);
 assert.match(syncSource, /legacyOverlap: !needFullPull && !cloudUsesVersionedRpc/);
 assert.match(syncSource, /scheduleCloudPull\("realtime", \{ legacyOverlap: !cloudUsesVersionedRpc \}\)/);
+assert.match(syncSource, /CLOUD_SYNC_PULL_DEBOUNCE_MS = 1500/);
+assert.match(syncSource, /CLOUD_SYNC_CONFIRMED_REALTIME_POLL_INTERVAL_MS = 120000/);
+assert.match(syncSource, /actionLogs,[\s\S]*deletedIds,[\s\S]*deletedCloudKeys,[\s\S]*\.\.\.metadata/);
+assert.match(syncSource, /persistLastPulledCloudTs\(committedCloudWatermark\)/);
+assert.match(
+  syncSource,
+  /"cloud bootstrap",[\s\S]{0,700}\{ attempts: 5, timeoutMs: 20000 \}/,
+  'simultaneous cold starts must retry the lightweight status RPC without forcing a snapshot'
+);
 assert.match(migration, /for update;/i);
 assert.match(migration, /on conflict\s*\(workspace_id,\s*id\)/i);
 assert.match(migration, /d\.id not like 'lock\\_%' escape '\\'/i);
@@ -75,4 +85,16 @@ assert.doesNotMatch(
   'startup pull owns the metadata read; startSupabaseClient must not fetch the same 2MB row first'
 );
 assert.match(migration, /deleted_at timestamptz/i);
+assert.equal(
+  (egressMigration.match(/d\.data - 'actionLogs' - 'deletedIds' - 'deletedCloudKeys'/g) || []).length,
+  2,
+  'both snapshot and delta RPCs must strip station-local and derived metadata'
+);
+assert.match(
+  egressMigration,
+  /v_data := v_data - 'actionLogs' - 'deletedIds' - 'deletedCloudKeys'/,
+  'transactional writes must prevent older clients from restoring the large metadata keys'
+);
+assert.match(egressMigration, /returns setof public\.rd_accounting_data/i);
+assert.match(egressMigration, /revoke execute on function public\.rd_sync_snapshot[\s\S]*from public/i);
 console.log('online sync contract tests passed');

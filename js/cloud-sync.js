@@ -56,9 +56,9 @@ const CLOUD_SYNC_DELETE_BATCH_SIZE = 100;
 // Poll quickly until Realtime proves that it can deliver a database event in
 // this deployment. Afterwards the RPC becomes a low-frequency safety net.
 const CLOUD_SYNC_FALLBACK_POLL_INTERVAL_MS = 5000;
-const CLOUD_SYNC_CONFIRMED_REALTIME_POLL_INTERVAL_MS = 30000;
+const CLOUD_SYNC_CONFIRMED_REALTIME_POLL_INTERVAL_MS = 120000;
 const CLOUD_SYNC_POLL_MIN_GAP_MS = 1500;
-const CLOUD_SYNC_PULL_DEBOUNCE_MS = 450;
+const CLOUD_SYNC_PULL_DEBOUNCE_MS = 1500;
 const CLOUD_SYNC_PRE_PUSH_PULL_COOLDOWN_MS = 2000;
 const CLOUD_SYNC_STALE_LOCK_MS = 30 * 60 * 1000;
 const CLOUD_SYNC_RECOVERY_GAP_MS = 60 * 1000;
@@ -401,6 +401,18 @@ function cloudSyncApplyPushToLastSyncState(pushedEntityRows, pushTs, pushedMetad
   // server-confirmed metadata instead of copying unrelated live metadata.
   const baselineMetadata = pushedMetadata || cloudSyncSplitMetadata(previousSnapshot);
   const next = cloudSyncClone(baselineMetadata);
+  // Deletion arrays are no longer uploaded in metadata, but the confirmed
+  // baseline still needs them locally. Dropping them here makes computeDelta
+  // believe every historical tombstone is new after the next entity-only
+  // push, replaying thousands of deletes in one transaction.
+  next.deletedIds = Array.from(new Set(
+    Array.isArray(previousSnapshot.deletedIds) ? previousSnapshot.deletedIds : []
+  ));
+  next.deletedCloudKeys = Array.from(new Set(
+    (Array.isArray(previousSnapshot.deletedCloudKeys) ? previousSnapshot.deletedCloudKeys : [])
+      .map(cloudSyncNormalizeDeletedCloudKey)
+      .filter(Boolean)
+  ));
   next._lastModified = Math.max(Number(next._lastModified) || 0, Number(pushTs) || 0);
   next._cloudWatermark = Number(pushTs) || 0;
 
@@ -422,6 +434,8 @@ function cloudSyncApplyPushToLastSyncState(pushedEntityRows, pushTs, pushedMetad
       const entityId = cloudSyncGetEntityIdFromRowId(row.id, def);
       if (row.data && row.data._deleted) {
         map.delete(entityId);
+        if (!next.deletedIds.includes(entityId)) next.deletedIds.push(entityId);
+        if (!next.deletedCloudKeys.includes(row.id)) next.deletedCloudKeys.push(row.id);
       } else if (row.data && row.data.id) {
         // Clone: row.data is the live state item; snapshot must not alias it.
         map.set(row.data.id, cloudSyncClone(row.data));
@@ -524,6 +538,14 @@ function cloudSyncSplitMetadata(sourceState) {
     vouchers,
     products,
     partners,
+    // Machine-local audit history. A single appended log previously caused
+    // the entire multi-megabyte metadata blob to be uploaded and fanned out
+    // to every station for each voucher save.
+    actionLogs,
+    // V3 typed tombstone rows are authoritative. Keeping these large derived
+    // arrays in the shared metadata row only duplicates deletion data.
+    deletedIds,
+    deletedCloudKeys,
     _lastPulledCloudTs,
     _cloudWatermark,
     _cloudDatasetIdentity,
@@ -1039,7 +1061,12 @@ async function cloudSyncAuthenticateAndBootstrap() {
       p_workspace_id: cloudWorkspaceId
     }),
     "cloud bootstrap",
-    { timeoutMs: 15000 }
+    // Ten stations can cold-start together after a power/network recovery.
+    // Keep this lightweight status RPC retrying instead of abandoning cloud
+    // initialization after two transient gateway/database timeouts. This does
+    // not download accounting rows and therefore does not reintroduce the
+    // startup egress of a full pull.
+    { attempts: 5, timeoutMs: 20000 }
   );
   if (error) {
     const code = String(error.code || "");
@@ -1500,6 +1527,14 @@ function cloudSyncMergeStatesCore(localState, cloudState, options = {}) {
     _lastModified: Math.max(localTs, cloudTs),
     _cloudWatermark: Math.max(Number(localState._cloudWatermark) || 0, Number(cloudState._cloudWatermark) || cloudTs)
   };
+  // Audit logs intentionally stay on the machine that recorded them. Preserve
+  // them explicitly because cloudSyncSplitMetadata excludes them from both
+  // sides of the cloud merge.
+  if (Object.prototype.hasOwnProperty.call(localState || {}, "actionLogs")) {
+    merged.actionLogs = options.cloneMetadata
+      ? cloudSyncClone(localState.actionLogs || [])
+      : (localState.actionLogs || []);
+  }
 
   return { state: merged, stats };
 }
@@ -2353,6 +2388,7 @@ async function cloudSyncPushNow() {
     state._lastModified = pushTs;
 
     let pushPayload = cloudSyncBuildPushPayload(pushTs);
+    let committedCloudWatermark = 0;
     if (cloudUsesVersionedRpc) {
       const updatedBy = cloudSyncGetUpdatedByToken();
       // Do not retry a write transaction blindly: the server may have committed
@@ -2373,6 +2409,7 @@ async function cloudSyncPushNow() {
         if (rpcError) throw rpcError;
         if (rpcResult && rpcResult.ok === true) {
           cloudSyncVersion = Number(rpcResult.sync_version) || cloudSyncVersion;
+          committedCloudWatermark = cloudSyncVersion;
           transactionCommitted = true;
           break;
         }
@@ -2409,13 +2446,21 @@ async function cloudSyncPushNow() {
       state.deletedIds = [];
       state.deletedCloudKeys = [];
     }
-    state._cloudWatermark = pushTs;
+    const confirmedWatermark = cloudUsesVersionedRpc && committedCloudWatermark > 0
+      ? committedCloudWatermark
+      : pushTs;
+    state._cloudWatermark = confirmedWatermark;
     // [Perf] Cap nhat snapshot dong bo bang cach ap dung dung cac dong vua day,
     // thay vi deep-clone toan bo state (gay dung hinh UI voi du lieu lon).
     cloudSyncApplyPushToLastSyncState(pushPayload.entityRows, pushTs, pushPayload.finalMetadata);
-    // [Fix] KHÔNG cập nhật checkpoint watermark của pull khi push, để luồng check/pull 
-    // tiếp theo tải về và hợp nhất đầy đủ các thay đổi song song trên cloud (ví dụ đơn bị xóa).
-    // persistLastPulledCloudTs(pushTs);
+    if (lastSyncState) lastSyncState._cloudWatermark = confirmedWatermark;
+    if (cloudUsesVersionedRpc && committedCloudWatermark > 0) {
+      // A committed expected-version transaction includes every earlier cloud
+      // change in this baseline. Acknowledge our own version locally so the
+      // origin station does not download an echo of the rows it just pushed.
+      persistLastPulledCloudTs(committedCloudWatermark);
+      cloudSyncPersistDatasetIdentity();
+    }
     // [Perf] Khong ghi lai toan bo SQLite sau khi push: du lieu cuc bo da duoc
     // executeSaveState (js/state.js) luu qua duong delta truoc khi push. Cac thay doi
     // bookkeeping trong luc push (_lastModified, _updatedAt, deletedIds da xoa) se duoc
@@ -2567,9 +2612,11 @@ function listenToCloudChanges() {
     realtimeChannel = null;
   }
 
-  const realtimeFilter = cloudUsesVersionedRpc && cloudWorkspaceId
-    ? `workspace_id=eq.${cloudWorkspaceId},id=eq.${CLOUD_SYNC_SIGNAL_ID}`
-    : `id=eq.${CLOUD_SYNC_SIGNAL_ID}`;
+  // Supabase Realtime postgres_changes accepts one column filter here; a
+  // comma-joined workspace+id expression is parsed as an invalid column and
+  // creates a reconnect loop. Filter the compact signal row at the server and
+  // enforce workspace isolation in the callback below.
+  const realtimeFilter = `id=eq.${CLOUD_SYNC_SIGNAL_ID}`;
   const realtimeSelect = cloudUsesVersionedRpc
     ? ["workspace_id", "id", "sync_version", "updated_by"]
     : ["id", "last_modified"];
@@ -2588,14 +2635,14 @@ function listenToCloudChanges() {
       },
       payload => {
         cloudSyncRecordIncoming("realtime", payload);
+        const row = payload.new;
+        if (!row) return;
+        if (row.workspace_id && String(row.workspace_id) !== String(cloudWorkspaceId)) return;
         if (!realtimeChangeConfirmed) {
           realtimeChangeConfirmed = true;
           startCloudMetadataPolling({ skipInitial: true });
           cloudSyncLog(`Realtime delivery confirmed; cloud watchdog relaxed to ${CLOUD_SYNC_CONFIRMED_REALTIME_POLL_INTERVAL_MS}ms.`);
         }
-        const row = payload.new;
-        if (!row) return;
-        if (row.workspace_id && String(row.workspace_id) !== String(cloudWorkspaceId)) return;
         if (cloudSyncIsOwnUpdatedByToken(row.updated_by)) return;
         if (row.data && row.data.lastModifiedBy === cloudSyncGetSessionId()) return;
         if (cloudUsesVersionedRpc) cloudSyncVersion = Math.max(cloudSyncVersion, Number(row.sync_version) || 0);
