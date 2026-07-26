@@ -5,6 +5,103 @@ if (window.electronAPI && typeof window.electronAPI.confirm === 'function') {
   };
 }
 
+// Hộp thoại xác nhận UI hiện đại (Custom Confirmation Modal)
+function showConfirmModal(options) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById("modal-custom-confirm");
+    if (!overlay) {
+      const msg = typeof options === "string" ? options : (options?.message || "Bạn có chắc chắn không?");
+      const res = (window.electronAPI && typeof window.electronAPI.confirm === 'function')
+        ? window.electronAPI.confirm(msg)
+        : true;
+      resolve(res);
+      return;
+    }
+
+    let title = "Xác nhận thao tác";
+    let message = "";
+    let confirmText = "Đồng ý";
+    let cancelText = "Hủy bỏ";
+    let type = "danger";
+
+    if (typeof options === "string") {
+      message = options;
+      if (/xóa|hủy|delete|remove/i.test(message)) {
+        type = "danger";
+        confirmText = "Đồng ý xóa";
+      } else {
+        type = "info";
+      }
+    } else if (options && typeof options === "object") {
+      title = options.title || title;
+      message = options.message || "";
+      confirmText = options.confirmText || confirmText;
+      cancelText = options.cancelText || cancelText;
+      type = options.type || (/xóa|hủy|delete/i.test(message + title) ? "danger" : "info");
+    }
+
+    const titleEl = document.getElementById("custom-confirm-title");
+    const messageEl = document.getElementById("custom-confirm-message");
+    const btnCancel = document.getElementById("custom-confirm-btn-cancel");
+    const btnOk = document.getElementById("custom-confirm-btn-ok");
+    const iconBox = document.getElementById("custom-confirm-icon-box");
+    const iconDanger = document.getElementById("custom-confirm-icon-danger");
+    const iconWarning = document.getElementById("custom-confirm-icon-warning");
+    const iconInfo = document.getElementById("custom-confirm-icon-info");
+
+    if (titleEl) titleEl.textContent = title;
+    if (messageEl) messageEl.textContent = message;
+    if (btnCancel) btnCancel.textContent = cancelText;
+    if (btnOk) {
+      btnOk.textContent = confirmText;
+      btnOk.className = `btn-custom-confirm-ok ${type}`;
+    }
+
+    if (iconBox) iconBox.className = `custom-confirm-icon-wrapper ${type}`;
+    if (iconDanger) iconDanger.style.display = type === "danger" ? "block" : "none";
+    if (iconWarning) iconWarning.style.display = type === "warning" ? "block" : "none";
+    if (iconInfo) iconInfo.style.display = type === "info" ? "block" : "none";
+
+    overlay.style.display = "flex";
+    overlay.classList.add("is-active");
+    if (btnOk) btnOk.focus();
+
+    let resolved = false;
+    function cleanup(result) {
+      if (resolved) return;
+      resolved = true;
+      overlay.classList.remove("is-active");
+      overlay.style.display = "none";
+      document.removeEventListener("keydown", onKeyDown);
+      if (btnCancel) btnCancel.removeEventListener("click", onCancel);
+      if (btnOk) btnOk.removeEventListener("click", onOk);
+      overlay.removeEventListener("click", onOverlayClick);
+      resolve(result);
+    }
+
+    function onCancel() { cleanup(false); }
+    function onOk() { cleanup(true); }
+    function onOverlayClick(e) {
+      if (e.target === overlay) cleanup(false);
+    }
+    function onKeyDown(e) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cleanup(false);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        cleanup(true);
+      }
+    }
+
+    if (btnCancel) btnCancel.addEventListener("click", onCancel);
+    if (btnOk) btnOk.addEventListener("click", onOk);
+    overlay.addEventListener("click", onOverlayClick);
+    document.addEventListener("keydown", onKeyDown);
+  });
+}
+window.showConfirmModal = showConfirmModal;
+
 function safeParseFloat(val) {
   if (val === undefined || val === null || val === "") return 0;
   if (typeof val === "number") return val;

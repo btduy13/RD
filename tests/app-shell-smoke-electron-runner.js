@@ -344,8 +344,8 @@ async function main() {
     savedDeviceName: 'Office_A5',
     savedDirectEnabled: true,
     calls: [
-      { paperSize: 'A5', options: { directPrint: true, deviceName: 'Office_A5' } },
-      { paperSize: 'A5', options: { directPrint: false, deviceName: '' } }
+      { paperSize: 'A5', options: { directPrint: true, deviceName: 'Office_A5', copies: 1 } },
+      { paperSize: 'A5', options: { directPrint: false, deviceName: '', copies: 1 } }
     ],
     fallbackWarningShown: true
   }, 'printer UI must persist the device, send A5 directly, and fall back to the system dialog');

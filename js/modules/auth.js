@@ -468,20 +468,27 @@ function saveUserFromModal() {
 }
 
 // Xóa tài khoản người dùng
-function deleteUser(username) {
+async function deleteUser(username) {
   if (window.currentUser && window.currentUser.username === username) {
     alert("Không thể tự xóa tài khoản của chính mình khi đang đăng nhập.");
     return;
   }
   
-  if (confirm(`Bạn có chắc chắn muốn xóa tài khoản "${username}" không?`)) {
-    state.users = (state.users || []).filter(u => u.username !== username);
-    saveState();
-    logUserAction("Xóa tài khoản", `Đã xóa tài khoản nhân viên: ${username}`);
-    applyRolePermissions();
-    if (typeof showToast === 'function') {
-      showToast("Đã xóa tài khoản thành công!", "success");
-    }
+  const ok = await showConfirmModal({
+    title: "Xác nhận xóa tài khoản",
+    message: `Bạn có chắc chắn muốn xóa tài khoản "${username}" không?`,
+    confirmText: "Xóa tài khoản",
+    cancelText: "Hủy bỏ",
+    type: "danger"
+  });
+  if (!ok) return;
+
+  state.users = (state.users || []).filter(u => u.username !== username);
+  saveState();
+  logUserAction("Xóa tài khoản", `Đã xóa tài khoản nhân viên: ${username}`);
+  applyRolePermissions();
+  if (typeof showToast === 'function') {
+    showToast("Đã xóa tài khoản thành công!", "success");
   }
 }
 

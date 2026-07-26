@@ -136,8 +136,15 @@
     try {
       const draft = JSON.parse(raw);
       if (!draft.items?.length && !draft.editingId && !Object.values(draft.fields || {}).some(Boolean)) return;
-      setTimeout(() => {
-        if (confirm("Phần mềm phát hiện một phiếu nháp chưa lưu từ phiên làm việc trước. Bạn có muốn khôi phục lại không?")) {
+      setTimeout(async () => {
+        const ok = await showConfirmModal({
+          title: "Khôi phục phiếu nháp",
+          message: "Phần mềm phát hiện một phiếu nháp chưa lưu từ phiên làm việc trước. Bạn có muốn khôi phục lại không?",
+          confirmText: "Khôi phục",
+          cancelText: "Bỏ qua",
+          type: "info"
+        });
+        if (ok) {
           restoreFormDraft(config.formId);
         } else {
           localStorage.removeItem(storageKey);

@@ -716,22 +716,48 @@ function updateBatchSalesUI() {
   }
 }
 
-function batchDeleteSales() {
+async function batchDeleteSales() {
   const checked = Array.from(document.querySelectorAll(".sale-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
 
-  if (confirm(`Bạn có chắc chắn muốn xóa và hủy ghi sổ ${checked.length} chứng từ đã chọn?`)) {
-    const idsToDelete = checked.map(cb => cb.value);
-    trackDeletedIds(idsToDelete);
-    state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+  const ok = await showConfirmModal({
+    title: "Xác nhận xóa chứng từ bán hàng",
+    message: `Bạn có chắc chắn muốn xóa và hủy ghi sổ ${checked.length} chứng từ đã chọn?`,
+    confirmText: "Xóa chứng từ",
+    cancelText: "Hủy bỏ",
+    type: "danger"
+  });
+  if (!ok) return;
 
-    // Remove references
-    state.vouchers.forEach(v => {
-      if (v.escrowRefId && idsToDelete.includes(v.escrowRefId)) {
-        v.escrowRefId = null;
-      }
+  const idsToDelete = checked.map(cb => cb.value);
+  trackDeletedIds(idsToDelete);
+  state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+
+  // Remove references
+  state.vouchers.forEach(v => {
+    if (v.escrowRefId && idsToDelete.includes(v.escrowRefId)) {
+      v.escrowRefId = null;
+    }
+  });
+
+  if (typeof resetBatchSelectionUI === "function") {
+    resetBatchSelectionUI({
+      checkboxSelector: ".sale-checkbox",
+      masterId: "check-all-sales",
+      buttonId: "btn-batch-delete-sales",
+      countId: "selected-sales-count"
     });
+  } else {
+    const master = document.getElementById("check-all-sales");
+    if (master) master.checked = false;
+    updateBatchSalesUI();
+  }
+  showToast(`Đã xóa thành công ${checked.length} chứng từ bán hàng!`, "success");
 
+  // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
+  setTimeout(() => {
+    saveState();
+    recalculateAccounting();
     if (typeof resetBatchSelectionUI === "function") {
       resetBatchSelectionUI({
         checkboxSelector: ".sale-checkbox",
@@ -739,28 +765,9 @@ function batchDeleteSales() {
         buttonId: "btn-batch-delete-sales",
         countId: "selected-sales-count"
       });
-    } else {
-      const master = document.getElementById("check-all-sales");
-      if (master) master.checked = false;
-      updateBatchSalesUI();
     }
-    showToast(`Đã xóa thành công ${checked.length} chứng từ bán hàng!`, "success");
-
-    // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
-    setTimeout(() => {
-      saveState();
-      recalculateAccounting();
-      if (typeof resetBatchSelectionUI === "function") {
-        resetBatchSelectionUI({
-          checkboxSelector: ".sale-checkbox",
-          masterId: "check-all-sales",
-          buttonId: "btn-batch-delete-sales",
-          countId: "selected-sales-count"
-        });
-      }
-      // recalculateAccounting đã gọi refreshUI() bên trong
-    }, 0);
-  }
+    // recalculateAccounting đã gọi refreshUI() bên trong
+  }, 0);
 }
 
 function resetEditingSalesId() {
@@ -1329,22 +1336,48 @@ function updateBatchSalesReturnsUI() {
   }
 }
 
-function batchDeleteSalesReturns() {
+async function batchDeleteSalesReturns() {
   const checked = Array.from(document.querySelectorAll(".sales-return-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
 
-  if (confirm(`Bạn có chắc chắn muốn xóa và hủy ghi sổ ${checked.length} chứng từ trả lại đã chọn?`)) {
-    const idsToDelete = checked.map(cb => cb.value);
-    trackDeletedIds(idsToDelete);
-    state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+  const ok = await showConfirmModal({
+    title: "Xác nhận xóa hàng bán trả lại",
+    message: `Bạn có chắc chắn muốn xóa và hủy ghi sổ ${checked.length} chứng từ trả lại đã chọn?`,
+    confirmText: "Xóa chứng từ",
+    cancelText: "Hủy bỏ",
+    type: "danger"
+  });
+  if (!ok) return;
 
-    // Remove references
-    state.vouchers.forEach(v => {
-      if (v.escrowRefId && idsToDelete.includes(v.escrowRefId)) {
-        v.escrowRefId = null;
-      }
+  const idsToDelete = checked.map(cb => cb.value);
+  trackDeletedIds(idsToDelete);
+  state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+
+  // Remove references
+  state.vouchers.forEach(v => {
+    if (v.escrowRefId && idsToDelete.includes(v.escrowRefId)) {
+      v.escrowRefId = null;
+    }
+  });
+
+  if (typeof resetBatchSelectionUI === "function") {
+    resetBatchSelectionUI({
+      checkboxSelector: ".sales-return-checkbox",
+      masterId: "check-all-sales-return",
+      buttonId: "btn-batch-delete-sales-return",
+      countId: "selected-sales-returns-count"
     });
+  } else {
+    const master = document.getElementById("check-all-sales-return");
+    if (master) master.checked = false;
+    updateBatchSalesReturnsUI();
+  }
+  showToast(`Đã xóa thành công ${checked.length} chứng từ trả lại hàng!`, "success");
 
+  // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
+  setTimeout(() => {
+    saveState();
+    recalculateAccounting();
     if (typeof resetBatchSelectionUI === "function") {
       resetBatchSelectionUI({
         checkboxSelector: ".sales-return-checkbox",
@@ -1352,27 +1385,8 @@ function batchDeleteSalesReturns() {
         buttonId: "btn-batch-delete-sales-return",
         countId: "selected-sales-returns-count"
       });
-    } else {
-      const master = document.getElementById("check-all-sales-return");
-      if (master) master.checked = false;
-      updateBatchSalesReturnsUI();
     }
-    showToast(`Đã xóa thành công ${checked.length} chứng từ trả lại hàng!`, "success");
-
-    // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
-    setTimeout(() => {
-      saveState();
-      recalculateAccounting();
-      if (typeof resetBatchSelectionUI === "function") {
-        resetBatchSelectionUI({
-          checkboxSelector: ".sales-return-checkbox",
-          masterId: "check-all-sales-return",
-          buttonId: "btn-batch-delete-sales-return",
-          countId: "selected-sales-returns-count"
-        });
-      }
-    }, 0);
-  }
+  }, 0);
 }
 
 // exportSalesReturnsToExcel
@@ -1968,10 +1982,15 @@ window.convertQuotationToOrder = async function(id) {
     return;
   }
   
-  if (!confirm(`Bạn có chắc muốn chuyển báo giá ${id} thành Đơn bán hàng?\nBáo giá này sẽ bị xóa sau khi chuyển đổi thành công.`)) {
-    return;
-  }
-  
+  const ok = await showConfirmModal({
+    title: "Chuyển báo giá thành Đơn bán hàng",
+    message: `Bạn có chắc muốn chuyển báo giá ${id} thành Đơn bán hàng?\nBáo giá này sẽ bị xóa sau khi chuyển đổi thành công.`,
+    confirmText: "Chuyển đổi ngay",
+    cancelText: "Hủy bỏ",
+    type: "info"
+  });
+  if (!ok) return;
+
   const quotation = state.vouchers[qIdx];
   const paymentMethod = quotation.paymentMethod || '131';
   let orderId = `BH${Date.now()}`;
@@ -2051,14 +2070,22 @@ function updateBatchQuotationsUI() {
   if (countEl) countEl.innerText = count;
 }
 
-function batchDeleteQuotations() {
+async function batchDeleteQuotations() {
   const checkboxes = document.querySelectorAll(".quotation-checkbox:checked");
   const ids = Array.from(checkboxes).map(cb => cb.value);
   if (ids.length === 0) return;
 
-  if (confirm(`Bạn có chắc chắn muốn xóa ${ids.length} báo giá đã chọn không?`)) {
-    try {
-      trackDeletedIds(ids);
+  const ok = await showConfirmModal({
+    title: "Xác nhận xóa báo giá",
+    message: `Bạn có chắc chắn muốn xóa ${ids.length} báo giá đã chọn không?`,
+    confirmText: "Xóa báo giá",
+    cancelText: "Hủy bỏ",
+    type: "danger"
+  });
+  if (!ok) return;
+
+  try {
+    trackDeletedIds(ids);
       state.vouchers = state.vouchers.filter(v => !ids.includes(v.id));
       if (typeof resetBatchSelectionUI === "function") {
         resetBatchSelectionUI({
@@ -2085,7 +2112,6 @@ function batchDeleteQuotations() {
       console.error(err);
       showToast(`Lỗi khi xóa hàng loạt báo giá: ${err.message}`, "danger");
     }
-  }
 }
 
 // exportQuotationsToExcel
@@ -2692,17 +2718,24 @@ function handleTemplateSubmit(event) {
   }
 }
 
-function deleteSalesTemplate(filename) {
-  if (confirm(`Bạn có chắc chắn muốn xóa phiếu mẫu "${filename}" không?`)) {
-    if (!state.salesTemplatesData) {
-      state.salesTemplatesData = JSON.parse(JSON.stringify(window.salesTemplatesData || []));
-    }
-    state.salesTemplatesData = state.salesTemplatesData.filter(t => t.filename !== filename);
-    saveState();
-    renderSalesTemplateTable();
-    if (typeof showToast === "function") {
-      showToast("Đã xóa phiếu mẫu thành công!", "success");
-    }
+async function deleteSalesTemplate(filename) {
+  const ok = await showConfirmModal({
+    title: "Xác nhận xóa phiếu mẫu",
+    message: `Bạn có chắc chắn muốn xóa phiếu mẫu "${filename}" không?`,
+    confirmText: "Xóa phiếu mẫu",
+    cancelText: "Hủy bỏ",
+    type: "danger"
+  });
+  if (!ok) return;
+
+  if (!state.salesTemplatesData) {
+    state.salesTemplatesData = JSON.parse(JSON.stringify(window.salesTemplatesData || []));
+  }
+  state.salesTemplatesData = state.salesTemplatesData.filter(t => t.filename !== filename);
+  saveState();
+  renderSalesTemplateTable();
+  if (typeof showToast === "function") {
+    showToast("Đã xóa phiếu mẫu thành công!", "success");
   }
 }
 

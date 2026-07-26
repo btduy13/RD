@@ -63,7 +63,7 @@
         </div>
         <div class="brand-info">
           <span class="brand-name">RẠNG ĐÔNG</span>
-          <span class="brand-subtitle" id="brand-version-display">RD Accounting v3.0.4</span>
+          <span class="brand-subtitle" id="brand-version-display">RD Accounting v3.3.13</span>
         </div>
         <button class="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Thu gọn/Mở rộng sidebar" title="Thu gọn sidebar">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
@@ -4832,6 +4832,17 @@
             </p>
           </div>
 
+          <div id="voucher-copies-settings" class="voucher-print-sidebar-section">
+            <label class="voucher-print-field-label" for="voucher-print-copies-input">Số bản in (Số lần in)</label>
+            <div class="voucher-print-copies-stepper" style="display: flex; align-items: center; gap: 6px;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="adjustVoucherPrintCopies(-1)" title="Giảm số bản in" style="width: 38px; height: 38px; padding: 0; font-size: 16px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-md);">-</button>
+              <input type="number" id="voucher-print-copies-input" class="form-control voucher-print-sidebar-select"
+                value="1" min="1" max="99" step="1" onchange="applyVoucherPrintCopies(this.value)" oninput="applyVoucherPrintCopies(this.value)"
+                style="flex: 1; height: 38px; text-align: center; font-weight: 700; font-size: 15px; border-radius: var(--radius-md);">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="adjustVoucherPrintCopies(1)" title="Tăng số bản in" style="width: 38px; height: 38px; padding: 0; font-size: 16px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-md);">+</button>
+            </div>
+          </div>
+
           <div class="voucher-print-sidebar-section">
             <label class="voucher-print-field-label" for="voucher-preview-font-scale-select">Cỡ chữ</label>
             <select id="voucher-preview-font-scale-select" class="form-control voucher-print-sidebar-select"
@@ -5180,6 +5191,39 @@
       <div class="modal-footer" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
         <button class="btn btn-secondary" onclick="closeModal('modal-change-password')">Hủy bỏ</button>
         <button class="btn btn-primary" onclick="submitChangePassword()">Cập nhật</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Custom Confirmation Dialog UI Nâng Cấp -->
+  <div id="modal-custom-confirm" class="modal-overlay custom-confirm-overlay" style="display: none; z-index: 99999;" aria-hidden="true">
+    <div class="custom-confirm-card" role="dialog" aria-modal="true" aria-labelledby="custom-confirm-title">
+      <div class="custom-confirm-icon-wrapper danger" id="custom-confirm-icon-box">
+        <svg id="custom-confirm-icon-danger" class="custom-confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+          <line x1="12" y1="9" x2="12" y2="13"></line>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+        <svg id="custom-confirm-icon-warning" class="custom-confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <svg id="custom-confirm-icon-info" class="custom-confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+      </div>
+
+      <div class="custom-confirm-content">
+        <h3 id="custom-confirm-title" class="custom-confirm-title">Xác nhận thao tác</h3>
+        <p id="custom-confirm-message" class="custom-confirm-message">Bạn có chắc chắn muốn thực hiện thao tác này không?</p>
+      </div>
+
+      <div class="custom-confirm-actions">
+        <button type="button" id="custom-confirm-btn-cancel" class="btn-custom-confirm-cancel">Hủy bỏ</button>
+        <button type="button" id="custom-confirm-btn-ok" class="btn-custom-confirm-ok danger">Đồng ý</button>
       </div>
     </div>
   </div>

@@ -605,8 +605,16 @@ function rebalanceEquity() {
 
 // Xóa chứng từ khỏi sổ cái
 async function deleteVoucher(id) {
-  if (confirm(`Bạn có chắc chắn muốn xóa và hủy ghi sổ chứng từ "${id}"? Việc này sẽ tính toán lại toàn bộ giá trị tồn kho và công nợ.`)) {
-    const vouchersBefore = JSON.parse(JSON.stringify(state.vouchers || []));
+  const ok = await showConfirmModal({
+    title: "Xác nhận xóa chứng từ",
+    message: `Bạn có chắc chắn muốn xóa và hủy ghi sổ chứng từ "${id}"? Việc này sẽ tính toán lại toàn bộ giá trị tồn kho và công nợ.`,
+    confirmText: "Xóa chứng từ",
+    cancelText: "Hủy bỏ",
+    type: "danger"
+  });
+  if (!ok) return;
+
+  const vouchersBefore = JSON.parse(JSON.stringify(state.vouchers || []));
     const deletedIdsBefore = [...(state.deletedIds || [])];
     const deletedCloudKeysBefore = [...(state.deletedCloudKeys || [])];
     try {
@@ -649,7 +657,6 @@ async function deleteVoucher(id) {
       console.error("Lỗi nghiêm trọng trong quá trình xóa chứng từ:", err);
       showToast(`Không thể xóa trên cloud; chứng từ đã được khôi phục: ${err.message}`, "danger");
     }
-  }
 }
 
 // Hàm làm tươi an toàn toàn cục

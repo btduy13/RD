@@ -15,6 +15,7 @@ const DEFAULT_USER_PREFS = {
   printDestination: "printer",
   printDirectEnabled: true,
   printPrinterDeviceName: "",
+  printCopies: 1,
   printTemplate: {
     fontFamily: "Times New Roman",
     contentFontSize: 13,
@@ -185,6 +186,12 @@ function restoreUserPreferencesUI() {
   const directPrintToggle = document.getElementById("voucher-direct-print-enabled");
   if (directPrintToggle) {
     directPrintToggle.checked = prefs.printDirectEnabled !== false;
+  }
+
+  const printCopiesInput = document.getElementById("voucher-print-copies-input");
+  if (printCopiesInput) {
+    const copiesVal = parseInt(prefs.printCopies, 10);
+    printCopiesInput.value = (!isNaN(copiesVal) && copiesVal >= 1) ? String(Math.min(copiesVal, 99)) : "1";
   }
 
   if (typeof ensurePrintPageStyle === "function") {

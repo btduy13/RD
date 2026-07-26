@@ -1144,8 +1144,16 @@ async function deletePartner(id) {
   if (linkedCount > 0) {
     confirmMsg = `Đối tác "${id}" còn ${linkedCount} chứng từ liên kết. Xóa sẽ làm các chứng từ này rơi vào nhóm "Chưa khớp đối tác" trên tab công nợ. Bạn có chắc muốn xóa?`;
   }
-  if (confirm(confirmMsg)) {
-    const partnersBefore = JSON.parse(JSON.stringify(state.partners || []));
+  const ok = await showConfirmModal({
+    title: "Xác nhận xóa đối tác",
+    message: confirmMsg,
+    confirmText: "Xóa đối tác",
+    cancelText: "Hủy bỏ",
+    type: "danger"
+  });
+  if (!ok) return;
+
+  const partnersBefore = JSON.parse(JSON.stringify(state.partners || []));
     const openingBefore = JSON.parse(JSON.stringify(state.partnerOpeningBalances || {}));
     const deletedIdsBefore = [...(state.deletedIds || [])];
     const deletedCloudKeysBefore = [...(state.deletedCloudKeys || [])];
@@ -1165,7 +1173,6 @@ async function deletePartner(id) {
       filterPartners();
       showToast(`Không thể xóa đối tác trên cloud; dữ liệu đã được khôi phục: ${err.message}`, "danger");
     }
-  }
 }
 
 function autoExtractPhonesAndCleanAddresses() {
@@ -1353,11 +1360,18 @@ function updateBatchPartnersUI() {
   }
 }
 
-function batchSetPartnersInactive() {
+async function batchSetPartnersInactive() {
   const checked = Array.from(document.querySelectorAll(".partner-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
 
-  if (!confirm(`Đặt trạng thái "Ngừng theo dõi" cho ${checked.length} đối tác đã chọn?`)) return;
+  const ok = await showConfirmModal({
+    title: "Xác nhận ngừng theo dõi đối tác",
+    message: `Đặt trạng thái "Ngừng theo dõi" cho ${checked.length} đối tác đã chọn?`,
+    confirmText: "Ngừng theo dõi",
+    cancelText: "Hủy bỏ",
+    type: "warning"
+  });
+  if (!ok) return;
 
   const ids = checked.map(cb => cb.value);
   let updated = 0;
@@ -1376,44 +1390,51 @@ function batchSetPartnersInactive() {
   showToast(`Đã ngừng theo dõi ${updated} đối tác!`, "success");
 }
 
-function batchDeletePartners() {
+async function batchDeletePartners() {
   const checked = Array.from(document.querySelectorAll(".partner-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
 
-  if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} đối tác đã chọn?`)) {
-    const idsToDelete = checked.map(cb => cb.value);
-    // Đưa các ID vào danh sách xóa cloud (prefix 'part_') trước khi xóa khỏi state
-    trackDeletedIds(idsToDelete, 'partner');
-    state.partners = state.partners.filter(p => !idsToDelete.includes(p.id));
+  const ok = await showConfirmModal({
+    title: "Xác nhận xóa đối tác",
+    message: `Bạn có chắc chắn muốn xóa ${checked.length} đối tác đã chọn?`,
+    confirmText: "Xóa đối tác",
+    cancelText: "Hủy bỏ",
+    type: "danger"
+  });
+  if (!ok) return;
 
-    saveState();
+  const idsToDelete = checked.map(cb => cb.value);
+  // Đưa các ID vào danh sách xóa cloud (prefix 'part_') trước khi xóa khỏi state
+  trackDeletedIds(idsToDelete, 'partner');
+  state.partners = state.partners.filter(p => !idsToDelete.includes(p.id));
 
-    if (typeof resetBatchSelectionUI === "function") {
-      resetBatchSelectionUI({
-        checkboxSelector: ".partner-checkbox",
-        masterId: "check-all-partners",
-        buttonId: "btn-batch-delete-partners",
-        countId: "selected-partners-count"
-      });
-    } else {
-      const master = document.getElementById("check-all-partners");
-      if (master) master.checked = false;
-      updateBatchPartnersUI();
-    }
+  saveState();
 
-    filterPartners();
-    if (typeof filterDebts === "function") filterDebts();
-    if (typeof resetBatchSelectionUI === "function") {
-      resetBatchSelectionUI({
-        checkboxSelector: ".partner-checkbox",
-        masterId: "check-all-partners",
-        buttonId: "btn-batch-delete-partners",
-        countId: "selected-partners-count"
-      });
-    }
-
-    showToast(`Đã xóa thành công ${checked.length} đối tác!`, "success");
+  if (typeof resetBatchSelectionUI === "function") {
+    resetBatchSelectionUI({
+      checkboxSelector: ".partner-checkbox",
+      masterId: "check-all-partners",
+      buttonId: "btn-batch-delete-partners",
+      countId: "selected-partners-count"
+    });
+  } else {
+    const master = document.getElementById("check-all-partners");
+    if (master) master.checked = false;
+    updateBatchPartnersUI();
   }
+
+  filterPartners();
+  if (typeof filterDebts === "function") filterDebts();
+  if (typeof resetBatchSelectionUI === "function") {
+    resetBatchSelectionUI({
+      checkboxSelector: ".partner-checkbox",
+      masterId: "check-all-partners",
+      buttonId: "btn-batch-delete-partners",
+      countId: "selected-partners-count"
+    });
+  }
+
+  showToast(`Đã xóa thành công ${checked.length} đối tác!`, "success");
 }
 window.openQuickAddPartnerModal = openQuickAddPartnerModal;
 window.handleQuickAddPartnerSubmit = handleQuickAddPartnerSubmit;

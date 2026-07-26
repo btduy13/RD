@@ -57,10 +57,19 @@ function normalizePrintRequest(value) {
     throw new PrinterJobError(PRINT_ERROR_CODES.INVALID_OPTIONS, 'Tên máy in quá dài');
   }
 
+  let copies = 1;
+  if (value.copies != null) {
+    const parsedCopies = parseInt(value.copies, 10);
+    if (!isNaN(parsedCopies) && parsedCopies >= 1) {
+      copies = Math.min(parsedCopies, 99);
+    }
+  }
+
   return {
     mode: directPrint ? PRINT_MODES.DIRECT : PRINT_MODES.DIALOG,
     directPrint,
-    deviceName: cleanPrinterText(value.deviceName)
+    deviceName: cleanPrinterText(value.deviceName),
+    copies
   };
 }
 
@@ -78,11 +87,11 @@ function sanitizePrinterInfo(value) {
   };
 }
 
-function sanitizePrinterList(value) {
-  if (!Array.isArray(value)) return [];
+function sanitizePrinterList(list) {
+  if (!Array.isArray(list)) return [];
   const names = new Set();
   const printers = [];
-  for (const item of value.slice(0, 256)) {
+  for (const item of list) {
     const printer = sanitizePrinterInfo(item);
     if (!printer || names.has(printer.name)) continue;
     names.add(printer.name);
@@ -95,18 +104,17 @@ function resolvePrinterDeviceName(printersValue, requestValue) {
   const printers = sanitizePrinterList(printersValue);
   const request = normalizePrintRequest(requestValue);
   if (printers.length === 0) {
-    throw new PrinterJobError(PRINT_ERROR_CODES.NO_PRINTERS, 'Không tìm thấy máy in trên hệ thống');
+    throw new PrinterJobError(PRINT_ERROR_CODES.NO_PRINTERS, 'Không tìm thấy máy in nào trên hệ thống');
   }
 
   if (request.deviceName) {
     const selected = printers.find(printer => printer.name === request.deviceName);
     if (!selected) {
-      throw new PrinterJobError(PRINT_ERROR_CODES.PRINTER_NOT_FOUND, 'Máy in đã chọn không còn khả dụng');
+      throw new PrinterJobError(PRINT_ERROR_CODES.PRINTER_NOT_FOUND, `Không tìm thấy máy in "${request.deviceName}"`);
     }
     return selected.name;
   }
 
-  if (!request.directPrint) return '';
   const defaultPrinter = printers.find(printer => printer.isDefault);
   if (!defaultPrinter) {
     throw new PrinterJobError(PRINT_ERROR_CODES.NO_DEFAULT_PRINTER, 'Chưa có máy in mặc định để in trực tiếp');
@@ -125,7 +133,8 @@ function buildElectronPrintOptions({ paperSize, request, deviceName, margins }) 
     printBackground: true,
     color: true,
     landscape: false,
-    pageSize: normalizePaperSize(paperSize)
+    pageSize: normalizePaperSize(paperSize),
+    copies: normalizedRequest.copies || 1
   };
   if (deviceName) options.deviceName = deviceName;
   if (margins) options.margins = margins;

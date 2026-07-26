@@ -1976,13 +1976,42 @@ function getVoucherPrintDestination() {
 let voucherSystemPrinters = [];
 let voucherPrinterLoadPromise = null;
 
+function getVoucherPrintCopies() {
+  const input = document.getElementById("voucher-print-copies-input");
+  if (input && input.value) {
+    const val = parseInt(input.value, 10);
+    if (!isNaN(val) && val >= 1) return Math.min(val, 99);
+  }
+  const prefs = typeof getUserPrefs === "function" ? getUserPrefs() : {};
+  const val = parseInt(prefs.printCopies, 10);
+  return (!isNaN(val) && val >= 1) ? Math.min(val, 99) : 1;
+}
+
+function applyVoucherPrintCopies(val) {
+  const copies = parseInt(val, 10);
+  const validCopies = (!isNaN(copies) && copies >= 1) ? Math.min(copies, 99) : 1;
+  const input = document.getElementById("voucher-print-copies-input");
+  if (input && input.value !== String(validCopies)) {
+    input.value = String(validCopies);
+  }
+  if (typeof saveUserPrefs === "function") {
+    saveUserPrefs({ printCopies: validCopies });
+  }
+}
+
+function adjustVoucherPrintCopies(delta) {
+  const current = getVoucherPrintCopies();
+  applyVoucherPrintCopies(current + delta);
+}
+
 function getVoucherPrinterPreferences() {
   const prefs = typeof getUserPrefs === "function" ? getUserPrefs() : {};
   return {
     directPrint: prefs.printDirectEnabled !== false,
     deviceName: typeof prefs.printPrinterDeviceName === "string"
       ? prefs.printPrinterDeviceName.trim()
-      : ""
+      : "",
+    copies: getVoucherPrintCopies()
   };
 }
 
@@ -2658,14 +2687,15 @@ async function printCurrentVoucher(e) {
       const printerPrefs = getVoucherPrinterPreferences();
       let printOptions = {
         directPrint: printerPrefs.directPrint,
-        deviceName: printerPrefs.deviceName
+        deviceName: printerPrefs.deviceName,
+        copies: printerPrefs.copies
       };
 
       if (printOptions.directPrint && !printOptions.deviceName) {
         if (typeof showToast === "function") {
           showToast("Chưa có máy in được chọn. Ứng dụng sẽ mở hộp thoại máy in hệ thống.", "warning");
         }
-        printOptions = { directPrint: false, deviceName: "" };
+        printOptions = { directPrint: false, deviceName: "", copies: printerPrefs.copies };
       }
 
       let res = await window.electronAPI.printHtml(
@@ -2683,7 +2713,7 @@ async function printCurrentVoucher(e) {
           wrappedHtml,
           printFontScale,
           printPaperSize,
-          { directPrint: false, deviceName: "" }
+          { directPrint: false, deviceName: "", copies: printOptions.copies }
         );
       }
 
@@ -3218,6 +3248,9 @@ window.getPrintPaperSize = getPrintPaperSize;
 window.getEffectivePrintScale = getEffectivePrintScale;
 window.applyPrintFontScale = applyPrintFontScale;
 window.applyPrintPaperSize = applyPrintPaperSize;
+window.getVoucherPrintCopies = getVoucherPrintCopies;
+window.applyVoucherPrintCopies = applyVoucherPrintCopies;
+window.adjustVoucherPrintCopies = adjustVoucherPrintCopies;
 window.applyPrintScaleToVoucherRoot = applyPrintScaleToVoucherRoot;
 window.wrapVoucherHtmlForPrint = wrapVoucherHtmlForPrint;
 window.exportVoucherToExcel = exportVoucherToExcel;

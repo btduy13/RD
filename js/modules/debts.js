@@ -2900,16 +2900,42 @@ function updateBatchDebtsUI() {
   }
 }
 
-function batchDeleteDebts() {
+async function batchDeleteDebts() {
   const checked = Array.from(document.querySelectorAll(".debt-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
 
-  if (confirm(`Bạn có chắc chắn muốn xóa (đặt số dư đầu kỳ về 0) cho ${checked.length} công nợ đã chọn?`)) {
-    const idsToReset = checked.map(cb => cb.value);
-    idsToReset.forEach(id => {
-      state.partnerOpeningBalances[id] = { debit: 0, credit: 0 };
-    });
+  const ok = await showConfirmModal({
+    title: "Xác nhận xóa số dư công nợ",
+    message: `Bạn có chắc chắn muốn xóa (đặt số dư đầu kỳ về 0) cho ${checked.length} công nợ đã chọn?`,
+    confirmText: "Xóa công nợ",
+    cancelText: "Hủy bỏ",
+    type: "danger"
+  });
+  if (!ok) return;
 
+  const idsToReset = checked.map(cb => cb.value);
+  idsToReset.forEach(id => {
+    state.partnerOpeningBalances[id] = { debit: 0, credit: 0 };
+  });
+
+  if (typeof resetBatchSelectionUI === "function") {
+    resetBatchSelectionUI({
+      checkboxSelector: ".debt-checkbox",
+      masterId: "check-all-debts",
+      buttonId: "btn-batch-delete-debts",
+      countId: "selected-debts-count"
+    });
+  } else {
+    const master = document.getElementById("check-all-debts");
+    if (master) master.checked = false;
+    updateBatchDebtsUI();
+  }
+  showToast(`Đã reset số dư đầu kỳ cho ${checked.length} đối tác!`, "success");
+
+  // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
+  setTimeout(() => {
+    saveState();
+    recalculateAccounting();
     if (typeof resetBatchSelectionUI === "function") {
       resetBatchSelectionUI({
         checkboxSelector: ".debt-checkbox",
@@ -2917,27 +2943,8 @@ function batchDeleteDebts() {
         buttonId: "btn-batch-delete-debts",
         countId: "selected-debts-count"
       });
-    } else {
-      const master = document.getElementById("check-all-debts");
-      if (master) master.checked = false;
-      updateBatchDebtsUI();
     }
-    showToast(`Đã reset số dư đầu kỳ cho ${checked.length} đối tác!`, "success");
-
-    // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
-    setTimeout(() => {
-      saveState();
-      recalculateAccounting();
-      if (typeof resetBatchSelectionUI === "function") {
-        resetBatchSelectionUI({
-          checkboxSelector: ".debt-checkbox",
-          masterId: "check-all-debts",
-          buttonId: "btn-batch-delete-debts",
-          countId: "selected-debts-count"
-        });
-      }
-    }, 0);
-  }
+  }, 0);
 }
 window.exportCurrentPartnerDebtExcel = exportCurrentPartnerDebtExcel;
 window.previewCurrentPartnerDebtNotice = previewCurrentPartnerDebtNotice;

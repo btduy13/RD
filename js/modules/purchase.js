@@ -621,15 +621,41 @@ function updateBatchPurchasesUI() {
   }
 }
 
-function batchDeletePurchases() {
+async function batchDeletePurchases() {
   const checked = Array.from(document.querySelectorAll(".purchase-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
 
-  if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} chứng từ mua hàng đã chọn?`)) {
-    const idsToDelete = checked.map(cb => cb.value);
-    trackDeletedIds(idsToDelete);
-    state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+  const ok = await showConfirmModal({
+    title: "Xác nhận xóa mua hàng",
+    message: `Bạn có chắc chắn muốn xóa ${checked.length} chứng từ mua hàng đã chọn?`,
+    confirmText: "Xóa chứng từ",
+    cancelText: "Hủy bỏ",
+    type: "danger"
+  });
+  if (!ok) return;
 
+  const idsToDelete = checked.map(cb => cb.value);
+  trackDeletedIds(idsToDelete);
+  state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+
+  if (typeof resetBatchSelectionUI === "function") {
+    resetBatchSelectionUI({
+      checkboxSelector: ".purchase-checkbox",
+      masterId: "check-all-purchase",
+      buttonId: "btn-batch-delete-purchase",
+      countId: "selected-purchases-count"
+    });
+  } else {
+    const master = document.getElementById("check-all-purchase");
+    if (master) master.checked = false;
+    updateBatchPurchasesUI();
+  }
+  showToast(`Đã xóa thành công ${checked.length} chứng từ mua hàng!`, "success");
+
+  // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
+  setTimeout(() => {
+    saveState();
+    recalculateAccounting();
     if (typeof resetBatchSelectionUI === "function") {
       resetBatchSelectionUI({
         checkboxSelector: ".purchase-checkbox",
@@ -637,27 +663,8 @@ function batchDeletePurchases() {
         buttonId: "btn-batch-delete-purchase",
         countId: "selected-purchases-count"
       });
-    } else {
-      const master = document.getElementById("check-all-purchase");
-      if (master) master.checked = false;
-      updateBatchPurchasesUI();
     }
-    showToast(`Đã xóa thành công ${checked.length} chứng từ mua hàng!`, "success");
-
-    // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
-    setTimeout(() => {
-      saveState();
-      recalculateAccounting();
-      if (typeof resetBatchSelectionUI === "function") {
-        resetBatchSelectionUI({
-          checkboxSelector: ".purchase-checkbox",
-          masterId: "check-all-purchase",
-          buttonId: "btn-batch-delete-purchase",
-          countId: "selected-purchases-count"
-        });
-      }
-    }, 0);
-  }
+  }, 0);
 }
 
 function exportPurchasesToExcel(detailed = true) {
@@ -1451,15 +1458,41 @@ function updateBatchPurchaseOrdersUI() {
   }
 }
 
-function batchDeletePurchaseOrders() {
+async function batchDeletePurchaseOrders() {
   const checked = Array.from(document.querySelectorAll(".purchase-order-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
 
-  if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} đơn đặt hàng đã chọn?`)) {
-    const idsToDelete = checked.map(cb => cb.value);
-    trackDeletedIds(idsToDelete);
-    state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+  const ok = await showConfirmModal({
+    title: "Xác nhận xóa đơn đặt hàng",
+    message: `Bạn có chắc chắn muốn xóa ${checked.length} đơn đặt hàng đã chọn?`,
+    confirmText: "Xóa đơn hàng",
+    cancelText: "Hủy bỏ",
+    type: "danger"
+  });
+  if (!ok) return;
 
+  const idsToDelete = checked.map(cb => cb.value);
+  trackDeletedIds(idsToDelete);
+  state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+
+  if (typeof resetBatchSelectionUI === "function") {
+    resetBatchSelectionUI({
+      checkboxSelector: ".purchase-order-checkbox",
+      masterId: "check-all-purchase-order",
+      buttonId: "btn-batch-delete-purchase-order",
+      countId: "selected-purchase-orders-count"
+    });
+  } else {
+    const master = document.getElementById("check-all-purchase-order");
+    if (master) master.checked = false;
+    updateBatchPurchaseOrdersUI();
+  }
+  showToast(`Đã xóa thành công ${checked.length} đơn đặt hàng!`, "success");
+
+  // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
+  setTimeout(() => {
+    saveState();
+    recalculateAccounting();
     if (typeof resetBatchSelectionUI === "function") {
       resetBatchSelectionUI({
         checkboxSelector: ".purchase-order-checkbox",
@@ -1467,27 +1500,8 @@ function batchDeletePurchaseOrders() {
         buttonId: "btn-batch-delete-purchase-order",
         countId: "selected-purchase-orders-count"
       });
-    } else {
-      const master = document.getElementById("check-all-purchase-order");
-      if (master) master.checked = false;
-      updateBatchPurchaseOrdersUI();
     }
-    showToast(`Đã xóa thành công ${checked.length} đơn đặt hàng!`, "success");
-
-    // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
-    setTimeout(() => {
-      saveState();
-      recalculateAccounting();
-      if (typeof resetBatchSelectionUI === "function") {
-        resetBatchSelectionUI({
-          checkboxSelector: ".purchase-order-checkbox",
-          masterId: "check-all-purchase-order",
-          buttonId: "btn-batch-delete-purchase-order",
-          countId: "selected-purchase-orders-count"
-        });
-      }
-    }, 0);
-  }
+  }, 0);
 }
 
 function exportPurchaseOrdersToExcel() {
@@ -2182,15 +2196,41 @@ function updateBatchPurchaseReturnsUI() {
   }
 }
 
-function batchDeletePurchaseReturns() {
+async function batchDeletePurchaseReturns() {
   const checked = Array.from(document.querySelectorAll(".purchase-return-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
 
-  if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} chứng từ trả lại hàng đã chọn?`)) {
-    const idsToDelete = checked.map(cb => cb.value);
-    trackDeletedIds(idsToDelete);
-    state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+  const ok = await showConfirmModal({
+    title: "Xác nhận xóa mua hàng trả lại",
+    message: `Bạn có chắc chắn muốn xóa ${checked.length} chứng từ trả lại hàng đã chọn?`,
+    confirmText: "Xóa chứng từ",
+    cancelText: "Hủy bỏ",
+    type: "danger"
+  });
+  if (!ok) return;
 
+  const idsToDelete = checked.map(cb => cb.value);
+  trackDeletedIds(idsToDelete);
+  state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+
+  if (typeof resetBatchSelectionUI === "function") {
+    resetBatchSelectionUI({
+      checkboxSelector: ".purchase-return-checkbox",
+      masterId: "check-all-purchase-return",
+      buttonId: "btn-batch-delete-purchase-return",
+      countId: "selected-purchase-returns-count"
+    });
+  } else {
+    const master = document.getElementById("check-all-purchase-return");
+    if (master) master.checked = false;
+    updateBatchPurchaseReturnsUI();
+  }
+  showToast(`Đã xóa thành công ${checked.length} chứng từ trả lại hàng!`, "success");
+
+  // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
+  setTimeout(() => {
+    saveState();
+    recalculateAccounting();
     if (typeof resetBatchSelectionUI === "function") {
       resetBatchSelectionUI({
         checkboxSelector: ".purchase-return-checkbox",
@@ -2198,27 +2238,8 @@ function batchDeletePurchaseReturns() {
         buttonId: "btn-batch-delete-purchase-return",
         countId: "selected-purchase-returns-count"
       });
-    } else {
-      const master = document.getElementById("check-all-purchase-return");
-      if (master) master.checked = false;
-      updateBatchPurchaseReturnsUI();
     }
-    showToast(`Đã xóa thành công ${checked.length} chứng từ trả lại hàng!`, "success");
-
-    // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
-    setTimeout(() => {
-      saveState();
-      recalculateAccounting();
-      if (typeof resetBatchSelectionUI === "function") {
-        resetBatchSelectionUI({
-          checkboxSelector: ".purchase-return-checkbox",
-          masterId: "check-all-purchase-return",
-          buttonId: "btn-batch-delete-purchase-return",
-          countId: "selected-purchase-returns-count"
-        });
-      }
-    }, 0);
-  }
+  }, 0);
 }
 
 function exportPurchaseReturnsToExcel() {

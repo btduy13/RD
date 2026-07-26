@@ -965,15 +965,41 @@ function updateBatchCashUI() {
   }
 }
 
-function batchDeleteCash() {
+async function batchDeleteCash() {
   const checked = Array.from(document.querySelectorAll(".cash-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
 
-  if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} chứng từ thu chi đã chọn?`)) {
-    const idsToDelete = checked.map(cb => cb.value);
-    trackDeletedIds(idsToDelete);
-    state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+  const ok = await showConfirmModal({
+    title: "Xác nhận xóa phiếu thu chi",
+    message: `Bạn có chắc chắn muốn xóa ${checked.length} chứng từ thu chi đã chọn?`,
+    confirmText: "Xóa chứng từ",
+    cancelText: "Hủy bỏ",
+    type: "danger"
+  });
+  if (!ok) return;
 
+  const idsToDelete = checked.map(cb => cb.value);
+  trackDeletedIds(idsToDelete);
+  state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+
+  if (typeof resetBatchSelectionUI === "function") {
+    resetBatchSelectionUI({
+      checkboxSelector: ".cash-checkbox",
+      masterId: "check-all-cash",
+      buttonId: "btn-batch-delete-cash",
+      countId: "selected-cash-count"
+    });
+  } else {
+    const master = document.getElementById("check-all-cash");
+    if (master) master.checked = false;
+    updateBatchCashUI();
+  }
+  showToast(`Đã xóa thành công ${checked.length} chứng từ thu chi!`, "success");
+
+  // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
+  setTimeout(() => {
+    saveState();
+    recalculateAccounting();
     if (typeof resetBatchSelectionUI === "function") {
       resetBatchSelectionUI({
         checkboxSelector: ".cash-checkbox",
@@ -981,27 +1007,8 @@ function batchDeleteCash() {
         buttonId: "btn-batch-delete-cash",
         countId: "selected-cash-count"
       });
-    } else {
-      const master = document.getElementById("check-all-cash");
-      if (master) master.checked = false;
-      updateBatchCashUI();
     }
-    showToast(`Đã xóa thành công ${checked.length} chứng từ thu chi!`, "success");
-
-    // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
-    setTimeout(() => {
-      saveState();
-      recalculateAccounting();
-      if (typeof resetBatchSelectionUI === "function") {
-        resetBatchSelectionUI({
-          checkboxSelector: ".cash-checkbox",
-          masterId: "check-all-cash",
-          buttonId: "btn-batch-delete-cash",
-          countId: "selected-cash-count"
-        });
-      }
-    }, 0);
-  }
+  }, 0);
 }
 // Cash
 window.filterCash = filterCash;

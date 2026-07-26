@@ -1078,16 +1078,42 @@ function updateBatchProductsUI() {
   }
 }
 
-function batchDeleteProducts() {
+async function batchDeleteProducts() {
   const checked = Array.from(document.querySelectorAll(".product-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
 
-  if (confirm(`Bạn có chắc chắn muốn xóa ${checked.length} sản phẩm đã chọn? Các chứng từ liên quan có thể bị ảnh hưởng.`)) {
-    const idsToDelete = checked.map(cb => cb.value);
-    // Đưa các ID vào danh sách xóa cloud (prefix 'p_') trước khi xóa khỏi state
-    trackDeletedIds(idsToDelete, 'product');
-    state.products = state.products.filter(p => !idsToDelete.includes(p.id));
+  const ok = await showConfirmModal({
+    title: "Xác nhận xóa sản phẩm",
+    message: `Bạn có chắc chắn muốn xóa ${checked.length} sản phẩm đã chọn? Các chứng từ liên quan có thể bị ảnh hưởng.`,
+    confirmText: "Xóa sản phẩm",
+    cancelText: "Hủy bỏ",
+    type: "danger"
+  });
+  if (!ok) return;
 
+  const idsToDelete = checked.map(cb => cb.value);
+  // Đưa các ID vào danh sách xóa cloud (prefix 'p_') trước khi xóa khỏi state
+  trackDeletedIds(idsToDelete, 'product');
+  state.products = state.products.filter(p => !idsToDelete.includes(p.id));
+
+  if (typeof resetBatchSelectionUI === "function") {
+    resetBatchSelectionUI({
+      checkboxSelector: ".product-checkbox",
+      masterId: "check-all-products",
+      buttonId: "btn-batch-delete-products",
+      countId: "selected-products-count"
+    });
+  } else {
+    const master = document.getElementById("check-all-products");
+    if (master) master.checked = false;
+    updateBatchProductsUI();
+  }
+  showToast(`Đã xóa thành công ${checked.length} sản phẩm!`, "success");
+
+  // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
+  setTimeout(() => {
+    saveState();
+    recalculateAccounting();
     if (typeof resetBatchSelectionUI === "function") {
       resetBatchSelectionUI({
         checkboxSelector: ".product-checkbox",
@@ -1095,34 +1121,23 @@ function batchDeleteProducts() {
         buttonId: "btn-batch-delete-products",
         countId: "selected-products-count"
       });
-    } else {
-      const master = document.getElementById("check-all-products");
-      if (master) master.checked = false;
-      updateBatchProductsUI();
     }
-    showToast(`Đã xóa thành công ${checked.length} sản phẩm!`, "success");
-
-    // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
-    setTimeout(() => {
-      saveState();
-      recalculateAccounting();
-      if (typeof resetBatchSelectionUI === "function") {
-        resetBatchSelectionUI({
-          checkboxSelector: ".product-checkbox",
-          masterId: "check-all-products",
-          buttonId: "btn-batch-delete-products",
-          countId: "selected-products-count"
-        });
-      }
-    }, 0);
-  }
+  }, 0);
 }
 
 
 
 async function deleteProduct(prodId) {
-  if (confirm(`Bạn có chắc chắn muốn xóa sản phẩm "${prodId}"? Dữ liệu tồn kho liên quan có thể bị ảnh hưởng.`)) {
-    const productsBefore = JSON.parse(JSON.stringify(state.products || []));
+  const ok = await showConfirmModal({
+    title: "Xác nhận xóa sản phẩm",
+    message: `Bạn có chắc chắn muốn xóa sản phẩm "${prodId}"? Dữ liệu tồn kho liên quan có thể bị ảnh hưởng.`,
+    confirmText: "Xóa sản phẩm",
+    cancelText: "Hủy bỏ",
+    type: "danger"
+  });
+  if (!ok) return;
+
+  const productsBefore = JSON.parse(JSON.stringify(state.products || []));
     const deletedIdsBefore = [...(state.deletedIds || [])];
     const deletedCloudKeysBefore = [...(state.deletedCloudKeys || [])];
     try {
@@ -1138,7 +1153,6 @@ async function deleteProduct(prodId) {
       recalculateAccounting(false);
       showToast(`Không thể xóa sản phẩm trên cloud; dữ liệu đã được khôi phục: ${err.message}`, "danger");
     }
-  }
 }
 
 // Quản lý hiển thị tab con của Kho hàng
