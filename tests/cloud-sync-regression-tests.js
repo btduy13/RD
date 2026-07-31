@@ -102,6 +102,33 @@ function testComputeDeltaSkipsAlreadySyncedVoucher() {
   assert.equal(voucherRows.length, 0, "already-synced voucher should not be re-uploaded");
 }
 
+function testComputeDeltaDoesNotInferDeletionFromMissingLocalRows() {
+  const { internals, sandbox } = loadCloudSyncInternals();
+  sandbox.state.vouchers = [];
+  sandbox.state._lastModified = 7000;
+  sandbox.window.lastSyncState = {
+    vouchers: [
+      { id: "BH45013", type: "sales", _updatedAt: 5000 },
+      { id: "BH44693", type: "sales", _updatedAt: 5000 },
+      { id: "BH44694", type: "sales", _updatedAt: 5000 }
+    ],
+    products: [],
+    partners: [],
+    deletedIds: [],
+    deletedCloudKeys: []
+  };
+
+  const delta = internals.computeDelta();
+  const tombstoneIds = delta.rowsToUpsert
+    .filter(row => row.data && row.data._deleted)
+    .map(row => row.id);
+  assert.deepEqual(
+    tombstoneIds,
+    [],
+    "temporary local absence must not become a cloud deletion without an explicit marker"
+  );
+}
+
 function testPruneDoesNotDropLocalOnlyVouchers() {
   const { internals } = loadCloudSyncInternals();
   const merged = {
@@ -603,6 +630,131 @@ function testNewerActiveRowClearsStaleMetadataDeletionMarker() {
   assert.equal(deleted.vouchers.some(item => item.id === 'PT-OLD'), false, 'a newer metadata deletion must still suppress an older active row');
 }
 
+function testCloudActiveRowsResolveStaleLocalTombstonesAcrossStations() {
+  const { internals } = loadCloudSyncInternals();
+  const staleStation = {
+    vouchers: [],
+    products: [],
+    partners: [],
+    cashEntries: [],
+    escrowItems: [],
+    deletedIds: ['BH45013', 'BH44693'],
+    deletedCloudKeys: ['v_BH45013', 'v_BH44693'],
+    // Unrelated activity made the station timestamp newer than both vouchers.
+    _lastModified: 9000
+  };
+  const cloudState = {
+    vouchers: [
+      { id: 'BH45013', type: 'sales', _updatedAt: 5000 },
+      { id: 'BH44693', type: 'sales', _updatedAt: 5000 }
+    ],
+    products: [],
+    partners: [],
+    cashEntries: [],
+    escrowItems: [],
+    deletedIds: [],
+    deletedCloudKeys: [],
+    _lastModified: 6000,
+    _cloudWatermark: 6000
+  };
+
+  const merged = internals.mergeStates(staleStation, cloudState);
+  assert.deepEqual(
+    Array.from(merged.vouchers, voucher => voucher.id).sort(),
+    ['BH44693', 'BH45013'],
+    'active cloud rows must clear stale tombstones on another station'
+  );
+  assert.equal(merged.deletedCloudKeys.includes('v_BH45013'), false);
+  assert.equal(merged.deletedCloudKeys.includes('v_BH44693'), false);
+}
+
+function testExplicitPendingDeletionStillBeatsCloudActiveRow() {
+  const { internals, sandbox } = loadCloudSyncInternals();
+  const deletingStation = {
+    vouchers: [],
+    products: [],
+    partners: [],
+    cashEntries: [],
+    escrowItems: [],
+    deletedIds: ['BH45013'],
+    deletedCloudKeys: ['v_BH45013'],
+    _lastModified: 9000,
+    _pendingCloudWrite: {
+      token: 'pending-delete',
+      manifest: {
+        version: 1,
+        token: 'pending-delete',
+        rowIds: ['v_BH45013'],
+        metadataDirty: false
+      }
+    }
+  };
+  sandbox.state = deletingStation;
+  const cloudState = {
+    vouchers: [{ id: 'BH45013', type: 'sales', _updatedAt: 10000 }],
+    products: [],
+    partners: [],
+    cashEntries: [],
+    escrowItems: [],
+    deletedIds: [],
+    deletedCloudKeys: [],
+    _lastModified: 10000,
+    _cloudWatermark: 10000
+  };
+
+  const merged = internals.mergeStates(deletingStation, cloudState);
+  assert.equal(merged.vouchers.length, 0, 'an explicit pending user deletion must remain authoritative');
+  assert.equal(merged.deletedCloudKeys.includes('v_BH45013'), true);
+}
+
+async function testTargetedReconcileRestoresRowsMissedBeforeCheckpoint() {
+  const activeRows = [
+    {
+      id: 'v_BH45013',
+      data: { id: 'BH45013', type: 'sales', _updatedAt: 5000 },
+      last_modified: 5000,
+      sync_version: 400
+    },
+    {
+      id: 'v_BH44693',
+      data: { id: 'BH44693', type: 'sales', _updatedAt: 5000 },
+      last_modified: 5000,
+      sync_version: 401
+    }
+  ];
+  const client = {
+    from() {
+      return {
+        select() { return this; },
+        eq() { return this; },
+        in() { return Promise.resolve({ data: activeRows, error: null }); }
+      };
+    }
+  };
+  const { internals, sandbox, vm } = loadCloudSyncInternals({
+    __reconcileClient: client
+  });
+  sandbox.state.vouchers = [];
+  sandbox.state.deletedIds = ['BH45013', 'BH44693'];
+  sandbox.state.deletedCloudKeys = ['v_BH45013', 'v_BH44693'];
+  sandbox.state._lastModified = 9000;
+  sandbox.state._lastPulledCloudTs = 700;
+  sandbox.window.lastSyncState = JSON.parse(JSON.stringify(sandbox.state));
+  vm.runInContext(
+    'supabaseClient = __reconcileClient; cloudSyncActive = true; cloudUsesVersionedRpc = true; cloudSyncVersion = 700;',
+    sandbox
+  );
+
+  const restored = await internals.cloudSyncReconcileStaleDeletionMarkers();
+  assert.equal(restored, 2, 'targeted reconcile must restore both active cloud rows');
+  assert.deepEqual(
+    Array.from(sandbox.state.vouchers, voucher => voucher.id).sort(),
+    ['BH44693', 'BH45013']
+  );
+  assert.equal(sandbox.state.deletedCloudKeys.includes('v_BH45013'), false);
+  assert.equal(sandbox.state.deletedCloudKeys.includes('v_BH44693'), false);
+}
+
 function testQueuedPullPreservesStrongestRequest() {
   const { internals } = loadCloudSyncInternals();
   internals.queuePendingPull({ reason: "realtime" });
@@ -676,6 +828,14 @@ function testRescueCandidateKeysOnlyChecksPushDiff() {
 
   const keys = internals.cloudSyncGetRescueCandidateKeys();
   assert.deepEqual(keys, ["v_PO-2"], "rescue candidates should only include rows that differ from lastSyncState");
+}
+
+function testPullQueuesRepairPushForLocalWinners() {
+  assert.match(
+    cloudSyncSource,
+    /updateLastSyncState\(cloudSnapshot\);[\s\S]{0,1200}cloudSyncGetRescueCandidateKeys\(\)[\s\S]{0,1200}pushPending\s*=\s*true/,
+    "pull/merge must queue a repair push when local active rows win over missing or tombstoned cloud rows"
+  );
 }
 
 async function testCandidateRescueDoesNotTouchUnchangedNonCandidates() {
@@ -1189,6 +1349,7 @@ async function testLegacyDeltaSecondPageQuotesSpecialCursor() {
 async function run() {
   testComputeDeltaDetectsUnpushedVoucherWhenLastSyncStateNull();
   testComputeDeltaSkipsAlreadySyncedVoucher();
+  testComputeDeltaDoesNotInferDeletionFromMissingLocalRows();
   testComputeDeltaDoesNotReplayCloudKnownTombstones();
   testFullPullRequiredWithoutBaselineOrAfterWatermarkRollback();
   testConfirmedCacheRestoresIncrementalStartupBaseline();
@@ -1209,8 +1370,12 @@ async function run() {
   testTypedTombstoneDoesNotDeleteOtherEntityWithSameId();
   testLegacyUntypedTombstoneStillDeletesVoucher();
   testNewerActiveRowClearsStaleMetadataDeletionMarker();
+  testCloudActiveRowsResolveStaleLocalTombstonesAcrossStations();
+  testExplicitPendingDeletionStillBeatsCloudActiveRow();
+  await testTargetedReconcileRestoresRowsMissedBeforeCheckpoint();
   testQueuedPullPreservesStrongestRequest();
   testRescueCandidateKeysOnlyChecksPushDiff();
+  testPullQueuesRepairPushForLocalWinners();
   await testCandidateRescueDoesNotTouchUnchangedNonCandidates();
   await testStartupRescueReusesCompleteCloudBaseline();
   await testRescueLogsAreCappedAndSummarized();

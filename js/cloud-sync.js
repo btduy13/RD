@@ -46,6 +46,10 @@ let cloudStartupReconnectTimer = null;
 let cloudStartupReconnectAttempt = 0;
 let cloudSyncTaskSequence = 0;
 const cloudSyncTasks = [];
+// Deletions initiated during this renderer session must survive a pull that
+// races the local save/pending-manifest write. Confirmed tombstones are removed
+// from this set after the cloud transaction commits.
+const cloudSyncPendingDeletionKeys = new Set();
 
 const CLOUD_SYNC_CHECKPOINT_KEY = "rd_accounting_last_pulled_cloud_ts";
 const CLOUD_SYNC_PENDING_WRITE_KEY = "rd_accounting_cloud_push_pending";
@@ -398,6 +402,7 @@ function trackDeletedIds(ids, entityType = "voucher") {
     if (!state.deletedIds.includes(id)) state.deletedIds.push(id);
     const cloudKey = `${prefix}${id}`;
     if (!state.deletedCloudKeys.includes(cloudKey)) state.deletedCloudKeys.push(cloudKey);
+    cloudSyncPendingDeletionKeys.add(cloudKey);
   });
 
   state._lastModified = Date.now();
@@ -702,6 +707,22 @@ function cloudSyncGetPendingWriteManifest() {
     const parsed = state && state._pendingCloudWrite && state._pendingCloudWrite.manifest;
     return parsed && parsed.version === 1 && parsed.token && Array.isArray(parsed.rowIds) ? parsed : null;
   }
+}
+
+function cloudSyncShouldKeepLocalDeletion(rowId) {
+  const normalizedRowId = cloudSyncNormalizeDeletedCloudKey(rowId);
+  if (cloudSyncPendingDeletionKeys.has(normalizedRowId)) return true;
+
+  const pendingToken = cloudSyncGetPendingLocalWriteToken();
+  if (!pendingToken) return false;
+
+  const manifest = cloudSyncGetPendingWriteManifest();
+  // An unknown pending write must fail safe: do not resurrect a user deletion
+  // until startup reconciliation can recover or rebuild its manifest.
+  if (!manifest || manifest.token !== pendingToken) return true;
+  return manifest.rowIds.some(key =>
+    cloudSyncNormalizeDeletedCloudKey(key) === normalizedRowId
+  );
 }
 
 function cloudSyncCapturePendingWriteManifest(token) {
@@ -1522,7 +1543,11 @@ function cloudSyncMergeStatesCore(localState, cloudState, options = {}) {
     const localActive = new Map((localState[def.stateKey] || []).filter(item => item && item.id).map(item => [item.id, item]));
     localDeletedByState[def.stateKey].forEach(id => {
       const cloudItem = cloudActive.get(id);
-      if (cloudItem && (Number(cloudItem._updatedAt) || 0) > localTs) return;
+      const rowId = `${def.rowPrefix}${id}`;
+      // A cloud-active row resolves stale tombstones left on another station.
+      // Preserve the local deletion only when this station still has an
+      // explicit in-memory or durable pending delete for the same row.
+      if (cloudItem && !cloudSyncShouldKeepLocalDeletion(rowId)) return;
       deleted.add(id);
     });
     cloudDeletedByState[def.stateKey].forEach(id => {
@@ -1971,6 +1996,17 @@ async function pullAndMergeFromCloud(options = {}) {
     }
 
     updateLastSyncState(cloudSnapshot);
+    const localRowsNeedingCloudRepair = cloudSyncGetRescueCandidateKeys();
+    if (localRowsNeedingCloudRepair.length > 0) {
+      // The merge kept one or more newer local active rows against missing or
+      // tombstoned cloud rows. Queue an entity-only repair push so other
+      // stations converge instead of leaving the winner local to this machine.
+      pushPending = true;
+      cloudSyncLog(
+        `Post-pull repair queued for ${localRowsNeedingCloudRepair.length} local winner(s): ` +
+        `${localRowsNeedingCloudRepair.slice(0, 5).join(", ")}${localRowsNeedingCloudRepair.length > 5 ? ", ..." : ""}.`
+      );
+    }
     persistLastPulledCloudTs(watermark);
     cloudSyncPersistDatasetIdentity();
     cloudSyncLog(`Ket qua merge: vouchers truoc=${vouchersBefore}, sau=${state.vouchers.length}, thay doi=${hasChanges ? "co" : "khong"}, pruned=${prunedCount}`);
@@ -2035,6 +2071,7 @@ async function pullFromCloudOnStartup() {
       legacyOverlap: !needFullPull && !cloudUsesVersionedRpc,
       reason: "startup"
     });
+    await cloudSyncReconcileStaleDeletionMarkers();
     if (needFullPull) {
       await cloudSyncRescueLocalOnlyItems({ completeCloudSnapshot: true });
     }
@@ -2106,24 +2143,25 @@ function computeDelta() {
     const currentItems = Array.isArray(state[def.stateKey]) ? state[def.stateKey] : [];
     const previousItems = Array.isArray(lastSyncState && lastSyncState[def.stateKey]) ? lastSyncState[def.stateKey] : [];
     const previousMap = new Map(previousItems.filter(item => item && item.id).map(item => [item.id, item]));
-    const currentMap = new Map(currentItems.filter(item => item && item.id).map(item => [item.id, item]));
 
     currentItems.forEach(item => {
       if (!item || !item.id) return;
+      // Recreating an entity cancels any uncommitted deletion from this
+      // renderer session before delta generation.
+      cloudSyncPendingDeletionKeys.delete(`${def.rowPrefix}${item.id}`);
       const previous = previousMap.get(item.id);
       if (cloudSyncEntityNeedsPush(previous, item)) {
         item._updatedAt = Math.max(Number(item._updatedAt) || 0, (Number(previous && previous._updatedAt) || 0) + 1, now);
         rowsToUpsert.push(makeRow(`${def.rowPrefix}${item.id}`, item));
       }
     });
-
-    previousItems.forEach(item => {
-      if (item && item.id && !currentMap.has(item.id)) {
-        rowsToUpsert.push(cloudSyncMakeTombstoneRow(`${def.rowPrefix}${item.id}`, pushTs));
-      }
-    });
   });
 
+  // Never infer a cloud deletion merely because an entity is absent from the
+  // current in-memory state. A partial/legacy restore or an interrupted pull
+  // can temporarily omit valid rows; converting that absence into a tombstone
+  // makes the loss propagate to every station. All supported delete flows call
+  // trackDeletedIds(), so only those explicit typed markers are authoritative.
   const cloudKnownTombstones = new Set(
     (lastSyncState && Array.isArray(lastSyncState.deletedCloudKeys) ? lastSyncState.deletedCloudKeys : [])
       .map(cloudSyncNormalizeDeletedCloudKey)
@@ -2311,6 +2349,94 @@ async function cloudSyncRescueLocalOnlyItems(options = {}) {
   }
 }
 
+async function cloudSyncFetchRowsByKeys(keys) {
+  const rows = [];
+  const uniqueKeys = Array.from(new Set((keys || [])
+    .map(cloudSyncNormalizeDeletedCloudKey)
+    .filter(Boolean)));
+
+  for (let i = 0; i < uniqueKeys.length; i += 100) {
+    const batch = uniqueKeys.slice(i, i + 100);
+    const { data, error } = await cloudSyncReadWithRetry(
+      () => supabaseClient
+        .from(CLOUD_SYNC_TABLE)
+        .select("id,data,last_modified,updated_at,sync_version,updated_by,deleted_at")
+        .eq("workspace_id", cloudWorkspaceId)
+        .in("id", batch),
+      `stale tombstone rows batch ${Math.floor(i / 100) + 1}`,
+      { attempts: 4, timeoutMs: 20000 }
+    );
+    if (error) throw error;
+    rows.push(...(data || []));
+  }
+  return rows;
+}
+
+// Incremental pulls cannot see an active row whose sync_version is older than
+// this station's checkpoint. Query only locally remembered tombstone keys so a
+// station that missed the recreation can converge without a costly full pull.
+async function cloudSyncReconcileStaleDeletionMarkers() {
+  if (
+    !cloudSyncActive ||
+    !supabaseClient ||
+    !cloudUsesVersionedRpc ||
+    cloudSyncHasPendingLocalWrite()
+  ) return 0;
+
+  const keys = Array.from(new Set(
+    (Array.isArray(state.deletedCloudKeys) ? state.deletedCloudKeys : [])
+      .map(cloudSyncNormalizeDeletedCloudKey)
+      .filter(Boolean)
+  ));
+  if (keys.length === 0) return 0;
+
+  try {
+    const rows = await cloudSyncFetchRowsByKeys(keys);
+    const activeRows = rows.filter(row => row && row.id && row.data && !row.data._deleted);
+    if (activeRows.length === 0) return 0;
+
+    const watermark = Math.max(getPullCheckpointTs(), Number(cloudSyncVersion) || 0);
+    const partialCloud = cloudSyncStateFromRows(activeRows, { watermark }).state;
+    const mergeResult = cloudSyncMergeStatesCore(state, partialCloud, {
+      cloneWinners: true,
+      cloneMetadata: true,
+      collectStats: true
+    });
+    const merged = mergeResult.state;
+    const restoredKeys = activeRows.filter(row => {
+      const def = cloudSyncGetRowDef(row.id);
+      if (!def) return false;
+      const entityId = cloudSyncGetEntityIdFromRowId(row.id, def);
+      return (merged[def.stateKey] || []).some(item =>
+        item && String(item.id) === String(entityId)
+      );
+    });
+    if (restoredKeys.length === 0) return 0;
+
+    state = merged;
+    const baseline = cloudSyncMergeCloudSnapshot(
+      window.lastSyncState || lastSyncState || cloudSyncDefaultState(),
+      partialCloud
+    );
+    updateLastSyncState(baseline);
+
+    const deltaPersisted = await cloudSyncPersistPullDeltaToCache(
+      state,
+      mergeResult.stats && mergeResult.stats.changedIdsByEntity
+    );
+    if (!deltaPersisted) await persistStateCacheAfterCloudPull(state);
+    cloudSyncRefreshUiAfterPull();
+    cloudSyncLog(
+      `Stale tombstone reconcile restored ${restoredKeys.length}/${keys.length} active cloud row(s): ` +
+      `${restoredKeys.slice(0, 5).map(row => row.id).join(", ")}${restoredKeys.length > 5 ? ", ..." : ""}.`
+    );
+    return restoredKeys.length;
+  } catch (err) {
+    console.warn("[CloudSync] Stale tombstone reconcile failed:", err);
+    return 0;
+  }
+}
+
 async function cloudSyncUpsertRows(rows) {
   for (let i = 0; i < rows.length; i += CLOUD_SYNC_BATCH_SIZE) {
     const batch = rows.slice(i, i + CLOUD_SYNC_BATCH_SIZE);
@@ -2477,6 +2603,11 @@ async function cloudSyncPushNow() {
     }
 
     if (pushPayload.tombstoneRows.length > 0) {
+      pushPayload.tombstoneRows.forEach(row => {
+        if (row && row.id) {
+          cloudSyncPendingDeletionKeys.delete(cloudSyncNormalizeDeletedCloudKey(row.id));
+        }
+      });
       state.deletedIds = [];
       state.deletedCloudKeys = [];
     }
@@ -3448,6 +3579,8 @@ window.__cloudSyncInternals__ = {
   getMaxVoucherSequenceFromRows,
   fetchExistingCloudIdsByKeysFromClient,
   cloudSyncRescueLocalOnlyItems,
+  cloudSyncReconcileStaleDeletionMarkers,
+  cloudSyncFetchRowsByKeys,
   cloudSyncPruneStaleLocalOnlyItems,
   cloudSyncPrePullBeforePush,
   cloudSyncGetRescueCandidateKeys,

@@ -50,7 +50,7 @@ function testRequestNormalizationAndResolution() {
   assert.deepEqual(normalizePrintRequest(), { mode: 'dialog', directPrint: false, deviceName: '' });
   assert.deepEqual(
     normalizePrintRequest({ directPrint: true, deviceName: 'RD_Printer_A5' }),
-    { mode: 'direct', directPrint: true, deviceName: 'RD_Printer_A5' }
+    { mode: 'direct', directPrint: true, deviceName: 'RD_Printer_A5', copies: 1 }
   );
   assert.equal(normalizePrintRequest({ mode: 'direct' }).directPrint, true);
   assertPrinterError(() => normalizePrintRequest({ directPrint: 'yes' }), PRINT_ERROR_CODES.INVALID_OPTIONS);

@@ -115,6 +115,8 @@ function resolvePrinterDeviceName(printersValue, requestValue) {
     return selected.name;
   }
 
+  if (!request.directPrint) return '';
+
   const defaultPrinter = printers.find(printer => printer.isDefault);
   if (!defaultPrinter) {
     throw new PrinterJobError(PRINT_ERROR_CODES.NO_DEFAULT_PRINTER, 'Chưa có máy in mặc định để in trực tiếp');
