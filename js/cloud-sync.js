@@ -2123,6 +2123,38 @@ function cloudSyncMetadataDiffers(localMeta, cloudMeta) {
   return !cloudSyncEqual(localComparable, cloudComparable);
 }
 
+function cloudSyncGetPendingDeletionKeysForDelta() {
+  const pendingKeys = new Set(
+    Array.from(cloudSyncPendingDeletionKeys)
+      .map(cloudSyncNormalizeDeletedCloudKey)
+      .filter(Boolean)
+  );
+  const pendingToken = cloudSyncGetPendingLocalWriteToken();
+  const manifest = pendingToken ? cloudSyncGetPendingWriteManifest() : null;
+  if (!manifest || manifest.token !== pendingToken) return pendingKeys;
+
+  const typedMarkers = new Set(
+    (Array.isArray(state.deletedCloudKeys) ? state.deletedCloudKeys : [])
+      .map(cloudSyncNormalizeDeletedCloudKey)
+      .filter(Boolean)
+  );
+  const legacyVoucherMarkers = new Set(
+    (Array.isArray(state.deletedIds) ? state.deletedIds : []).map(String)
+  );
+  manifest.rowIds.forEach(rowId => {
+    const normalizedKey = cloudSyncNormalizeDeletedCloudKey(rowId);
+    const def = cloudSyncGetRowDef(normalizedKey);
+    if (!def) return;
+    const entityId = cloudSyncGetEntityIdFromRowId(normalizedKey, def);
+    const active = (Array.isArray(state[def.stateKey]) ? state[def.stateKey] : [])
+      .some(item => item && String(item.id) === String(entityId));
+    const hasDeletionMarker = typedMarkers.has(normalizedKey)
+      || (def.stateKey === "vouchers" && legacyVoucherMarkers.has(String(entityId)));
+    if (!active && hasDeletionMarker) pendingKeys.add(normalizedKey);
+  });
+  return pendingKeys;
+}
+
 function computeDelta() {
   lastSyncState = window.lastSyncState || lastSyncState;
   const rowsToUpsert = [];
@@ -2157,11 +2189,11 @@ function computeDelta() {
     });
   });
 
-  // Never infer a cloud deletion merely because an entity is absent from the
-  // current in-memory state. A partial/legacy restore or an interrupted pull
-  // can temporarily omit valid rows; converting that absence into a tombstone
-  // makes the loss propagate to every station. All supported delete flows call
-  // trackDeletedIds(), so only those explicit typed markers are authoritative.
+  // Upload only deletions initiated locally and still pending. Historical
+  // tombstones received from cloud remain in state.deletedCloudKeys for local
+  // filtering, but replaying one against a later active row turns stale state
+  // into a brand-new deletion and can erase a restored voucher on every station.
+  const pendingDeletionKeys = cloudSyncGetPendingDeletionKeysForDelta();
   const cloudKnownTombstones = new Set(
     (lastSyncState && Array.isArray(lastSyncState.deletedCloudKeys) ? lastSyncState.deletedCloudKeys : [])
       .map(cloudSyncNormalizeDeletedCloudKey)
@@ -2170,14 +2202,20 @@ function computeDelta() {
   if (Array.isArray(state.deletedCloudKeys)) {
     state.deletedCloudKeys.forEach(key => {
       const normalizedKey = cloudSyncNormalizeDeletedCloudKey(key);
-      if (normalizedKey && !cloudKnownTombstones.has(normalizedKey)) {
+      if (
+        normalizedKey &&
+        pendingDeletionKeys.has(normalizedKey) &&
+        !cloudKnownTombstones.has(normalizedKey)
+      ) {
         rowsToUpsert.push(cloudSyncMakeTombstoneRow(normalizedKey, pushTs));
       }
     });
   } else if (Array.isArray(state.deletedIds)) {
     state.deletedIds.forEach(id => {
       const key = `v_${id}`;
-      if (id && !cloudKnownTombstones.has(key)) rowsToUpsert.push(cloudSyncMakeTombstoneRow(key, pushTs));
+      if (id && pendingDeletionKeys.has(key) && !cloudKnownTombstones.has(key)) {
+        rowsToUpsert.push(cloudSyncMakeTombstoneRow(key, pushTs));
+      }
     });
   }
 

@@ -183,7 +183,7 @@ function testMergeKeepsRemoteVoucherOnTimestampTieWithDifferentSession() {
   assert.equal(winner._sessionId, "session-b");
 }
 
-function testComputeDeltaDoesNotReplayCloudKnownTombstones() {
+function testComputeDeltaDoesNotReplayHistoricalTombstonesMissingFromBaseline() {
   const { internals, sandbox } = loadCloudSyncInternals();
   sandbox.state.deletedIds = ["OLD", "NEW"];
   sandbox.state.deletedCloudKeys = ["v_OLD", "p_NEW"];
@@ -201,7 +201,11 @@ function testComputeDeltaDoesNotReplayCloudKnownTombstones() {
     .filter(row => row.data && row.data._deleted)
     .map(row => row.id)
     .sort();
-  assert.deepEqual(tombstoneIds, ["p_NEW"], "only tombstones absent from the cloud baseline should be uploaded");
+  assert.deepEqual(
+    tombstoneIds,
+    [],
+    "historical tombstones must not be replayed merely because an incremental baseline omitted them"
+  );
 }
 
 function testFullPullRequiredWithoutBaselineOrAfterWatermarkRollback() {
@@ -392,8 +396,7 @@ function testPendingTombstoneSurvivesIncrementalStartup() {
   });
   const removed = { id: "PT-REMOVED", type: "receipt", _updatedAt: 1000 };
   sandbox.state.vouchers = [];
-  sandbox.state.deletedIds = [removed.id];
-  sandbox.state.deletedCloudKeys = [`v_${removed.id}`];
+  vm.runInContext(`trackDeletedIds(["${removed.id}"], "voucher")`, sandbox);
   sandbox.state._lastPulledCloudTs = 7000;
   sandbox.window.lastSyncState = {
     ...JSON.parse(JSON.stringify(sandbox.state)),
@@ -1128,11 +1131,10 @@ function testLocalAuditLogsDoNotCreateCloudDeltaAndSurviveMerge() {
 }
 
 function testDerivedDeletionArraysOnlyCreateTypedTombstones() {
-  const { internals, sandbox } = loadCloudSyncInternals();
+  const { internals, sandbox, vm } = loadCloudSyncInternals();
   sandbox.state._lastModified = 1000;
   sandbox.window.lastSyncState = JSON.parse(JSON.stringify(sandbox.state));
-  sandbox.state.deletedIds = ['PT-LOCAL-DELETE'];
-  sandbox.state.deletedCloudKeys = ['v_PT-LOCAL-DELETE'];
+  vm.runInContext("trackDeletedIds(['PT-LOCAL-DELETE'], 'voucher')", sandbox);
   sandbox.state._lastModified = 2000;
 
   const delta = internals.computeDelta();
@@ -1350,7 +1352,7 @@ async function run() {
   testComputeDeltaDetectsUnpushedVoucherWhenLastSyncStateNull();
   testComputeDeltaSkipsAlreadySyncedVoucher();
   testComputeDeltaDoesNotInferDeletionFromMissingLocalRows();
-  testComputeDeltaDoesNotReplayCloudKnownTombstones();
+  testComputeDeltaDoesNotReplayHistoricalTombstonesMissingFromBaseline();
   testFullPullRequiredWithoutBaselineOrAfterWatermarkRollback();
   testConfirmedCacheRestoresIncrementalStartupBaseline();
   testPendingVoucherManifestKeepsIncrementalStartupSafe();
