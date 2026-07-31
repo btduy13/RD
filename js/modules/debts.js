@@ -179,23 +179,30 @@ function extractLedgerAmountsFromVoucher(v, debtRole) {
     let debitAmount = 0;
     let creditAmount = 0;
     const offsetAccountSet = new Set();
+    const role = debtRole === "supplier" ? "supplier" : (debtRole === "both" ? "both" : "customer");
 
     getVoucherDebtEntries(v).forEach(e => {
         const touches131 = (e.debit && e.debit.startsWith("131")) || (e.credit && e.credit.startsWith("131"));
         const touches331 = (e.debit && e.debit.startsWith("331")) || (e.credit && e.credit.startsWith("331"));
-        let isRelevant = false;
-        if (debtRole === "customer") isRelevant = touches131;
-        else if (debtRole === "supplier") isRelevant = touches331;
-        else isRelevant = touches131 || touches331;
-        if (!isRelevant) return;
+        if (!touches131 && !touches331) return;
 
-        if ((e.debit && e.debit.startsWith("131")) || (e.debit && e.debit.startsWith("331"))) {
-            debitAmount += e.amount;
-            if (e.credit) offsetAccountSet.add(e.credit);
-        } else if ((e.credit && e.credit.startsWith("131")) || (e.credit && e.credit.startsWith("331"))) {
-            creditAmount += e.amount;
-            if (e.debit) offsetAccountSet.add(e.debit);
+        const amount = Number(e.amount || 0);
+        if (role === "both") {
+            if (e.debit && (e.debit.startsWith("131") || e.debit.startsWith("331"))) debitAmount += amount;
+            if (e.credit && (e.credit.startsWith("131") || e.credit.startsWith("331"))) creditAmount += amount;
+        } else if (role === "supplier") {
+            if (e.debit && (e.debit.startsWith("131") || e.debit.startsWith("331"))) debitAmount += amount;
+            if (e.credit && (e.credit.startsWith("131") || e.credit.startsWith("331"))) creditAmount += amount;
+        } else {
+            // Khách hàng: Nợ 131 / Có 331 làm tăng phải thu;
+            // Có 131 / Nợ 331 làm giảm phải thu. Quy tắc này phải giống computeDebtSides().
+            if (e.debit && e.debit.startsWith("131")) debitAmount += amount;
+            if (e.credit && e.credit.startsWith("331")) debitAmount += amount;
+            if (e.credit && e.credit.startsWith("131")) creditAmount += amount;
+            if (e.debit && e.debit.startsWith("331")) creditAmount += amount;
         }
+        if (e.debit && (e.credit || "").length > 0) offsetAccountSet.add(e.credit);
+        if (e.credit && (e.debit || "").length > 0) offsetAccountSet.add(e.debit);
     });
 
     return { debitAmount, creditAmount, offsetAccount: Array.from(offsetAccountSet).join(", ") };
@@ -208,10 +215,90 @@ function computePriorDebtCountersForPartner(partnerId, partnerType, fromDate) {
     state.vouchers.forEach(v => {
         if (v.partnerId !== partnerId) return;
         if (v.date >= fromDate) return;
-        if (!v.entries) return;
-        v.entries.forEach(e => accumulateDebtEntryLines(e, prior));
+        getVoucherDebtEntries(v).forEach(e => accumulateDebtEntryLines(e, prior));
     });
     return prior;
+}
+
+/**
+ * Nguồn dữ liệu duy nhất cho sổ chi tiết, thông báo công nợ và các file xuất.
+ * Mọi nơi dùng cùng quy tắc 131/331 với calculatePartnerDebts().
+ */
+function calculatePartnerDebtLedger(matchingPartners, fromDate = "", toDate = "", debtRole = "customer") {
+    const partners = Array.isArray(matchingPartners) ? matchingPartners.filter(Boolean) : [];
+    const matchingIds = new Set(partners.map(item => item.id));
+    let has131 = false;
+    let has331 = false;
+    partners.forEach(item => {
+        const op = state.partnerOpeningBalances[item.id] || { debit: 0, credit: 0 };
+        if (Number(op.debit || 0) !== 0 || Number(op.credit || 0) !== 0) {
+            if (item.type === "supplier") has331 = true;
+            else has131 = true;
+        }
+    });
+    state.vouchers.forEach(v => {
+        if (!matchingIds.has(v.partnerId)) return;
+        if (toDate && v.date > toDate) return;
+        getVoucherDebtEntries(v).forEach(e => {
+            if ((e.debit && e.debit.startsWith("131")) || (e.credit && e.credit.startsWith("131"))) has131 = true;
+            if ((e.debit && e.debit.startsWith("331")) || (e.credit && e.credit.startsWith("331"))) has331 = true;
+        });
+    });
+    const role = debtRole === "supplier" || (has331 && !has131) ? "supplier" : "customer";
+
+    let totalOpeningDebit = 0;
+    let totalOpeningCredit = 0;
+    partners.forEach(item => {
+        const op = state.partnerOpeningBalances[item.id] || { debit: 0, credit: 0 };
+        const prior = computePriorDebtCountersForPartner(item.id, item.type, fromDate);
+        const sides = computeDebtSides(op, prior, createEmptyDebtCounters(), item.type);
+        totalOpeningDebit += sides.openingDebit;
+        totalOpeningCredit += sides.openingCredit;
+    });
+
+    const openingVal = role === "supplier"
+        ? totalOpeningCredit - totalOpeningDebit
+        : totalOpeningDebit - totalOpeningCredit;
+    let debitSum = 0;
+    let creditSum = 0;
+    const ledgerEntries = [];
+
+    state.vouchers.forEach(v => {
+        if (!matchingIds.has(v.partnerId)) return;
+        if (fromDate && v.date < fromDate) return;
+        if (toDate && v.date > toDate) return;
+
+        const extracted = extractLedgerAmountsFromVoucher(v, role);
+        if (extracted.debitAmount <= 0 && extracted.creditAmount <= 0) return;
+        ledgerEntries.push({
+            date: v.date,
+            id: v.id,
+            partnerId: v.partnerId,
+            desc: v.description,
+            offsetAccount: extracted.offsetAccount,
+            debit: extracted.debitAmount,
+            credit: extracted.creditAmount
+        });
+        debitSum += extracted.debitAmount;
+        creditSum += extracted.creditAmount;
+    });
+
+    ledgerEntries.sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.id || "").localeCompare(b.id || ""));
+    const closingVal = role === "supplier"
+        ? openingVal + creditSum - debitSum
+        : openingVal + debitSum - creditSum;
+
+    return {
+        role,
+        matchingIds,
+        openingDebit: totalOpeningDebit,
+        openingCredit: totalOpeningCredit,
+        openingVal,
+        debitSum,
+        creditSum,
+        closingVal,
+        ledgerEntries
+    };
 }
 
 function refreshOpenPartnerLedgerModal() {
@@ -321,12 +408,12 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
 
     state.vouchers.forEach(v => {
         if (toDate && v.date > toDate) return;
-        if (!v.entries || !v.partnerId) return;
+        if (!v.partnerId) return;
         if (!partnerIds.has(v.partnerId)) return;
 
         const d = debts[v.partnerId];
         const isPrior = fromDate && v.date < fromDate;
-        v.entries.forEach(e => {
+        getVoucherDebtEntries(v).forEach(e => {
             accumulateDebtEntryLines(e, isPrior ? d.priorCounters : d.periodCounters);
         });
     });
@@ -1029,7 +1116,6 @@ function viewGroupedPartnerLedger(partnerName) {
   );
   if (matchingPartners.length === 0) return;
 
-  const matchingIds = new Set(matchingPartners.map(p => p.id));
   const has131 = matchingPartners.some(p => p.type !== "supplier");
   const has331 = matchingPartners.some(p => p.type === "supplier");
   const primaryType = inferPartnerDebtRole(
@@ -1041,20 +1127,9 @@ function viewGroupedPartnerLedger(partnerName) {
   const { fromDate, toDate } = getDebtDateRange();
 
   // Tính tổng số dư đầu kỳ gộp tại fromDate
-  let totalOpeningDebit = 0;
-  let totalOpeningCredit = 0;
-  matchingPartners.forEach(p => {
-    const op = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
-    const prior = computePriorDebtCountersForPartner(p.id, p.type, fromDate);
-    const sides = computeDebtSides(op, prior, createEmptyDebtCounters(), p.type);
-    totalOpeningDebit += sides.openingDebit;
-    totalOpeningCredit += sides.openingCredit;
-  });
-
-  const openingVal = primaryType === "supplier"
-    ? totalOpeningCredit - totalOpeningDebit
-    : totalOpeningDebit - totalOpeningCredit;
-  const openingText = primaryType === "supplier"
+  const ledger = calculatePartnerDebtLedger(matchingPartners, fromDate, toDate, primaryType);
+  const { openingVal, debitSum, creditSum, ledgerEntries, closingVal } = ledger;
+  const openingText = ledger.role === "supplier"
     ? (openingVal >= 0 ? `${formatVND(openingVal)} (Có)` : `${formatVND(-openingVal)} (Nợ)`)
     : (openingVal >= 0 ? `${formatVND(openingVal)} (Nợ)` : `${formatVND(-openingVal)} (Có)`);
 
@@ -1077,38 +1152,6 @@ function viewGroupedPartnerLedger(partnerName) {
   tbody.innerHTML = '';
 
   // Thu thập tất cả chứng từ từ các mã con
-  let debitSum = 0, creditSum = 0;
-  const ledgerEntries = [];
-
-  state.vouchers.forEach(v => {
-    if (!matchingIds.has(v.partnerId)) return;
-    if (fromDate && v.date < fromDate) return;
-    if (toDate && v.date > toDate) return;
-    if (!v.entries) return;
-
-    let debitAmount = 0, creditAmount = 0;
-    const extracted = extractLedgerAmountsFromVoucher(v, primaryType);
-    debitAmount = extracted.debitAmount;
-    creditAmount = extracted.creditAmount;
-    const offsetAccount = extracted.offsetAccount;
-
-    if (debitAmount > 0 || creditAmount > 0) {
-      ledgerEntries.push({
-        date: v.date,
-        id: v.id,
-        partnerId: v.partnerId,
-        desc: v.description,
-        offsetAccount,
-        debit: debitAmount,
-        credit: creditAmount
-      });
-      debitSum += debitAmount;
-      creditSum += creditAmount;
-    }
-  });
-
-  ledgerEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
-
   if (ledgerEntries.length === 0) {
     renderEmptyState(tbody, 6, 'Không có giao dịch phát sinh công nợ trong kỳ', 'Chọn kỳ khác hoặc kiểm tra chứng từ phát sinh');
   } else {
@@ -1138,10 +1181,7 @@ function viewGroupedPartnerLedger(partnerName) {
   }
 
   // Tính số dư cuối kỳ gộp (role 'both' dùng công thức customer, khớp với openingVal ở trên)
-  let closingVal = primaryType !== 'supplier'
-    ? openingVal + debitSum - creditSum
-    : openingVal + creditSum - debitSum;
-  const closingText = primaryType !== 'supplier'
+  const closingText = ledger.role !== 'supplier'
     ? (closingVal >= 0 ? `${formatVND(closingVal)} (Nợ)` : `${formatVND(-closingVal)} (Có)`)
     : (closingVal >= 0 ? `${formatVND(closingVal)} (Có)` : `${formatVND(-closingVal)} (Nợ)`);
 
@@ -1174,41 +1214,9 @@ function viewLedgerByIds(partnerIds, groupName) {
   const { fromDate, toDate } = getDebtDateRange();
 
   // Tính tổng số dư đầu kỳ
-  let totalOpeningDebit = 0, totalOpeningCredit = 0;
-  matchingPartners.forEach(p => {
-    const op = state.partnerOpeningBalances[p.id] || { debit: 0, credit: 0 };
-    let initialDebit = op.debit || 0;
-    let initialCredit = op.credit || 0;
-    let priorDebit = 0, priorCredit = 0;
-    if (fromDate) {
-      state.vouchers.forEach(v => {
-        if (v.partnerId !== p.id) return;
-        if (v.date >= fromDate) return;
-        if (!v.entries) return;
-        v.entries.forEach(e => {
-          if (p.type !== 'supplier') {
-            if (e.debit && e.debit.startsWith('131')) priorDebit += e.amount;
-            if (e.credit && e.credit.startsWith('131')) priorCredit += e.amount;
-          } else if (p.type === 'supplier') {
-            if (e.credit && e.credit.startsWith('331')) priorCredit += e.amount;
-            if (e.debit && e.debit.startsWith('331')) priorDebit += e.amount;
-          } else {
-            if (e.debit && e.debit.startsWith('131')) priorDebit += e.amount;
-            if (e.credit && e.credit.startsWith('131')) priorCredit += e.amount;
-            if (e.credit && e.credit.startsWith('331')) priorCredit += e.amount;
-            if (e.debit && e.debit.startsWith('331')) priorDebit += e.amount;
-          }
-        });
-      });
-    }
-    totalOpeningDebit += (initialDebit + priorDebit);
-    totalOpeningCredit += (initialCredit + priorCredit);
-  });
-
-  const openingVal = primaryType === 'customer'
-    ? totalOpeningDebit - totalOpeningCredit
-    : totalOpeningCredit - totalOpeningDebit;
-  const openingText = primaryType === 'customer'
+  const ledger = calculatePartnerDebtLedger(matchingPartners, fromDate, toDate, primaryType);
+  const { openingVal, debitSum, creditSum, ledgerEntries, closingVal } = ledger;
+  const openingText = ledger.role === 'customer'
     ? (openingVal >= 0 ? `${formatVND(openingVal)} (Nợ)` : `${formatVND(-openingVal)} (Có)`)
     : (openingVal >= 0 ? `${formatVND(openingVal)} (Có)` : `${formatVND(-openingVal)} (Nợ)`);
 
@@ -1224,45 +1232,6 @@ function viewLedgerByIds(partnerIds, groupName) {
 
   const tbody = document.getElementById('partner-ledger-table-body');
   tbody.innerHTML = '';
-
-  let debitSum = 0, creditSum = 0;
-  const ledgerEntries = [];
-
-  state.vouchers.forEach(v => {
-    if (!matchingIds.has(v.partnerId)) return;
-    if (fromDate && v.date < fromDate) return;
-    if (toDate && v.date > toDate) return;
-    if (!v.entries) return;
-
-    let debitAmount = 0, creditAmount = 0;
-    const offsetAccountSet = new Set();
-    v.entries.forEach(e => {
-      let isRelevant = false;
-      if (primaryType === 'customer') {
-        isRelevant = (e.debit && e.debit.startsWith('131')) || (e.credit && e.credit.startsWith('131'));
-      } else if (primaryType === 'supplier') {
-        isRelevant = (e.debit && e.debit.startsWith('331')) || (e.credit && e.credit.startsWith('331'));
-      } else {
-        isRelevant = ((e.debit && e.debit.startsWith('131')) || (e.credit && e.credit.startsWith('131')))
-          || ((e.debit && e.debit.startsWith('331')) || (e.credit && e.credit.startsWith('331')));
-      }
-      if (!isRelevant) return;
-      if ((e.debit && (e.debit.startsWith('131') || e.debit.startsWith('331')))) {
-        debitAmount += e.amount;
-        offsetAccountSet.add(e.credit);
-      } else {
-        creditAmount += e.amount;
-        offsetAccountSet.add(e.debit);
-      }
-    });
-    if (debitAmount > 0 || creditAmount > 0) {
-      ledgerEntries.push({ date: v.date, id: v.id, partnerId: v.partnerId, desc: v.description, offsetAccount: Array.from(offsetAccountSet).join(', '), debit: debitAmount, credit: creditAmount });
-      debitSum += debitAmount;
-      creditSum += creditAmount;
-    }
-  });
-
-  ledgerEntries.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
   if (ledgerEntries.length === 0) {
     renderEmptyState(tbody, 6, 'Không có giao dịch phát sinh công nợ trong kỳ', 'Chọn kỳ khác hoặc kiểm tra chứng từ phát sinh');
@@ -1290,10 +1259,7 @@ function viewLedgerByIds(partnerIds, groupName) {
     });
   }
 
-  let closingVal = primaryType === 'customer'
-    ? openingVal + debitSum - creditSum
-    : openingVal + creditSum - debitSum;
-  const closingText = primaryType === 'customer'
+  const closingText = ledger.role === 'customer'
     ? (closingVal >= 0 ? `${formatVND(closingVal)} (Nợ)` : `${formatVND(-closingVal)} (Có)`)
     : (closingVal >= 0 ? `${formatVND(closingVal)} (Có)` : `${formatVND(-closingVal)} (Nợ)`);
   document.getElementById('partner-ledger-closing').innerText = closingText;
@@ -1416,25 +1382,13 @@ function renderLedgerForTarget(targetId, isCombined) {
   }
   const matchingIds = new Set(matchingPartners.map(item => item.id));
   const primaryType = inferPartnerDebtRole(p.type, p.type !== "supplier", p.type === "supplier" || p.type === "both");
+  const ledger = calculatePartnerDebtLedger(matchingPartners, fromDate, toDate, primaryType);
 
-  let totalOpeningDebit = 0;
-  let totalOpeningCredit = 0;
-
-  matchingPartners.forEach(item => {
-    const op = state.partnerOpeningBalances[item.id] || { debit: 0, credit: 0 };
-    const prior = computePriorDebtCountersForPartner(item.id, item.type, fromDate);
-    const sides = computeDebtSides(op, prior, createEmptyDebtCounters(), item.type);
-    totalOpeningDebit += sides.openingDebit;
-    totalOpeningCredit += sides.openingCredit;
-  });
-
-  let openingVal = 0;
+  let openingVal = ledger.openingVal;
   let openingText = "";
-  if (primaryType === "supplier") {
-    openingVal = totalOpeningCredit - totalOpeningDebit;
+  if (ledger.role === "supplier") {
     openingText = openingVal >= 0 ? `${formatVND(openingVal)} (Có)` : `${formatVND(-openingVal)} (Nợ)`;
   } else {
-    openingVal = totalOpeningDebit - totalOpeningCredit;
     openingText = openingVal >= 0 ? `${formatVND(openingVal)} (Nợ)` : `${formatVND(-openingVal)} (Có)`;
   }
 
@@ -1457,39 +1411,7 @@ function renderLedgerForTarget(targetId, isCombined) {
   const tbody = document.getElementById("partner-ledger-table-body");
   tbody.innerHTML = "";
 
-  let debitSum = 0;
-  let creditSum = 0;
-
-  const ledgerEntries = [];
-  state.vouchers.forEach(v => {
-    if (!matchingIds.has(v.partnerId)) return;
-    if (fromDate && v.date < fromDate) return;
-    if (toDate && v.date > toDate) return;
-    if (!v.entries) return;
-
-    let debitAmount = 0;
-    let creditAmount = 0;
-    const extracted = extractLedgerAmountsFromVoucher(v, primaryType);
-    debitAmount = extracted.debitAmount;
-    creditAmount = extracted.creditAmount;
-
-    if (debitAmount > 0 || creditAmount > 0) {
-      ledgerEntries.push({
-        date: v.date,
-        id: v.id,
-        partnerId: v.partnerId,
-        desc: v.description,
-        offsetAccount: extracted.offsetAccount,
-        debit: debitAmount,
-        credit: creditAmount
-      });
-
-      debitSum += debitAmount;
-      creditSum += creditAmount;
-    }
-  });
-
-  ledgerEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+  const { ledgerEntries } = ledger;
 
   if (ledgerEntries.length === 0) {
     renderEmptyState(tbody, 6, 'Không có giao dịch phát sinh công nợ trong kỳ', 'Chọn kỳ khác hoặc kiểm tra chứng từ phát sinh');
@@ -1531,13 +1453,11 @@ function renderLedgerForTarget(targetId, isCombined) {
     });
   }
 
-  let closingVal = 0;
+  let closingVal = ledger.closingVal;
   let closingText = "";
-  if (primaryType === "supplier") {
-    closingVal = openingVal + creditSum - debitSum;
+  if (ledger.role === "supplier") {
     closingText = closingVal >= 0 ? `${formatVND(closingVal)} (Có)` : `${formatVND(-closingVal)} (Nợ)`;
   } else {
-    closingVal = openingVal + debitSum - creditSum;
     closingText = closingVal >= 0 ? `${formatVND(closingVal)} (Nợ)` : `${formatVND(-closingVal)} (Có)`;
   }
 
@@ -1613,94 +1533,12 @@ async function exportPartnerDebtExcel(partnerId) {
     if (matchingPartners.length === 0) {
       matchingPartners = [p];
     }
-    const matchingIds = new Set(matchingPartners.map(item => item.id));
     const primaryType = matchingPartners.find(item => item.type !== 'supplier') ? 'customer' : 'supplier';
 
     const { fromDate, toDate } = getDebtDateRange();
 
-    let totalOpeningDebit = 0;
-    let totalOpeningCredit = 0;
-    matchingPartners.forEach(item => {
-      const op = state.partnerOpeningBalances[item.id] || { debit: 0, credit: 0 };
-      let initialDebit = op.debit || 0;
-      let initialCredit = op.credit || 0;
-      let priorDebit = 0;
-      let priorCredit = 0;
-
-      if (fromDate) {
-        state.vouchers.forEach(v => {
-          if (v.partnerId !== item.id) return;
-          if (v.date >= fromDate) return; // prior only
-          if (!v.entries) return;
-
-          v.entries.forEach(e => {
-            if (item.type !== "supplier") {
-              if (e.debit && e.debit.startsWith("131")) priorDebit += e.amount;
-              if (e.credit && e.credit.startsWith("131")) priorCredit += e.amount;
-            } else if (item.type === "supplier") {
-              if (e.credit && e.credit.startsWith("331")) priorCredit += e.amount;
-              if (e.debit && e.debit.startsWith("331")) priorDebit += e.amount;
-            } else {
-              if (e.debit && e.debit.startsWith("131")) priorDebit += e.amount;
-              if (e.credit && e.credit.startsWith("131")) priorCredit += e.amount;
-              if (e.credit && e.credit.startsWith("331")) priorCredit += e.amount;
-              if (e.debit && e.debit.startsWith("331")) priorDebit += e.amount;
-            }
-          });
-        });
-      }
-
-      totalOpeningDebit += (initialDebit + priorDebit);
-      totalOpeningCredit += (initialCredit + priorCredit);
-    });
-
-    let openingVal = 0;
-    if (primaryType === "customer") {
-      openingVal = totalOpeningDebit - totalOpeningCredit;
-    } else {
-      openingVal = totalOpeningCredit - totalOpeningDebit;
-    }
-
-    let debitSum = 0;
-    let creditSum = 0;
-    const ledgerEntries = [];
-    state.vouchers.forEach(v => {
-      if (!matchingIds.has(v.partnerId)) return;
-      if (fromDate && v.date < fromDate) return;
-      if (toDate && v.date > toDate) return;
-      if (!v.entries) return;
-
-      let debitAmount = 0;
-      let creditAmount = 0;
-      const extracted = extractLedgerAmountsFromVoucher(v, primaryType);
-      debitAmount = extracted.debitAmount;
-      creditAmount = extracted.creditAmount;
-
-      if (debitAmount > 0 || creditAmount > 0) {
-        ledgerEntries.push({
-          date: v.date,
-          id: v.id,
-          partnerId: v.partnerId,
-          desc: v.description,
-          offsetAccount: extracted.offsetAccount,
-          debit: debitAmount,
-          credit: creditAmount
-        });
-
-        debitSum += debitAmount;
-        creditSum += creditAmount;
-      }
-    });
-
-    ledgerEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    // Calculate closing balance
-    let closingVal = 0;
-    if (primaryType === "customer") {
-      closingVal = openingVal + debitSum - creditSum;
-    } else {
-      closingVal = openingVal + creditSum - debitSum;
-    }
+    const ledger = calculatePartnerDebtLedger(matchingPartners, fromDate, toDate, primaryType);
+    const { openingVal, debitSum, creditSum, ledgerEntries, closingVal } = ledger;
 
     // Determine min/max dates
     const pad = (n) => n.toString().padStart(2, '0');
@@ -1861,7 +1699,7 @@ async function exportPartnerDebtExcel(partnerId) {
       const excelRow = r + 1;
 
       let amount = 0;
-      if (primaryType === "customer") {
+      if (ledger.role === "customer") {
         amount = le.debit - le.credit;
       } else {
         amount = le.credit - le.debit;
@@ -1911,7 +1749,7 @@ async function exportPartnerDebtExcel(partnerId) {
       { font: fontBold, alignment: alignRight, fill: totalBg, border: totalBorder });
 
     const totalAmount = ledgerEntries.reduce((sum, le) => {
-      if (primaryType === "customer") return sum + le.debit - le.credit;
+      if (ledger.role === "customer") return sum + le.debit - le.credit;
       return sum + le.credit - le.debit;
     }, 0);
     setCell("D" + totalsExcelRow, totalAmount, "n",
@@ -2018,113 +1856,12 @@ function previewPartnerDebtNotice(partnerId) {
   if (matchingPartners.length === 0) {
     matchingPartners = [p];
   }
-  const matchingIds = new Set(matchingPartners.map(item => item.id));
   const primaryType = matchingPartners.find(item => item.type !== 'supplier') ? 'customer' : 'supplier';
 
   const { fromDate, toDate } = getDebtDateRange();
 
-  let totalOpeningDebit = 0;
-  let totalOpeningCredit = 0;
-  matchingPartners.forEach(item => {
-    const op = state.partnerOpeningBalances[item.id] || { debit: 0, credit: 0 };
-    let initialDebit = op.debit || 0;
-    let initialCredit = op.credit || 0;
-    let priorDebit = 0;
-    let priorCredit = 0;
-
-    if (fromDate) {
-      state.vouchers.forEach(v => {
-        if (v.partnerId !== item.id) return;
-        if (v.date >= fromDate) return; // prior only
-        if (!v.entries) return;
-
-        v.entries.forEach(e => {
-          if (item.type !== "supplier") {
-            if (e.debit && e.debit.startsWith("131")) priorDebit += e.amount;
-            if (e.credit && e.credit.startsWith("131")) priorCredit += e.amount;
-          } else if (item.type === "supplier") {
-            if (e.credit && e.credit.startsWith("331")) priorCredit += e.amount;
-            if (e.debit && e.debit.startsWith("331")) priorDebit += e.amount;
-          } else {
-            if (e.debit && e.debit.startsWith("131")) priorDebit += e.amount;
-            if (e.credit && e.credit.startsWith("131")) priorCredit += e.amount;
-            if (e.credit && e.credit.startsWith("331")) priorCredit += e.amount;
-            if (e.debit && e.debit.startsWith("331")) priorDebit += e.amount;
-          }
-        });
-      });
-    }
-
-    totalOpeningDebit += (initialDebit + priorDebit);
-    totalOpeningCredit += (initialCredit + priorCredit);
-  });
-
-  let openingVal = 0;
-  if (primaryType === "customer") {
-    openingVal = totalOpeningDebit - totalOpeningCredit;
-  } else {
-    openingVal = totalOpeningCredit - totalOpeningDebit;
-  }
-
-  let debitSum = 0;
-  let creditSum = 0;
-  const ledgerEntries = [];
-  state.vouchers.forEach(v => {
-    if (!matchingIds.has(v.partnerId)) return;
-    if (fromDate && v.date < fromDate) return;
-    if (toDate && v.date > toDate) return;
-    if (!v.entries) return;
-
-    let debitAmount = 0;
-    let creditAmount = 0;
-    let offsetAccountSet = new Set();
-
-    v.entries.forEach(e => {
-      let isRelevant = false;
-      if (primaryType === "customer") {
-        isRelevant = (e.debit && e.debit.startsWith("131")) || (e.credit && e.credit.startsWith("131"));
-      } else if (primaryType === "supplier") {
-        isRelevant = (e.debit && e.debit.startsWith("331")) || (e.credit && e.credit.startsWith("331"));
-      } else {
-        isRelevant = ((e.debit && e.debit.startsWith("131")) || (e.credit && e.credit.startsWith("131")))
-          || ((e.debit && e.debit.startsWith("331")) || (e.credit && e.credit.startsWith("331")));
-      }
-      if (!isRelevant) return;
-
-      if (e.debit && (e.debit.startsWith("131") || e.debit.startsWith("331"))) {
-        debitAmount += e.amount;
-        offsetAccountSet.add(e.credit);
-      } else {
-        creditAmount += e.amount;
-        offsetAccountSet.add(e.debit);
-      }
-    });
-
-    if (debitAmount > 0 || creditAmount > 0) {
-      ledgerEntries.push({
-        date: v.date,
-        id: v.id,
-        partnerId: v.partnerId,
-        desc: v.description,
-        offsetAccount: Array.from(offsetAccountSet).join(", "),
-        debit: debitAmount,
-        credit: creditAmount
-      });
-
-      debitSum += debitAmount;
-      creditSum += creditAmount;
-    }
-  });
-
-  ledgerEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-  // Calculate closing balance
-  let closingVal = 0;
-  if (primaryType === "customer") {
-    closingVal = openingVal + debitSum - creditSum;
-  } else {
-    closingVal = openingVal + creditSum - debitSum;
-  }
+  const ledger = calculatePartnerDebtLedger(matchingPartners, fromDate, toDate, primaryType);
+  const { openingVal, debitSum, creditSum, ledgerEntries, closingVal } = ledger;
 
   // Determine min/max dates
   const getShortDateStr = (dateVal) => {
@@ -2184,7 +1921,7 @@ function previewPartnerDebtNotice(partnerId) {
   let currentBalance = openingVal;
   ledgerEntries.forEach((le) => {
     let amount = 0;
-    if (primaryType === "customer") {
+    if (ledger.role === "customer") {
       amount = le.debit - le.credit;
     } else {
       amount = le.credit - le.debit;
@@ -2745,7 +2482,7 @@ function exportDebtsToExcelDetailed() {
       const p = state.partners.find(item => item.id === d.id);
       if (!p) return;
 
-      const primaryType = p.type;
+      const primaryType = p.type === "supplier" ? "supplier" : "customer";
       let runningVal = 0;
       if (primaryType === "customer") {
         runningVal = d.openingDebit - d.openingCredit;
@@ -2761,8 +2498,6 @@ function exportDebtsToExcelDetailed() {
         if (v.partnerId !== p.id) return;
         if (fromDate && v.date < fromDate) return;
         if (toDate && v.date > toDate) return;
-        if (!v.entries) return;
-
         let debitAmount = 0;
         let creditAmount = 0;
         const extracted = extractLedgerAmountsFromVoucher(v, primaryType);

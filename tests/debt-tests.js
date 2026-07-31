@@ -165,6 +165,53 @@ function testBothAccountsPerPartner() {
   assert.equal(kh.openingDebit + kh.debitTrans - kh.creditTrans, kh.closingDebit, "T-account invariant holds");
 }
 
+function testDebtNoticeUsesSameLedgerAsOverview() {
+  const ctx = loadDebtModule();
+  const partner = { id: "36/30HOANGVANTHU(CH)", name: "Cty Không Gian Xanh", type: "project" };
+  ctx.state.partners = [partner];
+  ctx.state.vouchers = [
+    {
+      id: "BH-TOTAL", type: "sales", date: "2026-07-01", partnerId: partner.id,
+      entries: [{ debit: "131", credit: "511", amount: 60002317 }]
+    },
+    {
+      id: "PT-A", type: "receipt", date: "2026-07-02", partnerId: partner.id,
+      entries: [{ debit: "111", credit: "131", amount: 45000000 }]
+    },
+    {
+      id: "PC-A", type: "payment", date: "2026-07-03", partnerId: partner.id,
+      entries: [{ debit: "331", credit: "111", amount: 30000000 }]
+    }
+  ];
+
+  const overview = ctx.calculatePartnerDebts("2026-01-01", "2026-07-31")
+    .find(row => row.id === partner.id);
+  const ledger = ctx.calculatePartnerDebtLedger([partner], "2026-01-01", "2026-07-31", "customer");
+
+  assert.equal(overview.debitTrans, 60002317, "overview customer debit includes Nợ 131");
+  assert.equal(overview.creditTrans, 75000000, "overview customer credit includes Có 131 + Nợ 331");
+  assert.equal(overview.closingCredit, 14997683, "overview closes on Có side");
+  assert.equal(ledger.debitSum, overview.debitTrans, "notice ledger debit matches overview");
+  assert.equal(ledger.creditSum, overview.creditTrans, "notice ledger credit matches overview");
+  assert.equal(ledger.closingVal, -overview.closingCredit, "notice signed closing matches overview side and amount");
+  assert.ok(ledger.ledgerEntries.some(entry => entry.id === "PC-A" && entry.credit === 30000000),
+    "customer notice includes Nợ 331 payment as a credit-side debt movement");
+}
+
+function testMatchedVoucherWithoutEntriesUsesFallback() {
+  const ctx = loadDebtModule();
+  ctx.state.partners = [{ id: "NCC01", name: "NCC A", type: "supplier" }];
+  ctx.state.vouchers = [{
+    id: "NK1", type: "purchase", date: "2026-01-10", partnerId: "NCC01",
+    paymentMethod: "331", entries: [], totalAmount: 634000
+  }];
+
+  const row = ctx.calculatePartnerDebts().find(item => item.id === "NCC01");
+  const ledger = ctx.calculatePartnerDebtLedger(ctx.state.partners, "", "", "supplier");
+  assert.equal(row.closingCredit, 634000, "matched voucher fallback contributes to overview");
+  assert.equal(ledger.closingVal, 634000, "matched voucher fallback contributes to notice/export ledger");
+}
+
 function testUnmatchedPartnerBucket() {
   const ctx = loadDebtModule();
   ctx.state.partners = [{ id: "KH01", name: "Khách A", type: "retail" }];
@@ -387,6 +434,8 @@ function testSupplierOverpaymentShowsAsReceivable() {
 
 async function runAll() {
   testBothAccountsPerPartner();
+  testDebtNoticeUsesSameLedgerAsOverview();
+  testMatchedVoucherWithoutEntriesUsesFallback();
   testUnmatchedPartnerBucket();
   testUnmatchedEmptyEntriesFallback();
   testDualRoleBothType();
