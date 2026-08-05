@@ -315,6 +315,22 @@ function testResolvePartnerCreatesAndRegisters() {
   assert.notEqual(notFuzzy.id, "KH_LONG", "substring input must not fuzzy-match existing partner");
 }
 
+function testRetailPeriodImportDoesNotForceCash() {
+  const ctx = loadExcelIntegration([]);
+  assert.equal(
+    ctx.inferImportedPaymentMethod("sales", "Bán hàng", "Bán Lẻ T06/2026"),
+    "131",
+    "period retail partner name must not force a credit sale to cash"
+  );
+  assert.equal(
+    ctx.inferImportedPaymentMethod("sales", "Thu TIỀN MẶT", "Bán Lẻ T06/2026"),
+    "111",
+    "explicit cash description remains cash"
+  );
+  assert.equal(ctx.inferImportedPaymentMethod("purchase", "Nhập hàng", "Bán Lẻ T06/2026"), "331");
+  assert.equal(ctx.inferImportedPaymentMethod("receipt", "Thu nợ", "Bán Lẻ T06/2026"), "111");
+}
+
 function testGetPartnerForVoucherStrict() {
   const ctx = loadUtils([{ id: "P1", name: "Nhà máy ABCD Việt Nam", type: "supplier" }]);
   const voucher = { partnerId: "KH mới (ABCD)", partnerName: "" };
@@ -443,6 +459,7 @@ async function runAll() {
   testFifoReceiptAllocatesSales();
   testDebtAdjustmentPreserved();
   testTT133PurchaseReturnVat();
+  testRetailPeriodImportDoesNotForceCash();
   testResolvePartnerCreatesAndRegisters();
   testGetPartnerForVoucherStrict();
   testOpeningBalanceTimestampMerge();

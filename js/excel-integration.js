@@ -18,6 +18,19 @@ function detectVoucherTypeFromId(id) {
 }
 window.detectVoucherTypeFromId = detectVoucherTypeFromId;
 
+// Tên đối tác chỉ dùng để nhận diện đối tượng, không thể hiện việc đã thu tiền.
+// Đặc biệt các mã theo kỳ như "Bán Lẻ T06/2026" vẫn có thể là bán chịu.
+function inferImportedPaymentMethod(voucherType, description = "", _partnerName = "") {
+    const type = String(voucherType || "");
+    if (type === "receipt" || type === "payment") return "111";
+    if (type === "purchase" || type === "purchase_return") return "331";
+
+    const descUpper = String(description || "").toUpperCase();
+    if (descUpper.includes("TIỀN MẶT") || descUpper.includes("TM")) return "111";
+    return "131";
+}
+window.inferImportedPaymentMethod = inferImportedPaymentMethod;
+
 async function autoIntegrateProductsExcel() {
     const hasProducts = state.products && state.products.length > 5;
     if (state.productsExcelIntegrated && hasProducts) {
@@ -532,14 +545,7 @@ async function autoIntegrateSoChiTietBanHangExcel() {
             }
 
             // Xác định phương thức thanh toán
-            let paymentMethod = (detectedType === 'purchase' || detectedType === 'purchase_return') ? "331" : "131";
-            const descUpper = description.toUpperCase();
-            const nameUpper = partnerName.toUpperCase();
-            if (descUpper.includes("TIỀN MẶT") || descUpper.includes("TM") || nameUpper.includes("BÁN LẺ") || nameUpper.includes("KHÁCH LẺ") || nameUpper.includes("VÃNG LAI")) {
-                paymentMethod = "111"; // Tiền mặt
-            }
-            if (detectedType === 'receipt') paymentMethod = "111";
-            if (detectedType === 'payment') paymentMethod = "111";
+            const paymentMethod = inferImportedPaymentMethod(detectedType, description, partnerName);
 
             // Tạo mảng items
             const itemsArray = [];
@@ -2512,13 +2518,7 @@ function parseExcelFile(file, type) {
                             partnerMap.set(partnerId, pObj);
                         }
 
-                        let paymentMethod = (detectedType === 'purchase' || detectedType === 'purchase_return') ? "331" : "131";
-                        const descUpper = description.toUpperCase();
-                        const nameUpper = partnerName.toUpperCase();
-                        if (descUpper.includes("TIỀN MẶT") || descUpper.includes("TM") || nameUpper.includes("BÁN LẺ") || nameUpper.includes("KHÁCH LẺ") || nameUpper.includes("VÃNG LAI")) {
-                            paymentMethod = "111";
-                        }
-                        if (detectedType === 'receipt' || detectedType === 'payment') paymentMethod = "111";
+                        const paymentMethod = inferImportedPaymentMethod(detectedType, description, partnerName);
 
                         const itemsArray = [];
                         let totalVoucherAmount = 0;
@@ -2803,12 +2803,7 @@ function parseExcelFile(file, type) {
                             partnerMap.set(partnerId, pObj);
                         }
 
-                        let paymentMethod = "131";
-                        const descUpper = description.toUpperCase();
-                        const nameUpper = partnerName.toUpperCase();
-                        if (descUpper.includes("TIỀN MẶT") || descUpper.includes("TM") || nameUpper.includes("BÁN LẺ") || nameUpper.includes("KHÁCH LẺ") || nameUpper.includes("VÃNG LAI")) {
-                            paymentMethod = "111";
-                        }
+                        const paymentMethod = inferImportedPaymentMethod("sales_quotation", description, partnerName);
 
                         const itemsArray = [];
                         let totalVoucherAmount = 0;
