@@ -1871,9 +1871,6 @@ window.closeModal = closeModal;
     setTimeout(init, 100);
   }
 
-  // Expose để có thể gọi lại nếu cần re-init
-  window.rdpInit = init;
-  window.rdpWrapInput = wrapDateInput;
 })();
 
 // rdpClearInput: Xóa giá trị ngày và cập nhật display (dùng trong clearXxxDateFilter)
@@ -2355,10 +2352,6 @@ function applyVoucherPreviewZoom() {
   updateVoucherPreviewPagination();
 }
 
-function toggleVoucherPrintDropdown(e) {
-  if (e) e.stopPropagation();
-}
-
 function getPrintFontScale() {
   if (typeof getUserPrefs === "function") {
     const scale = parseFloat(getUserPrefs().printFontScale);
@@ -2381,10 +2374,6 @@ function getVoucherPaperMaxWidth(paperSize) {
   }
   const paper = paperSize || getPrintPaperSize();
   return paper === "A5" ? Math.round(800 * 148 / 210) : 800;
-}
-
-function getEffectivePrintScale() {
-  return getPrintFontScale();
 }
 
 function parseInlineFontSizePx(el) {
@@ -2455,12 +2444,6 @@ function applyVoucherPaperSizeStyles(root, paperSize) {
   root.style.maxWidth = maxW + "px";
   const pageH = getVoucherPreviewPageHeight(paper, maxW);
   root.style.setProperty("--voucher-paper-height", pageH + "px");
-}
-
-function applyVoucherPaperSize(root, paperSize) {
-  applyVoucherPaperSizeStyles(root, paperSize);
-  resetVoucherPreviewPage();
-  fitVoucherPreviewModal(paperSize);
 }
 
 function fitVoucherPreviewModal(paperSize) {
@@ -3226,7 +3209,6 @@ function exportVoucherToExcel(id) {
   showToast(`Đã xuất chứng từ Excel thành công: ${outName}`, "success");
 }
 
-window.toggleVoucherPrintDropdown = toggleVoucherPrintDropdown;
 window.hideVoucherPrintDropdown = hideVoucherPrintDropdown;
 window.printCurrentVoucher = printCurrentVoucher;
 window.printCurrentVoucherToPDF = printCurrentVoucherToPDF;
@@ -3245,7 +3227,6 @@ window.applyVoucherPreviewZoom = applyVoucherPreviewZoom;
 window.ensurePrintPageStyle = ensurePrintPageStyle;
 window.getPrintFontScale = getPrintFontScale;
 window.getPrintPaperSize = getPrintPaperSize;
-window.getEffectivePrintScale = getEffectivePrintScale;
 window.applyPrintFontScale = applyPrintFontScale;
 window.applyPrintPaperSize = applyPrintPaperSize;
 window.getVoucherPrintCopies = getVoucherPrintCopies;

@@ -180,15 +180,6 @@ async function autoIntegrateProductsExcel() {
     }
 }
 
-async function runAutoIntegrations() {
-    console.log("Running automatic Excel integrations...");
-    await autoIntegrateProductsExcel();
-    await autoIntegrateSalesExcel();
-    await autoIntegrateSoChiTietBanHangExcel();
-    await autoIntegrateSoChiTietMuaHangExcel();
-    await autoIntegrateVouchersExcel();
-}
-
 async function autoIntegrateVouchersExcel() {
     const hasCash = state.vouchers && state.vouchers.some(v => v.type === "receipt" || v.type === "payment");
     if (hasCash) {
@@ -1573,36 +1564,6 @@ function exportPartnersToExcel() {
         console.error(err);
         showToast(`Lỗi xuất Excel khách hàng: ${err.message}`, "danger");
     }
-}
-
-function createDefaultSalesExcelRow(v) {
-    const r = [];
-    r[0] = v.date;
-    r[1] = v.date;
-    r[2] = v.id;
-    r[3] = "";
-    r[4] = "";
-    r[5] = "";
-    r[6] = v.partnerName;
-    r[7] = v.description;
-
-    let grossTotal = 0;
-    let totalDiscount = 0;
-    v.items.forEach(item => {
-        const itemGross = (item.qty || 0) * (item.price || 0);
-        const discountVal = itemGross * ((item.discount || 0) / 100);
-        grossTotal += itemGross;
-        totalDiscount += discountVal;
-    });
-
-    r[8] = grossTotal;
-    r[9] = totalDiscount;
-    r[10] = v.taxAmount || 0;
-    r[11] = v.totalAmount;
-    r[12] = "Đã lập";
-    r[13] = "Đã xuất";
-    r[14] = v.paymentMethod === "111" ? "Bán hàng hóa, dịch vụ trong nước - Tiền mặt" : "Bán hàng hóa, dịch vụ trong nước chưa thu tiền";
-    return r;
 }
 
 // ==========================================================

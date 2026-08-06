@@ -16,6 +16,10 @@
 
   function debounceSaveDraft(formId) {
     if (!getConfig(formId)) return;
+    // Người dùng vừa nhập liệu mới: cờ "bỏ qua lần lưu kế tiếp" (được gắn khi
+    // từ chối khôi phục nháp hoặc sau khi ghi sổ) không còn hợp lệ nữa. Nếu
+    // giữ cờ, phiếu MỚI đang gõ dở sẽ bị xóa nháp khi đóng form → mất đơn.
+    suppressNextImmediateSave.delete(formId);
     if (draftSaveTimeouts[formId]) clearTimeout(draftSaveTimeouts[formId]);
     draftSaveTimeouts[formId] = setTimeout(() => {
       delete draftSaveTimeouts[formId];

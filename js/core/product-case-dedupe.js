@@ -119,13 +119,19 @@
 
   function trackRemovedProductIds(stateObj, removedIds) {
     if (!Array.isArray(removedIds) || removedIds.length === 0) return;
-    if (!Array.isArray(stateObj.deletedIds)) stateObj.deletedIds = [];
-    const existing = new Set(stateObj.deletedIds.map((id) => String(id)));
+    // Product deletions MUST be typed ("p_<id>") in deletedCloudKeys. Untyped
+    // entries in deletedIds are treated as VOUCHER tombstones by the sync engine,
+    // so a removed product whose ID matches a voucher number would delete that
+    // voucher on every machine.
+    if (!Array.isArray(stateObj.deletedCloudKeys)) stateObj.deletedCloudKeys = [];
+    const existing = new Set(stateObj.deletedCloudKeys.map((key) => String(key)));
     removedIds.forEach((id) => {
       const s = String(id);
-      if (s && !existing.has(s)) {
-        stateObj.deletedIds.push(s);
-        existing.add(s);
+      if (!s) return;
+      const typedKey = "p_" + s;
+      if (!existing.has(typedKey)) {
+        stateObj.deletedCloudKeys.push(typedKey);
+        existing.add(typedKey);
       }
     });
   }

@@ -518,10 +518,6 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
     }
   });
 
-  if (typeof window !== "undefined") {
-    window.partnerOpeningRemaining = openingRemaining;
-  }
-
   // BƯỚC D: Cập nhật lại số liệu tồn kho cuối cùng vào State để hiển thị danh mục
   state.products.forEach(p => {
     const finalVal = productBalanceMap[p.id];
@@ -576,11 +572,6 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
   }
   refreshUI();
 }
-
-function recalculateAccountingFull() {
-  recalculateAccounting(true, true);
-}
-window.recalculateAccountingFull = recalculateAccountingFull;
 
 // Tự động cân đối tài sản và nguồn vốn bằng cách điều chỉnh TK 411 (Vốn chủ sở hữu)
 function rebalanceEquity() {
@@ -644,6 +635,13 @@ async function deleteVoucher(id) {
           console.error("Lỗi resetEditingPurchaseIds khi xóa:", e);
         }
       }
+      if (typeof window.resetEditingQuotationId === "function") {
+        try {
+          window.resetEditingQuotationId();
+        } catch (e) {
+          console.error("Lỗi resetEditingQuotationId khi xóa:", e);
+        }
+      }
 
       recalculateAccounting(false);
       await saveStateAndSyncVoucher();
@@ -658,42 +656,6 @@ async function deleteVoucher(id) {
       showToast(`Không thể xóa trên cloud; chứng từ đã được khôi phục: ${err.message}`, "danger");
     }
 }
-
-// Hàm làm tươi an toàn toàn cục
-function safeRefreshAllModules() {
-  const refreshTasks = [
-    { name: "filterSalesTable", fn: typeof window.filterSalesTable === "function" ? window.filterSalesTable : null },
-    { name: "filterSalesReturnTable", fn: typeof window.filterSalesReturnTable === "function" ? window.filterSalesReturnTable : null },
-    { name: "filterQuotationTable", fn: typeof window.filterQuotationTable === "function" ? window.filterQuotationTable : null },
-    { name: "filterPurchaseTable", fn: typeof window.filterPurchaseTable === "function" ? window.filterPurchaseTable : null },
-    { name: "filterPurchaseOrderTable", fn: typeof window.filterPurchaseOrderTable === "function" ? window.filterPurchaseOrderTable : null },
-    { name: "filterPurchaseReturnTable", fn: typeof window.filterPurchaseReturnTable === "function" ? window.filterPurchaseReturnTable : null },
-    { name: "filterCash", fn: typeof window.filterCash === "function" ? window.filterCash : null },
-    { name: "renderDashboard", fn: typeof window.renderDashboard === "function" ? window.renderDashboard : null },
-    { name: "filterDebts", fn: typeof window.filterDebts === "function" ? window.filterDebts : null },
-    { name: "filterPartners", fn: typeof window.filterPartners === "function" ? window.filterPartners : null },
-    { name: "renderInventoryTable", fn: typeof window.renderInventoryTable === "function" ? window.renderInventoryTable : null }
-  ];
-
-  if (typeof window.recalculateCashKpis === "function") {
-    try {
-      window.recalculateCashKpis();
-    } catch (e) {
-      console.error("Lỗi recalculateCashKpis khi làm tươi:", e);
-    }
-  }
-
-  refreshTasks.forEach(task => {
-    if (task.fn) {
-      try {
-        task.fn();
-      } catch (e) {
-        console.error(`Lỗi chạy ${task.name} khi làm tươi:`, e);
-      }
-    }
-  });
-}
-window.safeRefreshAllModules = safeRefreshAllModules;
 
 // 13. CÁC HÀM TIỆN ÍCH DỮ LIỆU & QUỸ (UTILITIES)
 

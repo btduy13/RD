@@ -40,7 +40,11 @@ function testDedupeProductCatalogOnState() {
   assert.ok(state.products.every((p) => p.id === normalizeProductId(p.id)));
   assert.equal(state.vouchers[0].items[0].productId, 'B-3');
   assert.equal(state.vouchers[1].items[0].productId, 'BANGKEOBAC');
-  assert.equal(state.deletedIds.length, 2);
+  // Removed products must be tracked as TYPED cloud keys (p_<id>), never as
+  // untyped deletedIds which the sync engine interprets as voucher tombstones.
+  assert.equal(state.deletedIds.length, 0);
+  assert.equal(state.deletedCloudKeys.length, 2);
+  assert.ok(state.deletedCloudKeys.every((key) => key.startsWith('p_')));
 
   const te = state.products.find((p) => p.id === 'B-3');
   assert.equal(te.stock, 12);

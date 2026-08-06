@@ -471,6 +471,9 @@ async function handleReceiptSubmit(e) {
         if (oldVoucher.excelRow) updatedVoucher.excelRow = oldVoucher.excelRow;
         if (oldVoucher.isImported !== undefined) updatedVoucher.isImported = oldVoucher.isImported;
         state.vouchers[idx] = updatedVoucher;
+      } else {
+        // Chứng từ gốc biến mất trong lúc sửa — vẫn phải ghi lại bản đang sửa.
+        state.vouchers.push(updatedVoucher);
       }
       editingReceiptId = null;
       resetReceiptForm();
@@ -558,6 +561,9 @@ async function handlePaymentSubmit(e) {
         if (oldVoucher.excelRow) updatedVoucher.excelRow = oldVoucher.excelRow;
         if (oldVoucher.isImported !== undefined) updatedVoucher.isImported = oldVoucher.isImported;
         state.vouchers[idx] = updatedVoucher;
+      } else {
+        // Chứng từ gốc biến mất trong lúc sửa — vẫn phải ghi lại bản đang sửa.
+        state.vouchers.push(updatedVoucher);
       }
       editingPaymentId = null;
       resetPaymentForm();

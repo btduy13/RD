@@ -699,46 +699,7 @@ document.addEventListener("click", function (e) {
   }
 });
 
-function toggleAdvancedFilter(panelId) {
-  const panel = document.getElementById(panelId);
-  if (!panel) return;
-  if (panel.style.display === "none" || panel.style.display === "") {
-    panel.style.display = "block";
-  } else {
-    panel.style.display = "none";
-  }
-}
-
-function clearAdvancedSalesFilters() {
-  const el = document.getElementById("adv-filter-sales-payment");
-  if (el) el.value = "";
-  if (typeof filterSalesTable === "function") filterSalesTable();
-}
-
-function clearAdvancedPurchaseFilters() {
-  const el = document.getElementById("adv-filter-purchase-payment");
-  if (el) el.value = "";
-  if (typeof filterPurchaseTable === "function") filterPurchaseTable();
-}
-
-function clearAdvancedPurchaseOrderFilters() {
-  const el = document.getElementById("adv-filter-purchase-order-payment");
-  if (el) el.value = "";
-  if (typeof filterPurchaseOrderTable === "function") filterPurchaseOrderTable();
-}
-
-function clearAdvancedPurchaseReturnFilters() {
-  const el = document.getElementById("adv-filter-purchase-return-payment");
-  if (el) el.value = "";
-  if (typeof filterPurchaseReturnTable === "function") filterPurchaseReturnTable();
-}
-
 window.toggleShortcutDropdown = toggleShortcutDropdown;
-window.toggleAdvancedFilter = toggleAdvancedFilter;
-window.clearAdvancedSalesFilters = clearAdvancedSalesFilters;
-window.clearAdvancedPurchaseFilters = clearAdvancedPurchaseFilters;
-window.clearAdvancedPurchaseOrderFilters = clearAdvancedPurchaseOrderFilters;
-window.clearAdvancedPurchaseReturnFilters = clearAdvancedPurchaseReturnFilters;
 
 // ==========================================================================
 // SIDEBAR TOGGLE, BREADCRUMB, DATE PRESETS & NOTIFICATION BADGES

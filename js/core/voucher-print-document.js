@@ -4,10 +4,6 @@ const { pathToFileURL } = require("url");
 
 const A5_WIDTH_RATIO = 148 / 210;
 
-function voucherScaledFont(px) {
-  return `calc(${px}px * var(--voucher-font-scale, 1))`;
-}
-
 function voucherTableScaledFont(px) {
   return `calc(var(--voucher-template-table-font-size, ${px}px) * var(--voucher-table-font-scale, 1))`;
 }

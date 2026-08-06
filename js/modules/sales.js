@@ -604,6 +604,10 @@ async function handleSalesSubmit(e) {
         newVoucher.debtAdjustment = state.vouchers[idx].debtAdjustment;
       }
       state.vouchers[idx] = newVoucher;
+    } else {
+      // Chứng từ gốc đã biến mất trong lúc sửa (vd: bị xóa từ máy khác qua sync).
+      // Vẫn phải ghi lại bản đang sửa, nếu không dữ liệu sẽ mất mà form vẫn báo thành công.
+      state.vouchers.push(newVoucher);
     }
     
     // Nếu đổi mã chứng từ: lưu lại vết xóa mã cũ và cập nhật liên kết ký quỹ
@@ -1231,6 +1235,9 @@ async function handleSalesReturnSubmit(e) {
         newVoucher.excelRow = state.vouchers[idx].excelRow;
       }
       state.vouchers[idx] = newVoucher;
+    } else {
+      // Chứng từ gốc biến mất trong lúc sửa — vẫn phải ghi lại bản đang sửa.
+      state.vouchers.push(newVoucher);
     }
     
     // Nếu đổi mã chứng từ: lưu lại vết xóa mã cũ và cập nhật liên kết ký quỹ
@@ -1905,6 +1912,9 @@ async function handleQuotationSubmit(e) {
           newVoucher.excelRow = state.vouchers[idx].excelRow;
         }
         state.vouchers[idx] = newVoucher;
+      } else {
+        // Chứng từ gốc biến mất trong lúc sửa — vẫn phải ghi lại bản đang sửa.
+        state.vouchers.push(newVoucher);
       }
 
       if (voucherId !== editingQuotationId) {

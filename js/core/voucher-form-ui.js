@@ -760,17 +760,6 @@ function mountDynamicFormRow(tbody, tr, insertAfterRow = null) {
   return tr;
 }
 
-function buildDynamicRowActionsCell(rowId, tbodyId) {
-  return `
-    <td class="dynamic-row-actions-cell">
-      <div class="dynamic-row-actions">
-        <button type="button" class="trash-btn dynamic-row-delete-btn" onclick="removeDynamicFormRow('${rowId}', '${tbodyId}')" title="Xóa dòng">×</button>
-        <button type="button" class="insert-row-btn dynamic-row-insert-btn" onclick="insertDynamicFormRowAfter('${tbodyId}', '${rowId}')" title="Chèn dòng phía dưới">+</button>
-      </div>
-    </td>
-  `;
-}
-
 function removeDynamicFormRow(rowId, tbodyId) {
   const row = document.getElementById(rowId);
   const tbody = document.getElementById(tbodyId);
@@ -833,7 +822,6 @@ window.parseDynamicQuantity = parseDynamicQuantity;
 window.parseDynamicMoney = parseDynamicMoney;
 window.parseDynamicDiscount = parseDynamicDiscount;
 window.validateDynamicVoucherLine = validateDynamicVoucherLine;
-window.buildDynamicRowActionsCell = buildDynamicRowActionsCell;
 window.mountDynamicFormRow = mountDynamicFormRow;
 window.removeDynamicFormRow = removeDynamicFormRow;
 window.insertDynamicFormRowAfter = insertDynamicFormRowAfter;

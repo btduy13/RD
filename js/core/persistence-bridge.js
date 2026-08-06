@@ -26,28 +26,5 @@ async function persistStateDelta(delta) {
   return { ok: false, error: "Delta persist unavailable outside Electron" };
 }
 
-async function loadStateFromDisk() {
-  if (window.electronAPI && typeof window.electronAPI.readStateFile === "function") {
-    return window.electronAPI.readStateFile();
-  }
-  const storage = getWebStorage();
-  const cache = storage ? storage.getItem("rd_accounting_online_cache") : null;
-  if (!cache) return { ok: false, error: "No cache" };
-  try {
-    return { ok: true, data: JSON.parse(cache) };
-  } catch (err) {
-    return { ok: false, error: err.message };
-  }
-}
-
-async function loadLatestBackupFromDisk() {
-  if (window.electronAPI && typeof window.electronAPI.readLatestBackup === "function") {
-    return window.electronAPI.readLatestBackup();
-  }
-  return { ok: false, error: "Backup read unavailable" };
-}
-
 window.persistFullState = persistFullState;
 window.persistStateDelta = persistStateDelta;
-window.loadStateFromDisk = loadStateFromDisk;
-window.loadLatestBackupFromDisk = loadLatestBackupFromDisk;

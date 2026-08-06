@@ -191,14 +191,6 @@ function showLoginError(msg) {
   }
 }
 
-function showRegisterError(msg) {
-  const el = document.getElementById('register-error');
-  if (el) {
-    el.textContent = msg;
-    el.style.display = 'block';
-  }
-}
-
 // Xử lý sự kiện đăng nhập
 async function submitLogin(event) {
   if (event) event.preventDefault();

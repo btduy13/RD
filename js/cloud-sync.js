@@ -275,18 +275,6 @@ function cloudSyncEntityNeedsPush(previous, current) {
   return false;
 }
 
-function areVouchersEqual(a, b) {
-  return cloudSyncEqual(a, b);
-}
-
-function areProductsEqual(a, b) {
-  return cloudSyncEqual(a, b);
-}
-
-function arePartnersEqual(a, b) {
-  return cloudSyncEqual(a, b);
-}
-
 function cloudSyncDefaultState() {
   return {
     companyName: "",
@@ -633,7 +621,13 @@ function isVoucherEntryModalOpen() {
     "modal-add-payment",
     "modal-edit-debt"
   ];
-  return entryModalIds.some(id => isElementVisible(document.getElementById(id)));
+  return entryModalIds.some(id => {
+    // Workspace tabs set inactive form tabs to display:none while the user's
+    // half-entered data is still there — an open tab must defer pulls even
+    // when it is not the visible tab.
+    if (typeof window.isWorkspaceTabOpen === "function" && window.isWorkspaceTabOpen(id)) return true;
+    return isElementVisible(document.getElementById(id));
+  });
 }
 
 function isCloudSyncLockActive(row, reason = "") {
@@ -1743,14 +1737,6 @@ function cloudSyncRefreshUiAfterPull() {
   }
 }
 
-function cloudSyncNeedsPushAfterPull(mergedState, cloudSnapshot) {
-  const mergedComparable = cloudSyncClone(mergedState);
-  const cloudComparable = cloudSyncClone(cloudSnapshot || {});
-  delete mergedComparable._lastPulledCloudTs;
-  delete cloudComparable._lastPulledCloudTs;
-  return !cloudSyncEqual(mergedComparable, cloudComparable);
-}
-
 // Mutates mergedState in place (its entity arrays are freshly built by the
 // merge, so no defensive clone is needed) and returns how many items were
 // pruned so the caller can factor it into the "anything changed" decision.
@@ -2641,13 +2627,21 @@ async function cloudSyncPushNow() {
     }
 
     if (pushPayload.tombstoneRows.length > 0) {
+      // Only clear markers that were actually included in this push. Deletions made
+      // while the push was in flight must keep their markers so the next push sends
+      // their tombstones — wiping wholesale resurrects those items on every machine.
+      const pushedTombstoneKeys = new Set();
       pushPayload.tombstoneRows.forEach(row => {
         if (row && row.id) {
-          cloudSyncPendingDeletionKeys.delete(cloudSyncNormalizeDeletedCloudKey(row.id));
+          const normalizedKey = cloudSyncNormalizeDeletedCloudKey(row.id);
+          pushedTombstoneKeys.add(normalizedKey);
+          cloudSyncPendingDeletionKeys.delete(normalizedKey);
         }
       });
-      state.deletedIds = [];
-      state.deletedCloudKeys = [];
+      state.deletedIds = (Array.isArray(state.deletedIds) ? state.deletedIds : [])
+        .filter(id => !pushedTombstoneKeys.has(cloudSyncNormalizeDeletedCloudKey(id)));
+      state.deletedCloudKeys = (Array.isArray(state.deletedCloudKeys) ? state.deletedCloudKeys : [])
+        .filter(key => !pushedTombstoneKeys.has(cloudSyncNormalizeDeletedCloudKey(key)));
     }
     const confirmedWatermark = cloudUsesVersionedRpc && committedCloudWatermark > 0
       ? committedCloudWatermark
@@ -3647,4 +3641,3 @@ window.__cloudSyncInternals__ = {
   queuePendingPull,
   takePendingPullOptions
 };
-window.__syncInternals__ = window.__cloudSyncInternals__;

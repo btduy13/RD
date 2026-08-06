@@ -420,12 +420,6 @@ function getLocalDateString(date = new Date()) {
 }
 window.getLocalDateString = getLocalDateString;
 
-// Hiển thị YYYY-MM-DD → DD/MM/YYYY (không parse Date để tránh lệch múi giờ).
-function formatIsoDateDisplay(isoDate) {
-  return formatDateDisplay(isoDate);
-}
-window.formatIsoDateDisplay = formatIsoDateDisplay;
-
 // Chuẩn hiển thị ngày duy nhất trên toàn ứng dụng: DD/MM/YYYY.
 // Giá trị lưu trữ và input[type=date] vẫn dùng ISO YYYY-MM-DD để lọc/sắp xếp chính xác.
 function formatDateDisplay(value) {
@@ -609,18 +603,6 @@ function getPartnerNameForVoucher(v) {
   }
   return (v && v.partnerName) ? v.partnerName : "Khách hàng vãng lai";
 }
-// Phân tích chuỗi số định dạng tiền tệ Việt Nam thành Number
-function parseFormattedNumber(str) {
-  if (!str) return 0;
-  // Loại bỏ tất cả dấu chấm (.) dùng để phân tách hàng nghìn
-  // Thay thế dấu phẩy (,) thành dấu chấm (.) để chuyển sang dấu thập phân chuẩn JS
-  let cleaned = str.replace(/\./g, '').replace(/,/g, '.');
-  // Giữ lại các ký tự số, dấu trừ và dấu chấm thập phân
-  cleaned = cleaned.replace(/[^0-9.-]/g, '');
-  const val = parseFloat(cleaned);
-  return isNaN(val) ? 0 : val;
-}
-
 // Loại bỏ dấu tiếng Việt và chuẩn hóa ký tự để tìm kiếm không dấu
 function removeAccents(str) {
   if (!str) return "";

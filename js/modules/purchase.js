@@ -298,14 +298,6 @@ let purchaseOrderCurrentPage = 1;
 
 // 11. CÁC HÀM XỬ LÝ FORM & THÊM CHỨNG TỪ
 
-// Đổ dữ liệu Đối tác vào dropdown trong form nhập liệu
-function populatePartnerDropdown(elementId, filterType) {
-  const input = document.getElementById(elementId);
-  if (input) {
-    input.value = ""; // Xóa giá trị cũ để người dùng nhập mới
-  }
-}
-
 // Bổ sung các hàng sản phẩm động vào form Mua hàng
 // Bổ sung các hàng sản phẩm động vào form Mua hàng
 function addPurchaseFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0, insertAfterRow = null) {
@@ -487,6 +479,9 @@ async function handlePurchaseSubmit(e) {
         newVoucher.debtAdjustment = state.vouchers[idx].debtAdjustment;
       }
       state.vouchers[idx] = newVoucher;
+    } else {
+      // Chứng từ gốc biến mất trong lúc sửa — vẫn phải ghi lại bản đang sửa.
+      state.vouchers.push(newVoucher);
     }
     
     // Nếu đổi mã chứng từ: lưu lại vết xóa mã cũ và cập nhật liên kết ký quỹ
@@ -1147,6 +1142,9 @@ async function handlePurchaseOrderSubmit(e) {
         newVoucher.excelRow = state.vouchers[idx].excelRow;
       }
       state.vouchers[idx] = newVoucher;
+    } else {
+      // Chứng từ gốc biến mất trong lúc sửa — vẫn phải ghi lại bản đang sửa.
+      state.vouchers.push(newVoucher);
     }
     
     // Nếu đổi mã chứng từ: lưu lại vết xóa mã cũ và cập nhật liên kết ký quỹ
@@ -2078,6 +2076,9 @@ async function handlePurchaseReturnSubmit(e) {
         newVoucher.excelRow = state.vouchers[idx].excelRow;
       }
       state.vouchers[idx] = newVoucher;
+    } else {
+      // Chứng từ gốc biến mất trong lúc sửa — vẫn phải ghi lại bản đang sửa.
+      state.vouchers.push(newVoucher);
     }
     
     // Nếu đổi mã chứng từ: lưu lại vết xóa mã cũ và cập nhật liên kết ký quỹ

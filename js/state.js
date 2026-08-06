@@ -383,12 +383,15 @@ function cleanNumericVouchers() {
     const idStr = String(v.id).trim().toLowerCase();
     const descStr = (v.description || "").trim().toLowerCase();
     
-    // Check dòng tổng kết lỗi của Excel
-    if (idStr.includes("tổng thu") || idStr.includes("tổng chi") || descStr.includes("tổng thu") || descStr.includes("tổng chi")) {
+    // Check dòng tổng kết lỗi của Excel: chỉ khớp CHÍNH XÁC nhãn tổng kết.
+    // Không dùng includes() — mô tả chứng từ thật hoàn toàn có thể chứa
+    // cụm "tổng thu"/"tổng chi" và tombstone sẽ xóa nó trên mọi máy.
+    if (idStr === "tổng thu" || idStr === "tổng chi" || descStr === "tổng thu" || descStr === "tổng chi") {
       return true;
     }
-    // Check các dòng test nháp dữ liệu cũ
-    if (idStr.includes("test") || descStr === "test" || descStr === "testtt" || descStr === "tesett" || descStr === "testt" || descStr.startsWith("test ")) {
+    // Check các dòng test nháp dữ liệu cũ: ID phải là "test" (kèm số) đứng
+    // riêng, không match substring để tránh xóa nhầm mã chứng từ thật.
+    if (/^test\d*$/.test(idStr) || descStr === "test" || descStr === "testtt" || descStr === "tesett" || descStr === "testt") {
       return true;
     }
     return false;

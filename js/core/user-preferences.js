@@ -119,26 +119,6 @@ function applyThemePreference(theme) {
   }
 }
 
-function applyThemeEarlyFromStorage() {
-  try {
-    const storage = getPrefsStorage();
-    if (!storage) return;
-    let theme = "dark";
-    const raw = storage.getItem(USER_PREFS_KEY);
-    if (raw) {
-      theme = JSON.parse(raw).theme || theme;
-    } else if (storage.getItem("theme") === "light") {
-      theme = "light";
-    }
-    if (theme === "light" && document.documentElement) {
-      document.documentElement.classList.add("pref-light");
-    }
-    if (theme === "light" && document.body) {
-      document.body.classList.add("light-theme");
-    }
-  } catch (_) {}
-}
-
 function restoreDebtsUIFromPrefs(prefs) {
   const p = prefs || getUserPrefs();
   const typeEl = document.getElementById("debt-type-filter");
@@ -231,7 +211,6 @@ window.DEFAULT_USER_PREFS = DEFAULT_USER_PREFS;
 window.getUserPrefs = getUserPrefs;
 window.saveUserPrefs = saveUserPrefs;
 window.applyThemePreference = applyThemePreference;
-window.applyThemeEarlyFromStorage = applyThemeEarlyFromStorage;
 window.restoreDebtsUIFromPrefs = restoreDebtsUIFromPrefs;
 window.persistDebtsUIFromDOM = persistDebtsUIFromDOM;
 window.restoreUserPreferencesUI = restoreUserPreferencesUI;
