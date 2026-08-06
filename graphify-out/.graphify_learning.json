@@ -1,0 +1,70 @@
+{
+  "generated_at": "2026-07-31T04:12:53.567246+00:00",
+  "nodes": {
+    "modules_debts_calculatepartnerdebts": {
+      "code_fingerprint": "5384efb19567f223504cb66667e7d11b2a9e02d959fc7ecbc43bb8b199e2bd95",
+      "label": "calculatePartnerDebts()",
+      "last": "2026-07-31T04:06:34.585306+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-31T04:06:34.585306+00:00",
+          "outcome": "useful",
+          "q": "tại sao trong ruột và ở ngoài lại hiển thị 2 số công nợ khác nhau, đây là lỗi gì? vui lòng inspect toàn bộ."
+        }
+      ],
+      "score": 0.999898659,
+      "source_file": "modules/debts.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "modules_debts_computedebtsides": {
+      "code_fingerprint": "5384efb19567f223504cb66667e7d11b2a9e02d959fc7ecbc43bb8b199e2bd95",
+      "label": "computeDebtSides()",
+      "last": "2026-07-31T04:06:34.585306+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-31T04:06:34.585306+00:00",
+          "outcome": "useful",
+          "q": "tại sao trong ruột và ở ngoài lại hiển thị 2 số công nợ khác nhau, đây là lỗi gì? vui lòng inspect toàn bộ."
+        }
+      ],
+      "score": 0.999898659,
+      "source_file": "modules/debts.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "modules_debts_extractledgeramountsfromvoucher": {
+      "code_fingerprint": "5384efb19567f223504cb66667e7d11b2a9e02d959fc7ecbc43bb8b199e2bd95",
+      "label": "extractLedgerAmountsFromVoucher()",
+      "last": "2026-07-31T04:06:34.585306+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-31T04:06:34.585306+00:00",
+          "outcome": "useful",
+          "q": "tại sao trong ruột và ở ngoài lại hiển thị 2 số công nợ khác nhau, đây là lỗi gì? vui lòng inspect toàn bộ."
+        }
+      ],
+      "score": 0.999898659,
+      "source_file": "modules/debts.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "modules_debts_previewpartnerdebtnotice": {
+      "code_fingerprint": "5384efb19567f223504cb66667e7d11b2a9e02d959fc7ecbc43bb8b199e2bd95",
+      "label": "previewPartnerDebtNotice()",
+      "last": "2026-07-31T04:06:34.585306+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-31T04:06:34.585306+00:00",
+          "outcome": "useful",
+          "q": "tại sao trong ruột và ở ngoài lại hiển thị 2 số công nợ khác nhau, đây là lỗi gì? vui lòng inspect toàn bộ."
+        }
+      ],
+      "score": 0.999898659,
+      "source_file": "modules/debts.js",
+      "status": "tentative",
+      "uses": 1
+    }
+  },
+  "version": 1
+}
