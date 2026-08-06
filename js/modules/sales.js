@@ -199,7 +199,7 @@ function renderSalesTable() {
   // Lọc theo từng cột (Column Filters)
   if (salesColumnFilters.id) {
     const val = salesColumnFilters.id.toLowerCase();
-    sales = sales.filter(v => v.id.toLowerCase().includes(val));
+    sales = sales.filter(v => String(v.id).toLowerCase().includes(val));
   }
   if (salesColumnFilters.date) {
     const val = salesColumnFilters.date.toLowerCase();
@@ -472,8 +472,8 @@ async function handleSalesSubmit(e) {
 
   // Kiểm tra trùng số chứng từ
   const isDuplicate = state.vouchers.some(v => {
-    if (editingSalesId && v.id.toLowerCase() === editingSalesId.toLowerCase()) return false;
-    return v.id.toLowerCase() === voucherId.toLowerCase();
+    if (editingSalesId && String(v.id).toLowerCase() === editingSalesId.toLowerCase()) return false;
+    return String(v.id).toLowerCase() === voucherId.toLowerCase();
   });
 
   if (isDuplicate) {
@@ -561,8 +561,8 @@ async function handleSalesSubmit(e) {
       }
 
       const isDuplicateAfterCloudCheck = state.vouchers.some(v => {
-        if (editingSalesId && v.id.toLowerCase() === editingSalesId.toLowerCase()) return false;
-        return v.id.toLowerCase() === voucherId.toLowerCase();
+        if (editingSalesId && String(v.id).toLowerCase() === editingSalesId.toLowerCase()) return false;
+        return String(v.id).toLowerCase() === voucherId.toLowerCase();
       });
 
       if (isDuplicateAfterCloudCheck) {
@@ -861,7 +861,7 @@ function renderSalesReturnTable() {
   // Lọc theo từng cột (Column Filters)
   if (salesReturnColumnFilters.id) {
     const val = salesReturnColumnFilters.id.toLowerCase();
-    returns = returns.filter(v => v.id.toLowerCase().includes(val));
+    returns = returns.filter(v => String(v.id).toLowerCase().includes(val));
   }
   if (salesReturnColumnFilters.date) {
     const val = salesReturnColumnFilters.date.toLowerCase();
@@ -1138,8 +1138,8 @@ async function handleSalesReturnSubmit(e) {
 
   // Kiểm tra trùng số chứng từ
   const isDuplicate = state.vouchers.some(v => {
-    if (editingSalesReturnId && v.id.toLowerCase() === editingSalesReturnId.toLowerCase()) return false;
-    return v.id.toLowerCase() === voucherId.toLowerCase();
+    if (editingSalesReturnId && String(v.id).toLowerCase() === editingSalesReturnId.toLowerCase()) return false;
+    return String(v.id).toLowerCase() === voucherId.toLowerCase();
   });
 
   if (isDuplicate) {
@@ -1597,7 +1597,7 @@ function renderQuotationTable() {
   // Lọc theo từng cột (Column Filters)
   if (quotationColumnFilters.id) {
     const val = quotationColumnFilters.id.toLowerCase();
-    quotations = quotations.filter(v => v.id.toLowerCase().includes(val));
+    quotations = quotations.filter(v => String(v.id).toLowerCase().includes(val));
   }
   if (quotationColumnFilters.date) {
     const val = quotationColumnFilters.date.toLowerCase();
@@ -1819,8 +1819,8 @@ async function handleQuotationSubmit(e) {
 
   // Kiểm tra trùng số chứng từ
   const isDuplicate = state.vouchers.some(v => {
-    if (editingQuotationId && v.id.toLowerCase() === editingQuotationId.toLowerCase()) return false;
-    return v.id.toLowerCase() === voucherId.toLowerCase();
+    if (editingQuotationId && String(v.id).toLowerCase() === editingQuotationId.toLowerCase()) return false;
+    return String(v.id).toLowerCase() === voucherId.toLowerCase();
   });
 
   if (isDuplicate) {
@@ -2033,6 +2033,10 @@ window.convertQuotationToOrder = async function(id) {
   const newOrder = JSON.parse(JSON.stringify(quotation));
   newOrder.id = orderId;
   newOrder.type = "sales";
+  // Đơn hàng mới phải mang timestamp/phiên hiện tại. Giữ _updatedAt cũ của
+  // báo giá sẽ khiến đơn thua mọi tombstone/merge trên cloud và bị xóa nhầm.
+  newOrder._updatedAt = Date.now();
+  if (typeof clientSessionId !== "undefined") newOrder._sessionId = clientSessionId;
   
   if (newOrder.description) {
     newOrder.description = newOrder.description.replace(/báo giá/gi, "Đơn hàng");
@@ -2045,11 +2049,24 @@ window.convertQuotationToOrder = async function(id) {
   
   state.vouchers.unshift(newOrder); 
   
-  if (typeof showToast === "function") {
-    showToast(`Đã chuyển báo giá ${id} thành đơn hàng ${orderId}!`, "success");
-  }
-  
   if (typeof recalculateAccounting === "function") recalculateAccounting();
+
+  // Lưu ngay (SQLite + push cloud) thay vì chờ debounce 2s: nếu app tắt/crash
+  // trong cửa sổ đó, đơn hàng vừa in số cho khách sẽ biến mất.
+  try {
+    if (typeof saveStateAndSyncVoucher === "function") {
+      await saveStateAndSyncVoucher();
+    }
+    if (typeof showToast === "function") {
+      showToast(`Đã chuyển báo giá ${id} thành đơn hàng ${orderId}!`, "success");
+    }
+  } catch (err) {
+    console.error("[Sales] Lỗi lưu khi chuyển báo giá thành đơn hàng:", err);
+    if (typeof showToast === "function") {
+      showToast(`Đã chuyển thành đơn ${orderId} nhưng chưa lưu được: ${err.message}. Dữ liệu sẽ được lưu lại ở lần lưu kế tiếp.`, "warning");
+    }
+  }
+
   if (typeof renderSalesTable === "function") renderSalesTable();
   if (typeof renderQuotationTable === "function") renderQuotationTable();
   

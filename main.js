@@ -197,34 +197,53 @@ function createWindow() {
     _isClosing = true;
     const closingWindow = mainWindow;
 
-    // Local save + cloud flush can legitimately take several seconds.
+    // Local save + cloud flush can legitimately take several seconds
+    // (SQLite save + up to ~7s cloud wait). 10s used to cut the flow before
+    // the JSON safety backup was written; the backup now runs FIRST and the
+    // budget is wider so the local save is never truncated on slow disks.
     const forceCloseTimer = setTimeout(() => {
-      console.warn('[AutoSave] Timeout 10s, buộc đóng ứng dụng.');
+      console.warn('[AutoSave] Timeout 20s, buộc đóng ứng dụng.');
       if (closingWindow && !closingWindow.isDestroyed()) closingWindow.destroy();
-    }, 10000);
+    }, 20000);
 
-    let shouldBackup = false;
+    let backupWritten = false;
     try {
-      // Bước 1: Gọi renderer thực hiện saveState() + pushToCloud() và chờ
+      // Bước 1: Ghi backup nguyên tử NGAY khi phiên có thay đổi, trước khi chờ
+      // save/cloud (bước có thể chậm hoặc bị force-close cắt ngang).
       if (closingWindow && !closingWindow.isDestroyed()) {
-        const closeResult = await closingWindow.webContents.executeJavaScript(`
-          (async () => {
-            const wasDirty = typeof saveStateIsDirty !== 'undefined' && !!saveStateIsDirty;
-            const reportedDirty = await autoSaveBeforeClose();
-            return { wasDirty: wasDirty || !!reportedDirty };
-          })()
+        const preClose = await closingWindow.webContents.executeJavaScript(`
+          ({
+            wasDirty: typeof saveStateIsDirty !== 'undefined' && !!saveStateIsDirty,
+            json: (typeof state !== 'undefined' && state) ? (JSON.stringify(state) || '') : ''
+          })
         `);
-        shouldBackup = !!(closeResult && closeResult.wasDirty);
+        if (preClose && preClose.wasDirty && preClose.json && preClose.json.length > 10) {
+          ensureBackupDir();
+          const backupPath = writeJsonBackup(BACKUP_DIR, preClose.json);
+          cleanOldBackups();
+          backupWritten = true;
+          console.log(`[AutoBackup] Đã tự động sao lưu khi đóng: ${backupPath}`);
+        }
       }
     } catch (err) {
-      // If renderer save failed, still try to preserve the in-memory state as JSON.
-      shouldBackup = true;
+      console.error('[AutoBackup] Lỗi ghi backup trước khi đóng:', err);
+    }
+
+    let saveFailed = false;
+    try {
+      // Bước 2: Gọi renderer thực hiện saveState() + pushToCloud() và chờ
+      if (closingWindow && !closingWindow.isDestroyed()) {
+        await closingWindow.webContents.executeJavaScript('autoSaveBeforeClose()');
+      }
+    } catch (err) {
+      saveFailed = true;
       console.error('[AutoSave] Lỗi trong quá trình lưu trước khi đóng:', err);
     }
 
     try {
-      // Bước 2: Ghi backup nguyên tử khi phiên có thay đổi hoặc autosave bị lỗi.
-      if (shouldBackup && closingWindow && !closingWindow.isDestroyed()) {
+      // Bước 3: Nếu autosave lỗi mà chưa có backup (phiên tưởng là sạch), vẫn
+      // cố gắng giữ lại state trong bộ nhớ dưới dạng JSON.
+      if (saveFailed && !backupWritten && closingWindow && !closingWindow.isDestroyed()) {
         const jsonData = await closingWindow.webContents.executeJavaScript(
           "JSON.stringify(state) || ''"
         );
@@ -232,7 +251,7 @@ function createWindow() {
           ensureBackupDir();
           const backupPath = writeJsonBackup(BACKUP_DIR, jsonData);
           cleanOldBackups();
-          console.log(`[AutoBackup] Đã tự động sao lưu khi đóng: ${backupPath}`);
+          console.log(`[AutoBackup] Đã sao lưu khẩn cấp khi autosave lỗi: ${backupPath}`);
         }
       }
     } catch (err) {

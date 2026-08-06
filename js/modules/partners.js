@@ -343,7 +343,7 @@ function handleQuickAddPartnerSubmit(e) {
       finalId = isSupplier ? `NCC${nextNum}` : `KH${nextNum}`;
     } else {
       // Check duplicate ID
-      const duplicateId = state.partners.find(p => p.id.toLowerCase() === finalId.toLowerCase());
+      const duplicateId = state.partners.find(p => String(p.id).toLowerCase() === finalId.toLowerCase());
       if (duplicateId) {
         showToast(`Mã đối tác "${finalId}" đã tồn tại! Vui lòng chọn mã khác.`, "danger");
         return;

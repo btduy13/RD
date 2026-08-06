@@ -188,7 +188,7 @@ function renderPurchaseTable() {
   // Lọc theo từng cột (Column Filters)
   if (purchaseColumnFilters.id) {
     const val = purchaseColumnFilters.id.toLowerCase();
-    purchases = purchases.filter(v => v.id.toLowerCase().includes(val));
+    purchases = purchases.filter(v => String(v.id).toLowerCase().includes(val));
   }
   if (purchaseColumnFilters.date) {
     const val = purchaseColumnFilters.date.toLowerCase();
@@ -375,8 +375,8 @@ async function handlePurchaseSubmit(e) {
 
   // Kiểm tra trùng số chứng từ
   const isDuplicate = state.vouchers.some(v => {
-    if (editingPurchaseId && v.id.toLowerCase() === editingPurchaseId.toLowerCase()) return false;
-    return v.id.toLowerCase() === voucherId.toLowerCase();
+    if (editingPurchaseId && String(v.id).toLowerCase() === editingPurchaseId.toLowerCase()) return false;
+    return String(v.id).toLowerCase() === voucherId.toLowerCase();
   });
 
   if (isDuplicate) {
@@ -1253,7 +1253,7 @@ function renderPurchaseOrderTable() {
   // Lọc theo từng cột (Column Filters)
   if (purchaseOrderColumnFilters.id) {
     const val = purchaseOrderColumnFilters.id.toLowerCase();
-    orders = orders.filter(v => v.id.toLowerCase().includes(val));
+    orders = orders.filter(v => String(v.id).toLowerCase().includes(val));
   }
   if (purchaseOrderColumnFilters.date) {
     const val = purchaseOrderColumnFilters.date.toLowerCase();
@@ -1723,7 +1723,7 @@ function renderPurchaseReturnTable() {
   // Lọc theo từng cột (Column Filters)
   if (purchaseReturnColumnFilters.id) {
     const val = purchaseReturnColumnFilters.id.toLowerCase();
-    returns = returns.filter(v => v.id.toLowerCase().includes(val));
+    returns = returns.filter(v => String(v.id).toLowerCase().includes(val));
   }
   if (purchaseReturnColumnFilters.date) {
     const val = purchaseReturnColumnFilters.date.toLowerCase();
@@ -1976,8 +1976,8 @@ async function handlePurchaseReturnSubmit(e) {
 
   // Kiểm tra trùng số chứng từ
   const isDuplicate = state.vouchers.some(v => {
-    if (editingPurchaseReturnId && v.id.toLowerCase() === editingPurchaseReturnId.toLowerCase()) return false;
-    return v.id.toLowerCase() === voucherId.toLowerCase();
+    if (editingPurchaseReturnId && String(v.id).toLowerCase() === editingPurchaseReturnId.toLowerCase()) return false;
+    return String(v.id).toLowerCase() === voucherId.toLowerCase();
   });
 
   if (isDuplicate) {

@@ -441,6 +441,7 @@ function cloudSyncApplyPushToLastSyncState(pushedEntityRows, pushTs, pushedMetad
       .map(cloudSyncNormalizeDeletedCloudKey)
       .filter(Boolean)
   ));
+  next._deletedCloudKeyTs = { ...(previousSnapshot._deletedCloudKeyTs || {}) };
   next._lastModified = Math.max(Number(next._lastModified) || 0, Number(pushTs) || 0);
   next._cloudWatermark = Number(pushTs) || 0;
 
@@ -464,6 +465,8 @@ function cloudSyncApplyPushToLastSyncState(pushedEntityRows, pushTs, pushedMetad
         map.delete(entityId);
         if (!next.deletedIds.includes(entityId)) next.deletedIds.push(entityId);
         if (!next.deletedCloudKeys.includes(row.id)) next.deletedCloudKeys.push(row.id);
+        next._deletedCloudKeyTs[row.id] =
+          Number(row.last_modified) || Number(row.data._deletedAt) || Number(pushTs) || 0;
       } else if (row.data && row.data.id) {
         // Clone: row.data is the live state item; snapshot must not alias it.
         map.set(row.data.id, cloudSyncClone(row.data));
@@ -511,6 +514,9 @@ function cloudSyncClearDeletionMarkerForActiveRow(sourceState, rowId, entityId) 
   if ((def && def.stateKey === "vouchers") || hadTypedMarker) {
     sourceState.deletedIds = (Array.isArray(sourceState.deletedIds) ? sourceState.deletedIds : [])
       .filter(id => String(id) !== String(entityId));
+  }
+  if (sourceState._deletedCloudKeyTs && sourceState._deletedCloudKeyTs[normalizedRowId]) {
+    delete sourceState._deletedCloudKeyTs[normalizedRowId];
   }
 }
 
@@ -574,6 +580,7 @@ function cloudSyncSplitMetadata(sourceState) {
     // arrays in the shared metadata row only duplicates deletion data.
     deletedIds,
     deletedCloudKeys,
+    _deletedCloudKeyTs,
     _lastPulledCloudTs,
     _cloudWatermark,
     _cloudDatasetIdentity,
@@ -767,12 +774,15 @@ function cloudSyncClearPendingLocalWrite(expectedToken = null) {
   const stateToken = state && state._pendingCloudWrite && state._pendingCloudWrite.token || "";
   const currentToken = localToken || stateToken;
   let clearRotatedMarker = false;
-  if (expectedToken && currentToken && currentToken !== expectedToken) {
-    // A second autosave can rotate the marker while the first transaction is
-    // in flight. If that transaction already covered every current delta, the
-    // newer marker is stale and must not force a full startup forever. Never
-    // clear it while any entity/metadata change still differs from the
-    // server-confirmed baseline.
+  if (currentToken && currentToken !== expectedToken) {
+    // Covers two cases: (1) a second autosave rotated the marker while the
+    // first transaction was in flight, and (2) a token-less retry/queued push
+    // (expectedToken=null) finishing while a NEW pending marker protects a
+    // save that has not been pushed yet. In both cases the marker may only be
+    // cleared when the committed transaction already covered every current
+    // delta. Never clear it while any entity/metadata change still differs
+    // from the server-confirmed baseline — otherwise a crash in that window
+    // bakes the unpushed voucher into the "confirmed" baseline forever.
     lastSyncState = window.lastSyncState || lastSyncState;
     const remainingDelta = lastSyncState ? computeDelta() : null;
     if (
@@ -1322,6 +1332,12 @@ function cloudSyncStateFromRows(rows, options = {}) {
         const entityId = cloudSyncGetEntityIdFromRowId(row.id, def);
         if (!cloudState.deletedIds.includes(entityId)) cloudState.deletedIds.push(entityId);
         if (!cloudState.deletedCloudKeys.includes(row.id)) cloudState.deletedCloudKeys.push(row.id);
+        // Ghi lại tuổi của chính tombstone để merge so sánh theo từng dấu xóa,
+        // thay vì so với watermark toàn cục (watermark tiến lên theo MỌI push
+        // nên một tombstone cũ vẫn có thể xóa nhầm chứng từ vừa tạo lại).
+        if (!cloudState._deletedCloudKeyTs) cloudState._deletedCloudKeyTs = {};
+        cloudState._deletedCloudKeyTs[row.id] =
+          Number(row.last_modified) || Number(row.data._deletedAt) || 0;
         return;
       }
       if (row.data.id) {
@@ -1403,6 +1419,20 @@ function cloudSyncMergeEntityArrays(stateKey, localArr, cloudArr, deleted, optio
   const tieKeepsLocal = CLOUD_SYNC_TIE_KEEP_LOCAL_KEYS.has(stateKey);
   const map = new Map();
 
+  // Baseline of the last confirmed sync: used to tell "the cloud row actually
+  // changed remotely" apart from "another machine's clock stamped a higher
+  // timestamp". Built lazily — only rows where cloud would win pay for it.
+  let baselineMap = null;
+  const getBaselineItem = id => {
+    if (baselineMap === null) {
+      const baselineArr = options.baselineState && Array.isArray(options.baselineState[stateKey])
+        ? options.baselineState[stateKey]
+        : [];
+      baselineMap = new Map(baselineArr.filter(it => it && it.id).map(it => [it.id, it]));
+    }
+    return baselineMap.get(id);
+  };
+
   (localArr || []).forEach(item => {
     if (item && item.id && !deleted.has(item.id)) map.set(item.id, item);
   });
@@ -1418,6 +1448,15 @@ function cloudSyncMergeEntityArrays(stateKey, localArr, cloudArr, deleted, optio
       const cloudTs = Number(item._updatedAt) || 0;
       if (cloudTs > localTs) {
         applyCloud = true;
+        // Clock-skew guard: nếu bản cloud KHÔNG đổi so với baseline của lần
+        // sync trước (không có chỉnh sửa thật từ máy khác) thì timestamp cao
+        // hơn chỉ là lệch đồng hồ — giữ bản sửa cục bộ chưa push.
+        if (options.baselineState) {
+          const baselineItem = getBaselineItem(item.id);
+          if (baselineItem && cloudSyncEqual(baselineItem, item) && !cloudSyncEqual(localItem, item)) {
+            applyCloud = false;
+          }
+        }
       } else if (cloudTs === localTs) {
         if (!tieKeepsLocal) {
           applyCloud = !cloudSyncEqual(localItem, item);
@@ -1522,7 +1561,10 @@ function cloudSyncMergeMetadata(localState, cloudState) {
 //   collectStats  - track whether/which items changed vs localState.
 function cloudSyncMergeStatesCore(localState, cloudState, options = {}) {
   const stats = options.collectStats ? cloudSyncNewMergeStats() : null;
-  const mergeOptions = { cloneWinners: !!options.cloneWinners, stats };
+  const baselineState = options.baselineState !== undefined
+    ? options.baselineState
+    : (typeof lastSyncState !== "undefined" && lastSyncState ? lastSyncState : null);
+  const mergeOptions = { cloneWinners: !!options.cloneWinners, stats, baselineState };
 
   const localTs = Number(localState._lastModified) || 0;
   const cloudTs = Number(cloudState._lastModified || cloudState._cloudWatermark) || 0;
@@ -1530,6 +1572,12 @@ function cloudSyncMergeStatesCore(localState, cloudState, options = {}) {
   const cloudDeletedByState = cloudSyncGetDeletedIdsByState(cloudState);
   const deletedByState = {};
   const deletedCloudKeys = [];
+  // Tuổi per-tombstone gộp từ cả hai phía để map sống sót qua các lần merge
+  // liên tiếp (pull incremental không tải lại tombstone row cũ).
+  const tombstoneTsByKey = {
+    ...(localState._deletedCloudKeyTs || {}),
+    ...(cloudState._deletedCloudKeyTs || {})
+  };
 
   CLOUD_SYNC_DELETE_DEFS.forEach(def => {
     const deleted = new Set();
@@ -1546,7 +1594,11 @@ function cloudSyncMergeStatesCore(localState, cloudState, options = {}) {
     });
     cloudDeletedByState[def.stateKey].forEach(id => {
       const localItem = localActive.get(id);
-      if (localItem && (Number(localItem._updatedAt) || 0) > cloudTs) return;
+      // So sánh với tuổi của CHÍNH tombstone khi biết được; chỉ rơi về
+      // watermark toàn cục khi snapshot không mang timestamp per-tombstone.
+      const rowId = `${def.rowPrefix}${id}`;
+      const tombstoneTs = Number(tombstoneTsByKey[rowId]) || cloudTs;
+      if (localItem && (Number(localItem._updatedAt) || 0) > tombstoneTs) return;
       deleted.add(id);
     });
     deletedByState[def.stateKey] = deleted;
@@ -1571,14 +1623,23 @@ function cloudSyncMergeStatesCore(localState, cloudState, options = {}) {
     stats.changed = cloudSyncMetaComparable(mergedMeta) !== cloudSyncMetaComparable(cloudSyncSplitMetadata(localState));
   }
 
+  const uniqueDeletedCloudKeys = Array.from(new Set(deletedCloudKeys));
+  const mergedTombstoneTs = {};
+  uniqueDeletedCloudKeys.forEach(key => {
+    const ts = Number(tombstoneTsByKey[key]);
+    if (ts > 0) mergedTombstoneTs[key] = ts;
+  });
   const merged = {
     ...(options.cloneMetadata ? cloudSyncClone(mergedMeta) : mergedMeta),
     ...entityArrays,
     deletedIds,
-    deletedCloudKeys: Array.from(new Set(deletedCloudKeys)),
+    deletedCloudKeys: uniqueDeletedCloudKeys,
     _lastModified: Math.max(localTs, cloudTs),
     _cloudWatermark: Math.max(Number(localState._cloudWatermark) || 0, Number(cloudState._cloudWatermark) || cloudTs)
   };
+  if (Object.keys(mergedTombstoneTs).length > 0) {
+    merged._deletedCloudKeyTs = mergedTombstoneTs;
+  }
   // Audit logs intentionally stay on the machine that recorded them. Preserve
   // them explicitly because cloudSyncSplitMetadata excludes them from both
   // sides of the cloud merge.
@@ -1901,8 +1962,18 @@ async function pullAndMergeFromCloud(options = {}) {
 
     if (useFullPull) {
       cloudSyncLog(`Full reconcile pull (${options.reason || "unknown"}).`);
+      // Snapshot pagination chạy qua nhiều transaction nên KHÔNG nhất quán:
+      // một dòng phía sau con trỏ có thể được máy khác cập nhật giữa chừng và
+      // không bao giờ xuất hiện trong trang nào. Chốt checkpoint ở version
+      // TRƯỚC khi phân trang để lần delta pull kế tiếp (> checkpoint) tải lại
+      // mọi thay đổi commit trong lúc phân trang.
+      const snapshotStartVersion = cloudUsesVersionedRpc ? (Number(cloudSyncVersion) || 0) : 0;
       rows = await cloudSyncFetchAllRows();
       watermark = cloudSyncWatermarkFromRows(rows, metadata);
+      if (snapshotStartVersion > 0 && watermark > snapshotStartVersion) {
+        cloudSyncLog(`Full pull watermark clamped ${watermark} -> ${snapshotStartVersion} (concurrent commits during pagination).`);
+        watermark = snapshotStartVersion;
+      }
       cloudSnapshot = cloudSyncStateFromRows(rows, { watermark }).state;
     } else {
       cloudSyncLog(`Kiem tra incremental: cloudWatermark=${cloudWatermark}, checkpoint=${checkpoint}`);
@@ -1910,8 +1981,13 @@ async function pullAndMergeFromCloud(options = {}) {
       cloudSyncLog(`Da tai ${rows.length} dong thay doi tu cloud since ${fetchCheckpoint}${legacyOverlap ? " (legacy overlap)" : ""}`);
       if (rows.length === 0 && options.retryFullIfNoChanges) {
         cloudSyncLog("Khong co dong thay doi incremental, thuc hien full pull de bao dam...");
+        const snapshotStartVersion = cloudUsesVersionedRpc ? (Number(cloudSyncVersion) || 0) : 0;
         rows = await cloudSyncFetchAllRows();
         watermark = cloudSyncWatermarkFromRows(rows, metadata);
+        if (snapshotStartVersion > 0 && watermark > snapshotStartVersion) {
+          cloudSyncLog(`Full pull watermark clamped ${watermark} -> ${snapshotStartVersion} (concurrent commits during pagination).`);
+          watermark = snapshotStartVersion;
+        }
         cloudSnapshot = cloudSyncStateFromRows(rows, { watermark }).state;
       } else {
         const hasMetadataRow = rows.some(row => row.id === CLOUD_SYNC_METADATA_ID);
@@ -3598,6 +3674,7 @@ window.__cloudSyncInternals__ = {
   cloudSyncQuotePostgrestLogicValue,
   cloudSyncEntityNeedsPush,
   mergeStates,
+  cloudSyncMergeStatesCore,
   computeDelta,
   getStoredLastPulledCloudTs,
   persistLastPulledCloudTs,

@@ -1348,6 +1348,126 @@ async function testLegacyDeltaSecondPageQuotesSpecialCursor() {
   );
 }
 
+function testClockSkewGuardKeepsLocalEditWhenCloudUnchanged() {
+  const { internals } = loadCloudSyncInternals();
+  // Baseline = row as confirmed at the last sync. Another machine's fast clock
+  // stamped it with a high _updatedAt, but the cloud copy is UNCHANGED.
+  const baselineVoucher = { id: "BH100", type: "sales", amount: 1, _updatedAt: 20000, _sessionId: "session-remote" };
+  const localState = {
+    vouchers: [{ id: "BH100", type: "sales", amount: 99, _updatedAt: 10000, _sessionId: "session-local" }],
+    products: [], partners: [], deletedIds: [], deletedCloudKeys: [],
+    _lastModified: 10000
+  };
+  const cloudState = {
+    vouchers: [JSON.parse(JSON.stringify(baselineVoucher))],
+    products: [], partners: [], deletedIds: [], deletedCloudKeys: [],
+    _lastModified: 20000, _cloudWatermark: 20000
+  };
+  const baselineState = {
+    vouchers: [JSON.parse(JSON.stringify(baselineVoucher))],
+    products: [], partners: []
+  };
+
+  const merged = internals.cloudSyncMergeStatesCore(localState, cloudState, {
+    cloneWinners: true, cloneMetadata: true, baselineState
+  }).state;
+  const voucher = merged.vouchers.find(v => v.id === "BH100");
+  assert.equal(voucher.amount, 99, "unchanged cloud row with a skewed higher timestamp must not clobber a fresh local edit");
+
+  // Control: a genuinely changed cloud row with a higher timestamp still wins.
+  const cloudChanged = JSON.parse(JSON.stringify(cloudState));
+  cloudChanged.vouchers[0].amount = 42;
+  const merged2 = internals.cloudSyncMergeStatesCore(localState, cloudChanged, {
+    cloneWinners: true, cloneMetadata: true, baselineState
+  }).state;
+  const voucher2 = merged2.vouchers.find(v => v.id === "BH100");
+  assert.equal(voucher2.amount, 42, "a real remote edit with a newer timestamp must still win");
+}
+
+function testPerTombstoneAgeProtectsNewerLocalItem() {
+  const { internals } = loadCloudSyncInternals();
+  const localState = {
+    vouchers: [{ id: "BH200", type: "sales", amount: 5, _updatedAt: 2000, _sessionId: "session-local" }],
+    products: [], partners: [], deletedIds: [], deletedCloudKeys: [],
+    _lastModified: 2000
+  };
+  // Watermark advanced far past the tombstone (other pushes happened), but the
+  // tombstone itself is OLDER than the recreated local item.
+  const cloudState = {
+    vouchers: [], products: [], partners: [],
+    deletedIds: ["BH200"], deletedCloudKeys: ["v_BH200"],
+    _deletedCloudKeyTs: { "v_BH200": 1000 },
+    _lastModified: 50000, _cloudWatermark: 50000
+  };
+
+  const merged = internals.cloudSyncMergeStatesCore(localState, cloudState, {
+    cloneWinners: true, cloneMetadata: true, baselineState: null
+  }).state;
+  assert.ok(
+    merged.vouchers.some(v => v.id === "BH200"),
+    "a tombstone older than the local item must not delete it, even when the global watermark advanced"
+  );
+
+  // When the tombstone still applies (no newer local item), the merged state
+  // must carry its timestamp forward so later incremental merges (whose cloud
+  // snapshot no longer contains the tombstone row) still know its true age.
+  const localNoItem = {
+    vouchers: [], products: [], partners: [], deletedIds: [], deletedCloudKeys: [],
+    _lastModified: 2000
+  };
+  const mergedApplied = internals.cloudSyncMergeStatesCore(localNoItem, JSON.parse(JSON.stringify(cloudState)), {
+    cloneWinners: true, cloneMetadata: true, baselineState: null
+  }).state;
+  assert.equal(
+    mergedApplied._deletedCloudKeyTs && mergedApplied._deletedCloudKeyTs["v_BH200"],
+    1000,
+    "merged state must retain per-tombstone timestamps for still-active markers"
+  );
+
+  // Incremental path: the map lives on the LOCAL state (persisted from an
+  // earlier merge); the cloud side only repeats the marker without the ts.
+  const localWithTs = JSON.parse(JSON.stringify(localState));
+  localWithTs._deletedCloudKeyTs = { "v_BH200": 1000 };
+  localWithTs.deletedCloudKeys = [];
+  const cloudNoTs = JSON.parse(JSON.stringify(cloudState));
+  delete cloudNoTs._deletedCloudKeyTs;
+  const merged3 = internals.cloudSyncMergeStatesCore(localWithTs, cloudNoTs, {
+    cloneWinners: true, cloneMetadata: true, baselineState: null
+  }).state;
+  assert.ok(
+    merged3.vouchers.some(v => v.id === "BH200"),
+    "local-side per-tombstone timestamp must protect the newer item on incremental merges"
+  );
+
+  // Control: without per-tombstone timestamps anywhere the old watermark
+  // comparison still applies (item older than watermark is deleted).
+  const merged2 = internals.cloudSyncMergeStatesCore(localState, cloudNoTs, {
+    cloneWinners: true, cloneMetadata: true, baselineState: null
+  }).state;
+  assert.ok(
+    !merged2.vouchers.some(v => v.id === "BH200"),
+    "fallback watermark comparison must stay intact when no per-tombstone timestamp is available"
+  );
+}
+
+function testStateFromRowsRecordsTombstoneTimestamps() {
+  const { internals } = loadCloudSyncInternals();
+  const rows = [
+    {
+      id: "v_BH300",
+      data: { id: "BH300", _deleted: true, _deletedAt: 1234, _deletedCloudKey: "v_BH300" },
+      last_modified: 5678
+    }
+  ];
+  const cloudState = internals.cloudSyncStateFromRows(rows).state;
+  assert.ok(cloudState.deletedCloudKeys.includes("v_BH300"));
+  assert.equal(
+    cloudState._deletedCloudKeyTs && cloudState._deletedCloudKeyTs["v_BH300"],
+    5678,
+    "snapshot must carry the tombstone row's own timestamp for per-tombstone merge comparisons"
+  );
+}
+
 async function run() {
   testComputeDeltaDetectsUnpushedVoucherWhenLastSyncStateNull();
   testComputeDeltaSkipsAlreadySyncedVoucher();
@@ -1396,6 +1516,9 @@ async function run() {
   await testNoOpPushDoesNotTouchCloud();
   await testLegacyDeltaSecondPageQuotesSpecialCursor();
   await testRescueRemovesStuckVoucherFromLastSyncState();
+  testClockSkewGuardKeepsLocalEditWhenCloudUnchanged();
+  testPerTombstoneAgeProtectsNewerLocalItem();
+  testStateFromRowsRecordsTombstoneTimestamps();
   console.log("cloud sync regression tests passed");
 }
 
