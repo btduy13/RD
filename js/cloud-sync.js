@@ -1501,12 +1501,89 @@ function cloudSyncMetaComparable(meta) {
   return cloudSyncStableStringify(comparable);
 }
 
-function cloudSyncMergeMetadata(localState, cloudState) {
+// Merge từng tài khoản theo username (3-way với baseline): tài khoản chỉ bị
+// thêm/sửa/xóa ở MỘT phía lấy phía đó; cùng sửa một tài khoản thì phía có
+// timestamp cả cục mới hơn thắng (users không mang _updatedAt riêng).
+function cloudSyncMergeUserAccounts(localUsers, cloudUsers, baseUsers, cloudWins) {
+  if (!Array.isArray(localUsers) && !Array.isArray(cloudUsers)) return undefined;
+  const toMap = list => new Map(
+    (Array.isArray(list) ? list : [])
+      .filter(u => u && u.username)
+      .map(u => [String(u.username).toLowerCase(), u])
+  );
+  const localMap = toMap(localUsers);
+  const cloudMap = toMap(cloudUsers);
+  const baseMap = toMap(baseUsers);
+  const merged = [];
+  const keys = new Set([...localMap.keys(), ...cloudMap.keys()]);
+  keys.forEach(key => {
+    const localUser = localMap.get(key);
+    const cloudUser = cloudMap.get(key);
+    const baseUser = baseMap.get(key);
+    if (localUser && cloudUser) {
+      if (cloudSyncEqual(localUser, cloudUser)) {
+        merged.push(localUser);
+        return;
+      }
+      const localChanged = !cloudSyncEqual(localUser, baseUser);
+      const cloudChanged = !cloudSyncEqual(cloudUser, baseUser);
+      if (localChanged && !cloudChanged) merged.push(localUser);
+      else if (cloudChanged && !localChanged) merged.push(cloudUser);
+      else merged.push(cloudWins ? cloudUser : localUser);
+      return;
+    }
+    const existing = localUser || cloudUser;
+    if (!baseUser) {
+      // Mới thêm ở một phía → giữ.
+      merged.push(existing);
+      return;
+    }
+    // Có trong baseline nhưng một phía đã xóa: nếu phía còn lại không sửa gì
+    // thì tôn trọng việc xóa; nếu phía còn lại có sửa thì giữ bản sửa.
+    if (!cloudSyncEqual(existing, baseUser)) merged.push(existing);
+  });
+  return merged;
+}
+
+function cloudSyncMergeMetadata(localState, cloudState, baselineState = null) {
   const localMeta = cloudSyncSplitMetadata(localState || {});
   const cloudMeta = cloudSyncSplitMetadata(cloudState || {});
   const localTs = Number(localState._lastModified) || Number((typeof window !== "undefined" && window.originalStateLastModified) || localMeta._lastModified) || 0;
   const cloudTs = Number(cloudMeta._lastModified || cloudState && cloudState._cloudWatermark) || 0;
-  const merged = cloudTs >= localTs ? { ...localMeta, ...cloudMeta } : { ...cloudMeta, ...localMeta };
+  const cloudWins = cloudTs >= localTs;
+  const merged = cloudWins ? { ...localMeta, ...cloudMeta } : { ...cloudMeta, ...localMeta };
+
+  // 3-way merge theo TỪNG TRƯỜNG khi biết baseline của lần sync trước:
+  // trường chỉ đổi ở MỘT phía luôn lấy phía đó, bất kể timestamp cả cục.
+  // Trước đây metadata (cài đặt, users, ...) merge kiểu "cả cục ai ghi sau
+  // thắng" nên hai máy chỉnh hai cài đặt khác nhau cùng lúc sẽ đè lẫn nhau.
+  const baseState = baselineState || null;
+  if (baseState) {
+    const baseMeta = cloudSyncSplitMetadata(baseState);
+    const fieldKeys = new Set([...Object.keys(localMeta), ...Object.keys(cloudMeta)]);
+    fieldKeys.forEach(key => {
+      if (key === "_lastModified" || key === "lastModifiedBy") return;
+      // Các khối có cơ chế merge chuyên biệt phía dưới.
+      if (key === "partnerOpeningBalances" || key === "partnerOpeningBalanceTs" || key === "initialBalances" || key === "users") return;
+      const localChanged = !cloudSyncEqual(localMeta[key], baseMeta[key]);
+      const cloudChanged = !cloudSyncEqual(cloudMeta[key], baseMeta[key]);
+      if (localChanged === cloudChanged) return; // cả hai đổi (giữ ts winner) hoặc không ai đổi
+      const winnerMeta = localChanged ? localMeta : cloudMeta;
+      if (Object.prototype.hasOwnProperty.call(winnerMeta, key)) {
+        merged[key] = winnerMeta[key];
+      } else {
+        delete merged[key];
+      }
+    });
+    const mergedUsers = cloudSyncMergeUserAccounts(
+      localMeta.users,
+      cloudMeta.users,
+      baseMeta.users,
+      cloudWins
+    );
+    if (mergedUsers !== undefined) merged.users = mergedUsers;
+    else delete merged.users;
+  }
 
   const localOP = localMeta.partnerOpeningBalances || {};
   const cloudOP = cloudMeta.partnerOpeningBalances || {};
@@ -1615,7 +1692,7 @@ function cloudSyncMergeStatesCore(localState, cloudState, options = {}) {
     entityArrays[key] = cloudSyncMergeEntityArrays(key, localState[key], cloudState[key], deletedByState[key] || new Set(), mergeOptions);
   });
 
-  const mergedMeta = cloudSyncMergeMetadata(localState, cloudState);
+  const mergedMeta = cloudSyncMergeMetadata(localState, cloudState, baselineState);
   // Overridden by the entity merge below; drop before compare/clone.
   delete mergedMeta.cashEntries;
   delete mergedMeta.escrowItems;
@@ -2457,16 +2534,31 @@ async function cloudSyncFetchRowsByKeys(keys) {
 
   for (let i = 0; i < uniqueKeys.length; i += 100) {
     const batch = uniqueKeys.slice(i, i + 100);
+    // Schema V3 thu hồi quyền đọc trực tiếp bảng (chỉ cho qua RPC security
+    // definer), nên khi chạy chế độ versioned RPC phải dùng rd_rows_by_ids.
     const { data, error } = await cloudSyncReadWithRetry(
-      () => supabaseClient
-        .from(CLOUD_SYNC_TABLE)
-        .select("id,data,last_modified,updated_at,sync_version,updated_by,deleted_at")
-        .eq("workspace_id", cloudWorkspaceId)
-        .in("id", batch),
+      () => cloudUsesVersionedRpc
+        ? supabaseClient.rpc("rd_rows_by_ids", { p_workspace_id: cloudWorkspaceId, p_ids: batch })
+        : supabaseClient
+            .from(CLOUD_SYNC_TABLE)
+            .select("id,data,last_modified")
+            .in("id", batch),
       `stale tombstone rows batch ${Math.floor(i / 100) + 1}`,
       { attempts: 4, timeoutMs: 20000 }
     );
-    if (error) throw error;
+    if (error) {
+      // RPC chưa được cài trên project Supabase (migration V3 cũ): bỏ qua
+      // reconcile thay vì báo lỗi mỗi lần khởi động.
+      const code = String(error.code || "");
+      const message = String(error.message || "");
+      if (code === "PGRST202" || code === "42883" || message.includes("rd_rows_by_ids")) {
+        console.warn(
+          "[CloudSync] rd_rows_by_ids RPC missing on Supabase; run supabase_online_v3_migration.sql to enable stale-tombstone reconcile."
+        );
+        return [];
+      }
+      throw error;
+    }
     rows.push(...(data || []));
   }
   return rows;
@@ -2532,7 +2624,10 @@ async function cloudSyncReconcileStaleDeletionMarkers() {
     );
     return restoredKeys.length;
   } catch (err) {
-    console.warn("[CloudSync] Stale tombstone reconcile failed:", err);
+    const errDetail = err && (err.message || err.code)
+      ? `${err.code || ""} ${err.message || ""} ${err.details || ""}`.trim()
+      : (() => { try { return JSON.stringify(err); } catch (_) { return String(err); } })();
+    console.warn("[CloudSync] Stale tombstone reconcile failed:", errDetail);
     return 0;
   }
 }

@@ -101,6 +101,22 @@ begin
 end;
 $$;
 
+-- Fetch full rows for a list of ids. Needed by the stale-tombstone reconcile:
+-- direct table reads are revoked for anon/authenticated, so the client must go
+-- through a security-definer RPC to inspect whether remembered tombstones were
+-- recreated on another station.
+create or replace function public.rd_rows_by_ids(p_workspace_id uuid, p_ids text[])
+returns setof public.rd_accounting_data language plpgsql security definer set search_path=public
+as $$
+begin
+  return query select d.* from public.rd_accounting_data d
+    where d.workspace_id = p_workspace_id
+      and d.id = any(p_ids)
+      and d.id not like 'lock\_%' escape '\'
+    limit 1000;
+end;
+$$;
+
 create or replace function public.rd_apply_sync_transaction(
   p_workspace_id uuid, p_expected_sync_version bigint, p_rows jsonb, p_updated_by text
 )
@@ -158,6 +174,7 @@ revoke execute on function public.rd_sync_snapshot(uuid,text,integer) from publi
 revoke execute on function public.rd_sync_delta(uuid,bigint,text,integer) from public;
 revoke execute on function public.rd_ids_by_prefix(uuid,text,text,integer) from public;
 revoke execute on function public.rd_find_ids(uuid,text[]) from public;
+revoke execute on function public.rd_rows_by_ids(uuid,text[]) from public;
 revoke execute on function public.rd_apply_sync_transaction(uuid,bigint,jsonb,text) from public;
 revoke execute on function public.rd_reserve_voucher_id(uuid,text,jsonb,text) from public;
 grant execute on function public.rd_cloud_status(uuid) to anon, authenticated;
@@ -165,6 +182,7 @@ grant execute on function public.rd_sync_snapshot(uuid,text,integer) to anon, au
 grant execute on function public.rd_sync_delta(uuid,bigint,text,integer) to anon, authenticated;
 grant execute on function public.rd_ids_by_prefix(uuid,text,text,integer) to anon, authenticated;
 grant execute on function public.rd_find_ids(uuid,text[]) to anon, authenticated;
+grant execute on function public.rd_rows_by_ids(uuid,text[]) to anon, authenticated;
 grant execute on function public.rd_apply_sync_transaction(uuid,bigint,jsonb,text) to anon, authenticated;
 grant execute on function public.rd_reserve_voucher_id(uuid,text,jsonb,text) to anon, authenticated;
 commit;

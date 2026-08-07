@@ -726,6 +726,11 @@ async function testTargetedReconcileRestoresRowsMissedBeforeCheckpoint() {
     }
   ];
   const client = {
+    rpc(fn, args) {
+      assert.equal(fn, "rd_rows_by_ids", "versioned-RPC mode must fetch tombstone rows through rd_rows_by_ids (direct table reads are revoked)");
+      const wanted = new Set(args.p_ids || []);
+      return Promise.resolve({ data: activeRows.filter(row => wanted.has(row.id)), error: null });
+    },
     from() {
       return {
         select() { return this; },
@@ -1468,6 +1473,87 @@ function testStateFromRowsRecordsTombstoneTimestamps() {
   );
 }
 
+function testPerFieldMetadataMergeKeepsBothConcurrentEdits() {
+  const { internals } = loadCloudSyncInternals();
+  const baselineState = {
+    companyName: "Old Co", address: "Old Addr", phone: "111",
+    vouchers: [], products: [], partners: []
+  };
+  // Máy local sửa address (chưa push), máy khác sửa phone (đã lên cloud với
+  // blob timestamp mới hơn).
+  const localState = {
+    companyName: "Old Co", address: "NEW ADDR", phone: "111",
+    vouchers: [], products: [], partners: [], deletedIds: [], deletedCloudKeys: [],
+    _lastModified: 1000
+  };
+  const cloudState = {
+    companyName: "Old Co", address: "Old Addr", phone: "999",
+    vouchers: [], products: [], partners: [], deletedIds: [], deletedCloudKeys: [],
+    _lastModified: 2000, _cloudWatermark: 2000
+  };
+
+  const merged = internals.cloudSyncMergeStatesCore(localState, cloudState, {
+    cloneWinners: true, cloneMetadata: true, baselineState
+  }).state;
+  assert.equal(merged.address, "NEW ADDR", "local-only settings edit must survive a newer cloud blob");
+  assert.equal(merged.phone, "999", "cloud-only settings edit must be applied");
+  assert.equal(merged.companyName, "Old Co");
+
+  // Không có baseline → giữ nguyên hành vi cũ (blob ts mới hơn thắng).
+  const mergedNoBase = internals.cloudSyncMergeStatesCore(localState, cloudState, {
+    cloneWinners: true, cloneMetadata: true, baselineState: null
+  }).state;
+  assert.equal(mergedNoBase.address, "Old Addr", "without a baseline the blob-ts winner semantics stay intact");
+  assert.equal(mergedNoBase.phone, "999");
+}
+
+function testPerUserMergeKeepsConcurrentAccountChanges() {
+  const { internals } = loadCloudSyncInternals();
+  const admin = { username: "admin", name: "Admin", password: "a", role: "admin" };
+  const kt = { username: "ketoan", name: "Kế toán", password: "k", role: "user" };
+  const baselineState = { users: [admin, kt], vouchers: [], products: [], partners: [] };
+  // Local: thêm user mới + đổi mật khẩu admin. Cloud (ts mới hơn): sửa tên kt.
+  const localState = {
+    users: [
+      { ...admin, password: "NEW" },
+      kt,
+      { username: "thukho", name: "Thủ kho", password: "t", role: "user" }
+    ],
+    vouchers: [], products: [], partners: [], deletedIds: [], deletedCloudKeys: [],
+    _lastModified: 1000
+  };
+  const cloudState = {
+    users: [admin, { ...kt, name: "Kế toán trưởng" }],
+    vouchers: [], products: [], partners: [], deletedIds: [], deletedCloudKeys: [],
+    _lastModified: 2000, _cloudWatermark: 2000
+  };
+
+  const merged = internals.cloudSyncMergeStatesCore(localState, cloudState, {
+    cloneWinners: true, cloneMetadata: true, baselineState
+  }).state;
+  const byName = Object.fromEntries(merged.users.map(u => [u.username, u]));
+  assert.equal(merged.users.length, 3, "user added locally must survive a newer cloud users blob");
+  assert.equal(byName.admin.password, "NEW", "local password change must survive");
+  assert.equal(byName.ketoan.name, "Kế toán trưởng", "cloud-side user edit must be applied");
+  assert.ok(byName.thukho, "locally added user must be present");
+
+  // Xóa user ở cloud (phía local không sửa gì) → tôn trọng việc xóa.
+  const cloudDeleted = {
+    users: [admin],
+    vouchers: [], products: [], partners: [], deletedIds: [], deletedCloudKeys: [],
+    _lastModified: 2000, _cloudWatermark: 2000
+  };
+  const localUntouched = {
+    users: [admin, kt],
+    vouchers: [], products: [], partners: [], deletedIds: [], deletedCloudKeys: [],
+    _lastModified: 1000
+  };
+  const merged2 = internals.cloudSyncMergeStatesCore(localUntouched, cloudDeleted, {
+    cloneWinners: true, cloneMetadata: true, baselineState
+  }).state;
+  assert.ok(!merged2.users.some(u => u.username === "ketoan"), "a user deleted on another machine must stay deleted");
+}
+
 async function run() {
   testComputeDeltaDetectsUnpushedVoucherWhenLastSyncStateNull();
   testComputeDeltaSkipsAlreadySyncedVoucher();
@@ -1519,6 +1605,8 @@ async function run() {
   testClockSkewGuardKeepsLocalEditWhenCloudUnchanged();
   testPerTombstoneAgeProtectsNewerLocalItem();
   testStateFromRowsRecordsTombstoneTimestamps();
+  testPerFieldMetadataMergeKeepsBothConcurrentEdits();
+  testPerUserMergeKeepsConcurrentAccountChanges();
   console.log("cloud sync regression tests passed");
 }
 
