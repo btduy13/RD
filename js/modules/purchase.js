@@ -523,25 +523,19 @@ let purchaseOrderSubmitInProgress = false;
 
 function generateNextPurchaseVoucherId(paymentMethod) {
   const prefix = "NK";
-  const regex = /^NK(\d+)$/;
-  let maxNum = 0;
-
-  state.vouchers.forEach(v => {
-    if (v.type === 'purchase') {
-      const match = v.id.match(regex);
-      if (match) {
-        const num = parseInt(match[1]);
-        if (num > maxNum) maxNum = num;
-      }
-    }
-  });
-
-  // Giá trị mặc định an toàn nếu chưa có hoặc số maxNum quá nhỏ so với lịch sử
-  if (maxNum === 0) {
-    maxNum = 8459; // Vì số trong ảnh là NK08459
+  let maxNum = typeof getMaxLocalVoucherSequence === "function"
+    ? getMaxLocalVoucherSequence(prefix)
+    : 0;
+  if (!maxNum) {
+    const regex = /^NK(\d+)$/;
+    (state.vouchers || []).forEach(v => {
+      if (!v || v.type !== "purchase") return;
+      const match = String(v.id).match(regex);
+      if (match) maxNum = Math.max(maxNum, parseInt(match[1], 10) || 0);
+    });
   }
-
-  return `${prefix}${(maxNum + 1).toString().padStart(5, '0')}`;
+  if (maxNum === 0) maxNum = 8459;
+  return `${prefix}${(maxNum + 1).toString().padStart(5, "0")}`;
 }
 
 function editPurchaseVoucher(id) {
@@ -629,9 +623,10 @@ async function batchDeletePurchases() {
   });
   if (!ok) return;
 
-  const idsToDelete = checked.map(cb => cb.value);
+  const idsToDelete = checked.map(cb => String(cb.value));
+  const deleteSet = new Set(idsToDelete);
   trackDeletedIds(idsToDelete);
-  state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+  state.vouchers = state.vouchers.filter(v => !deleteSet.has(String(v.id)));
 
   if (typeof resetBatchSelectionUI === "function") {
     resetBatchSelectionUI({
@@ -649,7 +644,8 @@ async function batchDeletePurchases() {
 
   // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
   setTimeout(() => {
-    saveState();
+    if (typeof saveStateAndSyncVoucher === "function") saveStateAndSyncVoucher();
+    else saveState();
     recalculateAccounting();
     if (typeof resetBatchSelectionUI === "function") {
       resetBatchSelectionUI({
@@ -955,20 +951,22 @@ function switchPurchaseSubTab(subTabId) {
 
 function generateNextPurchaseOrderVoucherId() {
   const prefix = "ĐMH";
-  const regex = /^(ĐMH|DMH)(\d{5})$/i;
   let maxNum = 0;
-
-  state.vouchers.forEach(v => {
-    if (v.type === 'purchase_order' && v.id) {
-      const match = v.id.match(regex);
-      if (match) {
-        const num = parseInt(match[2]);
-        if (num > maxNum) maxNum = num;
-      }
-    }
-  });
-
-  return `${prefix}${(maxNum + 1).toString().padStart(5, '0')}`;
+  if (typeof getMaxLocalVoucherSequence === "function") {
+    maxNum = Math.max(
+      getMaxLocalVoucherSequence("ĐMH"),
+      getMaxLocalVoucherSequence("DMH")
+    );
+  }
+  if (!maxNum) {
+    const regex = /^(ĐMH|DMH)(\d{5})$/i;
+    (state.vouchers || []).forEach(v => {
+      if (!v || v.type !== "purchase_order" || !v.id) return;
+      const match = String(v.id).match(regex);
+      if (match) maxNum = Math.max(maxNum, parseInt(match[2], 10) || 0);
+    });
+  }
+  return `${prefix}${(maxNum + 1).toString().padStart(5, "0")}`;
 }
 
 function addPurchaseOrderFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discountVal = 0, insertAfterRow = null) {
@@ -1469,9 +1467,10 @@ async function batchDeletePurchaseOrders() {
   });
   if (!ok) return;
 
-  const idsToDelete = checked.map(cb => cb.value);
+  const idsToDelete = checked.map(cb => String(cb.value));
+  const deleteSet = new Set(idsToDelete);
   trackDeletedIds(idsToDelete);
-  state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+  state.vouchers = state.vouchers.filter(v => !deleteSet.has(String(v.id)));
 
   if (typeof resetBatchSelectionUI === "function") {
     resetBatchSelectionUI({
@@ -1489,7 +1488,8 @@ async function batchDeletePurchaseOrders() {
 
   // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
   setTimeout(() => {
-    saveState();
+    if (typeof saveStateAndSyncVoucher === "function") saveStateAndSyncVoucher();
+    else saveState();
     recalculateAccounting();
     if (typeof resetBatchSelectionUI === "function") {
       resetBatchSelectionUI({
@@ -2116,24 +2116,19 @@ async function handlePurchaseReturnSubmit(e) {
 
 function generateNextPurchaseReturnVoucherId() {
   const prefix = "MTL";
-  const regex = /^MTL(\d+)$/;
-  let maxNum = 0;
-
-  state.vouchers.forEach(v => {
-    if (v.type === 'purchase_return') {
-      const match = v.id.match(regex);
-      if (match) {
-        const num = parseInt(match[1]);
-        if (num > maxNum) maxNum = num;
-      }
-    }
-  });
-
-  if (maxNum === 0) {
-    maxNum = 8459; // Để đồng bộ với các số NK08459, trả lại bắt đầu từ MTL08460
+  let maxNum = typeof getMaxLocalVoucherSequence === "function"
+    ? getMaxLocalVoucherSequence(prefix)
+    : 0;
+  if (!maxNum) {
+    const regex = /^MTL(\d+)$/;
+    (state.vouchers || []).forEach(v => {
+      if (!v || v.type !== "purchase_return") return;
+      const match = String(v.id).match(regex);
+      if (match) maxNum = Math.max(maxNum, parseInt(match[1], 10) || 0);
+    });
   }
-
-  return `${prefix}${(maxNum + 1).toString().padStart(5, '0')}`;
+  if (maxNum === 0) maxNum = 8459;
+  return `${prefix}${(maxNum + 1).toString().padStart(5, "0")}`;
 }
 
 function editPurchaseReturnVoucher(id) {
@@ -2210,9 +2205,10 @@ async function batchDeletePurchaseReturns() {
   });
   if (!ok) return;
 
-  const idsToDelete = checked.map(cb => cb.value);
+  const idsToDelete = checked.map(cb => String(cb.value));
+  const deleteSet = new Set(idsToDelete);
   trackDeletedIds(idsToDelete);
-  state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+  state.vouchers = state.vouchers.filter(v => !deleteSet.has(String(v.id)));
 
   if (typeof resetBatchSelectionUI === "function") {
     resetBatchSelectionUI({
@@ -2230,7 +2226,8 @@ async function batchDeletePurchaseReturns() {
 
   // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
   setTimeout(() => {
-    saveState();
+    if (typeof saveStateAndSyncVoucher === "function") saveStateAndSyncVoucher();
+    else saveState();
     recalculateAccounting();
     if (typeof resetBatchSelectionUI === "function") {
       resetBatchSelectionUI({

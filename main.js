@@ -898,6 +898,7 @@ function getEmptyStateObject() {
     partnerOpeningBalanceTs: {},
     deletedIds: [],
     deletedCloudKeys: [],
+    _deletedCloudKeyTs: {},
     _cloudDatasetIdentity: '',
     _pendingCloudWrite: null,
     products: [],
@@ -1148,6 +1149,7 @@ function saveStateToSQLite(stateObj) {
     stmtMetadata.run('partnerOpeningBalances', JSON.stringify(stateObj.partnerOpeningBalances || {}));
     stmtMetadata.run('deletedIds', JSON.stringify(stateObj.deletedIds || []));
     stmtMetadata.run('deletedCloudKeys', JSON.stringify(stateObj.deletedCloudKeys || []));
+    stmtMetadata.run('_deletedCloudKeyTs', JSON.stringify(stateObj._deletedCloudKeyTs || {}));
     stmtMetadata.run('_lastModified', JSON.stringify(stateObj._lastModified || Date.now()));
     stmtMetadata.run('_lastPulledCloudTs', JSON.stringify(stateObj._lastPulledCloudTs || 0));
     stmtMetadata.run('_cloudDatasetIdentity', JSON.stringify(stateObj._cloudDatasetIdentity || ''));
@@ -1345,6 +1347,7 @@ function readStateFromSQLite() {
       else if (row.key === 'partnerOpeningBalances') stateObj.partnerOpeningBalances = parsedVal;
       else if (row.key === 'deletedIds') stateObj.deletedIds = parsedVal;
       else if (row.key === 'deletedCloudKeys') stateObj.deletedCloudKeys = parsedVal;
+      else if (row.key === '_deletedCloudKeyTs') stateObj._deletedCloudKeyTs = parsedVal || {};
       else if (row.key === '_lastModified') stateObj._lastModified = parsedVal;
       else if (row.key === '_lastPulledCloudTs') stateObj._lastPulledCloudTs = parsedVal;
       else if (row.key === '_cloudDatasetIdentity') stateObj._cloudDatasetIdentity = parsedVal;

@@ -85,6 +85,17 @@ function pruneResolvedDeletionMarkers(currentState) {
       key !== undefined && key !== null && key !== "" && !activeCloudKeys.has(String(key))
     );
   }
+  if (currentState._deletedCloudKeyTs && typeof currentState._deletedCloudKeyTs === "object") {
+    const keptKeys = new Set(
+      (Array.isArray(currentState.deletedCloudKeys) ? currentState.deletedCloudKeys : [])
+        .map(key => String(key))
+    );
+    Object.keys(currentState._deletedCloudKeyTs).forEach(key => {
+      if (!keptKeys.has(String(key)) || activeCloudKeys.has(String(key))) {
+        delete currentState._deletedCloudKeyTs[key];
+      }
+    });
+  }
 
   return currentState;
 }
@@ -185,7 +196,7 @@ function buildStateDelta(state, lastSavedState) {
   const metadataKeys = [
     "companyName", "address", "taxCode", "accountingStandard",
     "initialBalances", "partnerOpeningBalances", "partnerOpeningBalanceTs",
-    "deletedIds", "deletedCloudKeys", "_lastPulledCloudTs", "_cloudDatasetIdentity", "_pendingCloudWrite",
+    "deletedIds", "deletedCloudKeys", "_deletedCloudKeyTs", "_lastPulledCloudTs", "_cloudDatasetIdentity", "_pendingCloudWrite",
     "cashEntries", "escrowItems", "salesTemplatesData", "users", "actionLogs",
     "schemaVersion", "_accountingValid", "_accountingValidTs", "_recalcWatermark"
   ];

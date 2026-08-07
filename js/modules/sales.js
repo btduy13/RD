@@ -425,24 +425,17 @@ if (document.readyState === "loading") {
 
 function generateNextSalesVoucherId(paymentMethod) {
   const prefix = "BH";
-
-  // Tìm tất cả các chứng từ có ID khớp với tiền tố + số
-  const regex = new RegExp(`^${prefix}(\\d+)$`);
-  let maxNum = 0;
-
-  state.vouchers.forEach(v => {
-    const match = v.id.match(regex);
-    if (match) {
-      const num = parseInt(match[1]);
-      if (num > maxNum) maxNum = num;
-    }
-  });
-
-  // Giá trị mặc định an toàn nếu chưa có chứng từ nào
-  if (maxNum === 0) {
-    maxNum = 44340;
+  let maxNum = typeof getMaxLocalVoucherSequence === "function"
+    ? getMaxLocalVoucherSequence(prefix)
+    : 0;
+  if (!maxNum) {
+    const regex = new RegExp(`^${prefix}(\\d+)$`);
+    (state.vouchers || []).forEach(v => {
+      const match = v && v.id && String(v.id).match(regex);
+      if (match) maxNum = Math.max(maxNum, parseInt(match[1], 10) || 0);
+    });
   }
-
+  if (maxNum === 0) maxNum = 44340;
   return `${prefix}${maxNum + 1}`;
 }
 
@@ -733,13 +726,14 @@ async function batchDeleteSales() {
   });
   if (!ok) return;
 
-  const idsToDelete = checked.map(cb => cb.value);
+  const idsToDelete = checked.map(cb => String(cb.value));
+  const deleteSet = new Set(idsToDelete);
   trackDeletedIds(idsToDelete);
-  state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+  state.vouchers = state.vouchers.filter(v => !deleteSet.has(String(v.id)));
 
   // Remove references
   state.vouchers.forEach(v => {
-    if (v.escrowRefId && idsToDelete.includes(v.escrowRefId)) {
+    if (v.escrowRefId && deleteSet.has(String(v.escrowRefId))) {
       v.escrowRefId = null;
     }
   });
@@ -760,7 +754,8 @@ async function batchDeleteSales() {
 
   // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
   setTimeout(() => {
-    saveState();
+    if (typeof saveStateAndSyncVoucher === "function") saveStateAndSyncVoucher();
+    else saveState();
     recalculateAccounting();
     if (typeof resetBatchSelectionUI === "function") {
       resetBatchSelectionUI({
@@ -1081,23 +1076,18 @@ function recalculateSalesReturnTotals() {
 // generateNextSalesReturnVoucherId
 function generateNextSalesReturnVoucherId() {
   const prefix = "BTL";
-  const regex = /^BTL(\d+)$/;
-  let maxNum = 0;
-
-  state.vouchers.forEach(v => {
-    if (v.type === 'sales_return') {
-      const match = v.id.match(regex);
-      if (match) {
-        const num = parseInt(match[1]);
-        if (num > maxNum) maxNum = num;
-      }
-    }
-  });
-
-  if (maxNum === 0) {
-    maxNum = 1000;
+  let maxNum = typeof getMaxLocalVoucherSequence === "function"
+    ? getMaxLocalVoucherSequence(prefix)
+    : 0;
+  if (!maxNum) {
+    const regex = /^BTL(\d+)$/;
+    (state.vouchers || []).forEach(v => {
+      if (!v || v.type !== "sales_return") return;
+      const match = String(v.id).match(regex);
+      if (match) maxNum = Math.max(maxNum, parseInt(match[1], 10) || 0);
+    });
   }
-
+  if (maxNum === 0) maxNum = 1000;
   return `${prefix}${maxNum + 1}`;
 }
 
@@ -1356,13 +1346,14 @@ async function batchDeleteSalesReturns() {
   });
   if (!ok) return;
 
-  const idsToDelete = checked.map(cb => cb.value);
+  const idsToDelete = checked.map(cb => String(cb.value));
+  const deleteSet = new Set(idsToDelete);
   trackDeletedIds(idsToDelete);
-  state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+  state.vouchers = state.vouchers.filter(v => !deleteSet.has(String(v.id)));
 
   // Remove references
   state.vouchers.forEach(v => {
-    if (v.escrowRefId && idsToDelete.includes(v.escrowRefId)) {
+    if (v.escrowRefId && deleteSet.has(String(v.escrowRefId))) {
       v.escrowRefId = null;
     }
   });
@@ -1383,7 +1374,8 @@ async function batchDeleteSalesReturns() {
 
   // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
   setTimeout(() => {
-    saveState();
+    if (typeof saveStateAndSyncVoucher === "function") saveStateAndSyncVoucher();
+    else saveState();
     recalculateAccounting();
     if (typeof resetBatchSelectionUI === "function") {
       resetBatchSelectionUI({
@@ -1775,21 +1767,17 @@ function resetQuotationForm() {
 
 function generateNextQuotationVoucherId() {
   const prefix = "BG";
-  const regex = new RegExp(`^${prefix}(\\d+)$`);
-  let maxNum = 0;
-
-  state.vouchers.forEach(v => {
-    const match = v.id.match(regex);
-    if (match) {
-      const num = parseInt(match[1]);
-      if (num > maxNum) maxNum = num;
-    }
-  });
-
-  if (maxNum === 0) {
-    maxNum = 10000;
+  let maxNum = typeof getMaxLocalVoucherSequence === "function"
+    ? getMaxLocalVoucherSequence(prefix)
+    : 0;
+  if (!maxNum) {
+    const regex = new RegExp(`^${prefix}(\\d+)$`);
+    (state.vouchers || []).forEach(v => {
+      const match = v && v.id && String(v.id).match(regex);
+      if (match) maxNum = Math.max(maxNum, parseInt(match[1], 10) || 0);
+    });
   }
-
+  if (maxNum === 0) maxNum = 10000;
   return `${prefix}${maxNum + 1}`;
 }
 
@@ -2112,8 +2100,10 @@ async function batchDeleteQuotations() {
   if (!ok) return;
 
   try {
-    trackDeletedIds(ids);
-      state.vouchers = state.vouchers.filter(v => !ids.includes(v.id));
+    const idsToDelete = ids.map(id => String(id));
+    const deleteSet = new Set(idsToDelete);
+    trackDeletedIds(idsToDelete);
+      state.vouchers = state.vouchers.filter(v => !deleteSet.has(String(v.id)));
       if (typeof resetBatchSelectionUI === "function") {
         resetBatchSelectionUI({
           checkboxSelector: ".quotation-checkbox",
@@ -2124,8 +2114,9 @@ async function batchDeleteQuotations() {
       } else {
         updateBatchQuotationsUI();
       }
-      showToast(`Đã xóa thành công ${ids.length} báo giá!`, "success");
-      saveState();
+      showToast(`Đã xóa thành công ${idsToDelete.length} báo giá!`, "success");
+      if (typeof saveStateAndSyncVoucher === "function") saveStateAndSyncVoucher();
+      else saveState();
       recalculateAccounting();
       if (typeof resetBatchSelectionUI === "function") {
         resetBatchSelectionUI({

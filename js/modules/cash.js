@@ -368,45 +368,33 @@ function editPaymentVoucher(id) {
 
 function generateNextReceiptVoucherId() {
   const prefix = "PT";
-  const regex = /^PT(\d+)$/;
-  let maxNum = 0;
-
-  state.vouchers.forEach(v => {
-    if (v && v.id) {
-      const match = v.id.match(regex);
-      if (match) {
-        const num = parseInt(match[1]);
-        if (num > maxNum) maxNum = num;
-      }
-    }
-  });
-
-  if (maxNum === 0) {
-    maxNum = 13122; // default safe fallback based on DB state
+  let maxNum = typeof getMaxLocalVoucherSequence === "function"
+    ? getMaxLocalVoucherSequence(prefix)
+    : 0;
+  if (!maxNum) {
+    const regex = /^PT(\d+)$/;
+    (state.vouchers || []).forEach(v => {
+      const match = v && v.id && String(v.id).match(regex);
+      if (match) maxNum = Math.max(maxNum, parseInt(match[1], 10) || 0);
+    });
   }
-
+  if (maxNum === 0) maxNum = 13122;
   return `${prefix}${maxNum + 1}`;
 }
 
 function generateNextPaymentVoucherId() {
   const prefix = "PC";
-  const regex = /^PC(\d+)$/;
-  let maxNum = 0;
-
-  state.vouchers.forEach(v => {
-    if (v && v.id) {
-      const match = v.id.match(regex);
-      if (match) {
-        const num = parseInt(match[1]);
-        if (num > maxNum) maxNum = num;
-      }
-    }
-  });
-
-  if (maxNum === 0) {
-    maxNum = 7194; // default safe fallback based on DB state
+  let maxNum = typeof getMaxLocalVoucherSequence === "function"
+    ? getMaxLocalVoucherSequence(prefix)
+    : 0;
+  if (!maxNum) {
+    const regex = /^PC(\d+)$/;
+    (state.vouchers || []).forEach(v => {
+      const match = v && v.id && String(v.id).match(regex);
+      if (match) maxNum = Math.max(maxNum, parseInt(match[1], 10) || 0);
+    });
   }
-
+  if (maxNum === 0) maxNum = 7194;
   return `${prefix}${maxNum + 1}`;
 }
 
@@ -984,9 +972,10 @@ async function batchDeleteCash() {
   });
   if (!ok) return;
 
-  const idsToDelete = checked.map(cb => cb.value);
+  const idsToDelete = checked.map(cb => String(cb.value));
+  const deleteSet = new Set(idsToDelete);
   trackDeletedIds(idsToDelete);
-  state.vouchers = state.vouchers.filter(v => !idsToDelete.includes(v.id));
+  state.vouchers = state.vouchers.filter(v => !deleteSet.has(String(v.id)));
 
   if (typeof resetBatchSelectionUI === "function") {
     resetBatchSelectionUI({
@@ -1004,7 +993,8 @@ async function batchDeleteCash() {
 
   // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
   setTimeout(() => {
-    saveState();
+    if (typeof saveStateAndSyncVoucher === "function") saveStateAndSyncVoucher();
+    else saveState();
     recalculateAccounting();
     if (typeof resetBatchSelectionUI === "function") {
       resetBatchSelectionUI({

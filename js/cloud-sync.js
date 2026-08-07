@@ -385,15 +385,25 @@ function trackDeletedIds(ids, entityType = "voucher") {
   if (!Array.isArray(state.deletedCloudKeys)) state.deletedCloudKeys = [];
 
   const prefix = cloudSyncPrefixForEntity(entityType);
+  const deletedAt = Date.now();
+  if (!state._deletedCloudKeyTs || typeof state._deletedCloudKeyTs !== "object") {
+    state._deletedCloudKeyTs = {};
+  }
   ids.forEach(id => {
     if (!id) return;
     if (!state.deletedIds.includes(id)) state.deletedIds.push(id);
     const cloudKey = `${prefix}${id}`;
     if (!state.deletedCloudKeys.includes(cloudKey)) state.deletedCloudKeys.push(cloudKey);
+    // Persist per-tombstone age locally so a restart cannot fall back to the
+    // global watermark and wipe a recreated order that reused this ID.
+    state._deletedCloudKeyTs[cloudKey] = Math.max(
+      Number(state._deletedCloudKeyTs[cloudKey]) || 0,
+      deletedAt
+    );
     cloudSyncPendingDeletionKeys.add(cloudKey);
   });
 
-  state._lastModified = Date.now();
+  state._lastModified = deletedAt;
 }
 
 // Adopt `newState` as the in-memory cloud snapshot used by computeDelta.
@@ -1671,11 +1681,18 @@ function cloudSyncMergeStatesCore(localState, cloudState, options = {}) {
     });
     cloudDeletedByState[def.stateKey].forEach(id => {
       const localItem = localActive.get(id);
-      // So sánh với tuổi của CHÍNH tombstone khi biết được; chỉ rơi về
-      // watermark toàn cục khi snapshot không mang timestamp per-tombstone.
       const rowId = `${def.rowPrefix}${id}`;
-      const tombstoneTs = Number(tombstoneTsByKey[rowId]) || cloudTs;
-      if (localItem && (Number(localItem._updatedAt) || 0) > tombstoneTs) return;
+      const knownTs = Number(tombstoneTsByKey[rowId]) || 0;
+      if (!knownTs) {
+        // Không biết tuổi tombstone (vd: restart mất map, pull incremental
+        // không tải lại row cũ). Không dùng watermark toàn cục để xoá — watermark
+        // thường >> _updatedAt của đơn vừa tạo lại cùng ID. Giữ bản local;
+        // reconcile qua rd_rows_by_ids sẽ xác nhận sau.
+        if (localItem) return;
+        deleted.add(id);
+        return;
+      }
+      if (localItem && (Number(localItem._updatedAt) || 0) > knownTs) return;
       deleted.add(id);
     });
     deletedByState[def.stateKey] = deleted;
@@ -3577,12 +3594,30 @@ function getMaxVoucherSequenceFromRows(rows, prefix, rowPrefix = "v_") {
   return maxNum;
 }
 
+function getMaxTombstonedVoucherSequence(prefix) {
+  let maxNum = 0;
+  const consider = rawId => {
+    if (!rawId) return;
+    maxNum = Math.max(maxNum, parseVoucherSequenceNumber(String(rawId), prefix));
+  };
+  (state.deletedIds || []).forEach(consider);
+  (state.deletedCloudKeys || []).forEach(key => {
+    const normalized = cloudSyncNormalizeDeletedCloudKey(key);
+    if (!normalized.startsWith("v_")) return;
+    consider(normalized.slice(2));
+  });
+  return maxNum;
+}
+
 function getMaxLocalVoucherSequence(prefix, excludeId = null) {
   let maxNum = 0;
   (state.vouchers || []).forEach(v => {
     if (!v || !v.id || (excludeId && String(v.id).toLowerCase() === String(excludeId).toLowerCase())) return;
     maxNum = Math.max(maxNum, parseVoucherSequenceNumber(v.id, prefix));
   });
+  // Bỏ qua ID đã tombstone để không tái sử dụng số vừa xoá (offline / trước
+  // khi cloud max sẵn sàng) — tránh merge/tombstone stale xoá đơn mới.
+  maxNum = Math.max(maxNum, getMaxTombstonedVoucherSequence(prefix));
   return maxNum;
 }
 
@@ -3754,6 +3789,7 @@ window.flushDeferredCloudSync = flushDeferredCloudSync;
 window.isVoucherEntryModalOpen = isVoucherEntryModalOpen;
 window.getCloudSafeVoucherId = getCloudSafeVoucherId;
 window.ensureCloudSafeVoucherIdForSave = ensureCloudSafeVoucherIdForSave;
+window.getMaxLocalVoucherSequence = getMaxLocalVoucherSequence;
 window.__cloudSyncInternals__ = {
   cloudSyncStateFromRows,
   cloudSyncFetchAllRows,

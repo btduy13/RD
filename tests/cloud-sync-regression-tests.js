@@ -572,6 +572,7 @@ function testTypedTombstoneDoesNotDeleteOtherEntityWithSameId() {
     escrowItems: [],
     deletedIds: ["SHARED"],
     deletedCloudKeys: ["p_SHARED"],
+    _deletedCloudKeyTs: { "p_SHARED": 200 },
     _lastModified: 200,
     _cloudWatermark: 200
   };
@@ -1444,15 +1445,49 @@ function testPerTombstoneAgeProtectsNewerLocalItem() {
     "local-side per-tombstone timestamp must protect the newer item on incremental merges"
   );
 
-  // Control: without per-tombstone timestamps anywhere the old watermark
-  // comparison still applies (item older than watermark is deleted).
+  // Without per-tombstone timestamps, a live local recreate must survive —
+  // falling back to the global watermark used to delete reused IDs after restart.
   const merged2 = internals.cloudSyncMergeStatesCore(localState, cloudNoTs, {
     cloneWinners: true, cloneMetadata: true, baselineState: null
   }).state;
   assert.ok(
-    !merged2.vouchers.some(v => v.id === "BH200"),
-    "fallback watermark comparison must stay intact when no per-tombstone timestamp is available"
+    merged2.vouchers.some(v => v.id === "BH200"),
+    "unknown tombstone age must not use the global watermark to delete a live local item"
   );
+
+  // Without age AND without a local item, the cloud tombstone still applies.
+  const localEmpty = {
+    vouchers: [], products: [], partners: [], deletedIds: [], deletedCloudKeys: [],
+    _lastModified: 2000
+  };
+  const mergedEmpty = internals.cloudSyncMergeStatesCore(localEmpty, cloudNoTs, {
+    cloneWinners: true, cloneMetadata: true, baselineState: null
+  }).state;
+  assert.ok(
+    mergedEmpty.deletedCloudKeys.includes("v_BH200") ||
+      (mergedEmpty.deletedIds || []).includes("BH200"),
+    "cloud tombstone without age still removes an id that is absent locally"
+  );
+}
+
+function testTrackDeletedIdsStampsPerTombstoneAge() {
+  const { sandbox, vm } = loadCloudSyncInternals();
+  sandbox.state.vouchers = [{ id: "BH900", type: "sales", _updatedAt: 1 }];
+  vm.runInContext(`trackDeletedIds(["BH900"], "voucher")`, sandbox);
+  assert.ok(sandbox.state.deletedCloudKeys.includes("v_BH900"));
+  assert.ok(
+    Number(sandbox.state._deletedCloudKeyTs && sandbox.state._deletedCloudKeyTs["v_BH900"]) > 0,
+    "trackDeletedIds must stamp a durable per-tombstone age for restart-safe merges"
+  );
+}
+
+function testLocalIdAllocationSkipsTombstonedSequences() {
+  const { sandbox, vm } = loadCloudSyncInternals();
+  sandbox.state.vouchers = [{ id: "BH100", type: "sales", _updatedAt: 1 }];
+  sandbox.state.deletedIds = ["BH101"];
+  sandbox.state.deletedCloudKeys = ["v_BH101"];
+  const max = vm.runInContext(`getMaxLocalVoucherSequence("BH")`, sandbox);
+  assert.equal(max, 101, "local ID allocation must skip tombstoned sequences");
 }
 
 function testStateFromRowsRecordsTombstoneTimestamps() {
@@ -1607,6 +1642,8 @@ async function run() {
   testStateFromRowsRecordsTombstoneTimestamps();
   testPerFieldMetadataMergeKeepsBothConcurrentEdits();
   testPerUserMergeKeepsConcurrentAccountChanges();
+  testTrackDeletedIdsStampsPerTombstoneAge();
+  testLocalIdAllocationSkipsTombstonedSequences();
   console.log("cloud sync regression tests passed");
 }
 
