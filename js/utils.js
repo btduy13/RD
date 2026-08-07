@@ -5,6 +5,38 @@ if (window.electronAPI && typeof window.electronAPI.confirm === 'function') {
   };
 }
 
+// Sau khi xuất Excel: lưu vào Downloads và mở file ngay (mọi chỗ gọi XLSX.writeFile).
+if (typeof XLSX !== "undefined" && typeof XLSX.writeFile === "function") {
+  const originalExcelWriteFile = XLSX.writeFile.bind(XLSX);
+  XLSX.writeFile = function writeExcelAndOpen(wb, filename, opts) {
+    try {
+      if (window.electronAPI && typeof window.electronAPI.saveExcelAndOpen === "function") {
+        const name = String(filename || "export.xlsx");
+        const lower = name.toLowerCase();
+        const bookType = lower.endsWith(".xls") ? "xls"
+          : lower.endsWith(".csv") ? "csv"
+          : lower.endsWith(".ods") ? "ods"
+          : "xlsx";
+        const base64 = XLSX.write(wb, { bookType, type: "base64" });
+        Promise.resolve(window.electronAPI.saveExcelAndOpen(name, base64))
+          .then((res) => {
+            if (res && res.ok) return;
+            console.warn("[Excel] Không mở được file đã xuất, fallback download:", res && res.error);
+            originalExcelWriteFile(wb, filename, opts);
+          })
+          .catch((err) => {
+            console.warn("[Excel] Lỗi saveExcelAndOpen, fallback download:", err);
+            originalExcelWriteFile(wb, filename, opts);
+          });
+        return;
+      }
+    } catch (err) {
+      console.warn("[Excel] Không ghi/mở được qua Electron, fallback download:", err);
+    }
+    return originalExcelWriteFile(wb, filename, opts);
+  };
+}
+
 // Hộp thoại xác nhận UI hiện đại (Custom Confirmation Modal)
 function showConfirmModal(options) {
   return new Promise((resolve) => {

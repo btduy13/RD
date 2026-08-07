@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getBackupDir: () => ipcRenderer.invoke('get-backup-dir'),
   // Mở trực tiếp thư mục backup do ứng dụng quản lý
   openBackupFolder: () => ipcRenderer.invoke('open-backup-folder'),
+  // Lưu file Excel vào Downloads và mở bằng Excel/ứng dụng mặc định
+  saveExcelAndOpen: (filename, base64Data) => ipcRenderer.invoke('save-excel-and-open', filename, base64Data),
   // Ghi log gỡ lỗi đồng bộ
   writeLog: (content) => ipcRenderer.invoke('write-log', content),
   // Kích hoạt tiến trình in ấn hệ thống

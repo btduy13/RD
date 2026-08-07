@@ -335,6 +335,27 @@ ipcMain.handle('open-backup-folder', async () => {
   }
 });
 
+// Lưu file Excel xuất từ renderer vào Downloads rồi mở bằng ứng dụng mặc định.
+ipcMain.handle('save-excel-and-open', async (event, filename, base64Data) => {
+  try {
+    const safeName = path.basename(String(filename || 'export.xlsx')).replace(/[<>:"|?*\x00-\x1f]/g, '_');
+    if (!safeName || !base64Data) {
+      return { ok: false, error: 'Thiếu tên file hoặc dữ liệu Excel' };
+    }
+    const filePath = path.join(app.getPath('downloads'), safeName);
+    fs.writeFileSync(filePath, Buffer.from(String(base64Data), 'base64'));
+    const openError = await shell.openPath(filePath);
+    if (openError) {
+      console.error('[Excel] Lỗi mở file sau khi xuất:', openError);
+      return { ok: false, error: openError, filePath };
+    }
+    return { ok: true, filePath };
+  } catch (err) {
+    console.error('[Excel] Lỗi lưu/mở file Excel:', err);
+    return { ok: false, error: err && err.message ? err.message : String(err) };
+  }
+});
+
 ipcMain.handle('write-log', async (event, content) => {
   try {
     const logPath = path.join(app.getPath('userData'), 'sync_debug.log');
