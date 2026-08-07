@@ -1161,10 +1161,13 @@ async function deletePartner(id) {
       trackDeletedIds([id], 'partner');
       state.partners = state.partners.filter(p => p.id !== id);
       if (state.partnerOpeningBalances && state.partnerOpeningBalances[id]) delete state.partnerOpeningBalances[id];
-      await saveStateAndSyncVoucher();
+      const cloudCommitted = await saveStateAndSyncVoucher();
       initExcelIntegration();
       filterPartners();
-      showToast(`Đã xóa và đồng bộ đối tác "${id}"!`, "success");
+      showToast(
+        cloudCommitted ? `Đã xóa và đồng bộ đối tác "${id}"!` : `Đã xóa đối tác "${id}" trên máy này và đang chờ đồng bộ.`,
+        cloudCommitted ? "success" : "warning"
+      );
     } catch (err) {
       state.partners = partnersBefore;
       state.partnerOpeningBalances = openingBefore;

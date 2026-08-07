@@ -106,6 +106,9 @@ function testPlatformWiring() {
   assert(main.includes("ipcMain.handle('open-backup-folder'"));
   assert(main.includes('readLatestValidJsonBackup(BACKUP_DIR)'));
   assert(main.includes("app.on('will-quit'"));
+  assert(main.includes('app.requestSingleInstanceLock()'), 'desktop app must prevent two processes from writing the same local database');
+  assert(main.includes("app.on('second-instance'"), 'a second launch must focus the existing window');
+  assert(main.includes('backgroundThrottling: false'), 'cloud polling must keep running while the Electron window is in the background');
   assert(
     main.includes("if (migratedLegacyState && fs.existsSync(oldBackupDir)"),
     'legacy backup files must only be copied when a legacy state/database was actually migrated'

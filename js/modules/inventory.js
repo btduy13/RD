@@ -1144,8 +1144,11 @@ async function deleteProduct(prodId) {
       trackDeletedIds([prodId], 'product');
       state.products = state.products.filter(p => p.id !== prodId);
       recalculateAccounting(false);
-      await saveStateAndSyncVoucher();
-      showToast(`Đã xóa và đồng bộ sản phẩm ${prodId}!`, "success");
+      const cloudCommitted = await saveStateAndSyncVoucher();
+      showToast(
+        cloudCommitted ? `Đã xóa và đồng bộ sản phẩm ${prodId}!` : `Đã xóa sản phẩm ${prodId} trên máy này và đang chờ đồng bộ.`,
+        cloudCommitted ? "success" : "warning"
+      );
     } catch (err) {
       state.products = productsBefore;
       state.deletedIds = deletedIdsBefore;

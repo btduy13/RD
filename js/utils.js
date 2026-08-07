@@ -6,7 +6,7 @@ if (window.electronAPI && typeof window.electronAPI.confirm === 'function') {
 }
 
 // Sau khi xuất Excel: lưu vào Downloads và mở file ngay (mọi chỗ gọi XLSX.writeFile).
-if (typeof XLSX !== "undefined" && typeof XLSX.writeFile === "function") {
+if (typeof XLSX !== "undefined" && XLSX && typeof XLSX.writeFile === "function") {
   const originalExcelWriteFile = XLSX.writeFile.bind(XLSX);
   XLSX.writeFile = function writeExcelAndOpen(wb, filename, opts) {
     try {

@@ -91,6 +91,10 @@ async function waitFor(expression, label, timeoutMs = 180000) {
 
 async function startApp() {
   fs.mkdirSync(userDataDir, { recursive: true });
+  const localDataDir = path.join(userDataDir, 'data');
+  const localDbPath = path.join(localDataDir, 'rd_local.db');
+  fs.mkdirSync(localDataDir, { recursive: true });
+  if (!fs.existsSync(localDbPath)) fs.writeFileSync(localDbPath, '');
   appProcess = spawn(electronPath, [
     '.',
     `--remote-debugging-port=${debugPort}`,
@@ -321,6 +325,9 @@ async function run() {
     await startApp();
     await assertAllDistributedVouchers('all vouchers after real Electron restart');
     await barrier('after-restart');
+    // Do not let station A delete the barrier markers before station B has
+    // observed them. Both stations must explicitly enter cleanup first.
+    await barrier('cleanup-ready');
     await cleanupDistributedRows();
     console.log(`[distributed:${station}] PASS: two separate Windows runners retained 8/8 vouchers through sync, full reconcile and restart`);
   } catch (error) {

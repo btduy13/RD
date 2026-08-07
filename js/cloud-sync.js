@@ -64,6 +64,7 @@ const CLOUD_SYNC_PAGE_SIZE = 500;
 const CLOUD_SYNC_FULL_MAX_PAGES = 200;
 const CLOUD_SYNC_DELTA_MAX_PAGES = 80;
 const CLOUD_SYNC_BATCH_SIZE = 300;
+const CLOUD_SYNC_TRANSACTION_BATCH_SIZE = 100;
 const CLOUD_SYNC_DELETE_BATCH_SIZE = 100;
 // Poll quickly until Realtime proves that it can deliver a database event in
 // this deployment. Afterwards the RPC becomes a low-frequency safety net.
@@ -639,10 +640,9 @@ function isVoucherEntryModalOpen() {
     "modal-edit-debt"
   ];
   return entryModalIds.some(id => {
-    // Workspace tabs set inactive form tabs to display:none while the user's
-    // half-entered data is still there — an open tab must defer pulls even
-    // when it is not the visible tab.
-    if (typeof window.isWorkspaceTabOpen === "function" && window.isWorkspaceTabOpen(id)) return true;
+    // Workspace tabs preserve inactive drafts with display:none. Only the
+    // visible editor defers applying incoming state; hidden drafts must not
+    // pause Realtime/polling for every other tab.
     return isElementVisible(document.getElementById(id));
   });
 }
@@ -2388,7 +2388,10 @@ function computeDelta() {
 }
 
 async function cloudSyncPrePullBeforePush() {
-  if (Date.now() - lastPullCompletedAt < CLOUD_SYNC_PRE_PUSH_PULL_COOLDOWN_MS) {
+  // A versioned transaction may safely acknowledge its own committed version
+  // only after the local checkpoint has observed every earlier version. The
+  // legacy cooldown can otherwise skip a concurrent row forever.
+  if (!cloudUsesVersionedRpc && Date.now() - lastPullCompletedAt < CLOUD_SYNC_PRE_PUSH_PULL_COOLDOWN_MS) {
     return;
   }
 
@@ -2711,6 +2714,26 @@ function cloudSyncVersionConflictDelay(attempt) {
   return new Promise(resolve => setTimeout(resolve, exponential + jitter));
 }
 
+function cloudSyncBuildTransactionBatches(rows) {
+  const source = Array.isArray(rows) ? rows.filter(Boolean) : [];
+  const signalRows = source.filter(row => row.id === CLOUD_SYNC_SIGNAL_ID);
+  const dataRows = source.filter(row => row.id !== CLOUD_SYNC_SIGNAL_ID);
+  const batches = [];
+  for (let i = 0; i < dataRows.length; i += CLOUD_SYNC_TRANSACTION_BATCH_SIZE) {
+    batches.push(dataRows.slice(i, i + CLOUD_SYNC_TRANSACTION_BATCH_SIZE));
+  }
+  if (batches.length === 0) batches.push([]);
+  if (signalRows.length > 0) {
+    const finalBatch = batches[batches.length - 1];
+    if (finalBatch.length + signalRows.length > CLOUD_SYNC_TRANSACTION_BATCH_SIZE) {
+      batches.push(signalRows.slice());
+    } else {
+      finalBatch.push(...signalRows);
+    }
+  }
+  return batches.filter(batch => batch.length > 0);
+}
+
 async function cloudSyncPushNow() {
   if (!cloudSyncActive || !supabaseClient) return false;
   if (!isStartupPullCompleted) {
@@ -2761,19 +2784,29 @@ async function cloudSyncPushNow() {
 
     let pushPayload = cloudSyncBuildPushPayload(pushTs);
     let committedCloudWatermark = 0;
+    let committedTombstoneRows = [];
     if (cloudUsesVersionedRpc) {
       const updatedBy = cloudSyncGetUpdatedByToken();
       // Do not retry a write transaction blindly: the server may have committed
       // even when its response was lost. A timeout leaves the durable pending
       // marker in place so the next reconciliation can decide safely.
       let transactionCommitted = false;
-      for (let attempt = 0; attempt <= CLOUD_SYNC_VERSION_CONFLICT_MAX_RETRIES; attempt++) {
-        if (pushPayload.rowsToUpsert.length === 0 && pushPayload.idsToDelete.length === 0) break;
+      let conflictAttempt = 0;
+      let transactionBatches = cloudSyncBuildTransactionBatches(pushPayload.rowsForPush);
+      let batchIndex = 0;
+      let committedTransactionCount = 0;
+      let committedRowCount = 0;
+      // Only a pulled checkpoint (or our own immediately preceding batch) is
+      // safe as the optimistic-lock version. cloudSyncVersion may be newer
+      // merely because a status probe observed rows not merged locally yet.
+      let transactionExpectedVersion = getPullCheckpointTs();
+      while (batchIndex < transactionBatches.length) {
+        const batch = transactionBatches[batchIndex];
         const { data: rpcResult, error: rpcError } = await withTimeout(
           supabaseClient.rpc("rd_apply_sync_transaction", {
             p_workspace_id: cloudWorkspaceId,
-            p_expected_sync_version: cloudSyncVersion,
-            p_rows: pushPayload.rowsForPush,
+            p_expected_sync_version: transactionExpectedVersion,
+            p_rows: batch,
             p_updated_by: updatedBy
           }),
           20000
@@ -2781,25 +2814,42 @@ async function cloudSyncPushNow() {
         if (rpcError) throw rpcError;
         if (rpcResult && rpcResult.ok === true) {
           cloudSyncVersion = Number(rpcResult.sync_version) || cloudSyncVersion;
+          transactionExpectedVersion = cloudSyncVersion;
           committedCloudWatermark = cloudSyncVersion;
-          transactionCommitted = true;
-          break;
+          committedTransactionCount += 1;
+          committedRowCount += batch.length;
+          const committedEntities = batch.filter(row => row.id !== CLOUD_SYNC_METADATA_ID && row.id !== CLOUD_SYNC_SIGNAL_ID);
+          const committedMetadataRow = batch.find(row => row.id === CLOUD_SYNC_METADATA_ID) || null;
+          committedTombstoneRows.push(...committedEntities.filter(row => row.data && row.data._deleted));
+          cloudSyncApplyPushToLastSyncState(
+            committedEntities,
+            pushTs,
+            committedMetadataRow ? committedMetadataRow.data : null
+          );
+          batchIndex += 1;
+          conflictAttempt = 0;
+          transactionCommitted = batchIndex >= transactionBatches.length;
+          continue;
         }
-        if (!rpcResult || rpcResult.conflict !== true || attempt >= CLOUD_SYNC_VERSION_CONFLICT_MAX_RETRIES) {
+        if (!rpcResult || rpcResult.conflict !== true || conflictAttempt >= CLOUD_SYNC_VERSION_CONFLICT_MAX_RETRIES) {
           throw new Error("Cloud transaction conflict retry limit reached.");
         }
 
         cloudSyncVersion = Number(rpcResult.sync_version) || cloudSyncVersion;
-        cloudSyncLog(`Version conflict at ${cloudSyncVersion}; incremental reconcile and retry ${attempt + 1}/${CLOUD_SYNC_VERSION_CONFLICT_MAX_RETRIES}.`);
+        cloudSyncLog(`Version conflict at ${cloudSyncVersion}; incremental reconcile and retry ${conflictAttempt + 1}/${CLOUD_SYNC_VERSION_CONFLICT_MAX_RETRIES}.`);
         await pullAndMergeFromCloud({ reason: "version-conflict", force: true, allowDuringPush: true });
-        await cloudSyncVersionConflictDelay(attempt);
+        transactionExpectedVersion = getPullCheckpointTs();
+        await cloudSyncVersionConflictDelay(conflictAttempt);
+        conflictAttempt += 1;
         pushTs = Math.max(pushTs, Date.now(), Number(state._lastModified) || 0);
         state._lastModified = pushTs;
         pushPayload = cloudSyncBuildPushPayload(pushTs);
+        transactionBatches = cloudSyncBuildTransactionBatches(pushPayload.rowsForPush);
+        batchIndex = 0;
       }
       if (transactionCommitted && cloudSyncEgressMetrics.enabled) {
-        cloudSyncEgressMetrics.pushTransactions += 1;
-        cloudSyncEgressMetrics.pushRows += pushPayload.rowsForPush.length;
+        cloudSyncEgressMetrics.pushTransactions += committedTransactionCount;
+        cloudSyncEgressMetrics.pushRows += committedRowCount;
       }
     } else {
       if (pushPayload.entityRows.length > 0) await cloudSyncUpsertRows(pushPayload.entityRows);
@@ -2812,14 +2862,15 @@ async function cloudSyncPushNow() {
         cloudSyncEgressMetrics.pushTransactions += 1;
         cloudSyncEgressMetrics.pushRows += pushPayload.rowsForPush.length + pushPayload.idsToDelete.length;
       }
+      committedTombstoneRows = pushPayload.tombstoneRows;
     }
 
-    if (pushPayload.tombstoneRows.length > 0) {
+    if (committedTombstoneRows.length > 0) {
       // Only clear markers that were actually included in this push. Deletions made
       // while the push was in flight must keep their markers so the next push sends
       // their tombstones — wiping wholesale resurrects those items on every machine.
       const pushedTombstoneKeys = new Set();
-      pushPayload.tombstoneRows.forEach(row => {
+      committedTombstoneRows.forEach(row => {
         if (row && row.id) {
           const normalizedKey = cloudSyncNormalizeDeletedCloudKey(row.id);
           pushedTombstoneKeys.add(normalizedKey);
@@ -2837,7 +2888,9 @@ async function cloudSyncPushNow() {
     state._cloudWatermark = confirmedWatermark;
     // [Perf] Cap nhat snapshot dong bo bang cach ap dung dung cac dong vua day,
     // thay vi deep-clone toan bo state (gay dung hinh UI voi du lieu lon).
-    cloudSyncApplyPushToLastSyncState(pushPayload.entityRows, pushTs, pushPayload.finalMetadata);
+    if (!cloudUsesVersionedRpc) {
+      cloudSyncApplyPushToLastSyncState(pushPayload.entityRows, pushTs, pushPayload.finalMetadata);
+    }
     if (lastSyncState) lastSyncState._cloudWatermark = confirmedWatermark;
     if (cloudUsesVersionedRpc && committedCloudWatermark > 0) {
       // A committed expected-version transaction includes every earlier cloud
@@ -3830,6 +3883,7 @@ window.__cloudSyncInternals__ = {
   cloudSyncNormalizeDeletedCloudKey,
   cloudSyncMakeTombstoneRow,
   cloudSyncMakeSignalRow,
+  cloudSyncBuildTransactionBatches,
   cloudSyncMetadataDiffers,
   cloudSyncEnsureMetadataRow,
   cloudSyncApplyPushToLastSyncState,

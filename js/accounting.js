@@ -644,8 +644,11 @@ async function deleteVoucher(id) {
       }
 
       recalculateAccounting(false);
-      await saveStateAndSyncVoucher();
-      showToast(`Đã xóa và đồng bộ chứng từ ${id} sang các máy trạm!`, "success");
+      const cloudCommitted = await saveStateAndSyncVoucher();
+      showToast(
+        cloudCommitted ? `Đã xóa và đồng bộ chứng từ ${id} sang các máy trạm!` : `Đã xóa chứng từ ${id} trên máy này và đang chờ đồng bộ.`,
+        cloudCommitted ? "success" : "warning"
+      );
       refreshUI();
     } catch (err) {
       state.vouchers = vouchersBefore;

@@ -22,7 +22,8 @@ for (const handler of ['handlePurchaseSubmit', 'handlePurchaseOrderSubmit', 'han
   const start = sources.search(new RegExp(`async\\s+function\\s+${handler}\\s*\\(`));
   assert.ok(start >= 0, `${handler} must be async`);
   const excerpt = sources.slice(start, start + 9000);
-  assert.match(excerpt, /await\s+saveStateAndSyncVoucher\(\)/, `${handler} must wait for cloud acknowledgement`);
+  assert.match(excerpt, /(?:const|let)\s+cloudCommitted\s*=\s*await\s+saveStateAndSyncVoucher\(\)/, `${handler} must retain the cloud acknowledgement result`);
+  assert.match(excerpt, /cloudCommitted\s*\?/, `${handler} must not show an unconditional cloud success message`);
 }
 
 const saveAndSyncStart = stateSource.search(/async\s+function\s+saveStateAndSyncVoucher\s*\(/);
@@ -30,6 +31,7 @@ assert.ok(saveAndSyncStart >= 0, 'saveStateAndSyncVoucher missing');
 const saveAndSyncExcerpt = stateSource.slice(saveAndSyncStart, saveAndSyncStart + 3000);
 assert.match(saveAndSyncExcerpt, /await\s+pushToCloud\s*\(\s*\{\s*pendingToken\s*\}\s*\)/, 'voucher persistence must await the first cloud commit attempt');
 assert.doesNotMatch(saveAndSyncExcerpt, /queueBackgroundCloudPush\s*\(/, 'voucher persistence must not report success immediately after only queueing the cloud push');
+assert.match(saveAndSyncExcerpt, /return\s+cloudCommitted\s*;/, 'voucher persistence must report whether cloud actually committed');
 
 const closeStart = stateSource.search(/async\s+function\s+autoSaveBeforeClose\s*\(/);
 assert.ok(closeStart >= 0, 'autoSaveBeforeClose missing');
@@ -57,6 +59,16 @@ for (const [name, type] of [
   assert.ok(start >= 0, `${name} missing`);
   const excerpt = source.slice(start, start + 4500);
   assert.match(excerpt, /trackDeletedIds\s*\(/, `${name} must create a ${type} tombstone`);
+}
+
+for (const name of [
+  'batchDeletePurchases', 'batchDeletePurchaseOrders', 'batchDeletePurchaseReturns',
+  'batchDeleteSales', 'batchDeleteSalesReturns', 'batchDeleteQuotations'
+]) {
+  const start = sources.search(new RegExp(`async\\s+function\\s+${name}\\s*\\(`));
+  assert.ok(start >= 0, `${name} must be async`);
+  const excerpt = sources.slice(start, start + 5000);
+  assert.match(excerpt, /await\s+saveStateAndSyncVoucher\(\)/, `${name} must not report deletion before durable cloud acknowledgement`);
 }
 
 for (const name of ['deleteVoucher', 'deleteProduct', 'deletePartner']) {
@@ -105,4 +117,6 @@ assert.doesNotMatch(
   /autoExtractPhonesAndCleanAddresses\(\)/,
   'startup must not mutate partner addresses and queue redundant cloud writes on every station'
 );
+assert.doesNotMatch(excelSource, /pushToCloud\(\)\s*\.then\(\(\)\s*=>\s*showToast/, 'Excel import must not treat a false cloud result as success');
+assert.match(excelSource, /cloudCommitted[\s\S]{0,300}cloudCommitted\s*\?/, 'Excel import must distinguish committed and pending cloud writes');
 console.log(`workflow sync coverage passed (${forms.length} business forms)`);

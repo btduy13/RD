@@ -503,10 +503,15 @@ async function handlePurchaseSubmit(e) {
 
   recalculateAccounting(false);
   setVoucherFormStatus(modalId, "Đang lưu và đồng bộ máy khác...", "sync");
-  await saveStateAndSyncVoucher();
+  const cloudCommitted = await saveStateAndSyncVoucher();
 
   closeModal(modalId);
-  showToast(isEdit ? "Cập nhật chứng từ mua hàng thành công!" : "Lập chứng từ mua hàng thành công!", "success");
+  showToast(
+    cloudCommitted
+      ? (isEdit ? "Cập nhật chứng từ mua hàng thành công!" : "Lập chứng từ mua hàng thành công!")
+      : "Chứng từ đã lưu trên máy này và đang chờ đồng bộ sang máy khác.",
+    cloudCommitted ? "success" : "warning"
+  );
   } catch (err) {
     console.error("[Purchase] Lưu chứng từ mua hàng thất bại:", err);
     if (typeof addErrorLog === "function") addErrorLog("handlePurchaseSubmit.save", err.message, err);
@@ -640,13 +645,15 @@ async function batchDeletePurchases() {
     if (master) master.checked = false;
     updateBatchPurchasesUI();
   }
-  showToast(`Đã xóa thành công ${checked.length} chứng từ mua hàng!`, "success");
-
-  // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
-  setTimeout(() => {
-    if (typeof saveStateAndSyncVoucher === "function") saveStateAndSyncVoucher();
-    else saveState();
-    recalculateAccounting();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  const cloudCommitted = typeof saveStateAndSyncVoucher === "function"
+    ? await saveStateAndSyncVoucher()
+    : (saveState(), true);
+  recalculateAccounting();
+  showToast(
+    cloudCommitted ? `Đã xóa thành công ${checked.length} chứng từ mua hàng!` : "Đã xóa trên máy này và đang chờ đồng bộ.",
+    cloudCommitted ? "success" : "warning"
+  );
     if (typeof resetBatchSelectionUI === "function") {
       resetBatchSelectionUI({
         checkboxSelector: ".purchase-checkbox",
@@ -655,7 +662,6 @@ async function batchDeletePurchases() {
         countId: "selected-purchases-count"
       });
     }
-  }, 0);
 }
 
 function exportPurchasesToExcel(detailed = true) {
@@ -1164,10 +1170,15 @@ async function handlePurchaseOrderSubmit(e) {
 
   recalculateAccounting(false);
   setVoucherFormStatus(modalId, "Đang lưu và đồng bộ máy khác...", "sync");
-  await saveStateAndSyncVoucher();
+  const cloudCommitted = await saveStateAndSyncVoucher();
 
   closeModal(modalId);
-  showToast(isEdit ? "Cập nhật đơn đặt hàng thành công!" : "Lập đơn đặt hàng thành công!", "success");
+  showToast(
+    cloudCommitted
+      ? (isEdit ? "Cập nhật đơn đặt hàng thành công!" : "Lập đơn đặt hàng thành công!")
+      : "Đơn đặt hàng đã lưu trên máy này và đang chờ đồng bộ sang máy khác.",
+    cloudCommitted ? "success" : "warning"
+  );
   } catch (err) {
     console.error("[PurchaseOrder] Lưu đơn đặt hàng thất bại:", err);
     if (typeof addErrorLog === "function") addErrorLog("handlePurchaseOrderSubmit.save", err.message, err);
@@ -1484,13 +1495,15 @@ async function batchDeletePurchaseOrders() {
     if (master) master.checked = false;
     updateBatchPurchaseOrdersUI();
   }
-  showToast(`Đã xóa thành công ${checked.length} đơn đặt hàng!`, "success");
-
-  // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
-  setTimeout(() => {
-    if (typeof saveStateAndSyncVoucher === "function") saveStateAndSyncVoucher();
-    else saveState();
-    recalculateAccounting();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  const cloudCommitted = typeof saveStateAndSyncVoucher === "function"
+    ? await saveStateAndSyncVoucher()
+    : (saveState(), true);
+  recalculateAccounting();
+  showToast(
+    cloudCommitted ? `Đã xóa thành công ${checked.length} đơn đặt hàng!` : "Đã xóa trên máy này và đang chờ đồng bộ.",
+    cloudCommitted ? "success" : "warning"
+  );
     if (typeof resetBatchSelectionUI === "function") {
       resetBatchSelectionUI({
         checkboxSelector: ".purchase-order-checkbox",
@@ -1499,7 +1512,6 @@ async function batchDeletePurchaseOrders() {
         countId: "selected-purchase-orders-count"
       });
     }
-  }, 0);
 }
 
 function exportPurchaseOrdersToExcel() {
@@ -2100,10 +2112,15 @@ async function handlePurchaseReturnSubmit(e) {
 
   recalculateAccounting(false);
   setVoucherFormStatus(modalId, "Đang lưu và đồng bộ máy khác...", "sync");
-  await saveStateAndSyncVoucher();
+  const cloudCommitted = await saveStateAndSyncVoucher();
 
   closeModal(modalId);
-  showToast(isEdit ? "Cập nhật chứng từ trả lại thành công!" : "Lập chứng từ trả lại thành công!", "success");
+  showToast(
+    cloudCommitted
+      ? (isEdit ? "Cập nhật chứng từ trả lại thành công!" : "Lập chứng từ trả lại thành công!")
+      : "Chứng từ đã lưu trên máy này và đang chờ đồng bộ sang máy khác.",
+    cloudCommitted ? "success" : "warning"
+  );
   } catch (err) {
     console.error("[PurchaseReturn] Lưu chứng từ trả lại thất bại:", err);
     if (typeof addErrorLog === "function") addErrorLog("handlePurchaseReturnSubmit.save", err.message, err);
@@ -2222,13 +2239,15 @@ async function batchDeletePurchaseReturns() {
     if (master) master.checked = false;
     updateBatchPurchaseReturnsUI();
   }
-  showToast(`Đã xóa thành công ${checked.length} chứng từ trả lại hàng!`, "success");
-
-  // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
-  setTimeout(() => {
-    if (typeof saveStateAndSyncVoucher === "function") saveStateAndSyncVoucher();
-    else saveState();
-    recalculateAccounting();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  const cloudCommitted = typeof saveStateAndSyncVoucher === "function"
+    ? await saveStateAndSyncVoucher()
+    : (saveState(), true);
+  recalculateAccounting();
+  showToast(
+    cloudCommitted ? `Đã xóa thành công ${checked.length} chứng từ trả lại hàng!` : "Đã xóa trên máy này và đang chờ đồng bộ.",
+    cloudCommitted ? "success" : "warning"
+  );
     if (typeof resetBatchSelectionUI === "function") {
       resetBatchSelectionUI({
         checkboxSelector: ".purchase-return-checkbox",
@@ -2237,7 +2256,6 @@ async function batchDeletePurchaseReturns() {
         countId: "selected-purchase-returns-count"
       });
     }
-  }, 0);
 }
 
 function exportPurchaseReturnsToExcel() {

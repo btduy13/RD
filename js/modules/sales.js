@@ -622,10 +622,13 @@ async function handleSalesSubmit(e) {
 
   recalculateAccounting(false);
   setVoucherFormStatus(modalId, "Đang lưu và đồng bộ máy khác...", "sync");
-  await saveStateAndSyncVoucher();
+  const cloudCommitted = await saveStateAndSyncVoucher();
 
   closeModal(modalId);
-  showToast("Lập hóa đơn bán hàng thành công!", "success");
+  showToast(
+    cloudCommitted ? "Lập hóa đơn bán hàng thành công!" : "Hóa đơn đã lưu trên máy này và đang chờ đồng bộ sang máy khác.",
+    cloudCommitted ? "success" : "warning"
+  );
   if (typeof viewVoucher === "function") {
     viewVoucher(newVoucher.id || voucherId);
   }
@@ -750,13 +753,15 @@ async function batchDeleteSales() {
     if (master) master.checked = false;
     updateBatchSalesUI();
   }
-  showToast(`Đã xóa thành công ${checked.length} chứng từ bán hàng!`, "success");
-
-  // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
-  setTimeout(() => {
-    if (typeof saveStateAndSyncVoucher === "function") saveStateAndSyncVoucher();
-    else saveState();
-    recalculateAccounting();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  const cloudCommitted = typeof saveStateAndSyncVoucher === "function"
+    ? await saveStateAndSyncVoucher()
+    : (saveState(), true);
+  recalculateAccounting();
+  showToast(
+    cloudCommitted ? `Đã xóa thành công ${checked.length} chứng từ bán hàng!` : "Đã xóa trên máy này và đang chờ đồng bộ.",
+    cloudCommitted ? "success" : "warning"
+  );
     if (typeof resetBatchSelectionUI === "function") {
       resetBatchSelectionUI({
         checkboxSelector: ".sale-checkbox",
@@ -766,7 +771,6 @@ async function batchDeleteSales() {
       });
     }
     // recalculateAccounting đã gọi refreshUI() bên trong
-  }, 0);
 }
 
 function resetEditingSalesId() {
@@ -1249,10 +1253,15 @@ async function handleSalesReturnSubmit(e) {
 
   recalculateAccounting(false);
   setVoucherFormStatus(modalId, "Đang lưu và đồng bộ máy khác...", "sync");
-  await saveStateAndSyncVoucher();
+  const cloudCommitted = await saveStateAndSyncVoucher();
 
   closeModal(modalId);
-  showToast(isEdit ? "Cập nhật chứng từ trả lại thành công!" : "Lập chứng từ trả lại hàng thành công!", "success");
+  showToast(
+    cloudCommitted
+      ? (isEdit ? "Cập nhật chứng từ trả lại thành công!" : "Lập chứng từ trả lại hàng thành công!")
+      : "Chứng từ đã lưu trên máy này và đang chờ đồng bộ sang máy khác.",
+    cloudCommitted ? "success" : "warning"
+  );
   if (typeof viewVoucher === "function") {
     viewVoucher(newVoucher.id || voucherId);
   }
@@ -1370,13 +1379,15 @@ async function batchDeleteSalesReturns() {
     if (master) master.checked = false;
     updateBatchSalesReturnsUI();
   }
-  showToast(`Đã xóa thành công ${checked.length} chứng từ trả lại hàng!`, "success");
-
-  // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
-  setTimeout(() => {
-    if (typeof saveStateAndSyncVoucher === "function") saveStateAndSyncVoucher();
-    else saveState();
-    recalculateAccounting();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  const cloudCommitted = typeof saveStateAndSyncVoucher === "function"
+    ? await saveStateAndSyncVoucher()
+    : (saveState(), true);
+  recalculateAccounting();
+  showToast(
+    cloudCommitted ? `Đã xóa thành công ${checked.length} chứng từ trả lại hàng!` : "Đã xóa trên máy này và đang chờ đồng bộ.",
+    cloudCommitted ? "success" : "warning"
+  );
     if (typeof resetBatchSelectionUI === "function") {
       resetBatchSelectionUI({
         checkboxSelector: ".sales-return-checkbox",
@@ -1385,7 +1396,6 @@ async function batchDeleteSalesReturns() {
         countId: "selected-sales-returns-count"
       });
     }
-  }, 0);
 }
 
 // exportSalesReturnsToExcel
@@ -1917,10 +1927,13 @@ async function handleQuotationSubmit(e) {
 
     recalculateAccounting(false);
     setVoucherFormStatus(modalId, "Đang lưu và đồng bộ máy khác...", "sync");
-    await saveStateAndSyncVoucher();
+    const cloudCommitted = await saveStateAndSyncVoucher();
 
     closeModal(modalId);
-    showToast("Lập phiếu báo giá thành công!", "success");
+    showToast(
+      cloudCommitted ? "Lập phiếu báo giá thành công!" : "Phiếu báo giá đã lưu trên máy này và đang chờ đồng bộ sang máy khác.",
+      cloudCommitted ? "success" : "warning"
+    );
     if (typeof viewVoucher === "function") {
       viewVoucher(newVoucher.id || voucherId);
     }
@@ -2042,11 +2055,15 @@ window.convertQuotationToOrder = async function(id) {
   // Lưu ngay (SQLite + push cloud) thay vì chờ debounce 2s: nếu app tắt/crash
   // trong cửa sổ đó, đơn hàng vừa in số cho khách sẽ biến mất.
   try {
+    let cloudCommitted = true;
     if (typeof saveStateAndSyncVoucher === "function") {
-      await saveStateAndSyncVoucher();
+      cloudCommitted = await saveStateAndSyncVoucher();
     }
     if (typeof showToast === "function") {
-      showToast(`Đã chuyển báo giá ${id} thành đơn hàng ${orderId}!`, "success");
+      showToast(
+        cloudCommitted ? `Đã chuyển báo giá ${id} thành đơn hàng ${orderId}!` : `Đã chuyển thành đơn ${orderId} trên máy này và đang chờ đồng bộ.`,
+        cloudCommitted ? "success" : "warning"
+      );
     }
   } catch (err) {
     console.error("[Sales] Lỗi lưu khi chuyển báo giá thành đơn hàng:", err);
@@ -2114,10 +2131,14 @@ async function batchDeleteQuotations() {
       } else {
         updateBatchQuotationsUI();
       }
-      showToast(`Đã xóa thành công ${idsToDelete.length} báo giá!`, "success");
-      if (typeof saveStateAndSyncVoucher === "function") saveStateAndSyncVoucher();
-      else saveState();
+      const cloudCommitted = typeof saveStateAndSyncVoucher === "function"
+        ? await saveStateAndSyncVoucher()
+        : (saveState(), true);
       recalculateAccounting();
+      showToast(
+        cloudCommitted ? `Đã xóa thành công ${idsToDelete.length} báo giá!` : "Đã xóa trên máy này và đang chờ đồng bộ.",
+        cloudCommitted ? "success" : "warning"
+      );
       if (typeof resetBatchSelectionUI === "function") {
         resetBatchSelectionUI({
           checkboxSelector: ".quotation-checkbox",

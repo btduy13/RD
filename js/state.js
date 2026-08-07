@@ -757,8 +757,9 @@ async function saveStateAndSyncVoucher() {
     throw new Error("Không thể lưu chứng từ vào SQLite.");
   }
 
+  let cloudCommitted = !cloudExpected;
   if (cloudCanCommit) {
-    let cloudCommitted = await pushToCloud({ pendingToken });
+    cloudCommitted = await pushToCloud({ pendingToken });
     if (!cloudCommitted && pendingToken) {
       await waitForPushToComplete(7000);
       cloudCommitted = typeof window.getPendingCloudWriteToken !== "function" ||
@@ -773,7 +774,7 @@ async function saveStateAndSyncVoucher() {
   } else if (pendingToken && typeof showToast === "function") {
     showToast("Chứng từ đã lưu trên máy này; cloud chưa kết nối nên sẽ tự đồng bộ lại.", "warning");
   }
-  return true;
+  return cloudCommitted;
 }
 
 window.saveStateAndSyncVoucher = saveStateAndSyncVoucher;

@@ -34,6 +34,18 @@ const {
 app.commandLine.appendSwitch('js-flags', '--max-old-space-size=8192');
 
 let mainWindow;
+
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  });
+}
 const bootSessionId = String(Math.floor((Date.now() - os.uptime() * 1000) / 60000));
 
 // ===========================================================================
@@ -107,7 +119,8 @@ function createWindow() {
       contextIsolation: true,
       sandbox: true,
       preload: path.join(__dirname, 'preload.js'),
-      webSecurity: true
+      webSecurity: true,
+      backgroundThrottling: false
     },
     // Giao diện bắt đầu mượt mà, ẩn cửa sổ cho đến khi sẵn sàng hiển thị để tránh chớp trắng
     show: false,

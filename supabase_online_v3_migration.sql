@@ -41,6 +41,7 @@ begin
   end if;
 end $$;
 create index if not exists idx_rd_accounting_workspace_version on public.rd_accounting_data(workspace_id, sync_version, id);
+create index if not exists idx_rd_accounting_workspace_id_pattern on public.rd_accounting_data(workspace_id, id text_pattern_ops);
 
 create or replace function public.rd_cloud_status(p_workspace_id uuid)
 returns table(workspace_id uuid, sync_version bigint)
@@ -83,7 +84,8 @@ returns table(id text,last_modified bigint) language plpgsql security definer se
 as $$
 begin
   return query select d.id,d.last_modified from public.rd_accounting_data d
-    where d.workspace_id=p_workspace_id and left(d.id,length(p_prefix))=p_prefix
+    where d.workspace_id=p_workspace_id
+      and d.id like replace(replace(replace(p_prefix, E'\\', E'\\\\'), '%', E'\\%'), '_', E'\\_') || '%' escape E'\\'
       and (p_after_id is null or d.id>p_after_id)
       and (
         left(p_prefix,5) <> 'lock_' or
@@ -169,6 +171,10 @@ drop policy if exists "Allow public delete" on public.rd_accounting_data;
 drop policy if exists "Workspace members read accounting data" on public.rd_accounting_data;
 revoke all on public.rd_accounting_data from anon, authenticated;
 revoke all on public.rd_workspaces from anon, authenticated;
+drop policy if exists "Realtime read sync signal" on public.rd_accounting_data;
+create policy "Realtime read sync signal" on public.rd_accounting_data
+  for select to anon, authenticated using (id = 'sync_signal');
+grant select(workspace_id, id, sync_version, updated_by) on public.rd_accounting_data to anon, authenticated;
 revoke execute on function public.rd_cloud_status(uuid) from public;
 revoke execute on function public.rd_sync_snapshot(uuid,text,integer) from public;
 revoke execute on function public.rd_sync_delta(uuid,bigint,text,integer) from public;

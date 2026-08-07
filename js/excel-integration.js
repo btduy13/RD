@@ -1914,7 +1914,7 @@ function parseExcelFile(file, type) {
     }
 
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
         try {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
@@ -2551,7 +2551,9 @@ function parseExcelFile(file, type) {
                     state.soChiTietBanHangIntegrated = true;
                     state.salesExcelIntegrated = true;
 
-                    saveState();
+                    const cloudCommitted = typeof saveStateAndSyncVoucher === "function"
+                        ? await saveStateAndSyncVoucher()
+                        : (saveState(), true);
                     recalculateAccounting();
 
                     // Báo cáo chi tiết theo loại
@@ -2561,21 +2563,15 @@ function parseExcelFile(file, type) {
                             const labels = { sales: 'Bán hàng', sales_return: 'Bán trả lại', purchase: 'Mua hàng', purchase_return: 'Mua trả lại', receipt: 'Phiếu thu', payment: 'Phiếu chi' };
                             return `${labels[t] || t}: ${n}`;
                         }).join(', ');
-                    showToast(`Đã nạp ${count} chứng từ (${typeSummary})`, "success");
+                    showToast(
+                        cloudCommitted
+                            ? `Đã nạp và đồng bộ ${count} chứng từ (${typeSummary})`
+                            : `Đã nạp ${count} chứng từ trên máy này; đang chờ đồng bộ (${typeSummary})`,
+                        cloudCommitted ? "success" : "warning"
+                    );
 
                     if (typeof filterSales === "function") filterSales();
                     if (typeof renderDashboard === "function") renderDashboard();
-
-                    // Đẩy lên cloud ngay để ghi đè data cũ sai
-                    if (typeof pushToCloud === "function") {
-                        setTimeout(() => {
-                            state._lastModified = Date.now();
-                            pushToCloud()
-                                .then(() => showToast("Đã đồng bộ lên đám mây thành công!", "success"))
-                                .catch(err => { console.error('[SalesImport] Lỗi push cloud:', err);
-                                    showToast("Lỗi đồng bộ: " + err.message, "danger"); });
-                        }, 1500);
-                    }
 
                 } else {
                     let count = 0;

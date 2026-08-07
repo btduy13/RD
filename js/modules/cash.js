@@ -471,10 +471,15 @@ async function handleReceiptSubmit(e) {
 
     setVoucherFormStatus(modalId, "Đang đồng bộ máy khác...", "sync");
     recalculateAccounting(false);
-    await saveStateAndSyncVoucher();
+    const cloudCommitted = await saveStateAndSyncVoucher();
 
     closeModal(modalId);
-    showToast(isEdit ? "Cập nhật phiếu thu thành công!" : "Lập phiếu thu thành công!", "success");
+    showToast(
+      cloudCommitted
+        ? (isEdit ? "Cập nhật phiếu thu thành công!" : "Lập phiếu thu thành công!")
+        : "Phiếu thu đã lưu trên máy này và đang chờ đồng bộ sang máy khác.",
+      cloudCommitted ? "success" : "warning"
+    );
     document.getElementById("form-receipt").reset();
 
     filterCash();
@@ -561,10 +566,15 @@ async function handlePaymentSubmit(e) {
 
     setVoucherFormStatus(modalId, "Đang đồng bộ máy khác...", "sync");
     recalculateAccounting(false);
-    await saveStateAndSyncVoucher();
+    const cloudCommitted = await saveStateAndSyncVoucher();
 
     closeModal(modalId);
-    showToast(isEdit ? "Cập nhật phiếu chi thành công!" : "Lập phiếu chi thành công!", "success");
+    showToast(
+      cloudCommitted
+        ? (isEdit ? "Cập nhật phiếu chi thành công!" : "Lập phiếu chi thành công!")
+        : "Phiếu chi đã lưu trên máy này và đang chờ đồng bộ sang máy khác.",
+      cloudCommitted ? "success" : "warning"
+    );
     document.getElementById("form-payment").reset();
 
     filterCash();
@@ -989,13 +999,15 @@ async function batchDeleteCash() {
     if (master) master.checked = false;
     updateBatchCashUI();
   }
-  showToast(`Đã xóa thành công ${checked.length} chứng từ thu chi!`, "success");
-
-  // Trì hoãn công việc nặng sang frame tiếp theo để tránh brick UI
-  setTimeout(() => {
-    if (typeof saveStateAndSyncVoucher === "function") saveStateAndSyncVoucher();
-    else saveState();
-    recalculateAccounting();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  const cloudCommitted = typeof saveStateAndSyncVoucher === "function"
+    ? await saveStateAndSyncVoucher()
+    : (saveState(), true);
+  recalculateAccounting();
+  showToast(
+    cloudCommitted ? `Đã xóa thành công ${checked.length} chứng từ thu chi!` : "Đã xóa trên máy này và đang chờ đồng bộ.",
+    cloudCommitted ? "success" : "warning"
+  );
     if (typeof resetBatchSelectionUI === "function") {
       resetBatchSelectionUI({
         checkboxSelector: ".cash-checkbox",
@@ -1004,7 +1016,6 @@ async function batchDeleteCash() {
         countId: "selected-cash-count"
       });
     }
-  }, 0);
 }
 // Cash
 window.filterCash = filterCash;

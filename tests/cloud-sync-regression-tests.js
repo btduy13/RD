@@ -1218,6 +1218,51 @@ function testRealtimeSubscriptionUsesOneCompactSignalEvent() {
   assert.equal(metrics.activePollIntervalMs, 120000);
 }
 
+function testHiddenWorkspaceVoucherTabDoesNotBlockCloudPulls() {
+  const modal = { style: { display: "none" } };
+  const { sandbox, vm } = loadCloudSyncInternals({
+    isWorkspaceTabOpen() { return true; },
+    getComputedStyle() { return { display: "none" }; },
+    document: {
+      getElementById(id) { return id === "modal-add-purchase-order" ? modal : null; },
+      addEventListener() {},
+      hidden: false
+    }
+  });
+
+  assert.equal(
+    vm.runInContext("isVoucherEntryModalOpen()", sandbox),
+    false,
+    "a hidden draft tab must not pause Realtime/poll pulls for the whole application"
+  );
+  modal.style.display = "flex";
+  assert.equal(
+    vm.runInContext("isVoucherEntryModalOpen()", sandbox),
+    true,
+    "the visible voucher form must still defer a pull while the user is editing it"
+  );
+}
+
+function testVersionedTransactionsAreBoundedAndSignalOnlyAfterFinalBatch() {
+  const { internals } = loadCloudSyncInternals();
+  const rows = Array.from({ length: 725 }, (_, index) => ({
+    id: `v_BATCH-${index}`,
+    data: { id: `BATCH-${index}` }
+  }));
+  rows.push({ id: "sync_signal", data: {} });
+
+  const batches = internals.cloudSyncBuildTransactionBatches(rows);
+  assert.equal(batches.length, 8, "726 rows must be split into eight production-safe RPC transactions");
+  assert.ok(batches.every(batch => batch.length <= 100), "no transaction may exceed the production-safe batch size");
+  assert.equal(
+    batches.slice(0, -1).some(batch => batch.some(row => row.id === "sync_signal")),
+    false,
+    "other stations must not pull a half-committed logical push"
+  );
+  assert.equal(batches.at(-1).at(-1).id, "sync_signal", "the final commit must publish the Realtime signal");
+  assert.equal(batches.flat().length, 726, "batching must not lose or duplicate rows");
+}
+
 async function testCommittedV3PushAcknowledgesOwnVersionWithoutEchoPull() {
   const calls = [];
   const client = {
@@ -1267,6 +1312,135 @@ async function testCommittedV3PushAcknowledgesOwnVersionWithoutEchoPull() {
     transaction.params.p_rows.some(row => row.id === 'metadata'),
     false,
     'a voucher plus local audit log must remain an entity-only transaction'
+  );
+}
+
+async function testLargeVersionedPushUsesMultipleBoundedTransactions() {
+  const calls = [];
+  let version = 70;
+  const client = {
+    async rpc(name, params) {
+      calls.push({ name, params });
+      if (name === 'rd_find_ids') return { data: [], error: null };
+      if (name === 'rd_cloud_status') return {
+        data: [{ workspace_id: '00000000-0000-4000-8000-000000000001', sync_version: version }],
+        error: null
+      };
+      if (name === 'rd_apply_sync_transaction') {
+        assert.equal(params.p_expected_sync_version, version, 'each batch must continue from the previous committed version');
+        version += 1;
+        return { data: { ok: true, conflict: false, sync_version: version }, error: null };
+      }
+      throw new Error(`unexpected RPC ${name}`);
+    }
+  };
+  const { sandbox, vm } = loadCloudSyncInternals({ __versionedClient: client });
+  const result = await vm.runInContext(`
+    cloudSyncActive = true;
+    isStartupPullCompleted = true;
+    cloudUsesVersionedRpc = true;
+    cloudSyncVersion = 70;
+    supabaseClient = __versionedClient;
+    lastPullCompletedAt = Date.now();
+    state._lastPulledCloudTs = 70;
+    lastSyncState = JSON.parse(JSON.stringify(state));
+    window.lastSyncState = lastSyncState;
+    state.vouchers = Array.from({ length: 725 }, (_, index) => ({
+      id: 'BH-LARGE-' + index,
+      type: 'sales',
+      totalAmount: index + 1,
+      _updatedAt: 5000,
+      _sessionId: clientSessionId
+    }));
+    state._lastModified = 5000;
+    cloudSyncPushNow();
+  `, sandbox);
+
+  assert.equal(result, true);
+  const transactions = calls.filter(call => call.name === 'rd_apply_sync_transaction');
+  assert.equal(transactions.length, 8, '725 vouchers plus one signal must commit in eight production-safe transactions');
+  assert.ok(transactions.every(call => call.params.p_rows.length <= 100));
+  assert.equal(
+    transactions.slice(0, -1).some(call => call.params.p_rows.some(row => row.id === 'sync_signal')),
+    false
+  );
+  assert.equal(transactions.at(-1).params.p_rows.at(-1).id, 'sync_signal');
+  assert.equal(sandbox.state._lastPulledCloudTs, 78);
+}
+
+async function testVersionedPrePullChecksCloudInsideCooldownWindow() {
+  const calls = [];
+  const client = {
+    async rpc(name) {
+      calls.push(name);
+      if (name === 'rd_cloud_status') return {
+        data: [{ workspace_id: '00000000-0000-4000-8000-000000000001', sync_version: 90 }],
+        error: null
+      };
+      throw new Error(`unexpected RPC ${name}`);
+    }
+  };
+  const { sandbox, vm } = loadCloudSyncInternals({ __versionedClient: client });
+  await vm.runInContext(`
+    cloudSyncActive = true;
+    cloudUsesVersionedRpc = true;
+    cloudSyncVersion = 90;
+    supabaseClient = __versionedClient;
+    lastPullCompletedAt = Date.now();
+    state._lastPulledCloudTs = 90;
+    lastSyncState = JSON.parse(JSON.stringify(state));
+    window.lastSyncState = lastSyncState;
+    __cloudSyncInternals__.cloudSyncPrePullBeforePush();
+  `, sandbox);
+
+  assert.ok(
+    calls.includes('rd_cloud_status'),
+    'a versioned push must re-check the cloud even inside the legacy cooldown or it can acknowledge unseen earlier rows'
+  );
+}
+
+async function testTransactionExpectedVersionNeverSkipsUnpulledStatusVersion() {
+  const transactions = [];
+  let statusReads = 0;
+  const client = {
+    async rpc(name, params) {
+      if (name === 'rd_find_ids') return { data: [], error: null };
+      if (name === 'rd_cloud_status') {
+        statusReads += 1;
+        const syncVersion = statusReads === 1 ? 120 : 121;
+        return {
+          data: [{ workspace_id: '00000000-0000-4000-8000-000000000001', sync_version: syncVersion }],
+          error: null
+        };
+      }
+      if (name === 'rd_apply_sync_transaction') {
+        transactions.push(params);
+        return { data: { ok: true, conflict: false, sync_version: 122 }, error: null };
+      }
+      throw new Error(`unexpected RPC ${name}`);
+    }
+  };
+  const { sandbox, vm } = loadCloudSyncInternals({ __versionedClient: client });
+  const result = await vm.runInContext(`
+    cloudSyncActive = true;
+    isStartupPullCompleted = true;
+    cloudUsesVersionedRpc = true;
+    cloudSyncVersion = 120;
+    supabaseClient = __versionedClient;
+    state._lastPulledCloudTs = 120;
+    lastSyncState = JSON.parse(JSON.stringify(state));
+    window.lastSyncState = lastSyncState;
+    state.vouchers.push({ id: 'BH-RACE', type: 'sales', _updatedAt: 5000, _sessionId: clientSessionId });
+    state._lastModified = 5000;
+    cloudSyncPushNow();
+  `, sandbox);
+
+  assert.equal(result, true);
+  assert.equal(transactions.length, 1);
+  assert.equal(
+    transactions[0].p_expected_sync_version,
+    120,
+    'a later status read must not acknowledge version 121 before its rows have been pulled into local state'
   );
 }
 
@@ -1633,7 +1807,12 @@ async function run() {
   testLocalAuditLogsDoNotCreateCloudDeltaAndSurviveMerge();
   testDerivedDeletionArraysOnlyCreateTypedTombstones();
   testRealtimeSubscriptionUsesOneCompactSignalEvent();
+  testHiddenWorkspaceVoucherTabDoesNotBlockCloudPulls();
+  testVersionedTransactionsAreBoundedAndSignalOnlyAfterFinalBatch();
   await testCommittedV3PushAcknowledgesOwnVersionWithoutEchoPull();
+  await testLargeVersionedPushUsesMultipleBoundedTransactions();
+  await testVersionedPrePullChecksCloudInsideCooldownWindow();
+  await testTransactionExpectedVersionNeverSkipsUnpulledStatusVersion();
   await testNoOpPushDoesNotTouchCloud();
   await testLegacyDeltaSecondPageQuotesSpecialCursor();
   await testRescueRemovesStuckVoucherFromLastSyncState();
