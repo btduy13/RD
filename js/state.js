@@ -754,12 +754,23 @@ async function saveStateAndSyncVoucher() {
     : null;
   const saved = await executeSaveState(true, { skipCloudPush: true });
   if (!saved) {
+    if (pendingToken && typeof window.clearCloudWritePending === "function") {
+      window.clearCloudWritePending(pendingToken);
+    }
     throw new Error("Không thể lưu chứng từ vào SQLite.");
   }
 
   let cloudCommitted = !cloudExpected;
   if (cloudCanCommit) {
-    cloudCommitted = await pushToCloud({ pendingToken });
+    try {
+      cloudCommitted = await pushToCloud({ pendingToken });
+    } catch (err) {
+      // Local SQLite persistence already succeeded. A cloud transport failure
+      // must stay a pending sync result, not masquerade as a local save failure
+      // that callers may roll back in-memory state for.
+      cloudCommitted = false;
+      console.error("[StateFile] Cloud commit attempt failed after local persistence:", err);
+    }
     if (!cloudCommitted && pendingToken) {
       await waitForPushToComplete(7000);
       cloudCommitted = typeof window.getPendingCloudWriteToken !== "function" ||

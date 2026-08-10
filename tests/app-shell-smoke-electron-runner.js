@@ -50,6 +50,238 @@ async function main() {
   })`);
   console.log('[app-shell-smoke] startup settled');
 
+  const quotationConversionResult = await win.webContents.executeJavaScript(`(async () => {
+    const previousVouchers = state.vouchers;
+    const originalSave = window.saveStateAndSyncVoucher;
+    let finishSave;
+    try {
+      state.vouchers = [{
+        id: 'BG-CONVERT-SMOKE',
+        type: 'sales_quotation',
+        date: '2026-08-10',
+        partnerId: 'KH-SMOKE',
+        partnerName: 'Khách kiểm thử',
+        paymentMethod: '131',
+        description: 'Báo giá kiểm thử',
+        items: []
+      }];
+      window.saveStateAndSyncVoucher = () => new Promise(resolve => { finishSave = resolve; });
+
+      const conversion = convertQuotationToOrder('BG-CONVERT-SMOKE');
+      const duplicateConversion = convertQuotationToOrder('BG-CONVERT-SMOKE');
+      document.getElementById('custom-confirm-btn-ok').click();
+      await new Promise(resolve => setTimeout(resolve, 20));
+
+      const immediateState = {
+        quotationExists: state.vouchers.some(v => v.id === 'BG-CONVERT-SMOKE'),
+        salesOrders: state.vouchers.filter(v => v.type === 'sales'),
+        activeSubtab: document.getElementById('sales-subtab-invoice')?.style.display === 'flex'
+      };
+      finishSave(true);
+      const [completed, duplicateCompleted] = await Promise.all([conversion, duplicateConversion]);
+      return {
+        completed,
+        duplicateCompleted,
+        quotationExistsBeforeSaveFinished: immediateState.quotationExists,
+        orderCountBeforeSaveFinished: immediateState.salesOrders.length,
+        orderDescription: immediateState.salesOrders[0]?.description || '',
+        invoiceTabActiveBeforeSaveFinished: immediateState.activeSubtab
+      };
+    } finally {
+      window.saveStateAndSyncVoucher = originalSave;
+      state.vouchers = previousVouchers;
+      renderSalesTable();
+      renderQuotationTable();
+    }
+  })()`);
+  assert.deepEqual(quotationConversionResult, {
+    completed: true,
+    duplicateCompleted: false,
+    quotationExistsBeforeSaveFinished: false,
+    orderCountBeforeSaveFinished: 1,
+    orderDescription: 'Đơn hàng kiểm thử',
+    invoiceTabActiveBeforeSaveFinished: true
+  }, 'quotation conversion must update local state and UI before persistence/cloud completes');
+  console.log('[app-shell-smoke] quotation conversion verified');
+
+  const quotationConversionEdgeResult = await win.webContents.executeJavaScript(`(async () => {
+    const previousVouchers = state.vouchers;
+    const originalSave = window.saveStateAndSyncVoucher;
+    const originalSafeId = window.getCloudSafeVoucherId;
+    const originalConsoleError = console.error;
+    const makeQuote = id => ({
+      id,
+      type: 'sales_quotation',
+      date: '2026-08-10',
+      partnerId: 'KH-SMOKE',
+      partnerName: 'Khách kiểm thử',
+      paymentMethod: '131',
+      description: 'Báo giá kiểm thử',
+      items: []
+    });
+    try {
+      window.saveStateAndSyncVoucher = async () => true;
+
+      state.vouchers = [makeQuote('BG-CANCEL')];
+      const canceledConversion = convertQuotationToOrder('BG-CANCEL');
+      document.getElementById('custom-confirm-btn-cancel').click();
+      const canceled = await canceledConversion;
+      const cancelPreserved = state.vouchers.some(v => v.id === 'BG-CANCEL' && v.type === 'sales_quotation');
+
+      state.vouchers = [makeQuote('BG-FIRST'), makeQuote('BG-SECOND')];
+      const firstConversion = convertQuotationToOrder('BG-FIRST');
+      const blockedDifferentQuote = await convertQuotationToOrder('BG-SECOND');
+      document.getElementById('custom-confirm-btn-ok').click();
+      const firstCompleted = await firstConversion;
+      const secondPreserved = state.vouchers.some(v => v.id === 'BG-SECOND' && v.type === 'sales_quotation');
+
+      let finishSafeId;
+      window.getCloudSafeVoucherId = () => new Promise(resolve => { finishSafeId = resolve; });
+      state.vouchers = [makeQuote('BG-STALE'), makeQuote('UNRELATED')];
+      const staleConversion = convertQuotationToOrder('BG-STALE');
+      document.getElementById('custom-confirm-btn-ok').click();
+      await new Promise(resolve => setTimeout(resolve, 10));
+      state.vouchers.reverse();
+      finishSafeId('BH-SAFE');
+      const staleCompleted = await staleConversion;
+      const unrelatedPreserved = state.vouchers.some(v => v.id === 'UNRELATED');
+      const safeOrderCreated = state.vouchers.some(v => v.id === 'BH-SAFE' && v.type === 'sales');
+
+      let finishMissingSafeId;
+      window.getCloudSafeVoucherId = () => new Promise(resolve => { finishMissingSafeId = resolve; });
+      console.error = () => {};
+      state.vouchers = [makeQuote('BG-DISAPPEARED')];
+      const disappearedConversion = convertQuotationToOrder('BG-DISAPPEARED');
+      document.getElementById('custom-confirm-btn-ok').click();
+      await new Promise(resolve => setTimeout(resolve, 10));
+      state.vouchers = [];
+      finishMissingSafeId('BH-NOT-CREATED');
+      const disappearedCompleted = await disappearedConversion;
+      console.error = originalConsoleError;
+      const disappearedOrderAbsent = !state.vouchers.some(v => v.id === 'BH-NOT-CREATED');
+
+      window.getCloudSafeVoucherId = originalSafeId;
+      window.saveStateAndSyncVoucher = async () => false;
+      const pendingQuote = makeQuote('BG-PENDING');
+      pendingQuote.description = '';
+      state.vouchers = [pendingQuote];
+      const pendingConversion = convertQuotationToOrder('BG-PENDING');
+      document.getElementById('custom-confirm-btn-ok').click();
+      const pendingCompleted = await pendingConversion;
+      const pendingOrder = state.vouchers.find(v => v.type === 'sales');
+      const pendingOrderRetained = !!pendingOrder && pendingOrder.description === 'Đơn hàng từ báo giá';
+      const pendingQuoteRemoved = !state.vouchers.some(v => v.id === 'BG-PENDING');
+
+      window.saveStateAndSyncVoucher = async () => { throw new Error('SQLite unavailable'); };
+      console.error = () => {};
+      state.vouchers = [makeQuote('BG-ROLLBACK')];
+      const rollbackConversion = convertQuotationToOrder('BG-ROLLBACK');
+      document.getElementById('custom-confirm-btn-ok').click();
+      const rollbackCompleted = await rollbackConversion;
+      console.error = originalConsoleError;
+      const rollbackRestored = state.vouchers.some(v => v.id === 'BG-ROLLBACK' && v.type === 'sales_quotation');
+      const rollbackOrderAbsent = !state.vouchers.some(v => v.type === 'sales');
+      const rollbackTombstoneAbsent = !(state.deletedIds || []).includes('BG-ROLLBACK')
+        && !(state.deletedCloudKeys || []).includes('v_BG-ROLLBACK');
+
+      return {
+        canceled,
+        cancelPreserved,
+        blockedDifferentQuote,
+        firstCompleted,
+        secondPreserved,
+        staleCompleted,
+        unrelatedPreserved,
+        safeOrderCreated,
+        disappearedCompleted,
+        disappearedOrderAbsent,
+        pendingCompleted,
+        pendingOrderRetained,
+        pendingQuoteRemoved,
+        rollbackCompleted,
+        rollbackRestored,
+        rollbackOrderAbsent,
+        rollbackTombstoneAbsent
+      };
+    } finally {
+      window.saveStateAndSyncVoucher = originalSave;
+      window.getCloudSafeVoucherId = originalSafeId;
+      console.error = originalConsoleError;
+      state.vouchers = previousVouchers;
+      renderSalesTable();
+      renderQuotationTable();
+    }
+  })()`);
+  assert.deepEqual(quotationConversionEdgeResult, {
+    canceled: false,
+    cancelPreserved: true,
+    blockedDifferentQuote: false,
+    firstCompleted: true,
+    secondPreserved: true,
+    staleCompleted: true,
+    unrelatedPreserved: true,
+    safeOrderCreated: true,
+    disappearedCompleted: false,
+    disappearedOrderAbsent: true,
+    pendingCompleted: true,
+    pendingOrderRetained: true,
+    pendingQuoteRemoved: true,
+    rollbackCompleted: false,
+    rollbackRestored: true,
+    rollbackOrderAbsent: true,
+    rollbackTombstoneAbsent: true
+  }, `quotation conversion must handle cancellation, shared-dialog locking, realtime reorder, and local-save rollback: ${JSON.stringify(quotationConversionEdgeResult)}`);
+  console.log('[app-shell-smoke] quotation conversion edge cases verified');
+
+  const pendingMarkerCleanupResult = await win.webContents.executeJavaScript(`(async () => {
+    const originalPersistFull = window.persistFullState;
+    const originalPersistDelta = window.persistStateDelta;
+    const originalCloudEnabled = cloudSyncSettings.enabled;
+    const originalCompanyName = state.companyName;
+    const originalConsoleError = console.error;
+    try {
+      initializeLastSavedState(state);
+      cloudSyncSettings.enabled = true;
+      window.persistStateDelta = async () => ({ ok: false, error: 'forced delta failure' });
+      window.persistFullState = async () => ({ ok: false, error: 'forced full failure' });
+      console.error = () => {};
+      state.companyName = originalCompanyName + ' pending-cleanup-test';
+      let rejected = false;
+      try {
+        await saveStateAndSyncVoucher();
+      } catch (_error) {
+        rejected = true;
+      }
+      return {
+        rejected,
+        token: getPendingCloudWriteToken(),
+        localToken: localStorage.getItem('rd_accounting_cloud_push_pending'),
+        manifest: localStorage.getItem('rd_accounting_cloud_push_pending_manifest'),
+        stateMarker: state._pendingCloudWrite || null
+      };
+    } finally {
+      window.persistFullState = originalPersistFull;
+      window.persistStateDelta = originalPersistDelta;
+      cloudSyncSettings.enabled = originalCloudEnabled;
+      state.companyName = originalCompanyName;
+      console.error = originalConsoleError;
+      initializeLastSavedState(state);
+    }
+  })()`);
+  assert.deepEqual(pendingMarkerCleanupResult, {
+    rejected: true,
+    token: '',
+    localToken: null,
+    manifest: null,
+    stateMarker: null
+  }, 'failed local persistence must clear its pending cloud token and manifest');
+  for (let i = consoleErrors.length - 1; i >= 0; i--) {
+    if (consoleErrors[i].includes('forced delta failure') || consoleErrors[i].includes('forced full failure')) {
+      consoleErrors.splice(i, 1);
+    }
+  }
+  console.log('[app-shell-smoke] failed-save pending marker cleanup verified');
+
   const result = await win.webContents.executeJavaScript(`(async () => {
     const duplicateIds = Array.from(document.querySelectorAll('[id]'))
       .map(node => node.id)
