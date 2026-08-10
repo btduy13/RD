@@ -381,19 +381,28 @@ function cloudSyncPrefixForEntity(entityType) {
 }
 
 function trackDeletedIds(ids, entityType = "voucher") {
-  if (!ids || ids.length === 0) return;
+  if (!ids || ids.length === 0) return null;
   if (!Array.isArray(state.deletedIds)) state.deletedIds = [];
   if (!Array.isArray(state.deletedCloudKeys)) state.deletedCloudKeys = [];
 
   const prefix = cloudSyncPrefixForEntity(entityType);
   const deletedAt = Date.now();
+  const rollbackToken = { deletedAt, entries: [] };
   if (!state._deletedCloudKeyTs || typeof state._deletedCloudKeyTs !== "object") {
     state._deletedCloudKeyTs = {};
   }
   ids.forEach(id => {
     if (!id) return;
-    if (!state.deletedIds.includes(id)) state.deletedIds.push(id);
     const cloudKey = `${prefix}${id}`;
+    rollbackToken.entries.push({
+      id,
+      cloudKey,
+      hadDeletedId: state.deletedIds.includes(id),
+      hadCloudKey: state.deletedCloudKeys.includes(cloudKey),
+      previousTs: state._deletedCloudKeyTs[cloudKey],
+      pendingBefore: cloudSyncPendingDeletionKeys.has(cloudKey)
+    });
+    if (!state.deletedIds.includes(id)) state.deletedIds.push(id);
     if (!state.deletedCloudKeys.includes(cloudKey)) state.deletedCloudKeys.push(cloudKey);
     // Persist per-tombstone age locally so a restart cannot fall back to the
     // global watermark and wipe a recreated order that reused this ID.
@@ -405,6 +414,28 @@ function trackDeletedIds(ids, entityType = "voucher") {
   });
 
   state._lastModified = deletedAt;
+  return rollbackToken;
+}
+
+function rollbackTrackedDeletedIds(rollbackToken) {
+  if (!rollbackToken || !Array.isArray(rollbackToken.entries)) return false;
+  if (!Array.isArray(state.deletedIds)) state.deletedIds = [];
+  if (!Array.isArray(state.deletedCloudKeys)) state.deletedCloudKeys = [];
+  if (!state._deletedCloudKeyTs || typeof state._deletedCloudKeyTs !== "object") {
+    state._deletedCloudKeyTs = {};
+  }
+
+  rollbackToken.entries.forEach(entry => {
+    // A newer delete for the same entity owns the marker and must not be undone.
+    if (Number(state._deletedCloudKeyTs[entry.cloudKey]) !== Number(rollbackToken.deletedAt)) return;
+    if (!entry.hadDeletedId) state.deletedIds = state.deletedIds.filter(id => id !== entry.id);
+    if (!entry.hadCloudKey) state.deletedCloudKeys = state.deletedCloudKeys.filter(key => key !== entry.cloudKey);
+    if (entry.previousTs === undefined) delete state._deletedCloudKeyTs[entry.cloudKey];
+    else state._deletedCloudKeyTs[entry.cloudKey] = entry.previousTs;
+    if (!entry.pendingBefore) cloudSyncPendingDeletionKeys.delete(entry.cloudKey);
+  });
+  state._lastModified = Date.now();
+  return true;
 }
 
 // Adopt `newState` as the in-memory cloud snapshot used by computeDelta.
@@ -831,6 +862,7 @@ function cloudSyncClearPendingLocalWrite(expectedToken = null) {
 
 window.markCloudWritePending = markCloudWritePending;
 window.getPendingCloudWriteToken = cloudSyncGetPendingLocalWriteToken;
+window.clearCloudWritePending = cloudSyncClearPendingLocalWrite;
 
 function cloudSyncRenderTasks() {
   const list = document.getElementById("cloud-sync-task-list");
@@ -3834,6 +3866,7 @@ async function fetchExistingCloudIdsByKeysFromClient(client, keys) {
 window.initCloudSync = initCloudSync;
 window.pushToCloud = pushToCloud;
 window.trackDeletedIds = trackDeletedIds;
+window.rollbackTrackedDeletedIds = rollbackTrackedDeletedIds;
 window.forcePullFromCloud = forcePullFromCloud;
 window.forcePushToCloud = forcePushToCloud;
 window.manualIncrementalSync = manualIncrementalSync;

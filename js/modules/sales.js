@@ -1986,30 +1986,49 @@ function editQuotationVoucher(id) {
   openModal("modal-add-sales-quotation");
 }
 
+const quotationConversionsInProgress = new Set();
+
 window.convertQuotationToOrder = async function(id) {
-  const qIdx = state.vouchers.findIndex(v => v.id === id && v.type === "sales_quotation");
-  if (qIdx === -1) {
+  const quotationId = String(id || "");
+  const quotationExists = state.vouchers.some(v => String(v.id) === quotationId && v.type === "sales_quotation");
+  if (!quotationExists) {
     if (typeof showToast === "function") showToast("Không tìm thấy báo giá!", "danger");
     return;
   }
-  
-  const ok = await showConfirmModal({
-    title: "Chuyển báo giá thành Đơn bán hàng",
-    message: `Bạn có chắc muốn chuyển báo giá ${id} thành Đơn bán hàng?\nBáo giá này sẽ bị xóa sau khi chuyển đổi thành công.`,
-    confirmText: "Chuyển đổi ngay",
-    cancelText: "Hủy bỏ",
-    type: "info"
-  });
-  if (!ok) return;
 
-  const quotation = state.vouchers[qIdx];
-  const paymentMethod = quotation.paymentMethod || '131';
-  let orderId = `BH${Date.now()}`;
-  if (typeof generateNextSalesVoucherId === "function") {
-    orderId = generateNextSalesVoucherId(paymentMethod);
-  }
-
+  if (quotationConversionsInProgress.size > 0) return false;
+  quotationConversionsInProgress.add(quotationId);
+  let convertedOrderId = "";
+  let convertedLocally = false;
+  let deletionRollbackToken = null;
+  let convertedOrderUpdatedAt = 0;
+  let quotationBeforeConversion = null;
+  let quotationIndexBeforeConversion = -1;
   try {
+    const ok = await showConfirmModal({
+      title: "Chuyển báo giá thành Đơn bán hàng",
+      message: `Bạn có chắc muốn chuyển báo giá ${quotationId} thành Đơn bán hàng?\nBáo giá này sẽ bị xóa sau khi chuyển đổi thành công.`,
+      confirmText: "Chuyển đổi ngay",
+      cancelText: "Hủy bỏ",
+      type: "info"
+    });
+    if (!ok) return false;
+
+    if (typeof showToast === "function") {
+      showToast(`Đang chuyển báo giá ${quotationId} thành đơn bán hàng...`, "info");
+    }
+
+    // Re-resolve after the asynchronous confirmation because a cloud pull may
+    // have replaced/reordered state.vouchers while the dialog was open.
+    let qIdx = state.vouchers.findIndex(v => String(v.id) === quotationId && v.type === "sales_quotation");
+    if (qIdx === -1) throw new Error("Báo giá không còn tồn tại hoặc đã được chuyển trên máy khác.");
+
+    const paymentMethod = state.vouchers[qIdx].paymentMethod || "131";
+    let orderId = `BH${Date.now()}`;
+    if (typeof generateNextSalesVoucherId === "function") {
+      orderId = generateNextSalesVoucherId(paymentMethod);
+    }
+
     if (typeof getCloudSafeVoucherId === "function") {
       const safeOrderId = await getCloudSafeVoucherId({
         currentId: orderId,
@@ -2020,41 +2039,46 @@ window.convertQuotationToOrder = async function(id) {
         orderId = safeOrderId;
       }
     }
-  } catch (err) {
-    console.error("[Sales] Không thể kiểm tra số đơn bán hàng trên cloud:", err);
-    if (typeof addErrorLog === "function") {
-      addErrorLog("convertQuotationToOrder.cloudSafeId", err.message, err);
-    }
-    if (typeof showToast === "function") {
-      showToast("Không thể kiểm tra số chứng từ trên cloud. Vui lòng thử lại trước khi chuyển báo giá.", "danger");
-    }
-    return;
-  }
-  
-  const newOrder = JSON.parse(JSON.stringify(quotation));
-  newOrder.id = orderId;
-  newOrder.type = "sales";
-  // Đơn hàng mới phải mang timestamp/phiên hiện tại. Giữ _updatedAt cũ của
-  // báo giá sẽ khiến đơn thua mọi tombstone/merge trên cloud và bị xóa nhầm.
-  newOrder._updatedAt = Date.now();
-  if (typeof clientSessionId !== "undefined") newOrder._sessionId = clientSessionId;
-  
-  if (newOrder.description) {
-    newOrder.description = newOrder.description.replace(/báo giá/gi, "Đơn hàng");
-  } else {
-    newOrder.description = "Đơn hàng từ báo giá";
-  }
-  
-  state.vouchers.splice(qIdx, 1);
-  if (typeof trackDeletedIds === "function") trackDeletedIds([id]);
-  
-  state.vouchers.unshift(newOrder); 
-  
-  if (typeof recalculateAccounting === "function") recalculateAccounting();
 
-  // Lưu ngay (SQLite + push cloud) thay vì chờ debounce 2s: nếu app tắt/crash
-  // trong cửa sổ đó, đơn hàng vừa in số cho khách sẽ biến mất.
-  try {
+    // Cloud ID reservation is asynchronous. Re-resolve immediately before the
+    // destructive splice so a realtime refresh cannot make qIdx point elsewhere.
+    qIdx = state.vouchers.findIndex(v => String(v.id) === quotationId && v.type === "sales_quotation");
+    if (qIdx === -1) throw new Error("Báo giá không còn tồn tại hoặc đã được chuyển trên máy khác.");
+    const quotation = state.vouchers[qIdx];
+    quotationBeforeConversion = quotation;
+    quotationIndexBeforeConversion = qIdx;
+
+    const newOrder = JSON.parse(JSON.stringify(quotation));
+    newOrder.id = orderId;
+    newOrder.type = "sales";
+    // Đơn hàng mới phải mang timestamp/phiên hiện tại. Giữ _updatedAt cũ của
+    // báo giá sẽ khiến đơn thua mọi tombstone/merge trên cloud và bị xóa nhầm.
+    newOrder._updatedAt = Date.now();
+    convertedOrderUpdatedAt = newOrder._updatedAt;
+    if (typeof clientSessionId !== "undefined") newOrder._sessionId = clientSessionId;
+
+    if (newOrder.description) {
+      newOrder.description = newOrder.description.replace(/báo giá/gi, "Đơn hàng");
+    } else {
+      newOrder.description = "Đơn hàng từ báo giá";
+    }
+
+    state.vouchers.splice(qIdx, 1);
+    if (typeof trackDeletedIds === "function") deletionRollbackToken = trackDeletedIds([quotationId]);
+    state.vouchers.unshift(newOrder);
+    convertedOrderId = orderId;
+    convertedLocally = true;
+
+    if (typeof recalculateAccounting === "function") recalculateAccounting();
+
+    // Reflect the completed local conversion immediately. Persistence/cloud may
+    // take several seconds and must not leave the user staring at a stale quote.
+    if (typeof renderSalesTable === "function") renderSalesTable();
+    if (typeof renderQuotationTable === "function") renderQuotationTable();
+    if (typeof switchSalesSubTab === "function") switchSalesSubTab("invoice");
+
+    // Lưu ngay (SQLite + push cloud) thay vì chờ debounce 2s: nếu app tắt/crash
+    // trong cửa sổ đó, đơn hàng vừa in số cho khách sẽ biến mất.
     let cloudCommitted = true;
     if (typeof saveStateAndSyncVoucher === "function") {
       cloudCommitted = await saveStateAndSyncVoucher();
@@ -2065,18 +2089,44 @@ window.convertQuotationToOrder = async function(id) {
         cloudCommitted ? "success" : "warning"
       );
     }
+    return true;
   } catch (err) {
-    console.error("[Sales] Lỗi lưu khi chuyển báo giá thành đơn hàng:", err);
-    if (typeof showToast === "function") {
-      showToast(`Đã chuyển thành đơn ${orderId} nhưng chưa lưu được: ${err.message}. Dữ liệu sẽ được lưu lại ở lần lưu kế tiếp.`, "warning");
+    console.error("[Sales] Lỗi chuyển báo giá thành đơn hàng:", err);
+    if (typeof addErrorLog === "function") {
+      addErrorLog("convertQuotationToOrder", err.message, err);
     }
-  }
-
-  if (typeof renderSalesTable === "function") renderSalesTable();
-  if (typeof renderQuotationTable === "function") renderQuotationTable();
-  
-  if (typeof switchSalesSubTab === "function") {
-    switchSalesSubTab('invoice');
+    if (convertedLocally) {
+      const orderIdx = state.vouchers.findIndex(v =>
+        String(v.id) === String(convertedOrderId) && Number(v._updatedAt) === Number(convertedOrderUpdatedAt)
+      );
+      if (orderIdx !== -1) state.vouchers.splice(orderIdx, 1);
+      const quotationStillExists = state.vouchers.some(v =>
+        String(v.id) === quotationId && v.type === "sales_quotation"
+      );
+      if (!quotationStillExists && quotationBeforeConversion) {
+        const restoreAt = Math.min(Math.max(quotationIndexBeforeConversion, 0), state.vouchers.length);
+        state.vouchers.splice(restoreAt, 0, quotationBeforeConversion);
+      }
+      if (typeof rollbackTrackedDeletedIds === "function") {
+        rollbackTrackedDeletedIds(deletionRollbackToken);
+      }
+      convertedLocally = false;
+      if (typeof recalculateAccounting === "function") recalculateAccounting();
+      if (typeof renderSalesTable === "function") renderSalesTable();
+      if (typeof renderQuotationTable === "function") renderQuotationTable();
+      if (typeof switchSalesSubTab === "function") switchSalesSubTab("quotation");
+    }
+    if (typeof showToast === "function") {
+      showToast(
+        quotationBeforeConversion
+          ? `Không thể lưu đơn ${convertedOrderId}: ${err.message}. Báo giá ${quotationId} đã được khôi phục.`
+          : `Không thể chuyển báo giá ${quotationId}: ${err.message}`,
+        "danger"
+      );
+    }
+    return false;
+  } finally {
+    quotationConversionsInProgress.delete(quotationId);
   }
 };
 
