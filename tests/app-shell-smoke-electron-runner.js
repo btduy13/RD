@@ -583,6 +583,68 @@ async function main() {
   }, 'printer UI must persist the device, send A5 directly, and fall back to the system dialog');
   assert.deepEqual(result.cloudClosedState, { ariaHidden: 'true', bodyLocked: false });
 
+  const customerCloneResult = await win.webContents.executeJavaScript(`(() => {
+    const previousPartners = state.partners;
+    const originalSave = window.saveState;
+    const originalInitExcel = window.initExcelIntegration;
+    try {
+      window.saveState = () => true;
+      window.initExcelIntegration = () => {};
+      state.partners = [{
+        id: 'KH-CLONE-SMOKE',
+        name: 'Khách clone smoke',
+        type: 'retail',
+        phone: '0901234567',
+        address: 'Địa chỉ clone smoke'
+      }];
+      filterPartners();
+
+      const customerRow = document.querySelector('#partners-table-body tr[data-id="KH-CLONE-SMOKE"]');
+      customerRow.dispatchEvent(new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 100,
+        clientY: 100
+      }));
+      const menu = document.getElementById('custom-context-menu');
+      const cloneButton = Array.from(menu.querySelectorAll('button'))
+        .find(button => button.textContent.includes('Sao chép khách hàng'));
+      cloneButton.click();
+
+      const cloned = state.partners.find(partner => partner.id !== 'KH-CLONE-SMOKE');
+      state.partners.push({ id: 'NCC-CLONE-SMOKE', name: 'NCC smoke', type: 'supplier' });
+      filterPartners();
+      const supplierRow = document.querySelector('#partners-table-body tr[data-id="NCC-CLONE-SMOKE"]');
+      supplierRow.dispatchEvent(new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 100,
+        clientY: 100
+      }));
+
+      return {
+        customerMenuHasClone: !!cloneButton,
+        cloneIdIsUnique: !!cloned && cloned.id !== 'KH-CLONE-SMOKE',
+        cloneName: cloned?.name || '',
+        clonePhone: cloned?.phone || '',
+        supplierMenuHasClone: menu.textContent.includes('Sao chép khách hàng')
+      };
+    } finally {
+      window.saveState = originalSave;
+      window.initExcelIntegration = originalInitExcel;
+      state.partners = previousPartners;
+      filterPartners();
+    }
+  })()`);
+  assert.deepEqual(customerCloneResult, {
+    customerMenuHasClone: true,
+    cloneIdIsUnique: true,
+    cloneName: 'Khách clone smoke - Bản sao',
+    clonePhone: '0901234567',
+    supplierMenuHasClone: false
+  }, 'customer context menu must clone customers but not suppliers');
+  console.log('[app-shell-smoke] customer context-menu clone verified');
+
   const autocompleteResult = await win.webContents.executeJavaScript(`(async () => {
     const waitForUi = () => new Promise(resolve => setTimeout(resolve, 20));
     const failures = [];

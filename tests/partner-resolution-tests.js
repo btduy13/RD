@@ -100,6 +100,58 @@ function testEnterpriseParentValidationDoesNotCreatePartner() {
   assert.equal(sandbox.state.partners.length, 2, 'parent validation does not create ghost partners');
 }
 
+function testCloneCustomerCreatesIndependentPartner() {
+  const source = {
+    id: 'KH01',
+    name: 'Khách hàng gốc',
+    type: 'retail',
+    phone: '0901234567',
+    email: 'khach@example.com',
+    address: '123 Đường A',
+    taxCode: '0123456789',
+    inactive: false,
+    _updatedAt: 1
+  };
+  const sandbox = loadPartnerResolution([source], true);
+  const toasts = [];
+  let saves = 0;
+  sandbox.showToast = (message, type) => toasts.push({ message, type });
+  sandbox.saveState = () => { saves += 1; };
+
+  const cloned = sandbox.clonePartner(source.id);
+
+  assert.ok(cloned, 'customer clone is returned');
+  assert.equal(sandbox.state.partners.length, 2, 'clone is appended to partners');
+  assert.notEqual(cloned.id, source.id, 'clone receives a unique ID');
+  assert.equal(cloned.name, 'Khách hàng gốc - Bản sao', 'clone is clearly distinguished by name');
+  assert.equal(cloned.phone, source.phone, 'contact details are copied');
+  assert.equal(cloned.address, source.address, 'address is copied');
+  assert.equal(sandbox.state.partnerOpeningBalances[cloned.id], undefined, 'opening debt is not copied');
+  assert.equal(saves, 1, 'clone is persisted once');
+  assert.equal(toasts.at(-1).type, 'success', 'successful clone is announced');
+
+  cloned.phone = '0999999999';
+  assert.equal(source.phone, '0901234567', 'clone mutations do not change the source');
+}
+
+function testClonePartnerRejectsSupplier() {
+  const supplier = { id: 'NCC01', name: 'Nhà cung cấp', type: 'supplier' };
+  const sandbox = loadPartnerResolution([supplier], true);
+  let saves = 0;
+  sandbox.saveState = () => { saves += 1; };
+
+  assert.equal(sandbox.clonePartner(supplier.id), null, 'supplier cannot be cloned as a customer');
+  assert.equal(sandbox.state.partners.length, 1, 'supplier list remains unchanged');
+  assert.equal(saves, 0, 'rejected clone is not persisted');
+}
+
+function testCustomerContextMenuExposesCloneAction() {
+  const interactions = readSource('js/ui-interactions.js');
+  assert.match(interactions, /onclick="clonePartner\('\$\{escapedId\}'\)"/);
+  assert.match(interactions, /Sao chép khách hàng/);
+  assert.match(interactions, /partnerObj\.type !== "supplier"/);
+}
+
 function createInput(value = '') {
   return {
     value,
@@ -169,5 +221,8 @@ function testSalesDescriptionPreviewDoesNotResolveOrCreate() {
 
 testPureLookupDoesNotCreatePartner();
 testEnterpriseParentValidationDoesNotCreatePartner();
+testCloneCustomerCreatesIndependentPartner();
+testClonePartnerRejectsSupplier();
+testCustomerContextMenuExposesCloneAction();
 testSalesDescriptionPreviewDoesNotResolveOrCreate();
 console.log('partner resolution regression tests passed');
