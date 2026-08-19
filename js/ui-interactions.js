@@ -236,6 +236,12 @@ function initMouseInteractions() {
       `;
     } else if (type === "partner") {
       const partnerObj = (state.partners || []).find(p => p.id === id);
+      const cloneMenuItem = (partnerObj && partnerObj.type !== "supplier")
+        ? `<button class="context-menu-item" onclick="clonePartner('${escapedId}')">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M8 8h11a2 2 0 012 2v9a2 2 0 01-2 2h-9a2 2 0 01-2-2V8zm0 8H5a2 2 0 01-2-2V5a2 2 0 012-2h9a2 2 0 012 2v3"></path></svg>
+          Sao chép khách hàng
+        </button>`
+        : "";
       const assignMenuItem = (partnerObj && partnerObj.type === "retail" && !partnerObj.inactive)
         ? `<button class="context-menu-item" onclick="openAssignToProjectModal('${escapedId}')">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
@@ -251,6 +257,7 @@ function initMouseInteractions() {
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
           Chỉnh sửa đối tác
          </button>
+        ${cloneMenuItem}
         ${assignMenuItem}
         <button class="context-menu-item" onclick="promptEditPartnerOpeningDebt('${escapedId}')">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>

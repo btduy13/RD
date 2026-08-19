@@ -883,6 +883,44 @@ function openEditPartnerModal(id, options = {}) {
   }
 }
 
+function clonePartner(id) {
+  const source = state.partners.find(item => item.id === id);
+  if (!source) {
+    showToast("Không tìm thấy khách hàng để sao chép!", "danger");
+    return null;
+  }
+
+  if (source.type === "supplier") {
+    showToast("Chức năng sao chép chỉ áp dụng cho khách hàng!", "warning");
+    return null;
+  }
+
+  const cloneName = `${source.name || source.id} - Bản sao`;
+  const cloneId = getUniquePartnerId(cloneName, source.type);
+  const clonedPartner = {
+    id: cloneId,
+    name: cloneName,
+    type: source.type,
+    phone: source.phone || "",
+    email: source.email || "",
+    address: source.address || "",
+    taxCode: source.taxCode || "",
+    inactive: !!source.inactive,
+    _updatedAt: Date.now()
+  };
+
+  if (source.type === "project" && source.parentId) {
+    clonedPartner.parentId = source.parentId;
+  }
+
+  state.partners.push(clonedPartner);
+  saveState();
+  if (typeof initExcelIntegration === "function") initExcelIntegration();
+  filterPartners();
+  showToast(`Đã sao chép khách hàng thành "${cloneName}" (${cloneId})!`, "success");
+  return clonedPartner;
+}
+
 function openAssignToProjectModal(id) {
   const p = state.partners.find(item => item.id === id);
   if (!p) {
@@ -1325,6 +1363,7 @@ function triggerAutoExtractPhonesFromNames() {
   }
 }
 window.openEditPartnerModal = openEditPartnerModal;
+window.clonePartner = clonePartner;
 window.openAssignToProjectModal = openAssignToProjectModal;
 window.handleAssignToProjectSubmit = handleAssignToProjectSubmit;
 window.triggerAutoExtractPhones = triggerAutoExtractPhones;
