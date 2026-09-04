@@ -122,6 +122,13 @@ let salesCurrentPage = 1;
 
 function buildSalesTableRowHtml(v) {
   const formattedDate = v.date ? v.date.split("-").reverse().join("/") : "";
+  const resolvedPartner = typeof getPartnerForVoucher === "function"
+    ? getPartnerForVoucher(v, { strict: true })
+    : null;
+  const exactPartner = resolvedPartner && resolvedPartner.id === v.partnerId ? resolvedPartner : null;
+  const partnerLabel = exactPartner
+    ? getPartnerNameForVoucher(v)
+    : `<span style="color:var(--color-danger); font-weight:700;" title="Mã đối tác trên đơn không còn tồn tại trong danh mục">⚠ Chưa khớp: ${escapeHtmlAttr(v.partnerId || "thiếu mã đối tác")}</span>`;
   return `
       <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
         <td style="text-align: center;">
@@ -129,7 +136,7 @@ function buildSalesTableRowHtml(v) {
         </td>
         <td class="font-numeric" style="color: var(--color-success); font-weight:700;">${v.id}</td>
         <td>${formattedDate}</td>
-        <td><span style="font-weight:600;">${getPartnerNameForVoucher(v)}</span></td>
+        <td><span style="font-weight:600;">${partnerLabel}</span></td>
         <td>${v.description}</td>
         <td><span class="badge ${v.paymentMethod === '131' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '131' ? 'Công nợ (131)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
         <td class="text-right font-numeric">${formatVND(v.totalAmount)}</td>

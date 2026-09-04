@@ -1,6 +1,6 @@
 {
   "name": "rd-accounting",
-  "version": "3.4.8",
+  "version": "3.4.9",
   "description": "Phần mềm kế toán độc lập Công ty Cổ phần Rạng Đông",
   "main": "main.js",
   "scripts": {
@@ -19,7 +19,7 @@
     "test:persistence": "node tests/persistence-regression-tests.js",
     "test:platform": "node tests/platform-regression-tests.js",
     "test:accounting": "node tests/core-regression-tests.js",
-    "test:partners": "node tests/partner-merge-tests.js && node tests/partner-resolution-tests.js",
+    "test:partners": "node tests/partner-merge-tests.js && node tests/partner-resolution-tests.js && node tests/partner-deletion-tests.js",
     "test:debts": "node tests/debt-tests.js",
     "test:reports": "node tests/reports-regression-tests.js",
     "test:cash": "node tests/cash-table-totals-tests.js",

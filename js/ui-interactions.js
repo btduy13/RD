@@ -900,11 +900,13 @@ function setDatePreset(preset, fromId, toId, filterFnName, btnEl) {
 function updateSidebarBadges() {
   document.querySelectorAll('.nav-badge').forEach(function (b) { b.remove(); });
   try {
-    var vouchers = (window.state && window.state.vouchers) ? window.state.vouchers : [];
-    var products = (window.state && window.state.products) ? window.state.products : [];
+    // state.js khai báo bằng let nên không nằm trên window.
+    var badgeState = typeof state !== 'undefined' ? state : window.state;
+    var vouchers = (badgeState && badgeState.vouchers) ? badgeState.vouchers : [];
+    var products = (badgeState && badgeState.products) ? badgeState.products : [];
     // Count unsettled debts
     var unsettledCount = vouchers.filter(function (v) {
-      return v.type === 'sales' && v.paymentMethod && v.paymentMethod.indexOf('131') !== -1 && (v.remainingBalance > 0);
+      return v.type === 'sales' && v.paymentMethod && v.paymentMethod.indexOf('131') !== -1 && (Number(v.remainingDebt) > 0);
     }).length;
     if (unsettledCount > 0) {
       var debtsMenuItem = document.querySelector('.menu-item[data-tab="debts"]');

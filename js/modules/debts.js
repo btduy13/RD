@@ -11,9 +11,19 @@ let _companyGroupCache = []; // Cache for company tab onclick handlers (index �
 
 const UNMATCHED_PARTNER_ID = "__UNMATCHED__";
 let pinnedUnmatchedDebt = null;
+let activeLedgerMatchingIds = new Set();
+let activeLedgerExplicitGroupIds = null;
 
 function isUnmatchedDebt(d) {
     return d && d.id === UNMATCHED_PARTNER_ID;
+}
+
+function unmatchedPartnerLabel(id) {
+    return id || "(Thiếu mã đối tác)";
+}
+
+function isPartnerAuditVoucher(v) {
+    return Boolean(v.partnerId) || ["sales", "purchase", "receipt", "payment", "sales_return", "purchase_return"].includes(v.type);
 }
 
 function createEmptyDebtCounters() {
@@ -98,6 +108,7 @@ function computeDebtSides(initialOpening, priorCounters, periodCounters, partner
         closingCredit: closeSides.credit,
         has131: activity131 > 0,
         has331: activity331 > 0,
+        supplierReceivable: roleSupplier ? Math.max(-net331Close, 0) : 0,
         roleSupplier
     };
 }
@@ -123,7 +134,9 @@ function getVoucherDebtEntries(v) {
     }
 
     if (typeof ensureRemainingDebt === "function") ensureRemainingDebt(v);
-    const amt = Number(v.remainingDebt ?? v.totalAmount ?? v.amount ?? 0);
+    // Đây là bút toán gốc, không phải số dư còn lại sau FIFO/thu tiền. Dùng
+    // remainingDebt trước totalAmount sẽ trừ tiền thu lần thứ hai.
+    const amt = Number(v.totalAmount ?? v.amount ?? v.remainingDebt ?? 0);
     const pm = String(v.paymentMethod || "");
 
     switch (v.type) {
@@ -310,7 +323,11 @@ function refreshOpenPartnerLedgerModal() {
         const st = window.getComputedStyle(modal);
         if (st.display === "none") return;
     }
-    if (activeLedgerTargetId && typeof renderLedgerForTarget === "function") {
+    if (activeLedgerExplicitGroupIds) {
+        viewLedgerByIds(activeLedgerExplicitGroupIds, activePartnerNameForGroupedLedger);
+    } else if (activePartnerIdForLedger === UNMATCHED_PARTNER_ID) {
+        viewUnmatchedPartnerLedger();
+    } else if (activeLedgerTargetId && typeof renderLedgerForTarget === "function") {
         renderLedgerForTarget(activeLedgerTargetId, activeLedgerCombined);
     } else if (activePartnerNameForGroupedLedger && typeof viewGroupedPartnerLedger === "function") {
         viewGroupedPartnerLedger(activePartnerNameForGroupedLedger);
@@ -422,15 +439,20 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
     const unmatchedPrior = createEmptyDebtCounters();
     const unmatchedPeriod = createEmptyDebtCounters();
     const orphanPartnerIds = new Set();
+    const unmatchedByPartner = new Map();
 
     state.vouchers.forEach(v => {
         if (toDate && v.date > toDate) return;
-        if (!v.partnerId) return;
         if (partnerIds.has(v.partnerId)) return;
-        orphanPartnerIds.add(v.partnerId);
+        if (!isPartnerAuditVoucher(v)) return;
+        orphanPartnerIds.add(v.partnerId || "");
         const isPrior = fromDate && v.date < fromDate;
+        const auditKey = v.partnerId || `missing:${v.id}`;
+        if (!unmatchedByPartner.has(auditKey)) unmatchedByPartner.set(auditKey, { prior: createEmptyDebtCounters(), period: createEmptyDebtCounters() });
+        const auditCounters = unmatchedByPartner.get(auditKey);
         getVoucherDebtEntries(v).forEach(e => {
             accumulateDebtEntryLines(e, isPrior ? unmatchedPrior : unmatchedPeriod);
+            accumulateDebtEntryLines(e, isPrior ? auditCounters.prior : auditCounters.period);
         });
     });
 
@@ -444,23 +466,60 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
         d.creditTrans = sides.creditTrans;
         d.closingDebit = sides.closingDebit;
         d.closingCredit = sides.closingCredit;
-        if (inferPartnerDebtRole(d.type, sides.has131, sides.has331) === "both") {
+        // Giữ lại dấu vết tài khoản thực tế để phân tab theo phát sinh, thay vì
+        // chỉ dựa vào loại đối tác được khai báo trong danh mục.
+        d.has131 = sides.has131;
+        d.has331 = sides.has331;
+        d.supplierReceivable = sides.supplierReceivable;
+        d.debtRole = inferPartnerDebtRole(d.type, sides.has131, sides.has331);
+        if (d.debtRole === "both") {
             d.type = "both";
         }
         delete d.priorCounters;
         delete d.periodCounters;
     });
 
+    // Số dư đầu kỳ có thể còn sót lại sau khi danh mục đối tác bị xóa. Trước đây
+    // các khoản này biến mất hoàn toàn vì không có chứng từ để tạo bucket cảnh báo.
+    let orphanOpeningDebit = 0;
+    let orphanOpeningCredit = 0;
+    const orphanOpeningBalances = [];
+    Object.entries(state.partnerOpeningBalances || {}).forEach(([partnerId, opening]) => {
+        if (!partnerId || partnerIds.has(partnerId)) return;
+        const debit = Number(opening && opening.debit || 0);
+        const credit = Number(opening && opening.credit || 0);
+        if (debit === 0 && credit === 0) return;
+        orphanPartnerIds.add(partnerId);
+        orphanOpeningDebit += debit;
+        orphanOpeningCredit += credit;
+        orphanOpeningBalances.push({ id: partnerId, debit, credit });
+    });
+
     if (orphanPartnerIds.size > 0) {
-        const orphanHas131 = (unmatchedPrior.debit131 + unmatchedPrior.credit131 + unmatchedPeriod.debit131 + unmatchedPeriod.credit131) > 0;
-        const orphanHas331 = (unmatchedPrior.debit331 + unmatchedPrior.credit331 + unmatchedPeriod.debit331 + unmatchedPeriod.credit331) > 0;
-        const orphanRole = inferPartnerDebtRole("both", orphanHas131, orphanHas331);
-        const unmatchedSides = computeDebtSides({ debit: 0, credit: 0 }, unmatchedPrior, unmatchedPeriod, orphanRole);
+        // Chưa biết vai trò mã mồ côi: giữ nguyên chiều Nợ/Có của bút toán.
+        const debitTrans = unmatchedPeriod.debit131 + unmatchedPeriod.debit331;
+        const creditTrans = unmatchedPeriod.credit131 + unmatchedPeriod.credit331;
+        const unmatchedSides = {
+            openingDebit: 0, openingCredit: 0,
+            debitTrans, creditTrans,
+            closingDebit: 0, closingCredit: 0
+        };
+        // Không bù trừ giữa hai đối tác hoặc giữa 131 và 331 khi chưa biết liên kết.
+        unmatchedByPartner.forEach(({ prior, period }) => {
+            ["131", "331"].forEach(account => {
+                const openingNet = prior[`debit${account}`] - prior[`credit${account}`];
+                const closingNet = openingNet + period[`debit${account}`] - period[`credit${account}`];
+                unmatchedSides.openingDebit += Math.max(openingNet, 0);
+                unmatchedSides.openingCredit += Math.max(-openingNet, 0);
+                unmatchedSides.closingDebit += Math.max(closingNet, 0);
+                unmatchedSides.closingCredit += Math.max(-closingNet, 0);
+            });
+        });
         debts[UNMATCHED_PARTNER_ID] = {
             id: UNMATCHED_PARTNER_ID,
             name: `⚠ Chưa khớp đối tác (${orphanPartnerIds.size} mã)`,
             type: "unmatched",
-            address: Array.from(orphanPartnerIds).slice(0, 5).join(", "),
+            address: Array.from(orphanPartnerIds).slice(0, 5).map(unmatchedPartnerLabel).join(", "),
             taxCode: "",
             phone: "",
             initialOpeningDebit: 0,
@@ -471,6 +530,11 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
             creditTrans: unmatchedSides.creditTrans,
             closingDebit: unmatchedSides.closingDebit,
             closingCredit: unmatchedSides.closingCredit,
+            // Số dư của đối tác đã xóa là dữ liệu chưa xác minh: hiển thị để
+            // đối chiếu, tuyệt đối không tự khôi phục vào số dư kế toán.
+            orphanOpeningDebit,
+            orphanOpeningCredit,
+            orphanOpeningBalances,
             orphanPartnerIds: Array.from(orphanPartnerIds)
         };
     }
@@ -484,13 +548,14 @@ function appendUnmatchedDebtRow(tbody, d) {
     tr.setAttribute("data-type", "unmatched");
     tr.setAttribute("data-id", UNMATCHED_PARTNER_ID);
     const orphanIds = d.orphanPartnerIds || [];
-    const orphanPreview = orphanIds.slice(0, 4).join(", ") + (orphanIds.length > 4 ? "…" : "");
+    const orphanPreview = orphanIds.slice(0, 4).map(unmatchedPartnerLabel).join(", ") + (orphanIds.length > 4 ? "…" : "");
     tr.innerHTML = `
     <td style="text-align:center;"></td>
     <td style="font-weight:bold; color:var(--color-danger);">⚠</td>
     <td style="font-weight:700;">
       <a href="#" onclick="viewUnmatchedPartnerLedger(); return false;" class="debt-unmatched-link" title="Xem sổ chứng từ chưa khớp">${d.name}</a>
       <div class="debt-unmatched-codes">${orphanPreview}</div>
+      ${d.orphanOpeningBalances && d.orphanOpeningBalances.length ? `<div class="debt-unmatched-codes">Số dư đầu kỳ chưa xác minh: Nợ ${formatVND(d.orphanOpeningDebit)} / Có ${formatVND(d.orphanOpeningCredit)} (chưa cộng vào tổng)</div>` : ""}
     </td>
     <td style="text-align:right;" class="font-numeric">${d.openingDebit > 0 ? formatVND(d.openingDebit).replace("đ", "") : "-"}</td>
     <td style="text-align:right;" class="font-numeric">${d.openingCredit > 0 ? formatVND(d.openingCredit).replace("đ", "") : "-"}</td>
@@ -510,7 +575,7 @@ function appendUnmatchedDebtRow(tbody, d) {
 function showUnmatchedPartnerIds() {
     const bucket = pinnedUnmatchedDebt;
     if (!bucket || !bucket.orphanPartnerIds || bucket.orphanPartnerIds.length === 0) return;
-    const ids = bucket.orphanPartnerIds.join(", ");
+    const ids = bucket.orphanPartnerIds.map(unmatchedPartnerLabel).join(", ");
     if (typeof showToast === "function") {
         showToast(`Mã chưa khớp danh mục (${bucket.orphanPartnerIds.length}): ${ids}`, "warning", 8000);
     } else {
@@ -519,6 +584,7 @@ function showUnmatchedPartnerIds() {
 }
 
 function viewUnmatchedPartnerLedger() {
+    activeLedgerExplicitGroupIds = null;
     const { fromDate, toDate } = getDebtDateRange();
     const allDebts = calculatePartnerDebts(fromDate, toDate);
     const bucket = allDebts.find(d => isUnmatchedDebt(d));
@@ -539,7 +605,9 @@ function viewUnmatchedPartnerLedger() {
     if (projTabsDiv) projTabsDiv.style.display = "none";
 
     const orphanIds = new Set(bucket.orphanPartnerIds);
-    const openingText = bucket.openingDebit > 0 ?
+    activeLedgerMatchingIds = orphanIds;
+    const openingText = bucket.openingDebit > 0 && bucket.openingCredit > 0 ?
+        `${formatVND(bucket.openingDebit)} (Nợ) / ${formatVND(bucket.openingCredit)} (Có)` : bucket.openingDebit > 0 ?
         `${formatVND(bucket.openingDebit)} (Nợ)` :
         bucket.openingCredit > 0 ?
         `${formatVND(bucket.openingCredit)} (Có)` :
@@ -566,7 +634,7 @@ function viewUnmatchedPartnerLedger() {
     const ledgerEntries = [];
 
     state.vouchers.forEach(v => {
-                if (!v.partnerId || !orphanIds.has(v.partnerId)) return;
+                if (!isPartnerAuditVoucher(v) || !orphanIds.has(v.partnerId || "")) return;
                 if (fromDate && v.date < fromDate) return;
                 if (toDate && v.date > toDate) return;
 
@@ -582,7 +650,8 @@ function viewUnmatchedPartnerLedger() {
     ledgerEntries.push({
       date: v.date,
       id: v.id,
-      partnerId: v.partnerId,
+      partnerId: v.partnerId || "",
+      voucherType: v.type,
       desc,
       offsetAccount: extracted.offsetAccount,
       debit: extracted.debitAmount,
@@ -605,7 +674,7 @@ function viewUnmatchedPartnerLedger() {
       tr.setAttribute("data-id", escapedViewId);
       tr.innerHTML = `
         <td>${formatDateDisplay(le.date)}</td>
-        <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${le.id}</a> <span style="font-size:11px; color:var(--color-danger); font-weight:700;">[${escapeHtmlAttr(le.partnerId)}]</span></td>
+        <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${le.id}</a> <span style="font-size:11px; color:var(--color-danger); font-weight:700;">[${escapeHtmlAttr(unmatchedPartnerLabel(le.partnerId))}]</span><button class="btn btn-secondary btn-sm" onclick="editOrderFromLedger('${escapedViewId}', '${escapeHtmlAttr(le.voucherType)}')" style="margin-left:6px;">Sửa liên kết</button></td>
         <td>${le.desc || ""}</td>
         <td style="text-align:center; font-weight:700;">${le.offsetAccount || ""}</td>
         <td style="text-align:right; font-weight:500;">${le.debit > 0 ? formatVND(le.debit).replace("đ", "") : "-"}</td>
@@ -619,9 +688,9 @@ function viewUnmatchedPartnerLedger() {
   const closingText = closingVal >= 0
     ? `${formatVND(closingVal)} (Nợ)`
     : `${formatVND(-closingVal)} (Có)`;
-  document.getElementById("partner-ledger-closing").innerText = closingText;
+  document.getElementById("partner-ledger-closing").innerText = `${formatVND(bucket.closingDebit)} (Nợ) / ${formatVND(bucket.closingCredit)} (Có)`;
 
-  renderLedgerOrdersForTarget(new Set());
+  renderLedgerOrdersForTarget(orphanIds);
 
   switchPartnerLedgerTab("entries");
   openModal("modal-view-partner-ledger");
@@ -803,8 +872,8 @@ function filterDebts() {
     const debtVal = Math.max(d.closingDebit || 0, d.closingCredit || 0);
     const matchesQuery = matchAdvancedQuery(combined, query, debtVal);
     let matchesType = true;
-    if (filterType === "131") matchesType = (d.declaredType || d.type) !== "supplier";
-    else if (filterType === "331") matchesType = (d.declaredType || d.type) === "supplier";
+    if (filterType === "131") matchesType = d.has131 || (d.declaredType || d.type) !== "supplier";
+    else if (filterType === "331") matchesType = d.has331 || (d.declaredType || d.type) === "supplier";
     let matchesActive = true;
     if (activeOnly) matchesActive = (d.closingDebit > 0 || d.closingCredit > 0);
     return matchesQuery && matchesType && matchesActive;
@@ -822,7 +891,9 @@ function filterDebts() {
     pinnedUnmatchedDebt = allDebts.find(d => isUnmatchedDebt(d)) || null;
     filteredDebtsList = allDebts.filter(d => {
       if (isUnmatchedDebt(d)) return false;
-      if ((d.declaredType || d.type) === 'supplier') return false;
+      // Một đối tác khai báo là NCC vẫn phải xuất hiện ở phía khách hàng nếu
+      // thực tế có đơn bán chịu (TK 131).
+      if ((d.declaredType || d.type) === 'supplier' && !d.has131) return false;
       if (!makeFilter(d)) return false;
       return true;
     });
@@ -1108,13 +1179,21 @@ function switchDebtsViewTab(tabName) {
 
 // Xem sổ chi tiết gộp: lấy chứng từ từ tất cả các mã cùng tên đối tác
 function viewGroupedPartnerLedger(partnerName) {
-  const normalizedName = (partnerName || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  activeLedgerExplicitGroupIds = null;
+  const normalizedName = typeof getPartnerGroupKey === "function"
+    ? getPartnerGroupKey(partnerName || "")
+    : (partnerName || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
-  // Tìm tất cả đối tác cùng tên
-  const matchingPartners = state.partners.filter(p =>
-    (p.name || '').trim().toLowerCase().replace(/\s+/g, ' ') === normalizedName
-  );
+  // Phải dùng cùng khóa chuẩn hóa với calculatePartnerDebtsGrouped(). Nếu dùng
+  // so sánh tên tuyệt đối, các nhóm đã bỏ tiền tố/mã hậu tố sẽ mở ra sổ rỗng.
+  const matchingPartners = state.partners.filter(p => {
+    const key = typeof getPartnerGroupKey === "function"
+      ? getPartnerGroupKey(p.name || "")
+      : (p.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    return key === normalizedName;
+  });
   if (matchingPartners.length === 0) return;
+  activeLedgerMatchingIds = new Set(matchingPartners.map(p => p.id));
 
   const has131 = matchingPartners.some(p => p.type !== "supplier");
   const has331 = matchingPartners.some(p => p.type === "supplier");
@@ -1209,6 +1288,8 @@ function viewLedgerByIds(partnerIds, groupName) {
     showToast('Không tìm thấy đối tác nào trong nhóm này.', 'warning');
     return;
   }
+  activeLedgerMatchingIds = new Set(matchingPartners.map(p => p.id));
+  activeLedgerExplicitGroupIds = Array.from(activeLedgerMatchingIds);
 
   const primaryType = matchingPartners.find(p => p.type !== 'supplier') ? 'customer' : 'supplier';
   const { fromDate, toDate } = getDebtDateRange();
@@ -1280,8 +1361,12 @@ let activeLedgerCombined = false;
 let activeLedgerTargetId = "";
 
 function viewPartnerLedger(partnerId) {
+  activeLedgerExplicitGroupIds = null;
   const p = state.partners.find(item => item.id === partnerId);
-  if (!p) return;
+  if (!p) {
+    viewUnmatchedPartnerLedger();
+    return;
+  }
 
   activePartnerIdForLedger = partnerId;
   activePartnerNameForGroupedLedger = "";
@@ -1382,6 +1467,7 @@ function renderLedgerForTarget(targetId, isCombined) {
   }
   const matchingIds = new Set(matchingPartners.map(item => item.id));
   const primaryType = inferPartnerDebtRole(p.type, p.type !== "supplier", p.type === "supplier" || p.type === "both");
+  activeLedgerMatchingIds = matchingIds;
   const ledger = calculatePartnerDebtLedger(matchingPartners, fromDate, toDate, primaryType);
 
   let openingVal = ledger.openingVal;
@@ -1472,7 +1558,7 @@ function renderLedgerOrdersForTarget(matchingIds) {
   tbody.innerHTML = "";
 
   const { fromDate, toDate } = getDebtDateRange();
-  let salesVouchers = state.vouchers.filter(v => v.type === "sales" && matchingIds.has(v.partnerId));
+  let salesVouchers = state.vouchers.filter(v => v.type === "sales" && matchingIds.has(v.partnerId || ""));
   if (fromDate) salesVouchers = salesVouchers.filter(v => v.date >= fromDate);
   if (toDate) salesVouchers = salesVouchers.filter(v => v.date <= toDate);
 
@@ -1492,6 +1578,7 @@ function renderLedgerOrdersForTarget(matchingIds) {
         <td style="text-align:right; font-weight:700; color:var(--color-warning);" class="font-numeric">${formatVND(v.remainingDebt).replace("đ", "")}</td>
         <td style="text-align:center;">
           <button class="btn btn-secondary btn-sm" onclick="promptEditOrderDebt('${escapedId}')" style="padding: 2px 6px; font-size:11px;">Sửa nợ</button>
+          <button class="btn btn-secondary btn-sm" onclick="editOrderFromLedger('${escapedId}', 'sales')" style="padding: 2px 6px; font-size:11px;">Sửa đơn</button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -2089,7 +2176,15 @@ function renderPartnerLedgerOrders() {
   tbody.innerHTML = "";
 
   const pId = activePartnerIdForLedger;
-  const orders = state.vouchers.filter(v => String(v.partnerId) === String(pId) && (v.type === "sales" || v.type === "purchase" || v.type === "purchase_return" || v.type === "sales_return"));
+  if (pId === UNMATCHED_PARTNER_ID && pinnedUnmatchedDebt) {
+    renderLedgerOrdersForTarget(new Set(pinnedUnmatchedDebt.orphanPartnerIds || []));
+    return;
+  }
+  const matchingIds = activeLedgerMatchingIds.size ? activeLedgerMatchingIds : new Set([pId]);
+  const { fromDate, toDate } = getDebtDateRange();
+  const orders = state.vouchers.filter(v => matchingIds.has(v.partnerId)
+    && (!fromDate || v.date >= fromDate) && (!toDate || v.date <= toDate)
+    && (v.type === "sales" || v.type === "purchase" || v.type === "purchase_return" || v.type === "sales_return"));
 
   if (orders.length === 0) {
     renderEmptyState(tbody, 6, 'Không tìm thấy hóa đơn mua/bán nào của đối tác này', 'Đối tác chưa có phát sinh mua/bán trong kỳ');
@@ -2441,6 +2536,7 @@ function exportDebtsToExcelDetailed() {
     const totBg = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
     const secBg = { patternType: "solid", fgColor: { rgb: "EBF3FF" } };
     const fntT = { name: "Times New Roman", sz: 13, bold: true };
+    const fntH = { name: "Times New Roman", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
     const fntB = { name: "Times New Roman", sz: 11, bold: true };
     const fntN = { name: "Times New Roman", sz: 11 };
     const cC = { horizontal: "center", vertical: "center" };
@@ -2479,8 +2575,10 @@ function exportDebtsToExcelDetailed() {
     let rowIdx = 2;
 
     calculatedDebts.forEach((d) => {
-      const p = state.partners.find(item => item.id === d.id);
+      const unmatched = isUnmatchedDebt(d);
+      const p = state.partners.find(item => item.id === d.id) || (unmatched ? d : null);
       if (!p) return;
+      const matchingIds = new Set(unmatched ? d.orphanPartnerIds : [p.id]);
 
       const primaryType = p.type === "supplier" ? "supplier" : "customer";
       let runningVal = 0;
@@ -2495,20 +2593,21 @@ function exportDebtsToExcelDetailed() {
       let creditSum = 0;
 
       state.vouchers.forEach(v => {
-        if (v.partnerId !== p.id) return;
+        if (!matchingIds.has(v.partnerId || "")) return;
+        if (unmatched && !isPartnerAuditVoucher(v)) return;
         if (fromDate && v.date < fromDate) return;
         if (toDate && v.date > toDate) return;
         let debitAmount = 0;
         let creditAmount = 0;
-        const extracted = extractLedgerAmountsFromVoucher(v, primaryType);
+        const extracted = extractLedgerAmountsFromVoucher(v, unmatched ? "both" : primaryType);
         debitAmount = extracted.debitAmount;
         creditAmount = extracted.creditAmount;
 
-        if (debitAmount > 0 || creditAmount > 0) {
+        if (debitAmount > 0 || creditAmount > 0 || unmatched) {
           ledgerEntries.push({
             date: v.date,
             id: v.id,
-            desc: v.description,
+            desc: unmatched ? `[${unmatchedPartnerLabel(v.partnerId)}] ${v.description || ""}${debitAmount === 0 && creditAmount === 0 ? " — Chưa có bút toán công nợ, cần kiểm tra" : ""}` : v.description,
             offsetAccount: extracted.offsetAccount,
             debit: debitAmount,
             credit: creditAmount
@@ -2544,6 +2643,10 @@ function exportDebtsToExcelDetailed() {
         sc(rowIdx, 6, runningVal < 0 ? -runningVal : 0, 'n', { font: fntB, alignment: cR, border: border4 }, numFmt);
         sc(rowIdx, 7, runningVal >= 0 ? runningVal : 0, 'n', { font: fntB, alignment: cR, border: border4 }, numFmt);
       }
+      if (unmatched) {
+        sc(rowIdx, 6, d.openingDebit, 'n', { font: fntB, alignment: cR, border: border4 }, numFmt);
+        sc(rowIdx, 7, d.openingCredit, 'n', { font: fntB, alignment: cR, border: border4 }, numFmt);
+      }
       rowIdx++;
 
       ledgerEntries.forEach((entry) => {
@@ -2563,6 +2666,11 @@ function exportDebtsToExcelDetailed() {
           sc(rowIdx, 6, runningVal < 0 ? -runningVal : 0, 'n', { font: fntN, alignment: cR, border: border4 }, numFmt);
           sc(rowIdx, 7, runningVal >= 0 ? runningVal : 0, 'n', { font: fntN, alignment: cR, border: border4 }, numFmt);
         }
+        if (unmatched) {
+          // Không trình bày số dư lũy kế bù trừ giữa những mã không liên quan.
+          sc(rowIdx, 6, "", 's', { border: border4 });
+          sc(rowIdx, 7, "", 's', { border: border4 });
+        }
         rowIdx++;
       });
 
@@ -2579,6 +2687,11 @@ function exportDebtsToExcelDetailed() {
         sc(rowIdx, 6, runningVal < 0 ? -runningVal : 0, 'n', { font: fntB, fill: totBg, alignment: cR, border: border4 }, numFmt);
         sc(rowIdx, 7, runningVal >= 0 ? runningVal : 0, 'n', { font: fntB, fill: totBg, alignment: cR, border: border4 }, numFmt);
       }
+      if (unmatched) {
+        sc(rowIdx, 2, "Cộng phát sinh / số dư từng mã (không bù trừ)", 's', { font: fntB, fill: totBg, alignment: cL, border: border4 });
+        sc(rowIdx, 6, d.closingDebit, 'n', { font: fntB, fill: totBg, alignment: cR, border: border4 }, numFmt);
+        sc(rowIdx, 7, d.closingCredit, 'n', { font: fntB, fill: totBg, alignment: cR, border: border4 }, numFmt);
+      }
       rowIdx += 3;
     });
 
@@ -2587,6 +2700,15 @@ function exportDebtsToExcelDetailed() {
     ws['!cols'] = [{ wch: 14 }, { wch: 14 }, { wch: 38 }, { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
 
     XLSX.utils.book_append_sheet(wb, ws, "Chi tiet cong no");
+    const unmatchedBucket = calculatedDebts.find(isUnmatchedDebt);
+    if (unmatchedBucket && unmatchedBucket.orphanOpeningBalances.length) {
+      const auditRows = [
+        ["SỐ DƯ ĐẦU KỲ CHƯA XÁC MINH — CHƯA CỘNG VÀO TỔNG CÔNG NỢ"],
+        ["Mã đối tác không còn tồn tại", "Dư Nợ còn lưu", "Dư Có còn lưu"],
+        ...unmatchedBucket.orphanOpeningBalances.map(op => [op.id, op.debit, op.credit])
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(auditRows), "So du chua xac minh");
+    }
     const outName = `Chi_tiet_cong_no_${getLocalDateString()}.xlsx`;
     XLSX.writeFile(wb, outName);
     showToast(`Đã xuất Excel: ${outName}`, "success");
@@ -2719,7 +2841,7 @@ function renderDebtOverview(allDebts) {
   const auditEl = document.getElementById('debt-audit-content');
 
   // Build category stats
-  const cats = { individual: { rec: 0, overpaid: 0, count: 0 }, project: { rec: 0, overpaid: 0, count: 0 }, company: { rec: 0, overpaid: 0, count: 0 } };
+  const cats = { individual: { rec: 0, overpaid: 0, count: 0 }, project: { rec: 0, overpaid: 0, count: 0 }, company: { rec: 0, overpaid: 0, count: 0 }, unmatched: { rec: 0, overpaid: 0, count: 0 } };
   let totalRec = 0, totalPay = 0, totalNetRec = 0, partnersWithDebt = 0, partnersOverpaid = 0;
   let totalSupplierReceivable = 0;
   let totalInitOB = 0, totalDebitTx = 0, totalCreditTx = 0;
@@ -2730,13 +2852,13 @@ function renderDebtOverview(allDebts) {
   let unmatchedBucket = null;
 
   allDebts.forEach(d => {
-    if (d.type === "unmatched") { unmatchedBucket = d; return; }
-    if (d.type !== 'supplier') {
+    if (d.type === "unmatched") unmatchedBucket = d;
+    if (d.type !== 'supplier' || d.has131) {
       const net = (d.closingDebit || 0) - (d.closingCredit || 0);
       if (d.closingDebit > 0) { totalRec += d.closingDebit; partnersWithDebt++; }
       if (d.closingCredit > 0) { partnersOverpaid++; }
       totalNetRec += net;
-      const cat = classifyPartnerCategory(partnerMap[d.id] || { name: d.name });
+      const cat = d.type === "unmatched" ? "unmatched" : classifyPartnerCategory(partnerMap[d.id] || { name: d.name });
       const cs = cats[cat] || cats.project;
       cs.rec += d.closingDebit || 0;
       cs.overpaid += d.closingCredit || 0;
@@ -2748,11 +2870,13 @@ function renderDebtOverview(allDebts) {
     }
     if (d.type === 'supplier' || d.type === 'both') {
       totalPay += d.closingCredit || 0;
-      if (d.closingDebit > 0) totalSupplierReceivable += d.closingDebit;
+      // Đối tác hai chiều đã nằm trong tổng phải thu phía trên; chỉ đưa NCC
+      // thuần 331 vào KPI bổ sung để hai thẻ không tính trùng nhau.
+      if (!d.has131) totalSupplierReceivable += d.supplierReceivable || 0;
     }
   });
 
-  const totalRowOvp = cats.individual.overpaid + cats.project.overpaid + cats.company.overpaid;
+  const totalRowOvp = cats.individual.overpaid + cats.project.overpaid + cats.company.overpaid + cats.unmatched.overpaid;
 
   // KPI cards
   if (kpiEl) {
@@ -2763,9 +2887,11 @@ function renderDebtOverview(allDebts) {
       { label: 'Đối tác trả thừa', value: partnersOverpaid, hint: 'Đối tác Dư Có', icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z', accent: 'var(--color-danger)', isCount: true }
     ];
     // NCC trả thừa (dư Nợ 331) = khoản phải thu lại từ NCC — hiển thị để không "biến mất"
+    kpiData[0].hint = 'KH / đối tác hai chiều, gồm nhóm chưa khớp';
     if (totalSupplierReceivable > 0) {
       kpiData.push({ label: 'NCC Trả Thừa (Phải Thu Lại)', value: totalSupplierReceivable, hint: 'Dư Nợ TK 331', icon: 'M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z', accent: 'var(--color-info)' });
     }
+    if (kpiData.length > 4) kpiData[4].hint = 'NCC chỉ có 331; không trùng tổng phải thu KH';
     kpiEl.innerHTML = kpiData.map(k => `
       <div class="kpi-card" style="--card-accent: ${k.accent}">
         <div class="kpi-info">
@@ -2783,20 +2909,21 @@ function renderDebtOverview(allDebts) {
   // Breakdown table — 2 rows: Khách Cá Nhân (gộp toàn bộ cá nhân + công trình) + Trong đó: Công nợ theo Công ty
   if (breakdownEl) {
     const nonCompanyRec = cats.individual.rec + cats.project.rec + cats.company.rec;
-    const nonCompanyOvp = totalRowOvp;
+    const nonCompanyOvp = cats.individual.overpaid + cats.project.overpaid + cats.company.overpaid;
     const nonCompanyNet = nonCompanyRec - nonCompanyOvp;
     const nonCompanyCount = cats.individual.count + cats.project.count + cats.company.count;
     const compRec = cats.company.rec + cats.project.rec;
     const compOvp = cats.company.overpaid + cats.project.overpaid;
     const compNet = compRec - compOvp;
     const compCount = cats.company.count + cats.project.count;
-    const totalRowRec = nonCompanyRec;
-    const totalRowNet = nonCompanyNet;
-    const totalRowCount = nonCompanyCount;
+    const totalRowRec = nonCompanyRec + cats.unmatched.rec;
+    const totalRowNet = nonCompanyNet + cats.unmatched.rec - cats.unmatched.overpaid;
+    const totalRowCount = nonCompanyCount + cats.unmatched.count;
     const catRows = [
       { label: 'Khách Cá Nhân / Công trình (Tổng)', icon: '👤', rec: nonCompanyRec, ovp: nonCompanyOvp, net: nonCompanyNet, count: nonCompanyCount, rowClass: 'debt-breakdown-main-row' },
       { label: 'Trong đó: Công nợ theo Công ty', icon: '🏢', rec: compRec, ovp: compOvp, net: compNet, count: compCount, rowClass: 'debt-breakdown-sub-row' }
     ];
+    if (unmatchedBucket) catRows.push({ label: 'Chưa khớp đối tác — cần đối chiếu', icon: '⚠', rec: cats.unmatched.rec, ovp: cats.unmatched.overpaid, net: cats.unmatched.rec - cats.unmatched.overpaid, count: cats.unmatched.count, rowClass: 'debt-breakdown-main-row' });
     const rows = catRows.map(cr => `<tr class="${cr.rowClass}">
       <td><span class="debt-breakdown-label">${cr.icon} ${cr.label}</span></td>
       <td class="text-right font-numeric">${cr.count.toLocaleString('vi-VN')}</td>
@@ -2867,7 +2994,8 @@ function renderDebtOverview(allDebts) {
         </div>
         <div class="debt-alert-warning-body">
           <div class="debt-audit-line"><span class="debt-audit-line-label">Dư Nợ / Dư Có của nhóm chưa khớp</span><span class="debt-audit-line-value font-numeric text-danger">${formatVND(unmatchedBucket.closingDebit || 0)} / ${formatVND(unmatchedBucket.closingCredit || 0)}</span></div>
-          <p class="debt-alert-warning-note">Các mã: ${(unmatchedBucket.orphanPartnerIds || []).slice(0, 10).join(", ")}${(unmatchedBucket.orphanPartnerIds || []).length > 10 ? "…" : ""} — mở tab <a href="#" onclick="switchDebtsViewTab('project'); return false;" style="color:var(--color-danger); font-weight:700;">Khách Cá Nhân</a>: dòng cảnh báo màu đỏ ở <strong>đầu bảng</strong> (luôn hiển thị, không phụ thuộc trang).</p>
+          <p class="debt-alert-warning-note">Các mã: ${(unmatchedBucket.orphanPartnerIds || []).slice(0, 10).map(unmatchedPartnerLabel).join(", ")}${(unmatchedBucket.orphanPartnerIds || []).length > 10 ? "…" : ""} — mở tab <a href="#" onclick="switchDebtsViewTab('project'); return false;" style="color:var(--color-danger); font-weight:700;">Khách Cá Nhân</a>: dòng cảnh báo màu đỏ ở <strong>đầu bảng</strong>. Số phát sinh đã được tính vào tổng; không tự gán sang đối tác có tên gần giống.</p>
+          ${unmatchedBucket.orphanOpeningBalances && unmatchedBucket.orphanOpeningBalances.length ? `<p class="debt-alert-warning-note"><strong>${unmatchedBucket.orphanOpeningBalances.length} số dư đầu kỳ còn lưu của đối tác không tồn tại:</strong> Nợ ${formatVND(unmatchedBucket.orphanOpeningDebit)} / Có ${formatVND(unmatchedBucket.orphanOpeningCredit)}. Đây là dữ liệu chưa xác minh, <strong>chưa cộng vào tổng</strong>; cần xác nhận mã đối tác và quyết định khôi phục trước khi ghi nhận.</p>` : ""}
         </div>
       </div>` : ""}`;
   }
@@ -3470,7 +3598,11 @@ window.exportCompanyToExcel = exportCompanyToExcel;
 function editOrderFromLedger(voucherId, voucherType) {
   closeModal('modal-view-partner-ledger');
 
-  if (voucherType === 'sales') {
+  if (voucherType === 'receipt' || voucherType === 'payment') {
+    const editCash = voucherType === 'receipt' ? window.editReceiptVoucher : window.editPaymentVoucher;
+    if (typeof editCash === 'function') editCash(voucherId);
+    else showToast('Không tìm thấy chức năng sửa phiếu thu/chi!', 'danger');
+  } else if (voucherType === 'sales') {
     if (typeof window.editSalesVoucher === 'function') {
       window.editSalesVoucher(voucherId);
     } else {

@@ -267,6 +267,240 @@ function testDualRoleBothType() {
   assert.ok(row.closingCredit > 0, "payable side shown");
 }
 
+function installDebtTestDOM(ctx) {
+  const elements = new Map();
+  const makeElement = () => {
+    const el = { children: [], style: {}, value: "", checked: false,
+      classList: { add() {}, remove() {} }, setAttribute() {},
+      appendChild(child) { this.children.push(child); } };
+    let html = "";
+    Object.defineProperty(el, "innerHTML", {
+      get() { return html; },
+      set(value) { html = value; this.children = []; }
+    });
+    return el;
+  };
+  ctx.document.getElementById = id => {
+    if (!elements.has(id)) elements.set(id, makeElement());
+    return elements.get(id);
+  };
+  ctx.document.createElement = makeElement;
+  ctx.document.querySelectorAll = () => [];
+  ctx.formatDateDisplay = value => value;
+  ctx.renderEmptyState = (el, columns, message) => { el.innerHTML = message; };
+  return elements;
+}
+
+function testFallbackDoesNotDeductPaymentsTwice() {
+  for (const matched of [true, false]) {
+    for (const paid of [400, 1000]) {
+      const ctx = loadDebtModule();
+      const partner = { id: "KH-FALLBACK", name: "Fallback customer", type: "retail" };
+      ctx.state.partners = matched ? [partner] : [];
+      ctx.state.vouchers = [
+        { id: "BH-FALLBACK", type: "sales", date: "2026-09-01", partnerId: partner.id,
+          paymentMethod: "131", totalAmount: 1000, remainingDebt: 1000 - paid, entries: [] },
+        { id: "PT-FALLBACK", type: "receipt", date: "2026-09-02", partnerId: partner.id,
+          amount: paid, entries: [{ debit: "111", credit: "131", amount: paid }] }
+      ];
+      const row = ctx.calculatePartnerDebts().find(d => d.id === (matched ? partner.id : "__UNMATCHED__"));
+      const label = `${matched ? "matched" : "orphan"}, paid ${paid}`;
+      assert.equal(row.debitTrans, 1000, `${label}: original invoice amount is posted`);
+      assert.equal(row.creditTrans, paid, `${label}: receipt is deducted once`);
+      assert.equal(row.closingDebit, 1000 - paid, `${label}: outstanding balance is correct`);
+      assert.equal(row.closingCredit, 0, `${label}: no artificial overpayment`);
+      const ledger = ctx.calculatePartnerDebtLedger([partner]);
+      assert.equal(ledger.closingVal, 1000 - paid, `${label}: ledger matches invoice less receipt`);
+    }
+  }
+}
+
+function testSupplierSalesVisibleInCustomerDebtTab() {
+  const ctx = loadDebtModule();
+  installDebtTestDOM(ctx);
+  ctx.state.partners = [
+    { id: "SUP-SALE", name: "Supplier with sales", type: "supplier" },
+    { id: "SUP-ONLY", name: "Purchase-only supplier", type: "supplier" }
+  ];
+  ctx.state.vouchers = [
+    { id: "BH-SUP", type: "sales", date: "2026-09-01", partnerId: "SUP-SALE",
+      entries: [{ debit: "131", credit: "511", amount: 1000 }] },
+    { id: "NK-SUP", type: "purchase", date: "2026-09-01", partnerId: "SUP-ONLY",
+      entries: [{ debit: "156", credit: "331", amount: 500 }] }
+  ];
+  const debts = ctx.calculatePartnerDebts();
+  const sale = debts.find(d => d.id === "SUP-SALE");
+  const purchase = debts.find(d => d.id === "SUP-ONLY");
+  assert.equal(sale.has131, true, "131 activity is retained on debt row");
+  assert.equal(sale.has331, false, "sale-only supplier has no 331 activity");
+  assert.equal(purchase.has331, true, "331 activity is retained on debt row");
+  assert.equal(purchase.has131, false, "purchase-only supplier has no 131 activity");
+  ctx.renderDebtsTable = () => {};
+  ctx.document.getElementById("debt-type-filter").value = "131";
+  vm.runInContext("currentDebtsViewTab = 'project'", ctx);
+  ctx.filterDebts();
+  const ids = Array.from(vm.runInContext("filteredDebtsList.map(d => d.id)", ctx));
+  assert.ok(ids.includes("SUP-SALE"), "customer tab and 131 filter include supplier's credit sale");
+  assert.ok(!ids.includes("SUP-ONLY"), "purchase-only supplier stays outside customer tab");
+}
+
+function testOrphanOpeningBalancesRemainUnverified() {
+  const ctx = loadDebtModule();
+  ctx.state.partnerOpeningBalances = {
+    "OLD-OPENING": { debit: 700, credit: 20 },
+    "OLD-SALE": { debit: 300, credit: 0 }
+  };
+  ctx.state.vouchers = [{ id: "BH-ORPHAN", type: "sales", date: "2026-09-01", partnerId: "OLD-SALE",
+    entries: [{ debit: "131", credit: "511", amount: 100 }] }];
+  const row = ctx.calculatePartnerDebts().find(d => d.id === "__UNMATCHED__");
+  assert.ok(row, "orphan opening records appear in unmatched audit bucket");
+  assert.equal(row.orphanOpeningDebit, 1000, "unverified opening debit exposed separately");
+  assert.equal(row.orphanOpeningCredit, 20, "unverified opening credit exposed separately");
+  assert.ok(Array.isArray(row.orphanOpeningBalances), "individual orphan opening records exposed as an array");
+  const openingRecord = row.orphanOpeningBalances.find(record => record.id === "OLD-OPENING");
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(openingRecord)), { id: "OLD-OPENING", debit: 700, credit: 20 },
+    "opening-only orphan keeps its original amount for reconciliation");
+  assert.ok(row.orphanPartnerIds.includes("OLD-OPENING"), "opening-only orphan ID appears in audit bucket");
+  assert.equal(row.openingDebit, 0, "unverified opening does not become calculated opening debt");
+  assert.equal(row.openingCredit, 0, "unverified opening credit is not posted");
+  assert.equal(row.closingDebit, 100, "closing reflects verified voucher movements only");
+  assert.equal(row.closingCredit, 0, "unverified opening credit does not affect closing");
+  ctx.state.vouchers = [];
+  const openingOnly = ctx.calculatePartnerDebts().find(d => d.id === "__UNMATCHED__");
+  assert.ok(openingOnly, "audit bucket survives without any orphan vouchers");
+  assert.equal(openingOnly.closingDebit, 0, "opening-only audit has no calculated receivable");
+}
+
+function testMissingPartnerDebtAppearsInUnmatchedOrders() {
+  const ctx = loadDebtModule();
+  installDebtTestDOM(ctx);
+  ctx.state.vouchers = [
+    { id: "BH-NO-PARTNER", type: "sales", date: "2026-09-01", partnerId: "", totalAmount: 1000,
+      paymentMethod: "131", entries: [{ debit: "131", credit: "511", amount: 1000 }] },
+    { id: "BH-OLD-PARTNER", type: "sales", date: "2026-09-02", partnerId: "OLD-PARTNER", totalAmount: 2000,
+      paymentMethod: "131", entries: [{ debit: "131", credit: "511", amount: 2000 }] },
+    { id: "BH-MALFORMED", type: "sales", date: "2026-09-02", totalAmount: 3720,
+      entries: [{ credit: "511", amount: 3720 }] }
+  ];
+  const bucket = ctx.calculatePartnerDebts().find(d => d.id === "__UNMATCHED__");
+  assert.ok(bucket.orphanPartnerIds.includes(""), "missing partner is explicitly represented");
+  assert.equal(bucket.closingDebit, 3000, "missing-partner debt is not silently dropped");
+  ctx.switchPartnerLedgerTab = () => {};
+  ctx.viewUnmatchedPartnerLedger();
+  const entries = ctx.document.getElementById("partner-ledger-table-body").children.map(row => row.innerHTML).join("");
+  assert.ok(entries.includes("BH-NO-PARTNER"), "missing-partner voucher appears in unmatched ledger");
+  assert.ok(entries.includes("BH-MALFORMED"), "malformed sale is visible for audit without fabricating debt");
+  ctx.renderPartnerLedgerOrders();
+  const orders = ctx.document.getElementById("partner-ledger-orders-body").children.map(row => row.innerHTML).join("");
+  assert.ok(orders.includes("BH-NO-PARTNER"), "missing-partner sale appears when opening Orders tab");
+  assert.ok(orders.includes("BH-OLD-PARTNER"), "orphan sale appears when opening Orders tab");
+}
+
+function testOverviewAndDetailedExportKeepUnmatchedDebt() {
+  const ctx = loadDebtModule();
+  installDebtTestDOM(ctx);
+  ctx.state.partners = [{ id: "KH", name: "Customer", type: "retail" }];
+  ctx.state.partnerOpeningBalances = { "OLD-OPENING": { debit: 700, credit: 20 } };
+  ctx.state.vouchers = [
+    { id: "BH-MATCHED", type: "sales", date: "2026-09-01", partnerId: "KH",
+      entries: [{ debit: "131", credit: "511", amount: 100 }] },
+    { id: "BH-UNMATCHED", type: "sales", date: "2026-09-01", partnerId: "OLD",
+      entries: [{ debit: "131", credit: "511", amount: 50 }] }
+  ];
+  ctx.renderDebtOverview(ctx.calculatePartnerDebts());
+  const kpis = ctx.document.getElementById("debt-overview-kpis").innerHTML;
+  assert.match(kpis, /kpi-value font-numeric">150<\/span>/,
+    "overview includes unmatched voucher balance, but not unverified opening");
+  const audit = ctx.document.getElementById("debt-audit-content").innerHTML;
+  assert.ok(audit.includes("700") && audit.includes("chưa cộng vào tổng"),
+    "unverified opening is visible separately from recognized totals");
+
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "xlsx.full.min.js"), "utf8"), ctx);
+  const realXLSX = ctx.XLSX;
+  let exported;
+  const messages = [];
+  ctx.XLSX = { ...realXLSX, writeFile: workbook => { exported = workbook; } };
+  ctx.getLocalDateString = () => "2026-09-04";
+  ctx.dateStrToSerial = value => Date.parse(value) / 86400000 + 25569;
+  ctx.showToast = (...args) => messages.push(args);
+  ctx.exportDebtsToExcelDetailed();
+  assert.ok(exported, `detailed export must complete: ${JSON.stringify(messages)}`);
+  const detail = realXLSX.utils.sheet_to_json(exported.Sheets["Chi tiet cong no"], { header: 1 });
+  assert.ok(detail.some(row => row.includes("BH-MATCHED")), "matched voucher exported");
+  assert.ok(detail.some(row => row.includes("BH-UNMATCHED")), "unmatched voucher exported");
+  const openingAudit = realXLSX.utils.sheet_to_json(exported.Sheets["So du chua xac minh"], { header: 1 });
+  assert.ok(openingAudit.some(row => row[0] === "OLD-OPENING" && row[1] === 700),
+    "unverified opening has a separate audit sheet");
+  assert.ok(!messages.some(message => message[1] === "danger"), "export raises no error toast");
+}
+
+function testGroupedOrdersUseEveryPartnerAndDateRange() {
+  const ctx = loadDebtModule();
+  installDebtTestDOM(ctx);
+  ctx.state.partners = [
+    { id: "GROUP-A", name: "Company A", type: "enterprise" },
+    { id: "GROUP-B", name: "Company B", type: "project" }
+  ];
+  ctx.state.vouchers = [
+    { id: "BH-A", type: "sales", date: "2026-09-01", partnerId: "GROUP-A", totalAmount: 100, paymentMethod: "131", entries: [] },
+    { id: "BH-B", type: "sales", date: "2026-09-02", partnerId: "GROUP-B", totalAmount: 200, paymentMethod: "131", entries: [] },
+    { id: "BH-OLD", type: "sales", date: "2026-08-01", partnerId: "GROUP-B", totalAmount: 50, paymentMethod: "131", entries: [] }
+  ];
+  ctx.document.getElementById("debt-period-filter").value = "custom";
+  ctx.document.getElementById("debt-start-date").value = "2026-09-01";
+  ctx.document.getElementById("debt-end-date").value = "2026-09-30";
+  ctx.viewLedgerByIds(["GROUP-A", "GROUP-B"], "Group");
+  ctx.switchPartnerLedgerTab("orders");
+  const html = ctx.document.getElementById("partner-ledger-orders-body").children.map(row => row.innerHTML).join("");
+  assert.ok(html.includes("BH-A") && html.includes("BH-B"), "group Orders includes every member ID");
+  assert.ok(!html.includes("BH-OLD"), "group Orders respects ledger period");
+  assert.equal(ctx.calculatePartnerDebts().find(d => d.id === "GROUP-A").supplierReceivable, 0);
+}
+
+function testOrphan331ExportPreservesCreditDirection() {
+  const ctx = loadDebtModule();
+  installDebtTestDOM(ctx);
+  ctx.state.vouchers = [{ id: "NK-ORPHAN", type: "purchase", partnerId: "OLD-NCC", date: "2026-09-01",
+    entries: [{ debit: "156", credit: "331", amount: 100 }] }];
+  assert.equal(ctx.calculatePartnerDebts()[0].closingCredit, 100);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "xlsx.full.min.js"), "utf8"), ctx);
+  const xlsx = ctx.XLSX;
+  let exported;
+  ctx.XLSX = { ...xlsx, writeFile: wb => { exported = wb; } };
+  ctx.getLocalDateString = () => "2026-09-04";
+  ctx.dateStrToSerial = value => Date.parse(value) / 86400000 + 25569;
+  ctx.exportDebtsToExcelDetailed();
+  assert.ok(exported);
+  const row = xlsx.utils.sheet_to_json(exported.Sheets["Chi tiet cong no"], { header: 1 })
+    .find(values => values[1] === "NK-ORPHAN");
+  assert.deepStrictEqual(Array.from(row.slice(4, 6)), [0, 100], "orphan purchase keeps credit331 direction in export");
+  const total = xlsx.utils.sheet_to_json(exported.Sheets["Chi tiet cong no"], { header: 1 }).find(values => String(values[2]).includes("không bù trừ"));
+  assert.deepStrictEqual(Array.from(total.slice(6, 8)), [0, 100], "orphan closing credit retained in export totals");
+  ctx.state.vouchers.push({ id: "BH-ORPHAN", type: "sales", partnerId: "OLD-KH", date: "2026-09-01",
+    entries: [{ debit: "131", credit: "511", amount: 150 }] });
+  const mixed = ctx.calculatePartnerDebts()[0];
+  assert.equal(mixed.debitTrans, 150);
+  assert.equal(mixed.creditTrans, 100);
+  assert.equal(mixed.closingDebit, 150, "unrelated orphan customer receivable is not offset");
+  assert.equal(mixed.closingCredit, 100, "unrelated orphan supplier payable is not offset");
+}
+
+function testSupplierReceivableKpisDoNotOverlap() {
+  const ctx = loadDebtModule();
+  installDebtTestDOM(ctx);
+  ctx.state.partners = [{ id: "BOTH", type: "supplier", name: "Both" }, { id: "NCC", type: "supplier", name: "Supplier" }];
+  ctx.state.vouchers = [
+    { id: "BH", type: "sales", partnerId: "BOTH", entries: [{ debit: "131", credit: "511", amount: 100 }] },
+    { id: "PC1", type: "payment", partnerId: "BOTH", entries: [{ debit: "331", credit: "111", amount: 50 }] },
+    { id: "PC2", type: "payment", partnerId: "NCC", entries: [{ debit: "331", credit: "111", amount: 20 }] }
+  ];
+  ctx.renderDebtOverview(ctx.calculatePartnerDebts());
+  const html = ctx.document.getElementById("debt-overview-kpis").innerHTML;
+  const values = Array.from(html.matchAll(/kpi-value font-numeric">([^<]+)</g), match => Number(match[1]));
+  assert.equal(values[0], 150, "main receivable includes both-role net debt");
+  assert.equal(values[4], 20, "separate supplier-only KPI excludes the both-role amount already counted");
+}
+
 function testFifoReceiptAllocatesSales() {
   const ctx = loadAccountingFifo();
   ctx.state.vouchers = [
@@ -455,6 +689,14 @@ async function runAll() {
   testUnmatchedPartnerBucket();
   testUnmatchedEmptyEntriesFallback();
   testDualRoleBothType();
+  testFallbackDoesNotDeductPaymentsTwice();
+  testSupplierSalesVisibleInCustomerDebtTab();
+  testOrphanOpeningBalancesRemainUnverified();
+  testMissingPartnerDebtAppearsInUnmatchedOrders();
+  testOverviewAndDetailedExportKeepUnmatchedDebt();
+  testGroupedOrdersUseEveryPartnerAndDateRange();
+  testOrphan331ExportPreservesCreditDirection();
+  testSupplierReceivableKpisDoNotOverlap();
   testSupplierOverpaymentShowsAsReceivable();
   testFifoReceiptAllocatesSales();
   testDebtAdjustmentPreserved();

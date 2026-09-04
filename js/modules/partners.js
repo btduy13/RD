@@ -1178,13 +1178,18 @@ function handlePartnerSubmit(e) {
 
 async function deletePartner(id) {
   const linkedCount = (state.vouchers || []).filter(v => v.partnerId === id).length;
-  let confirmMsg = `Bạn có chắc chắn muốn xóa đối tác "${id}" không?`;
   if (linkedCount > 0) {
-    confirmMsg = `Đối tác "${id}" còn ${linkedCount} chứng từ liên kết. Xóa sẽ làm các chứng từ này rơi vào nhóm "Chưa khớp đối tác" trên tab công nợ. Bạn có chắc muốn xóa?`;
+    showToast(`Không thể xóa đối tác "${id}" vì còn ${linkedCount} chứng từ liên kết. Hãy chuyển các chứng từ sang đúng đối tác trước.`, "danger", 8000);
+    return;
+  }
+  const opening = (state.partnerOpeningBalances || {})[id] || {};
+  if (Number(opening.debit || 0) !== 0 || Number(opening.credit || 0) !== 0) {
+    showToast(`Không thể xóa đối tác "${id}" vì còn số dư đầu kỳ. Hãy đối chiếu và xử lý số dư trước.`, "danger", 8000);
+    return;
   }
   const ok = await showConfirmModal({
     title: "Xác nhận xóa đối tác",
-    message: confirmMsg,
+    message: `Bạn có chắc chắn muốn xóa đối tác "${id}" không?`,
     confirmText: "Xóa đối tác",
     cancelText: "Hủy bỏ",
     type: "danger"
@@ -1436,6 +1441,27 @@ async function batchDeletePartners() {
   const checked = Array.from(document.querySelectorAll(".partner-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
 
+  const idsToDelete = checked.map(cb => cb.value);
+  const linkedCounts = new Map();
+  (state.vouchers || []).forEach(v => {
+    if (!idsToDelete.includes(v.partnerId)) return;
+    linkedCounts.set(v.partnerId, (linkedCounts.get(v.partnerId) || 0) + 1);
+  });
+  if (linkedCounts.size > 0) {
+    const preview = Array.from(linkedCounts.entries()).slice(0, 5)
+      .map(([id, count]) => `${id} (${count} chứng từ)`).join(", ");
+    showToast(`Không thể xóa: ${linkedCounts.size} đối tác còn chứng từ liên kết: ${preview}${linkedCounts.size > 5 ? "…" : ""}. Hãy chuyển chứng từ trước.`, "danger", 10000);
+    return;
+  }
+  const withOpening = idsToDelete.filter(id => {
+    const opening = (state.partnerOpeningBalances || {})[id] || {};
+    return Number(opening.debit || 0) !== 0 || Number(opening.credit || 0) !== 0;
+  });
+  if (withOpening.length > 0) {
+    showToast(`Không thể xóa: ${withOpening.length} đối tác còn số dư đầu kỳ: ${withOpening.slice(0, 5).join(", ")}${withOpening.length > 5 ? "…" : ""}. Hãy đối chiếu và xử lý số dư trước.`, "danger", 10000);
+    return;
+  }
+
   const ok = await showConfirmModal({
     title: "Xác nhận xóa đối tác",
     message: `Bạn có chắc chắn muốn xóa ${checked.length} đối tác đã chọn?`,
@@ -1445,10 +1471,14 @@ async function batchDeletePartners() {
   });
   if (!ok) return;
 
-  const idsToDelete = checked.map(cb => cb.value);
   // Đưa các ID vào danh sách xóa cloud (prefix 'part_') trước khi xóa khỏi state
   trackDeletedIds(idsToDelete, 'partner');
   state.partners = state.partners.filter(p => !idsToDelete.includes(p.id));
+  idsToDelete.forEach(id => {
+    if (state.partnerOpeningBalances && state.partnerOpeningBalances[id]) {
+      delete state.partnerOpeningBalances[id];
+    }
+  });
 
   saveState();
 

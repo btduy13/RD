@@ -261,12 +261,12 @@ function renderDashboardDebts() {
     let totalPay = 0;
     let totalSupplierReceivable = 0;
     kpiDebts.forEach(d => {
-      if (d.type !== 'supplier') {
+      if (d.type !== 'supplier' || d.has131) {
         totalRec += (d.closingDebit || 0);
       }
       if (d.type === 'supplier' || d.type === 'both') {
         totalPay += d.closingCredit || 0;
-        totalSupplierReceivable += d.closingDebit || 0;
+        if (!d.has131) totalSupplierReceivable += d.supplierReceivable || 0;
       }
     });
     if (kpiReceivable) kpiReceivable.innerText = formatVND(totalRec);

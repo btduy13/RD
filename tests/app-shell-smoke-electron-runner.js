@@ -645,6 +645,69 @@ async function main() {
   }, 'customer context menu must clone customers but not suppliers');
   console.log('[app-shell-smoke] customer context-menu clone verified');
 
+  const debtLoginResult = await win.webContents.executeJavaScript(`(async () => {
+    showLoginForm();
+    document.getElementById('login-username').value = 'codex-debt-offline-test';
+    await submitLogin({ preventDefault() {} });
+    return {
+      cloudActive: cloudSyncActive,
+      loggedIn: window.currentUser && window.currentUser.username === 'codex-debt-offline-test',
+      overlayHidden: getComputedStyle(document.getElementById('login-overlay')).display === 'none'
+    };
+  })()`, true);
+  assert.deepEqual(debtLoginResult, { cloudActive: false, loggedIn: true, overlayHidden: true },
+    'debt UI test uses normal login in the offline disposable profile');
+
+  const debtUiResult = await win.webContents.executeJavaScript(`(() => {
+    const saved = { partners: state.partners, vouchers: state.vouchers, opening: state.partnerOpeningBalances };
+    try {
+      state.partners = [
+        { id: 'DEBT-SUP', name: 'Debt Supplier', type: 'supplier' },
+        { id: 'DEBT-A', name: 'Debt Company A', type: 'enterprise' },
+        { id: 'DEBT-B', name: 'Debt Company B', type: 'project' }
+      ];
+      state.partnerOpeningBalances = {};
+      state.vouchers = ['DEBT-SUP', 'DEBT-A', 'DEBT-B', 'DELETED-ID'].map((id, i) => ({
+        id: 'BH-DEBT-' + i, type: 'sales', date: '2026-09-01', partnerId: id,
+        partnerName: i === 3 ? 'Debt Company A' : '', paymentMethod: '131',
+        totalAmount: 100, remainingDebt: 100, cogsAmount: 0, description: '',
+        entries: [{ debit: '131', credit: '511', amount: 100 }]
+      }));
+      invalidatePartnerCache();
+      document.getElementById('debt-period-filter').value = 'all';
+      document.getElementById('debt-type-filter').value = 'all';
+      document.getElementById('debt-active-only-filter').checked = false;
+      document.getElementById('debt-search-input').value = '';
+      document.getElementById('debts-tab-btn-project').click();
+      const supplierShown = document.getElementById('debts-table-body').innerText.includes('DEBT-SUP');
+      document.querySelector('.debt-unmatched-link').click();
+      document.getElementById('partner-ledger-tab-btn-orders').click();
+      const orphanOrderShown = document.getElementById('partner-ledger-orders-body').innerText.includes('BH-DEBT-3');
+      closeModal('modal-view-partner-ledger');
+      viewLedgerByIds(['DEBT-A', 'DEBT-B'], 'Debt Group');
+      document.getElementById('partner-ledger-tab-btn-orders').click();
+      const groupedOrderCount = document.querySelectorAll('#partner-ledger-orders-body tr.clickable-row').length;
+      closeModal('modal-view-partner-ledger');
+      updateSidebarBadges();
+      const badge = document.querySelector('.menu-item[data-tab="debts"] .nav-badge');
+      const result = { supplierShown, orphanOrderShown, groupedOrderCount,
+        badge: badge && badge.textContent,
+        exactLinkWarning: buildSalesTableRowHtml(state.vouchers[3]).includes('Chưa khớp') };
+      return result;
+    } finally {
+      state.partners = saved.partners;
+      state.vouchers = saved.vouchers;
+      state.partnerOpeningBalances = saved.opening;
+      invalidatePartnerCache();
+      updateSidebarBadges();
+    }
+  })()`, true);
+  assert.deepEqual(debtUiResult, {
+    supplierShown: true, orphanOrderShown: true, groupedOrderCount: 2,
+    badge: '4', exactLinkWarning: true
+  }, 'debt UI must keep supplier sales, orphan/grouped orders, exact-link warnings and badges visible');
+  console.log('[app-shell-smoke] debt tabs, grouped/orphan orders and sidebar badge verified');
+
   const autocompleteResult = await win.webContents.executeJavaScript(`(async () => {
     const waitForUi = () => new Promise(resolve => setTimeout(resolve, 20));
     const failures = [];
