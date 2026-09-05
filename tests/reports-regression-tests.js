@@ -36,5 +36,24 @@ assert.deepEqual(
   { open: 50, movement: 200, close: 250 }
 );
 
+state.initialBalances['3388'] = { type:'credit', balance:'25', name:'Khoản phải trả khác' };
+state.vouchers.push({ id:'ADJUST', entries:[{ debit:'156', credit:'711', amount:'75' }] });
+state.vouchers.push({ id:'BANK', entries:[{ debit:'1121', credit:'131', amount:'10' }] });
+const complete = sandbox.window.calculateTrialBalance();
+assert.equal(complete.find(r => r.code === '711').moveCredit, 75, 'inventory adjustment income must not disappear from the trial balance');
+assert.equal(complete.find(r => r.code === '1121').moveDebit, 10, 'imported subaccounts must appear');
+assert.equal(complete.find(r => r.code === '3388').openCredit, 25, 'non-default opening accounts must appear');
+assert.equal(complete.reduce((s,r) => s+r.moveDebit, 0), complete.reduce((s,r) => s+r.moveCredit, 0), 'every double-entry movement stays balanced');
+const elements = { 'printable-report-area':{}, 'select-report-type':{value:'ledger'}, 'select-report-account':{value:'111'} };
+sandbox.document = {getElementById:id => elements[id]};
+sandbox.formatDateDisplay = value => value || '';
+const formatted = [];
+sandbox.formatVND = value => { formatted.push(value); return String(value); };
+state.vouchers = [{id:'SELF', entries:[{debit:111,credit:'111 ',amount:'25'}]}];
+sandbox.generateReport();
+assert.equal(formatted.at(-1), 100, 'same-account debit/credit movement must not inflate ledger closing balance');
+sandbox.populateReportAccountDropdown();
+assert.match(elements['select-report-account'].innerHTML, /3388/);
+assert.equal(elements['select-report-account'].value, '111', 'refresh preserves selected account');
 console.log('reports regression tests passed');
 

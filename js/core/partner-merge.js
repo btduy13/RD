@@ -10,16 +10,18 @@ function mergePartnerOpeningBalance(sourceId, targetId) {
   const tgt = state.partnerOpeningBalances[targetId] || { debit: 0, credit: 0 };
 
   state.partnerOpeningBalances[targetId] = {
-    debit: (tgt.debit || 0) + (src.debit || 0),
-    credit: (tgt.credit || 0) + (src.credit || 0)
+    debit: (Number(tgt.debit) || 0) + (Number(src.debit) || 0),
+    credit: (Number(tgt.credit) || 0) + (Number(src.credit) || 0)
   };
 
   const srcTs = Number(state.partnerOpeningBalanceTs[sourceId]) || 0;
   const tgtTs = Number(state.partnerOpeningBalanceTs[targetId]) || 0;
-  state.partnerOpeningBalanceTs[targetId] = Math.max(srcTs, tgtTs);
+  const mergedAt = Math.max(Date.now(), srcTs + 1, tgtTs + 1);
+  state.partnerOpeningBalanceTs[targetId] = mergedAt;
 
   delete state.partnerOpeningBalances[sourceId];
-  delete state.partnerOpeningBalanceTs[sourceId];
+  // Preserve a deletion version so an older cloud opening cannot reappear.
+  state.partnerOpeningBalanceTs[sourceId] = mergedAt;
 }
 
 function mergePartnerRecords(sourceId, targetId, options) {
@@ -54,6 +56,13 @@ function mergePartnerRecords(sourceId, targetId, options) {
   }
 
   state.partners = (state.partners || []).filter((p) => String(p.id) !== String(sourceId));
+  state.partners.forEach(p => {
+    if (String(p.parentId) !== String(sourceId)) return;
+    p.parentId = String(p.id) === String(targetId)
+      ? (String(source.parentId || '') === String(targetId) ? '' : (source.parentId || ''))
+      : targetId;
+    p._updatedAt = Date.now();
+  });
 
   if (typeof invalidatePartnerCache === "function") invalidatePartnerCache();
   if (typeof invalidateAccounting === "function") invalidateAccounting(state);

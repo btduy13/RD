@@ -81,17 +81,19 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
   state.products.forEach(p => {
     // Tìm thông số khởi tạo của sản phẩm này từ map tra cứu O(1)
     const orig = originalProductsMap[p.id];
-    let initStock = orig ? orig.stock : (p.initialStock !== undefined ? p.initialStock : (p.stock || 0));
+    let initStock = p.initialStock !== undefined ? p.initialStock : (orig ? orig.stock : (p.stock || 0));
     initStock = Number((initStock || 0).toFixed(3));
     
     // Nếu sản phẩm được nhập từ Excel và có actualStock, ta tính ngược lại tồn đầu kỳ để tồn cuối kỳ chính là actualStock
-    if (!orig && p.actualStock !== undefined) {
+    if (!orig && p.initialStock === undefined && p.actualStock !== undefined) {
       const changes = voucherChanges[p.id] || { purchases: 0, sales: 0 };
       initStock = Number((p.actualStock - changes.purchases + changes.sales).toFixed(3));
       p.initialStock = initStock;
     }
 
-    const initCost = orig ? orig.avgCost : (p.initialCost !== undefined ? p.initialCost : (p.avgCost || 0));
+    const initCost = p.initialCost !== undefined ? p.initialCost : (orig ? orig.avgCost : (p.avgCost || 0));
+    if (p.initialStock === undefined) p.initialStock = initStock;
+    if (p.initialCost === undefined) p.initialCost = initCost;
     productBalanceMap[p.id] = {
       stock: initStock,
       avgCost: initCost,
@@ -423,15 +425,33 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
   });
 
   // BƯỚC C2 (Bug C): Suy diễn remainingDebt từ bút toán bằng phân bổ FIFO
-  const openingRemaining = {};
-  if (state.partnerOpeningBalances) {
-    Object.keys(state.partnerOpeningBalances).forEach(pid => {
-      const op = state.partnerOpeningBalances[pid] || {};
-      openingRemaining[pid] = { debit: op.debit || 0, credit: op.credit || 0 };
-    });
-  }
-  const arQueues = {};
-  const apQueues = {};
+  const openingRemaining = Object.create(null);
+  const arQueues = Object.create(null);
+  const apQueues = Object.create(null);
+  const arAdvances = Object.create(null);
+  const apAdvances = Object.create(null);
+  (state.partners || []).forEach(p => {
+    const op = (state.partnerOpeningBalances || {})[p.id];
+    if (!op) return;
+    const net = (Number(op.debit) || 0) - (Number(op.credit) || 0);
+    // Opening amounts follow the same account/role as the partner ledger.
+    openingRemaining[p.id] = p.type === 'supplier'
+      ? { debit: 0, credit: Math.max(-net, 0) }
+      : { debit: Math.max(net, 0), credit: 0 };
+    const pool = p.type === 'supplier' ? apAdvances : arAdvances;
+    pool[p.id] = [{ remaining: Math.max(p.type === 'supplier' ? net : -net, 0) }];
+  });
+  const consumeAdvance = (pool, pid, amount) => {
+    let left = amount;
+    for (const credit of pool[pid] || []) {
+      const used = Math.min(credit.remaining, left);
+      credit.remaining -= used;
+      left -= used;
+      if (credit.v) credit.v.remainingDebt = -credit.remaining;
+      if (left <= 0) break;
+    }
+    return amount - left;
+  };
 
   state.vouchers.forEach(v => {
     const isDebtType = (v.type === "sales" || v.type === "purchase" || v.type === "sales_return" || v.type === "purchase_return");
@@ -443,7 +463,7 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
     const pid = v.partnerId !== undefined && v.partnerId !== null ? String(v.partnerId) : "";
     let debit131 = 0, credit131 = 0, debit331 = 0, credit331 = 0;
     v.entries.forEach(e => {
-      const amt = e.amount || 0;
+      const amt = Number(e.amount) || 0;
       const dr = e.debit ? String(e.debit) : "";
       const cr = e.credit ? String(e.credit) : "";
       if (dr.startsWith("131")) debit131 += amt;
@@ -455,16 +475,18 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
     if (isDebtType) v.remainingDebt = 0;
 
     if (v.type === "sales" && debit131 > 0) {
-      const order = { v, remaining: debit131 };
+      const used = pid ? consumeAdvance(arAdvances, pid, debit131) : 0;
+      const order = { v, remaining: debit131 - used };
       (arQueues[pid] = arQueues[pid] || []).push(order);
-      v.remainingDebt = debit131;
+      v.remainingDebt = order.remaining;
     } else if (v.type === "purchase" && credit331 > 0) {
-      const order = { v, remaining: credit331 };
+      const used = pid ? consumeAdvance(apAdvances, pid, credit331) : 0;
+      const order = { v, remaining: credit331 - used };
       (apQueues[pid] = apQueues[pid] || []).push(order);
-      v.remainingDebt = credit331;
+      v.remainingDebt = order.remaining;
     }
 
-    if (credit131 > 0 && v.type !== "sales") {
+    if (pid && credit131 > 0 && v.type !== "sales") {
       let toAlloc = credit131;
       const op = openingRemaining[pid];
       if (op && op.debit > 0) {
@@ -481,12 +503,13 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
         toAlloc -= used;
         order.v.remainingDebt = order.remaining;
       }
+      if (toAlloc > 0) (arAdvances[pid] = arAdvances[pid] || []).push({ remaining: toAlloc, v: v.type === "sales_return" ? v : null });
       if (v.type === "sales_return") {
         v.remainingDebt = -toAlloc;
       }
     }
 
-    if (debit331 > 0 && v.type !== "purchase") {
+    if (pid && debit331 > 0 && v.type !== "purchase") {
       let toAlloc = debit331;
       const op = openingRemaining[pid];
       if (op && op.credit > 0) {
@@ -503,6 +526,7 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
         toAlloc -= used;
         order.v.remainingDebt = order.remaining;
       }
+      if (toAlloc > 0) (apAdvances[pid] = apAdvances[pid] || []).push({ remaining: toAlloc, v: v.type === "purchase_return" ? v : null });
       if (v.type === "purchase_return") {
         v.remainingDebt = -toAlloc;
       }
@@ -529,7 +553,29 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
     }
   });
 
-  // Tự động đồng bộ số dư đầu kỳ của tài khoản kế toán 131 và 331 từ danh mục công nợ đối tác
+  // Opening balances are entered data, never a side effect of recalculation.
+
+  // Cập nhật lại cache sản phẩm & đối tác
+  if (typeof cacheProductOptions === "function") {
+    cacheProductOptions();
+  }
+  if (typeof updateExcelHubUI === "function") {
+    updateExcelHubUI();
+  }
+
+  if (typeof markAccountingValid === 'function') {
+    markAccountingValid(state);
+  }
+
+  // Lưu lại và vẽ giao diện
+  if (shouldSave) {
+    saveState();
+  }
+  refreshUI();
+}
+
+// Call only after an explicit edit/import of partner opening balances.
+function syncPartnerOpeningAccounts() {
   if (state.initialBalances && state.partnerOpeningBalances) {
     let customerNetOpen = 0;
     let supplierNetOpen = 0;
@@ -551,47 +597,8 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
       state.initialBalances["331"].balance = supplierNetOpen >= 0 ? supplierNetOpen : -supplierNetOpen;
       state.initialBalances["331"].type = supplierNetOpen >= 0 ? "credit" : "debit";
     }
-    rebalanceEquity();
   }
 
-  // Cập nhật lại cache sản phẩm & đối tác
-  if (typeof cacheProductOptions === "function") {
-    cacheProductOptions();
-  }
-  if (typeof updateExcelHubUI === "function") {
-    updateExcelHubUI();
-  }
-
-  if (typeof markAccountingValid === 'function') {
-    markAccountingValid(state);
-  }
-
-  // Lưu lại và vẽ giao diện
-  if (shouldSave) {
-    saveState();
-  }
-  refreshUI();
-}
-
-// Tự động cân đối tài sản và nguồn vốn bằng cách điều chỉnh TK 411 (Vốn chủ sở hữu)
-function rebalanceEquity() {
-  let debitSum = 0;
-  let creditSum = 0;
-
-  Object.keys(state.initialBalances).forEach(code => {
-    if (code === "411") return; // Bỏ qua vốn chủ để tính chênh lệch
-    const b = state.initialBalances[code];
-    if (b.type === "debit") {
-      debitSum += b.balance;
-    } else {
-      creditSum += b.balance;
-    }
-  });
-
-  // H12 Fix: Null guard for TK 411
-  if (state.initialBalances["411"]) {
-    state.initialBalances["411"].balance = debitSum - creditSum;
-  }
 }
 
 // Xóa chứng từ khỏi sổ cái
@@ -605,17 +612,19 @@ async function deleteVoucher(id) {
   });
   if (!ok) return;
 
-  const vouchersBefore = JSON.parse(JSON.stringify(state.vouchers || []));
-    const deletedIdsBefore = [...(state.deletedIds || [])];
-    const deletedCloudKeysBefore = [...(state.deletedCloudKeys || [])];
+  const removed = state.vouchers.filter(v => v.id === id);
+  const unlinked = [];
+  let deletionToken;
+  let localSaved = false;
     try {
-      trackDeletedIds([id], 'voucher');
+      deletionToken = trackDeletedIds([id], 'voucher');
       state.vouchers = state.vouchers.filter(v => v.id !== id);
 
       // Nếu có các khoản tất toán gắn liền với nó, xóa liên kết hoặc cảnh báo
       // Để an toàn, xóa các khoản tham chiếu
       state.vouchers.forEach(v => {
         if (v.escrowRefId === id) {
+          unlinked.push(v);
           v.escrowRefId = null;
         }
       });
@@ -645,18 +654,22 @@ async function deleteVoucher(id) {
 
       recalculateAccounting(false);
       const cloudCommitted = await saveStateAndSyncVoucher();
+      localSaved = true;
       showToast(
         cloudCommitted ? `Đã xóa và đồng bộ chứng từ ${id} sang các máy trạm!` : `Đã xóa chứng từ ${id} trên máy này và đang chờ đồng bộ.`,
         cloudCommitted ? "success" : "warning"
       );
       refreshUI();
     } catch (err) {
-      state.vouchers = vouchersBefore;
-      state.deletedIds = deletedIdsBefore;
-      state.deletedCloudKeys = deletedCloudKeysBefore;
-      recalculateAccounting(false);
+      if (!localSaved) {
+        const active = new Set(state.vouchers.map(v => v.id));
+        state.vouchers.push(...removed.filter(v => !active.has(v.id)));
+        unlinked.forEach(v => { if (state.vouchers.includes(v) && v.escrowRefId === null) v.escrowRefId = id; });
+        if (typeof rollbackTrackedDeletedIds === "function") rollbackTrackedDeletedIds(deletionToken);
+        recalculateAccounting(false, true);
+      }
       console.error("Lỗi nghiêm trọng trong quá trình xóa chứng từ:", err);
-      showToast(`Không thể xóa trên cloud; chứng từ đã được khôi phục: ${err.message}`, "danger");
+      showToast(`Không thể hoàn tất thao tác xóa: ${err.message}`, "danger");
     }
 }
 
@@ -665,7 +678,7 @@ async function deleteVoucher(id) {
 // Tìm số dư của tài khoản (111, 112, 156, etc.) phục vụ Dashboard và báo cáo
 function getAccountBalance(acctCode, toDate = "") {
   const initBalObj = (state.initialBalances && state.initialBalances[acctCode]) || { type: "debit", balance: 0 };
-  let bal = initBalObj.balance;
+  let bal = Number(initBalObj.balance) || 0;
   const isDebit = initBalObj.type === "debit";
 
   if (state.vouchers) {
@@ -673,11 +686,11 @@ function getAccountBalance(acctCode, toDate = "") {
       if (toDate && v.date > toDate) return;
       if (v.entries && Array.isArray(v.entries)) {
         v.entries.forEach(e => {
-          if (e.debit === acctCode) {
-            bal += isDebit ? e.amount : -e.amount;
+          if (String(e.debit ?? '').trim() === String(acctCode)) {
+            bal += isDebit ? (Number(e.amount) || 0) : -(Number(e.amount) || 0);
           }
-          if (e.credit === acctCode) {
-            bal += isDebit ? -e.amount : e.amount;
+          if (String(e.credit ?? '').trim() === String(acctCode)) {
+            bal += isDebit ? -(Number(e.amount) || 0) : (Number(e.amount) || 0);
           }
         });
       }

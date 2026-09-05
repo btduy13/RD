@@ -5,7 +5,8 @@
 const ENTITY_WATCH_FIELDS = {
   voucher: [
     "_updatedAt", "type", "date", "partnerId", "description", "paymentMethod",
-    "totalAmount", "cogsAmount", "remainingDebt", "taxRate", "note", "items"
+    "totalAmount", "amount", "entries", "debtAdjustment", "cogsAmount", "remainingDebt", "taxRate", "note", "items",
+    "partnerName", "isManual", "isImported", "escrowRefId"
   ],
   product: [
     "_updatedAt", "name", "unit", "stock", "avgCost", "totalValue",

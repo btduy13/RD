@@ -103,7 +103,6 @@ async function initApp() {
           lastSyncedCloudTs = pulledTs;
           if (pulledTs > 0) localStorage.setItem("rd_accounting_last_pulled_cloud_ts", String(pulledTs));
           console.log(`[Cache] Khởi tạo dữ liệu từ cache cục bộ thành công! (${(state.vouchers || []).length} chứng từ, ${(state.partners || []).length} đối tác)`);
-          cleanNumericVouchers();
         }
       }
     } catch (err) {
@@ -243,15 +242,7 @@ async function initApp() {
       }
     }
 
-    // Dọn dẹp dữ liệu rác đối tác đầu kỳ không hợp lệ
-    if (state.partnerOpeningBalances) {
-      const validPartnerIds = new Set(state.partners.map(p => p.id));
-      Object.keys(state.partnerOpeningBalances).forEach(key => {
-        if (!validPartnerIds.has(key)) {
-          delete state.partnerOpeningBalances[key];
-        }
-      });
-    }
+    // Preserve orphan openings for reconciliation; absence from a local catalog is not deletion authorization.
 
     localStorage.setItem('rd_migrations_279_done', 'true');
   }
@@ -356,75 +347,6 @@ async function initApp() {
     if (typeof updateThemeToggleIcon === "function") {
       updateThemeToggleIcon();
     }
-    if (typeof debugProductAudit === "function") {
-      debugProductAudit("initApp-loaded");
-    }
-  }
-}
-
-// Hàm dọn dẹp các đơn hàng tự sinh (ID là số thứ tự) và chứng từ rác/test cũ
-function cleanNumericVouchers() {
-  if (!state || !Array.isArray(state.vouchers)) return;
-  
-  // 1. Dọn dẹp đơn hàng tự sinh có ID là số thứ tự
-  const numericVouchers = state.vouchers.filter(v => v && v.id && /^\d+$/.test(String(v.id).trim()));
-  let hasChanges = false;
-  if (numericVouchers.length > 0) {
-    console.log(`[Cleanup] Phát hiện và xóa ${numericVouchers.length} đơn hàng tự sinh có ID là số thứ tự.`);
-    const idsToDelete = numericVouchers.map(v => v.id);
-    trackDeletedIds(idsToDelete);
-    state.vouchers = state.vouchers.filter(v => v && v.id && !/^\d+$/.test(String(v.id).trim()));
-    hasChanges = true;
-  }
-
-  // 2. Dọn dẹp dòng summary lỗi từ Excel (Tổng thu/Tổng chi) và các voucher test cũ
-  const trashVouchers = state.vouchers.filter(v => {
-    if (!v || !v.id) return false;
-    const idStr = String(v.id).trim().toLowerCase();
-    const descStr = (v.description || "").trim().toLowerCase();
-    
-    // Check dòng tổng kết lỗi của Excel: chỉ khớp CHÍNH XÁC nhãn tổng kết.
-    // Không dùng includes() — mô tả chứng từ thật hoàn toàn có thể chứa
-    // cụm "tổng thu"/"tổng chi" và tombstone sẽ xóa nó trên mọi máy.
-    if (idStr === "tổng thu" || idStr === "tổng chi" || descStr === "tổng thu" || descStr === "tổng chi") {
-      return true;
-    }
-    // Check các dòng test nháp dữ liệu cũ: ID phải là "test" (kèm số) đứng
-    // riêng, không match substring để tránh xóa nhầm mã chứng từ thật.
-    if (/^test\d*$/.test(idStr) || descStr === "test" || descStr === "testtt" || descStr === "tesett" || descStr === "testt") {
-      return true;
-    }
-    return false;
-  });
-
-  if (trashVouchers.length > 0) {
-    console.log(`[Cleanup] Phát hiện và xóa ${trashVouchers.length} chứng từ rác/test dữ liệu cũ.`);
-    const trashIds = new Set(trashVouchers.map(v => v.id));
-    trackDeletedIds([...trashIds]);
-    state.vouchers = state.vouchers.filter(v => v && v.id && !trashIds.has(v.id));
-    hasChanges = true;
-  }
-
-  // 3. Khắc phục lỗi chiết khấu đang lưu dạng số tiền tuyệt đối (> 100) thay vì phần trăm
-  state.vouchers.forEach(v => {
-    if (v && Array.isArray(v.items)) {
-      v.items.forEach(item => {
-        if (item && item.discount > 100) {
-          const grossAmount = (item.qty || 0) * (item.price || 0);
-          if (grossAmount > 0) {
-            const calculatedPercent = Math.round((item.discount / grossAmount) * 100 * 100) / 100;
-            if (calculatedPercent <= 100) {
-              item.discount = calculatedPercent;
-              hasChanges = true;
-            }
-          }
-        }
-      });
-    }
-  });
-
-  if (hasChanges) {
-    saveState();
   }
 }
 
@@ -626,7 +548,7 @@ async function executeSaveState(sync = false, options = {}) {
         savePhase = "persist-full-state";
         const result = await persistFullState(jsonString);
         if (result && result.ok) {
-          initializeLastSavedState(state);
+          initializeLastSavedState(JSON.parse(jsonString));
           persisted = true;
         } else {
           console.error('[StateFile] Ghi file full thất bại:', result && result.error);
@@ -651,17 +573,20 @@ async function executeSaveState(sync = false, options = {}) {
 
           savePhase = "refresh-delta";
           const refreshedDiff = buildStateDelta(state, lastSavedState);
+          // The live entity objects may change while IPC is awaiting SQLite.
+          const committedDelta = JSON.parse(JSON.stringify(refreshedDiff.delta));
           savePhase = "persist-delta";
-          const result = await persistStateDelta(refreshedDiff.delta);
+          const result = await persistStateDelta(committedDelta);
           if (result && result.ok) {
-            applyDeltaToSnapshot(lastSavedState, refreshedDiff.delta);
+            applyDeltaToSnapshot(lastSavedState, committedDelta);
             persisted = true;
           } else {
             console.error('[StateFile] Ghi delta thất bại:', result && result.error);
             savePhase = "persist-full-fallback";
-            const fallback = await persistFullState(JSON.stringify(state));
+            const fallbackJson = JSON.stringify(state);
+            const fallback = await persistFullState(fallbackJson);
             if (fallback && fallback.ok) {
-              initializeLastSavedState(state);
+              initializeLastSavedState(JSON.parse(fallbackJson));
               persisted = true;
             }
           }

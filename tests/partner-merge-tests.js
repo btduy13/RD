@@ -45,15 +45,15 @@ function testPartnerMerge() {
       partners: [
         { id: 'GH1', name: 'Green Home (KHT02/2023R)', type: 'customer' },
         { id: 'KGX1', name: 'Cty Không Gian Xanh (KH7974T02/2026)', type: 'customer' },
-        { id: 'OTHER', name: 'Anh Minh', type: 'customer' }
+        { id: 'OTHER', name: 'Anh Minh', type: 'customer', parentId:'KGX1' }
       ],
       vouchers: [
         { id: 'BH1', partnerId: 'KGX1', partnerName: 'Cty Không Gian Xanh (KH7974T02/2026)' },
         { id: 'BH2', partnerId: 'OTHER', partnerName: 'Anh Minh' }
       ],
       partnerOpeningBalances: {
-        GH1: { debit: 100, credit: 0 },
-        KGX1: { debit: 50, credit: 0 }
+        GH1: { debit: '100', credit: 0 },
+        KGX1: { debit: '50', credit: 0 }
       },
       partnerOpeningBalanceTs: {}
     },
@@ -71,12 +71,16 @@ function testPartnerMerge() {
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'js/core/partner-identity.js'), 'utf8'), sandbox);
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'js/core/partner-merge.js'), 'utf8'), sandbox);
 
+  const before = Date.now();
   const result = sandbox.mergePartnerRecords('KGX1', 'GH1', { recalculate: false });
   assert.equal(result.ok, true);
   assert.equal(result.voucherCount, 1);
   assert.equal(sandbox.state.vouchers[0].partnerId, 'GH1');
   assert.equal(sandbox.state.partners.length, 2);
   assert.equal(sandbox.state.partnerOpeningBalances.GH1.debit, 150);
+  assert.ok(sandbox.state.partnerOpeningBalanceTs.GH1 >= before);
+  assert.ok(sandbox.state.partnerOpeningBalanceTs.KGX1 >= before);
+  assert.equal(sandbox.state.partners.find(p => p.id === 'OTHER').parentId, 'GH1');
   console.log('partner-merge tests passed');
 }
 

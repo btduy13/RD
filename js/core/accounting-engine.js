@@ -2,6 +2,16 @@
    ACCOUNTING ENGINE — Watermark / skip-recalc helpers (pure, no DOM)
    ========================================================================== */
 
+function accountingInputFingerprint(value) {
+  const text = JSON.stringify(value);
+  let first = 2166136261, second = 5381;
+  for (let i = 0; i < text.length; i++) {
+    first = Math.imul(first ^ text.charCodeAt(i), 16777619);
+    second = Math.imul(second, 33) ^ text.charCodeAt(i);
+  }
+  return `${text.length}:${first >>> 0}:${second >>> 0}`;
+}
+
 function getRecalcWatermark(state) {
   const vouchers = state.vouchers || [];
   let maxUpdatedAt = 0;
@@ -10,6 +20,14 @@ function getRecalcWatermark(state) {
     if (ts > maxUpdatedAt) maxUpdatedAt = ts;
   });
   return {
+    inputs: accountingInputFingerprint({
+      standard: state.accountingStandard,
+      openings: state.partnerOpeningBalances,
+      partners: (state.partners || []).map(p => [p.id, p.type]),
+      products: (state.products || []).map(p => [p.id, p.initialStock, p.initialCost, p.actualStock]),
+      vouchers: vouchers.map(v => [v.id, v.type, v.date, v.partnerId, v.paymentMethod,
+        v.amount, v.taxRate, v.items, v.entries, v.debtAdjustment, v.isImported, v.isManual])
+    }),
     voucherCount: vouchers.length,
     productCount: (state.products || []).length,
     lastModified: Number(state._lastModified) || 0,
@@ -28,6 +46,7 @@ function shouldSkipFullRecalc(state, shouldSave, forceFullRecalc) {
   if (!saved) return false;
   const current = getRecalcWatermark(state);
   return (
+    saved.inputs === current.inputs &&
     saved.voucherCount === current.voucherCount &&
     saved.productCount === current.productCount &&
     saved.lastModified === current.lastModified &&

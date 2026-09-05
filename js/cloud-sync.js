@@ -1633,7 +1633,7 @@ function cloudSyncMergeMetadata(localState, cloudState, baselineState = null) {
   const cloudOPTS = cloudMeta.partnerOpeningBalanceTs || {};
   const mergedOP = {};
   const mergedOPTS = {};
-  const opKeys = new Set([...Object.keys(localOP), ...Object.keys(cloudOP)]);
+  const opKeys = new Set([...Object.keys(localOP), ...Object.keys(cloudOP), ...Object.keys(localOPTS), ...Object.keys(cloudOPTS)]);
   opKeys.forEach(key => {
     const lTs = Number(localOPTS[key]) || 0;
     const cTs = Number(cloudOPTS[key]) || 0;
@@ -1644,7 +1644,8 @@ function cloudSyncMergeMetadata(localState, cloudState, baselineState = null) {
       if (localOP[key] !== undefined) mergedOP[key] = localOP[key];
       mergedOPTS[key] = lTs;
     } else {
-      mergedOP[key] = localOP[key] !== undefined ? localOP[key] : cloudOP[key];
+      const opening = localOP[key] !== undefined ? localOP[key] : cloudOP[key];
+      if (opening !== undefined) mergedOP[key] = opening;
       mergedOPTS[key] = lTs || cTs;
     }
   });

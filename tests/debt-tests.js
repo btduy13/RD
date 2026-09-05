@@ -72,7 +72,6 @@ function loadAccountingFifo() {
     updateExcelHubUI() {},
     safeParseFloat: (v) => Number(v) || 0,
     getPartnerForVoucher: () => null,
-    rebalanceEquity() {},
     window: {}
   };
   sandbox.window = sandbox;
@@ -618,6 +617,11 @@ function testOpeningBalanceTimestampMerge() {
   // Sidecar timestamps được giữ lại cho lần merge sau
   assert.equal(merged.partnerOpeningBalanceTs.P_LOCAL_NEWER, 5000, "winning local ts preserved");
   assert.equal(merged.partnerOpeningBalanceTs.P_CLOUD_NEWER, 4000, "winning cloud ts preserved");
+  const deletion = { partnerOpeningBalances:{}, partnerOpeningBalanceTs:{OLD:9000} };
+  const carried = merge(deletion, {partnerOpeningBalances:{}, partnerOpeningBalanceTs:{}});
+  const oldStation = {partnerOpeningBalances:{OLD:{debit:500,credit:0}}, partnerOpeningBalanceTs:{OLD:1000}};
+  assert.equal(carried.partnerOpeningBalanceTs.OLD, 9000, 'opening deletion version survives an empty intermediate snapshot');
+  assert.equal(merge(carried, oldStation).partnerOpeningBalances.OLD, undefined, 'stale station cannot resurrect a merged opening');
 }
 
 function testDebtAdjustmentPreserved() {

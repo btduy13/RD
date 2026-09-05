@@ -26,6 +26,9 @@ function testStateDiff() {
 
   assert.equal(core.entityChanged(prev, same, 'voucher'), false);
   assert.equal(core.entityChanged(prev, changedNote, 'voucher'), true);
+  for (const change of [{ amount: 20 }, { entries: [{ debit: '111', credit: '131', amount: 20 }] }, { debtAdjustment: 20 }]) {
+    assert.equal(core.entityChanged(prev, { ...prev, ...change }, 'voucher'), true, 'cash/accounting edits must be persisted even with unchanged timestamps');
+  }
 
   const lastSavedState = {
     companyName: 'A',
@@ -112,7 +115,11 @@ function testAccountingEngine() {
     products: []
   };
 
+  state._recalcWatermark = core.getRecalcWatermark(state);
   assert.equal(core.shouldSkipFullRecalc(state, false, false), true);
+  state.vouchers[0].amount = 300;
+  assert.equal(core.shouldSkipFullRecalc(state, false, false), false, 'same-count edits invalidate accounting even without a timestamp change');
+  state._recalcWatermark = core.getRecalcWatermark(state);
   assert.equal(core.shouldSkipFullRecalc(state, true, false), false);
   assert.equal(core.shouldSkipFullRecalc(state, false, true), false);
 

@@ -13,10 +13,13 @@ async function persistFullState(jsonString) {
     return window.electronAPI.writeStateFile(jsonString);
   }
   const storage = getWebStorage();
-  if (storage) {
+  if (!storage) return { ok: false, error: "No local persistence backend available" };
+  try {
     storage.setItem("rd_accounting_online_cache", jsonString);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: String(error && error.message || error) };
   }
-  return { ok: true };
 }
 
 async function persistStateDelta(delta) {

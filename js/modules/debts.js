@@ -2359,6 +2359,7 @@ function handleEditDebtSubmit(e) {
       state.partnerOpeningBalances[targetId] = { debit: newDebit, credit: newCredit };
       state.partnerOpeningBalanceTs = state.partnerOpeningBalanceTs || {};
       state.partnerOpeningBalanceTs[targetId] = Date.now();
+      if (typeof syncPartnerOpeningAccounts === "function") syncPartnerOpeningAccounts();
 
       saveState();
       recalculateAccounting();
@@ -2773,7 +2774,10 @@ async function batchDeleteDebts() {
   const idsToReset = checked.map(cb => cb.value);
   idsToReset.forEach(id => {
     state.partnerOpeningBalances[id] = { debit: 0, credit: 0 };
+    state.partnerOpeningBalanceTs = state.partnerOpeningBalanceTs || {};
+    state.partnerOpeningBalanceTs[id] = Date.now();
   });
+  if (typeof syncPartnerOpeningAccounts === "function") syncPartnerOpeningAccounts();
 
   if (typeof resetBatchSelectionUI === "function") {
     resetBatchSelectionUI({

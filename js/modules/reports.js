@@ -10,26 +10,45 @@ function escapeReportText(value) {
     .replace(/'/g, "&#039;");
 }
 
-function populateReportAccountDropdown() {
-  const select = document.getElementById("select-report-account");
-  if (!select) return;
-
+function getReportAccounts() {
   const std = state.accountingStandard;
+
+  // Danh sách các tài khoản sử dụng
   const accounts = [
-    { code: "111", name: "Tiền mặt" },
+    { code: "111", name: "Tiền mặt tại quỹ" },
     { code: "112", name: "Tiền gửi ngân hàng" },
-    { code: "131", name: "Phải thu khách hàng" },
-    { code: "156", name: "Hàng hóa tồn kho" },
-    { code: std === "TT200" ? "244" : "1386", name: "Phải thu ký quỹ, ký cược" },
+    { code: "131", name: "Phải thu của khách hàng" },
     { code: "1331", name: "Thuế GTGT đầu vào được khấu trừ" },
-    { code: "331", name: "Phải trả người bán" },
-    { code: "3331", name: "Thuế GTGT đầu ra phải nộp" },
+    { code: "156", name: "Hàng hóa nhập kho" },
+    { code: std === "TT200" ? "244" : "1386", name: "Phải thu ký quỹ, ký cược" },
+    { code: "331", name: "Phải trả cho người bán" },
+    { code: "3331", name: "Thuế GTGT phải nộp" },
     { code: std === "TT200" ? "344" : "3386", name: "Phải trả nhận ký quỹ, ký cược" },
+    { code: "411", name: "Vốn góp của chủ sở hữu" },
     { code: "511", name: "Doanh thu bán hàng" },
     { code: "632", name: "Giá vốn hàng bán" }
   ];
 
-  select.innerHTML = accounts.map(a => `<option value="${a.code}">${a.code} - ${a.name}</option>`).join("");
+  const byCode = new Map(accounts.map(account => [account.code, account]));
+  const include = (rawCode, name) => {
+    const code = String(rawCode ?? '').trim();
+    if (!/^\d{3,}$/.test(code) || byCode.has(code)) return;
+    byCode.set(code, { code, name: name || `Tài khoản ${code}` });
+  };
+  Object.entries(state.initialBalances || {}).forEach(([code, balance]) => include(code, balance && balance.name));
+  (state.vouchers || []).forEach(v => (v.entries || []).forEach(e => {
+    include(e.debit); include(e.credit);
+  }));
+  return [...byCode.values()].sort((a, b) => a.code.localeCompare(b.code));
+}
+
+function populateReportAccountDropdown() {
+  const select = document.getElementById("select-report-account");
+  if (!select) return;
+  const selected = select.value;
+  const accounts = getReportAccounts();
+  select.innerHTML = accounts.map(a => `<option value="${a.code}">${a.code} - ${escapeReportText(a.name)}</option>`).join("");
+  if (accounts.some(a => a.code === selected)) select.value = selected;
 }
 
 // Xử lý khi đổi loại báo cáo
@@ -85,7 +104,7 @@ function generateReport() {
     } else {
       state.vouchers.forEach(v => {
         (v.entries || []).forEach((e, idx) => {
-          totalVal += e.amount;
+          totalVal += Number(e.amount) || 0;
           html += `
             <tr>
               <td style="border:1px solid #000; padding:6px; color:#000;">${idx === 0 ? escapeReportText(formatDateDisplay(v.date)) : ""}</td>
@@ -142,7 +161,7 @@ function generateReport() {
 
     // Lấy số dư đầu kỳ
     const initBalObj = state.initialBalances[acctCode] || { type: "debit", balance: 0 };
-    let currentBalance = initBalObj.balance;
+    let currentBalance = Number(initBalObj.balance) || 0;
     const isDebitAccount = initBalObj.type === "debit";
 
     html += `
@@ -163,19 +182,22 @@ function generateReport() {
     // Quét qua các nghiệp vụ trong nhật ký
     state.vouchers.forEach(v => {
       (v.entries || []).forEach(e => {
-        if (e.debit !== acctCode && e.credit !== acctCode) return;
+        const debitCode = String(e.debit ?? '').trim();
+        const creditCode = String(e.credit ?? '').trim();
+        if (debitCode !== acctCode && creditCode !== acctCode) return;
 
         let dbAmt = 0;
         let crAmt = 0;
         let oppositeAcct = "";
 
-        if (e.debit === acctCode) {
-          dbAmt = e.amount;
+        if (debitCode === acctCode) {
+          dbAmt = Number(e.amount) || 0;
           totalDebit += dbAmt;
           oppositeAcct = e.credit;
           currentBalance += isDebitAccount ? dbAmt : -dbAmt;
-        } else {
-          crAmt = e.amount;
+        }
+        if (creditCode === acctCode) {
+          crAmt = Number(e.amount) || 0;
           totalCredit += crAmt;
           oppositeAcct = e.debit;
           currentBalance += isDebitAccount ? -crAmt : crAmt;
@@ -354,23 +376,7 @@ function printReport() {
 
 // Tính bảng cân đối phát sinh tài khoản
 function calculateTrialBalance() {
-  const std = state.accountingStandard;
-
-  // Danh sách các tài khoản sử dụng
-  const accounts = [
-    { code: "111", name: "Tiền mặt tại quỹ" },
-    { code: "112", name: "Tiền gửi ngân hàng" },
-    { code: "131", name: "Phải thu của khách hàng" },
-    { code: "1331", name: "Thuế GTGT đầu vào được khấu trừ" },
-    { code: "156", name: "Hàng hóa nhập kho" },
-    { code: std === "TT200" ? "244" : "1386", name: "Phải thu ký quỹ, ký cược" },
-    { code: "331", name: "Phải trả cho người bán" },
-    { code: "3331", name: "Thuế GTGT phải nộp" },
-    { code: std === "TT200" ? "344" : "3386", name: "Phải trả nhận ký quỹ, ký cược" },
-    { code: "411", name: "Vốn góp của chủ sở hữu" },
-    { code: "511", name: "Doanh thu bán hàng" },
-    { code: "632", name: "Giá vốn hàng bán" }
-  ];
+  const accounts = getReportAccounts();
 
   const trialRows = [];
 
@@ -380,8 +386,10 @@ function calculateTrialBalance() {
 
   state.vouchers.forEach(v => {
     (v.entries || []).forEach(e => {
-      if (acctMoves[e.debit]) acctMoves[e.debit].deb += e.amount;
-      if (acctMoves[e.credit]) acctMoves[e.credit].cre += e.amount;
+      const debitCode = String(e.debit ?? '').trim();
+      const creditCode = String(e.credit ?? '').trim();
+      if (acctMoves[debitCode]) acctMoves[debitCode].deb += Number(e.amount) || 0;
+      if (acctMoves[creditCode]) acctMoves[creditCode].cre += Number(e.amount) || 0;
     });
   });
 
@@ -392,9 +400,9 @@ function calculateTrialBalance() {
     let openCre = 0;
 
     if (initBalObj.type === "debit") {
-      openDeb = initBalObj.balance;
+      openDeb = Number(initBalObj.balance) || 0;
     } else {
-      openCre = initBalObj.balance;
+      openCre = Number(initBalObj.balance) || 0;
     }
 
     // 2. Cộng phát sinh trong kỳ (from single-pass result)

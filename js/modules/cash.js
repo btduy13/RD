@@ -414,6 +414,11 @@ async function handleReceiptSubmit(e) {
   const amount = parseInt(document.getElementById("receipt-amount").value.replace(/\D/g, "")) || 0;
   const desc = document.getElementById("receipt-desc").value.trim();
 
+  if (!date || ((/^(131|331)/.test(debit) || /^(131|331)/.test(credit)) && !partnerVal.trim())) {
+    showToast("Vui lòng nhập ngày và đối tác khi hạch toán công nợ.", "danger");
+    return;
+  }
+
   if (amount <= 0) {
     showToast("Số tiền phải lớn hơn 0!", "danger");
     return;
@@ -421,12 +426,17 @@ async function handleReceiptSubmit(e) {
 
   if (!beginVoucherSubmit(modalId, "Đang lưu phiếu thu...")) return;
 
+  const editId = editingReceiptId;
+  const oldVoucher = editId ? state.vouchers.find(v => v.id === editId) : null;
+  let stagedVoucher = null;
+  let localSaved = false;
   try {
-    const partnerObj = resolvePartner(partnerVal);
-    const isEdit = !!editingReceiptId;
-    let id = editingReceiptId || generateNextReceiptVoucherId();
+    if (editId && !oldVoucher) throw new Error("Chứng từ đang sửa không còn tồn tại. Hãy tải lại danh sách.");
+    const partnerObj = resolvePartner(partnerVal, (String(debit).startsWith("331") || String(credit).startsWith("331")) ? "supplier" : "retail");
+    const isEdit = !!editId;
+    let id = editId || generateNextReceiptVoucherId();
 
-    if (!editingReceiptId && typeof ensureCloudSafeVoucherIdForSave === "function") {
+    if (!editId && typeof ensureCloudSafeVoucherIdForSave === "function") {
       setVoucherFormStatus(modalId, "Đang kiểm tra số phiếu thu trên cloud...", "cloud");
       id = await ensureCloudSafeVoucherIdForSave({
         currentId: id,
@@ -436,6 +446,7 @@ async function handleReceiptSubmit(e) {
     }
 
     const updatedVoucher = {
+      ...(oldVoucher || {}),
       id,
       type: "receipt",
       date,
@@ -452,26 +463,21 @@ async function handleReceiptSubmit(e) {
       ]
     };
 
-    if (editingReceiptId) {
-      const idx = state.vouchers.findIndex(v => v.id === editingReceiptId);
-      if (idx !== -1) {
-        const oldVoucher = state.vouchers[idx];
-        if (oldVoucher.excelRow) updatedVoucher.excelRow = oldVoucher.excelRow;
-        if (oldVoucher.isImported !== undefined) updatedVoucher.isImported = oldVoucher.isImported;
-        state.vouchers[idx] = updatedVoucher;
-      } else {
-        // Chứng từ gốc biến mất trong lúc sửa — vẫn phải ghi lại bản đang sửa.
-        state.vouchers.push(updatedVoucher);
-      }
-      editingReceiptId = null;
-      resetReceiptForm();
+    if (editId) {
+      const idx = state.vouchers.findIndex(v => v.id === editId);
+      if (idx < 0 || state.vouchers[idx] !== oldVoucher) throw new Error("Chứng từ đã thay đổi. Hãy mở lại trước khi sửa.");
+      state.vouchers[idx] = updatedVoucher;
     } else {
+      if (state.vouchers.some(v => v.id === id)) throw new Error("Số phiếu đã tồn tại. Vui lòng thử lại.");
       state.vouchers.push(updatedVoucher);
     }
+    stagedVoucher = updatedVoucher;
 
     setVoucherFormStatus(modalId, "Đang đồng bộ máy khác...", "sync");
-    recalculateAccounting(false);
+    recalculateAccounting(false, true);
     const cloudCommitted = await saveStateAndSyncVoucher();
+    localSaved = true;
+    resetReceiptForm();
 
     closeModal(modalId);
     showToast(
@@ -485,6 +491,14 @@ async function handleReceiptSubmit(e) {
     filterCash();
     recalculateCashKpis();
   } catch (err) {
+    if (!localSaved && stagedVoucher) {
+      const idx = state.vouchers.indexOf(stagedVoucher);
+      if (idx >= 0) {
+        if (oldVoucher) state.vouchers[idx] = oldVoucher;
+        else state.vouchers.splice(idx, 1);
+      }
+      recalculateAccounting(false, true);
+    }
     console.error("[Cash] Lưu phiếu thu thất bại:", err);
     setVoucherFormStatus(modalId, "Không thể lưu phiếu thu. Vui lòng thử lại.", "error");
     showToast("Không thể lưu phiếu thu. Vui lòng thử lại.", "danger");
@@ -509,6 +523,11 @@ async function handlePaymentSubmit(e) {
   const amount = parseInt(document.getElementById("payment-amount").value.replace(/\D/g, "")) || 0;
   const desc = document.getElementById("payment-desc").value.trim();
 
+  if (!date || ((/^(131|331)/.test(debit) || /^(131|331)/.test(credit)) && !partnerVal.trim())) {
+    showToast("Vui lòng nhập ngày và đối tác khi hạch toán công nợ.", "danger");
+    return;
+  }
+
   if (amount <= 0) {
     showToast("Số tiền phải lớn hơn 0!", "danger");
     return;
@@ -516,12 +535,17 @@ async function handlePaymentSubmit(e) {
 
   if (!beginVoucherSubmit(modalId, "Đang lưu phiếu chi...")) return;
 
+  const editId = editingPaymentId;
+  const oldVoucher = editId ? state.vouchers.find(v => v.id === editId) : null;
+  let stagedVoucher = null;
+  let localSaved = false;
   try {
-    const partnerObj = resolvePartner(partnerVal);
-    const isEdit = !!editingPaymentId;
-    let id = editingPaymentId || generateNextPaymentVoucherId();
+    if (editId && !oldVoucher) throw new Error("Chứng từ đang sửa không còn tồn tại. Hãy tải lại danh sách.");
+    const partnerObj = resolvePartner(partnerVal, (String(debit).startsWith("331") || String(credit).startsWith("331")) ? "supplier" : "retail");
+    const isEdit = !!editId;
+    let id = editId || generateNextPaymentVoucherId();
 
-    if (!editingPaymentId && typeof ensureCloudSafeVoucherIdForSave === "function") {
+    if (!editId && typeof ensureCloudSafeVoucherIdForSave === "function") {
       setVoucherFormStatus(modalId, "Đang kiểm tra số phiếu chi trên cloud...", "cloud");
       id = await ensureCloudSafeVoucherIdForSave({
         currentId: id,
@@ -531,6 +555,7 @@ async function handlePaymentSubmit(e) {
     }
 
     const updatedVoucher = {
+      ...(oldVoucher || {}),
       id,
       type: "payment",
       date,
@@ -547,26 +572,21 @@ async function handlePaymentSubmit(e) {
       ]
     };
 
-    if (editingPaymentId) {
-      const idx = state.vouchers.findIndex(v => v.id === editingPaymentId);
-      if (idx !== -1) {
-        const oldVoucher = state.vouchers[idx];
-        if (oldVoucher.excelRow) updatedVoucher.excelRow = oldVoucher.excelRow;
-        if (oldVoucher.isImported !== undefined) updatedVoucher.isImported = oldVoucher.isImported;
-        state.vouchers[idx] = updatedVoucher;
-      } else {
-        // Chứng từ gốc biến mất trong lúc sửa — vẫn phải ghi lại bản đang sửa.
-        state.vouchers.push(updatedVoucher);
-      }
-      editingPaymentId = null;
-      resetPaymentForm();
+    if (editId) {
+      const idx = state.vouchers.findIndex(v => v.id === editId);
+      if (idx < 0 || state.vouchers[idx] !== oldVoucher) throw new Error("Chứng từ đã thay đổi. Hãy mở lại trước khi sửa.");
+      state.vouchers[idx] = updatedVoucher;
     } else {
+      if (state.vouchers.some(v => v.id === id)) throw new Error("Số phiếu đã tồn tại. Vui lòng thử lại.");
       state.vouchers.push(updatedVoucher);
     }
+    stagedVoucher = updatedVoucher;
 
     setVoucherFormStatus(modalId, "Đang đồng bộ máy khác...", "sync");
-    recalculateAccounting(false);
+    recalculateAccounting(false, true);
     const cloudCommitted = await saveStateAndSyncVoucher();
+    localSaved = true;
+    resetPaymentForm();
 
     closeModal(modalId);
     showToast(
@@ -580,6 +600,14 @@ async function handlePaymentSubmit(e) {
     filterCash();
     recalculateCashKpis();
   } catch (err) {
+    if (!localSaved && stagedVoucher) {
+      const idx = state.vouchers.indexOf(stagedVoucher);
+      if (idx >= 0) {
+        if (oldVoucher) state.vouchers[idx] = oldVoucher;
+        else state.vouchers.splice(idx, 1);
+      }
+      recalculateAccounting(false, true);
+    }
     console.error("[Cash] Lưu phiếu chi thất bại:", err);
     setVoucherFormStatus(modalId, "Không thể lưu phiếu chi. Vui lòng thử lại.", "error");
     showToast("Không thể lưu phiếu chi. Vui lòng thử lại.", "danger");
@@ -984,38 +1012,28 @@ async function batchDeleteCash() {
 
   const idsToDelete = checked.map(cb => String(cb.value));
   const deleteSet = new Set(idsToDelete);
-  trackDeletedIds(idsToDelete);
-  state.vouchers = state.vouchers.filter(v => !deleteSet.has(String(v.id)));
-
-  if (typeof resetBatchSelectionUI === "function") {
-    resetBatchSelectionUI({
-      checkboxSelector: ".cash-checkbox",
-      masterId: "check-all-cash",
-      buttonId: "btn-batch-delete-cash",
-      countId: "selected-cash-count"
-    });
-  } else {
-    const master = document.getElementById("check-all-cash");
-    if (master) master.checked = false;
-    updateBatchCashUI();
-  }
-  await new Promise(resolve => setTimeout(resolve, 0));
-  const cloudCommitted = typeof saveStateAndSyncVoucher === "function"
-    ? await saveStateAndSyncVoucher()
-    : (saveState(), true);
-  recalculateAccounting();
-  showToast(
-    cloudCommitted ? `Đã xóa thành công ${checked.length} chứng từ thu chi!` : "Đã xóa trên máy này và đang chờ đồng bộ.",
-    cloudCommitted ? "success" : "warning"
-  );
+  const removed = state.vouchers.filter(v => deleteSet.has(String(v.id)));
+  const deletionToken = trackDeletedIds(idsToDelete, 'voucher');
+  let localSaved = false;
+  try {
+    state.vouchers = state.vouchers.filter(v => !deleteSet.has(String(v.id)));
+    recalculateAccounting(false, true);
+    const cloudCommitted = await saveStateAndSyncVoucher();
+    localSaved = true;
     if (typeof resetBatchSelectionUI === "function") {
-      resetBatchSelectionUI({
-        checkboxSelector: ".cash-checkbox",
-        masterId: "check-all-cash",
-        buttonId: "btn-batch-delete-cash",
-        countId: "selected-cash-count"
-      });
+      resetBatchSelectionUI({ checkboxSelector: ".cash-checkbox", masterId: "check-all-cash", buttonId: "btn-batch-delete-cash", countId: "selected-cash-count" });
     }
+    showToast(cloudCommitted ? `Đã xóa thành công ${removed.length} chứng từ thu chi!` : "Đã xóa trên máy này và đang chờ đồng bộ.", cloudCommitted ? "success" : "warning");
+  } catch (err) {
+    if (!localSaved) {
+      const active = new Set(state.vouchers.map(v => String(v.id)));
+      state.vouchers.push(...removed.filter(v => !active.has(String(v.id))));
+      if (typeof rollbackTrackedDeletedIds === "function") rollbackTrackedDeletedIds(deletionToken);
+      recalculateAccounting(false, true);
+    }
+    console.error("[Cash] Không thể xóa phiếu thu chi:", err);
+    showToast("Không thể lưu thao tác xóa phiếu thu chi. Vui lòng thử lại.", "danger");
+  }
 }
 // Cash
 window.filterCash = filterCash;

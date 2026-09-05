@@ -668,8 +668,7 @@ function handleProductSubmit(e) {
   });
   state.initialBalances["156"].balance = newInvOpBal;
 
-  // Cân đối lại vốn góp TK 411 để tổng Nợ = tổng Có
-  rebalanceEquity();
+  // Changing inventory openings does not authorize changing entered capital.
 
   saveState();
   recalculateAccounting();
@@ -1342,7 +1341,7 @@ function handleQuickAddProductSubmit(e) {
       state.initialBalances["156"].balance = newInvOpBal;
     }
 
-    if (typeof rebalanceEquity === "function") rebalanceEquity();
+    // Preserve entered capital; differences must be reconciled explicitly.
     state._lastModified = Date.now();
     saveState(); // Lưu local + push cloud
     recalculateAccounting();

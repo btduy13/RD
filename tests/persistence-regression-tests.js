@@ -28,7 +28,18 @@ function testPersistenceBridgeFallback() {
   });
 }
 
-testPersistenceBridgeFallback().then(() => {
+async function testUnavailableStorage() {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'js/core/persistence-bridge.js'), 'utf8');
+  const sandbox = { window: {}, console };
+  vm.runInNewContext(source, sandbox);
+  assert.equal((await sandbox.window.persistFullState('{}')).ok, false, 'absence of storage must not report a successful save');
+  sandbox.window.localStorage = { setItem() { throw new Error('Quota exceeded'); } };
+  const failed = await sandbox.window.persistFullState('{}');
+  assert.equal(failed.ok, false);
+  assert.match(failed.error, /Quota exceeded/);
+}
+
+Promise.all([testPersistenceBridgeFallback(), testUnavailableStorage()]).then(() => {
   console.log('persistence regression tests passed');
 }).catch((err) => {
   console.error(err);

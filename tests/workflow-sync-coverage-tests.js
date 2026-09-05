@@ -77,7 +77,7 @@ for (const name of ['deleteVoucher', 'deleteProduct', 'deletePartner']) {
   assert.ok(start >= 0, `${name} must wait for cloud confirmation`);
   const excerpt = source.slice(start, start + 5000);
   assert.match(excerpt, /await\s+saveStateAndSyncVoucher\(\)/, `${name} must confirm the cloud delete`);
-  assert.match(excerpt, /Before/, `${name} must keep rollback state`);
+  assert.match(excerpt, /Before|rollbackTrackedDeletedIds/, `${name} must keep rollback state or use scoped tombstone rollback`);
 }
 
 assert.match(index, /js\/cloud-sync\.js/);
@@ -110,7 +110,7 @@ assert.doesNotMatch(
 );
 const initAppSource = stateSource.slice(
   stateSource.indexOf('async function initApp()'),
-  stateSource.indexOf('function cleanNumericVouchers()')
+  stateSource.indexOf('let saveStateTimeout = null')
 );
 assert.doesNotMatch(
   initAppSource,
