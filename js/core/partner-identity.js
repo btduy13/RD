@@ -73,6 +73,16 @@ function findPartnerByIdentity(name, partners) {
   const list = (partners || []).filter((p) => getPartnerIdentityKey(p.name) === identityKey);
   if (list.length === 0) return null;
 
+  const normalizedName = normalizePartnerNameForIdentity(name);
+  const exact = list.find((p) => normalizePartnerNameForIdentity(p.name) === normalizedName);
+  if (exact) return exact;
+
+  // A customer/project code inside parentheses identifies a distinct record,
+  // even when several projects belong to the same business identity. Falling
+  // back to the enterprise here made e.g. KH8159 resolve to the generic
+  // "Không Gian Xanh" parent and blocked creation/search of the new project.
+  if (/\(\s*kh[^)]*\)/i.test(normalizedName)) return null;
+
   const combined = list.find((p) => {
     const norm = normalizePartnerNameForIdentity(p.name);
     return (

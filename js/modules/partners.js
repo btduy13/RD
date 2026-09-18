@@ -358,7 +358,8 @@ function handleQuickAddPartnerSubmit(e) {
       email: "",
       address,
       taxCode,
-      inactive
+      inactive,
+      _updatedAt: Date.now()
     };
 
     state.partners.push(partner);

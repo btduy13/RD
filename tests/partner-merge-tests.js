@@ -30,6 +30,16 @@ function testPartnerIdentity() {
   ];
   assert.equal(api.findPartnerByIdentity('Green Home', partners).id, 'GH1');
   assert.equal(api.findPartnerByIdentity('Không Gian Xanh', partners).id, 'GH1');
+  assert.equal(
+    api.findPartnerByIdentity('Công ty Không Gian Xanh (KH8159T09/2026)', partners),
+    null,
+    'a new coded project must not resolve to the generic enterprise'
+  );
+  assert.equal(
+    api.findPartnerByIdentity('Cty Không Gian Xanh (KH7974T02/2026)', partners).id,
+    'KGX1',
+    'an existing coded project still resolves by its exact normalized name'
+  );
   console.log('partner-identity tests passed');
 }
 

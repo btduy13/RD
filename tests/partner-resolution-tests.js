@@ -100,6 +100,61 @@ function testEnterpriseParentValidationDoesNotCreatePartner() {
   assert.equal(sandbox.state.partners.length, 2, 'parent validation does not create ghost partners');
 }
 
+function testCodedProjectDoesNotCollapseIntoEnterpriseIdentity() {
+  const enterprise = { id: 'DN_KHNGGIANXANH', name: 'Công ty Không Gian Xanh', type: 'enterprise' };
+  const existingProject = {
+    id: '70/2CTRANXUANDO(CH)',
+    name: 'Cty Không Gian Xanh (KH8023T04/2026)',
+    type: 'project',
+    parentId: enterprise.id
+  };
+  const sandbox = loadPartnerResolution([enterprise, existingProject]);
+
+  assert.equal(
+    sandbox.findExistingPartner('Cty Không Gian Xanh (KH8023T04/2026)'),
+    existingProject,
+    'an exact coded project is found'
+  );
+  assert.equal(
+    sandbox.findExistingPartner('Công ty Không Gian Xanh (KH8159T09/2026)'),
+    null,
+    'a new project code is not mistaken for the enterprise parent'
+  );
+  assert.equal(
+    sandbox.findExistingPartner('Không Gian Xanh'),
+    enterprise,
+    'the uncoded business alias still resolves to the enterprise'
+  );
+}
+
+function testQuickAddPartnerStampsCreationTime() {
+  const sandbox = loadPartnerResolution([], true);
+  const elements = {
+    'modal-quick-add-partner': { style: { display: 'flex' } },
+    'quick-partner-id': { value: 'KH-NEW' },
+    'quick-partner-name': { value: 'Khách hàng mới' },
+    'quick-partner-type': { value: 'retail' },
+    'quick-partner-phone': { value: '' },
+    'quick-partner-address': { value: '' },
+    'quick-partner-taxcode': { value: '' },
+    'quick-partner-inactive': { checked: false }
+  };
+  sandbox.document.getElementById = id => elements[id] || null;
+  sandbox.getComputedStyle = element => element.style;
+  sandbox.closeModal = () => {};
+  sandbox.Event = function Event(type) { this.type = type; };
+  let saves = 0;
+  sandbox.saveState = () => { saves += 1; };
+
+  const before = Date.now();
+  sandbox.handleQuickAddPartnerSubmit({ preventDefault() {} });
+  const created = sandbox.state.partners[0];
+
+  assert.equal(created.id, 'KH-NEW');
+  assert.ok(created._updatedAt >= before, 'quick-created partner has a synchronization timestamp');
+  assert.equal(saves, 1, 'quick-created partner is persisted once');
+}
+
 function testCloneCustomerCreatesIndependentPartner() {
   const source = {
     id: 'KH01',
@@ -221,6 +276,8 @@ function testSalesDescriptionPreviewDoesNotResolveOrCreate() {
 
 testPureLookupDoesNotCreatePartner();
 testEnterpriseParentValidationDoesNotCreatePartner();
+testCodedProjectDoesNotCollapseIntoEnterpriseIdentity();
+testQuickAddPartnerStampsCreationTime();
 testCloneCustomerCreatesIndependentPartner();
 testClonePartnerRejectsSupplier();
 testCustomerContextMenuExposesCloneAction();
