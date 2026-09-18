@@ -316,6 +316,10 @@ function autoFillPurchasePrice(selectEl) {
   const row = selectEl.closest("tr");
 
   if (prod && row) {
+    if (typeof shouldAutoFillDynamicProductPrice === "function" &&
+        !shouldAutoFillDynamicProductPrice(selectEl, prod)) {
+      return;
+    }
     if (document.activeElement !== selectEl) {
       selectEl.value = `${prod.name} (${prod.id})`;
     }
@@ -990,6 +994,10 @@ function autoFillPurchaseOrderPrice(selectEl) {
   const row = selectEl.closest("tr");
 
   if (prod && row) {
+    if (typeof shouldAutoFillDynamicProductPrice === "function" &&
+        !shouldAutoFillDynamicProductPrice(selectEl, prod)) {
+      return;
+    }
     if (document.activeElement !== selectEl) {
       selectEl.value = `${prod.name} (${prod.id})`;
     }
@@ -1930,6 +1938,10 @@ function autoFillPurchaseReturnPrice(selectEl) {
   const row = selectEl.closest("tr");
 
   if (prod && row) {
+    if (typeof shouldAutoFillDynamicProductPrice === "function" &&
+        !shouldAutoFillDynamicProductPrice(selectEl, prod)) {
+      return;
+    }
     if (document.activeElement !== selectEl) {
       selectEl.value = `${prod.name} (${prod.id})`;
     }

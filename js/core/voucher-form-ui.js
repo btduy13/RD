@@ -563,13 +563,41 @@ function addDynamicFormTableRow(tbodyId, rowValues = {}, insertAfterRow = null, 
   });
 
   mountDynamicFormRow(tbody, tr, insertAfterRow);
+  // Keep the product that the row was created with. Product lookup also runs
+  // on blur; without this marker it could replace a negotiated price while
+  // an existing voucher was being edited.
+  const productInput = tr.querySelector(".item-productId");
+  if (productInput) {
+    productInput.dataset.lastResolvedProductId = String(values.productId || "");
+    productInput.dataset.priceInitialized = Number(String(values.price ?? "").replace(/[^\d.-]/g, "")) > 0
+      ? "1"
+      : "0";
+  }
   if (options.refresh !== false) refreshDynamicFormTable(tbodyId);
 
-  const productInput = tr.querySelector(".item-productId");
   if (options.focus !== false && productInput && !values.productId) {
     setTimeout(() => productInput.focus(), 30);
   }
   return tr;
+}
+
+// Only fill a catalogue price when the product really changed or the row has
+// no price yet. This preserves manually negotiated prices and discounts.
+function shouldAutoFillDynamicProductPrice(selectEl, product) {
+  if (!selectEl || !product) return false;
+  const productId = String(product.id || "");
+  const previousProductId = String(selectEl.dataset.lastResolvedProductId || "");
+  const priceInput = selectEl.closest("tr")?.querySelector(".item-price");
+  const hasPrice = !!priceInput && String(priceInput.value || "").trim() !== "";
+  const sameProduct = previousProductId === productId;
+
+  if (sameProduct && (hasPrice || selectEl.dataset.priceInitialized === "1")) {
+    return false;
+  }
+
+  selectEl.dataset.lastResolvedProductId = productId;
+  selectEl.dataset.priceInitialized = "1";
+  return true;
 }
 
 function serializeDynamicFormTable(tbodyId) {
@@ -804,6 +832,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 window.isVoucherEntryModalId = isVoucherEntryModalId;
 window.registerDynamicFormTable = registerDynamicFormTable;
+window.shouldAutoFillDynamicProductPrice = shouldAutoFillDynamicProductPrice;
 window.createStandardDynamicFormTableConfig = createStandardDynamicFormTableConfig;
 window.getDynamicFormTableConfig = getDynamicFormTableConfig;
 window.getDynamicFormTableConfigs = getDynamicFormTableConfigs;

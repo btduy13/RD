@@ -510,21 +510,6 @@ function focusRowFirstCell(tr) {
  */
 function initOrderFormKeyboardNavigation() {
   document.addEventListener('keydown', function (e) {
-    // F5: reset đơn giá của bảng chứng từ đang mở theo cấu hình registry.
-    if (e.key === 'F5') {
-      const config = typeof getVisibleDynamicFormTableConfig === 'function'
-        ? getVisibleDynamicFormTableConfig()
-        : null;
-      if (config) {
-        e.preventDefault();
-        const count = refreshDynamicProductPrices(config.tbodyId);
-        if (typeof showToast === "function") {
-          showToast(`Đã khôi phục đơn giá gốc của ${count} mặt hàng từ kho!`, "success");
-        }
-        return;
-      }
-    }
-
     const el = document.activeElement;
     if (!el) return;
 

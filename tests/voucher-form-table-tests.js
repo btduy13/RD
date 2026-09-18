@@ -10,6 +10,7 @@ const appDir = path.join(__dirname, '..');
 const html = fs.readFileSync(path.join(appDir, 'index.html'), 'utf8');
 const sales = fs.readFileSync(path.join(appDir, 'js', 'modules', 'sales.js'), 'utf8');
 const purchase = fs.readFileSync(path.join(appDir, 'js', 'modules', 'purchase.js'), 'utf8');
+const voucherFormUi = fs.readFileSync(path.join(appDir, 'js', 'core', 'voucher-form-ui.js'), 'utf8');
 const autosave = fs.readFileSync(path.join(appDir, 'js', 'modules', 'autosave.js'), 'utf8');
 const interactions = fs.readFileSync(path.join(appDir, 'js', 'ui-interactions.js'), 'utf8');
 
@@ -29,6 +30,8 @@ assert.equal((html.match(/<thead><\/thead>/g) || []).length, 7, 'voucher item he
 assert(!autosave.includes('purchase-id'), 'autosave must not contain stale hard-coded purchase IDs');
 assert(!autosave.includes('sales-return-id'), 'autosave must not contain stale hard-coded sales return IDs');
 assert(!interactions.includes("tbodyId === 'purchase-form-items-body'"), 'keyboard navigation must use the registry');
+assert(!interactions.includes("e.key === 'F5'"), 'F5 must not overwrite negotiated voucher prices');
+assert(voucherFormUi.includes('shouldAutoFillDynamicProductPrice'), 'product price autofill must protect existing negotiated prices');
 
 const runner = path.join(__dirname, 'voucher-form-table-electron-runner.js');
 const result = spawnSync(electronPath, [runner], {

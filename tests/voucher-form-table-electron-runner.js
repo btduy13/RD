@@ -208,7 +208,12 @@ async function main() {
     window.formatVND = value => Number(value || 0).toLocaleString('vi-VN') + 'đ';
     window.safeParseFloat = value => Number.parseFloat(String(value || '').replace(',', '.')) || 0;
     window.showToast = () => {};
-    window.resolveProduct = () => null;
+    window.resolveProduct = value => {
+      const text = String(value || '');
+      return text.includes('SP-NEG')
+        ? { id: 'SP-NEG', name: 'Sản phẩm giữ giá', salePrice1: 9000, avgCost: 5000 }
+        : null;
+    };
     window.ensureProductExcelRow = () => {};
     ${coreSource}
     ${purchaseSource}
@@ -224,6 +229,12 @@ async function main() {
     document.getElementById('sale-payment').value = '112';
     document.getElementById('sale-tax-rate').value = '10';
     resetSalesForm();
+    replaceDynamicFormTableRows('sales-form-items-body', [
+      { productId: 'SP-NEG', desc: 'Giá thỏa thuận', qty: 1, price: 1234, discount: 0 }
+    ]);
+    const protectedPriceInput = document.querySelector('#sales-form-items-body .item-price');
+    const protectedProductInput = document.querySelector('#sales-form-items-body .item-productId');
+    autoFillProductPrice(protectedProductInput);
     return {
       count: getDynamicFormTableConfigs().length,
       errors,
@@ -234,7 +245,8 @@ async function main() {
         taxRate: document.getElementById('sale-tax-rate').value,
         date: document.getElementById('sale-date').value,
         rows: document.getElementById('sales-form-items-body').rows.length
-      }
+      },
+      protectedNegotiatedPrice: protectedPriceInput && protectedPriceInput.value
     };
   })()`);
 
@@ -244,6 +256,7 @@ async function main() {
   assert.deepEqual(productionResult.salesReset, {
     partner: '', payment: '131', taxRate: '0', date: '2026-07-10', rows: 1
   });
+  assert.equal(productionResult.protectedNegotiatedPrice, '1.234', 'editing a voucher must keep its negotiated unit price');
 
   await win.close();
   app.quit();
