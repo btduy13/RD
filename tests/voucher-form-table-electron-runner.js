@@ -235,6 +235,22 @@ async function main() {
     const protectedPriceInput = document.querySelector('#sales-form-items-body .item-price');
     const protectedProductInput = document.querySelector('#sales-form-items-body .item-productId');
     autoFillProductPrice(protectedProductInput);
+    const protectedDescriptionInput = document.querySelector('#sales-form-items-body .item-desc');
+    const protectedResult = {
+      price: protectedPriceInput && protectedPriceInput.value,
+      productId: protectedProductInput && protectedProductInput.value,
+      description: protectedDescriptionInput && protectedDescriptionInput.value
+    };
+
+    replaceDynamicFormTableRows('sales-form-items-body', [{}]);
+    const freshProductInput = document.querySelector('#sales-form-items-body .item-productId');
+    freshProductInput.value = 'SP-NEG';
+    freshProductInput.focus();
+    autoFillProductPrice(freshProductInput);
+    const freshPriceAfterInput = document.querySelector('#sales-form-items-body .item-price').value;
+    freshProductInput.blur();
+    autoFillProductPrice(freshProductInput);
+    const freshDescriptionInput = document.querySelector('#sales-form-items-body .item-desc');
     return {
       count: getDynamicFormTableConfigs().length,
       errors,
@@ -246,7 +262,12 @@ async function main() {
         date: document.getElementById('sale-date').value,
         rows: document.getElementById('sales-form-items-body').rows.length
       },
-      protectedNegotiatedPrice: protectedPriceInput && protectedPriceInput.value
+      protectedResult,
+      freshResult: {
+        priceAfterInput: freshPriceAfterInput,
+        productIdAfterBlur: freshProductInput.value,
+        descriptionAfterBlur: freshDescriptionInput && freshDescriptionInput.value
+      }
     };
   })()`);
 
@@ -256,7 +277,16 @@ async function main() {
   assert.deepEqual(productionResult.salesReset, {
     partner: '', payment: '131', taxRate: '0', date: '2026-07-10', rows: 1
   });
-  assert.equal(productionResult.protectedNegotiatedPrice, '1.234', 'editing a voucher must keep its negotiated unit price');
+  assert.deepEqual(productionResult.protectedResult, {
+    price: '1.234',
+    productId: 'SP-NEG',
+    description: 'Sản phẩm giữ giá'
+  }, 'editing a voucher must resolve product details without replacing its negotiated price');
+  assert.deepEqual(productionResult.freshResult, {
+    priceAfterInput: '9.000',
+    productIdAfterBlur: 'SP-NEG',
+    descriptionAfterBlur: 'Sản phẩm giữ giá'
+  }, 'typing a product code must fill its catalogue price and description');
 
   await win.close();
   app.quit();

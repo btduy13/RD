@@ -342,10 +342,8 @@ function autoFillProductPrice(selectEl) {
   const isBlur = document.activeElement !== selectEl;
 
   if (prod && row) {
-    if (typeof shouldAutoFillDynamicProductPrice === "function" &&
-        !shouldAutoFillDynamicProductPrice(selectEl, prod)) {
-      return;
-    }
+    const shouldFillPrice = typeof shouldAutoFillDynamicProductPrice !== "function" ||
+      shouldAutoFillDynamicProductPrice(selectEl, prod);
     if (isBlur) {
       // Khi blur: đặt lại mã SP về đúng ID sản phẩm
       selectEl.value = prod.id;
@@ -355,7 +353,11 @@ function autoFillProductPrice(selectEl) {
         delete descEl.dataset.userEdited;
       }
     }
-    // Điền giá bán (cả khi input và blur)
+    if (!shouldFillPrice) {
+      recalculateSalesTotals();
+      return;
+    }
+    // Điền giá bán khi chọn mặt hàng mới; giữ nguyên giá của phiếu đang sửa.
     ensureProductExcelRow(prod);
     const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
       ? prod.salePrice1
@@ -1068,12 +1070,14 @@ function autoFillSalesReturnPrice(selectEl) {
   const row = selectEl.closest("tr");
 
   if (prod && row) {
-    if (typeof shouldAutoFillDynamicProductPrice === "function" &&
-        !shouldAutoFillDynamicProductPrice(selectEl, prod)) {
-      return;
-    }
+    const shouldFillPrice = typeof shouldAutoFillDynamicProductPrice !== "function" ||
+      shouldAutoFillDynamicProductPrice(selectEl, prod);
     if (document.activeElement !== selectEl) {
       selectEl.value = `${prod.name} (${prod.id})`;
+    }
+    if (!shouldFillPrice) {
+      recalculateSalesReturnTotals();
+      return;
     }
     ensureProductExcelRow(prod);
     const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
@@ -1754,10 +1758,8 @@ function autoFillQuotationPrice(selectEl) {
   const descInput = row ? row.querySelector(".item-desc") : null;
 
   if (prod && row) {
-    if (typeof shouldAutoFillDynamicProductPrice === "function" &&
-        !shouldAutoFillDynamicProductPrice(selectEl, prod)) {
-      return;
-    }
+    const shouldFillPrice = typeof shouldAutoFillDynamicProductPrice !== "function" ||
+      shouldAutoFillDynamicProductPrice(selectEl, prod);
     if (isBlur) {
       selectEl.value = prod.id;
       const descInput = row.querySelector(".item-desc");
@@ -1765,6 +1767,10 @@ function autoFillQuotationPrice(selectEl) {
         descInput.value = prod.name;
         delete descInput.dataset.userEdited;
       }
+    }
+    if (!shouldFillPrice) {
+      recalculateQuotationTotals();
+      return;
     }
     ensureProductExcelRow(prod);
     const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
@@ -2701,10 +2707,8 @@ function autoFillTemplateProductPrice(selectEl) {
   const isBlur = document.activeElement !== selectEl;
 
   if (prod && row) {
-    if (typeof shouldAutoFillDynamicProductPrice === "function" &&
-        !shouldAutoFillDynamicProductPrice(selectEl, prod)) {
-      return;
-    }
+    const shouldFillPrice = typeof shouldAutoFillDynamicProductPrice !== "function" ||
+      shouldAutoFillDynamicProductPrice(selectEl, prod);
     if (isBlur) {
       selectEl.value = prod.id;
       const descEl = row.querySelector(".item-desc");
@@ -2712,6 +2716,10 @@ function autoFillTemplateProductPrice(selectEl) {
         descEl.value = prod.name;
         delete descEl.dataset.userEdited;
       }
+    }
+    if (!shouldFillPrice) {
+      recalculateTemplateTotals();
+      return;
     }
     ensureProductExcelRow(prod);
     const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0

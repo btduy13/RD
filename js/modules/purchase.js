@@ -316,12 +316,14 @@ function autoFillPurchasePrice(selectEl) {
   const row = selectEl.closest("tr");
 
   if (prod && row) {
-    if (typeof shouldAutoFillDynamicProductPrice === "function" &&
-        !shouldAutoFillDynamicProductPrice(selectEl, prod)) {
-      return;
-    }
+    const shouldFillPrice = typeof shouldAutoFillDynamicProductPrice !== "function" ||
+      shouldAutoFillDynamicProductPrice(selectEl, prod);
     if (document.activeElement !== selectEl) {
       selectEl.value = `${prod.name} (${prod.id})`;
+    }
+    if (!shouldFillPrice) {
+      recalculatePurchaseTotals();
+      return;
     }
     ensureProductExcelRow(prod);
     const purchasePriceVal = prod.lastPurchasePrice !== undefined && prod.lastPurchasePrice > 0
@@ -994,12 +996,14 @@ function autoFillPurchaseOrderPrice(selectEl) {
   const row = selectEl.closest("tr");
 
   if (prod && row) {
-    if (typeof shouldAutoFillDynamicProductPrice === "function" &&
-        !shouldAutoFillDynamicProductPrice(selectEl, prod)) {
-      return;
-    }
+    const shouldFillPrice = typeof shouldAutoFillDynamicProductPrice !== "function" ||
+      shouldAutoFillDynamicProductPrice(selectEl, prod);
     if (document.activeElement !== selectEl) {
       selectEl.value = `${prod.name} (${prod.id})`;
+    }
+    if (!shouldFillPrice) {
+      recalculatePurchaseOrderTotals();
+      return;
     }
     ensureProductExcelRow(prod);
     const purchasePriceVal = prod.lastPurchasePrice !== undefined && prod.lastPurchasePrice > 0
@@ -1938,12 +1942,14 @@ function autoFillPurchaseReturnPrice(selectEl) {
   const row = selectEl.closest("tr");
 
   if (prod && row) {
-    if (typeof shouldAutoFillDynamicProductPrice === "function" &&
-        !shouldAutoFillDynamicProductPrice(selectEl, prod)) {
-      return;
-    }
+    const shouldFillPrice = typeof shouldAutoFillDynamicProductPrice !== "function" ||
+      shouldAutoFillDynamicProductPrice(selectEl, prod);
     if (document.activeElement !== selectEl) {
       selectEl.value = `${prod.name} (${prod.id})`;
+    }
+    if (!shouldFillPrice) {
+      recalculatePurchaseReturnTotals();
+      return;
     }
     ensureProductExcelRow(prod);
     const purchasePriceVal = prod.lastPurchasePrice !== undefined && prod.lastPurchasePrice > 0
