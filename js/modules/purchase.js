@@ -310,22 +310,22 @@ function addPurchaseFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, discoun
 }
 
 // Tự động điền đơn giá mua hàng của sản phẩm được chọn
-function autoFillPurchasePrice(selectEl) {
+function autoFillPurchasePrice(selectEl, options = {}) {
   const prodVal = selectEl.value;
   const prod = resolveProduct(prodVal);
   const row = selectEl.closest("tr");
 
   if (prod && row) {
     const shouldFillPrice = typeof shouldAutoFillDynamicProductPrice !== "function" ||
-      shouldAutoFillDynamicProductPrice(selectEl, prod);
-    if (document.activeElement !== selectEl) {
+      shouldAutoFillDynamicProductPrice(selectEl, prod, options);
+    if (options.forcePrice !== true && document.activeElement !== selectEl) {
       selectEl.value = `${prod.name} (${prod.id})`;
     }
     if (!shouldFillPrice) {
       recalculatePurchaseTotals();
       return;
     }
-    ensureProductExcelRow(prod);
+    if (options.forcePrice !== true) ensureProductExcelRow(prod);
     const purchasePriceVal = prod.lastPurchasePrice !== undefined && prod.lastPurchasePrice > 0
       ? prod.lastPurchasePrice
       : (prod.excelRow && prod.excelRow[20] !== undefined && Number(prod.excelRow[20]) > 0
@@ -990,22 +990,22 @@ function addPurchaseOrderFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, di
   }, insertAfterRow);
 }
 
-function autoFillPurchaseOrderPrice(selectEl) {
+function autoFillPurchaseOrderPrice(selectEl, options = {}) {
   const prodVal = selectEl.value;
   const prod = resolveProduct(prodVal);
   const row = selectEl.closest("tr");
 
   if (prod && row) {
     const shouldFillPrice = typeof shouldAutoFillDynamicProductPrice !== "function" ||
-      shouldAutoFillDynamicProductPrice(selectEl, prod);
-    if (document.activeElement !== selectEl) {
+      shouldAutoFillDynamicProductPrice(selectEl, prod, options);
+    if (options.forcePrice !== true && document.activeElement !== selectEl) {
       selectEl.value = `${prod.name} (${prod.id})`;
     }
     if (!shouldFillPrice) {
       recalculatePurchaseOrderTotals();
       return;
     }
-    ensureProductExcelRow(prod);
+    if (options.forcePrice !== true) ensureProductExcelRow(prod);
     const purchasePriceVal = prod.lastPurchasePrice !== undefined && prod.lastPurchasePrice > 0
       ? prod.lastPurchasePrice
       : (prod.excelRow && prod.excelRow[20] !== undefined && Number(prod.excelRow[20]) > 0
@@ -1936,22 +1936,22 @@ function addPurchaseReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, d
   }, insertAfterRow);
 }
 
-function autoFillPurchaseReturnPrice(selectEl) {
+function autoFillPurchaseReturnPrice(selectEl, options = {}) {
   const prodVal = selectEl.value;
   const prod = resolveProduct(prodVal);
   const row = selectEl.closest("tr");
 
   if (prod && row) {
     const shouldFillPrice = typeof shouldAutoFillDynamicProductPrice !== "function" ||
-      shouldAutoFillDynamicProductPrice(selectEl, prod);
-    if (document.activeElement !== selectEl) {
+      shouldAutoFillDynamicProductPrice(selectEl, prod, options);
+    if (options.forcePrice !== true && document.activeElement !== selectEl) {
       selectEl.value = `${prod.name} (${prod.id})`;
     }
     if (!shouldFillPrice) {
       recalculatePurchaseReturnTotals();
       return;
     }
-    ensureProductExcelRow(prod);
+    if (options.forcePrice !== true) ensureProductExcelRow(prod);
     const purchasePriceVal = prod.lastPurchasePrice !== undefined && prod.lastPurchasePrice > 0
       ? prod.lastPurchasePrice
       : (prod.excelRow && prod.excelRow[20] !== undefined && Number(prod.excelRow[20]) > 0

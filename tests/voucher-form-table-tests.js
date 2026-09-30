@@ -30,7 +30,8 @@ assert.equal((html.match(/<thead><\/thead>/g) || []).length, 7, 'voucher item he
 assert(!autosave.includes('purchase-id'), 'autosave must not contain stale hard-coded purchase IDs');
 assert(!autosave.includes('sales-return-id'), 'autosave must not contain stale hard-coded sales return IDs');
 assert(!interactions.includes("tbodyId === 'purchase-form-items-body'"), 'keyboard navigation must use the registry');
-assert(!interactions.includes("e.key === 'F5'"), 'F5 must not overwrite negotiated voucher prices');
+assert(interactions.includes("e.key === 'F5'"), 'F5 must restore catalogue prices in the active voucher');
+assert(interactions.includes("{ forcePrice: true }"), 'F5 price restore must use explicit form-local force mode');
 assert(voucherFormUi.includes('shouldAutoFillDynamicProductPrice'), 'product price autofill must protect existing negotiated prices');
 
 const runner = path.join(__dirname, 'voucher-form-table-electron-runner.js');

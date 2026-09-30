@@ -335,7 +335,7 @@ function addSalesFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVal =
 }
 
 // Lấy giá bán từ thông tin mặt hàng
-function autoFillProductPrice(selectEl) {
+function autoFillProductPrice(selectEl, options = {}) {
   const prodVal = selectEl.value;
   const prod = resolveProduct(prodVal);
   const row = selectEl.closest("tr");
@@ -343,8 +343,8 @@ function autoFillProductPrice(selectEl) {
 
   if (prod && row) {
     const shouldFillPrice = typeof shouldAutoFillDynamicProductPrice !== "function" ||
-      shouldAutoFillDynamicProductPrice(selectEl, prod);
-    if (isBlur) {
+      shouldAutoFillDynamicProductPrice(selectEl, prod, options);
+    if (options.forcePrice !== true && isBlur) {
       // Khi blur: đặt lại mã SP về đúng ID sản phẩm
       selectEl.value = prod.id;
       const descEl = row.querySelector(".item-desc");
@@ -358,7 +358,7 @@ function autoFillProductPrice(selectEl) {
       return;
     }
     // Điền giá bán khi chọn mặt hàng mới; giữ nguyên giá của phiếu đang sửa.
-    ensureProductExcelRow(prod);
+    if (options.forcePrice !== true) ensureProductExcelRow(prod);
     const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
       ? prod.salePrice1
       : (prod.excelRow && prod.excelRow[21] !== undefined && Number(prod.excelRow[21]) > 0
@@ -1064,22 +1064,22 @@ function addSalesReturnFormRow(productIdVal = "", qtyVal = 1, priceVal = 0, disc
 }
 
 // autoFillSalesReturnPrice
-function autoFillSalesReturnPrice(selectEl) {
+function autoFillSalesReturnPrice(selectEl, options = {}) {
   const prodVal = selectEl.value;
   const prod = resolveProduct(prodVal);
   const row = selectEl.closest("tr");
 
   if (prod && row) {
     const shouldFillPrice = typeof shouldAutoFillDynamicProductPrice !== "function" ||
-      shouldAutoFillDynamicProductPrice(selectEl, prod);
-    if (document.activeElement !== selectEl) {
+      shouldAutoFillDynamicProductPrice(selectEl, prod, options);
+    if (options.forcePrice !== true && document.activeElement !== selectEl) {
       selectEl.value = `${prod.name} (${prod.id})`;
     }
     if (!shouldFillPrice) {
       recalculateSalesReturnTotals();
       return;
     }
-    ensureProductExcelRow(prod);
+    if (options.forcePrice !== true) ensureProductExcelRow(prod);
     const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
       ? prod.salePrice1
       : (prod.excelRow && prod.excelRow[21] !== undefined && Number(prod.excelRow[21]) > 0
@@ -1750,7 +1750,7 @@ function addQuotationFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceV
 }
 
 // Lấy giá bán từ thông tin mặt hàng cho báo giá
-function autoFillQuotationPrice(selectEl) {
+function autoFillQuotationPrice(selectEl, options = {}) {
   const prodVal = selectEl.value;
   const prod = resolveProduct(prodVal);
   const row = selectEl.closest("tr");
@@ -1759,8 +1759,8 @@ function autoFillQuotationPrice(selectEl) {
 
   if (prod && row) {
     const shouldFillPrice = typeof shouldAutoFillDynamicProductPrice !== "function" ||
-      shouldAutoFillDynamicProductPrice(selectEl, prod);
-    if (isBlur) {
+      shouldAutoFillDynamicProductPrice(selectEl, prod, options);
+    if (options.forcePrice !== true && isBlur) {
       selectEl.value = prod.id;
       const descInput = row.querySelector(".item-desc");
       if (descInput) {
@@ -1772,7 +1772,7 @@ function autoFillQuotationPrice(selectEl) {
       recalculateQuotationTotals();
       return;
     }
-    ensureProductExcelRow(prod);
+    if (options.forcePrice !== true) ensureProductExcelRow(prod);
     const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
       ? prod.salePrice1
       : (prod.excelRow && prod.excelRow[21] !== undefined && Number(prod.excelRow[21]) > 0
@@ -2700,7 +2700,7 @@ function addTemplateFormRow(productIdVal = "", descVal = "", qtyVal = 1, priceVa
   }, insertAfterRow);
 }
 
-function autoFillTemplateProductPrice(selectEl) {
+function autoFillTemplateProductPrice(selectEl, options = {}) {
   const prodVal = selectEl.value;
   const prod = resolveProduct(prodVal);
   const row = selectEl.closest("tr");
@@ -2708,8 +2708,8 @@ function autoFillTemplateProductPrice(selectEl) {
 
   if (prod && row) {
     const shouldFillPrice = typeof shouldAutoFillDynamicProductPrice !== "function" ||
-      shouldAutoFillDynamicProductPrice(selectEl, prod);
-    if (isBlur) {
+      shouldAutoFillDynamicProductPrice(selectEl, prod, options);
+    if (options.forcePrice !== true && isBlur) {
       selectEl.value = prod.id;
       const descEl = row.querySelector(".item-desc");
       if (descEl) {
@@ -2721,7 +2721,7 @@ function autoFillTemplateProductPrice(selectEl) {
       recalculateTemplateTotals();
       return;
     }
-    ensureProductExcelRow(prod);
+    if (options.forcePrice !== true) ensureProductExcelRow(prod);
     const salePriceVal = prod.salePrice1 !== undefined && prod.salePrice1 > 0
       ? prod.salePrice1
       : (prod.excelRow && prod.excelRow[21] !== undefined && Number(prod.excelRow[21]) > 0

@@ -10,6 +10,7 @@ const coreSource = fs.readFileSync(path.join(appDir, 'js', 'core', 'voucher-form
 const autosaveSource = fs.readFileSync(path.join(appDir, 'js', 'modules', 'autosave.js'), 'utf8');
 const purchaseSource = fs.readFileSync(path.join(appDir, 'js', 'modules', 'purchase.js'), 'utf8');
 const salesSource = fs.readFileSync(path.join(appDir, 'js', 'modules', 'sales.js'), 'utf8');
+const interactionsSource = fs.readFileSync(path.join(appDir, 'js', 'ui-interactions.js'), 'utf8');
 const productionHtml = fs.readFileSync(path.join(appDir, 'index.html'), 'utf8')
   .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
 
@@ -203,7 +204,8 @@ async function main() {
   await win.loadFile(path.join(__dirname, 'voucher-form-table-fixture.html'));
   await win.webContents.executeJavaScript(`document.open(); document.write(${JSON.stringify(productionHtml)}); document.close();`);
   const productionResult = await win.webContents.executeJavaScript(`(() => {
-    window.state = { vouchers: [], products: [], partners: [], salesTemplatesData: [] };
+    const catalogProduct = { id: 'SP-NEG', name: 'Sản phẩm giữ giá', salePrice1: 9000, avgCost: 5000 };
+    window.state = { vouchers: [], products: [catalogProduct], partners: [], salesTemplatesData: [] };
     window.getLocalDateString = () => '2026-07-10';
     window.formatVND = value => Number(value || 0).toLocaleString('vi-VN') + 'đ';
     window.safeParseFloat = value => Number.parseFloat(String(value || '').replace(',', '.')) || 0;
@@ -211,13 +213,15 @@ async function main() {
     window.resolveProduct = value => {
       const text = String(value || '');
       return text.includes('SP-NEG')
-        ? { id: 'SP-NEG', name: 'Sản phẩm giữ giá', salePrice1: 9000, avgCost: 5000 }
+        ? catalogProduct
         : null;
     };
     window.ensureProductExcelRow = () => {};
     ${coreSource}
     ${purchaseSource}
     ${salesSource}
+    ${interactionsSource}
+    initOrderFormKeyboardNavigation();
 
     const errors = getDynamicFormTableConfigs().flatMap(config => validateDynamicFormTableConfig(config));
     const headers = getDynamicFormTableConfigs().map(config => ({
@@ -229,6 +233,13 @@ async function main() {
     document.getElementById('sale-payment').value = '112';
     document.getElementById('sale-tax-rate').value = '10';
     resetSalesForm();
+    const salesResetResult = {
+      partner: document.getElementById('sale-partner').value,
+      payment: document.getElementById('sale-payment').value,
+      taxRate: document.getElementById('sale-tax-rate').value,
+      date: document.getElementById('sale-date').value,
+      rows: document.getElementById('sales-form-items-body').rows.length
+    };
     replaceDynamicFormTableRows('sales-form-items-body', [
       { productId: 'SP-NEG', desc: 'Giá thỏa thuận', qty: 1, price: 1234, discount: 0 }
     ]);
@@ -251,23 +262,43 @@ async function main() {
     freshProductInput.blur();
     autoFillProductPrice(freshProductInput);
     const freshDescriptionInput = document.querySelector('#sales-form-items-body .item-desc');
+
+    replaceDynamicFormTableRows('sales-form-items-body', [
+      { productId: 'SP-NEG', desc: 'Giá thỏa thuận', qty: 1, price: 1234, discount: 10 },
+      { productId: 'Tên nhập riêng (SP-NEG)', desc: 'Mô tả riêng', qty: 2, price: 1500, discount: 20 }
+    ]);
+    replaceDynamicFormTableRows('purchase-form-items-body', [
+      { productId: 'SP-NEG', qty: 1, price: 2222, discount: 5 }
+    ]);
+    document.getElementById('modal-add-sales').style.display = 'flex';
+    document.getElementById('modal-add-purchase').style.display = 'none';
+    const f5ProductInput = document.querySelector('#sales-form-items-body .item-productId');
+    const stateBeforeF5 = JSON.stringify(state);
+    f5ProductInput.focus();
+    const f5Event = new KeyboardEvent('keydown', { key: 'F5', bubbles: true, cancelable: true });
+    document.dispatchEvent(f5Event);
+    const f5Result = {
+      defaultPrevented: f5Event.defaultPrevented,
+      activeSalesPrices: Array.from(document.querySelectorAll('#sales-form-items-body .item-price')).map(input => input.value),
+      activeSalesDiscounts: Array.from(document.querySelectorAll('#sales-form-items-body .item-discount')).map(input => input.value),
+      activeSalesProducts: Array.from(document.querySelectorAll('#sales-form-items-body .item-productId')).map(input => input.value),
+      activeSalesDescriptions: Array.from(document.querySelectorAll('#sales-form-items-body .item-desc')).map(input => input.value),
+      hiddenPurchasePrice: document.querySelector('#purchase-form-items-body .item-price').value,
+      hiddenPurchaseDiscount: document.querySelector('#purchase-form-items-body .item-discount').value,
+      stateUnchanged: JSON.stringify(state) === stateBeforeF5
+    };
     return {
       count: getDynamicFormTableConfigs().length,
       errors,
       headers,
-      salesReset: {
-        partner: document.getElementById('sale-partner').value,
-        payment: document.getElementById('sale-payment').value,
-        taxRate: document.getElementById('sale-tax-rate').value,
-        date: document.getElementById('sale-date').value,
-        rows: document.getElementById('sales-form-items-body').rows.length
-      },
+      salesReset: salesResetResult,
       protectedResult,
       freshResult: {
         priceAfterInput: freshPriceAfterInput,
         productIdAfterBlur: freshProductInput.value,
         descriptionAfterBlur: freshDescriptionInput && freshDescriptionInput.value
-      }
+      },
+      f5Result
     };
   })()`);
 
@@ -287,6 +318,16 @@ async function main() {
     productIdAfterBlur: 'SP-NEG',
     descriptionAfterBlur: 'Sản phẩm giữ giá'
   }, 'typing a product code must fill its catalogue price and description');
+  assert.deepEqual(productionResult.f5Result, {
+    defaultPrevented: true,
+    activeSalesPrices: ['9.000', '9.000'],
+    activeSalesDiscounts: ['10', '20'],
+    activeSalesProducts: ['SP-NEG', 'Tên nhập riêng (SP-NEG)'],
+    activeSalesDescriptions: ['Giá thỏa thuận', 'Mô tả riêng'],
+    hiddenPurchasePrice: '2.222',
+    hiddenPurchaseDiscount: '5',
+    stateUnchanged: true
+  }, 'F5 must restore prices only in the focused voucher without saving or mutating catalog state');
 
   await win.close();
   app.quit();

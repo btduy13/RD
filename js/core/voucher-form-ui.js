@@ -583,9 +583,16 @@ function addDynamicFormTableRow(tbodyId, rowValues = {}, insertAfterRow = null, 
 
 // Only fill a catalogue price when the product really changed or the row has
 // no price yet. This preserves manually negotiated prices and discounts.
-function shouldAutoFillDynamicProductPrice(selectEl, product) {
+function shouldAutoFillDynamicProductPrice(selectEl, product, options = {}) {
   if (!selectEl || !product) return false;
   const productId = String(product.id || "");
+
+  if (options.forcePrice === true) {
+    selectEl.dataset.lastResolvedProductId = productId;
+    selectEl.dataset.priceInitialized = "1";
+    return true;
+  }
+
   const previousProductId = String(selectEl.dataset.lastResolvedProductId || "");
   const priceInput = selectEl.closest("tr")?.querySelector(".item-price");
   const hasPrice = !!priceInput && String(priceInput.value || "").trim() !== "";
@@ -692,14 +699,14 @@ function recalculateDynamicFormTable(tbodyId) {
   return { subtotal, taxAmount, total };
 }
 
-function refreshDynamicProductPrices(tbodyId) {
+function refreshDynamicProductPrices(tbodyId, options = {}) {
   const config = getDynamicFormTableConfig(tbodyId);
   const tbody = document.getElementById(tbodyId);
   if (!config || !tbody || typeof config.onProductInput !== "function") return 0;
   let count = 0;
   tbody.querySelectorAll(".item-productId").forEach(input => {
     if (!input.value.trim()) return;
-    config.onProductInput(input);
+    config.onProductInput(input, options);
     count++;
   });
   refreshDynamicFormTable(tbodyId);

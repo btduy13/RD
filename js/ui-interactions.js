@@ -517,6 +517,23 @@ function initOrderFormKeyboardNavigation() {
     const activeModal = el.closest('.modal-overlay');
     if (!activeModal || !activeModal.querySelector('.dynamic-items-table tbody[id]')) return;
 
+    // F5: restore catalogue prices in the currently focused voucher only.
+    // Values remain local to this form until the user explicitly saves it.
+    if (e.key === 'F5') {
+      const tbody = activeModal.querySelector('.dynamic-items-table tbody[id]');
+      const config = tbody && typeof getDynamicFormTableConfig === 'function'
+        ? getDynamicFormTableConfig(tbody.id)
+        : null;
+      if (config && typeof refreshDynamicProductPrices === 'function') {
+        e.preventDefault();
+        const count = refreshDynamicProductPrices(config.tbodyId, { forcePrice: true });
+        if (typeof showToast === 'function') {
+          showToast(`Đã khôi phục đơn giá gốc của ${count} mặt hàng trong phiếu đang mở.`, 'success');
+        }
+      }
+      return;
+    }
+
     // ── F1: chuyển sang ô tiếp theo trong toàn bộ modal ──────────────────
     if (e.key === 'F1') {
       e.preventDefault();
