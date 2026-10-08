@@ -171,6 +171,20 @@ test("unchanged re-import, meta-only differences and equal-stamp recalcs are not
   assert.deepStrictEqual(deltaEntityIds(A), [], "equal-stamp recalc");
 });
 
+test("legacy unstamped baseline and local copy differing only in recalc-derived fields are not pushed", async () => {
+  const server = new FakeServer();
+  const A = makeStation("A", server);
+  await A.startup();
+  A.run(`
+    lastSyncState.products = [{ id: 'SP9', name: 'Thep', stock: 5, avgCost: 10, totalValue: 50 }];
+    lastSyncState.vouchers = [{ id: 'HD9', type: 'sales', totalAmount: 100, cogsAmount: 40, items: [{ productId: 'SP9', qty: 1, cogsAmount: 40 }] }];
+    window.lastSyncState = lastSyncState;
+    state.products = [{ id: 'SP9', name: 'Thep', stock: 3, avgCost: 12, totalValue: 36 }];
+    state.vouchers = [{ id: 'HD9', type: 'sales', totalAmount: 100, cogsAmount: 48, items: [{ productId: 'SP9', qty: 1, cogsAmount: 48 }] }];
+  `);
+  assert.deepStrictEqual(deltaEntityIds(A), [], "0/0 stamps: derived drift must not fan out");
+});
+
 test("delete from a clock-behind station is stamped after the entity's last edit and applies everywhere", async () => {
   const server = new FakeServer();
   const C = makeStation("C", server, {}, { clockOffsetMs: 0 });

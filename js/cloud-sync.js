@@ -281,11 +281,12 @@ function cloudSyncEntityNeedsPush(previous, current) {
   const previousTs = Number(previous._updatedAt) || 0;
   const currentTs = Number(current._updatedAt) || 0;
   if (currentTs > previousTs) return true;
-  if (currentTs < previousTs || currentTs <= 0) {
+  if (currentTs < previousTs) {
     // The stamp moved backwards (edit on a station whose clock is behind the
-    // previous writer, with or without _sessionId) or is missing (Excel
-    // re-import replaces the object). Push whenever the synced content really
-    // differs; computeDelta re-stamps it to previous + 1.
+    // previous writer, with or without _sessionId) or was dropped against a
+    // stamped baseline (Excel re-import replaces the object). Push whenever the
+    // synced content really differs; computeDelta re-stamps it to previous + 1.
+    // Both unstamped (legacy rows) falls through to the equal-stamp rule below.
     return !cloudSyncEntityContentEqual(previous, current);
   }
   // Recalculation/UI refresh may update derived fields without representing a
