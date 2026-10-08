@@ -532,6 +532,38 @@ test("crash after a renumber but before the pull persisted it: restart still kee
   assert.ok(byId(B, mine.id) && byId(B, "BH2").partnerName === "Khach cua B", "B converges");
 });
 
+test("a backlog beyond the incremental page limit falls back to a full reconcile in the same pull", async () => {
+  const { server, A, B } = await seededPair();
+  // 80 delta pages x 500 rows = 40000 rows: the incremental fetch's safety limit.
+  const next = server.version + 1;
+  for (let i = 0; i < 40010; i++) {
+    const id = "v_BULK" + String(i).padStart(6, "0");
+    server.rows.set(id, { id, data: { id: "BULK" + i, type: "receipt", amount: 1, _updatedAt: Date.now() }, last_modified: Date.now(), sync_version: next });
+  }
+  server.version = next;
+  assert.strictEqual(await B.pull({ reason: "poll", force: false }), true, "pull succeeds instead of throwing 'retry full sync'");
+  assert.ok(B.state.vouchers.filter(v => String(v.id).startsWith("BULK")).length >= 40010, "all backlog rows arrived");
+  assert.strictEqual(B.run("getPullCheckpointTs()"), next, "checkpoint advanced to the cloud version");
+  assert.strictEqual(await B.pull({ reason: "poll", force: false }), true, "following pull is incremental and quiet");
+});
+
+test("rd_rows_by_ids missing on the server (PGRST202) skips tombstone reconcile and never deletes or resurrects", async () => {
+  const { server, A, B } = await seededPair();
+  server.hooks.rd_rows_by_ids = () => {};
+  const orig = server.rpc.bind(server);
+  server.rpc = async (station, name, p) => name === "rd_rows_by_ids"
+    ? { data: null, error: { code: "PGRST202", message: "Could not find the function public.rd_rows_by_ids(p_ids, p_workspace_id) in the schema cache" } }
+    : orig(station, name, p);
+  B.state.deletedCloudKeys = ["v_PT1"];
+  const before = JSON.stringify(B.state.vouchers.map(v => v.id));
+  const n = await B.run("cloudSyncReconcileStaleDeletionMarkers()");
+  assert.strictEqual(n, 0, "reconcile is skipped, not applied");
+  assert.strictEqual(JSON.stringify(B.state.vouchers.map(v => v.id)), before, "vouchers untouched");
+  assert.deepStrictEqual(B.state.deletedCloudKeys, ["v_PT1"], "tombstone memory kept (error is not 'row absent')");
+  assert.ok(server.rows.has("v_PT1"), "cloud row untouched");
+  assert.strictEqual(await B.pull({ reason: "poll", force: false }), true, "normal pulls still work");
+});
+
 (async () => {
   let failed = 0;
   for (const { name, fn } of tests) {

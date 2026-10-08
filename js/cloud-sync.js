@@ -1340,7 +1340,9 @@ async function cloudSyncFetchRowsSince(sinceTs) {
   }
 
   if (rows.length >= CLOUD_SYNC_DELTA_MAX_PAGES * CLOUD_SYNC_PAGE_SIZE) {
-    throw new Error("Cloud incremental pull reached safety limit; retry full sync.");
+    const limitError = new Error("Cloud incremental pull reached safety limit; retry full sync.");
+    limitError.code = "CLOUD_DELTA_LIMIT";
+    throw limitError;
   }
 
   return rows;
@@ -2472,9 +2474,19 @@ async function pullAndMergeFromCloud(options = {}) {
       cloudSnapshot = cloudSyncStateFromRows(rows, { watermark }).state;
     } else {
       cloudSyncLog(`Kiem tra incremental: cloudWatermark=${cloudWatermark}, checkpoint=${checkpoint}`);
-      rows = await cloudSyncFetchRowsSince(fetchCheckpoint);
+      // A station that fell too far behind exceeds the delta page budget; switch
+      // to the full reconcile in this same call instead of failing forever.
+      let deltaBacklogTooLarge = false;
+      try {
+        rows = await cloudSyncFetchRowsSince(fetchCheckpoint);
+      } catch (deltaErr) {
+        if (!deltaErr || deltaErr.code !== "CLOUD_DELTA_LIMIT") throw deltaErr;
+        deltaBacklogTooLarge = true;
+        rows = [];
+        cloudSyncLog("Incremental backlog exceeds the delta limit; falling back to full reconcile.");
+      }
       cloudSyncLog(`Da tai ${rows.length} dong thay doi tu cloud since ${fetchCheckpoint}${legacyOverlap ? " (legacy overlap)" : ""}`);
-      if (rows.length === 0 && options.retryFullIfNoChanges) {
+      if (deltaBacklogTooLarge || (rows.length === 0 && options.retryFullIfNoChanges)) {
         cloudSyncLog("Khong co dong thay doi incremental, thuc hien full pull de bao dam...");
         const snapshotStartVersion = cloudUsesVersionedRpc ? (Number(cloudSyncVersion) || 0) : 0;
         rows = await cloudSyncFetchAllRows();
