@@ -1493,7 +1493,9 @@ function applyProductCaseDedupeInDatabase(stateObj) {
 function readStateFromSQLiteWithDedupe() {
   const stateObj = readStateFromSQLite();
   if (!stateObj) return null;
-  applyProductCaseDedupeInDatabase(stateObj);
+  // Product dedupe/garbage cleanup is NOT applied on load: it mutated this station's SQLite silently
+  // (no pending cloud write / deletion marker), so the change never synced and stations diverged.
+  // Run it explicitly via `npm run db:dedupe-products` (applyProductCaseDedupeInDatabase is kept for that).
   return stateObj;
 }
 

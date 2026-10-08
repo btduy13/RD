@@ -150,13 +150,8 @@ async function initApp() {
     }
   }
 
-  if (typeof ProductCaseDedupe !== "undefined" && ProductCaseDedupe.cleanGarbageProducts && Array.isArray(state.products)) {
-    const garbageResult = ProductCaseDedupe.cleanGarbageProducts(state);
-    if (garbageResult && garbageResult.removed > 0) {
-      console.log(`[ProductClean] Xóa ${garbageResult.removed} mã hàng rác (ngày/chứng từ/số): ${garbageResult.samples.slice(0, 5).join(", ")}`);
-      _productCatalogChanged = true;
-    }
-  }
+  // cleanGarbageProducts is intentionally not run on load: it deleted products silently (no deletion marker,
+  // never synced) and removed legitimate products whose id merely looks like junk (e.g. PX123).
 
   if (_productCatalogChanged) {
     if (typeof saveState === "function") saveState();
@@ -234,6 +229,8 @@ async function initApp() {
       state.partners.forEach(p => {
         if (p.type === "customer") {
           p.type = "retail";
+          p._updatedAt = Date.now();
+          if (typeof clientSessionId !== "undefined") p._sessionId = clientSessionId;
           hasPartnerMigrated = true;
         }
       });
@@ -259,10 +256,7 @@ async function initApp() {
     migrateAndCleanExistingExcelRows();
   }
 
-  // Dọn dẹp hàng trong kho hàng có đơn vị tính là số
-  if (typeof cleanNumericUnitProducts === "function") {
-    cleanNumericUnitProducts();
-  }
+  // cleanNumericUnitProducts() is intentionally not run on load (silent, unsynced product deletion).
 
   // H4 Fix: initExcelIntegration already called at line 128-130, removed duplicate call
   // initExcelIntegration();
