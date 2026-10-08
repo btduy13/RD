@@ -308,9 +308,37 @@ function clearCashDateFilter() {
   filterCash();
 }
 
+// Tài khoản ký quỹ trên form thu/chi theo chế độ kế toán hiện hành
+// (TT200: 344/244, TT133: 3386/1386), khớp với bút toán ghi sổ.
+function syncCashDepositAccountOptions() {
+  if (typeof document === "undefined" || !document) return;
+  const isTT200 = state.accountingStandard === "TT200";
+  const apply = (selectId, codes, label) => {
+    const select = document.getElementById(selectId);
+    if (!select || !select.options) return;
+    Array.from(select.options).forEach(option => {
+      if (!codes.includes(String(option.value))) return;
+      const code = isTT200 ? codes[0] : codes[1];
+      option.value = code;
+      option.textContent = `${label} (TK ${code})`;
+    });
+  };
+  apply("receipt-credit", ["344", "3386"], "Nhận ký quỹ, ký cược");
+  apply("payment-debit", ["244", "1386"], "Chi ký quỹ, ký cược");
+}
+
+// Tài khoản lưu trên phiếu có thể thuộc chế độ cũ: hiển thị theo chế độ hiện hành.
+function cashDepositAccountForForm(type, entry) {
+  if (typeof mapCashDepositEntries !== "function") return entry;
+  const probe = { type, entries: [entry] };
+  mapCashDepositEntries(probe, state.accountingStandard);
+  return probe.entries[0];
+}
+
 function openAddReceiptModal() {
   document.getElementById("form-receipt").reset();
   resetReceiptForm();
+  syncCashDepositAccountOptions();
   document.getElementById("receipt-date").value = getLocalDateString();
   openModal("modal-add-receipt");
 }
@@ -318,6 +346,7 @@ function openAddReceiptModal() {
 function openAddPaymentModal() {
   document.getElementById("form-payment").reset();
   resetPaymentForm();
+  syncCashDepositAccountOptions();
   document.getElementById("payment-date").value = getLocalDateString();
   openModal("modal-add-payment");
 }
@@ -332,7 +361,8 @@ function editReceiptVoucher(id) {
   const modalTitle = document.querySelector("#modal-add-receipt .card-title");
   if (modalTitle) modalTitle.innerText = `Chỉnh sửa Phiếu Thu: ${id}`;
 
-  const entry = (v.entries && v.entries[0]) || {};
+  syncCashDepositAccountOptions();
+  const entry = cashDepositAccountForForm("receipt", (v.entries && v.entries[0]) || {});
   document.getElementById("receipt-date").value = v.date || getLocalDateString();
   const pObj = typeof getPartnerForVoucher === "function" ? getPartnerForVoucher(v) : null;
   document.getElementById("receipt-partner").value = pObj ? `${pObj.name} (${pObj.id})` : (v.partnerName || "");
@@ -357,7 +387,8 @@ function editPaymentVoucher(id) {
   const modalTitle = document.querySelector("#modal-add-payment .card-title");
   if (modalTitle) modalTitle.innerText = `Chỉnh sửa Phiếu Chi: ${id}`;
 
-  const entry = (v.entries && v.entries[0]) || {};
+  syncCashDepositAccountOptions();
+  const entry = cashDepositAccountForForm("payment", (v.entries && v.entries[0]) || {});
   document.getElementById("payment-date").value = v.date || getLocalDateString();
   const pObj = typeof getPartnerForVoucher === "function" ? getPartnerForVoucher(v) : null;
   document.getElementById("payment-partner").value = pObj ? `${pObj.name} (${pObj.id})` : (v.partnerName || "");
@@ -1059,3 +1090,4 @@ window.editReceiptVoucher = editReceiptVoucher;
 window.editPaymentVoucher = editPaymentVoucher;
 window.openAddReceiptModal = openAddReceiptModal;
 window.openAddPaymentModal = openAddPaymentModal;
+window.syncCashDepositAccountOptions = syncCashDepositAccountOptions;

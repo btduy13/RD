@@ -1,4 +1,27 @@
 
+// Tài khoản ký quỹ trên phiếu thu/chi lập tay đi theo chế độ kế toán hiện hành
+// lúc ghi sổ (giống chứng từ escrow_*), không sửa dữ liệu đã lưu một lần cho xong:
+// nhận ký quỹ (Có của phiếu thu) TT200 344 / TT133 3386,
+// chi ký quỹ (Nợ của phiếu chi) TT200 244 / TT133 1386.
+// Chỉ ánh xạ đúng vị trí form tạo ra (TT200 3386 bên Nợ phiếu chi là BHTN, giữ nguyên).
+function mapCashDepositEntries(v, standard) {
+  if (!v || !Array.isArray(v.entries)) return;
+  const isTT200 = standard === "TT200";
+  const side = v.type === "receipt" ? "credit" : v.type === "payment" ? "debit" : "";
+  if (!side) return;
+  const map = v.type === "receipt"
+    ? (isTT200 ? { "3386": "344" } : { "344": "3386" })
+    : (isTT200 ? { "1386": "244" } : { "244": "1386" });
+  let changed = false;
+  const entries = v.entries.map(e => {
+    const code = e && e[side] !== undefined && e[side] !== null ? String(e[side]).trim() : "";
+    if (!map[code]) return e;
+    changed = true;
+    return { ...e, [side]: map[code] };
+  });
+  if (changed) v.entries = entries;
+}
+
 // 3. THUẬT TOÁN KẾ TOÁN CỐT LÕI (ENGINE)
 // - Tính giá vốn bình quân gia quyền liên hoàn sau mỗi lần nhập hàng
 // - Tự động tạo bút toán Nhật ký kép đồng bộ
@@ -358,6 +381,7 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
           { debit: v.paymentMethod || "111", credit: "131", amount: v.amount, desc: v.description }
         ];
       }
+      mapCashDepositEntries(v, state.accountingStandard);
     } else if (v.type === "payment") {
       // Phiếu Chi: Nợ TK 331 (hoặc định khoản sẵn từ Excel) / Có TK 111 hoặc 112
       if (!v.entries || v.entries.length === 0) {
@@ -365,6 +389,7 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
           { debit: "331", credit: v.paymentMethod || "111", amount: v.amount, desc: v.description }
         ];
       }
+      mapCashDepositEntries(v, state.accountingStandard);
     } else if (v.type === "inventory_adjust") {
       // Điều chỉnh tồn kho: tăng/giảm số lượng theo đơn giá bình quân hiện tại (không đổi avgCost)
       let totalAmount = 0;
