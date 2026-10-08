@@ -1878,12 +1878,15 @@ async function persistStateCacheAfterCloudPull(cacheState = state) {
       } else if (result && !result.ok) {
         console.error("[CloudSync] Cannot write state file:", result.error);
       }
+      return !!(result && result.ok);
     } else {
       localStorage.setItem("rd_accounting_online_cache", json);
       if (typeof initializeLastSavedState === "function") initializeLastSavedState(cacheState);
     }
+    return true;
   } catch (err) {
     console.error("[CloudSync] Cannot persist local cache:", err);
+    return false;
   }
 }
 
@@ -2018,6 +2021,53 @@ function cloudSyncPruneStaleLocalOnlyItems(mergedState, localBeforePull, cloudSn
 // its number with a voucher another station issued meanwhile. The merge would
 // then keep only one of the two, so such a local voucher is renumbered first.
 
+// Immutable document identity of a voucher: "<id>|<session>:<time>:<random>".
+// Minted once when a new voucher first heads for the cloud and carried over
+// whenever a module rebuilds the voucher object for an edit. Two copies with the
+// same id and the same origin are the same document (edits merge normally);
+// different origins are two documents that were issued the same number.
+// The id prefix invalidates origins copied along with a whole voucher into a
+// different number (quotation -> order conversion, number change on edit).
+function cloudSyncValidVoucherOrigin(item) {
+  if (!item || !item.id || typeof item._originId !== "string") return "";
+  return item._originId.startsWith(`${item.id}|`) ? item._originId : "";
+}
+
+function cloudSyncMintVoucherOrigin(voucherId) {
+  return `${voucherId}|${cloudSyncGetSessionId()}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 10)}`;
+}
+
+// Runs for every voucher row computeDelta is about to push (also when a
+// cloud-bound save captures its pending manifest, before SQLite persistence),
+// so every creation and edit path is covered without touching the modules.
+function cloudSyncEnsureVoucherOrigin(item, previous) {
+  if (!item || !item.id) return;
+  const confirmedOrigin = cloudSyncValidVoucherOrigin(previous);
+  if (confirmedOrigin) {
+    // The confirmed cloud copy fixes the identity of this id.
+    if (item._originId !== confirmedOrigin) item._originId = confirmedOrigin;
+    return;
+  }
+  if (cloudSyncValidVoucherOrigin(item)) return;
+  // Restored-baseline rows (pending at restart) are absent from the baseline:
+  // carry the identity from the last SQLite-persisted copy when the module
+  // rebuilt the object without it.
+  const savedVouchers = typeof lastSavedState !== "undefined" && lastSavedState ? lastSavedState.vouchers : null;
+  const saved = savedVouchers instanceof Map ? savedVouchers.get(item.id) : null;
+  const savedOrigin = cloudSyncValidVoucherOrigin(saved);
+  if (savedOrigin) {
+    item._originId = savedOrigin;
+    return;
+  }
+  if (previous) {
+    // Legacy confirmed voucher without an origin: never invent one for an
+    // existing document (other stations could not match it).
+    if (item._originId !== undefined) delete item._originId;
+    return;
+  }
+  item._originId = cloudSyncMintVoucherOrigin(item.id);
+}
+
 function cloudSyncHashContent(text) {
   const source = String(text || "");
   let h1 = 0x811c9dc5;
@@ -2096,9 +2146,10 @@ function cloudSyncNoteNewVoucherRows(rows, options = {}) {
 
 // Entries are dropped once the voucher is in the confirmed baseline (pushed or
 // our own row pulled back) or no longer exists locally.
-function cloudSyncPruneNewVoucherLedger() {
+function cloudSyncPruneNewVoucherLedger(protectedRowIds = []) {
   const ledger = cloudSyncReadNewVoucherLedger();
-  const keys = Object.keys(ledger);
+  const keep = new Set(protectedRowIds);
+  const keys = Object.keys(ledger).filter(key => !keep.has(key));
   if (keys.length === 0) return;
   const baselineIds = cloudSyncBaselineVoucherIds();
   if (!baselineIds) return;
@@ -2148,6 +2199,15 @@ function cloudSyncFindForeignVoucherCollisions(cloudSnapshot, rows) {
     const entry = ledger[rowId] && typeof ledger[rowId] === "object" ? ledger[rowId] : null;
     // Imported documents keep their external number on every station.
     if (local.isImported || cloudItem.isImported) return;
+    const localOrigin = cloudSyncValidVoucherOrigin(local);
+    const cloudOrigin = cloudSyncValidVoucherOrigin(cloudItem);
+    if (localOrigin && cloudOrigin) {
+      // Same origin: the same document (e.g. our committed push whose ack was
+      // lost, edited since by another station). Different: two documents.
+      if (localOrigin !== cloudOrigin) collisions.push({ oldId: entityId });
+      return;
+    }
+    // Legacy copies without an origin: fall back to authorship heuristics.
     const cloudKey = cloudSyncEntityContentKey(cloudItem);
     if (cloudKey === cloudSyncEntityContentKey(local)) return;
     if (entry && Array.isArray(entry.sent) && entry.sent.includes(cloudSyncHashContent(cloudKey))) return;
@@ -2187,6 +2247,7 @@ async function cloudSyncRenumberForeignVoucherCollisions(collisions) {
     const sessionId = cloudSyncGetSessionId();
     const previous = state.vouchers[index];
     const moved = { ...previous, id: newId, _updatedAt: Math.max(Number(previous._updatedAt) || 0, now), _sessionId: sessionId };
+    moved._originId = cloudSyncMintVoucherOrigin(newId);
     state.vouchers[index] = moved;
     const refIds = [];
     state.vouchers.forEach(v => {
@@ -2200,14 +2261,42 @@ async function cloudSyncRenumberForeignVoucherCollisions(collisions) {
       v._sessionId = sessionId;
       refIds.push(String(v.id));
     });
+    // The old entry stays until the pull has persisted the renumbered state
+    // (cloudSyncFinishVoucherRenumber); a crash before that must still find it.
     const ledger = cloudSyncReadNewVoucherLedger();
-    delete ledger[`v_${collision.oldId}`];
     ledger[`v_${newId}`] = { at: now, sent: [] };
     cloudSyncWriteNewVoucherLedger(ledger);
     cloudSyncLog(`Voucher id collision: local ${collision.oldId} renumbered to ${newId} (references: ${refIds.join(", ") || "none"}).`);
     renumbered.push({ oldId: collision.oldId, newId: String(newId), refIds });
   }
   return renumbered;
+}
+
+// Refreshes the durable pending manifest after a renumber. Until the pull has
+// persisted the renumbered state to SQLite, the old row ids stay listed too:
+// a crash in between restarts from the pre-renumber SQLite copy, whose old-id
+// voucher must still count as unconfirmed (and be detected again).
+function cloudSyncRefreshManifestForRenumber(renumbered, keepOldIds) {
+  let token = cloudSyncGetPendingLocalWriteToken();
+  if (!token) token = markCloudWritePending();
+  const manifest = cloudSyncCapturePendingWriteManifest(token);
+  if (!manifest || !keepOldIds) return;
+  const rowIds = new Set(manifest.rowIds);
+  (renumbered || []).forEach(({ oldId }) => rowIds.add(`v_${oldId}`));
+  manifest.rowIds = Array.from(rowIds);
+  try {
+    if (state._pendingCloudWrite && state._pendingCloudWrite.token === token) state._pendingCloudWrite.manifest = manifest;
+    localStorage.setItem(CLOUD_SYNC_PENDING_WRITE_MANIFEST_KEY, JSON.stringify(manifest));
+  } catch (err) {
+    console.warn("[CloudSync] Cannot persist renumber manifest:", err);
+  }
+}
+
+function cloudSyncFinishVoucherRenumber(renumbered) {
+  const ledger = cloudSyncReadNewVoucherLedger();
+  (renumbered || []).forEach(({ oldId }) => delete ledger[`v_${oldId}`]);
+  cloudSyncWriteNewVoucherLedger(ledger);
+  cloudSyncRefreshManifestForRenumber(renumbered, false);
 }
 
 function cloudSyncNotifyRenumberedVouchers(renumbered) {
@@ -2488,11 +2577,8 @@ async function pullAndMergeFromCloud(options = {}) {
       // The renumbered voucher and its references are unconfirmed local rows:
       // refresh the durable manifest so a restart before the push still treats
       // them as pending instead of baking them into the restored baseline.
-      const pendingToken = cloudSyncGetPendingLocalWriteToken();
-      if (pendingToken) cloudSyncCapturePendingWriteManifest(pendingToken);
-      else markCloudWritePending();
+      cloudSyncRefreshManifestForRenumber(renumberedVouchers, true);
     }
-    cloudSyncPruneNewVoucherLedger();
     const localRowsNeedingCloudRepair = cloudSyncGetRescueCandidateKeys();
     if (localRowsNeedingCloudRepair.length > 0) {
       // The merge kept one or more newer local active rows against missing or
@@ -2508,11 +2594,12 @@ async function pullAndMergeFromCloud(options = {}) {
     cloudSyncPersistDatasetIdentity();
     cloudSyncLog(`Ket qua merge: vouchers truoc=${vouchersBefore}, sau=${state.vouchers.length}, thay doi=${hasChanges ? "co" : "khong"}, pruned=${prunedCount}`);
 
+    let pullPersisted = true;
     if (hasChanges) {
       const deltaPersisted = await cloudSyncPersistPullDeltaToCache(state, stats.changedIdsByEntity);
       if (!deltaPersisted) {
         // Fallback: no SQLite snapshot available or delta write failed -> full rewrite.
-        await persistStateCacheAfterCloudPull(state);
+        pullPersisted = await persistStateCacheAfterCloudPull(state);
       }
       // One more paint opportunity before the heavy recalc/refresh.
       await cloudSyncYieldToUi();
@@ -2520,6 +2607,10 @@ async function pullAndMergeFromCloud(options = {}) {
     } else {
       cloudSyncLog("Pull khong lam thay doi du lieu; bo qua recalc/refreshUI/persist.");
     }
+    if (renumberedVouchers.length > 0 && pullPersisted) cloudSyncFinishVoucherRenumber(renumberedVouchers);
+    cloudSyncPruneNewVoucherLedger(renumberedVouchers.length > 0 && !pullPersisted
+      ? renumberedVouchers.map(({ oldId }) => `v_${oldId}`)
+      : []);
     cloudSyncNotifyRenumberedVouchers(renumberedVouchers);
 
     updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
@@ -2682,6 +2773,7 @@ function computeDelta() {
       const previous = previousMap.get(item.id);
       if (cloudSyncEntityNeedsPush(previous, item)) {
         item._updatedAt = Math.max(Number(item._updatedAt) || 0, (Number(previous && previous._updatedAt) || 0) + 1, now);
+        if (def.stateKey === "vouchers") cloudSyncEnsureVoucherOrigin(item, previous);
         rowsToUpsert.push(makeRow(`${def.rowPrefix}${item.id}`, item));
       }
     });

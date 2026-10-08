@@ -447,6 +447,91 @@ test("same-session lost ack followed by a local edit is not renumbered", async (
   assert.strictEqual(server.rows.get("v_BH1").data.totalAmount, 6);
 });
 
+// ---- Task 7 fix round 1: stable voucher origin + crash window ----
+test("lost ack then another station edits the voucher: same origin, merged, never renumbered", async () => {
+  const server = new FakeServer();
+  const A = makeStation("A", server), B = makeStation("B", server);
+  await A.startup(); await B.startup();
+  const id = await A.run(`getCloudSafeVoucherId({ prefix: 'BH' })`);
+  A.state.vouchers.push({ id, type: "sales", partnerName: "Khach cua A", totalAmount: 700000, _updatedAt: Date.now(), _sessionId: "session-A" });
+  A.state._lastModified = Date.now();
+  A.run("markCloudWritePending()");
+  const toasts = captureToasts(A);
+  loseNextAck(A);
+  assert.strictEqual(await A.push(), false);
+  const origin = server.rows.get("v_" + id).data._originId;
+  assert.ok(typeof origin === "string" && origin.startsWith(id + "|"), "origin reaches the cloud row: " + origin);
+  await B.pull();
+  // B edits the way the sales form does: rebuilds the voucher object without _originId
+  const idx = B.state.vouchers.findIndex(v => v.id === id);
+  B.state.vouchers[idx] = { id, type: "sales", partnerName: "Khach cua A (B sua)", totalAmount: 800000, _updatedAt: Date.now() + 20, _sessionId: "session-B" };
+  B.state._lastModified = Date.now() + 20;
+  assert.strictEqual(await B.push(), true);
+  assert.strictEqual(server.rows.get("v_" + id).data._originId, origin, "edit path preserves the origin");
+  assert.strictEqual(byId(B, id)._originId, origin, "local edited copy carries the origin too");
+  assert.strictEqual(await A.push(), true);
+  assert.deepStrictEqual(vIds(A), [id], "single voucher, no renumbered copy");
+  assert.strictEqual(byId(A, id).totalAmount, 800000, "B's edit wins");
+  assert.ok(![...server.rows.keys()].some(k => k.startsWith("v_") && k !== "v_" + id), "no extra voucher row");
+  assert.deepStrictEqual(toasts(), []);
+  await B.pull();
+  assert.deepStrictEqual(vIds(B), [id]);
+});
+
+test("_originId is minted once, survives rebuilt edits, and is re-minted for a copied voucher", async () => {
+  const server = new FakeServer();
+  const A = makeStation("A", server);
+  await A.startup();
+  A.state.vouchers.push({ id: "BG1", type: "sales_quotation", totalAmount: 10, _updatedAt: Date.now(), _sessionId: "session-A" });
+  A.state._lastModified = Date.now();
+  await A.push();
+  const origin = server.rows.get("v_BG1").data._originId;
+  assert.ok(origin && origin.startsWith("BG1|"));
+  // edit by rebuilding the object (no _originId), as several handlers do
+  let i = A.state.vouchers.findIndex(v => v.id === "BG1");
+  A.state.vouchers[i] = { id: "BG1", type: "sales_quotation", totalAmount: 11, _updatedAt: Date.now() + 5, _sessionId: "session-A" };
+  A.state._lastModified = Date.now() + 5;
+  await A.push();
+  assert.strictEqual(server.rows.get("v_BG1").data._originId, origin, "edit keeps the origin");
+  // an edit that carries a wrong/foreign origin cannot change the confirmed identity
+  i = A.state.vouchers.findIndex(v => v.id === "BG1");
+  A.state.vouchers[i] = { ...A.state.vouchers[i], totalAmount: 12, _originId: "BG1|someone-else", _updatedAt: Date.now() + 10 };
+  await A.push();
+  assert.strictEqual(server.rows.get("v_BG1").data._originId, origin, "origin is immutable");
+  // quotation -> order conversion deep-clones the quotation (origin included) under a new id
+  const order = JSON.parse(JSON.stringify(byId(A, "BG1")));
+  order.id = "BH7"; order.type = "sales"; order._updatedAt = Date.now() + 15;
+  A.state.vouchers.unshift(order);
+  A.state._lastModified = Date.now() + 15;
+  await A.push();
+  const orderOrigin = server.rows.get("v_BH7").data._originId;
+  assert.ok(orderOrigin.startsWith("BH7|") && orderOrigin !== origin, "copied voucher gets its own origin");
+  assert.deepStrictEqual(deltaEntityIds(A), [], "origins never cause extra pushes");
+});
+
+test("crash after a renumber but before the pull persisted it: restart still keeps both vouchers", async () => {
+  const { server, A, B } = await collisionSetup({ markPending: true });
+  await foreignB(server, B);
+  const sqliteCopy = JSON.parse(JSON.stringify(A.state)); // what SQLite holds before the pull persists
+  let crashStore = null;
+  A.sandbox.__crash = () => { crashStore = new Map(A.store); };
+  A.run("persistStateCacheAfterCloudPull = async () => { __crash(); throw new Error('CRASH'); }");
+  await A.pull({ reason: "poll", force: false }).catch(() => {});
+  assert.ok(crashStore, "crashed during the pull's local persist");
+  const A2 = makeStation("A", server, sqliteCopy, { store: crashStore, sessionId: "session-A-after-crash" });
+  assert.strictEqual(await A2.restartStartup(), true);
+  assert.strictEqual(await A2.run("pushToCloud({ pendingToken: cloudSyncGetPendingLocalWriteToken() })"), true);
+  await B.pull();
+  const cloudB = server.rows.get("v_BH2").data;
+  assert.strictEqual(cloudB.partnerName, "Khach cua B", "B's BH2 intact");
+  const mine = A2.state.vouchers.find(v => v.partnerName === "Khach cua A" && v.type === "sales");
+  assert.ok(mine && mine.id !== "BH2" && mine.totalAmount === 700000, "A's voucher survives under a new number");
+  assert.strictEqual(server.rows.get("v_" + mine.id).data.totalAmount, 700000, "and reaches the cloud");
+  assert.strictEqual(byId(A2, "PT2").escrowRefId, mine.id);
+  assert.strictEqual(server.rows.get("v_PT2").data.escrowRefId, mine.id);
+  assert.ok(byId(B, mine.id) && byId(B, "BH2").partnerName === "Khach cua B", "B converges");
+});
+
 (async () => {
   let failed = 0;
   for (const { name, fn } of tests) {
