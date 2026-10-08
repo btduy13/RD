@@ -64,25 +64,53 @@ function resolveEnterpriseParent(inputVal) {
   return resolved && resolved.type === "enterprise" ? resolved : null;
 }
 
+function stampPartnerSyncFields(entity) {
+  if (!entity) return;
+  entity._updatedAt = Date.now();
+  if (typeof clientSessionId !== "undefined") entity._sessionId = clientSessionId;
+}
+
+// Record a deletion version for an opening-balance key so an older cloud copy
+// cannot resurrect it on another station (mirrors partner-merge.js).
+function recordPartnerOpeningDeletion(id, atLeastTs) {
+  if (!id) return;
+  const hasBalance = state.partnerOpeningBalances && Object.prototype.hasOwnProperty.call(state.partnerOpeningBalances, id);
+  if (state.partnerOpeningBalances) delete state.partnerOpeningBalances[id];
+  if (!hasBalance && !(state.partnerOpeningBalanceTs && state.partnerOpeningBalanceTs[id])) return;
+  if (!state.partnerOpeningBalanceTs) state.partnerOpeningBalanceTs = {};
+  const oldTs = Number(state.partnerOpeningBalanceTs[id]) || 0;
+  state.partnerOpeningBalanceTs[id] = Math.max(Date.now(), oldTs + 1, Number(atLeastTs) || 0);
+}
+
 function propagatePartnerIdChange(oldId, newId, newName) {
   if (!oldId || !newId || String(oldId) === String(newId)) return;
   state.vouchers.forEach(v => {
     if (String(v.partnerId) === String(oldId)) {
       v.partnerId = newId;
       if (newName) v.partnerName = newName;
+      stampPartnerSyncFields(v);
     }
   });
   state.partners.forEach(p => {
-    if (p.parentId === oldId) p.parentId = newId;
+    if (p.parentId === oldId) {
+      p.parentId = newId;
+      stampPartnerSyncFields(p);
+    }
   });
-  if (state.partnerOpeningBalances && state.partnerOpeningBalances[oldId]) {
+  if (!state.partnerOpeningBalanceTs) state.partnerOpeningBalanceTs = {};
+  const hadOpening = !!(state.partnerOpeningBalances && state.partnerOpeningBalances[oldId]);
+  const oldTs = Number(state.partnerOpeningBalanceTs[oldId]) || 0;
+  const newTs = Number(state.partnerOpeningBalanceTs[newId]) || 0;
+  if (hadOpening) {
     state.partnerOpeningBalances[newId] = state.partnerOpeningBalances[oldId];
-    delete state.partnerOpeningBalances[oldId];
+    const movedAt = Math.max(Date.now(), oldTs + 1, newTs + 1);
+    state.partnerOpeningBalanceTs[newId] = movedAt;
+    recordPartnerOpeningDeletion(oldId, movedAt);
+  } else if (oldTs) {
+    recordPartnerOpeningDeletion(oldId);
   }
-  if (state.partnerOpeningBalanceTs && state.partnerOpeningBalanceTs[oldId]) {
-    state.partnerOpeningBalanceTs[newId] = state.partnerOpeningBalanceTs[oldId];
-    delete state.partnerOpeningBalanceTs[oldId];
-  }
+  // The old partner record is replaced by the caller; leave a cloud tombstone.
+  if (typeof trackDeletedIds === "function") trackDeletedIds([oldId], "partner");
 }
 
 function generatePartnerIdClean(name, type) {
@@ -1199,12 +1227,13 @@ async function deletePartner(id) {
 
   const partnersBefore = JSON.parse(JSON.stringify(state.partners || []));
     const openingBefore = JSON.parse(JSON.stringify(state.partnerOpeningBalances || {}));
+    const openingTsBefore = JSON.parse(JSON.stringify(state.partnerOpeningBalanceTs || {}));
     const deletedIdsBefore = [...(state.deletedIds || [])];
     const deletedCloudKeysBefore = [...(state.deletedCloudKeys || [])];
     try {
       trackDeletedIds([id], 'partner');
       state.partners = state.partners.filter(p => p.id !== id);
-      if (state.partnerOpeningBalances && state.partnerOpeningBalances[id]) delete state.partnerOpeningBalances[id];
+      recordPartnerOpeningDeletion(id);
       const cloudCommitted = await saveStateAndSyncVoucher();
       initExcelIntegration();
       filterPartners();
@@ -1215,6 +1244,7 @@ async function deletePartner(id) {
     } catch (err) {
       state.partners = partnersBefore;
       state.partnerOpeningBalances = openingBefore;
+      state.partnerOpeningBalanceTs = openingTsBefore;
       state.deletedIds = deletedIdsBefore;
       state.deletedCloudKeys = deletedCloudKeysBefore;
       filterPartners();
@@ -1239,6 +1269,7 @@ function autoExtractPhonesAndCleanAddresses() {
       if (matches && matches.length > 0) {
         // Gán số điện thoại tìm được
         p.phone = matches.join(" / ");
+        stampPartnerSyncFields(p);
 
         // Làm sạch địa chỉ: Loại bỏ số điện thoại và các ký tự phân tách thừa
         let cleanAddr = addr;
@@ -1341,6 +1372,7 @@ function autoExtractPhonesFromNamesAndClean() {
     if (phone && cleanName) {
       // Cập nhật tên đã được loại bỏ SĐT
       p.name = cleanName;
+      stampPartnerSyncFields(p);
 
       // Lưu số điện thoại vào đúng trường phone
       if (!currentPhone || currentPhone === "-" || currentPhone === "null" || currentPhone === "") {
@@ -1476,9 +1508,7 @@ async function batchDeletePartners() {
   trackDeletedIds(idsToDelete, 'partner');
   state.partners = state.partners.filter(p => !idsToDelete.includes(p.id));
   idsToDelete.forEach(id => {
-    if (state.partnerOpeningBalances && state.partnerOpeningBalances[id]) {
-      delete state.partnerOpeningBalances[id];
-    }
+    recordPartnerOpeningDeletion(id);
   });
 
   saveState();
