@@ -686,7 +686,11 @@ test("a backlog beyond the incremental page limit falls back to a full reconcile
     server.rows.set(id, { id, data: { id: "BULK" + i, type: "receipt", amount: 1, _updatedAt: Date.now() }, last_modified: Date.now(), sync_version: next });
   }
   server.version = next;
+  const logs = [];
+  B.sandbox.console.log = (...a) => logs.push(a.map(String).join(" "));
   assert.strictEqual(await B.pull({ reason: "poll", force: false }), true, "pull succeeds instead of throwing 'retry full sync'");
+  assert.ok(logs.some(l => l.includes("Delta backlog qua lon, chuyen sang full reconcile")), "backlog fallback has its own log line");
+  assert.ok(!logs.some(l => l.includes("Khong co dong thay doi incremental")), "not logged as an empty incremental pull");
   assert.ok(B.state.vouchers.filter(v => String(v.id).startsWith("BULK")).length >= 40010, "all backlog rows arrived");
   assert.strictEqual(B.run("getPullCheckpointTs()"), next, "checkpoint advanced to the cloud version");
   assert.strictEqual(await B.pull({ reason: "poll", force: false }), true, "following pull is incremental and quiet");
@@ -701,7 +705,11 @@ test("rd_rows_by_ids missing on the server (PGRST202) skips tombstone reconcile 
     : orig(station, name, p);
   B.state.deletedCloudKeys = ["v_PT1"];
   const before = JSON.stringify(B.state.vouchers.map(v => v.id));
+  const warnings = [];
+  B.sandbox.console.warn = (...a) => warnings.push(a.map(String).join(" "));
   const n = await B.run("cloudSyncReconcileStaleDeletionMarkers()");
+  assert.ok(warnings.some(w => w.includes("supabase_rd_rows_by_ids.sql")), "warning names the additive migration: " + warnings.join(" | "));
+  assert.ok(!warnings.some(w => w.includes("supabase_online_v3_migration.sql")), "never tells operators to re-run v3");
   assert.strictEqual(n, 0, "reconcile is skipped, not applied");
   assert.strictEqual(JSON.stringify(B.state.vouchers.map(v => v.id)), before, "vouchers untouched");
   assert.deepStrictEqual(B.state.deletedCloudKeys, ["v_PT1"], "tombstone memory kept (error is not 'row absent')");

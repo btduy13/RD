@@ -2593,7 +2593,9 @@ async function pullAndMergeFromCloud(options = {}) {
       }
       cloudSyncLog(`Da tai ${rows.length} dong thay doi tu cloud since ${fetchCheckpoint}${legacyOverlap ? " (legacy overlap)" : ""}`);
       if (deltaBacklogTooLarge || (rows.length === 0 && options.retryFullIfNoChanges)) {
-        cloudSyncLog("Khong co dong thay doi incremental, thuc hien full pull de bao dam...");
+        cloudSyncLog(deltaBacklogTooLarge
+          ? "Delta backlog qua lon, chuyen sang full reconcile..."
+          : "Khong co dong thay doi incremental, thuc hien full pull de bao dam...");
         const snapshotStartVersion = cloudUsesVersionedRpc ? (Number(cloudSyncVersion) || 0) : 0;
         rows = await cloudSyncFetchAllRows();
         watermark = cloudSyncWatermarkFromRows(rows, metadata);
@@ -3134,7 +3136,7 @@ async function cloudSyncFetchRowsByKeys(keys) {
       const message = String(error.message || "");
       if (code === "PGRST202" || code === "42883" || message.includes("rd_rows_by_ids")) {
         console.warn(
-          "[CloudSync] rd_rows_by_ids RPC missing on Supabase; run supabase_online_v3_migration.sql to enable stale-tombstone reconcile."
+          "[CloudSync] rd_rows_by_ids RPC missing on Supabase; run supabase_rd_rows_by_ids.sql (additive, safe to re-run) to enable stale-tombstone reconcile."
         );
         return [];
       }
