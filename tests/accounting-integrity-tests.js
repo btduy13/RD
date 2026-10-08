@@ -37,21 +37,21 @@ async function main() {
     assert.equal(c.deletions, undefined);
   });
   await test('recalculation preserves entered account openings and equity', () => {
-    const c = context(['js/accounting.js']);
+    const c = context(['js/core/accounting-engine.js', 'js/accounting.js']);
     c.state.initialBalances = { '131': { type: 'debit', balance: 900 }, '331': { type: 'credit', balance: 300 }, '411': { type: 'credit', balance: 600 } };
     const before = JSON.stringify(c.state.initialBalances);
     c.recalculateAccounting(false);
     assert.equal(JSON.stringify(c.state.initialBalances), before);
   });
   await test('cash account balance treats imported amounts and account codes numerically', () => {
-    const c = context(['js/accounting.js']);
+    const c = context(['js/core/accounting-engine.js', 'js/accounting.js']);
     c.state.initialBalances = {'111':{type:'debit',balance:'100'}};
     c.state.vouchers = [{entries:[{debit:111,credit:'131',amount:'25'},{debit:'331',credit:'111 ',amount:'10'}]}];
     assert.equal(c.getAccountBalance('111'), 115);
   });
   for (const type of ['sales', 'purchase']) {
     await test(`${type}: advance cash and opening advances settle later invoices`, () => {
-      const c = context(['js/accounting.js']);
+      const c = context(['js/core/accounting-engine.js', 'js/accounting.js']);
       c.state.partners = [{ id: 'A', type: type === 'sales' ? 'retail' : 'supplier' }];
       c.state.partnerOpeningBalances.A = type === 'sales' ? { debit: 0, credit: 200 } : { debit: 200, credit: 0 };
       c.state.vouchers = [order('I', type, 'A'), { id: 'C', type: type === 'sales' ? 'receipt' : 'payment', partnerId: 'A', date: '2026-01-01', amount: 400, paymentMethod: '111' }];
@@ -65,13 +65,13 @@ async function main() {
     });
   }
   await test('unidentified partners never settle each other', () => {
-    const c = context(['js/accounting.js']);
+    const c = context(['js/core/accounting-engine.js', 'js/accounting.js']);
     c.state.vouchers = [order('I', 'sales', ''), { id: 'C', type: 'receipt', partnerId: '', date: '2026-01-03', amount: 400 }];
     c.recalculateAccounting(false);
     assert.equal(c.state.vouchers.find(v => v.id === 'I').remainingDebt, 1000);
   });
   await test('opening debit and credit net within the same partner account', () => {
-    const c = context(['js/accounting.js']);
+    const c = context(['js/core/accounting-engine.js', 'js/accounting.js']);
     c.state.partners = [{ id: 'A', type: 'retail' }];
     c.state.partnerOpeningBalances.A = { debit: 100, credit: 200 };
     c.state.vouchers = [order('I', 'sales', 'A')];
@@ -79,14 +79,14 @@ async function main() {
     assert.equal(c.state.vouchers[0].remainingDebt, 900);
   });
   await test('return credit consumed by a later order is not counted twice', () => {
-    const c = context(['js/accounting.js']);
+    const c = context(['js/core/accounting-engine.js', 'js/accounting.js']);
     c.state.vouchers = [{ ...order('R', 'sales_return', 'A', '2026-01-01'), paymentMethod: '131' }, order('I', 'sales', 'A')];
     c.recalculateAccounting(false);
     assert.equal(c.state.vouchers.find(v => v.id === 'I').remainingDebt, 0);
     assert.equal(c.state.vouchers.find(v => v.id === 'R').remainingDebt, 0);
   });
   await test('editing imported movements preserves opening inventory', () => {
-    const c = context(['js/accounting.js']);
+    const c = context(['js/core/accounting-engine.js', 'js/accounting.js']);
     c.state.products = [{ id: 'P', initialStock: 10, initialCost: 100, actualStock: 10 }];
     c.state.vouchers = [{ ...order('I', 'sales', 'A'), isImported: true }];
     c.recalculateAccounting(false);
@@ -94,7 +94,7 @@ async function main() {
     assert.equal(c.state.products[0].stock, 9);
   });
   await test('catalog defaults do not overwrite entered inventory and recalc is stable', () => {
-    const c = context(['js/accounting.js']);
+    const c = context(['js/core/accounting-engine.js', 'js/accounting.js']);
     c.DEFAULT_DATA.products = [{ id:'P', stock:50, avgCost:90 }];
     c.state.products = [{ id:'P', initialStock:10, initialCost:100 }];
     c.state.vouchers = [order('I', 'sales', 'A')];

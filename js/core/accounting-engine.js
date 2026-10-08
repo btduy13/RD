@@ -2,6 +2,34 @@
    ACCOUNTING ENGINE — Watermark / skip-recalc helpers (pure, no DOM)
    ========================================================================== */
 
+// Deterministic voucher order for valuation / allocation (moving-average cost, COGS, FIFO debt).
+// Same date -> stock-in before stock-out, then _createdAt (if both have it), then id (string compare),
+// so every workstation computes identical figures regardless of array order.
+const ACCOUNTING_TYPE_RANK = {
+  opening: 0, opening_stock: 0, purchase: 0, sales_return: 0,
+  sales: 2, purchase_return: 2
+};
+function accountingTypeRank(type) {
+  return Object.prototype.hasOwnProperty.call(ACCOUNTING_TYPE_RANK, type) ? ACCOUNTING_TYPE_RANK[type] : 1;
+}
+function compareVouchersForAccounting(a, b) {
+  const da = String(a && a.date || "");
+  const db = String(b && b.date || "");
+  if (da < db) return -1;
+  if (da > db) return 1;
+  const ra = accountingTypeRank(a && a.type);
+  const rb = accountingTypeRank(b && b.type);
+  if (ra !== rb) return ra - rb;
+  const ca = Number(a && a._createdAt);
+  const cb = Number(b && b._createdAt);
+  if (Number.isFinite(ca) && Number.isFinite(cb) && ca !== cb) return ca < cb ? -1 : 1;
+  const ia = String(a && a.id !== undefined && a.id !== null ? a.id : "");
+  const ib = String(b && b.id !== undefined && b.id !== null ? b.id : "");
+  if (ia < ib) return -1;
+  if (ia > ib) return 1;
+  return 0;
+}
+
 function accountingInputFingerprint(value) {
   const text = JSON.stringify(value);
   let first = 2166136261, second = 5381;
@@ -79,9 +107,7 @@ function calculateInventoryValueAt(products, vouchers, toDate) {
     });
   });
 
-  const chronological = [...(Array.isArray(vouchers) ? vouchers : [])].sort((a, b) =>
-    String(a && a.date || "").localeCompare(String(b && b.date || ""))
-  );
+  const chronological = [...(Array.isArray(vouchers) ? vouchers : [])].sort(compareVouchersForAccounting);
 
   chronological.forEach(voucher => {
     if (!voucher || (toDate && String(voucher.date || "") > toDate) || !Array.isArray(voucher.items)) return;
@@ -155,6 +181,7 @@ function calculateInventoryValueAt(products, vouchers, toDate) {
   return totalValue;
 }
 
+window.compareVouchersForAccounting = compareVouchersForAccounting;
 window.getRecalcWatermark = getRecalcWatermark;
 window.shouldSkipFullRecalc = shouldSkipFullRecalc;
 window.markAccountingValid = markAccountingValid;

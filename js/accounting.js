@@ -22,15 +22,6 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
       if (v.isManual === undefined && v.isImported === undefined) {
         v.isImported = true;
       }
-      // Tự động chuẩn hóa và làm sạch partnerId bị sai lệch hoặc lệch định dạng từ dữ liệu lịch sử.
-      // Bug E fix: chỉ ghi đè partnerId khi khớp CHÍNH XÁC (ID hoặc tên chuẩn hóa).
-      // Fuzzy substring match chỉ dành cho hiển thị, không sửa dữ liệu gốc (sync cloud).
-      if (typeof getPartnerForVoucher === "function") {
-        const resolvedP = getPartnerForVoucher(v, { strict: true });
-        if (resolvedP && v.partnerId !== resolvedP.id) {
-          v.partnerId = resolvedP.id;
-        }
-      }
     });
   }
 
@@ -103,13 +94,8 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
   });
 
   // BƯỚC B: Sắp xếp các chứng từ kế toán theo ngày hạch toán (Tối ưu hóa: So sánh chuỗi trực tiếp thay vì new Date())
-  state.vouchers.sort((a, b) => {
-    const da = a.date || "";
-    const db = b.date || "";
-    if (da < db) return -1;
-    if (da > db) return 1;
-    return 0;
-  });
+  // Thứ tự xác định (ngày -> nhập trước xuất -> _createdAt -> id) để mọi máy tính ra cùng kết quả.
+  state.vouchers.sort(compareVouchersForAccounting);
 
   // BƯỚC C: Duyệt qua từng chứng từ để tính giá vốn và tự động cập nhật Định khoản kép
   state.vouchers.forEach(v => {
@@ -425,6 +411,25 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
   });
 
   // BƯỚC C2 (Bug C): Suy diễn remainingDebt từ bút toán bằng phân bổ FIFO
+  // partnerId chỉ được phân giải cục bộ để tính toán; KHÔNG ghi ngược vào chứng từ (dữ liệu đồng bộ).
+  // Nếu một tên khớp nhiều đối tác thì không đoán, giữ nguyên partnerId gốc.
+  const partnerIdSet = new Set();
+  const partnerNameCount = Object.create(null);
+  (state.partners || []).forEach(p => {
+    if (!p) return;
+    if (p.id !== undefined && p.id !== null) partnerIdSet.add(String(p.id).trim());
+    const nk = p.name !== undefined && p.name !== null ? String(p.name).trim().toLowerCase() : "";
+    if (nk) partnerNameCount[nk] = (partnerNameCount[nk] || 0) + 1;
+  });
+  const resolveVoucherPartnerIdForCalc = v => {
+    const raw = v.partnerId !== undefined && v.partnerId !== null ? String(v.partnerId) : "";
+    if (partnerIdSet.has(raw.trim()) || typeof getPartnerForVoucher !== "function") return raw;
+    const p = getPartnerForVoucher(v, { strict: true });
+    if (!p || p.id === undefined || p.id === null) return raw;
+    const nk = String(p.name || "").trim().toLowerCase();
+    if (nk && partnerNameCount[nk] > 1) return raw;
+    return String(p.id);
+  };
   const openingRemaining = Object.create(null);
   const arQueues = Object.create(null);
   const apQueues = Object.create(null);
@@ -460,7 +465,7 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
       return;
     }
 
-    const pid = v.partnerId !== undefined && v.partnerId !== null ? String(v.partnerId) : "";
+    const pid = resolveVoucherPartnerIdForCalc(v);
     let debit131 = 0, credit131 = 0, debit331 = 0, credit331 = 0;
     v.entries.forEach(e => {
       const amt = Number(e.amount) || 0;
