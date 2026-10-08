@@ -2117,13 +2117,22 @@ async function pullAndMergeFromCloud(options = {}) {
         }
         cloudSnapshot = cloudSyncStateFromRows(rows, { watermark }).state;
       } else {
+        // Versioned mode: a metadata row with empty data is only a summary
+        // stand-in, never real content -> treat it as absent.
+        if (cloudUsesVersionedRpc) {
+          rows = rows.filter(row => !(row && row.id === CLOUD_SYNC_METADATA_ID &&
+            (!row.data || Object.keys(row.data).length === 0)));
+        }
         const hasMetadataRow = rows.some(row => row.id === CLOUD_SYNC_METADATA_ID);
         const hasSignalRow = rows.some(row => row.id === CLOUD_SYNC_SIGNAL_ID);
         if (!hasMetadataRow) {
-          if (hasSignalRow && lastSyncState) {
+          if ((hasSignalRow || cloudUsesVersionedRpc) && lastSyncState) {
             // A signal-only/entity-only delta deliberately omits the large
-            // metadata row. Seed parsing from the confirmed baseline locally;
-            // no additional network payload is required.
+            // metadata row. In versioned mode the delta can also be empty (e.g.
+            // rd_reserve_voucher_id bumps sync_version but its lock_ row is
+            // filtered out), so always seed from the confirmed baseline instead
+            // of the summary-only stand-in, which would read as "all fields
+            // deleted". No additional network payload is required.
             rows.push({
               id: CLOUD_SYNC_METADATA_ID,
               data: cloudSyncSplitMetadata(lastSyncState),
