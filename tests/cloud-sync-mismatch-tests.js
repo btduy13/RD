@@ -1,10 +1,29 @@
 // Regression tests for cross-station sync mismatches (versioned-RPC mode).
 // Plain node + assert; uses the in-memory fake server in tests/helpers.
 const assert = require("assert");
-const { FakeServer, makeStation } = require("./helpers/fake-versioned-cloud");
+const helpers = require("./helpers/fake-versioned-cloud");
+const { FakeServer } = helpers;
+
+// Every station a test creates is checked after the test: its sandbox must
+// not have logged any console.error, except the faults the test injects and
+// declares via test(name, fn, { expectErrors: [regex...] }); each declared
+// pattern must also actually occur.
+let stationsOfTest = [];
+const makeStation = (...args) => {
+  const st = helpers.makeStation(...args);
+  stationsOfTest.push(st);
+  return st;
+};
 
 const tests = [];
-const test = (name, fn) => tests.push({ name, fn });
+const test = (name, fn, opts = {}) => tests.push({ name, fn, expectErrors: opts.expectErrors || [] });
+function assertStationErrors(expectErrors) {
+  const errors = [];
+  stationsOfTest.forEach(st => st.sandbox.__errors.forEach(e => errors.push(`${st.name}: ${e}`)));
+  const unexpected = errors.filter(e => !expectErrors.some(re => re.test(e)));
+  assert.deepStrictEqual(unexpected, [], "unexpected sync errors logged");
+  expectErrors.forEach(re => assert.ok(errors.some(e => re.test(e)), "expected error not logged: " + re));
+}
 
 const META = {
   companyName: "Cong ty RD",
@@ -99,6 +118,74 @@ test("initialBalances merge per account: stale station save does not revert anot
   for (const [who, ibs] of [["A", A.state.initialBalances], ["B", B.state.initialBalances], ["cloud", cloud]]) {
     assert.strictEqual(ibs["131"].balance, 5000000, who + " keeps 131 opening");
     assert.strictEqual(ibs["156"].balance, 777, who + " keeps 156 opening");
+  }
+});
+
+// ---- Final review F7: more initialBalances per-account merge cases ----
+async function openingPair() {
+  const server = new FakeServer();
+  const ib = { "131": { type: "debit", balance: 10 }, "156": { type: "debit", balance: 20 }, "331": { type: "credit", balance: 30 } };
+  const A = makeStation("A", server, { initialBalances: ib, _lastModified: Date.now() - 60000 });
+  await A.startup();
+  A.state._lastModified = Date.now();
+  await A.push();
+  const B = makeStation("B", server);
+  await B.startup();
+  assert.deepStrictEqual(Object.keys(B.state.initialBalances).sort(), ["131", "156", "331"], "precondition");
+  await sleep(5);
+  return { server, A, B };
+}
+const ibOf = (server, A, B) => [["A", A.state.initialBalances], ["B", B.state.initialBalances], ["cloud", server.rows.get("metadata").data.initialBalances]];
+
+test("initialBalances: deleting an account key on one station propagates and is not resurrected by a stale station", async () => {
+  const { server, A, B } = await openingPair();
+  delete A.state.initialBalances["156"];
+  A.state._lastModified = Date.now();
+  await A.push();
+  await sleep(5);
+  // B has not pulled the delete; it edits another account and saves
+  B.state.initialBalances["331"].balance = 999;
+  B.state.vouchers.push({ id: "PT9", type: "receipt", amount: 1, _updatedAt: Date.now(), _sessionId: "session-B" });
+  B.state._lastModified = Date.now();
+  await B.push();
+  await A.pull();
+  for (const [who, ibs] of ibOf(server, A, B)) {
+    assert.ok(!Object.prototype.hasOwnProperty.call(ibs, "156"), who + " has no 156 opening");
+    assert.strictEqual(ibs["331"].balance, 999, who + " keeps B's 331 edit");
+    assert.strictEqual(ibs["131"].balance, 10, who + " keeps 131");
+  }
+});
+
+test("initialBalances: both stations edit the same account -> the later save wins everywhere (per-account timestamp rule)", async () => {
+  // later local edit wins over the cloud copy
+  let { server, A, B } = await openingPair();
+  A.state.initialBalances["131"].balance = 111;
+  A.state._lastModified = Date.now();
+  await A.push();
+  await sleep(5);
+  B.state.initialBalances["131"].balance = 222;
+  B.state.initialBalances["156"].balance = 21;
+  B.state._lastModified = Date.now();
+  await B.push();
+  await A.pull();
+  for (const [who, ibs] of ibOf(server, A, B)) {
+    assert.strictEqual(ibs["131"].balance, 222, who + ": later edit of 131 wins");
+    assert.strictEqual(ibs["156"].balance, 21, who + ": one-sided edit kept");
+  }
+  // an older local edit loses to a newer cloud edit of the same account
+  ({ server, A, B } = await openingPair());
+  B.state.initialBalances["131"].balance = 333;
+  B.state.initialBalances["331"].balance = 31;
+  B.state._lastModified = Date.now();
+  await sleep(5);
+  A.state.initialBalances["131"].balance = 444;
+  A.state._lastModified = Date.now();
+  await A.push();
+  await B.push();
+  await A.pull();
+  for (const [who, ibs] of ibOf(server, A, B)) {
+    assert.strictEqual(ibs["131"].balance, 444, who + ": newer cloud edit of 131 wins");
+    assert.strictEqual(ibs["331"].balance, 31, who + ": B's one-sided edit still kept");
   }
 });
 
@@ -359,7 +446,7 @@ test("delayed push whose number was re-issued to another station is renumbered, 
   assert.deepStrictEqual(deltaEntityIds(A), [], "nothing left to push");
   assert.deepStrictEqual(deltaEntityIds(B), []);
   assert.deepStrictEqual([...A.sandbox.__errors.filter(e => !/NETWORK_DOWN/.test(e)), ...B.sandbox.__errors], []);
-});
+}, { expectErrors: [/^A: \[CloudSync\] Push failed: NETWORK_DOWN$/] });
 
 test("collision with an older-stamped foreign voucher does not overwrite it in the cloud", async () => {
   const { server, A, B } = await collisionSetup();
@@ -367,7 +454,7 @@ test("collision with an older-stamped foreign voucher does not overwrite it in t
   assert.strictEqual(await A.push(), true);
   await B.pull();
   assertRenumbered(server, [A, B], "BH3");
-});
+}, { expectErrors: [/^A: \[CloudSync\] Push failed: NETWORK_DOWN$/] });
 
 test("collision is detected on a regular poll pull before the push", async () => {
   const { server, A, B } = await collisionSetup();
@@ -378,7 +465,7 @@ test("collision is detected on a regular poll pull before the push", async () =>
   assert.strictEqual(await A.push(), true);
   await B.pull();
   assertRenumbered(server, [A, B], "BH3");
-});
+}, { expectErrors: [/^A: \[CloudSync\] Push failed: NETWORK_DOWN$/] });
 
 test("collision after an app restart (new session id) is renumbered via the durable pending-write marker", async () => {
   const { server, A, B } = await collisionSetup({ markPending: true });
@@ -400,7 +487,7 @@ test("collision after an app restart (new session id) is renumbered via the dura
   await A3.restartStartup();
   assert.deepStrictEqual(vIds(A3), vIds(A2));
   assert.deepStrictEqual(deltaEntityIds(A3), []);
-});
+}, { expectErrors: [/^A: \[CloudSync\] Push failed: NETWORK_DOWN$/] });
 
 test("own earlier push whose ack was lost is never renumbered, even after a restart and a local edit", async () => {
   const server = new FakeServer();
@@ -430,7 +517,7 @@ test("own earlier push whose ack was lost is never renumbered, even after a rest
   await B.pull();
   assert.deepStrictEqual(vIds(B), [id]);
   assert.strictEqual(byId(B, id).totalAmount, 750000);
-});
+}, { expectErrors: [/^A: \[CloudSync\] Push failed: ACK_LOST$/] });
 
 test("same-session lost ack followed by a local edit is not renumbered", async () => {
   const server = new FakeServer();
@@ -445,7 +532,7 @@ test("same-session lost ack followed by a local edit is not renumbered", async (
   assert.strictEqual(await A.push(), true);
   assert.deepStrictEqual(vIds(A), ["BH1"]);
   assert.strictEqual(server.rows.get("v_BH1").data.totalAmount, 6);
-});
+}, { expectErrors: [/^A: \[CloudSync\] Push failed: ACK_LOST$/] });
 
 // ---- Task 7 fix round 1: stable voucher origin + crash window ----
 test("lost ack then another station edits the voucher: same origin, merged, never renumbered", async () => {
@@ -476,7 +563,7 @@ test("lost ack then another station edits the voucher: same origin, merged, neve
   assert.deepStrictEqual(toasts(), []);
   await B.pull();
   assert.deepStrictEqual(vIds(B), [id]);
-});
+}, { expectErrors: [/^A: \[CloudSync\] Push failed: ACK_LOST$/] });
 
 test("_originId is minted once, survives rebuilt edits, and is re-minted for a copied voucher", async () => {
   const server = new FakeServer();
@@ -530,7 +617,7 @@ test("crash after a renumber but before the pull persisted it: restart still kee
   assert.strictEqual(byId(A2, "PT2").escrowRefId, mine.id);
   assert.strictEqual(server.rows.get("v_PT2").data.escrowRefId, mine.id);
   assert.ok(byId(B, mine.id) && byId(B, "BH2").partnerName === "Khach cua B", "B converges");
-});
+}, { expectErrors: [/^A: \[CloudSync\] Push failed: NETWORK_DOWN$/] });
 
 // ---- Final review F1: renumber while the voucher is open in an edit form ----
 // Mirrors the app wiring: item-table forms come from the dynamic form-table
@@ -598,7 +685,7 @@ test("renumber while the voucher is open in an edit form re-points the form; sav
     assert.strictEqual(byId(st, "BH3").totalAmount, 750000, st.name + " BH3 carries the edit");
   }
   assert.deepStrictEqual([...A.sandbox.__errors.filter(e => !/NETWORK_DOWN/.test(e)), ...B.sandbox.__errors], []);
-});
+}, { expectErrors: [/^A: \[CloudSync\] Push failed: NETWORK_DOWN$/] });
 
 test("edit save guard: a different document at the editing id is never overwritten", async () => {
   const server = new FakeServer();
@@ -719,8 +806,9 @@ test("rd_rows_by_ids missing on the server (PGRST202) skips tombstone reconcile 
 
 (async () => {
   let failed = 0;
-  for (const { name, fn } of tests) {
-    try { await fn(); console.log("ok - " + name); }
+  for (const { name, fn, expectErrors } of tests) {
+    stationsOfTest = [];
+    try { await fn(); assertStationErrors(expectErrors); console.log("ok - " + name); }
     catch (err) { failed++; console.error("FAIL - " + name + "\n  " + (err && err.message)); }
   }
   if (failed) { console.error(`${failed} test(s) failed`); process.exit(1); }
