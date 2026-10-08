@@ -3,7 +3,7 @@
    ========================================================================== */
 
 // Deterministic voucher order for valuation / allocation (moving-average cost, COGS, FIFO debt).
-// Same date -> stock-in before stock-out, then _createdAt (if both have it), then id (string compare),
+// Same date -> stock-in before stock-out, then id (string compare),
 // so every workstation computes identical figures regardless of array order.
 const ACCOUNTING_TYPE_RANK = {
   opening: 0, opening_stock: 0, purchase: 0, sales_return: 0,
@@ -20,14 +20,37 @@ function compareVouchersForAccounting(a, b) {
   const ra = accountingTypeRank(a && a.type);
   const rb = accountingTypeRank(b && b.type);
   if (ra !== rb) return ra - rb;
-  const ca = Number(a && a._createdAt);
-  const cb = Number(b && b._createdAt);
-  if (Number.isFinite(ca) && Number.isFinite(cb) && ca !== cb) return ca < cb ? -1 : 1;
   const ia = String(a && a.id !== undefined && a.id !== null ? a.id : "");
   const ib = String(b && b.id !== undefined && b.id !== null ? b.id : "");
   if (ia < ib) return -1;
   if (ia > ib) return 1;
   return 0;
+}
+
+// Resolves a voucher's partner id for COMPUTATION / lookups only; never writes back to the voucher.
+// Exact (trimmed) id match wins; otherwise a strict name/id lookup, but a name shared by several
+// partners is not guessed (raw id is kept).
+function createVoucherPartnerResolver(partners) {
+  const idSet = new Set();
+  const nameCount = Object.create(null);
+  (Array.isArray(partners) ? partners : []).forEach(p => {
+    if (!p) return;
+    if (p.id !== undefined && p.id !== null) idSet.add(String(p.id).trim());
+    const nk = p.name !== undefined && p.name !== null ? String(p.name).trim().toLowerCase() : "";
+    if (nk) nameCount[nk] = (nameCount[nk] || 0) + 1;
+  });
+  return function resolveVoucherPartnerId(v) {
+    if (!v) return "";
+    const raw = v.partnerId !== undefined && v.partnerId !== null ? String(v.partnerId) : "";
+    if (idSet.has(raw.trim())) return raw.trim();
+    if (typeof getPartnerForVoucher !== "function") return raw;
+    // Only the partnerId field is used (partnerName is a display snapshot and must not rebind a voucher).
+    const p = getPartnerForVoucher({ partnerId: raw }, { strict: true });
+    if (!p || p.id === undefined || p.id === null) return raw;
+    const nk = String(p.name || "").trim().toLowerCase();
+    if (nk && nameCount[nk] > 1) return raw;
+    return String(p.id);
+  };
 }
 
 function accountingInputFingerprint(value) {
@@ -181,6 +204,7 @@ function calculateInventoryValueAt(products, vouchers, toDate) {
   return totalValue;
 }
 
+window.createVoucherPartnerResolver = createVoucherPartnerResolver;
 window.compareVouchersForAccounting = compareVouchersForAccounting;
 window.getRecalcWatermark = getRecalcWatermark;
 window.shouldSkipFullRecalc = shouldSkipFullRecalc;

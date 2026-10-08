@@ -225,8 +225,9 @@ function computePriorDebtCountersForPartner(partnerId, partnerType, fromDate) {
     const prior = createEmptyDebtCounters();
     if (!fromDate) return prior;
 
+    const resolvePid = createVoucherPartnerResolver(state.partners);
     state.vouchers.forEach(v => {
-        if (v.partnerId !== partnerId) return;
+        if (resolvePid(v) !== partnerId) return;
         if (v.date >= fromDate) return;
         getVoucherDebtEntries(v).forEach(e => accumulateDebtEntryLines(e, prior));
     });
@@ -249,8 +250,9 @@ function calculatePartnerDebtLedger(matchingPartners, fromDate = "", toDate = ""
             else has131 = true;
         }
     });
+    const resolvePid = createVoucherPartnerResolver(state.partners);
     state.vouchers.forEach(v => {
-        if (!matchingIds.has(v.partnerId)) return;
+        if (!matchingIds.has(resolvePid(v))) return;
         if (toDate && v.date > toDate) return;
         getVoucherDebtEntries(v).forEach(e => {
             if ((e.debit && e.debit.startsWith("131")) || (e.credit && e.credit.startsWith("131"))) has131 = true;
@@ -277,7 +279,7 @@ function calculatePartnerDebtLedger(matchingPartners, fromDate = "", toDate = ""
     const ledgerEntries = [];
 
     state.vouchers.forEach(v => {
-        if (!matchingIds.has(v.partnerId)) return;
+        if (!matchingIds.has(resolvePid(v))) return;
         if (fromDate && v.date < fromDate) return;
         if (toDate && v.date > toDate) return;
 
@@ -286,7 +288,7 @@ function calculatePartnerDebtLedger(matchingPartners, fromDate = "", toDate = ""
         ledgerEntries.push({
             date: v.date,
             id: v.id,
-            partnerId: v.partnerId,
+            partnerId: resolvePid(v),
             desc: v.description,
             offsetAccount: extracted.offsetAccount,
             debit: extracted.debitAmount,
@@ -423,12 +425,14 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
         };
     });
 
+    const resolvePid = createVoucherPartnerResolver(state.partners);
     state.vouchers.forEach(v => {
         if (toDate && v.date > toDate) return;
         if (!v.partnerId) return;
-        if (!partnerIds.has(v.partnerId)) return;
+        const pid = resolvePid(v);
+        if (!partnerIds.has(pid)) return;
 
-        const d = debts[v.partnerId];
+        const d = debts[pid];
         const isPrior = fromDate && v.date < fromDate;
         getVoucherDebtEntries(v).forEach(e => {
             accumulateDebtEntryLines(e, isPrior ? d.priorCounters : d.periodCounters);
@@ -443,7 +447,7 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
 
     state.vouchers.forEach(v => {
         if (toDate && v.date > toDate) return;
-        if (partnerIds.has(v.partnerId)) return;
+        if (partnerIds.has(resolvePid(v))) return;
         if (!isPartnerAuditVoucher(v)) return;
         orphanPartnerIds.add(v.partnerId || "");
         const isPrior = fromDate && v.date < fromDate;
@@ -3337,12 +3341,14 @@ function exportCompanyToExcel(companyName, childPartnerIds) {
     // Group vouchers by partnerId
     const vouchersByPartner = {};
     childPartnerIds.forEach(id => vouchersByPartner[id] = []);
+    const resolvePid = createVoucherPartnerResolver(state.partners);
     (state.vouchers || []).forEach(v => {
-      if (!childPartnerIds.includes(v.partnerId)) return;
+      const pid = resolvePid(v);
+      if (!childPartnerIds.includes(pid)) return;
       const vDate = v.date || '';
       if (fromDate && vDate < fromDate) return;
       if (toDate && vDate > toDate) return;
-      vouchersByPartner[v.partnerId].push(v);
+      vouchersByPartner[pid].push(v);
     });
 
     // Sort child partners by name

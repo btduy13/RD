@@ -42,6 +42,7 @@ function loadDebtModule() {
   };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "js", "core", "accounting-engine.js"), "utf8"), sandbox, { filename: "accounting-engine.js" });
   vm.runInContext(debtsSource, sandbox, { filename: "debts.js" });
   return sandbox;
 }

@@ -1206,7 +1206,8 @@ function handlePartnerSubmit(e) {
 }
 
 async function deletePartner(id) {
-  const linkedCount = (state.vouchers || []).filter(v => v.partnerId === id).length;
+  const resolvePid = createVoucherPartnerResolver(state.partners);
+  const linkedCount = (state.vouchers || []).filter(v => resolvePid(v) === id).length;
   if (linkedCount > 0) {
     showToast(`Không thể xóa đối tác "${id}" vì còn ${linkedCount} chứng từ liên kết. Hãy chuyển các chứng từ sang đúng đối tác trước.`, "danger", 8000);
     return;
@@ -1476,9 +1477,11 @@ async function batchDeletePartners() {
 
   const idsToDelete = checked.map(cb => cb.value);
   const linkedCounts = new Map();
+  const resolvePid = createVoucherPartnerResolver(state.partners);
   (state.vouchers || []).forEach(v => {
-    if (!idsToDelete.includes(v.partnerId)) return;
-    linkedCounts.set(v.partnerId, (linkedCounts.get(v.partnerId) || 0) + 1);
+    const pid = resolvePid(v);
+    if (!idsToDelete.includes(pid)) return;
+    linkedCounts.set(pid, (linkedCounts.get(pid) || 0) + 1);
   });
   if (linkedCounts.size > 0) {
     const preview = Array.from(linkedCounts.entries()).slice(0, 5)

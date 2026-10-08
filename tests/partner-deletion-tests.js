@@ -41,6 +41,7 @@ function loadPartners({ vouchers = [], balances = {}, selected = [], confirmed =
   };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js/core/accounting-engine.js'), 'utf8'), sandbox);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js/modules/partners.js'), 'utf8'), sandbox);
   // Keep real deletion functions; rendering is outside this persistence guard test.
   sandbox.filterPartners = () => {};

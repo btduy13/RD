@@ -413,23 +413,7 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
   // BƯỚC C2 (Bug C): Suy diễn remainingDebt từ bút toán bằng phân bổ FIFO
   // partnerId chỉ được phân giải cục bộ để tính toán; KHÔNG ghi ngược vào chứng từ (dữ liệu đồng bộ).
   // Nếu một tên khớp nhiều đối tác thì không đoán, giữ nguyên partnerId gốc.
-  const partnerIdSet = new Set();
-  const partnerNameCount = Object.create(null);
-  (state.partners || []).forEach(p => {
-    if (!p) return;
-    if (p.id !== undefined && p.id !== null) partnerIdSet.add(String(p.id).trim());
-    const nk = p.name !== undefined && p.name !== null ? String(p.name).trim().toLowerCase() : "";
-    if (nk) partnerNameCount[nk] = (partnerNameCount[nk] || 0) + 1;
-  });
-  const resolveVoucherPartnerIdForCalc = v => {
-    const raw = v.partnerId !== undefined && v.partnerId !== null ? String(v.partnerId) : "";
-    if (partnerIdSet.has(raw.trim()) || typeof getPartnerForVoucher !== "function") return raw;
-    const p = getPartnerForVoucher(v, { strict: true });
-    if (!p || p.id === undefined || p.id === null) return raw;
-    const nk = String(p.name || "").trim().toLowerCase();
-    if (nk && partnerNameCount[nk] > 1) return raw;
-    return String(p.id);
-  };
+  const resolveVoucherPartnerIdForCalc = createVoucherPartnerResolver(state.partners);
   const openingRemaining = Object.create(null);
   const arQueues = Object.create(null);
   const apQueues = Object.create(null);
