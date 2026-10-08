@@ -32,7 +32,17 @@ function saveCompanySettings() {
 }
 
 // Thay đổi chế độ kế toán (TT200 / TT133)
-function setAccountingStandard(standard) {
+async function setAccountingStandard(standard) {
+  if (standard === state.accountingStandard) return;
+  const label = standard === "TT200" ? "Thông tư 200/2014/TT-BTC" : "Thông tư 133/2016/TT-BTC";
+  const ok = await showConfirmModal({
+    title: "Xác nhận đổi chế độ kế toán",
+    message: `Chuyển sang chế độ kế toán theo ${label}? Thay đổi này áp dụng cho mọi trạm làm việc và hệ thống sẽ tính toán lại (ghi sổ lại) toàn bộ sổ sách kế toán.`,
+    confirmText: "Đổi chế độ",
+    cancelText: "Hủy bỏ",
+    type: "warning"
+  });
+  if (!ok) return;
   state.accountingStandard = standard;
   saveState();
   updateCompanyUI();
