@@ -280,6 +280,173 @@ test("quiescent stations exchange zero entity upserts after convergence (no ping
   assert.deepStrictEqual([...A.sandbox.__errors, ...B.sandbox.__errors], [], "no sync errors logged");
 });
 
+// ---- Task 7: voucher number collision after a delayed push ----
+const MIN = 60 * 1000;
+const vIds = st => st.state.vouchers.map(v => v.id).sort();
+const byId = (st, id) => st.state.vouchers.find(v => v.id === id);
+function captureToasts(st) {
+  st.run(`var __toasts = []; function showToast(message, type) { __toasts.push({ message: String(message), type }); }`);
+  return () => JSON.parse(JSON.stringify(st.run("__toasts")));
+}
+function failNextTransaction(server) {
+  server.hooks.rd_apply_sync_transaction = async () => { server.hooks = {}; throw new Error("NETWORK_DOWN"); };
+}
+function loseNextAck(st) {
+  const orig = st.sandbox.__client.rpc;
+  st.sandbox.__client.rpc = async (name, p) => {
+    const res = await orig(name, p);
+    if (name === "rd_apply_sync_transaction") { st.sandbox.__client.rpc = orig; throw new Error("ACK_LOST"); }
+    return res;
+  };
+}
+// A creates BH2 (sale) + PT2 (receipt linked via escrowRefId); its push fails.
+async function collisionSetup({ markPending = false } = {}) {
+  const server = new FakeServer();
+  const A = makeStation("A", server), B = makeStation("B", server);
+  await A.startup(); await B.startup();
+  A.state.vouchers.push({ id: "BH1", type: "sales", totalAmount: 1, _updatedAt: Date.now() - 1000, _sessionId: "session-A" });
+  A.state._lastModified = Date.now();
+  await A.push(); await B.pull();
+  const idA = await A.run(`getCloudSafeVoucherId({ prefix: 'BH' })`);
+  assert.strictEqual(idA, "BH2");
+  A.state.vouchers.push(
+    { id: idA, type: "sales", partnerName: "Khach cua A", totalAmount: 700000, _updatedAt: Date.now(), _sessionId: "session-A" },
+    { id: "PT2", type: "receipt", partnerName: "Khach cua A", amount: 700000, escrowRefId: idA, _updatedAt: Date.now(), _sessionId: "session-A" }
+  );
+  A.state._lastModified = Date.now();
+  if (markPending) A.run("markCloudWritePending()");
+  failNextTransaction(server);
+  assert.strictEqual(await A.push(), false, "first push fails (network)");
+  // > 30 minutes pass: the server purges A's reservation and B is issued the same number.
+  server.advance(31 * MIN);
+  return { server, A, B };
+}
+async function foreignB(server, B, { clockBehind = false } = {}) {
+  const idB = await B.run(`getCloudSafeVoucherId({ prefix: 'BH' })`);
+  assert.strictEqual(idB, "BH2", "server lock purge re-issues the same number");
+  const ts = B.run("Date.now()") + (clockBehind ? -20 * MIN : 5);
+  B.state.vouchers.push({ id: idB, type: "sales", partnerName: "Khach cua B", totalAmount: 300000, _updatedAt: ts, _sessionId: "session-B" });
+  B.state._lastModified = B.run("Date.now()");
+  assert.strictEqual(await B.push(), true);
+}
+function assertRenumbered(server, stations, newId) {
+  const cloudB = server.rows.get("v_BH2").data;
+  assert.strictEqual(cloudB.partnerName, "Khach cua B", "other station's BH2 intact in cloud");
+  assert.strictEqual(cloudB.totalAmount, 300000);
+  assert.ok(server.rows.has("v_" + newId), "renumbered voucher pushed as v_" + newId);
+  const cloudA = server.rows.get("v_" + newId).data;
+  assert.strictEqual(cloudA.partnerName, "Khach cua A");
+  assert.strictEqual(cloudA.totalAmount, 700000);
+  assert.strictEqual(server.rows.get("v_PT2").data.escrowRefId, newId, "reference pushed with the new id");
+  for (const st of stations) {
+    assert.deepStrictEqual(vIds(st), ["BH1", "BH2", newId, "PT2"].sort(), st.name + " vouchers");
+    assert.strictEqual(byId(st, "BH2").partnerName, "Khach cua B", st.name + " BH2 is B's");
+    assert.strictEqual(byId(st, newId).totalAmount, 700000, st.name + " keeps A's 700,000 voucher");
+    assert.strictEqual(byId(st, "PT2").escrowRefId, newId, st.name + " escrowRefId follows the renumber");
+  }
+}
+
+test("delayed push whose number was re-issued to another station is renumbered, not overwritten", async () => {
+  const { server, A, B } = await collisionSetup();
+  const toasts = captureToasts(A);
+  await foreignB(server, B);
+  assert.strictEqual(await A.push(), true, "A reconnects and pushes");
+  await B.pull();
+  assertRenumbered(server, [A, B], "BH3");
+  const t = toasts();
+  assert.strictEqual(t.length, 1, "user notified once");
+  assert.ok(t[0].message.includes("BH2") && t[0].message.includes("BH3"), t[0].message);
+  assert.deepStrictEqual(deltaEntityIds(A), [], "nothing left to push");
+  assert.deepStrictEqual(deltaEntityIds(B), []);
+  assert.deepStrictEqual([...A.sandbox.__errors.filter(e => !/NETWORK_DOWN/.test(e)), ...B.sandbox.__errors], []);
+});
+
+test("collision with an older-stamped foreign voucher does not overwrite it in the cloud", async () => {
+  const { server, A, B } = await collisionSetup();
+  await foreignB(server, B, { clockBehind: true });
+  assert.strictEqual(await A.push(), true);
+  await B.pull();
+  assertRenumbered(server, [A, B], "BH3");
+});
+
+test("collision is detected on a regular poll pull before the push", async () => {
+  const { server, A, B } = await collisionSetup();
+  await foreignB(server, B);
+  await A.pull({ reason: "poll", force: false });
+  assert.strictEqual(byId(A, "BH2").partnerName, "Khach cua B");
+  assert.ok(byId(A, "BH3") && byId(A, "BH3").totalAmount === 700000, "renumbered locally on pull");
+  assert.strictEqual(await A.push(), true);
+  await B.pull();
+  assertRenumbered(server, [A, B], "BH3");
+});
+
+test("collision after an app restart (new session id) is renumbered via the durable pending-write marker", async () => {
+  const { server, A, B } = await collisionSetup({ markPending: true });
+  await foreignB(server, B);
+  const A2 = makeStation("A", server, JSON.parse(JSON.stringify(A.state)), { store: A.store, sessionId: "session-A-restarted" });
+  const toasts = captureToasts(A2);
+  assert.strictEqual(await A2.restartStartup(), true, "startup reconcile");
+  assert.strictEqual(byId(A2, "BH2").partnerName, "Khach cua B");
+  // the app pushes through pushToCloud, which clears the durable marker on success
+  assert.strictEqual(await A2.run("pushToCloud({ pendingToken: cloudSyncGetPendingLocalWriteToken() })"), true);
+  await sleep(0);
+  assert.strictEqual(A2.run("cloudSyncHasPendingLocalWrite()"), false, "pending marker cleared");
+  await B.pull();
+  assertRenumbered(server, [A2, B], "BH3");
+  assert.strictEqual(toasts().length, 1);
+  assert.deepStrictEqual(deltaEntityIds(A2), []);
+  // a second restart must not resurrect or re-push anything
+  const A3 = makeStation("A", server, JSON.parse(JSON.stringify(A2.state)), { store: A2.store, sessionId: "session-A-3" });
+  await A3.restartStartup();
+  assert.deepStrictEqual(vIds(A3), vIds(A2));
+  assert.deepStrictEqual(deltaEntityIds(A3), []);
+});
+
+test("own earlier push whose ack was lost is never renumbered, even after a restart and a local edit", async () => {
+  const server = new FakeServer();
+  const A = makeStation("A", server), B = makeStation("B", server);
+  await A.startup(); await B.startup();
+  const id = await A.run(`getCloudSafeVoucherId({ prefix: 'BH' })`);
+  A.state.vouchers.push({ id, type: "sales", partnerName: "Khach cua A", totalAmount: 700000, _updatedAt: Date.now(), _sessionId: "session-A" });
+  A.state._lastModified = Date.now();
+  A.run("markCloudWritePending()");
+  loseNextAck(A);
+  assert.strictEqual(await A.push(), false);
+  assert.strictEqual(server.rows.get("v_" + id).data.totalAmount, 700000, "server committed");
+  server.advance(31 * MIN);
+  // restart; the user edits the voucher before the first successful pull
+  const A2 = makeStation("A", server, JSON.parse(JSON.stringify(A.state)), { store: A.store, sessionId: "session-A-restarted" });
+  const toasts = captureToasts(A2);
+  A2.run("cloudSyncRestoreBaselineFromConfirmedCache()");
+  const v = byId(A2, id);
+  v.totalAmount = 750000; v._updatedAt = Date.now() + 10; v._sessionId = "session-A-restarted";
+  A2.state._lastModified = Date.now() + 10;
+  A2.run("markCloudWritePending()");
+  assert.strictEqual(await A2.push(), true);
+  assert.deepStrictEqual(vIds(A2), [id], "no renumbered copy");
+  assert.strictEqual(server.rows.get("v_" + id).data.totalAmount, 750000, "edit pushed onto the same number");
+  assert.ok(![...server.rows.keys()].some(k => k.startsWith("v_") && k !== "v_" + id), "no extra voucher row");
+  assert.deepStrictEqual(toasts(), []);
+  await B.pull();
+  assert.deepStrictEqual(vIds(B), [id]);
+  assert.strictEqual(byId(B, id).totalAmount, 750000);
+});
+
+test("same-session lost ack followed by a local edit is not renumbered", async () => {
+  const server = new FakeServer();
+  const A = makeStation("A", server);
+  await A.startup();
+  A.state.vouchers.push({ id: "BH1", type: "sales", totalAmount: 5, _updatedAt: Date.now(), _sessionId: "session-A" });
+  A.state._lastModified = Date.now();
+  loseNextAck(A);
+  assert.strictEqual(await A.push(), false);
+  byId(A, "BH1").totalAmount = 6; byId(A, "BH1")._updatedAt = Date.now() + 5;
+  A.state._lastModified = Date.now() + 5;
+  assert.strictEqual(await A.push(), true);
+  assert.deepStrictEqual(vIds(A), ["BH1"]);
+  assert.strictEqual(server.rows.get("v_BH1").data.totalAmount, 6);
+});
+
 (async () => {
   let failed = 0;
   for (const { name, fn } of tests) {

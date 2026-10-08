@@ -50,10 +50,21 @@ const cloudSyncTasks = [];
 // races the local save/pending-manifest write. Confirmed tombstones are removed
 // from this set after the cloud transaction commits.
 const cloudSyncPendingDeletionKeys = new Set();
+// Rows this process removed from the baseline it restored from the SQLite cache
+// (pending-manifest rows). They are local edits OR local creations; only the
+// durable new-voucher ledger can tell which.
+const cloudSyncBaselineExcludedRowIds = new Set();
 
 const CLOUD_SYNC_CHECKPOINT_KEY = "rd_accounting_last_pulled_cloud_ts";
 const CLOUD_SYNC_PENDING_WRITE_KEY = "rd_accounting_cloud_push_pending";
 const CLOUD_SYNC_PENDING_WRITE_MANIFEST_KEY = "rd_accounting_cloud_push_pending_manifest";
+// Durable ledger of vouchers created on this machine that the cloud has not
+// confirmed yet: { "v_<id>": { at, sent: [contentHash, ...] } }. "sent" holds
+// the content of every push attempt, so a row we committed whose ack was lost
+// is recognised as ours even after a restart (new session id).
+const CLOUD_SYNC_NEW_VOUCHER_LEDGER_KEY = "rd_accounting_cloud_new_voucher_ledger";
+const CLOUD_SYNC_NEW_VOUCHER_LEDGER_MAX_IDS = 2000;
+const CLOUD_SYNC_NEW_VOUCHER_LEDGER_MAX_SENT = 8;
 const CLOUD_SYNC_TABLE = "rd_accounting_data";
 const CLOUD_SYNC_METADATA_ID = "metadata";
 // A tiny row used only as the workspace change notification/watermark. Entity
@@ -791,6 +802,7 @@ function cloudSyncCapturePendingWriteManifest(token) {
     lastSyncState = window.lastSyncState || lastSyncState;
     if (!lastSyncState) return null;
     const pendingDelta = computeDelta();
+    cloudSyncNoteNewVoucherRows(pendingDelta.rowsToUpsert);
     const manifest = {
       version: 1,
       token,
@@ -1147,6 +1159,7 @@ function cloudSyncRestoreBaselineFromConfirmedCache() {
     manifest.rowIds.forEach(rowId => {
       const def = cloudSyncGetRowDef(rowId);
       if (!def) return;
+      cloudSyncBaselineExcludedRowIds.add(cloudSyncNormalizeDeletedCloudKey(rowId));
       const entityId = cloudSyncGetEntityIdFromRowId(rowId, def);
       baseline[def.stateKey] = (baseline[def.stateKey] || [])
         .filter(item => !item || String(item.id) !== String(entityId));
@@ -1999,6 +2012,212 @@ function cloudSyncPruneStaleLocalOnlyItems(mergedState, localBeforePull, cloudSn
   return 0;
 }
 
+// ---- Voucher number collisions -------------------------------------------
+// A voucher number reservation only protects for 15 min (client) / 30 min
+// (server lock purge). A local voucher whose push is delayed longer can share
+// its number with a voucher another station issued meanwhile. The merge would
+// then keep only one of the two, so such a local voucher is renumbered first.
+
+function cloudSyncHashContent(text) {
+  const source = String(text || "");
+  let h1 = 0x811c9dc5;
+  let h2 = 0x01000193 ^ source.length;
+  for (let i = 0; i < source.length; i++) {
+    const code = source.charCodeAt(i);
+    h1 = Math.imul(h1 ^ code, 0x01000193) >>> 0;
+    h2 = Math.imul(h2 ^ code, 0x5bd1e995) >>> 0;
+  }
+  return `${source.length.toString(36)}.${h1.toString(36)}.${h2.toString(36)}`;
+}
+
+function cloudSyncReadNewVoucherLedger() {
+  try {
+    const raw = localStorage.getItem(CLOUD_SYNC_NEW_VOUCHER_LEDGER_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch (err) {
+    return {};
+  }
+}
+
+function cloudSyncWriteNewVoucherLedger(ledger) {
+  try {
+    let keys = Object.keys(ledger || {});
+    if (keys.length > CLOUD_SYNC_NEW_VOUCHER_LEDGER_MAX_IDS) {
+      keys.sort((a, b) => (Number(ledger[a] && ledger[a].at) || 0) - (Number(ledger[b] && ledger[b].at) || 0));
+      keys.slice(0, keys.length - CLOUD_SYNC_NEW_VOUCHER_LEDGER_MAX_IDS).forEach(key => delete ledger[key]);
+      keys = Object.keys(ledger);
+    }
+    if (keys.length === 0) localStorage.removeItem(CLOUD_SYNC_NEW_VOUCHER_LEDGER_KEY);
+    else localStorage.setItem(CLOUD_SYNC_NEW_VOUCHER_LEDGER_KEY, JSON.stringify(ledger));
+  } catch (err) {
+    console.warn("[CloudSync] Cannot persist new-voucher ledger:", err);
+  }
+}
+
+function cloudSyncBaselineVoucherIds() {
+  lastSyncState = window.lastSyncState || lastSyncState;
+  if (!lastSyncState) return null;
+  return new Set((Array.isArray(lastSyncState.vouchers) ? lastSyncState.vouchers : [])
+    .filter(item => item && item.id)
+    .map(item => String(item.id)));
+}
+
+// Records voucher rows that are new on this machine (absent from a real
+// confirmed baseline). options.sent also records the content being uploaded.
+function cloudSyncNoteNewVoucherRows(rows, options = {}) {
+  const voucherRows = (rows || []).filter(row =>
+    row && typeof row.id === "string" && row.id.startsWith("v_") && row.data && !row.data._deleted && row.data.id
+  );
+  if (voucherRows.length === 0) return;
+  const baselineIds = cloudSyncBaselineVoucherIds();
+  const ledger = cloudSyncReadNewVoucherLedger();
+  let dirty = false;
+  voucherRows.forEach(row => {
+    let entry = ledger[row.id];
+    if (!entry || typeof entry !== "object") {
+      if (!baselineIds || baselineIds.has(String(row.data.id)) || cloudSyncBaselineExcludedRowIds.has(row.id)) return;
+      entry = { at: Date.now(), sent: [] };
+      ledger[row.id] = entry;
+      dirty = true;
+    }
+    if (!Array.isArray(entry.sent)) entry.sent = [];
+    if (options.sent) {
+      const hash = cloudSyncHashContent(cloudSyncEntityContentKey(row.data));
+      if (!entry.sent.includes(hash)) {
+        entry.sent.push(hash);
+        if (entry.sent.length > CLOUD_SYNC_NEW_VOUCHER_LEDGER_MAX_SENT) entry.sent.shift();
+        dirty = true;
+      }
+    }
+  });
+  if (dirty) cloudSyncWriteNewVoucherLedger(ledger);
+}
+
+// Entries are dropped once the voucher is in the confirmed baseline (pushed or
+// our own row pulled back) or no longer exists locally.
+function cloudSyncPruneNewVoucherLedger() {
+  const ledger = cloudSyncReadNewVoucherLedger();
+  const keys = Object.keys(ledger);
+  if (keys.length === 0) return;
+  const baselineIds = cloudSyncBaselineVoucherIds();
+  if (!baselineIds) return;
+  const localIds = new Set((Array.isArray(state && state.vouchers) ? state.vouchers : [])
+    .filter(item => item && item.id)
+    .map(item => String(item.id)));
+  let dirty = false;
+  keys.forEach(key => {
+    const entityId = key.slice(2);
+    if (baselineIds.has(entityId) || !localIds.has(entityId)) {
+      delete ledger[key];
+      dirty = true;
+    }
+  });
+  if (dirty) cloudSyncWriteNewVoucherLedger(ledger);
+}
+
+// A local voucher collides with a foreign cloud voucher when it is ours and
+// unconfirmed (absent from the baseline, and either created against this
+// process's real baseline or listed in the durable ledger) while the cloud
+// holds a live voucher with the same id whose content differs and which was
+// not written by us: not one of our recorded push attempts, not our
+// updated_by token, not stamped with the local copy's/our session id.
+function cloudSyncFindForeignVoucherCollisions(cloudSnapshot, rows) {
+  const cloudVouchers = Array.isArray(cloudSnapshot && cloudSnapshot.vouchers) ? cloudSnapshot.vouchers : [];
+  if (cloudVouchers.length === 0 || !Array.isArray(state && state.vouchers)) return [];
+  const baselineIds = cloudSyncBaselineVoucherIds();
+  const ledger = cloudSyncReadNewVoucherLedger();
+  // Cheap pass first: only unconfirmed local vouchers can collide.
+  const candidates = state.vouchers.filter(local => {
+    if (!local || !local.id) return false;
+    const entityId = String(local.id);
+    if (baselineIds && baselineIds.has(entityId)) return false;
+    const rowId = `v_${entityId}`;
+    return !!ledger[rowId] || (!!baselineIds && !cloudSyncBaselineExcludedRowIds.has(rowId));
+  });
+  if (candidates.length === 0) return [];
+  const cloudById = new Map(cloudVouchers.filter(item => item && item.id).map(item => [String(item.id), item]));
+  const rowById = new Map((rows || []).filter(row => row && row.id).map(row => [row.id, row]));
+  const sessionId = cloudSyncGetSessionId();
+  const collisions = [];
+  candidates.forEach(local => {
+    const entityId = String(local.id);
+    const rowId = `v_${entityId}`;
+    const cloudItem = cloudById.get(entityId);
+    if (!cloudItem) return;
+    const entry = ledger[rowId] && typeof ledger[rowId] === "object" ? ledger[rowId] : null;
+    // Imported documents keep their external number on every station.
+    if (local.isImported || cloudItem.isImported) return;
+    const cloudKey = cloudSyncEntityContentKey(cloudItem);
+    if (cloudKey === cloudSyncEntityContentKey(local)) return;
+    if (entry && Array.isArray(entry.sent) && entry.sent.includes(cloudSyncHashContent(cloudKey))) return;
+    const row = rowById.get(rowId);
+    if (row && cloudSyncIsOwnUpdatedByToken(row.updated_by)) return;
+    if (cloudItem._sessionId && (cloudItem._sessionId === sessionId || cloudItem._sessionId === local._sessionId)) return;
+    collisions.push({ oldId: entityId });
+  });
+  return collisions;
+}
+
+function cloudSyncSplitVoucherSequenceId(voucherId) {
+  const match = String(voucherId || "").match(/^(.*?)(\d+)$/);
+  if (match && match[1]) {
+    const digits = match[2];
+    return { prefix: match[1], padLength: digits.length > 1 && digits.charAt(0) === "0" ? digits.length : 0 };
+  }
+  return { prefix: `${voucherId}-`, padLength: 0 };
+}
+
+// Moves each colliding local voucher to a fresh cloud-reserved number and
+// repoints local references (escrowRefId) that this machine created. The
+// foreign voucher is left untouched and wins the following merge.
+async function cloudSyncRenumberForeignVoucherCollisions(collisions) {
+  const renumbered = [];
+  for (const collision of collisions || []) {
+    const { prefix, padLength } = cloudSyncSplitVoucherSequenceId(collision.oldId);
+    const newId = await getCloudSafeVoucherId({ prefix, padLength });
+    // Re-resolve after the await: the user may have edited state meanwhile.
+    const index = state.vouchers.findIndex(v => v && String(v.id) === collision.oldId);
+    if (index === -1 || !newId || state.vouchers.some(v => v && String(v.id) === String(newId))) continue;
+    lastSyncState = window.lastSyncState || lastSyncState;
+    const baselineById = new Map((lastSyncState && Array.isArray(lastSyncState.vouchers) ? lastSyncState.vouchers : [])
+      .filter(item => item && item.id)
+      .map(item => [String(item.id), item]));
+    const now = Date.now();
+    const sessionId = cloudSyncGetSessionId();
+    const previous = state.vouchers[index];
+    const moved = { ...previous, id: newId, _updatedAt: Math.max(Number(previous._updatedAt) || 0, now), _sessionId: sessionId };
+    state.vouchers[index] = moved;
+    const refIds = [];
+    state.vouchers.forEach(v => {
+      if (!v || v === moved || v.escrowRefId === undefined || v.escrowRefId === null) return;
+      if (String(v.escrowRefId) !== collision.oldId) return;
+      const base = baselineById.get(String(v.id));
+      // A link the cloud already confirmed points at the foreign voucher.
+      if (base && String(base.escrowRefId) === collision.oldId) return;
+      v.escrowRefId = newId;
+      v._updatedAt = Math.max(now, (Number(v._updatedAt) || 0) + 1, (Number(base && base._updatedAt) || 0) + 1);
+      v._sessionId = sessionId;
+      refIds.push(String(v.id));
+    });
+    const ledger = cloudSyncReadNewVoucherLedger();
+    delete ledger[`v_${collision.oldId}`];
+    ledger[`v_${newId}`] = { at: now, sent: [] };
+    cloudSyncWriteNewVoucherLedger(ledger);
+    cloudSyncLog(`Voucher id collision: local ${collision.oldId} renumbered to ${newId} (references: ${refIds.join(", ") || "none"}).`);
+    renumbered.push({ oldId: collision.oldId, newId: String(newId), refIds });
+  }
+  return renumbered;
+}
+
+function cloudSyncNotifyRenumberedVouchers(renumbered) {
+  (renumbered || []).forEach(({ oldId, newId }) => {
+    const message = `Số chứng từ ${oldId} đã được máy khác dùng trong lúc máy này chưa đồng bộ. Chứng từ của máy này đã được đổi thành ${newId}.`;
+    if (typeof addErrorLog === "function") addErrorLog("CloudSync.voucherRenumber", message);
+    if (typeof showToast === "function") showToast(message, "warning");
+  });
+}
+
 function deferCloudPull(reason) {
   deferredCloudPull = true;
   deferredCloudPullReason = reason || "editing";
@@ -2216,6 +2435,14 @@ async function pullAndMergeFromCloud(options = {}) {
       }
     }
 
+    // A local voucher that never reached the cloud must not be replaced by (or
+    // overwrite) another station's voucher issued the same number meanwhile.
+    let renumberedVouchers = [];
+    const voucherCollisions = cloudSyncFindForeignVoucherCollisions(cloudSnapshot, rows);
+    if (voucherCollisions.length > 0) {
+      renumberedVouchers = await cloudSyncRenumberForeignVoucherCollisions(voucherCollisions);
+    }
+
     // Let the renderer paint after the network fetch / snapshot build, before
     // the synchronous merge phase.
     await cloudSyncYieldToUi();
@@ -2239,7 +2466,10 @@ async function pullAndMergeFromCloud(options = {}) {
     if (hasDurablePendingField) merged._pendingCloudWrite = durablePendingWrite;
     const stats = mergeResult.stats;
     const prunedCount = cloudSyncPruneStaleLocalOnlyItems(merged, state, cloudSnapshot, checkpoint);
-    const hasChanges = stats.changed || prunedCount > 0;
+    renumberedVouchers.forEach(({ oldId, newId, refIds }) => {
+      [oldId, newId, ...refIds].forEach(id => stats.changedIdsByEntity.vouchers.add(id));
+    });
+    const hasChanges = stats.changed || prunedCount > 0 || renumberedVouchers.length > 0;
 
     if (hasChanges) {
       state = merged;
@@ -2254,6 +2484,15 @@ async function pullAndMergeFromCloud(options = {}) {
     }
 
     updateLastSyncState(cloudSnapshot);
+    if (renumberedVouchers.length > 0) {
+      // The renumbered voucher and its references are unconfirmed local rows:
+      // refresh the durable manifest so a restart before the push still treats
+      // them as pending instead of baking them into the restored baseline.
+      const pendingToken = cloudSyncGetPendingLocalWriteToken();
+      if (pendingToken) cloudSyncCapturePendingWriteManifest(pendingToken);
+      else markCloudWritePending();
+    }
+    cloudSyncPruneNewVoucherLedger();
     const localRowsNeedingCloudRepair = cloudSyncGetRescueCandidateKeys();
     if (localRowsNeedingCloudRepair.length > 0) {
       // The merge kept one or more newer local active rows against missing or
@@ -2281,6 +2520,7 @@ async function pullAndMergeFromCloud(options = {}) {
     } else {
       cloudSyncLog("Pull khong lam thay doi du lieu; bo qua recalc/refreshUI/persist.");
     }
+    cloudSyncNotifyRenumberedVouchers(renumberedVouchers);
 
     updateCloudSyncBadge(true, "Mây: Đã kết nối", "#10b981");
     cloudSyncSetWriteReady("Cloud đã sẵn sàng.");
@@ -2913,6 +3153,7 @@ async function cloudSyncPushNow() {
       let transactionExpectedVersion = getPullCheckpointTs();
       while (batchIndex < transactionBatches.length) {
         const batch = transactionBatches[batchIndex];
+        cloudSyncNoteNewVoucherRows(batch, { sent: true });
         const { data: rpcResult, error: rpcError } = await withTimeout(
           supabaseClient.rpc("rd_apply_sync_transaction", {
             p_workspace_id: cloudWorkspaceId,
@@ -2963,6 +3204,7 @@ async function cloudSyncPushNow() {
         cloudSyncEgressMetrics.pushRows += committedRowCount;
       }
     } else {
+      cloudSyncNoteNewVoucherRows(pushPayload.entityRows, { sent: true });
       if (pushPayload.entityRows.length > 0) await cloudSyncUpsertRows(pushPayload.entityRows);
       if (pushPayload.idsToDelete.length > 0) await cloudSyncDeleteRows(pushPayload.idsToDelete);
       if (pushPayload.finalMetadataRow) await cloudSyncUpsertRows([pushPayload.finalMetadataRow]);
@@ -3003,6 +3245,7 @@ async function cloudSyncPushNow() {
       cloudSyncApplyPushToLastSyncState(pushPayload.entityRows, pushTs, pushPayload.finalMetadata);
     }
     if (lastSyncState) lastSyncState._cloudWatermark = confirmedWatermark;
+    cloudSyncPruneNewVoucherLedger();
     if (cloudUsesVersionedRpc && committedCloudWatermark > 0) {
       // A committed expected-version transaction includes every earlier cloud
       // change in this baseline. Acknowledge our own version locally so the

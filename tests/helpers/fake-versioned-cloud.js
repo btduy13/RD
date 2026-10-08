@@ -8,7 +8,10 @@ const SRC = fs.readFileSync(path.join(REPO, 'js', 'cloud-sync.js'), 'utf8');
 const clone = v => JSON.parse(JSON.stringify(v));
 
 class FakeServer {
-  constructor() { this.version = 0; this.rows = new Map(); this.log = []; this.hooks = {}; }
+  constructor() { this.version = 0; this.rows = new Map(); this.log = []; this.hooks = {}; this.clockOffsetMs = 0; }
+  // Injectable server clock (clock_timestamp() in the SQL); advance() simulates elapsed time.
+  now() { return Date.now() + this.clockOffsetMs; }
+  advance(ms) { this.clockOffsetMs += ms; }
   sorted() { return [...this.rows.values()].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0); }
   async rpc(station, name, p) {
     if (this.hooks[name]) { const h = this.hooks[name]; await h(station, p); }
@@ -25,7 +28,8 @@ class FakeServer {
         return { data: clone(rows), error: null };
       }
       case 'rd_find_ids': return { data: p.p_ids.filter(id => this.rows.has(id)).map(id => ({ id })), error: null };
-      case 'rd_rows_by_ids': return { data: clone(p.p_ids.filter(id => this.rows.has(id)).map(id => this.rows.get(id))), error: null };
+      // supabase_online_v5_sync_reliability_migration.sql: lock_ rows are never returned.
+      case 'rd_rows_by_ids': return { data: clone(p.p_ids.filter(id => this.rows.has(id) && !id.startsWith('lock_')).map(id => this.rows.get(id))), error: null };
       case 'rd_apply_sync_transaction': {
         if ((p.p_expected_sync_version || 0) !== this.version) return { data: { ok: false, conflict: true, sync_version: this.version }, error: null };
         const next = this.version + 1;
@@ -39,14 +43,22 @@ class FakeServer {
         return { data: { ok: true, conflict: false, sync_version: next }, error: null };
       }
       case 'rd_reserve_voucher_id': {
+        // supabase_online_v3_migration.sql: purge locks older than 30 minutes first.
+        const now = this.now();
+        for (const [k, r] of [...this.rows]) {
+          if (k.startsWith('lock_') && Number(r.last_modified) < now - 30 * 60 * 1000) this.rows.delete(k);
+        }
         const next = this.version + 1;
         if (this.rows.has(p.p_lock_id)) return { data: { reserved: false, sync_version: this.version }, error: null };
-        this.rows.set(p.p_lock_id, { id: p.p_lock_id, data: p.p_data, last_modified: Date.now(), sync_version: next });
+        this.rows.set(p.p_lock_id, { id: p.p_lock_id, data: p.p_data, last_modified: now, sync_version: next, updated_by: p.p_updated_by });
         this.version = next;
         return { data: { reserved: true, sync_version: next }, error: null };
       }
       case 'rd_ids_by_prefix': {
-        const rows = this.sorted().filter(r => r.id.startsWith(p.p_prefix) && (!p.p_after_id || r.id > p.p_after_id)).slice(0, p.p_limit);
+        // supabase_online_v5_sync_reliability_migration.sql: lock_ prefixes only list locks from the last 15 minutes.
+        const lockCutoff = this.now() - 15 * 60 * 1000;
+        const rows = this.sorted().filter(r => r.id.startsWith(p.p_prefix) && (!p.p_after_id || r.id > p.p_after_id) &&
+          (!p.p_prefix.startsWith('lock_') || Number(r.last_modified) >= lockCutoff)).slice(0, p.p_limit);
         return { data: rows.map(r => ({ id: r.id, last_modified: r.last_modified })), error: null };
       }
     }
@@ -57,7 +69,8 @@ class FakeServer {
 function makeStation(name, server, initialState = {}, opts = {}) {
   const skew = opts.clockOffsetMs || 0;
   class SkewDate extends Date { constructor(...a) { if (a.length) super(...a); else super(Date.now() + skew); } static now() { return Date.now() + skew; } }
-  const store = new Map();
+  // opts.store: reuse another station's localStorage (simulated app restart).
+  const store = opts.store ? new Map(opts.store) : new Map();
   const localStorage = {
     getItem: k => store.has(k) ? store.get(k) : null,
     setItem: (k, v) => store.set(k, String(v)),
@@ -79,7 +92,7 @@ function makeStation(name, server, initialState = {}, opts = {}) {
   };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
-  vm.runInContext(`var lastSyncedCloudTs = 0; var clientSessionId = "session-${name}";\n${SRC}\n
+  vm.runInContext(`var lastSyncedCloudTs = 0; var clientSessionId = "${opts.sessionId || 'session-' + name}";\n${SRC}\n
     cloudSyncActive = true; isStartupPullCompleted = true; cloudUsesVersionedRpc = true; supabaseClient = __client;
     function __eval(code) { return eval(code); }`, sandbox, { filename: 'cloud-sync.js' });
   const st = {
@@ -88,6 +101,7 @@ function makeStation(name, server, initialState = {}, opts = {}) {
     get state() { return sandbox.state; },
     async pull(opts = {}) { return vm.runInContext(`pullAndMergeFromCloud(${JSON.stringify(Object.assign({ reason: 'test', force: true }, opts))})`, sandbox); },
     async push() { return vm.runInContext(`cloudSyncPushNow()`, sandbox); },
+    async restartStartup() { return vm.runInContext(`pullFromCloudOnStartup()`, sandbox); },
     async startup() { return vm.runInContext(`pullAndMergeFromCloud({ reason: 'startup', force: true, forceFull: true, startup: true })`, sandbox); }
   };
   return st;
