@@ -259,16 +259,34 @@ function cloudSyncEqual(a, b) {
   return cloudSyncStableStringify(a) === cloudSyncStableStringify(b);
 }
 
+// Synced content of an entity: top-level "_" bookkeeping fields (_updatedAt,
+// _sessionId, ...) are ignored and undefined values are dropped exactly like
+// the JSON round-trip the cloud copy went through, so key order, a missing
+// stamp or an undefined property never count as an edit.
+function cloudSyncEntityContentKey(item) {
+  const content = {};
+  Object.keys(item || {}).forEach(key => {
+    if (key.charAt(0) !== "_" && item[key] !== undefined) content[key] = item[key];
+  });
+  return cloudSyncStableStringify(JSON.parse(JSON.stringify(content)));
+}
+
+function cloudSyncEntityContentEqual(a, b) {
+  return cloudSyncEntityContentKey(a) === cloudSyncEntityContentKey(b);
+}
+
 function cloudSyncEntityNeedsPush(previous, current) {
   if (!previous) return true;
   if (!current) return false;
   const previousTs = Number(previous._updatedAt) || 0;
   const currentTs = Number(current._updatedAt) || 0;
   if (currentTs > previousTs) return true;
-  if (currentTs < previousTs) {
-    // A station clock may be behind the cloud watermark. Business edits stamp
-    // the current session, so preserve the edit and advance it logically later.
-    return current._sessionId === cloudSyncGetSessionId() && !cloudSyncEqual(previous, current);
+  if (currentTs < previousTs || currentTs <= 0) {
+    // The stamp moved backwards (edit on a station whose clock is behind the
+    // previous writer, with or without _sessionId) or is missing (Excel
+    // re-import replaces the object). Push whenever the synced content really
+    // differs; computeDelta re-stamps it to previous + 1.
+    return !cloudSyncEntityContentEqual(previous, current);
   }
   // Recalculation/UI refresh may update derived fields without representing a
   // user edit. At an unchanged version those differences must never fan out as
@@ -1495,7 +1513,7 @@ function cloudSyncMergeEntityArrays(stateKey, localArr, cloudArr, deleted, optio
         // hơn chỉ là lệch đồng hồ — giữ bản sửa cục bộ chưa push.
         if (options.baselineState) {
           const baselineItem = getBaselineItem(item.id);
-          if (baselineItem && cloudSyncEqual(baselineItem, item) && !cloudSyncEqual(localItem, item)) {
+          if (baselineItem && cloudSyncEqual(baselineItem, item) && !cloudSyncEntityContentEqual(localItem, item)) {
             applyCloud = false;
           }
         }
@@ -1681,6 +1699,28 @@ function cloudSyncMergeMetadata(localState, cloudState, baselineState = null) {
   return merged;
 }
 
+// A tombstone older than the local row's _updatedAt can still be the newest
+// cloud version: a station whose clock is behind stamps its delete with an
+// older time. The local row only outranks the tombstone when it may carry a
+// change the cloud has not seen: it differs from the confirmed baseline copy,
+// it is absent from the baseline (recreated/new), or - without a baseline -
+// this session stamped it or a durable pending write covers it (unknown
+// manifest fails safe).
+function cloudSyncLocalItemMayOutrankTombstone(def, rowId, entityId, localItem, baselineState) {
+  if (baselineState) {
+    const baselineItem = (Array.isArray(baselineState[def.stateKey]) ? baselineState[def.stateKey] : [])
+      .find(item => item && String(item.id) === String(entityId));
+    if (!baselineItem) return true;
+    return !cloudSyncEntityContentEqual(baselineItem, localItem);
+  }
+  if (localItem._sessionId && localItem._sessionId === cloudSyncGetSessionId()) return true;
+  const pendingToken = cloudSyncGetPendingLocalWriteToken();
+  if (!pendingToken) return false;
+  const manifest = cloudSyncGetPendingWriteManifest();
+  if (!manifest || manifest.token !== pendingToken) return true;
+  return manifest.rowIds.some(key => cloudSyncNormalizeDeletedCloudKey(key) === rowId);
+}
+
 // Core merge. Builds the merged state with Maps keyed by entity id; items are
 // carried by reference wherever safe and cloned only when they cross the
 // state/lastSyncState boundary (options.cloneWinners). Dedupe-by-id and the
@@ -1740,7 +1780,11 @@ function cloudSyncMergeStatesCore(localState, cloudState, options = {}) {
         deleted.add(id);
         return;
       }
-      if (localItem && (Number(localItem._updatedAt) || 0) > knownTs) return;
+      if (
+        localItem &&
+        (Number(localItem._updatedAt) || 0) > knownTs &&
+        cloudSyncLocalItemMayOutrankTombstone(def, rowId, id, localItem, baselineState)
+      ) return;
       deleted.add(id);
     });
     deletedByState[def.stateKey] = deleted;
@@ -2407,6 +2451,15 @@ function computeDelta() {
   // filtering, but replaying one against a later active row turns stale state
   // into a brand-new deletion and can erase a restored voucher on every station.
   const pendingDeletionKeys = cloudSyncGetPendingDeletionKeysForDelta();
+  // A deletion must outrank the last version of the row this station saw, even
+  // when the local clock is behind the station that wrote that version.
+  const tombstoneTs = rowKey => {
+    const def = cloudSyncGetRowDef(rowKey);
+    if (!def || !lastSyncState || !Array.isArray(lastSyncState[def.stateKey])) return pushTs;
+    const entityId = cloudSyncGetEntityIdFromRowId(rowKey, def);
+    const baselineItem = lastSyncState[def.stateKey].find(item => item && String(item.id) === entityId);
+    return Math.max(pushTs, (Number(baselineItem && baselineItem._updatedAt) || 0) + 1);
+  };
   const cloudKnownTombstones = new Set(
     (lastSyncState && Array.isArray(lastSyncState.deletedCloudKeys) ? lastSyncState.deletedCloudKeys : [])
       .map(cloudSyncNormalizeDeletedCloudKey)
@@ -2420,14 +2473,14 @@ function computeDelta() {
         pendingDeletionKeys.has(normalizedKey) &&
         !cloudKnownTombstones.has(normalizedKey)
       ) {
-        rowsToUpsert.push(cloudSyncMakeTombstoneRow(normalizedKey, pushTs));
+        rowsToUpsert.push(cloudSyncMakeTombstoneRow(normalizedKey, tombstoneTs(normalizedKey)));
       }
     });
   } else if (Array.isArray(state.deletedIds)) {
     state.deletedIds.forEach(id => {
       const key = `v_${id}`;
       if (id && pendingDeletionKeys.has(key) && !cloudKnownTombstones.has(key)) {
-        rowsToUpsert.push(cloudSyncMakeTombstoneRow(key, pushTs));
+        rowsToUpsert.push(cloudSyncMakeTombstoneRow(key, tombstoneTs(key)));
       }
     });
   }
