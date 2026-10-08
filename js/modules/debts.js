@@ -120,17 +120,21 @@ function inferPartnerDebtRole(partnerType, has131, has331) {
     return "customer";
 }
 
-/** Bút toán 131/331 — dùng entries có sẵn, hoặc suy từ paymentMethod / remainingDebt khi entries trống (nhập Excel, chưa recalc). */
+/**
+ * Bút toán 131/331 của chứng từ.
+ * - Có entries (không rỗng): CHỈ trả các dòng chạm 131/331 thật (có thể rỗng) — giống Sổ cái,
+ *   không bao giờ suy diễn thêm (vd. phiếu thu Có 341 vay, phiếu chi Nợ 334 lương không phải công nợ).
+ * - Không có entries / entries rỗng (dữ liệu cũ, nhập Excel chưa recalc): suy từ loại chứng từ + paymentMethod.
+ */
 function getVoucherDebtEntries(v) {
     if (!v) return [];
 
     const raw = v.entries;
     if (Array.isArray(raw) && raw.length > 0) {
-        const hasDebtLine = raw.some(e =>
-            (e.debit && (e.debit.startsWith("131") || e.debit.startsWith("331"))) ||
-            (e.credit && (e.credit.startsWith("131") || e.credit.startsWith("331")))
+        return raw.filter(e => e &&
+            ((e.debit && (e.debit.startsWith("131") || e.debit.startsWith("331"))) ||
+            (e.credit && (e.credit.startsWith("131") || e.credit.startsWith("331"))))
         );
-        if (hasDebtLine) return raw;
     }
 
     if (typeof ensureRemainingDebt === "function") ensureRemainingDebt(v);
