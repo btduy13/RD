@@ -142,12 +142,16 @@ async function initApp() {
 
   let _productCatalogChanged = false;
 
-  if (typeof dedupeProductCatalogCase === "function" && Array.isArray(state.products) && state.products.length > 0) {
-    const dedupeResult = dedupeProductCatalogCase({ runId: "init-load", recalculate: false });
-    if (dedupeResult && dedupeResult.changed) {
-      console.log(`[ProductDedupe] Renderer: ${dedupeResult.beforeCount} → ${dedupeResult.afterCount} mặt hàng (gộp ${dedupeResult.removedCount}).`);
-      _productCatalogChanged = true;
-    }
+  // dedupeProductCatalogCase is intentionally not run on load: it renamed products in place without a
+  // tombstone for the old-case id and stamped stale cached copies (cloud clobber risk). Keep the function
+  // for explicit use only.
+
+  // Deterministic partner type normalisation (customer -> retail): applied identically by every station on
+  // every load, so it is intentionally NOT stamped (nothing to push, no stale copy can clobber newer edits).
+  if (Array.isArray(state.partners)) {
+    state.partners.forEach(p => {
+      if (p && p.type === "customer") p.type = "retail";
+    });
   }
 
   // cleanGarbageProducts is intentionally not run on load: it deleted products silently (no deletion marker,
@@ -220,22 +224,6 @@ async function initApp() {
         setTimeout(() => {
           saveState();
         }, 0);
-      }
-    }
-
-    // Di chuyển loại đối tác từ 'customer' sang 'retail'
-    if (state.partners) {
-      let hasPartnerMigrated = false;
-      state.partners.forEach(p => {
-        if (p.type === "customer") {
-          p.type = "retail";
-          p._updatedAt = Date.now();
-          if (typeof clientSessionId !== "undefined") p._sessionId = clientSessionId;
-          hasPartnerMigrated = true;
-        }
-      });
-      if (hasPartnerMigrated) {
-        setTimeout(() => { saveState(); }, 0);
       }
     }
 

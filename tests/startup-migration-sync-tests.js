@@ -72,29 +72,59 @@ test("explicit dedupe functions remain available for db:dedupe-products", () => 
   assert.ok(fs.readFileSync(path.join(ROOT, "package.json"), "utf8").includes("db:dedupe-products"));
 });
 
-test("cleanNumericUnitProducts is not invoked on renderer init", () => {
-  const stateSrc = read("js/state.js");
-  assert.ok(!/cleanNumericUnitProducts\s*\(\s*\)\s*;/.test(stateSrc.replace(/\/\/.*$/gm, "")), "state.js must not call cleanNumericUnitProducts on load");
-});
-
-test("renderer init does not delete junk-looking products", () => {
-  const stateSrc = read("js/state.js").replace(/\/\/.*$/gm, "");
-  assert.ok(!/ProductCaseDedupe\.cleanGarbageProducts\s*\(/.test(stateSrc), "state.js must not call cleanGarbageProducts on load");
-});
-
-test("partner type migration stamps _updatedAt/_sessionId so it syncs", () => {
+// Runs the real js/state.js startup slice (product-catalog + partner normalisation) in a vm with real
+// ProductCaseDedupe / dedupeProductCatalogCase available, so any on-load call to them would show up as a mutation.
+function rendererInit(state, localStorageFlag) {
   const src = read("js/state.js");
-  const start = src.indexOf("// Di chuyển loại đối tác");
-  const end = src.indexOf("// Preserve orphan openings", start);
-  assert.ok(start > 0 && end > start, "partner migration block not found");
-  const state = makeState();
-  const sandbox = { state, saved: 0, saveState() { sandbox.saved++; }, setTimeout: fn => fn(), clientSessionId: "S1", console };
+  const start = src.indexOf("let _productCatalogChanged");
+  const end = src.indexOf("// === ", start);
+  assert.ok(start > 0 && end > start, "renderer init slice not found");
+  const sandbox = {
+    state, console: { log() {}, warn() {}, error() {} }, saved: 0, window: {}, clientSessionId: "S1",
+    ProductCaseDedupe: require("../js/core/product-case-dedupe.js"),
+    touchEntityUpdatedAt: e => { e._updatedAt = Date.now(); return e; },
+    saveState() { sandbox.saved++; }, recalculateAccounting() {},
+    localStorage: { getItem: () => localStorageFlag, setItem() {} }
+  };
   vm.createContext(sandbox);
+  vm.runInContext(read("js/core/product-identity.js").replace(/^const _pcd/m, "var _pcd"), sandbox);
   vm.runInContext(src.slice(start, end), sandbox);
-  const p = state.partners[0];
-  assert.strictEqual(p.type, "retail");
-  assert.ok(p._updatedAt > 100, "_updatedAt must be bumped");
-  assert.strictEqual(p._sessionId, "S1");
+  return sandbox;
+}
+
+test("renderer init leaves products unchanged (sp01/SP01, PX123, numeric unit survive; nothing saved)", () => {
+  const st = makeState();
+  const before = clone(st.products);
+  const sb = rendererInit(st, "true");
+  assert.deepStrictEqual(st.products, before);
+  assert.strictEqual(sb.saved, 0);
+});
+
+test("customer->retail runs on every load, even with migration flag set, and is NOT stamped", () => {
+  for (const flag of ["true", null]) {
+    const st = makeState();
+    rendererInit(st, flag);
+    const p = st.partners[0];
+    assert.strictEqual(p.type, "retail");
+    assert.strictEqual(p._updatedAt, 100, "no _updatedAt stamp");
+    assert.strictEqual(p._sessionId, undefined, "no _sessionId stamp");
+  }
+});
+
+test("customer->retail normalisation is outside the flag-gated one-time migration block", () => {
+  const src = read("js/state.js");
+  const gate = src.indexOf("rd_migrations_279_done') !== 'true'");
+  const norm = src.indexOf('p.type === "customer"');
+  assert.ok(gate > 0 && norm > 0 && norm < gate);
+  assert.strictEqual(src.split('p.type === "customer"').length - 1, 1);
+});
+
+// Source assertion (not behavioural): Excel import builds partners across ~11 deep UI-bound code paths that
+// need a full workbook/DOM harness; asserting the literal keeps every creation site honest at low cost.
+test("Excel import creates 'retail' (never 'customer') partner types", () => {
+  const src = read("js/excel-integration.js");
+  assert.ok(!/['"]customer['"]/.test(src), "excel-integration.js still assigns customer");
+  assert.ok(/['"]retail['"]/.test(src));
 });
 
 let failed = 0;

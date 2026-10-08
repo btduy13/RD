@@ -291,7 +291,7 @@ async function autoIntegrateVouchersExcel() {
                 partnerId = matched.id;
             } else {
                 partnerId = `DT_${Math.floor(1000 + Math.random() * 9000)}`;
-                state.partners.push({ id: partnerId, name: partnerName, type: type === "receipt" ? "customer" : "supplier", phone: "", email: "", address: "" });
+                state.partners.push({ id: partnerId, name: partnerName, type: type === "receipt" ? "retail" : "supplier", phone: "", email: "", address: "" });
             }
 
             const idx = state.vouchers.findIndex(v => v.id === id);
@@ -389,7 +389,7 @@ async function autoIntegrateSalesExcel() {
                 state.partners.push({
                     id: partnerId,
                     name: partnerName,
-                    type: "customer",
+                    type: "retail",
                     phone: "",
                     email: "",
                     address: ""
@@ -521,7 +521,7 @@ async function autoIntegrateSoChiTietBanHangExcel() {
 
             // Đăng ký đối tác nếu chưa tồn tại
             if (!partnerMap.has(partnerId)) {
-                const partnerTypeMapped = (detectedType === 'purchase' || detectedType === 'purchase_return') ? 'supplier' : 'customer';
+                const partnerTypeMapped = (detectedType === 'purchase' || detectedType === 'purchase_return') ? 'supplier' : 'retail';
                 const pObj = {
                     id: partnerId,
                     name: partnerName,
@@ -2091,7 +2091,7 @@ function parseExcelFile(file, type) {
                     const group = (row[3] || "").toString().trim().toUpperCase();
                     const taxCode = (row[4] || "").toString().trim();
                     const phone = (row[5] || "").toString().trim();
-                    const type = (group.includes("NCC") || id.startsWith("NCC")) ? "supplier" : "customer";
+                    const type = (group.includes("NCC") || id.startsWith("NCC")) ? "supplier" : "retail";
                     const inactiveVal = row[6];
                     // Hỗ trợ cả "TRUE"/"FALSE" (file cũ) và "Có"/"" (file mới)
                     const inactive = inactiveVal === true || (inactiveVal || "").toString().toLowerCase() === "true" ||
@@ -2180,7 +2180,7 @@ function parseExcelFile(file, type) {
                         const taxCol = isNewDebtFormat ? 8 : 6;
                         const phoneCol = isNewDebtFormat ? 9 : 7;
                         const loaiVal = isNewDebtFormat ? (row[2] || "").toString().trim().toUpperCase() : "";
-                        const pType = (loaiVal === "NCC" || id.startsWith("NCC")) ? "supplier" : "customer";
+                        const pType = (loaiVal === "NCC" || id.startsWith("NCC")) ? "supplier" : "retail";
                         state.partners.push({
                             id,
                             name,
@@ -2302,7 +2302,7 @@ function parseExcelFile(file, type) {
                         partnerId = matched.id;
                     } else {
                         partnerId = `DT_${Math.floor(1000 + Math.random() * 9000)}`;
-                        state.partners.push({ id: partnerId, name: partnerName, type: type === "receipt" ? "customer" : "supplier", phone: "", email: "", address: "" });
+                        state.partners.push({ id: partnerId, name: partnerName, type: type === "receipt" ? "retail" : "supplier", phone: "", email: "", address: "" });
                     }
 
                     const idx = state.vouchers.findIndex(v => v.id === id);
@@ -2437,7 +2437,7 @@ function parseExcelFile(file, type) {
                         const description = (firstRow[colDescription] || "Bán hàng").toString().trim();
 
                         if (!partnerMap.has(partnerId)) {
-                            const pType = (detectedType === 'purchase' || detectedType === 'purchase_return') ? 'supplier' : 'customer';
+                            const pType = (detectedType === 'purchase' || detectedType === 'purchase_return') ? 'supplier' : 'retail';
                             const pObj = { id: partnerId, name: partnerName, type: pType, phone: "", email: "", address: "" };
                             state.partners.push(pObj);
                             partnerMap.set(partnerId, pObj);
@@ -2569,7 +2569,7 @@ function parseExcelFile(file, type) {
                             state.partners.push({
                                 id: partnerId,
                                 name: partnerName,
-                                type: "customer",
+                                type: "retail",
                                 phone: "",
                                 email: "",
                                 address: ""
@@ -2714,7 +2714,7 @@ function parseExcelFile(file, type) {
                             const pObj = {
                                 id: partnerId,
                                 name: partnerName,
-                                type: "customer",
+                                type: "retail",
                                 phone: "",
                                 email: "",
                                 address: ""
@@ -2828,7 +2828,7 @@ function parseExcelFile(file, type) {
                             state.partners.push({
                                 id: partnerId,
                                 name: partnerName,
-                                type: "customer",
+                                type: "retail",
                                 phone: "",
                                 email: "",
                                 address: ""
@@ -2985,7 +2985,7 @@ function parseExcelFile(file, type) {
                         "";
                     const partnerId = partnerIdRaw || `AUTO_${voucherId.replace(/\W/g, '_')}`;
                     const partnerName = partnerNameRaw || (detectedType === 'purchase' || detectedType === 'purchase_return' ? "Nhà cung cấp" : "Khách hàng");
-                    const pType = (detectedType === 'purchase' || detectedType === 'purchase_return') ? 'supplier' : 'customer';
+                    const pType = (detectedType === 'purchase' || detectedType === 'purchase_return') ? 'supplier' : 'retail';
 
                     if (!partnerMap.has(partnerId)) {
                         const pObj = { id: partnerId, name: partnerName, type: pType, phone: "", email: "", address: "" };
