@@ -73,6 +73,35 @@ test("an empty-data metadata row in a delta is not authoritative", async () => {
   assert.deepStrictEqual(metaOf(B), EXPECTED);
 });
 
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+test("initialBalances merge per account: stale station save does not revert another station's edit", async () => {
+  const server = new FakeServer();
+  const ib = { "131": { type: "debit", balance: 0 }, "156": { type: "debit", balance: 0 }, "331": { type: "credit", balance: 0 } };
+  const A = makeStation("A", server, { initialBalances: ib, _lastModified: Date.now() - 60000 });
+  await A.startup();
+  A.state._lastModified = Date.now();
+  await A.push();
+  const B = makeStation("B", server);
+  await B.startup();
+  await sleep(5);
+  A.state.initialBalances["131"].balance = 5000000;
+  A.state._lastModified = Date.now();
+  await A.push();
+  await sleep(5);
+  // B edits a different account locally, then saves an unrelated voucher before pulling A's edit
+  B.state.initialBalances["156"].balance = 777;
+  B.state.vouchers.push({ id: "PT9", type: "receipt", amount: 1, _updatedAt: Date.now(), _sessionId: "session-B" });
+  B.state._lastModified = Date.now();
+  await B.push();
+  await A.pull();
+  const cloud = server.rows.get("metadata").data.initialBalances;
+  for (const [who, ibs] of [["A", A.state.initialBalances], ["B", B.state.initialBalances], ["cloud", cloud]]) {
+    assert.strictEqual(ibs["131"].balance, 5000000, who + " keeps 131 opening");
+    assert.strictEqual(ibs["156"].balance, 777, who + " keeps 156 opening");
+  }
+});
+
 (async () => {
   let failed = 0;
   for (const { name, fn } of tests) {

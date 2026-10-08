@@ -1662,6 +1662,21 @@ function cloudSyncMergeMetadata(localState, cloudState, baselineState = null) {
       ...(cloudMeta.initialBalances || {})
     };
   }
+  if (baseState) {
+    // 3-way theo TỪNG TÀI KHOẢN: chỉ một phía đổi thì lấy phía đó; cả hai đổi
+    // thì phía thắng timestamp (giống các trường metadata khác).
+    const baseIB = cloudSyncSplitMetadata(baseState).initialBalances || {};
+    const localIB = localMeta.initialBalances || {};
+    const cloudIB = cloudMeta.initialBalances || {};
+    const mergedIB = {};
+    new Set([...Object.keys(localIB), ...Object.keys(cloudIB), ...Object.keys(baseIB)]).forEach(acc => {
+      const localChanged = !cloudSyncEqual(localIB[acc], baseIB[acc]);
+      const cloudChanged = !cloudSyncEqual(cloudIB[acc], baseIB[acc]);
+      const src = (localChanged === cloudChanged ? cloudWins : cloudChanged) ? cloudIB : localIB;
+      if (Object.prototype.hasOwnProperty.call(src, acc)) mergedIB[acc] = src[acc];
+    });
+    merged.initialBalances = mergedIB;
+  }
 
   return merged;
 }
