@@ -500,6 +500,9 @@ async function handlePurchaseSubmit(e) {
       state.vouchers.forEach(v => {
         if (v.escrowRefId === editingPurchaseId) {
           v.escrowRefId = voucherId;
+          // Stamp the relink so it syncs (an unchanged stamp is never pushed).
+          v._updatedAt = Math.max(Date.now(), (Number(v._updatedAt) || 0) + 1);
+          if (typeof clientSessionId !== "undefined") v._sessionId = clientSessionId;
         }
       });
     }
@@ -1176,6 +1179,9 @@ async function handlePurchaseOrderSubmit(e) {
       state.vouchers.forEach(v => {
         if (v.escrowRefId === editingPurchaseOrderId) {
           v.escrowRefId = voucherId;
+          // Stamp the relink so it syncs (an unchanged stamp is never pushed).
+          v._updatedAt = Math.max(Date.now(), (Number(v._updatedAt) || 0) + 1);
+          if (typeof clientSessionId !== "undefined") v._sessionId = clientSessionId;
         }
       });
     }
@@ -2127,6 +2133,9 @@ async function handlePurchaseReturnSubmit(e) {
       state.vouchers.forEach(v => {
         if (v.escrowRefId === editingPurchaseReturnId) {
           v.escrowRefId = voucherId;
+          // Stamp the relink so it syncs (an unchanged stamp is never pushed).
+          v._updatedAt = Math.max(Date.now(), (Number(v._updatedAt) || 0) + 1);
+          if (typeof clientSessionId !== "undefined") v._sessionId = clientSessionId;
         }
       });
     }

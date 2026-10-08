@@ -633,6 +633,50 @@ test("edit save guard: a different document at the editing id is never overwritt
   assert.deepStrictEqual(A.sandbox.__errors, []);
 });
 
+// ---- Final review F2: escrowRefId relinks are stamped so they sync ----
+function loadSalesModule(st) {
+  const fs = require("fs");
+  const path = require("path");
+  st.run(`
+    var __checked = [];
+    document = { readyState: "complete", addEventListener() {}, getElementById() { return null; },
+      querySelector() { return null; }, querySelectorAll(sel) { return sel === ".sale-checkbox" ? __checked : []; } };
+    var showConfirmModal = async () => true, showToast = () => {}, recalculateAccounting = () => {}, resetBatchSelectionUI = () => {};
+    var saveStateAndSyncVoucher = async () => { state._lastModified = Date.now(); markCloudWritePending(); return cloudSyncPushNow(); };
+  `);
+  require("vm").runInContext(fs.readFileSync(path.join(__dirname, "..", "js", "modules", "sales.js"), "utf8"), st.sandbox, { filename: "sales.js" });
+}
+
+test("batch delete clearing escrowRefId on a linked voucher is stamped and reaches the other station", async () => {
+  const server = new FakeServer();
+  const A = makeStation("A", server), B = makeStation("B", server);
+  await A.startup(); await B.startup();
+  const t0 = Date.now() - 5000;
+  A.state.vouchers.push(
+    { id: "BH2", type: "sales", partnerName: "K", totalAmount: 700000, _updatedAt: t0, _sessionId: "session-A" },
+    { id: "PT2", type: "receipt", partnerName: "K", amount: 700000, escrowRefId: "BH2", _updatedAt: t0, _sessionId: "session-A" }
+  );
+  A.state._lastModified = Date.now();
+  assert.strictEqual(await A.push(), true);
+  await B.pull();
+  assert.strictEqual(byId(B, "PT2").escrowRefId, "BH2", "precondition");
+  const stampBefore = byId(A, "PT2")._updatedAt;
+  await sleep(2);
+  loadSalesModule(A);
+  A.run(`__checked = [{ checked: true, value: "BH2" }]`);
+  await A.run("batchDeleteSales()");
+  assert.strictEqual(byId(A, "BH2"), undefined);
+  assert.strictEqual(byId(A, "PT2").escrowRefId, null, "link cleared locally");
+  assert.ok(byId(A, "PT2")._updatedAt > stampBefore, "cleared link is stamped");
+  assert.strictEqual(byId(A, "PT2")._sessionId, "session-A");
+  assert.strictEqual(server.rows.get("v_PT2").data.escrowRefId, null, "cleared link pushed");
+  await B.pull();
+  assert.strictEqual(byId(B, "BH2"), undefined, "delete applied on B");
+  assert.strictEqual(byId(B, "PT2").escrowRefId, null, "B no longer links to the deleted voucher");
+  assert.deepStrictEqual(deltaEntityIds(A), []);
+  assert.deepStrictEqual([...A.sandbox.__errors, ...B.sandbox.__errors], []);
+});
+
 test("a backlog beyond the incremental page limit falls back to a full reconcile in the same pull", async () => {
   const { server, A, B } = await seededPair();
   // 80 delta pages x 500 rows = 40000 rows: the incremental fetch's safety limit.

@@ -626,6 +626,9 @@ async function handleSalesSubmit(e) {
       state.vouchers.forEach(v => {
         if (v.escrowRefId === editingSalesId) {
           v.escrowRefId = voucherId;
+          // Stamp the relink so it syncs (an unchanged stamp is never pushed).
+          v._updatedAt = Math.max(Date.now(), (Number(v._updatedAt) || 0) + 1);
+          if (typeof clientSessionId !== "undefined") v._sessionId = clientSessionId;
         }
       });
     }
@@ -754,6 +757,9 @@ async function batchDeleteSales() {
   state.vouchers.forEach(v => {
     if (v.escrowRefId && deleteSet.has(String(v.escrowRefId))) {
       v.escrowRefId = null;
+      // Stamp the relink so it syncs (an unchanged stamp is never pushed).
+      v._updatedAt = Math.max(Date.now(), (Number(v._updatedAt) || 0) + 1);
+      if (typeof clientSessionId !== "undefined") v._sessionId = clientSessionId;
     }
   });
 
@@ -1266,6 +1272,9 @@ async function handleSalesReturnSubmit(e) {
       state.vouchers.forEach(v => {
         if (v.escrowRefId === editingSalesReturnId) {
           v.escrowRefId = voucherId;
+          // Stamp the relink so it syncs (an unchanged stamp is never pushed).
+          v._updatedAt = Math.max(Date.now(), (Number(v._updatedAt) || 0) + 1);
+          if (typeof clientSessionId !== "undefined") v._sessionId = clientSessionId;
         }
       });
     }
@@ -1389,6 +1398,9 @@ async function batchDeleteSalesReturns() {
   state.vouchers.forEach(v => {
     if (v.escrowRefId && deleteSet.has(String(v.escrowRefId))) {
       v.escrowRefId = null;
+      // Stamp the relink so it syncs (an unchanged stamp is never pushed).
+      v._updatedAt = Math.max(Date.now(), (Number(v._updatedAt) || 0) + 1);
+      if (typeof clientSessionId !== "undefined") v._sessionId = clientSessionId;
     }
   });
 
