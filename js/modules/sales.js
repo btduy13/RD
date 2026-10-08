@@ -461,6 +461,8 @@ async function handleSalesSubmit(e) {
     return;
   }
 
+  // Sync may have renumbered/replaced the voucher while this form was open.
+  if (typeof reconcileVoucherEditForm === "function") reconcileVoucherEditForm("sales");
   const inputIdEl = document.getElementById("sale-id");
   let voucherId = inputIdEl ? inputIdEl.value.trim() : "";
 
@@ -660,6 +662,7 @@ function editSalesVoucher(id) {
   if (!v) return;
 
   editingSalesId = id;
+  if (typeof noteVoucherEditOpened === "function") noteVoucherEditOpened("sales", v);
   if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-sales", true);
 
   const modalTitle = document.querySelector("#modal-add-sales .card-title");
@@ -1134,6 +1137,8 @@ async function handleSalesReturnSubmit(e) {
     return;
   }
 
+  // Sync may have renumbered/replaced the voucher while this form was open.
+  if (typeof reconcileVoucherEditForm === "function") reconcileVoucherEditForm("sales-return");
   const inputIdEl = document.getElementById("sales-ret-id");
   let voucherId = inputIdEl ? inputIdEl.value.trim() : "";
 
@@ -1300,6 +1305,7 @@ function editSalesReturnVoucher(id) {
   if (!v) return;
 
   editingSalesReturnId = id;
+  if (typeof noteVoucherEditOpened === "function") noteVoucherEditOpened("sales-return", v);
   if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-sales-return", true);
 
   const modalTitle = document.querySelector("#modal-add-sales-return .card-title");
@@ -1825,6 +1831,8 @@ async function handleQuotationSubmit(e) {
     return;
   }
 
+  // Sync may have renumbered/replaced the voucher while this form was open.
+  if (typeof reconcileVoucherEditForm === "function") reconcileVoucherEditForm("quotation");
   const inputIdEl = document.getElementById("quotation-id");
   let voucherId = inputIdEl ? inputIdEl.value.trim() : "";
 
@@ -1977,6 +1985,7 @@ function editQuotationVoucher(id) {
   if (!v) return;
 
   editingQuotationId = id;
+  if (typeof noteVoucherEditOpened === "function") noteVoucherEditOpened("quotation", v);
   if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-sales-quotation", true);
 
   const modalTitle = document.querySelector("#modal-add-sales-quotation .card-title");

@@ -532,6 +532,107 @@ test("crash after a renumber but before the pull persisted it: restart still kee
   assert.ok(byId(B, mine.id) && byId(B, "BH2").partnerName === "Khach cua B", "B converges");
 });
 
+// ---- Final review F1: renumber while the voucher is open in an edit form ----
+// Mirrors the app wiring: item-table forms come from the dynamic form-table
+// registry (getEditingId/setEditingId/fieldIds.id), cash forms register directly.
+function openEditForms(st) {
+  st.run(`
+    var editingSalesId = null, editingReceiptId = null;
+    var __inputs = { "sale-id": { value: "" } };
+    document = { getElementById: id => __inputs[id] || null };
+    function getDynamicFormTableConfigs() {
+      return [{ key: "sales", formId: "form-sales", fieldIds: { id: "sale-id" },
+        getEditingId: () => editingSalesId, setEditingId: v => { editingSalesId = v || null; } }];
+    }
+    if (typeof registerVoucherEditForm === "function") registerVoucherEditForm({ key: "receipt", getEditingId: () => editingReceiptId, setEditingId: v => { editingReceiptId = v || null; } });
+  `);
+}
+function openVoucherInForms(st, id) {
+  st.run(`editingSalesId = ${JSON.stringify(id)}; __inputs["sale-id"].value = ${JSON.stringify(id)};
+    editingReceiptId = ${JSON.stringify(id)};
+    if (typeof noteVoucherEditOpened === "function") noteVoucherEditOpened("sales", state.vouchers.find(v => v.id === ${JSON.stringify(id)}));
+    if (typeof noteVoucherEditOpened === "function") noteVoucherEditOpened("receipt", state.vouchers.find(v => v.id === ${JSON.stringify(id)}));
+    localStorage.setItem("rd_draft_form-sales", JSON.stringify({ formId: "form-sales", fields: { id: ${JSON.stringify(id)} }, items: [], editingId: ${JSON.stringify(id)} }));`);
+}
+// Save exactly like handleSalesSubmit's edit path (sales.js): replace the voucher
+// found at editingSalesId with a rebuilt object carrying the input's number.
+function saveSalesFormLikeModule(st, fields) {
+  st.run(`(function () {
+    if (typeof reconcileVoucherEditForm === "function") reconcileVoucherEditForm("sales");
+    const voucherId = __inputs["sale-id"].value.trim();
+    const v = Object.assign({ id: voucherId, type: "sales", isManual: true, _updatedAt: Date.now(), _sessionId: clientSessionId }, ${JSON.stringify(fields)});
+    if (editingSalesId) {
+      const idx = state.vouchers.findIndex(x => x.id === editingSalesId);
+      if (idx !== -1) state.vouchers[idx] = v; else state.vouchers.push(v);
+    } else {
+      state.vouchers.push(v);
+    }
+    editingSalesId = null;
+    state._lastModified = Date.now();
+    markCloudWritePending();
+  })()`);
+}
+
+test("renumber while the voucher is open in an edit form re-points the form; saving never overwrites the other station's voucher", async () => {
+  const { server, A, B } = await collisionSetup({ markPending: true });
+  openEditForms(A);
+  openVoucherInForms(A, "BH2");
+  await foreignB(server, B);
+  await A.pull({ reason: "poll", force: false }); // collision -> BH2 renumbered to BH3
+  assert.strictEqual(byId(A, "BH2").partnerName, "Khach cua B");
+  assert.strictEqual(A.run("editingSalesId"), "BH3", "sales form editing id follows the renumber");
+  assert.strictEqual(A.run('__inputs["sale-id"].value'), "BH3", "form number input follows the renumber");
+  assert.strictEqual(A.run("editingReceiptId"), "BH3", "registered (cash) form follows the renumber");
+  const draft = JSON.parse(A.store.get("rd_draft_form-sales"));
+  assert.strictEqual(draft.editingId, "BH3", "saved draft follows the renumber");
+  assert.strictEqual(draft.fields.id, "BH3");
+  await sleep(2);
+  saveSalesFormLikeModule(A, { partnerName: "Khach cua A", totalAmount: 750000 });
+  assert.strictEqual(await A.push(), true);
+  await B.pull();
+  assert.strictEqual(server.rows.get("v_BH2").data.partnerName, "Khach cua B", "B's BH2 intact in cloud");
+  assert.strictEqual(server.rows.get("v_BH2").data.totalAmount, 300000);
+  assert.strictEqual(server.rows.get("v_BH3").data.totalAmount, 750000, "the edit lands on A's renumbered voucher");
+  for (const st of [A, B]) {
+    assert.strictEqual(byId(st, "BH2").partnerName, "Khach cua B", st.name + " BH2 is B's");
+    assert.strictEqual(byId(st, "BH3").totalAmount, 750000, st.name + " BH3 carries the edit");
+  }
+  assert.deepStrictEqual([...A.sandbox.__errors.filter(e => !/NETWORK_DOWN/.test(e)), ...B.sandbox.__errors], []);
+});
+
+test("edit save guard: a different document at the editing id is never overwritten", async () => {
+  const server = new FakeServer();
+  const A = makeStation("A", server);
+  await A.startup();
+  openEditForms(A);
+  const mine = "BH5|session-A:aaa:111";
+  const foreign = "BH5|session-B:bbb:222";
+  // (i) same document: unchanged
+  A.state.vouchers.push({ id: "BH5", type: "sales", totalAmount: 1, _originId: mine });
+  openVoucherInForms(A, "BH5");
+  A.run('reconcileVoucherEditForm("sales")');
+  assert.strictEqual(A.run("editingSalesId"), "BH5");
+  // (ii) another document took BH5, ours lives on under BH9: follow it
+  A.state.vouchers[0] = { id: "BH5", type: "sales", totalAmount: 2, _originId: foreign };
+  A.state.vouchers.push({ id: "BH9", type: "sales", totalAmount: 1, _originId: "BH9|session-A:ccc:333" });
+  A.run('cloudSyncVoucherEditOrigins.sales = { id: "BH5", originId: "BH9|session-A:ccc:333" }');
+  A.run('reconcileVoucherEditForm("sales")');
+  assert.strictEqual(A.run("editingSalesId"), "BH9", "follows its own document");
+  assert.strictEqual(A.run('__inputs["sale-id"].value'), "BH9");
+  // (iii) our document is gone: save as a new voucher instead of overwriting
+  A.run(`editingSalesId = "BH5"; __inputs["sale-id"].value = "BH5"; cloudSyncVoucherEditOrigins.sales = { id: "BH5", originId: ${JSON.stringify(mine)} };`);
+  A.run('reconcileVoucherEditForm("sales")');
+  assert.strictEqual(A.run("editingSalesId"), null, "no longer edits the other document");
+  assert.strictEqual(A.run('__inputs["sale-id"].value'), "", "number cleared so the form issues a new one");
+  // (iv) legacy voucher without an origin: behaviour unchanged
+  A.state.vouchers.push({ id: "BH6", type: "sales", totalAmount: 1 });
+  openVoucherInForms(A, "BH6");
+  A.state.vouchers[A.state.vouchers.length - 1] = { id: "BH6", type: "sales", totalAmount: 3, _originId: foreign.replace("BH5", "BH6") };
+  A.run('reconcileVoucherEditForm("sales")');
+  assert.strictEqual(A.run("editingSalesId"), "BH6", "no identity captured: plain id match as before");
+  assert.deepStrictEqual(A.sandbox.__errors, []);
+});
+
 test("a backlog beyond the incremental page limit falls back to a full reconcile in the same pull", async () => {
   const { server, A, B } = await seededPair();
   // 80 delta pages x 500 rows = 40000 rows: the incremental fetch's safety limit.

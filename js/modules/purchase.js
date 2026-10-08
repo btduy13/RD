@@ -363,6 +363,8 @@ async function handlePurchaseSubmit(e) {
     return;
   }
 
+  // Sync may have renumbered/replaced the voucher while this form was open.
+  if (typeof reconcileVoucherEditForm === "function") reconcileVoucherEditForm("purchase");
   const inputIdEl = document.getElementById("pur-id");
   let voucherId = inputIdEl ? inputIdEl.value.trim() : "";
 
@@ -554,6 +556,7 @@ function editPurchaseVoucher(id) {
   if (!v) return;
 
   editingPurchaseId = id;
+  if (typeof noteVoucherEditOpened === "function") noteVoucherEditOpened("purchase", v);
   if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-purchase", true);
 
   const modalTitle = document.querySelector("#modal-add-purchase .card-title");
@@ -1040,6 +1043,8 @@ async function handlePurchaseOrderSubmit(e) {
     return;
   }
 
+  // Sync may have renumbered/replaced the voucher while this form was open.
+  if (typeof reconcileVoucherEditForm === "function") reconcileVoucherEditForm("purchase-order");
   const inputIdEl = document.getElementById("pur-order-id");
   let voucherId = inputIdEl ? inputIdEl.value.trim() : "";
 
@@ -1206,6 +1211,7 @@ function editPurchaseOrderVoucher(id) {
   if (!v) return;
 
   editingPurchaseOrderId = id;
+  if (typeof noteVoucherEditOpened === "function") noteVoucherEditOpened("purchase-order", v);
   if (typeof updateVoucherModeBadge === "function") updateVoucherModeBadge("modal-add-purchase-order", true);
 
   const modalTitle = document.querySelector("#modal-add-purchase-order .card-title");
@@ -1989,6 +1995,8 @@ async function handlePurchaseReturnSubmit(e) {
     return;
   }
 
+  // Sync may have renumbered/replaced the voucher while this form was open.
+  if (typeof reconcileVoucherEditForm === "function") reconcileVoucherEditForm("purchase-return");
   const inputIdEl = document.getElementById("pur-return-id");
   let voucherId = inputIdEl ? inputIdEl.value.trim() : "";
 
@@ -2171,6 +2179,7 @@ function editPurchaseReturnVoucher(id) {
   if (!v) return;
 
   editingPurchaseReturnId = id;
+  if (typeof noteVoucherEditOpened === "function") noteVoucherEditOpened("purchase-return", v);
 
   const modalTitle = document.querySelector("#modal-add-purchase-return .card-title");
   if (modalTitle) modalTitle.innerText = `Chỉnh sửa chứng từ trả lại hàng: ${id}`;

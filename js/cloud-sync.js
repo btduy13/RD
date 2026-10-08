@@ -2230,6 +2230,111 @@ function cloudSyncSplitVoucherSequenceId(voucherId) {
   return { prefix: `${voucherId}-`, padLength: 0 };
 }
 
+// Voucher edit forms whose editing id must follow a renumber. Item-table forms
+// come from the dynamic form-table registry; other forms (cash) register here.
+const cloudSyncVoucherEditForms = [];
+// Identity of the voucher each edit form opened: { [key]: { id, originId } }.
+const cloudSyncVoucherEditOrigins = Object.create(null);
+
+function registerVoucherEditForm(form) {
+  if (form && form.key && typeof form.getEditingId === "function" && typeof form.setEditingId === "function") {
+    cloudSyncVoucherEditForms.push(form);
+  }
+}
+
+function cloudSyncListVoucherEditForms() {
+  const forms = cloudSyncVoucherEditForms.slice();
+  const configs = typeof getDynamicFormTableConfigs === "function" ? getDynamicFormTableConfigs() : [];
+  (configs || []).forEach(config => {
+    if (!config || typeof config.getEditingId !== "function" || typeof config.setEditingId !== "function") return;
+    forms.push({
+      key: config.key,
+      formId: config.formId,
+      idInputId: config.fieldIds && config.fieldIds.id,
+      getEditingId: config.getEditingId,
+      setEditingId: config.setEditingId
+    });
+  });
+  return forms;
+}
+
+function cloudSyncFindVoucherEditForm(key) {
+  return cloudSyncListVoucherEditForms().find(form => form.key === key) || null;
+}
+
+function cloudSyncSetVoucherEditInput(form, fromId, toId) {
+  if (!form.idInputId || typeof document === "undefined" || !document || typeof document.getElementById !== "function") return;
+  const input = document.getElementById(form.idInputId);
+  if (input && "value" in input && String(input.value).trim() === String(fromId)) input.value = toId || "";
+}
+
+// Called when an edit form opens a voucher: remembers which document it edits.
+function noteVoucherEditOpened(key, voucher) {
+  if (!key) return;
+  if (!voucher || !voucher.id) {
+    delete cloudSyncVoucherEditOrigins[key];
+    return;
+  }
+  cloudSyncVoucherEditOrigins[key] = { id: String(voucher.id), originId: cloudSyncValidVoucherOrigin(voucher) };
+}
+
+// Re-points open edit forms (editing id, id input, saved draft) from oldId to
+// newId after this station's voucher was renumbered.
+function cloudSyncRepointVoucherEditForms(oldId, newId, newOriginId) {
+  cloudSyncListVoucherEditForms().forEach(form => {
+    let editingId = null;
+    try { editingId = form.getEditingId(); } catch (err) { editingId = null; }
+    if (editingId !== null && editingId !== undefined && String(editingId) === oldId) {
+      form.setEditingId(newId);
+      cloudSyncSetVoucherEditInput(form, oldId, newId);
+    }
+    const record = cloudSyncVoucherEditOrigins[form.key];
+    if (record && record.id === oldId) cloudSyncVoucherEditOrigins[form.key] = { id: newId, originId: newOriginId || "" };
+    if (!form.formId) return;
+    try {
+      const draftKey = `rd_draft_${form.formId}`;
+      const raw = localStorage.getItem(draftKey);
+      const draft = raw ? JSON.parse(raw) : null;
+      if (!draft || String(draft.editingId || "") !== oldId) return;
+      draft.editingId = newId;
+      if (draft.fields && String(draft.fields.id || "").trim() === oldId) draft.fields.id = newId;
+      localStorage.setItem(draftKey, JSON.stringify(draft));
+    } catch (err) {
+      console.warn("[CloudSync] Cannot repoint voucher draft:", err);
+    }
+  });
+}
+
+// Save-side guard: before an edit form saves, make sure the voucher at its
+// editing id is still the document it opened. If another document now holds
+// that number (renumber/sync while the form was open), follow our document to
+// its current number, or save as a new voucher when it is gone, never
+// overwriting the other document.
+function reconcileVoucherEditForm(key) {
+  const form = cloudSyncFindVoucherEditForm(key);
+  const record = cloudSyncVoucherEditOrigins[key];
+  if (!form || !record || !record.originId) return;
+  const editingId = form.getEditingId();
+  if (editingId === null || editingId === undefined || String(editingId) !== record.id) return;
+  const vouchers = Array.isArray(state && state.vouchers) ? state.vouchers : [];
+  const current = vouchers.find(v => v && String(v.id) === record.id);
+  const currentOrigin = cloudSyncValidVoucherOrigin(current);
+  if (!current || !currentOrigin || currentOrigin === record.originId) return;
+  const own = vouchers.find(v => cloudSyncValidVoucherOrigin(v) === record.originId);
+  if (own) {
+    const newId = String(own.id);
+    form.setEditingId(newId);
+    cloudSyncSetVoucherEditInput(form, record.id, newId);
+    cloudSyncVoucherEditOrigins[key] = { id: newId, originId: record.originId };
+    cloudSyncLog(`Edit form ${key}: voucher ${record.id} now belongs to another document; saving to ${newId}.`);
+    return;
+  }
+  form.setEditingId(null);
+  cloudSyncSetVoucherEditInput(form, record.id, "");
+  delete cloudSyncVoucherEditOrigins[key];
+  cloudSyncLog(`Edit form ${key}: voucher ${record.id} now belongs to another document; saving as a new voucher.`);
+}
+
 // Moves each colliding local voucher to a fresh cloud-reserved number and
 // repoints local references (escrowRefId) that this machine created. The
 // foreign voucher is left untouched and wins the following merge.
@@ -2251,6 +2356,7 @@ async function cloudSyncRenumberForeignVoucherCollisions(collisions) {
     const moved = { ...previous, id: newId, _updatedAt: Math.max(Number(previous._updatedAt) || 0, now), _sessionId: sessionId };
     moved._originId = cloudSyncMintVoucherOrigin(newId);
     state.vouchers[index] = moved;
+    cloudSyncRepointVoucherEditForms(collision.oldId, String(newId), moved._originId);
     const refIds = [];
     state.vouchers.forEach(v => {
       if (!v || v === moved || v.escrowRefId === undefined || v.escrowRefId === null) return;

@@ -40,6 +40,10 @@ function findRelatedSalesVoucher(voucherId, description, partnerId, amount) {
 let filteredCashList = [];
 let editingReceiptId = null;
 let editingPaymentId = null;
+if (typeof registerVoucherEditForm === "function") {
+  registerVoucherEditForm({ key: "receipt", getEditingId: () => editingReceiptId, setEditingId: value => { editingReceiptId = value || null; } });
+  registerVoucherEditForm({ key: "payment", getEditingId: () => editingPaymentId, setEditingId: value => { editingPaymentId = value || null; } });
+}
 
 function resetReceiptForm() {
     editingReceiptId = null;
@@ -323,6 +327,7 @@ function editReceiptVoucher(id) {
   if (!v || v.type !== "receipt") return;
 
   editingReceiptId = id;
+  if (typeof noteVoucherEditOpened === "function") noteVoucherEditOpened("receipt", v);
 
   const modalTitle = document.querySelector("#modal-add-receipt .card-title");
   if (modalTitle) modalTitle.innerText = `Chỉnh sửa Phiếu Thu: ${id}`;
@@ -347,6 +352,7 @@ function editPaymentVoucher(id) {
   if (!v || v.type !== "payment") return;
 
   editingPaymentId = id;
+  if (typeof noteVoucherEditOpened === "function") noteVoucherEditOpened("payment", v);
 
   const modalTitle = document.querySelector("#modal-add-payment .card-title");
   if (modalTitle) modalTitle.innerText = `Chỉnh sửa Phiếu Chi: ${id}`;
@@ -426,6 +432,8 @@ async function handleReceiptSubmit(e) {
 
   if (!beginVoucherSubmit(modalId, "Đang lưu phiếu thu...")) return;
 
+  // Sync may have renumbered/replaced the voucher while this form was open.
+  if (typeof reconcileVoucherEditForm === "function") reconcileVoucherEditForm("receipt");
   const editId = editingReceiptId;
   const oldVoucher = editId ? state.vouchers.find(v => v.id === editId) : null;
   let stagedVoucher = null;
@@ -535,6 +543,8 @@ async function handlePaymentSubmit(e) {
 
   if (!beginVoucherSubmit(modalId, "Đang lưu phiếu chi...")) return;
 
+  // Sync may have renumbered/replaced the voucher while this form was open.
+  if (typeof reconcileVoucherEditForm === "function") reconcileVoucherEditForm("payment");
   const editId = editingPaymentId;
   const oldVoucher = editId ? state.vouchers.find(v => v.id === editId) : null;
   let stagedVoucher = null;
