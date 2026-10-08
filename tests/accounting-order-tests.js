@@ -51,6 +51,29 @@ test('comparator: date, then stock-in before stock-out, then id', () => {
   assert.equal(s({ id: 'a', type: 'purchase', date: '2026-10-09' }, { id: 'b', type: 'sales', date: D }), 'b,a');
 });
 
+test('comparator: same-day inventory adjustment in ranks as stock-in, out as neutral', () => {
+  const c = load(baseState([]));
+  const cmp = c.compareVouchersForAccounting;
+  const s = (...vs) => vs.sort(cmp).map(v => v.id).join(',');
+  const adj = (id, dir) => ({ id, type: 'inventory_adjust', date: D, items: [{ productId: 'SP1', qty: 1, adjustDir: dir }] });
+  assert.equal(s({ id: 'A', type: 'sales', date: D }, adj('Z', 'in')), 'Z,A', 'adjust-in before same-day sale');
+  assert.equal(s(adj('Z', 'in'), { id: 'M', type: 'receipt', date: D }), 'Z,M', 'adjust-in with stock-in group');
+  assert.equal(s(adj('A', 'out'), adj('Z', 'in')), 'Z,A', 'adjust-in before same-day adjust-out');
+  assert.equal(s({ id: 'A', type: 'sales', date: D }, adj('Z', 'out'), { id: 'Y', type: 'purchase', date: D }), 'Y,Z,A', 'adjust-out stays neutral');
+  assert.equal(s(adj('Z', 'in'), { id: 'Y', type: 'purchase', date: D }), 'Y,Z', 'then id within stock-in');
+  const rank = vm.runInContext('ACCOUNTING_TYPE_RANK', c);
+  assert.ok(!('opening' in rank) && !('opening_stock' in rank), 'no ranks for non-existent voucher types');
+});
+
+test('same-day adjustment-out after an adjustment-in is costed from the adjusted stock', () => {
+  const adjIn = { id: 'ZZ-DC1', type: 'inventory_adjust', date: D, isManual: true, items: [{ productId: 'SP1', qty: 10, price: 100, adjustDir: 'in' }] };
+  const adjOut = { id: 'AA-DC2', type: 'inventory_adjust', date: D, isManual: true, items: [{ productId: 'SP1', qty: 4, price: 0, adjustDir: 'out' }] };
+  const fwd = figures([adjIn, adjOut]);
+  assert.deepEqual(figures([adjOut, adjIn]), fwd);
+  assert.equal(fwd.stock, 6);
+  assert.equal(fwd.tk632, 400, 'out valued at the average cost of the stock added the same day');
+});
+
 test('recalculation figures identical for any array order of same-day vouchers', () => {
   const vs = [mk('PN-A', 'purchase', 10, 100, 'NCC1', '331'), mk('BH-A', 'sales', 5, 300, 'KH1', '131'),
     mk('PN-B', 'purchase', 10, 200, 'NCC1', '331'), mk('BH-B', 'sales', 5, 300, 'KH1', '131'),

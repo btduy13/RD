@@ -6,10 +6,16 @@
 // Same date -> stock-in before stock-out, then id (string compare),
 // so every workstation computes identical figures regardless of array order.
 const ACCOUNTING_TYPE_RANK = {
-  opening: 0, opening_stock: 0, purchase: 0, sales_return: 0,
+  purchase: 0, sales_return: 0,
   sales: 2, purchase_return: 2
 };
-function accountingTypeRank(type) {
+// An inventory adjustment whose every line increases stock is a stock-in.
+function accountingTypeRank(voucher) {
+  const type = voucher && voucher.type;
+  if (type === "inventory_adjust") {
+    const items = Array.isArray(voucher.items) ? voucher.items : [];
+    return items.length > 0 && items.every(item => item && item.adjustDir === "in") ? 0 : 1;
+  }
   return Object.prototype.hasOwnProperty.call(ACCOUNTING_TYPE_RANK, type) ? ACCOUNTING_TYPE_RANK[type] : 1;
 }
 function compareVouchersForAccounting(a, b) {
@@ -17,8 +23,8 @@ function compareVouchersForAccounting(a, b) {
   const db = String(b && b.date || "");
   if (da < db) return -1;
   if (da > db) return 1;
-  const ra = accountingTypeRank(a && a.type);
-  const rb = accountingTypeRank(b && b.type);
+  const ra = accountingTypeRank(a);
+  const rb = accountingTypeRank(b);
   if (ra !== rb) return ra - rb;
   const ia = String(a && a.id !== undefined && a.id !== null ? a.id : "");
   const ib = String(b && b.id !== undefined && b.id !== null ? b.id : "");
