@@ -46,17 +46,25 @@ function buildPartnerTableActions(p) {
   return html;
 }
 
+// Văn bản an toàn để chèn vào HTML (tên, địa chỉ... đến từ Excel và máy khác).
+function escapePartnerText(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
 function getPartnerParentName(partner) {
   if (!partner || partner.type !== "project" || !partner.parentId) return "";
   const parent = state.partners.find(item => item.id === partner.parentId);
-  return parent ? parent.name : partner.parentId;
+  // DN mẹ không còn tồn tại: coi như chưa gán (không hiện mã chết như tên)
+  return parent ? parent.name : "";
 }
 
 function populateEnterpriseDatalist(datalistId = "partner-parent-datalist") {
   const datalist = document.getElementById(datalistId);
   if (!datalist) return;
   const enterprises = state.partners.filter(p => p.type === "enterprise" && !p.inactive);
-  datalist.innerHTML = enterprises.map(e => `<option value="${e.name} (${e.id})"></option>`).join("");
+  datalist.innerHTML = enterprises.map(e => `<option value="${escapePartnerText(`${e.name} (${e.id})`)}"></option>`).join("");
 }
 
 function resolveEnterpriseParent(inputVal) {
@@ -421,7 +429,7 @@ function handleQuickAddPartnerSubmit(e) {
           const parent = state.partners.find(parent => parent.id === p.parentId);
           if (parent) parentInfo = ` - Thuộc: ${parent.name}`;
         }
-        return `<option value="${p.name} (${p.id})">[${typeLabel}${parentInfo}]</option>`;
+        return `<option value="${escapePartnerText(`${p.name} (${p.id})`)}">[${typeLabel}${escapePartnerText(parentInfo)}]</option>`;
       }).join("");
     }
 
@@ -693,7 +701,7 @@ function renderPartnersTable() {
       const escapedId = escapeHtmlAttr(p.id);
       tr.className = "clickable-row";
       tr.setAttribute("data-type", "partner");
-      tr.setAttribute("data-id", escapedId);
+      tr.setAttribute("data-id", p.id);
 
       let nameStyle = "font-weight:600;";
       let namePrefix = "";
@@ -708,7 +716,7 @@ function renderPartnersTable() {
       if (p.type === "project") {
         const parentName = getPartnerParentName(p);
         parentCell = parentName
-          ? `<span style="font-size: 12px; color: var(--text-secondary);">${parentName}</span>`
+          ? `<span style="font-size: 12px; color: var(--text-secondary);">${escapePartnerText(parentName)}</span>`
           : `<span style="font-size: 11px; color: var(--color-danger);">Chưa gán DN mẹ</span>`;
       } else if (p.type === "enterprise") {
         const childCount = state.partners.filter(c => c.type === "project" && c.parentId === p.id).length;
@@ -721,14 +729,14 @@ function renderPartnersTable() {
 
       tr.innerHTML = `
         <td style="text-align: center;">
-          <input type="checkbox" class="partner-checkbox" value="${escapedId}" onchange="updateBatchPartnersUI()">
+          <input type="checkbox" class="partner-checkbox" value="${escapePartnerText(p.id)}" onchange="updateBatchPartnersUI()">
         </td>
-        <td style="font-weight:bold; color:var(--color-primary);">${p.id}</td>
-        <td style="${nameStyle}">${namePrefix}<a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${p.name}</a></td>
+        <td style="font-weight:bold; color:var(--color-primary);">${escapePartnerText(p.id)}</td>
+        <td style="${nameStyle}">${namePrefix}<a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${escapePartnerText(p.name)}</a></td>
         <td>${typeBadge}</td>
         <td>${parentCell}</td>
-        <td class="font-numeric">${p.phone || "-"}</td>
-        <td>${p.address || "-"}</td>
+        <td class="font-numeric">${escapePartnerText(p.phone || "-")}</td>
+        <td>${escapePartnerText(p.address || "-")}</td>
         <td>
           <span class="badge ${p.inactive ? 'badge-danger' : 'badge-success'}">
             ${p.inactive ? 'Ngừng theo dõi' : 'Đang theo dõi'}

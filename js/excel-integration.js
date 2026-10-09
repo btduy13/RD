@@ -1651,10 +1651,10 @@ let productOptionsSalesHTML = "";
 let accountingDatalistLazyLoadingBound = false;
 const ACCOUNTING_DATALIST_RESULT_LIMIT = 250;
 
+// Chỉ escape HTML: escapeHtmlAttr còn chèn "'" kiểu JavaScript, làm giá trị chọn từ danh sách
+// (vd. tên có dấu ') khác tên thật và không khớp được đối tác/sản phẩm.
 function accountingDatalistOptionValue(value) {
-    return typeof escapeHtmlAttr === "function"
-        ? escapeHtmlAttr(String(value || ""))
-        : String(value || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return String(value || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 function refreshPartnerDatalist(query = "") {
@@ -1745,7 +1745,7 @@ function initExcelIntegration() {
 // Caching dropdown sản phẩm
 function cacheProductOptions() {
     if (!state.products) return;
-    productOptionsHTML = state.products.map(p => `<option value="${p.name} (${p.id})">(Tồn: ${p.stock})</option>`).join("");
+    productOptionsHTML = state.products.map(p => `<option value="${accountingDatalistOptionValue(`${p.name} (${p.id})`)}">(Tồn: ${p.stock})</option>`).join("");
     productOptionsSalesHTML = productOptionsHTML;
 }
 
@@ -2202,7 +2202,7 @@ function parseExcelFile(file, type) {
                             const parent = state.partners.find(parent => parent.id === p.parentId);
                             if (parent) parentInfo = ` - Thuộc: ${parent.name}`;
                         }
-                        return `<option value="${p.name} (${p.id})">[${typeLabel}${parentInfo}]</option>`;
+                        return `<option value="${accountingDatalistOptionValue(`${p.name} (${p.id})`)}">[${typeLabel}${accountingDatalistOptionValue(parentInfo)}]</option>`;
                     }).join("");
                 }
 
@@ -2293,7 +2293,7 @@ function parseExcelFile(file, type) {
                             const parent = state.partners.find(parent => parent.id === p.parentId);
                             if (parent) parentInfo = ` - Thuộc: ${parent.name}`;
                         }
-                        return `<option value="${p.name} (${p.id})">[${typeLabel}${parentInfo}]</option>`;
+                        return `<option value="${accountingDatalistOptionValue(`${p.name} (${p.id})`)}">[${typeLabel}${accountingDatalistOptionValue(parentInfo)}]</option>`;
                     }).join("");
                 }
 

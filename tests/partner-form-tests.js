@@ -92,7 +92,24 @@ function testTypeChangeDropsParentAndKeepsBoth() {
   assert.equal(ctx.state.partners.find(p => p.id === "AB").type, "both", "dual-role type survives an edit");
 }
 
+function testListAndDatalistEscaping() {
+  const { ctx } = loadPartners([
+    { id: "DN1", name: "Công ty <b>1</b>", type: "enterprise" },
+    { id: "CT9", name: "Nối RN 32 x1''", type: "project", parentId: "DN-GONE" }
+  ]);
+  assert.equal(ctx.escapePartnerText(`a<b>"'&`), "a&lt;b&gt;&quot;&#039;&amp;");
+  assert.equal(ctx.getPartnerParentName(ctx.state.partners[1]), "", "a deleted parent shows as unassigned, not as its dead code");
+  ctx.populateEnterpriseDatalist("dl");
+  assert.ok(ctx.document.getElementById("dl").innerHTML.includes("Công ty &lt;b&gt;1&lt;/b&gt; (DN1)"));
+  const src = fs.readFileSync(path.join(repoRoot, "js", "excel-integration.js"), "utf8");
+  const fnSrc = src.slice(src.indexOf("function accountingDatalistOptionValue"), src.indexOf("function refreshPartnerDatalist"));
+  const optionValue = vm.runInNewContext(`${fnSrc}; accountingDatalistOptionValue`, { String });
+  assert.equal(optionValue("Nối RN 32 x1'' (CT9)"), "Nối RN 32 x1'' (CT9)", "option values keep ' so the picked text still matches the partner");
+  assert.equal(optionValue('A "B" <c>'), "A &quot;B&quot; &lt;c&gt;");
+}
+
 testEditKeepsLowercaseCodeAndExtraFields();
+testListAndDatalistEscaping();
 testEditWithEmptyCodeKeepsCode();
 testDuplicateCodeIsCaseInsensitive();
 testAutoCodesSkipTakenNumbers();
