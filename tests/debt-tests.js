@@ -498,8 +498,8 @@ function testSupplierReceivableKpisDoNotOverlap() {
   ctx.renderDebtOverview(ctx.calculatePartnerDebts());
   const html = ctx.document.getElementById("debt-overview-kpis").innerHTML;
   const values = Array.from(html.matchAll(/kpi-value font-numeric">([^<]+)</g), match => Number(match[1]));
-  assert.equal(values[0], 150, "main receivable includes both-role net debt");
-  assert.equal(values[4], 20, "separate supplier-only KPI excludes the both-role amount already counted");
+  assert.equal(values[0], 100, "main receivable is the 131 side only (both-role 331 debit is not netted in)");
+  assert.equal(values[4], 70, "supplier overpaid = 331 debit of both-role (50) + supplier-only (20); different account from the 131 card, so no overlap");
 }
 
 function testFifoReceiptAllocatesSales() {
