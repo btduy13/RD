@@ -400,7 +400,10 @@ function resolutionPartners() {
     { id: "AB", name: "An Bình", type: "retail" },
     { id: "BANLE", name: "Bán Lẻ", type: "retail" },
     { id: "BANLET05", name: "Bán Lẻ T05", type: "retail" },
-    { id: "DT_9999", name: "Khách Chỉ Có Mã DT", type: "retail" }
+    { id: "DT_9999", name: "Khách Chỉ Có Mã DT", type: "retail" },
+    { id: "DT_VANGLAI", name: "Khách hàng vãng lai", type: "retail" },
+    { id: "AUTO_PN01", name: "Khách Mã Auto", type: "retail" },
+    { id: "KGX01", name: "Công ty Không Gian Xanh", type: "enterprise" }
   ];
 }
 
@@ -416,7 +419,10 @@ async function testImportPartnerMatchingRules() {
     ["Bán Lẻ T05/20256", ""],                                // no word boundary after a real name
     ["108/2 Trần Phú (anh Tâm)", "108/2TRANPHU(CH)"],
     ["Anh Lực", ""],                                         // only an auto-generated KL_ match → unresolved
-    ["Khách Chỉ Có Mã DT", ""],                              // only DT_ → unresolved
+    ["Khách Chỉ Có Mã DT", ""],                              // only DT_<số> → unresolved
+    ["Khách Mã Auto", ""],                                   // only AUTO_ → unresolved
+    ["Khách hàng vãng lai", "DT_VANGLAI"],                   // fixed named DT_ code stays eligible
+    ["Green Home", "KGX01"],                                 // brand alias (findPartnerByIdentity)
     ["Trùng Tên Đối Tác", ""],                               // two real exact matches → unresolved
     ["An Bình 2", ""],                                       // prefix shorter than 8 chars
     ["Bán Lẻ khác", ""]                                      // "ban le" shorter than 8 chars
@@ -453,13 +459,15 @@ async function testSalesImportsDoNotCreatePartners() {
   ctx.__rows = [["SỔ"], ["x"], ["hdr"],
     detailRow("BH3", "", "108/2 Trần Phú - giao Q1"),
     detailRow("BH4", "MA_KHONG_CO", "Ai Đó Không Có"),
-    detailRow("BH5", "AB", "Tên khác")];
+    detailRow("BH5", "AB", "Tên khác"),
+    detailRow("BH6", "ab", "Tên khác nữa")];
   await ctx.autoIntegrateSoChiTietBanHangExcel();
   assert.equal(ctx.state.vouchers.find(v => v.id === "BH3").partnerId, "108/2TRANPHU(CH)", "blank code → name match");
   const bh4 = ctx.state.vouchers.find(v => v.id === "BH4");
   assert.equal(bh4.partnerId, "", "unknown code + unknown name → unresolved");
   assert.equal(bh4.needsReview, true);
   assert.equal(ctx.state.vouchers.find(v => v.id === "BH5").partnerId, "AB", "existing partner code in file is used");
+  assert.equal(ctx.state.vouchers.find(v => v.id === "BH6").partnerId, "AB", "partner code lookup is case-insensitive");
   assert.equal(ctx.state.partners.length, before, "sales imports never create partners");
 }
 
@@ -482,6 +490,40 @@ async function testCongNoPhaiTraImportDoesNotCreatePartners() {
   assert.equal(nk2.needsReview, true);
   assert.equal(ctx.state.vouchers.find(v => v.id === "NK_OLD").partnerId, "NCCTHEP", "unresolved name must not wipe an existing voucher's partner");
   assert.equal(ctx.state.partners.length, before, "công nợ phải trả import never creates partners");
+}
+
+async function testReimportKeepsExistingPartnerAssignment() {
+  // Cash path: chứng từ đã được kế toán gán đối tác; nạp lại với tên không khớp không được xóa.
+  const ctx = loadImportSandbox(cashImportPartners());
+  ctx.state.vouchers.push(
+    { id: "PT77", type: "receipt", partnerId: "KHTHANH", partnerName: "Chị thanh", amount: 1, entries: [] },
+    { id: "PC77", type: "payment", partnerId: "NCCTHEP", partnerName: "Công ty Thép Miền Nam", amount: 1, entries: [] }
+  );
+  // (auto loader bỏ qua khi đã có phiếu thu/chi, nên dùng luồng nạp thủ công)
+  await runManualImport(ctx, CASH_HEADER.concat([
+    cashRow("PT77", "Thu tiền", 1000, "Tên Lạ Không Khớp", "PHIẾU THU"),
+    cashRow("PC77", "Chi tiền", 2000, "Tên Lạ Khác", "PHIẾU CHI")
+  ]), "vouchers");
+  const pt = importedVoucher(ctx, "PT77");
+  assert.equal(pt.v.partnerId, "KHTHANH", "cash re-import keeps assigned partner");
+  assert.equal(pt.v.partnerName, "Chị thanh");
+  assert.ok(!pt.v.needsReview, "kept partner not flagged");
+  const pc = importedVoucher(ctx, "PC77");
+  assert.equal(pc.v.partnerId, "NCCTHEP", "cash payment re-import keeps assigned supplier");
+  assert.equal(pc.e.debit, "331", "kept supplier drives Nợ 331 default");
+  assert.ok(!pc.v.needsReview);
+
+  // Sales path (Ban_hang)
+  const salesRow = (id, name) => ["2026-01-05", "", id, "", "", "", name, "Bán hàng", 1000, 0, 0, 1000, "", "", ""];
+  const sctx = loadImportSandbox(resolutionPartners());
+  sctx.state.vouchers.push({ id: "BH77", type: "sales", partnerId: "AB", partnerName: "An Bình", amount: 1 });
+  sctx.__rows = [["BÁN HÀNG"], ["hdr"], salesRow("BH77", "Tên Lạ Không Khớp")];
+  await sctx.autoIntegrateSalesExcel();
+  const bh = sctx.state.vouchers.find(v => v.id === "BH77");
+  assert.equal(bh.partnerId, "AB", "sales re-import keeps assigned partner");
+  assert.equal(bh.partnerName, "An Bình");
+  assert.ok(!bh.needsReview);
+  assert.equal(bh.amount, 1000, "rest of the voucher is still re-imported");
 }
 
 function testImportSourceHasNoInventedPartnerCodes() {
@@ -521,6 +563,7 @@ async function runAll() {
   await testImportPartnerMatchingRules();
   await testSalesImportsDoNotCreatePartners();
   await testCongNoPhaiTraImportDoesNotCreatePartners();
+  await testReimportKeepsExistingPartnerAssignment();
   testImportSourceHasNoInventedPartnerCodes();
   testReportAccountsName1388BothStandards();
   console.log("debt-audit-tests.js: all tests passed");
