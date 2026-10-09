@@ -353,6 +353,7 @@ async function checkCashImportAccountMapping(runImport, label) {
     cashRow("PT15", "PT4011/q81 Anh Dương (KH7845T09/2025) ck sacombank xuất hđ r", 1000000, "Chị thanh", "PHIẾU THU"),
     cashRow("PT16", "Chị thanh xoay tiền hoàn thành", 1000000, "Chị thanh", "PHIẾU THU"),
     cashRow("PT17", "Thu tiền hàng", 1000000, "Ngân hàng sacombank", "PHIẾU THU"),
+    cashRow("PT19", "Chị Duy trả tiền vay mượn", 2000000, "Chị Duy", "PHIẾU THU"),
     cashRow("PT18", "Doanh thu bán hàng vay", 1000000, "Chị thanh", "PHIẾU THU"),
     cashRow("PT6", "Thu tiền Việt Nga", 300000, "Chị thanh", "PHIẾU THU"),
     cashRow("PC6882", "Chi duy vay mua chung cư golsea", 1400000000, "Chị Duy", "PHIẾU CHI"),
@@ -365,8 +366,8 @@ async function checkCashImportAccountMapping(runImport, label) {
   // (a) tên ngân hàng chỉ là kênh chuyển khoản — vẫn Có 131
   assert.equal(importedVoucher(ctx, "PT3713").e.credit, "131", `${label}: "CK sacombank" receipt stays Có 131`);
   assert.equal(importedVoucher(ctx, "PT1").e.credit, "131", `${label}: "sacomban" alone stays Có 131`);
-  assert.equal(importedVoucher(ctx, "PT5").e.credit, "341", `${label}: "vay" as a word → Có 341`);
-  ["PT13", "PT14", "PT15", "PT16"].forEach(pid =>
+  assert.equal(importedVoucher(ctx, "PT5").e.credit, "131", `${label}: bare "vay" without bank word (customer repays loan to us) stays Có 131`);
+  ["PT13", "PT14", "PT15", "PT16", "PT19"].forEach(pid =>
     assert.equal(importedVoucher(ctx, pid).e.credit, "131", `${label}: ${pid} customer/CK or "xoay" stays Có 131`));
   assert.equal(importedVoucher(ctx, "PT18").e.credit, "511", `${label}: doanh thu keeps precedence over vay`);
   assert.equal(importedVoucher(ctx, "PT6").e.credit, "131", `${label}: "việt nga" alone stays Có 131`);

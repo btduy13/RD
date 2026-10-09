@@ -52,15 +52,17 @@ function normalizeImportPartnerName(name) {
     return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-// Phiếu thu vay vốn (Có 341): mô tả có TỪ "vay" (đúng ranh giới từ) hoặc "giải ngân",
-// hoặc đối tác là ngân hàng. Tên ngân hàng chỉ nằm trong mô tả => vẫn là kênh CK (Có 131).
+// Phiếu thu vay vốn (Có 341): đối tác là ngân hàng, hoặc mô tả có "giải ngân", hoặc có TỪ "vay"
+// kèm từ chỉ ngân hàng. Tên ngân hàng một mình trong mô tả => kênh CK (Có 131).
 function isLoanReceipt(description, partner) {
     const fold = (t) => String(t || "").toLowerCase().normalize("NFD")
         .replace(/[̀-ͯ]/g, "").replace(/đ/g, "d");
     const desc = fold(description);
-    if (/(^|[^a-z0-9])vay([^a-z0-9]|$)/.test(desc) || desc.includes("giai ngan")) return true;
-    if (!partner) return false;
-    return String(partner.id || "").toUpperCase() === "SACOMBANK" || fold(partner.name).trim().startsWith("ngan hang");
+    if (desc.includes("giai ngan")) return true;
+    if (partner && (String(partner.id || "").toUpperCase() === "SACOMBANK" || fold(partner.name).trim().startsWith("ngan hang"))) return true;
+    // "vay" một mình có thể là khách trả nợ vay mượn cho công ty (Có 131) — cần thêm từ chỉ ngân hàng.
+    const hasVayWord = /(^|[^a-z0-9])vay([^a-z0-9]|$)/.test(desc);
+    return hasVayWord && ["ngan hang", "ngaan hang", "sacom", "sombank", "viet nga"].some(w => desc.includes(w));
 }
 
 function createImportPartnerResolver(partners) {
