@@ -122,7 +122,28 @@ function computeDebtSides(initialOpening, priorCountersRaw, periodCountersRaw, p
     const net131Open = netOpen131 - priorCounters.moved;
     const net131Close = netClose131 - priorCounters.moved - periodCounters.moved;
 
+    // Phân bổ số dư cuối kỳ cho các thẻ KPI theo VAI TRÒ thực tế, không theo loại khai báo:
+    // phía 131 → Phải thu / Khách trả thừa; phía 331 → Phải trả NCC / NCC trả thừa.
+    // Tổng các phần luôn bằng số dư của dòng: phần Nợ = closingDebit, phần Có = closingCredit.
+    const kpi = { receivable: 0, overpaid: 0, payable: 0, supplierReceivable: 0 };
+    if (netClose131 < 0 && net331Close < 0) {
+        // Khách trả thừa và NCC trả thừa cùng lúc: dòng đã cấn trừ hai bên (resolveSides),
+        // phần còn lại thuộc phía của vai trò chính.
+        const combined = netClose131 - net331Close;
+        if (combined >= 0) kpi[roleSupplier ? "supplierReceivable" : "receivable"] = combined;
+        else kpi[roleSupplier ? "payable" : "overpaid"] = -combined;
+    } else {
+        kpi.receivable = Math.max(netClose131, 0);
+        kpi.overpaid = Math.max(-netClose131, 0);
+        kpi.payable = Math.max(net331Close, 0);
+        kpi.supplierReceivable = Math.max(-net331Close, 0);
+    }
+
     return {
+        kpiReceivable: kpi.receivable,
+        kpiOverpaid: kpi.overpaid,
+        kpiPayable: kpi.payable,
+        kpiSupplierReceivable: kpi.supplierReceivable,
         openingDebit: openSides.debit,
         openingCredit: openSides.credit,
         debitTrans,
@@ -512,6 +533,10 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
         d.net131Open = sides.net131Open;
         d.net131Close = sides.net131Close;
         d.customerPayment331As131 = sides.customerPayment331As131;
+        d.kpiReceivable = sides.kpiReceivable;
+        d.kpiOverpaid = sides.kpiOverpaid;
+        d.kpiPayable = sides.kpiPayable;
+        d.kpiSupplierReceivable = sides.kpiSupplierReceivable;
         d.debtRole = inferPartnerDebtRole(d.type, sides.has131, sides.has331);
         if (d.debtRole === "both") {
             d.type = "both";
@@ -545,6 +570,7 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
             debitTrans, creditTrans,
             closingDebit: 0, closingCredit: 0
         };
+        const unmatchedKpi = { receivable: 0, overpaid: 0, payable: 0, supplierReceivable: 0 };
         // Không bù trừ giữa hai đối tác hoặc giữa 131 và 331 khi chưa biết liên kết.
         unmatchedByPartner.forEach(({ prior, period }) => {
             ["131", "331"].forEach(account => {
@@ -554,6 +580,13 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
                 unmatchedSides.openingCredit += Math.max(-openingNet, 0);
                 unmatchedSides.closingDebit += Math.max(closingNet, 0);
                 unmatchedSides.closingCredit += Math.max(-closingNet, 0);
+                if (account === "131") {
+                    unmatchedKpi.receivable += Math.max(closingNet, 0);
+                    unmatchedKpi.overpaid += Math.max(-closingNet, 0);
+                } else {
+                    unmatchedKpi.supplierReceivable += Math.max(closingNet, 0);
+                    unmatchedKpi.payable += Math.max(-closingNet, 0);
+                }
             });
         });
         debts[UNMATCHED_PARTNER_ID] = {
@@ -574,6 +607,10 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
             net131Open: unmatchedPrior.debit131 - unmatchedPrior.credit131,
             net131Close: unmatchedPrior.debit131 - unmatchedPrior.credit131 + unmatchedPeriod.debit131 - unmatchedPeriod.credit131,
             customerPayment331As131: 0,
+            kpiReceivable: unmatchedKpi.receivable,
+            kpiOverpaid: unmatchedKpi.overpaid,
+            kpiPayable: unmatchedKpi.payable,
+            kpiSupplierReceivable: unmatchedKpi.supplierReceivable,
             // Số dư của đối tác đã xóa là dữ liệu chưa xác minh: hiển thị để
             // đối chiếu, tuyệt đối không tự khôi phục vào số dư kế toán.
             orphanOpeningDebit,
@@ -2887,6 +2924,27 @@ function isDebtKpiReceivableRow(d) {
   return d.type !== 'supplier' || d.has131;
 }
 
+// Số dư cuối kỳ của một dòng chia theo vai trò (computeDebtSides): phía 131 vào Phải thu /
+// Khách trả thừa, phía 331 vào Phải trả NCC / NCC trả thừa. Dòng thiếu các trường này
+// (dữ liệu dựng tay) quay về cách phân loại cũ theo loại đối tác.
+function getDebtKpiParts(d) {
+  if (d && d.kpiReceivable !== undefined) {
+    return {
+      receivable: d.kpiReceivable || 0,
+      overpaid: d.kpiOverpaid || 0,
+      payable: d.kpiPayable || 0,
+      supplierReceivable: d.kpiSupplierReceivable || 0
+    };
+  }
+  const isCustomerRow = isDebtKpiReceivableRow(d);
+  return {
+    receivable: isCustomerRow ? (d.closingDebit || 0) : 0,
+    overpaid: isCustomerRow ? (d.closingCredit || 0) : 0,
+    payable: isCustomerRow ? 0 : (d.closingCredit || 0),
+    supplierReceivable: isCustomerRow ? 0 : (d.supplierReceivable || 0)
+  };
+}
+
 function getPreviousIsoDate(isoDate) {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(isoDate || ""));
   if (!m) return "";
@@ -3024,10 +3082,9 @@ function computeDebt131Reconciliation(allDebts, fromDate = "", toDate = "") {
   rows.forEach(d => {
     detailOpen += Number(d.net131Open) || 0;
     detailClose += Number(d.net131Close) || 0;
-    if (isDebtKpiReceivableRow(d)) {
-      kpiNet += (d.closingDebit || 0) - (d.closingCredit || 0);
-      refund331Adj += Number(d.customerPayment331As131) || 0;
-    }
+    const parts = getDebtKpiParts(d);
+    kpiNet += parts.receivable - parts.overpaid;
+    refund331Adj += Number(d.customerPayment331As131) || 0;
     if (d.type !== "unmatched" && (d.declaredType || d.type) !== "supplier") {
       partnerOpeningSum += (d.initialOpeningDebit || 0) - (d.initialOpeningCredit || 0);
     }
@@ -3179,23 +3236,20 @@ function renderDebtOverview(allDebts, dateRange) {
 
   allDebts.forEach(d => {
     if (d.type === "unmatched") unmatchedBucket = d;
-    if (isDebtKpiReceivableRow(d)) {
-      const net = (d.closingDebit || 0) - (d.closingCredit || 0);
-      if (d.closingDebit > 0) { totalRec += d.closingDebit; partnersWithDebt++; }
-      if (d.closingCredit > 0) { partnersOverpaid++; }
-      totalNetRec += net;
+    // Mỗi đồng chỉ vào đúng một thẻ: phía 131 → phải thu/trả thừa, phía 331 → phải trả/NCC trả thừa.
+    const parts = getDebtKpiParts(d);
+    if (parts.receivable > 0 || parts.overpaid > 0) {
+      if (parts.receivable > 0) { totalRec += parts.receivable; partnersWithDebt++; }
+      if (parts.overpaid > 0) { partnersOverpaid++; }
+      totalNetRec += parts.receivable - parts.overpaid;
       const cat = d.type === "unmatched" ? "unmatched" : classifyPartnerCategory(partnerMap[d.id] || { name: d.name });
       const cs = cats[cat] || cats.project;
-      cs.rec += d.closingDebit || 0;
-      cs.overpaid += d.closingCredit || 0;
-      if (d.closingDebit > 0 || d.closingCredit > 0) cs.count++;
+      cs.rec += parts.receivable;
+      cs.overpaid += parts.overpaid;
+      cs.count++;
     }
-    if (d.type === 'supplier' || d.type === 'both') {
-      totalPay += d.closingCredit || 0;
-      // Đối tác hai chiều đã nằm trong tổng phải thu phía trên; chỉ đưa NCC
-      // thuần 331 vào KPI bổ sung để hai thẻ không tính trùng nhau.
-      if (!d.has131) totalSupplierReceivable += d.supplierReceivable || 0;
-    }
+    totalPay += parts.payable;
+    totalSupplierReceivable += parts.supplierReceivable;
   });
 
   const totalRowOvp = cats.individual.overpaid + cats.project.overpaid + cats.company.overpaid + cats.unmatched.overpaid;
@@ -3213,7 +3267,7 @@ function renderDebtOverview(allDebts, dateRange) {
     if (totalSupplierReceivable > 0) {
       kpiData.push({ label: 'NCC Trả Thừa (Phải Thu Lại)', value: totalSupplierReceivable, hint: 'Dư Nợ TK 331', icon: 'M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z', accent: 'var(--color-info)' });
     }
-    if (kpiData.length > 4) kpiData[4].hint = 'NCC chỉ có 331; không trùng tổng phải thu KH';
+    if (kpiData.length > 4) kpiData[4].hint = 'Dư Nợ TK 331; không trùng tổng phải thu KH';
     kpiEl.innerHTML = kpiData.map(k => `
       <div class="kpi-card" style="--card-accent: ${k.accent}">
         <div class="kpi-info">

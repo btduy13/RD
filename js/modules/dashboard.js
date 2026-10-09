@@ -261,13 +261,11 @@ function renderDashboardDebts() {
     let totalPay = 0;
     let totalSupplierReceivable = 0;
     kpiDebts.forEach(d => {
-      if (d.type !== 'supplier' || d.has131) {
-        totalRec += (d.closingDebit || 0);
-      }
-      if (d.type === 'supplier' || d.type === 'both') {
-        totalPay += d.closingCredit || 0;
-        if (!d.has131) totalSupplierReceivable += d.supplierReceivable || 0;
-      }
+      // Cùng cách phân loại theo vai trò với màn Công nợ (getDebtKpiParts trong debts.js).
+      const parts = getDebtKpiParts(d);
+      totalRec += parts.receivable;
+      totalPay += parts.payable;
+      totalSupplierReceivable += parts.supplierReceivable;
     });
     if (kpiReceivable) kpiReceivable.innerText = formatVND(totalRec);
     if (kpiPayable) kpiPayable.innerText = formatVND(totalPay);

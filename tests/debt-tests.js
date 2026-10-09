@@ -499,8 +499,8 @@ function testSupplierReceivableKpisDoNotOverlap() {
   ctx.renderDebtOverview(ctx.calculatePartnerDebts());
   const html = ctx.document.getElementById("debt-overview-kpis").innerHTML;
   const values = Array.from(html.matchAll(/kpi-value font-numeric">([^<]+)</g), match => Number(match[1]));
-  assert.equal(values[0], 150, "main receivable includes both-role net debt");
-  assert.equal(values[4], 20, "separate supplier-only KPI excludes the both-role amount already counted");
+  assert.equal(values[0], 100, "main receivable holds only the 131 side of the dual-role partner");
+  assert.equal(values[4], 50 + 20, "supplier prepayments (Dư Nợ 331) of both partners, each amount counted once");
 }
 
 function testFifoReceiptAllocatesSales() {

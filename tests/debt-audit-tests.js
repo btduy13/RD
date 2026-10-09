@@ -899,8 +899,20 @@ function testAuditOther331AdjLabel() {
   ctx.state.initialBalances = {};
   ctx.state.vouchers = [
     { id: "BH9", type: "sales", date: "2026-01-10", partnerId: "DT2C", entries: [{ debit: "131", credit: "511", amount: 1000 }] },
-    { id: "NK9", type: "purchase", date: "2026-01-11", partnerId: "DT2C", entries: [{ debit: "156", credit: "331", amount: 400 }] }
+    { id: "NK9", type: "purchase", date: "2026-01-11", partnerId: "DT2C", entries: [{ debit: "156", credit: "331", amount: 400 }] },
+    { id: "PC9", type: "payment", date: "2026-01-12", partnerId: "DT2C", entries: [{ debit: "331", credit: "111", amount: 600 }] }
   ];
+  let rec = ctx.computeDebt131Reconciliation(ctx.calculatePartnerDebts(), "", "");
+  assert.equal(rec.kpiNet, 1000, "supplier prepayment (Dư Nợ 331) is not customer receivable");
+  assert.equal(rec.other331Adj, 0);
+  // Khách trả thừa 500 và NCC trả thừa 200 trên cùng mã: dòng cấn trừ còn Dư Có 300 → cầu nối 331 = +200.
+  ctx.state.vouchers = [
+    { id: "PT9", type: "receipt", date: "2026-01-10", partnerId: "DT2C", entries: [{ debit: "111", credit: "131", amount: 500 }] },
+    { id: "NK9", type: "purchase", date: "2026-01-11", partnerId: "DT2C", entries: [{ debit: "156", credit: "331", amount: 100 }] },
+    { id: "PC9", type: "payment", date: "2026-01-12", partnerId: "DT2C", entries: [{ debit: "331", credit: "111", amount: 300 }] }
+  ];
+  rec = ctx.computeDebt131Reconciliation(ctx.calculatePartnerDebts(), "", "");
+  assert.equal(rec.other331Adj, 200);
   const html = renderAudit(ctx);
   assert.ok(html.includes("Điều chỉnh 331 (đối tác vai trò NCC / hai chiều / chưa khớp)"), "other331Adj label wording");
 }
@@ -982,13 +994,16 @@ function testAuditOther331AdjBridgeCases() {
   assert.equal(rec.detailClose, 1500, "Σ net131 = 1000 + 300 + 200");
   assert.equal(rec.closeMatched, true);
   assert.equal(rec.refund331Adj, 0, "no customer-role netting in these cases");
-  assert.equal(rec.kpiNet, (1000 - 400) + (300 - 2000) + (200 - 500));
-  assert.equal(rec.other331Adj, -(400 + 2000 + 500), "other331Adj = 331 credit balances of dual / supplier-role / unmatched");
+  // Khoản phải trả 331 không còn bị trừ vào KPI phải thu (trước đây vừa nằm ở thẻ Phải trả,
+  // vừa làm giảm phải thu ròng): KPI ròng phải thu = Σ phía 131.
+  assert.equal(rec.kpiNet, 1000 + 300 + 200);
+  assert.equal(rec.other331Adj, 0, "331 balances stay out of the receivable bridge");
   assert.equal(rec.detailClose + rec.refund331Adj + rec.other331Adj, rec.kpiNet, "bridge reconciles to KPI net");
+  const payable = debts.reduce((sum, d) => sum + ctx.getDebtKpiParts(d).payable, 0);
+  assert.equal(payable, 400 + (2000) + 500, "331 credit balances of dual / supplier-role / unmatched go to Phải trả");
 
   const html = renderAudit(ctx);
-  assert.ok(html.includes("Điều chỉnh 331 (đối tác vai trò NCC / hai chiều / chưa khớp)"));
-  assert.ok(html.includes("−2900"), "signed other331Adj rendered");
+  assert.ok(!html.includes("Điều chỉnh 331 (đối tác vai trò NCC / hai chiều / chưa khớp)"), "no adjustment line when the bridge is zero");
 }
 
 // ---- Task 5: chi tiền cho khách theo chuẩn — Nợ 131, không "giảm phải thu" ----
@@ -1210,13 +1225,50 @@ function testAuditCustomerPaymentBridgeIdentity() {
   assert.equal(rec.detailClose, 1530);
   assert.equal(rec.closeMatched, true, "Khớp still compares ledger vs Σ real 131 lines");
   assert.equal(rec.refund331Adj, 170, "bridge = Nợ 331 payments to customers (100 + 70)");
-  assert.equal(rec.kpiNet, (630) + (70) + (1000 - 300));
+  assert.equal(rec.kpiNet, (630) + (70) + 1000, "KPI ròng phải thu chỉ gồm phía 131; khoản phải trả 300 của đối tác hai chiều không bù trừ");
   assert.equal(rec.ledgerClose + rec.refund331Adj + rec.other331Adj, rec.kpiNet, "Sổ cái + bridge + other331Adj = KPI ròng");
-  assert.equal(rec.other331Adj, -300, "dual-role genuine 331 payable");
+  assert.equal(rec.other331Adj, 0, "dual-role genuine 331 payable stays out of the receivable bridge");
   const html = renderAudit(ctx);
   assert.ok(html.includes("Phiếu chi cho khách hạch toán Nợ 331 (đọc là Nợ 131 theo chuẩn)"), "renamed bridge line");
   assert.ok(html.includes("+170"), "bridge rendered with + sign");
   assert.ok(!html.includes("cấn trừ phải thu"), "old backwards wording removed");
+}
+
+function kpiTiles(ctx) {
+  ctx.renderDebtOverview(ctx.calculatePartnerDebts(), { fromDate: "", toDate: "" });
+  const html = ctx.document.getElementById("debt-overview-kpis").innerHTML;
+  const values = [...html.matchAll(/kpi-label">([^<]+)<\/span>\s*<span class="kpi-value font-numeric">([^<]+)<\/span>/g)];
+  return Object.fromEntries(values.map(m => [m[1], m[2]]));
+}
+
+function testKpiTilesClassifyByRoleNotDeclaredType() {
+  const ctx = loadDebtWithLedger();
+  ctx.state.partners = [
+    { id: "DN01", name: "Công ty chỉ bán cho mình", type: "enterprise" },
+    { id: "NCC2", name: "NCC cũng mua hàng", type: "supplier" },
+    { id: "KH01", name: "Khách", type: "retail" }
+  ];
+  ctx.state.partnerOpeningBalances = {};
+  ctx.state.vouchers = [
+    { id: "NK1", type: "purchase", date: "2026-01-01", partnerId: "DN01", entries: [{ debit: "156", credit: "331", amount: 500 }] },
+    { id: "BH2", type: "sales", date: "2026-01-02", partnerId: "NCC2", entries: [{ debit: "131", credit: "511", amount: 100 }] },
+    { id: "NK2", type: "purchase", date: "2026-01-03", partnerId: "NCC2", entries: [{ debit: "156", credit: "331", amount: 300 }] },
+    { id: "BH3", type: "sales", date: "2026-01-04", partnerId: "KH01", entries: [{ debit: "131", credit: "511", amount: 1000 }] },
+    { id: "PT3", type: "receipt", date: "2026-01-05", partnerId: "KH01", entries: [{ debit: "111", credit: "131", amount: 1200 }] },
+    { id: "NK9", type: "purchase", date: "2026-01-06", partnerId: "GONE", entries: [{ debit: "156", credit: "331", amount: 70 }] }
+  ];
+  const rows = ctx.calculatePartnerDebts();
+  const parts = id => ctx.getDebtKpiParts(rows.find(d => d.id === id));
+  assert.deepEqual({ ...parts("DN01") }, { receivable: 0, overpaid: 0, payable: 500, supplierReceivable: 0 }, "enterprise with only Có 331 is a payable, not an overpaid customer");
+  assert.deepEqual({ ...parts("NCC2") }, { receivable: 100, overpaid: 0, payable: 300, supplierReceivable: 0 }, "dual-role: 131 and 331 sides counted once each");
+  assert.deepEqual({ ...parts("KH01") }, { receivable: 0, overpaid: 200, payable: 0, supplierReceivable: 0 });
+  assert.deepEqual({ ...parts("__UNMATCHED__") }, { receivable: 0, overpaid: 0, payable: 70, supplierReceivable: 0 }, "orphan 331 balance is a payable");
+  const tiles = kpiTiles(ctx);
+  assert.equal(tiles["Tổng Phải Thu"], "100");
+  assert.equal(tiles["Tổng Phải Trả NCC"], String(500 + 300 + 70));
+  assert.equal(tiles["Đối tác trả thừa"], "1", "only the real customer overpayment");
+  const rec = ctx.computeDebt131Reconciliation(rows, "", "");
+  assert.equal(rec.kpiNet, 100 - 200);
 }
 
 function testAuditFlagsPossibleDoubleRefund() {
@@ -1303,6 +1355,7 @@ async function runAll() {
   testFifoRefundDoesNotSettleInvoices();
   testAuditCustomerPaymentBridgeIdentity();
   testAuditFlagsPossibleDoubleRefund();
+  testKpiTilesClassifyByRoleNotDeclaredType();
   console.log("debt-audit-tests.js: all tests passed");
 }
 
