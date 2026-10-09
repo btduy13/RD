@@ -644,7 +644,7 @@ function appendUnmatchedDebtRow(tbody, d) {
     <td style="text-align:center;"></td>
     <td style="font-weight:bold; color:var(--color-danger);">⚠</td>
     <td style="font-weight:700;">
-      <a href="#" onclick="viewUnmatchedPartnerLedger(); return false;" class="debt-unmatched-link" title="Xem sổ chứng từ chưa khớp">${d.name}</a>
+      <a href="#" onclick="viewUnmatchedPartnerLedger(); return false;" class="debt-unmatched-link" title="Xem sổ chứng từ chưa khớp">${escapeDebtAuditText(d.name)}</a>
       <div class="debt-unmatched-codes">${orphanPreview}</div>
       ${d.orphanOpeningBalances && d.orphanOpeningBalances.length ? `<div class="debt-unmatched-codes">Số dư đầu kỳ chưa xác minh: Nợ ${formatVND(d.orphanOpeningDebit)} / Có ${formatVND(d.orphanOpeningCredit)} (chưa cộng vào tổng)</div>` : ""}
     </td>
@@ -765,8 +765,8 @@ function viewUnmatchedPartnerLedger() {
       tr.setAttribute("data-id", escapedViewId);
       tr.innerHTML = `
         <td>${formatDateDisplay(le.date)}</td>
-        <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${le.id}</a> <span style="font-size:11px; color:var(--color-danger); font-weight:700;">[${escapeHtmlAttr(unmatchedPartnerLabel(le.partnerId))}]</span><button class="btn btn-secondary btn-sm" onclick="editOrderFromLedger('${escapedViewId}', '${escapeHtmlAttr(le.voucherType)}')" style="margin-left:6px;">Sửa liên kết</button></td>
-        <td>${le.desc || ""}</td>
+        <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${escapeDebtAuditText(le.id)}</a> <span style="font-size:11px; color:var(--color-danger); font-weight:700;">[${escapeHtmlAttr(unmatchedPartnerLabel(le.partnerId))}]</span><button class="btn btn-secondary btn-sm" onclick="editOrderFromLedger('${escapedViewId}', '${escapeHtmlAttr(le.voucherType)}')" style="margin-left:6px;">Sửa liên kết</button></td>
+        <td>${escapeDebtAuditText(le.desc || "")}</td>
         <td style="text-align:center; font-weight:700;">${le.offsetAccount || ""}</td>
         <td style="text-align:right; font-weight:500;">${le.debit > 0 ? formatVND(le.debit).replace("đ", "") : "-"}</td>
         <td style="text-align:right; font-weight:500;">${le.credit > 0 ? formatVND(le.credit).replace("đ", "") : "-"}</td>`;
@@ -865,8 +865,8 @@ function renderDebtsTable() {
         <td style="text-align: center;">
           <input type="checkbox" class="debt-checkbox" value="${escapedId}" onchange="updateBatchDebtsUI()">
         </td>
-        <td style="font-weight:bold; color:var(--color-primary);">${d.id}</td>
-        <td style="font-weight:600;"><a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${d.name}</a></td>
+        <td style="font-weight:bold; color:var(--color-primary);">${escapeDebtAuditText(d.id)}</td>
+        <td style="font-weight:600;"><a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${escapeDebtAuditText(d.name)}</a></td>
         <td style="text-align:right; font-weight:500;" class="font-numeric">${d.openingDebit > 0 ? formatVND(d.openingDebit).replace("đ", "") : "-"}</td>
         <td style="text-align:right; font-weight:500;" class="font-numeric">${d.openingCredit > 0 ? formatVND(d.openingCredit).replace("đ", "") : "-"}</td>
         <td style="text-align:right; color:var(--color-primary); font-weight:500;" class="font-numeric">${d.debitTrans > 0 ? formatVND(d.debitTrans).replace("đ", "") : "-"}</td>
@@ -1356,12 +1356,12 @@ function viewGroupedPartnerLedger(partnerName, childIds) {
       tr.setAttribute('data-id', escapeHtmlAttr(le.id));
       // Hiển thị mã đối tác con nếu có nhiều mã
       const partnerIdNote = matchingPartners.length > 1
-        ? ` <span style="font-size:11px; color:var(--text-muted); font-style:italic;">[${le.partnerId}]</span>`
+        ? ` <span style="font-size:11px; color:var(--text-muted); font-style:italic;">[${escapeDebtAuditText(le.partnerId)}]</span>`
         : '';
       tr.innerHTML = `
         <td>${formatDateDisplay(le.date)}</td>
-        <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${le.id}</a>${partnerIdNote}</td>
-        <td>${le.desc}</td>
+        <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${escapeDebtAuditText(le.id)}</a>${partnerIdNote}</td>
+        <td>${escapeDebtAuditText(le.desc)}</td>
         <td style="text-align:center; font-weight:700;">${le.offsetAccount}</td>
         <td style="text-align:right; font-weight:500;">${le.debit > 0 ? formatVND(le.debit).replace('đ', '') : '-'}</td>
         <td style="text-align:right; font-weight:500;">${le.credit > 0 ? formatVND(le.credit).replace('đ', '') : '-'}</td>
@@ -1438,11 +1438,11 @@ function viewLedgerByIds(partnerIds, groupName) {
       tr2.setAttribute('data-subtype', vType);
       tr2.setAttribute('data-id', escapedViewId);
       const partnerNote = matchingPartners.length > 1
-        ? ` <span style="font-size:11px; color:var(--text-muted); font-style:italic;">[${le.partnerId}]</span>` : '';
+        ? ` <span style="font-size:11px; color:var(--text-muted); font-style:italic;">[${escapeDebtAuditText(le.partnerId)}]</span>` : '';
       tr2.innerHTML = `
         <td>${formatDateDisplay(le.date)}</td>
-        <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${le.id}</a>${partnerNote}</td>
-        <td>${le.desc}</td>
+        <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${escapeDebtAuditText(le.id)}</a>${partnerNote}</td>
+        <td>${escapeDebtAuditText(le.desc)}</td>
         <td style="text-align:center; font-weight:700;">${le.offsetAccount}</td>
         <td style="text-align:right; font-weight:500;">${le.debit > 0 ? formatVND(le.debit).replace('đ', '') : '-'}</td>
         <td style="text-align:right; font-weight:500;">${le.credit > 0 ? formatVND(le.credit).replace('đ', '') : '-'}</td>
@@ -1508,7 +1508,7 @@ function viewPartnerLedger(partnerId) {
 
       projects.forEach(proj => {
         optionsHTML += `
-          <option value="project:${proj.id}">${proj.name}</option>
+          <option value="project:${escapeDebtAuditText(proj.id)}">${escapeDebtAuditText(proj.name)}</option>
         `;
       });
 
@@ -1636,12 +1636,12 @@ function renderLedgerForTarget(targetId, isCombined) {
       tr.setAttribute("data-subtype", vType);
       tr.setAttribute("data-id", escapeHtmlAttr(le.id));
 
-      const partnerNote = isCombined ? ` <span style="font-size:11px; color:var(--text-muted); font-style:italic;">[${le.partnerId}]</span>` : '';
+      const partnerNote = isCombined ? ` <span style="font-size:11px; color:var(--text-muted); font-style:italic;">[${escapeDebtAuditText(le.partnerId)}]</span>` : '';
 
       tr.innerHTML = `
         <td>${formatDateDisplay(le.date)}</td>
-        <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${displayId}</a>${partnerNote}</td>
-        <td>${le.desc}</td>
+        <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedViewId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${escapeDebtAuditText(displayId)}</a>${partnerNote}</td>
+        <td>${escapeDebtAuditText(le.desc)}</td>
         <td style="text-align:center; font-weight:700;">${le.offsetAccount}</td>
         <td style="text-align:right; font-weight:500;">${le.debit > 0 ? formatVND(le.debit).replace("đ", "") : "-"}</td>
         <td style="text-align:right; font-weight:500;">${le.credit > 0 ? formatVND(le.credit).replace("đ", "") : "-"}</td>
@@ -1684,7 +1684,7 @@ function renderLedgerOrdersForTarget(matchingIds) {
       tr.innerHTML = `
         <td style="font-weight:bold;"><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedId}'); return false;" style="color:var(--color-primary);">${v.id}</a></td>
         <td>${formatDateDisplay(v.date)}</td>
-        <td>${v.description || ""}</td>
+        <td>${escapeDebtAuditText(v.description || "")}</td>
         <td style="text-align:right;" class="font-numeric">${formatVND(v.totalAmount).replace("đ", "")}</td>
         <td style="text-align:right; font-weight:700; color:var(--color-warning);" class="font-numeric">${formatVND(v.remainingDebt).replace("đ", "")}</td>
         <td style="text-align:center;">
@@ -2084,14 +2084,14 @@ function previewPartnerDebtNotice(partnerId) {
     const dateFormatted = getShortDateStr(le.date);
 
     const subCodeStr = matchingPartners.length > 1
-      ? `<br><span style="font-size: 10.5px; color:#555; font-style:italic;">[${le.partnerId}]</span>`
+      ? `<br><span style="font-size: 10.5px; color:#555; font-style:italic;">[${escapeDebtAuditText(le.partnerId)}]</span>`
       : "";
 
     tableRowsHtml += `
       <tr>
         <td style="text-align: center; border: 1px solid #000; padding: 6px;">${dateFormatted}</td>
-        <td style="text-align: center; font-family: monospace; font-weight: 500; border: 1px solid #000; padding: 6px;">${le.id}${subCodeStr}</td>
-        <td style="border: 1px solid #000; padding: 6px;">${le.desc}</td>
+        <td style="text-align: center; font-family: monospace; font-weight: 500; border: 1px solid #000; padding: 6px;">${escapeDebtAuditText(le.id)}${subCodeStr}</td>
+        <td style="border: 1px solid #000; padding: 6px;">${escapeDebtAuditText(le.desc)}</td>
         <td style="text-align: right; font-family: 'Times New Roman', serif; border: 1px solid #000; padding: 6px;" class="font-numeric">${formatDebtAmount(amount)}</td>
         <td style="text-align: right; font-family: 'Times New Roman', serif; font-weight: bold; border: 1px solid #000; padding: 6px;" class="font-numeric">${formatDebtAmount(currentBalance)}</td>
       </tr>
@@ -2131,13 +2131,13 @@ function previewPartnerDebtNotice(partnerId) {
 
       <!-- Info -->
       <div class="debt-notice-info-grid">
-        <div><strong>Kính gửi:</strong> ${recipientName}</div>
+        <div><strong>Kính gửi:</strong> ${escapeDebtAuditText(recipientName)}</div>
         <div><strong>Kỳ:</strong> Từ ngày ${fromDateStr} đến ngày ${toDateStr}</div>
         
-        <div><strong>Đơn vị:</strong> ${unitTextValue}</div>
+        <div><strong>Đơn vị:</strong> ${escapeDebtAuditText(unitTextValue)}</div>
         <div><strong>Số dư đầu kỳ:</strong> <span style="font-weight: bold;">${formatDebtAmount(openingVal)} đ</span></div>
         
-        <div><strong>Địa chỉ:</strong> ${addressText}</div>
+        <div><strong>Địa chỉ:</strong> ${escapeDebtAuditText(addressText)}</div>
         <div><strong>Số dư cuối kỳ:</strong> <span style="font-weight: bold; color: var(--color-primary);">${formatDebtAmount(closingVal)} đ</span></div>
         
         <div><strong>Mã số thuế:</strong> ${isGrouped ? "" : (p.taxCode || "")}</div>
@@ -2268,9 +2268,9 @@ function renderPartnerLedgerOrders() {
     tr.setAttribute("data-subtype", o.type);
     tr.setAttribute("data-id", escapedOrderId);
     tr.innerHTML = `
-      <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedOrderId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${o.id}</a></td>
+      <td><a href="#" onclick="closeModal('modal-view-partner-ledger'); viewVoucher('${escapedOrderId}'); return false;" style="font-weight:bold; color:var(--color-primary);">${escapeDebtAuditText(o.id)}</a></td>
       <td>${formatDateDisplay(o.date)}</td>
-      <td>${o.description}</td>
+      <td>${escapeDebtAuditText(o.description)}</td>
       <td style="text-align:right; font-weight:500;">${formatVND(totalAmt).replace("đ", "")}</td>
       <td style="text-align:right; font-weight:700; color:${o.remainingDebt > 0 ? 'var(--color-warning)' : 'var(--color-success)'};">${formatVND(o.remainingDebt).replace("đ", "")}</td>
       <td style="text-align:center; display:flex; justify-content:center; gap:4px;">
@@ -2310,7 +2310,7 @@ function promptEditOrderDebt(voucherId) {
 
     const partnerName = getPartnerNameForVoucher(v);
     document.getElementById("edit-debt-info-text").innerHTML = `
-      <strong>Mã hóa đơn:</strong> ${v.id}<br>
+      <strong>Mã hóa đơn:</strong> ${escapeDebtAuditText(v.id)}<br>
       <strong>Đối tác:</strong> ${partnerName}<br>
       <strong>Tổng tiền hóa đơn:</strong> ${formatVND(totalAmt)}
     `;
@@ -2352,8 +2352,8 @@ function promptEditPartnerOpeningDebt(partnerId) {
 
     const typeLabel = p.type !== "supplier" ? "Khách hàng" : "Nhà cung cấp";
     document.getElementById("edit-debt-info-text").innerHTML = `
-      <strong>Mã đối tác:</strong> ${p.id}<br>
-      <strong>Tên đối tác:</strong> ${p.name}<br>
+      <strong>Mã đối tác:</strong> ${escapeDebtAuditText(p.id)}<br>
+      <strong>Tên đối tác:</strong> ${escapeDebtAuditText(p.name)}<br>
       <strong>Phân loại:</strong> ${typeLabel}
     `;
 
@@ -3436,8 +3436,8 @@ function renderDebtsIndividualTable() {
     tr.setAttribute('data-type', 'partner'); tr.setAttribute('data-id', escapedId);
     tr.innerHTML = `
       <td style="text-align:center;"><input type="checkbox" class="debt-checkbox" value="${escapedId}"></td>
-      <td style="font-weight:bold; color:var(--color-primary);">${d.id}</td>
-      <td style="font-weight:600;"><a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline;">${d.name}</a></td>
+      <td style="font-weight:bold; color:var(--color-primary);">${escapeDebtAuditText(d.id)}</td>
+      <td style="font-weight:600;"><a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline;">${escapeDebtAuditText(d.name)}</a></td>
       <td style="text-align:right;" class="font-numeric">${d.openingDebit > 0 ? formatVND(d.openingDebit).replace('đ', '') : '-'}</td>
       <td style="text-align:right;" class="font-numeric">${d.openingCredit > 0 ? formatVND(d.openingCredit).replace('đ', '') : '-'}</td>
       <td style="text-align:right; color:var(--color-primary);" class="font-numeric">${d.debitTrans > 0 ? formatVND(d.debitTrans).replace('đ', '') : '-'}</td>
@@ -3656,8 +3656,8 @@ window.toggleCompanyChildRows = function (globalIdx, trElement) {
   sortedChildren.forEach(child => {
     subRowsHtml += `
       <tr style="border-bottom: 1px solid var(--border-color); background: var(--bg-primary);">
-        <td style="padding: 8px 12px; font-weight: 500; color: var(--text-primary); text-align: left;">${child.name}</td>
-        <td style="padding: 8px 12px; font-size:11px; text-align:center; font-family: monospace; color: var(--text-secondary);">${child.id}</td>
+        <td style="padding: 8px 12px; font-weight: 500; color: var(--text-primary); text-align: left;">${escapeDebtAuditText(child.name)}</td>
+        <td style="padding: 8px 12px; font-size:11px; text-align:center; font-family: monospace; color: var(--text-secondary);">${escapeDebtAuditText(child.id)}</td>
         <td style="padding: 8px 12px; text-align:right; font-family: monospace;" class="font-numeric">${child.openingDebit > 0 ? formatVND(child.openingDebit).replace('đ', '') : '-'}</td>
         <td style="padding: 8px 12px; text-align:right; font-family: monospace;" class="font-numeric">${child.openingCredit > 0 ? formatVND(child.openingCredit).replace('đ', '') : '-'}</td>
         <td style="padding: 8px 12px; text-align:right; color:var(--color-primary); font-family: monospace;" class="font-numeric">${child.debitTrans > 0 ? formatVND(child.debitTrans).replace('đ', '') : '-'}</td>
@@ -3665,7 +3665,7 @@ window.toggleCompanyChildRows = function (globalIdx, trElement) {
         <td style="padding: 8px 12px; text-align:right; color:var(--color-success); font-family: monospace; font-weight: 700;" class="font-numeric">${child.closingDebit > 0 ? formatVND(child.closingDebit).replace('đ', '') : '-'}</td>
         <td style="padding: 8px 12px; text-align:right; color:var(--color-warning); font-family: monospace; font-weight: 700;" class="font-numeric">${child.closingCredit > 0 ? formatVND(child.closingCredit).replace('đ', '') : '-'}</td>
         <td style="padding: 8px 12px; text-align:center;">
-          <button class="btn btn-secondary btn-sm" onclick="viewPartnerLedger('${child.id}')" style="padding: 2px 8px; font-size: 10px;">Xem Sổ</button>
+          <button class="btn btn-secondary btn-sm" onclick="viewPartnerLedger('${escapeHtmlAttr(child.id)}')" style="padding: 2px 8px; font-size: 10px;">Xem Sổ</button>
         </td>
       </tr>
     `;
@@ -3675,7 +3675,7 @@ window.toggleCompanyChildRows = function (globalIdx, trElement) {
     <td colspan="9" style="padding: 12px 24px; background: var(--bg-tertiary);">
       <div style="border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sm);">
         <div style="padding: 10px 16px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); font-weight: 700; font-size: 12px; color: var(--color-primary); display:flex; align-items:center; justify-content:space-between;">
-          <span>🏢 Chi tiết công nợ các công trình thuộc: <strong>${group.name}</strong></span>
+          <span>🏢 Chi tiết công nợ các công trình thuộc: <strong>${escapeDebtAuditText(group.name)}</strong></span>
           <span style="font-size:11px; font-weight:500; color:var(--text-muted);">Nhấp chuột phải lần nữa vào dòng công ty để đóng</span>
         </div>
         <table style="width:100%; border-collapse: collapse; font-size: 11px;">
