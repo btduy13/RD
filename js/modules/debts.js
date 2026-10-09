@@ -323,13 +323,16 @@ function calculatePartnerDebtLedger(matchingPartners, fromDate = "", toDate = ""
 
     let totalOpeningDebit = 0;
     let totalOpeningCredit = 0;
+    const priorByPartner = new Map();
     partners.forEach(item => {
         const op = state.partnerOpeningBalances[item.id] || { debit: 0, credit: 0 };
         const prior = computePriorDebtCountersForPartner(item.id, item.type, fromDate);
+        priorByPartner.set(item.id, prior);
         const sides = computeDebtSides(op, prior, createEmptyDebtCounters(), item.type);
         totalOpeningDebit += sides.openingDebit;
         totalOpeningCredit += sides.openingCredit;
     });
+    const periodByPartner = new Map(partners.map(item => [item.id, createEmptyDebtCounters()]));
 
     const openingVal = role === "supplier"
         ? totalOpeningCredit - totalOpeningDebit
@@ -343,6 +346,8 @@ function calculatePartnerDebtLedger(matchingPartners, fromDate = "", toDate = ""
         if (fromDate && v.date < fromDate) return;
         if (toDate && v.date > toDate) return;
 
+        const periodCounters = periodByPartner.get(resolvePid(v));
+        if (periodCounters) getVoucherDebtEntries(v).forEach(e => accumulateDebtEntryLines(e, periodCounters, v.type));
         const extracted = extractLedgerAmountsFromVoucher(v, role);
         if (extracted.debitAmount <= 0 && extracted.creditAmount <= 0) return;
         ledgerEntries.push({
@@ -363,8 +368,23 @@ function calculatePartnerDebtLedger(matchingPartners, fromDate = "", toDate = ""
         ? openingVal + creditSum - debitSum
         : openingVal + debitSum - creditSum;
 
+    // Số dư cuối kỳ theo phía, cùng quy tắc với danh sách: các mã cấn trừ trong cùng 131 hoặc
+    // cùng 331; nếu còn cả phải thu 131 lẫn phải trả 331 thì hiện cả hai bên, không bù trừ chéo.
+    let net131 = 0;
+    let net331 = 0;
+    partners.forEach(item => {
+        const op = state.partnerOpeningBalances[item.id] || { debit: 0, credit: 0 };
+        const parts = computeDebtSides(op, priorByPartner.get(item.id), periodByPartner.get(item.id), item.type);
+        net131 += parts.kpiReceivable - parts.kpiOverpaid;
+        net331 += parts.kpiPayable - parts.kpiSupplierReceivable;
+    });
+    const closingBothSides = net131 > 1 && net331 > 1
+        ? { debit: net131, credit: net331 }
+        : null;
+
     return {
         role,
+        closingBothSides,
         matchingIds,
         openingDebit: totalOpeningDebit,
         openingCredit: totalOpeningCredit,
@@ -374,6 +394,17 @@ function calculatePartnerDebtLedger(matchingPartners, fromDate = "", toDate = ""
         closingVal,
         ledgerEntries
     };
+}
+
+// Chữ "Số dư cuối kỳ" của sổ chi tiết: hai bên khi đối tác vừa còn phải thu 131 vừa còn phải trả 331.
+function formatLedgerClosingText(ledger) {
+    if (ledger.closingBothSides) {
+        return `${formatVND(ledger.closingBothSides.debit)} (Nợ 131) / ${formatVND(ledger.closingBothSides.credit)} (Có 331)`;
+    }
+    const v = ledger.closingVal;
+    return ledger.role === "supplier"
+        ? (v >= 0 ? `${formatVND(v)} (Có)` : `${formatVND(-v)} (Nợ)`)
+        : (v >= 0 ? `${formatVND(v)} (Nợ)` : `${formatVND(-v)} (Có)`);
 }
 
 function refreshOpenPartnerLedgerModal() {
@@ -1373,9 +1404,7 @@ function viewGroupedPartnerLedger(partnerName, childIds) {
   }
 
   // Tính số dư cuối kỳ gộp (role 'both' dùng công thức customer, khớp với openingVal ở trên)
-  const closingText = ledger.role !== 'supplier'
-    ? (closingVal >= 0 ? `${formatVND(closingVal)} (Nợ)` : `${formatVND(-closingVal)} (Có)`)
-    : (closingVal >= 0 ? `${formatVND(closingVal)} (Có)` : `${formatVND(-closingVal)} (Nợ)`);
+  const closingText = formatLedgerClosingText(ledger);
 
   document.getElementById('partner-ledger-closing').innerText = closingText;
 
@@ -1453,9 +1482,7 @@ function viewLedgerByIds(partnerIds, groupName) {
     });
   }
 
-  const closingText = ledger.role === 'customer'
-    ? (closingVal >= 0 ? `${formatVND(closingVal)} (Nợ)` : `${formatVND(-closingVal)} (Có)`)
-    : (closingVal >= 0 ? `${formatVND(closingVal)} (Có)` : `${formatVND(-closingVal)} (Nợ)`);
+  const closingText = formatLedgerClosingText(ledger);
   document.getElementById('partner-ledger-closing').innerText = closingText;
 
   const parent = matchingPartners.find(p => p.type === 'enterprise');
@@ -1653,12 +1680,7 @@ function renderLedgerForTarget(targetId, isCombined) {
   }
 
   let closingVal = ledger.closingVal;
-  let closingText = "";
-  if (ledger.role === "supplier") {
-    closingText = closingVal >= 0 ? `${formatVND(closingVal)} (Có)` : `${formatVND(-closingVal)} (Nợ)`;
-  } else {
-    closingText = closingVal >= 0 ? `${formatVND(closingVal)} (Nợ)` : `${formatVND(-closingVal)} (Có)`;
-  }
+  const closingText = formatLedgerClosingText(ledger);
 
   document.getElementById("partner-ledger-closing").innerText = closingText;
 

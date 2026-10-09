@@ -603,6 +603,28 @@ function testCompanyDetailSheetTotalIsDebtMovement() {
   assert.equal(total[9], 0, "sale 990 (incl. VAT) − receipt 990; cash sale adds nothing");
 }
 
+function testDualRoleLedgerShowsBothSidesLikeTheList() {
+  const ctx = loadDebtModule();
+  const partner = { id: "BOTH1", name: "Hai chiều", type: "supplier" };
+  const split = [{ id: "KH-S1", name: "Khách", type: "retail" }, { id: "KH-S2", name: "Khách", type: "retail" }];
+  ctx.state.partners = [partner, ...split];
+  ctx.state.vouchers = [
+    { id: "BH1", type: "sales", date: "2026-01-02", partnerId: "BOTH1", entries: [{ debit: "131", credit: "511", amount: 100 }] },
+    { id: "NK1", type: "purchase", date: "2026-01-03", partnerId: "BOTH1", entries: [{ debit: "156", credit: "331", amount: 300 }] },
+    { id: "BH2", type: "sales", date: "2026-01-02", partnerId: "KH-S1", entries: [{ debit: "131", credit: "511", amount: 400 }] },
+    { id: "PT2", type: "receipt", date: "2026-01-04", partnerId: "KH-S2", entries: [{ debit: "111", credit: "131", amount: 400 }] }
+  ];
+  const row = ctx.calculatePartnerDebts().find(d => d.id === "BOTH1");
+  assert.equal(row.closingDebit, 100);
+  assert.equal(row.closingCredit, 300);
+  const ledger = ctx.calculatePartnerDebtLedger([partner], "", "", "supplier");
+  assert.deepEqual({ ...ledger.closingBothSides }, { debit: 100, credit: 300 }, "ledger keeps both sides like the list row");
+  assert.equal(ctx.formatLedgerClosingText(ledger), "100 (Nợ 131) / 300 (Có 331)");
+  const splitLedger = ctx.calculatePartnerDebtLedger(split, "", "", "customer");
+  assert.equal(splitLedger.closingBothSides, null, "split customer codes still net to one balance");
+  assert.equal(ctx.formatLedgerClosingText(splitLedger), "0 (Nợ)");
+}
+
 function testFifoReceiptAllocatesSales() {
   const ctx = loadAccountingFifo();
   ctx.state.vouchers = [
@@ -808,6 +830,7 @@ async function runAll() {
   testLedgerMatchesListForUndatedAndBadAmounts();
   testDetailedExportResolvesPartnerLikeTheList();
   testCompanyDetailSheetTotalIsDebtMovement();
+  testDualRoleLedgerShowsBothSidesLikeTheList();
   testSupplierOverpaymentShowsAsReceivable();
   testFifoReceiptAllocatesSales();
   testDebtAdjustmentPreserved();
