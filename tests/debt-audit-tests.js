@@ -713,6 +713,59 @@ function testAuditEscapesOrphanPartnerIds() {
   assert.ok(html.includes("&lt;img src=x&gt;"));
 }
 
+// ---- Final fix wave ----
+
+// F1: phiếu thu/chi có đối tác nhưng không có dòng 131/331 phải hiện trong hộp kiểm toán
+function testAuditFlagsPartnerCashWithoutDebtLines() {
+  const ctx = loadDebtWithLedger();
+  ctx.state.partners = [
+    { id: "KH01", name: "Khách <b>01</b>", type: "retail" },
+    { id: "NV01", name: "Nhân viên A", type: "supplier" }
+  ];
+  ctx.state.initialBalances = {};
+  ctx.state.vouchers = [
+    // Thu tiền khách nhưng hạch toán Có 341 (vay) — không chạm 131
+    { id: "PT_341", type: "receipt", date: "2026-03-05", partnerId: "KH01", paymentMethod: "112", amount: 2000,
+      entries: [{ debit: "112", credit: "341", amount: 2000 }] },
+    // Chi lương cho đối tác — Nợ 334, không chạm 331
+    { id: "PC_334", type: "payment", date: "2026-03-06", partnerId: "NV01", paymentMethod: "111", amount: 1500,
+      entries: [{ debit: "334", credit: "111", amount: 1500 }] },
+    // Không tính: thu nợ thật Có 131
+    { id: "PT_131", type: "receipt", date: "2026-03-07", partnerId: "KH01", paymentMethod: "111", amount: 700,
+      entries: [{ debit: "111", credit: "131", amount: 700 }] },
+    // Không tính: không có đối tác
+    { id: "PT_NOP", type: "receipt", date: "2026-03-08", partnerId: "", paymentMethod: "111", amount: 900,
+      entries: [{ debit: "111", credit: "711", amount: 900 }] },
+    // Ngoài kỳ lọc
+    { id: "PT_511", type: "receipt", date: "2026-05-01", partnerId: "KH01", paymentMethod: "111", amount: 300,
+      entries: [{ debit: "111", credit: "511", amount: 300 }] }
+  ];
+
+  const range = { fromDate: "2026-03-01", toDate: "2026-03-31" };
+  const rec = ctx.computeDebt131Reconciliation(ctx.calculatePartnerDebts(range.fromDate, range.toDate), range.fromDate, range.toDate);
+  const diag = plain(rec.partnerCashWithoutDebt);
+  assert.equal(diag.count, 2, "one receipt + one payment flagged");
+  assert.equal(diag.total, 3500);
+  assert.equal(diag.receipts.count, 1);
+  assert.equal(diag.receipts.total, 2000);
+  assert.deepStrictEqual(diag.receipts.accounts, { "341": 2000 }, "receipt credit accounts listed");
+  assert.equal(diag.payments.count, 1);
+  assert.equal(diag.payments.total, 1500);
+  assert.deepStrictEqual(diag.payments.accounts, { "334": 1500 }, "payment debit accounts listed");
+  assert.deepStrictEqual(diag.rows.map(r => r.id), ["PT_341", "PC_334"]);
+
+  // Không lọc ngày: phiếu Có 511 ngoài kỳ cũng được đếm
+  const recAll = ctx.computeDebt131Reconciliation(ctx.calculatePartnerDebts(), "", "");
+  assert.equal(recAll.partnerCashWithoutDebt.count, 3, "date filter respected");
+  assert.equal(recAll.partnerCashWithoutDebt.receipts.accounts["511"], 300);
+
+  const html = renderAudit(ctx, range);
+  assert.ok(html.includes("Phiếu thu/chi có đối tác nhưng không hạch toán 131/331"), "diagnostic line shown");
+  assert.ok(html.includes("PT_341") && html.includes("PC_334"), "list rows rendered");
+  assert.ok(!html.includes("PT_511"), "list respects date filter");
+  assert.ok(!html.includes("Khách <b>01</b>") && html.includes("Khách &lt;b&gt;01&lt;/b&gt;"), "partner name escaped");
+}
+
 async function runAll() {
   testReceiptWithLoanEntriesDoesNotTouch131();
   testPaymentWithSalaryEntriesDoesNotTouch331();
@@ -737,6 +790,7 @@ async function runAll() {
   testAudit131RespectsPeriodFilter();
   testAudit131CreditNatureInitialBalance();
   testAuditEscapesOrphanPartnerIds();
+  testAuditFlagsPartnerCashWithoutDebtLines();
   console.log("debt-audit-tests.js: all tests passed");
 }
 

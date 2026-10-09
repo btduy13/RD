@@ -2878,6 +2878,54 @@ function getLedgerNetDebitBalance(acctCode, toDate) {
   return ib && ib.type === "credit" ? -bal : bal;
 }
 
+// Phiếu thu/chi CÓ đối tác nhưng bút toán thật không chạm 131/331 (vd. thu khách hạch toán
+// Có 341, chi Nợ 334/1388/211). Không làm thay đổi công nợ, nên cả Sổ cái lẫn chi tiết đều
+// không thấy — liệt kê riêng để kế toán rà soát. Chỉ đọc, không sửa dữ liệu.
+function computePartnerCashWithoutDebtLines(fromDate = "", toDate = "") {
+  const result = {
+    count: 0, total: 0,
+    receipts: { count: 0, total: 0, accounts: {} },
+    payments: { count: 0, total: 0, accounts: {} },
+    rows: []
+  };
+  const partnerNames = new Map();
+  (state.partners || []).forEach(p => { if (p) partnerNames.set(String(p.id), p.name || ""); });
+  (state.vouchers || []).forEach(v => {
+    if (!v || (v.type !== "receipt" && v.type !== "payment")) return;
+    if (!v.partnerId) return;
+    if (fromDate && v.date < fromDate) return;
+    if (toDate && v.date > toDate) return;
+    // Chỉ chứng từ có bút toán thật; chứng từ cũ không có entries vẫn suy ra 131/331.
+    if (!Array.isArray(v.entries) || v.entries.length === 0) return;
+    if (getVoucherDebtEntries(v).length > 0) return;
+    const bucket = v.type === "receipt" ? result.receipts : result.payments;
+    const accounts = new Set();
+    let amount = 0;
+    v.entries.forEach(e => {
+      if (!e) return;
+      const amt = Number(e.amount) || 0;
+      const acc = String((v.type === "receipt" ? e.credit : e.debit) || "").trim() || "?";
+      amount += amt;
+      accounts.add(acc);
+      bucket.accounts[acc] = (bucket.accounts[acc] || 0) + amt;
+    });
+    bucket.count++;
+    bucket.total += amount;
+    result.count++;
+    result.total += amount;
+    const pid = String(v.partnerId);
+    result.rows.push({
+      id: v.id, date: v.date || "", type: v.type,
+      partnerId: pid,
+      partnerName: partnerNames.get(pid) || v.partnerName || "",
+      amount,
+      accounts: Array.from(accounts).join(", ")
+    });
+  });
+  result.rows.sort((a, b) => (a.date || "").localeCompare(b.date || "") || String(a.id || "").localeCompare(String(b.id || "")));
+  return result;
+}
+
 /**
  * Đối chiếu TK 131: Sổ cái thật ↔ Σ net131 của công nợ chi tiết ↔ KPI ròng.
  *   ledgerClose ± closeDiff = detailClose (Khớp khi |closeDiff| ≤ 1)
@@ -2922,7 +2970,8 @@ function computeDebt131Reconciliation(allDebts, fromDate = "", toDate = "") {
     closeMatched: available && Math.abs(closeDiff) <= 1,
     refund331Adj, other331Adj, kpiNet,
     initialLedgerOpening, partnerOpeningSum, initialOpeningDiff,
-    initialOpeningMatched: Math.abs(initialOpeningDiff) <= 1
+    initialOpeningMatched: Math.abs(initialOpeningDiff) <= 1,
+    partnerCashWithoutDebt: computePartnerCashWithoutDebtLines(fromDate, toDate)
   };
 }
 
@@ -2933,6 +2982,56 @@ function escapeDebtAuditText(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+const PARTNER_CASH_NO_DEBT_LIST_LIMIT = 200;
+
+function renderPartnerCashWithoutDebtBlock(diag, showDate) {
+  if (!diag) return "";
+  const esc = escapeDebtAuditText;
+  const label = 'Phiếu thu/chi có đối tác nhưng không hạch toán 131/331';
+  const line = (text, value, cls = '') => `<div class="debt-audit-line"><span class="debt-audit-line-label">${text}</span><span class="debt-audit-line-value font-numeric ${cls}">${value}</span></div>`;
+  if (!diag.count) {
+    return `
+      <div class="debt-audit-lines">${line(label, '0 phiếu', 'text-success')}</div>`;
+  }
+  const accountList = accounts => Object.entries(accounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([acc, amt]) => `TK ${esc(acc)}: ${formatVND(amt)}`)
+    .join("; ") || "-";
+  const shown = diag.rows.slice(0, PARTNER_CASH_NO_DEBT_LIST_LIMIT);
+  const rowsHtml = shown.map(r => `<tr>
+              <td>${esc(r.id)}</td>
+              <td>${showDate(r.date)}</td>
+              <td>${esc(r.partnerName ? `${r.partnerName} (${r.partnerId})` : r.partnerId)}</td>
+              <td class="text-right font-numeric">${formatVND(r.amount)}</td>
+              <td>${esc(r.accounts)}</td>
+            </tr>`).join("");
+  const moreNote = diag.rows.length > shown.length
+    ? `<p class="debt-alert-warning-note">Hiển thị ${shown.length}/${diag.rows.length} phiếu đầu tiên.</p>` : "";
+  return `
+      <div class="debt-alert-warning">
+        <div class="debt-alert-warning-header">
+          <span>${label}</span>
+          <span class="badge badge-danger">${diag.count.toLocaleString('vi-VN')} phiếu</span>
+        </div>
+        <div class="debt-alert-warning-body">
+          ${line('Tổng số tiền', formatVND(diag.total), 'text-danger')}
+          ${line(`Phiếu thu (${diag.receipts.count}) — TK ghi Có: ${accountList(diag.receipts.accounts)}`, formatVND(diag.receipts.total), 'text-warning')}
+          ${line(`Phiếu chi (${diag.payments.count}) — TK ghi Nợ: ${accountList(diag.payments.accounts)}`, formatVND(diag.payments.total), 'text-warning')}
+          <p class="debt-alert-warning-note">Các phiếu này không làm thay đổi công nợ nên Sổ cái 131 và công nợ chi tiết vẫn khớp. Cần kiểm tra lại tài khoản hạch toán (vd. thu tiền khách bị ghi Có 341).</p>
+          <details>
+            <summary>Xem danh sách phiếu</summary>
+            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+              <table class="data-table" style="font-size: 12px; width: 100%;">
+                <thead><tr><th>Số chứng từ</th><th>Ngày</th><th>Đối tác</th><th class="text-right">Số tiền</th><th>TK đối ứng</th></tr></thead>
+                <tbody>${rowsHtml}</tbody>
+              </table>
+            </div>
+            ${moreNote}
+          </details>
+        </div>
+      </div>`;
 }
 
 // =====================================================================
@@ -3111,6 +3210,7 @@ function renderDebtOverview(allDebts, dateRange) {
           </div>
         </div>
       </div>
+      ${renderPartnerCashWithoutDebtBlock(rec.partnerCashWithoutDebt, showDate)}
       ${unmatchedBucket ? `
       <div class="debt-alert-warning">
         <div class="debt-alert-warning-header">
@@ -3714,6 +3814,7 @@ window.viewGroupedPartnerLedger = viewGroupedPartnerLedger;
 window.classifyPartnerCategory = classifyPartnerCategory;
 window.renderDebtOverview = renderDebtOverview;
 window.computeDebt131Reconciliation = computeDebt131Reconciliation;
+window.computePartnerCashWithoutDebtLines = computePartnerCashWithoutDebtLines;
 window.viewUnmatchedPartnerLedger = viewUnmatchedPartnerLedger;
 window.showUnmatchedPartnerIds = showUnmatchedPartnerIds;
 window.renderDebtsIndividualTable = renderDebtsIndividualTable;
