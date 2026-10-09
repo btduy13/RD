@@ -6,7 +6,9 @@ function getPartnerTypeLabel(type) {
     enterprise: "Doanh nghiệp",
     project: "Công trình",
     retail: "Khách lẻ",
-    supplier: "Nhà cung cấp"
+    supplier: "Nhà cung cấp",
+    customer: "Khách hàng",
+    both: "Vừa khách vừa NCC"
   };
   return labels[type] || type;
 }
@@ -68,6 +70,23 @@ function stampPartnerSyncFields(entity) {
   if (!entity) return;
   entity._updatedAt = Date.now();
   if (typeof clientSessionId !== "undefined") entity._sessionId = clientSessionId;
+}
+
+// Mã đối tác so sánh không phân biệt hoa/thường và khoảng trắng hai đầu — giống cách
+// findExistingPartner tra cứu, để không tạo ra "KH001" và "kh001" song song.
+function partnerIdTaken(id, exceptId = "") {
+  const key = String(id || "").trim().toUpperCase();
+  if (!key) return false;
+  return (state.partners || []).some(p => String(p.id) !== String(exceptId) &&
+    String(p.id || "").trim().toUpperCase() === key);
+}
+
+// Mã tự sinh kiểu PREFIX### chưa ai dùng (đếm theo số lượng sẽ trùng sau khi xóa đối tác).
+function nextFreePartnerId(prefix, startNum) {
+  let n = Math.max(1, Number(startNum) || 1);
+  let id = `${prefix}${String(n).padStart(3, "0")}`;
+  while (partnerIdTaken(id)) id = `${prefix}${String(++n).padStart(3, "0")}`;
+  return id;
 }
 
 // Record a deletion version for an opening-balance key so an older cloud copy
@@ -367,12 +386,10 @@ function handleQuickAddPartnerSubmit(e) {
   if (!partner) {
     let finalId = idVal;
     if (!finalId) {
-      const nextNum = (state.partners.filter(p => p.type === type).length + 1).toString().padStart(3, '0');
-      finalId = isSupplier ? `NCC${nextNum}` : `KH${nextNum}`;
+      finalId = nextFreePartnerId(isSupplier ? "NCC" : "KH", state.partners.filter(p => p.type === type).length + 1);
     } else {
       // Check duplicate ID
-      const duplicateId = state.partners.find(p => String(p.id).toLowerCase() === finalId.toLowerCase());
-      if (duplicateId) {
+      if (partnerIdTaken(finalId)) {
         showToast(`Mã đối tác "${finalId}" đã tồn tại! Vui lòng chọn mã khác.`, "danger");
         return;
       }
@@ -798,7 +815,9 @@ function filterPartners() {
     if (filterType === "all") {
       matchesType = true;
     } else if (filterType === "customer") {
-      matchesType = (p.type === "retail" || p.type === "enterprise" || p.type === "project");
+      matchesType = (p.type === "retail" || p.type === "enterprise" || p.type === "project" || p.type === "customer" || p.type === "both");
+    } else if (filterType === "supplier") {
+      matchesType = p.type === "supplier" || p.type === "both";
     } else {
       matchesType = p.type === filterType;
     }
@@ -1125,8 +1144,13 @@ function handlePartnerSubmit(e) {
     const idx = state.partners.findIndex(p => String(p.id) === String(editIndex));
     if (idx !== -1) {
       const pExist = state.partners[idx];
-      const newId = idVal.toUpperCase();
-      if (String(newId) !== String(editIndex) && state.partners.some(p => String(p.id) === String(newId))) {
+      // Ô mã hiển thị in hoa: chỉ coi là đổi mã khi người dùng gõ mã KHÁC (không tính hoa/thường),
+      // để mã cũ viết thường (nhập Excel) không bị đổi ngầm; để trống = giữ mã cũ.
+      const typedId = idVal.trim();
+      const newId = !typedId || typedId.toUpperCase() === String(editIndex).toUpperCase()
+        ? editIndex
+        : typedId.toUpperCase();
+      if (String(newId) !== String(editIndex) && partnerIdTaken(newId, editIndex)) {
         showToast(`Mã đối tác "${newId}" đã tồn tại!`, "danger");
         return;
       }
@@ -1135,7 +1159,9 @@ function handlePartnerSubmit(e) {
         propagatePartnerIdChange(editIndex, newId, name);
       }
 
+      // Giữ các trường form không quản lý (nhóm, excelRow, ngày tạo...) thay vì dựng lại từ đầu
       const updatedPartner = {
+        ...pExist,
         id: newId,
         name,
         type,
@@ -1143,14 +1169,16 @@ function handlePartnerSubmit(e) {
         email: pExist.email || "",
         address,
         taxCode,
-        inactive,
-        _updatedAt: Date.now()
+        inactive
       };
-      if (type === "project" && parentId) {
-        updatedPartner.parentId = parentId;
-      }
+      if (type === "project" && parentId) updatedPartner.parentId = parentId;
+      else delete updatedPartner.parentId;
+      stampPartnerSyncFields(updatedPartner);
 
       state.partners[idx] = updatedPartner;
+      if (typeof invalidatePartnerCache === "function") invalidatePartnerCache();
+      // Số dư đầu kỳ 131/331 trên Sổ cái phụ thuộc loại đối tác
+      if (pExist.type !== type && typeof syncPartnerOpeningAccounts === "function") syncPartnerOpeningAccounts();
 
       const typeChanged = pExist.type !== type;
       if (typeChanged) {
@@ -1160,16 +1188,15 @@ function handlePartnerSubmit(e) {
       }
     }
   } else {
-    let id = idVal.toUpperCase();
+    let id = idVal.trim().toUpperCase();
     if (!id) {
       const prefixMap = { enterprise: "DN", project: "CT", retail: "KL", supplier: "NCC" };
       const prefix = prefixMap[type] || "DT";
-      const nextNum = (state.partners.filter(p => p.type === type).length + 1).toString().padStart(3, '0');
-      id = `${prefix}${nextNum}`;
+      id = nextFreePartnerId(prefix, state.partners.filter(p => p.type === type).length + 1);
       if (idEl) idEl.value = id;
     }
 
-    if (state.partners.some(p => String(p.id) === String(id))) {
+    if (partnerIdTaken(id)) {
       showToast(`Mã đối tác "${id}" đã tồn tại!`, "danger");
       return;
     }
@@ -1178,9 +1205,7 @@ function handlePartnerSubmit(e) {
     showToast("Thêm đối tác mới thành công!", "success");
 
     if (type === "enterprise" && projectName) {
-      const projPrefix = "CT";
-      const projNextNum = (state.partners.filter(p => p.type === "project").length + 1).toString().padStart(3, '0');
-      const projId = `${projPrefix}${projNextNum}`;
+      const projId = nextFreePartnerId("CT", state.partners.filter(p => p.type === "project").length + 1);
       state.partners.push({
         id: projId,
         name: projectName,

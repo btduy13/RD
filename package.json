@@ -25,7 +25,7 @@
     "test:persistence": "node tests/persistence-regression-tests.js",
     "test:platform": "node tests/platform-regression-tests.js",
     "test:accounting": "node tests/core-regression-tests.js",
-    "test:partners": "node tests/partner-merge-tests.js && node tests/partner-resolution-tests.js && node tests/partner-deletion-tests.js",
+    "test:partners": "node tests/partner-merge-tests.js && node tests/partner-resolution-tests.js && node tests/partner-deletion-tests.js && node tests/partner-form-tests.js",
     "test:debts": "node tests/debt-tests.js",
     "test:debt-audit": "node tests/debt-audit-tests.js",
     "test:reports": "node tests/reports-regression-tests.js",
