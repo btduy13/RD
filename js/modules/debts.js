@@ -2537,7 +2537,8 @@ function exportDebtsToExcel() {
     let totalClosingDebitKH = 0, totalClosingCreditKH = 0, totalClosingDebitNCC = 0, totalClosingCreditNCC = 0;
 
     calculatedDebts.forEach((d, idx) => {
-      const isKH = d.type !== "supplier";
+      // Xếp theo vai trò thật (giống tab Theo Đối tác): đối tác chỉ có 331 nằm ở nhóm NCC dù khai báo là khách
+      const isKH = !(d.type === "supplier" || d.debtRole === "supplier");
 
       const bg = idx % 2 === 0 ? (isKH ? null : { patternType: "solid", fgColor: { rgb: "FFFAF5" } }) : (isKH ? altBg : { patternType: "solid", fgColor: { rgb: "FFF0E0" } });
       const bs = (al) => ({ font: fntN, fill: bg, alignment: al, border: border4 });
