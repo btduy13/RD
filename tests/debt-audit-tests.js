@@ -926,6 +926,51 @@ function testAccumulateDebtEntryLinesCoercesAmount() {
   assert.strictEqual(ctx.calculatePartnerDebts().find(d => d.id === "KH01").closingDebit, 1000);
 }
 
+// F6: cầu nối Σ131 → KPI với other331Adj (hai chiều, NCC có 131, nhóm chưa khớp)
+function testAuditOther331AdjBridgeCases() {
+  const ctx = loadDebtWithLedger();
+  ctx.state.partners = [
+    { id: "DT2C", name: "Đối tác hai chiều", type: "retail" },
+    { id: "NCC1", name: "NCC có bán hàng", type: "supplier" }
+  ];
+  ctx.state.partnerOpeningBalances = {};
+  ctx.state.initialBalances = {};
+  ctx.state.vouchers = [
+    // Hai chiều: dư Nợ 131 = 1000 và dư Có 331 = 400 (cả hai dương, không cấn trừ)
+    { id: "BH_2C", type: "sales", date: "2026-01-10", partnerId: "DT2C", entries: [{ debit: "131", credit: "511", amount: 1000 }] },
+    { id: "NK_2C", type: "purchase", date: "2026-01-11", partnerId: "DT2C", entries: [{ debit: "156", credit: "331", amount: 400 }] },
+    // NCC khai báo supplier nhưng có phát sinh 131
+    { id: "NK_N1", type: "purchase", date: "2026-01-12", partnerId: "NCC1", entries: [{ debit: "156", credit: "331", amount: 2000 }] },
+    { id: "BH_N1", type: "sales", date: "2026-01-13", partnerId: "NCC1", entries: [{ debit: "131", credit: "511", amount: 300 }] },
+    // Nhóm chưa khớp: một mã có Có 331, một mã có Nợ 131
+    { id: "NK_LA", type: "purchase", date: "2026-01-14", partnerId: "MA_LA", entries: [{ debit: "156", credit: "331", amount: 500 }] },
+    { id: "BH_LB", type: "sales", date: "2026-01-15", partnerId: "MA_LB", entries: [{ debit: "131", credit: "511", amount: 200 }] }
+  ];
+  const debts = ctx.calculatePartnerDebts();
+  const rec = ctx.computeDebt131Reconciliation(debts, "", "");
+
+  const dual = debts.find(d => d.id === "DT2C");
+  assert.equal(dual.closingDebit, 1000);
+  assert.equal(dual.closingCredit, 400, "dual-role keeps 331 credit side");
+  const sup = debts.find(d => d.id === "NCC1");
+  assert.ok(sup.has131, "supplier-role partner has 131 activity → counted in KPI");
+  const unmatched = debts.find(d => d.id === "__UNMATCHED__");
+  assert.equal(unmatched.closingDebit, 200);
+  assert.equal(unmatched.closingCredit, 500);
+
+  assert.equal(rec.ledgerClose, 1500);
+  assert.equal(rec.detailClose, 1500, "Σ net131 = 1000 + 300 + 200");
+  assert.equal(rec.closeMatched, true);
+  assert.equal(rec.refund331Adj, 0, "no customer-role netting in these cases");
+  assert.equal(rec.kpiNet, (1000 - 400) + (300 - 2000) + (200 - 500));
+  assert.equal(rec.other331Adj, -(400 + 2000 + 500), "other331Adj = 331 credit balances of dual / supplier-role / unmatched");
+  assert.equal(rec.detailClose + rec.refund331Adj + rec.other331Adj, rec.kpiNet, "bridge reconciles to KPI net");
+
+  const html = renderAudit(ctx);
+  assert.ok(html.includes("Điều chỉnh 331 (đối tác vai trò NCC / hai chiều / chưa khớp)"));
+  assert.ok(html.includes("−2900"), "signed other331Adj rendered");
+}
+
 async function runAll() {
   testReceiptWithLoanEntriesDoesNotTouch131();
   testPaymentWithSalaryEntriesDoesNotTouch331();
@@ -957,6 +1002,7 @@ async function runAll() {
   testAuditOther331AdjLabel();
   testNonDebtVouchersDoNotCreateEmptyUnmatchedBucket();
   testAccumulateDebtEntryLinesCoercesAmount();
+  testAuditOther331AdjBridgeCases();
   console.log("debt-audit-tests.js: all tests passed");
 }
 
