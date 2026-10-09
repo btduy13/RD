@@ -662,6 +662,14 @@ function testCompanyTabGroupsAndFilters() {
   assert.equal(ctx.pickLedgerAddressee(ctx.state.partners.slice(0, 3), ctx.state.partners[1]).id, "DN1", "company ledger is addressed to the enterprise");
 }
 
+function testResolverMatchesCodesIgnoringCase() {
+  const ctx = loadDebtModule();
+  ctx.state.partners = [{ id: "001HOQUYLY(MÙI)", name: "Khách", type: "retail" }];
+  ctx.state.vouchers = [{ id: "BH1", type: "sales", date: "2026-01-02", partnerId: "001HOQUYLY(Mùi)", entries: [{ debit: "131", credit: "511", amount: 70 }] }];
+  const row = ctx.calculatePartnerDebts().find(d => d.id === "001HOQUYLY(MÙI)");
+  assert.equal(row.closingDebit, 70, "a voucher still carrying the old mixed-case code belongs to the upper-case partner");
+}
+
 function testFifoReceiptAllocatesSales() {
   const ctx = loadAccountingFifo();
   ctx.state.vouchers = [
@@ -869,6 +877,7 @@ async function runAll() {
   testCompanyDetailSheetTotalIsDebtMovement();
   testDualRoleLedgerShowsBothSidesLikeTheList();
   testCompanyTabGroupsAndFilters();
+  testResolverMatchesCodesIgnoringCase();
   testSupplierOverpaymentShowsAsReceivable();
   testFifoReceiptAllocatesSales();
   testDebtAdjustmentPreserved();

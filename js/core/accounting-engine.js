@@ -38,10 +38,15 @@ function compareVouchersForAccounting(a, b) {
 // partners is not guessed (raw id is kept).
 function createVoucherPartnerResolver(partners) {
   const idSet = new Set();
+  const idByUpper = new Map();
   const nameCount = Object.create(null);
   (Array.isArray(partners) ? partners : []).forEach(p => {
     if (!p) return;
-    if (p.id !== undefined && p.id !== null) idSet.add(String(p.id).trim());
+    if (p.id !== undefined && p.id !== null) {
+      const key = String(p.id).trim();
+      idSet.add(key);
+      if (!idByUpper.has(key.toUpperCase())) idByUpper.set(key.toUpperCase(), key);
+    }
     const nk = p.name !== undefined && p.name !== null ? String(p.name).trim().toLowerCase() : "";
     if (nk) nameCount[nk] = (nameCount[nk] || 0) + 1;
   });
@@ -49,6 +54,9 @@ function createVoucherPartnerResolver(partners) {
     if (!v) return "";
     const raw = v.partnerId !== undefined && v.partnerId !== null ? String(v.partnerId) : "";
     if (idSet.has(raw.trim())) return raw.trim();
+    // Mã đối tác là chữ hoa: chứng từ ghi mã khác hoa/thường vẫn thuộc đúng đối tác
+    const upperHit = idByUpper.get(raw.trim().toUpperCase());
+    if (upperHit) return upperHit;
     if (typeof getPartnerForVoucher !== "function") return raw;
     // Only the partnerId field is used (partnerName is a display snapshot and must not rebind a voucher).
     const p = getPartnerForVoucher({ partnerId: raw }, { strict: true });

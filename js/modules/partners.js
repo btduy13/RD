@@ -178,7 +178,7 @@ function getUniquePartnerId(name, type, excludeId = "") {
   
   let uniqueId = base;
   let counter = 1;
-  while (state.partners.some(p => p.id === uniqueId && p.id !== excludeId)) {
+  while (partnerIdTaken(uniqueId, excludeId)) {
     if (type === "project" && base.endsWith("(CH)")) {
       const baseWithoutCH = base.substring(0, base.length - 4);
       uniqueId = `${baseWithoutCH}_${counter}(CH)`;
@@ -393,7 +393,7 @@ function handleQuickAddPartnerSubmit(e) {
   }
 
   if (!partner) {
-    let finalId = idVal;
+    let finalId = normalizePartnerCode(idVal);
     if (!finalId) {
       finalId = nextFreePartnerId(isSupplier ? "NCC" : "KH", state.partners.filter(p => p.type === type).length + 1);
     } else {
@@ -1155,12 +1155,9 @@ function handlePartnerSubmit(e) {
     const idx = state.partners.findIndex(p => String(p.id) === String(editIndex));
     if (idx !== -1) {
       const pExist = state.partners[idx];
-      // Ô mã hiển thị in hoa: chỉ coi là đổi mã khi người dùng gõ mã KHÁC (không tính hoa/thường),
-      // để mã cũ viết thường (nhập Excel) không bị đổi ngầm; để trống = giữ mã cũ.
-      const typedId = idVal.trim();
-      const newId = !typedId || typedId.toUpperCase() === String(editIndex).toUpperCase()
-        ? editIndex
-        : typedId.toUpperCase();
+      // Mã đối tác luôn là CHỮ HOA; để trống = giữ mã cũ (chuẩn hoá chữ hoa). Mã cũ còn chữ
+      // thường được đổi sang chữ hoa kèm chứng từ và số dư (propagatePartnerIdChange).
+      const newId = normalizePartnerCode(idVal || editIndex);
       if (String(newId) !== String(editIndex) && partnerIdTaken(newId, editIndex)) {
         showToast(`Mã đối tác "${newId}" đã tồn tại!`, "danger");
         return;

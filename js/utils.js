@@ -207,6 +207,12 @@ async function readExcelViaIPC(filename) {
 }
 
 // Trích xuất ID nằm trong dấu ngoặc kép ở cuối chuỗi, hỗ trợ cả ngoặc lồng nhau (ví dụ: "(37NGUYENBINH(CH))")
+// Mã đối tác chuẩn: bỏ khoảng trắng hai đầu, CHỮ HOA (kể cả chữ có dấu: "Mùi" → "MÙI").
+function normalizePartnerCode(id) {
+  return String(id == null ? "" : id).trim().toUpperCase();
+}
+window.normalizePartnerCode = normalizePartnerCode;
+
 function extractIdFromParentheses(val) {
   if (!val) return "";
   const str = String(val).trim();
@@ -546,6 +552,11 @@ function getPartnerForVoucher(v, options = {}) {
         if (idKey && !partnerCacheById[idKey]) {
           partnerCacheById[idKey] = x;
         }
+        // Mã đối tác là chữ hoa: chứng từ cũ còn ghi mã chữ thường vẫn tìm được đối tác
+        const upperKey = idKey.toUpperCase();
+        if (upperKey && !partnerCacheById[upperKey]) {
+          partnerCacheById[upperKey] = x;
+        }
         if (nameKey && !partnerCacheByName[nameKey]) {
           partnerCacheByName[nameKey] = x;
         }
@@ -560,7 +571,7 @@ function getPartnerForVoucher(v, options = {}) {
 
   // 1. Tìm theo ID trước
   if (partnerIdStr) {
-    p = partnerCacheById[partnerIdStr];
+    p = partnerCacheById[partnerIdStr] || partnerCacheById[partnerIdStr.toUpperCase()];
     if (!p) {
       const extractedId = extractIdFromParentheses(partnerIdStr);
       if (extractedId) {

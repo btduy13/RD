@@ -25,6 +25,9 @@ function loadPartners(partners, openings = {}) {
   ctx.window = Object.assign(ctx, ctx.window);
   ctx.invalidatePartnerCache = () => { ctx.invalidated++; };
   vm.createContext(ctx);
+  const utilsSrc = fs.readFileSync(path.join(repoRoot, "js", "utils.js"), "utf8");
+  const helper = utilsSrc.slice(utilsSrc.indexOf("function normalizePartnerCode"), utilsSrc.indexOf("window.normalizePartnerCode"));
+  vm.runInContext(helper, ctx, { filename: "utils.js#normalizePartnerCode" });
   vm.runInContext(fs.readFileSync(path.join(repoRoot, "js", "modules", "partners.js"), "utf8"), ctx, { filename: "partners.js" });
   ctx.findExistingPartner = v => ctx.state.partners.find(p => p.id === v || `${p.name} (${p.id})` === v) || null;
   ctx.trackDeletedIds = () => {};
@@ -41,15 +44,19 @@ function loadPartners(partners, openings = {}) {
 
 const base = { "partner-phone": "", "partner-address": "", "partner-taxcode": "", "partner-inactive": false, "partner-parent-search": "" };
 
-function testEditKeepsLowercaseCodeAndExtraFields() {
+function testEditUppercasesCodeAndKeepsExtraFields() {
   const { ctx, submit, toasts } = loadPartners([
-    { id: "kh001", name: "Khách cũ", type: "retail", group: "VIP", excelRow: ["kh001"] },
+    { id: "001HOQUYLY(Mùi)", name: "Khách cũ", type: "retail", group: "VIP", excelRow: ["001HOQUYLY(Mùi)"] },
     { id: "KH001X", name: "Khác", type: "retail" }
-  ]);
-  submit({ ...base, "edit-partner-index": "kh001", "partner-id": "KH001", "partner-name": "Khách cũ", "partner-phone": "0909",
+  ], { "001HOQUYLY(Mùi)": { debit: 500, credit: 0 } });
+  ctx.state.vouchers.push({ id: "BH1", partnerId: "001HOQUYLY(Mùi)", partnerName: "Khách cũ" });
+  submit({ ...base, "edit-partner-index": "001HOQUYLY(Mùi)", "partner-id": "001hoquyly(mùi)", "partner-name": "Khách cũ", "partner-phone": "0909",
     "partner-modal-type": "retail", "partner-edit-type-select": "retail" });
   const p = ctx.state.partners.find(x => x.name === "Khách cũ");
-  assert.equal(p.id, "kh001", "upper-cased display of the same code is not a rename");
+  assert.equal(p.id, "001HOQUYLY(MÙI)", "partner codes are always upper case, accented letters included");
+  assert.equal(ctx.state.vouchers[0].partnerId, "001HOQUYLY(MÙI)", "vouchers follow the upper-cased code");
+  assert.equal(ctx.state.partnerOpeningBalances["001HOQUYLY(MÙI)"].debit, 500, "opening follows the upper-cased code");
+  assert.ok(!("001HOQUYLY(Mùi)" in ctx.state.partnerOpeningBalances));
   assert.equal(p.phone, "0909");
   assert.equal(p.group, "VIP", "fields the form does not manage are kept");
   assert.ok(p._updatedAt > 0);
@@ -108,7 +115,7 @@ function testListAndDatalistEscaping() {
   assert.equal(optionValue('A "B" <c>'), "A &quot;B&quot; &lt;c&gt;");
 }
 
-testEditKeepsLowercaseCodeAndExtraFields();
+testEditUppercasesCodeAndKeepsExtraFields();
 testListAndDatalistEscaping();
 testEditWithEmptyCodeKeepsCode();
 testDuplicateCodeIsCaseInsensitive();

@@ -1281,12 +1281,15 @@ function testOpeningBalanceVersionOnlyMovesForward() {
   assert.ok(ctx.state.partnerOpeningBalanceTs.KH02 >= Date.now() - 1000);
 }
 
+function byIdOrNull(ctx, id) { return ctx.state.partners.find(p => p.id === id) || null; }
+
 async function testPartnerListImportKeepsHierarchy() {
   const ctx = loadImportSandbox([
     { id: "DN1", name: "Công ty 1", type: "enterprise", email: "a@b.c" },
     { id: "CT1", name: "Công trình 1", type: "project", parentId: "DN1", excelRow: ["CT1"] },
     { id: "AB", name: "Hai chiều", type: "both" },
-    { id: "TUANMINH", name: "NCC", type: "supplier" }
+    { id: "TUANMINH", name: "NCC", type: "supplier" },
+    { id: "001HOQUYLY(MÙI)", name: "Khách MISA", type: "retail" }
   ]);
   await runManualImport(ctx, [
     ["DANH SÁCH"], ["Mã khách hàng", "Tên"],
@@ -1294,8 +1297,12 @@ async function testPartnerListImportKeepsHierarchy() {
     ["CT1", "Công trình 1 mới", "Đ/c 2", "KH", "", "0909", ""],
     ["AB", "Hai chiều", "", "KH", "", "", ""],
     ["TUANMINH", "NCC", "", "KH", "", "", ""],
-    ["KHNEW", "Khách mới", "", "KH", "", "", ""]
+    ["KHNEW", "Khách mới", "", "KH", "", "", ""],
+    ["001HOQUYLY(Mùi)", "Khách MISA", "", "KH", "", "", ""],
+    ["kh-thuong", "Khách mã thường", "", "KH", "", "", ""]
   ], "partners");
+  assert.equal(ctx.state.partners.filter(p => p.name === "Khách MISA").length, 1, "MISA code in mixed case matches the upper-case partner");
+  assert.ok(byIdOrNull(ctx, "KH-THUONG"), "new codes from the file are stored upper case");
   const byId = id => ctx.state.partners.find(p => p.id === id);
   assert.equal(byId("DN1").type, "enterprise", "re-import of an export keeps enterprises");
   assert.equal(byId("DN1").email, "a@b.c", "fields not in the file are kept");

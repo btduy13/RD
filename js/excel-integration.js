@@ -2177,9 +2177,11 @@ function parseExcelFile(file, type) {
                 let count = 0;
                 for (let i = 2; i < rows.length; i++) {
                     const row = rows[i];
-                    const id = (row[0] || "").toString().trim();
+                    const rawId = (row[0] || "").toString().trim();
                     const name = (row[1] || "").toString().trim();
-                    if (!id || !name || id === "Mã khách hàng" || id.startsWith("TỔNG")) continue;
+                    if (!rawId || !name || rawId === "Mã khách hàng" || rawId.startsWith("TỔNG")) continue;
+                    // Mã đối tác là chữ hoa; mã MISA như "001HOQUYLY(Mùi)" khớp với "001HOQUYLY(MÙI)"
+                    const id = normalizePartnerCode(rawId);
 
                     const address = (row[2] || "").toString().trim();
                     const group = (row[3] || "").toString().trim().toUpperCase();
@@ -2191,7 +2193,7 @@ function parseExcelFile(file, type) {
                     const inactive = inactiveVal === true || (inactiveVal || "").toString().toLowerCase() === "true" ||
                         (inactiveVal || "").toString().trim() === "Có";
 
-                    const idx = state.partners.findIndex(p => String(p.id) === String(id));
+                    const idx = state.partners.findIndex(p => normalizePartnerCode(p.id) === id);
                     if (idx !== -1) {
                         // File chỉ phân biệt KH/NCC: giữ loại chi tiết (doanh nghiệp, công trình, hai chiều...)
                         // và DN mẹ khi file không mâu thuẫn; giữ các trường file không có.
@@ -2245,10 +2247,13 @@ function parseExcelFile(file, type) {
 
                 for (let i = startRow; i < rows.length; i++) {
                     const row = rows[i];
-                    const id = (row[0] || "").toString().trim();
-                    if (!id || id === "Mã" || id === "Mã khách hàng") continue;
+                    const rawId = (row[0] || "").toString().trim();
+                    if (!rawId || rawId === "Mã" || rawId === "Mã khách hàng") continue;
                     // Bỏ qua dòng tổng cộng
-                    if (id.startsWith("TỔNG") || id === "TỔNG KHÁCH HÀNG" || id === "TỔNG NHÀ CUNG CẤP") continue;
+                    if (rawId.startsWith("TỔNG") || rawId === "TỔNG KHÁCH HÀNG" || rawId === "TỔNG NHÀ CUNG CẤP") continue;
+                    // Số dư đầu kỳ gắn với mã đối tác hiện có (khớp không phân biệt hoa/thường), mã mới là chữ hoa
+                    const existingPartner = state.partners.find(p => normalizePartnerCode(p.id) === normalizePartnerCode(rawId));
+                    const id = existingPartner ? existingPartner.id : normalizePartnerCode(rawId);
 
                     const name = (row[1] || "").toString().trim();
                     let debit = 0,
@@ -2276,7 +2281,7 @@ function parseExcelFile(file, type) {
                     state.partnerOpeningBalanceTs = state.partnerOpeningBalanceTs || {};
                     state.partnerOpeningBalanceTs[id] = Date.now();
 
-                    const idx = state.partners.findIndex(p => String(p.id) === String(id));
+                    const idx = existingPartner ? state.partners.indexOf(existingPartner) : -1;
                     if (idx === -1) {
                         const addrCol = isNewDebtFormat ? 7 : 5;
                         const taxCol = isNewDebtFormat ? 8 : 6;
