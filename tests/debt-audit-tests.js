@@ -1308,6 +1308,20 @@ async function testPartnerListImportKeepsHierarchy() {
   assert.equal(byId("KHNEW").type, "retail");
 }
 
+function testResolvePartnerRefusesJunkNames() {
+  const ctx = loadImportSandbox([{ id: "KH1", name: "Anh Ba", type: "retail" }]);
+  const toasts = [];
+  ctx.showToast = (msg, kind) => toasts.push([kind, msg]);
+  for (const junk of ["/", "0983.304.299", "-", "a1"]) {
+    assert.equal(ctx.resolvePartner(junk), null, `no auto partner for ${JSON.stringify(junk)}`);
+  }
+  assert.equal(ctx.state.partners.length, 1, "nothing was created");
+  assert.ok(toasts.every(t => t[0] === "danger"));
+  assert.equal(ctx.resolvePartner("Anh Ba").id, "KH1", "existing names still resolve");
+  const created = ctx.resolvePartner("Chị Tư mới");
+  assert.ok(created && created.id, "a real new name is still auto-created");
+}
+
 function testAuditFlagsPossibleDoubleRefund() {
   const ctx = loadDebtWithLedger();
   ctx.state.partners = [
@@ -1396,6 +1410,7 @@ async function runAll() {
   testKpiTilesClassifyByRoleNotDeclaredType();
   testOpeningBalanceVersionOnlyMovesForward();
   await testPartnerListImportKeepsHierarchy();
+  testResolvePartnerRefusesJunkNames();
   console.log("debt-audit-tests.js: all tests passed");
 }
 

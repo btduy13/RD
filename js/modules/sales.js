@@ -583,6 +583,7 @@ async function handleSalesSubmit(e) {
     // a new partner to state.
     const partnerInputVal = document.getElementById("sale-partner").value;
     const resolvedPartner = resolvePartner(partnerInputVal);
+    if (!resolvedPartner) return;
     const partnerId = resolvedPartner.id;
     const partnerName = resolvedPartner.name;
 
@@ -1233,6 +1234,7 @@ async function handleSalesReturnSubmit(e) {
 
     const partnerInputVal = document.getElementById("sales-ret-partner").value;
     const resolvedPartner = resolvePartner(partnerInputVal);
+    if (!resolvedPartner) return;
     const partnerId = resolvedPartner.id;
     const partnerName = resolvedPartner.name;
 
@@ -1930,6 +1932,7 @@ async function handleQuotationSubmit(e) {
 
     const partnerInputVal = document.getElementById("quotation-partner").value;
     const resolvedPartner = resolvePartner(partnerInputVal);
+    if (!resolvedPartner) return;
     const partnerId = resolvedPartner.id;
     const partnerName = resolvedPartner.name;
 

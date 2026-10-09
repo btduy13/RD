@@ -455,6 +455,7 @@ async function handlePurchaseSubmit(e) {
 
     const partnerInputVal = document.getElementById("pur-partner").value;
     const resolvedPartner = resolvePartner(partnerInputVal, "supplier");
+    if (!resolvedPartner) return;
     const partnerId = resolvedPartner.id;
     const partnerName = resolvedPartner.name;
     const paymentMethod = document.getElementById("pur-payment").value;
@@ -1139,6 +1140,7 @@ async function handlePurchaseOrderSubmit(e) {
     const paymentMethod = document.getElementById("pur-order-payment").value;
     const partnerInputVal = document.getElementById("pur-order-partner").value;
     const resolvedPartner = resolvePartner(partnerInputVal, "supplier");
+    if (!resolvedPartner) return;
     const partnerId = resolvedPartner.id;
     const partnerName = resolvedPartner.name;
 
@@ -2093,6 +2095,7 @@ async function handlePurchaseReturnSubmit(e) {
     const paymentMethod = document.getElementById("ret-payment").value;
     const partnerInputVal = document.getElementById("ret-partner").value;
     const resolvedPartner = resolvePartner(partnerInputVal, "supplier");
+    if (!resolvedPartner) return;
     const partnerId = resolvedPartner.id;
     const partnerName = resolvedPartner.name;
 

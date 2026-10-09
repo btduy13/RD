@@ -1815,6 +1815,15 @@ function resolvePartner(value, autoCreateType = "retail") {
     const existingPartner = findExistingPartner(val);
     if (existingPartner) return existingPartner;
 
+    // Không tự tạo đối tác từ chuỗi không phải tên (vd "/", chỉ số điện thoại): trước đây sinh ra
+    // mã KL_/ gom chứng từ của nhiều khách khác nhau. Người gọi dừng lưu khi nhận null.
+    if ((val.match(/\p{L}/gu) || []).length < 2) {
+        if (typeof showToast === "function") {
+            showToast(`"${val}" không phải tên đối tác hợp lệ. Hãy chọn đối tác trong danh sách hoặc nhập tên đầy đủ.`, "danger", 8000);
+        }
+        return null;
+    }
+
     // 3. Tạo đối tác mới tự động nếu không tồn tại (Bug B fix)
     const autoId = typeof getUniquePartnerId === "function" ?
         getUniquePartnerId(val, autoCreateType) :

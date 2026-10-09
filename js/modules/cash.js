@@ -494,6 +494,7 @@ async function handleReceiptSubmit(e) {
   try {
     if (editId && !oldVoucher) throw new Error("Chứng từ đang sửa không còn tồn tại. Hãy tải lại danh sách.");
     const partnerObj = resolvePartner(partnerVal, (String(debit).startsWith("331") || String(credit).startsWith("331")) ? "supplier" : "retail");
+    if (!partnerObj) throw new Error("Tên đối tác không hợp lệ.");
     const isEdit = !!editId;
     let id = editId || generateNextReceiptVoucherId();
 
@@ -607,6 +608,7 @@ async function handlePaymentSubmit(e) {
   try {
     if (editId && !oldVoucher) throw new Error("Chứng từ đang sửa không còn tồn tại. Hãy tải lại danh sách.");
     const partnerObj = resolvePartner(partnerVal, (String(debit).startsWith("331") || String(credit).startsWith("331")) ? "supplier" : "retail");
+    if (!partnerObj) throw new Error("Tên đối tác không hợp lệ.");
     const isEdit = !!editId;
     let id = editId || generateNextPaymentVoucherId();
 
