@@ -885,6 +885,30 @@ function testAuditOther331AdjLabel() {
   assert.ok(html.includes("Điều chỉnh 331 (đối tác vai trò NCC / hai chiều / chưa khớp)"), "other331Adj label wording");
 }
 
+// F4: chứng từ không phải công nợ (không có dòng 131/331) không tạo nhóm "Chưa khớp" 0/0
+function testNonDebtVouchersDoNotCreateEmptyUnmatchedBucket() {
+  const ctx = loadDebtModule();
+  ctx.state.partners = [{ id: "KH01", name: "Khách A", type: "retail" }];
+  ctx.state.vouchers = [
+    { id: "PT_KHAC", type: "receipt", date: "2026-01-05", partnerId: "", paymentMethod: "111", amount: 500,
+      entries: [{ debit: "111", credit: "711", amount: 500 }] },
+    { id: "PC_KHAC", type: "payment", date: "2026-01-06", partnerId: "", paymentMethod: "111", amount: 300,
+      entries: [{ debit: "642", credit: "111", amount: 300 }] },
+    { id: "PT_VAY3", type: "receipt", date: "2026-01-07", partnerId: "MA_LA", paymentMethod: "112", amount: 900,
+      entries: [{ debit: "112", credit: "341", amount: 900 }] }
+  ];
+  assert.ok(!ctx.calculatePartnerDebts().some(d => d.id === "__UNMATCHED__"), "no empty unmatched bucket for non-debt vouchers");
+
+  // Vẫn giữ nhóm chưa khớp khi có dòng 131 thật hoặc dòng suy diễn từ dữ liệu cũ
+  ctx.state.vouchers.push(
+    { id: "BH_NOP", type: "sales", date: "2026-01-08", partnerId: "", entries: [{ debit: "131", credit: "511", amount: 100 }] },
+    { id: "PT_OLD", type: "receipt", date: "2026-01-09", partnerId: "MA_CU", paymentMethod: "111", amount: 40 }
+  );
+  const bucket = ctx.calculatePartnerDebts().find(d => d.id === "__UNMATCHED__");
+  assert.ok(bucket, "bucket kept for real/legacy debt lines");
+  assert.deepStrictEqual(plain(bucket.orphanPartnerIds).sort(), ["", "MA_CU"], "only vouchers with 131/331 lines add orphan ids");
+}
+
 async function runAll() {
   testReceiptWithLoanEntriesDoesNotTouch131();
   testPaymentWithSalaryEntriesDoesNotTouch331();
@@ -914,6 +938,7 @@ async function runAll() {
   testCashNeedsReviewFilter();
   await testSupplierRematchClearsNeedsReview();
   testAuditOther331AdjLabel();
+  testNonDebtVouchersDoNotCreateEmptyUnmatchedBucket();
   console.log("debt-audit-tests.js: all tests passed");
 }
 

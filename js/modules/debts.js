@@ -459,12 +459,16 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
         if (toDate && v.date > toDate) return;
         if (partnerIds.has(resolvePid(v))) return;
         if (!isPartnerAuditVoucher(v)) return;
+        // Chỉ chứng từ thật sự có dòng 131/331 (hoặc dòng suy diễn của dữ liệu cũ) mới vào nhóm
+        // chưa khớp; chứng từ không phải công nợ không tạo nhóm "Chưa khớp" rỗng 0/0.
+        const debtEntries = getVoucherDebtEntries(v);
+        if (debtEntries.length === 0) return;
         orphanPartnerIds.add(v.partnerId || "");
         const isPrior = fromDate && v.date < fromDate;
         const auditKey = v.partnerId || `missing:${v.id}`;
         if (!unmatchedByPartner.has(auditKey)) unmatchedByPartner.set(auditKey, { prior: createEmptyDebtCounters(), period: createEmptyDebtCounters() });
         const auditCounters = unmatchedByPartner.get(auditKey);
-        getVoucherDebtEntries(v).forEach(e => {
+        debtEntries.forEach(e => {
             accumulateDebtEntryLines(e, isPrior ? unmatchedPrior : unmatchedPeriod);
             accumulateDebtEntryLines(e, isPrior ? auditCounters.prior : auditCounters.period);
         });
