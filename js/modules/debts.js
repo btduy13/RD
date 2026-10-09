@@ -3200,7 +3200,7 @@ function renderDebtOverview(allDebts, dateRange) {
           <div class="debt-audit-lines">
             ${line('Công nợ chi tiết (Σ 131)', formatVND(rec.detailClose))}
             ${line('Chi trả/hoàn tiền khách hạch toán Nợ 331 (cấn trừ phải thu)', signed(rec.refund331Adj), 'text-warning')}
-            ${Math.abs(rec.other331Adj) > 1 ? line('Số dư 331 của đối tác hai chiều / nhóm chưa khớp tính vào KPI', signed(rec.other331Adj), 'text-warning') : ''}
+            ${Math.abs(rec.other331Adj) > 1 ? line('Điều chỉnh 331 (đối tác vai trò NCC / hai chiều / chưa khớp)',signed(rec.other331Adj), 'text-warning') : ''}
             ${line('KPI Tổng phải thu (Dư Nợ)', formatVND(totalRec), 'text-success')}
             ${line('− Khách trả thừa/trả trước (Dư Có)', `−${formatVND(totalRowOvp)}`, 'text-warning')}
             <div class="debt-audit-line debt-audit-line-total">

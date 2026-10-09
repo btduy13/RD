@@ -872,6 +872,19 @@ async function testSupplierRematchClearsNeedsReview() {
   assert.equal(pc.needsReview, true, "Nợ 1388 payment stays flagged for account review");
 }
 
+// F3: nhãn dòng other331Adj
+function testAuditOther331AdjLabel() {
+  const ctx = loadDebtWithLedger();
+  ctx.state.partners = [{ id: "DT2C", name: "Đối tác hai chiều", type: "retail" }];
+  ctx.state.initialBalances = {};
+  ctx.state.vouchers = [
+    { id: "BH9", type: "sales", date: "2026-01-10", partnerId: "DT2C", entries: [{ debit: "131", credit: "511", amount: 1000 }] },
+    { id: "NK9", type: "purchase", date: "2026-01-11", partnerId: "DT2C", entries: [{ debit: "156", credit: "331", amount: 400 }] }
+  ];
+  const html = renderAudit(ctx);
+  assert.ok(html.includes("Điều chỉnh 331 (đối tác vai trò NCC / hai chiều / chưa khớp)"), "other331Adj label wording");
+}
+
 async function runAll() {
   testReceiptWithLoanEntriesDoesNotTouch131();
   testPaymentWithSalaryEntriesDoesNotTouch331();
@@ -900,6 +913,7 @@ async function runAll() {
   await testCashSaveClearsNeedsReview();
   testCashNeedsReviewFilter();
   await testSupplierRematchClearsNeedsReview();
+  testAuditOther331AdjLabel();
   console.log("debt-audit-tests.js: all tests passed");
 }
 
