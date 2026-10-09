@@ -647,7 +647,7 @@ function testAudit131RefundBridgeEqualsKpiNet() {
   ctx.state.vouchers = [
     { id: "BH2", type: "sales", date: "2026-01-10", partnerId: "KH02",
       entries: [{ debit: "131", credit: "511", amount: 1000 }] },
-    // Phiếu chi hoàn tiền khách: app luôn ghi Nợ 331 (thiết kế, debts.js:48-57)
+    // Phiếu chi cho khách hạch toán Nợ 331 (dữ liệu cũ) — Task 5: đọc là Nợ 131 theo chuẩn
     { id: "PC2", type: "payment", date: "2026-01-20", partnerId: "KH02",
       entries: [{ debit: "331", credit: "111", amount: 200 }] }
   ];
@@ -656,14 +656,14 @@ function testAudit131RefundBridgeEqualsKpiNet() {
   assert.equal(rec.ledgerClose, 1000);
   assert.equal(rec.detailClose, 1000, "Σ net131 uses 131 lines only");
   assert.equal(rec.closeMatched, true);
-  assert.equal(rec.refund331Adj, -200, "Nợ 331 refund netted into receivables");
+  assert.equal(rec.refund331Adj, 200, "Nợ 331 payment to a customer read as Nợ 131 (increases receivable)");
   assert.equal(rec.other331Adj, 0);
-  assert.equal(rec.kpiNet, 800);
+  assert.equal(rec.kpiNet, 1200);
   assert.equal(rec.detailClose + rec.refund331Adj + rec.other331Adj, rec.kpiNet, "bridge reconciles to KPI net");
   const row = debts.find(d => d.id === "KH02");
-  assert.equal(row.closingDebit - row.closingCredit, 800, "KPI keeps netting the refund (Task 3 revert)");
+  assert.equal(row.closingDebit - row.closingCredit, 1200, "payment to customer increases the receivable (Task 5)");
   const html = renderAudit(ctx);
-  assert.ok(html.includes("Chi trả/hoàn tiền khách hạch toán Nợ 331 (cấn trừ phải thu)"), "bridge line shown");
+  assert.ok(html.includes("Phiếu chi cho khách hạch toán Nợ 331 (đọc là Nợ 131 theo chuẩn)"), "bridge line shown");
   assert.ok(/debt-audit-match-badge">Khớp</.test(html));
 }
 
@@ -971,6 +971,277 @@ function testAuditOther331AdjBridgeCases() {
   assert.ok(html.includes("−2900"), "signed other331Adj rendered");
 }
 
+// ---- Task 5: chi tiền cho khách theo chuẩn — Nợ 131, không "giảm phải thu" ----
+
+function customerDebtRow(vouchers, partners) {
+  const ctx = loadDebtModule();
+  ctx.state.partners = partners || [{ id: "KH01", name: "Khách A", type: "retail" }];
+  ctx.state.vouchers = vouchers;
+  return { ctx, rows: ctx.calculatePartnerDebts() };
+}
+
+function testRefundToOverpaidCustomerClearsBalance() {
+  ["331", "131"].forEach(acc => {
+    const { rows } = customerDebtRow([
+      { id: "BH1", type: "sales", date: "2026-01-01", partnerId: "KH01", entries: [{ debit: "131", credit: "511", amount: 500 }] },
+      { id: "PT1", type: "receipt", date: "2026-01-02", partnerId: "KH01", entries: [{ debit: "111", credit: "131", amount: 600 }] },
+      { id: "PC1", type: "payment", date: "2026-01-03", partnerId: "KH01", description: "Chi trả lại tiền thừa",
+        entries: [{ debit: acc, credit: "111", amount: 100 }] }
+    ]);
+    const kh = rows.find(d => d.id === "KH01");
+    assert.equal(kh.closingDebit, 0, `Nợ ${acc}: overpaid −100 + refund 100 → 0 (no Dư Nợ)`);
+    assert.equal(kh.closingCredit, 0, `Nợ ${acc}: overpaid −100 + refund 100 → 0 (no Dư Có)`);
+    assert.equal(kh.debtRole, "customer", `Nợ ${acc}: stays customer`);
+    assert.equal(kh.type, "retail", `Nợ ${acc}: refund does not make the customer dual-role`);
+  });
+}
+
+function testPaymentToOwingCustomerIncreasesReceivable() {
+  const vouchers = [
+    { id: "BH1", type: "sales", date: "2026-01-01", partnerId: "KH01", entries: [{ debit: "131", credit: "511", amount: 500 }] },
+    { id: "PC1", type: "payment", date: "2026-01-03", partnerId: "KH01", entries: [{ debit: "331", credit: "111", amount: 100 }] }
+  ];
+  const { ctx, rows } = customerDebtRow(vouchers);
+  const kh = rows.find(d => d.id === "KH01");
+  assert.equal(kh.closingDebit, 600, "owing 500 + payment 100 → 600");
+  assert.equal(kh.closingCredit, 0);
+  assert.equal(kh.debitTrans, 600, "PS Nợ includes the payment read as Nợ 131");
+  assert.equal(kh.creditTrans, 0);
+  assert.equal(kh.has331, false, "Nợ 331 payment alone is not 331 activity for a customer");
+  assert.equal(kh.debtRole, "customer");
+  assert.equal(kh.net131Close, 500, "net131Close keeps real 131 lines only");
+
+  const ledger = ctx.calculatePartnerDebtLedger(ctx.state.partners, "", "", "customer");
+  assert.equal(ledger.role, "customer");
+  assert.equal(ledger.closingVal, 600, "notice ledger agrees with overview");
+  assert.ok(ledger.ledgerEntries.some(e => e.id === "PC1" && e.debit === 100 && e.credit === 0), "payment is a debit-side movement");
+
+  // Chỉ có phiếu chi Nợ 331 (vd. PC6882): khách nợ lại số tiền đó, không thành NCC
+  const only = customerDebtRow([
+    { id: "PC9", type: "payment", date: "2026-01-03", partnerId: "KH01", entries: [{ debit: "331", credit: "111", amount: 1418500 }] }
+  ]).rows.find(d => d.id === "KH01");
+  assert.equal(only.debtRole, "customer", "payment-only retail partner stays customer");
+  assert.equal(only.closingDebit, 1418500);
+  assert.equal(only.supplierReceivable, 0, "not shown as supplier receivable");
+}
+
+function testSupplierPaymentStillReducesPayable() {
+  [
+    { id: "NCC01", name: "NCC", type: "supplier" },
+    { id: "NCC01", name: "NCC chưa khai báo", type: "retail" }
+  ].forEach(partner => {
+    const { rows } = customerDebtRow([
+      { id: "NK1", type: "purchase", date: "2026-01-01", partnerId: "NCC01", entries: [{ debit: "156", credit: "331", amount: 500 }] },
+      { id: "PC1", type: "payment", date: "2026-01-02", partnerId: "NCC01", entries: [{ debit: "331", credit: "111", amount: 200 }] }
+    ], [partner]);
+    const row = rows.find(d => d.id === "NCC01");
+    assert.equal(row.closingCredit, 300, `${partner.type}: supplier payment Nợ 331 reduces payable`);
+    assert.equal(row.closingDebit, 0);
+    assert.equal(row.debtRole, "supplier");
+    assert.equal(row.customerPayment331As131, 0, `${partner.type}: supplier payment not read as 131`);
+  });
+}
+
+function testDualRoleWithGenuinePayableStaysSeparate() {
+  const { rows } = customerDebtRow([
+    { id: "BH1", type: "sales", date: "2026-01-01", partnerId: "KH01", entries: [{ debit: "131", credit: "511", amount: 1000 }] },
+    { id: "NK1", type: "purchase", date: "2026-01-02", partnerId: "KH01", entries: [{ debit: "156", credit: "331", amount: 400 }] },
+    { id: "PC1", type: "payment", date: "2026-01-03", partnerId: "KH01", entries: [{ debit: "331", credit: "111", amount: 100 }] }
+  ]);
+  const row = rows.find(d => d.id === "KH01");
+  assert.equal(row.type, "both");
+  assert.equal(row.closingDebit, 1000, "131 receivable kept separate");
+  assert.equal(row.closingCredit, 300, "331 payable = 400 purchase − 100 payment, kept separate");
+  assert.equal(row.customerPayment331As131, 0, "payment on a genuine dual-role partner stays 331");
+}
+
+function testPaymentFormDefaultsDebitByPartner() {
+  const partners = [
+    { id: "KH01", name: "Khách 01", type: "retail" },
+    { id: "DN01", name: "Công ty 01", type: "enterprise" },
+    { id: "CT01", name: "Công trình 01", type: "project" },
+    { id: "NCC01", name: "NCC 01", type: "supplier" }
+  ];
+  const { ctx, getEl } = loadCashModule(partners);
+  ctx.findExistingPartner = val => {
+    const m = /\(([^)]+)\)\s*$/.exec(String(val || ""));
+    return partners.find(p => p.id === (m ? m[1] : val)) || null;
+  };
+  const pick = (val) => { getEl("payment-partner").value = val; ctx.onPaymentPartnerChange(); return getEl("payment-debit").value; };
+
+  ctx.resetPaymentForm();
+  getEl("payment-debit").value = "331";
+  assert.equal(pick("Khách 01 (KH01)"), "131", "retail → Nợ 131");
+  assert.equal(pick("Công ty 01 (DN01)"), "131", "enterprise → Nợ 131");
+  assert.equal(pick("Công trình 01 (CT01)"), "131", "project → Nợ 131");
+  assert.equal(pick("NCC 01 (NCC01)"), "331", "supplier → Nợ 331");
+
+  getEl("payment-debit").value = "642";
+  assert.equal(pick("Khách 01 (KH01)"), "642", "non-debt account is never replaced");
+
+  ctx.resetPaymentForm();
+  getEl("payment-debit").value = "331";
+  ctx.markPaymentDebitChosen();
+  assert.equal(pick("Khách 01 (KH01)"), "331", "explicitly chosen 331 is kept");
+
+  ctx.state.vouchers = [{ id: "PC50", type: "payment", date: "2026-01-01", partnerId: "KH01", partnerName: "Khách 01",
+    paymentMethod: "111", amount: 10, entries: [{ debit: "331", credit: "111", amount: 10 }] }];
+  ctx.editPaymentVoucher("PC50");
+  assert.equal(pick("Khách 01 (KH01)"), "331", "editing keeps the stored account");
+
+  const html = fs.readFileSync(path.join(repoRoot, "index.html"), "utf8");
+  const select = /<select id="payment-debit"[\s\S]*?<\/select>/.exec(html)[0];
+  assert.ok(/<option value="131">/.test(select), "TK 131 selectable on the payment form");
+  assert.ok(/id="payment-partner"[^>]*onchange="onPaymentPartnerChange\(\)"/.test(html), "partner change hook wired");
+  assert.ok(/<select id="payment-debit"[^>]*onchange="markPaymentDebitChosen\(\)"/.test(html), "debit change hook wired");
+}
+
+async function testPaymentNo131AutoCreatesCustomer() {
+  const { ctx, getEl } = loadCashModule([]);
+  const createdTypes = [];
+  ctx.resolvePartner = (val, type) => { createdTypes.push(type); return { id: "NEW", name: String(val) }; };
+  ctx.resetPaymentForm();
+  getEl("payment-date").value = "2026-01-01";
+  getEl("payment-partner").value = "Khách mới";
+  getEl("payment-debit").value = "131";
+  getEl("payment-credit").value = "111";
+  getEl("payment-amount").value = "100";
+  getEl("payment-desc").value = "Chi trả lại tiền khách";
+  await ctx.handlePaymentSubmit({ preventDefault() {} });
+  assert.deepStrictEqual(createdTypes, ["retail"], "Nợ 131 payment infers a customer partner");
+  const pc = ctx.state.vouchers[0];
+  assert.deepStrictEqual(plain(pc.entries.map(e => [e.debit, e.credit])), [["131", "111"]], "chosen account stored as-is");
+}
+
+function testFifoRefundDoesNotSettleInvoices() {
+  ["331", "131"].forEach(acc => {
+    // Khách nợ 500, chi cho khách 100 → hóa đơn không được coi là đã thu
+    const fifo = loadAccountingFifo();
+    fifo.state.partners = [{ id: "KH01", name: "Khách A", type: "retail" }];
+    fifo.state.vouchers = [
+      { id: "HD1", type: "sales", date: "2026-01-01", partnerId: "KH01", paymentMethod: "131",
+        items: [{ productId: "P1", qty: 1, price: 500, amount: 500 }], taxRate: 0, isImported: false },
+      { id: "PC1", type: "payment", date: "2026-01-05", partnerId: "KH01", amount: 100, paymentMethod: "111",
+        isImported: false, entries: [{ debit: acc, credit: "111", amount: 100 }] }
+    ];
+    fifo.recalculateAccounting(false);
+    assert.equal(fifo.state.vouchers.find(v => v.id === "HD1").remainingDebt, 500, `Nợ ${acc}: refund does not settle the invoice`);
+
+    // Khách trả thừa 100 rồi được hoàn 100: khoản trả trước đã hết, hóa đơn sau còn nợ đủ
+    const fifo2 = loadAccountingFifo();
+    fifo2.state.partners = [{ id: "KH01", name: "Khách A", type: "retail" }];
+    fifo2.state.vouchers = [
+      { id: "HD1", type: "sales", date: "2026-01-01", partnerId: "KH01", paymentMethod: "131",
+        items: [{ productId: "P1", qty: 1, price: 500, amount: 500 }], taxRate: 0, isImported: false },
+      { id: "PT1", type: "receipt", date: "2026-01-02", partnerId: "KH01", amount: 600, paymentMethod: "111",
+        isImported: false, entries: [{ debit: "111", credit: "131", amount: 600 }] },
+      { id: "PC1", type: "payment", date: "2026-01-03", partnerId: "KH01", amount: 100, paymentMethod: "111",
+        isImported: false, entries: [{ debit: acc, credit: "111", amount: 100 }] },
+      { id: "HD2", type: "sales", date: "2026-01-04", partnerId: "KH01", paymentMethod: "131",
+        items: [{ productId: "P1", qty: 1, price: 300, amount: 300 }], taxRate: 0, isImported: false }
+    ];
+    fifo2.recalculateAccounting(false);
+    const hd2 = fifo2.state.vouchers.find(v => v.id === "HD2");
+    assert.equal(hd2.remainingDebt, 300, `Nợ ${acc}: refund uses up the overpayment, later invoice stays unpaid`);
+    const debtCtx = loadDebtModule();
+    debtCtx.state.partners = fifo2.state.partners;
+    debtCtx.state.vouchers = plain(fifo2.state.vouchers);
+    const row = debtCtx.calculatePartnerDebts().find(d => d.id === "KH01");
+    assert.equal(row.closingDebit, 300, `Nợ ${acc}: debt summary equals FIFO remaining`);
+  });
+
+  // NCC: chi Nợ 331 vẫn trả hóa đơn mua hàng
+  const fifo3 = loadAccountingFifo();
+  fifo3.state.partners = [{ id: "NCC01", name: "NCC", type: "supplier" }];
+  fifo3.state.vouchers = [
+    { id: "NK1", type: "purchase", date: "2026-01-01", partnerId: "NCC01", paymentMethod: "331",
+      items: [{ productId: "P1", qty: 1, price: 500, amount: 500 }], taxRate: 0, isImported: false },
+    { id: "PC1", type: "payment", date: "2026-01-02", partnerId: "NCC01", amount: 200, paymentMethod: "111",
+      isImported: false, entries: [{ debit: "331", credit: "111", amount: 200 }] }
+  ];
+  fifo3.recalculateAccounting(false);
+  assert.equal(fifo3.state.vouchers.find(v => v.id === "NK1").remainingDebt, 300, "supplier payment still settles purchases");
+}
+
+function testAuditCustomerPaymentBridgeIdentity() {
+  const ctx = loadDebtWithLedger();
+  ctx.state.partners = [
+    { id: "KH01", name: "Khách 01", type: "retail" },
+    { id: "KH02", name: "Khách chỉ có phiếu chi", type: "retail" },
+    { id: "DT2C", name: "Đối tác hai chiều", type: "retail" },
+    { id: "NCC1", name: "NCC", type: "supplier" }
+  ];
+  ctx.state.partnerOpeningBalances = {};
+  ctx.state.initialBalances = {};
+  ctx.state.vouchers = [
+    { id: "BH1", type: "sales", date: "2026-01-01", partnerId: "KH01", entries: [{ debit: "131", credit: "511", amount: 500 }] },
+    { id: "PC1", type: "payment", date: "2026-01-02", partnerId: "KH01", entries: [{ debit: "331", credit: "111", amount: 100 }] },
+    { id: "PC2", type: "payment", date: "2026-01-03", partnerId: "KH02", entries: [{ debit: "331", credit: "111", amount: 70 }] },
+    { id: "PC3", type: "payment", date: "2026-01-04", partnerId: "KH01", entries: [{ debit: "131", credit: "111", amount: 30 }] },
+    { id: "BH2", type: "sales", date: "2026-01-05", partnerId: "DT2C", entries: [{ debit: "131", credit: "511", amount: 1000 }] },
+    { id: "NK2", type: "purchase", date: "2026-01-06", partnerId: "DT2C", entries: [{ debit: "156", credit: "331", amount: 400 }] },
+    { id: "PC4", type: "payment", date: "2026-01-07", partnerId: "DT2C", entries: [{ debit: "331", credit: "111", amount: 100 }] },
+    { id: "NK3", type: "purchase", date: "2026-01-08", partnerId: "NCC1", entries: [{ debit: "156", credit: "331", amount: 900 }] },
+    { id: "PC5", type: "payment", date: "2026-01-09", partnerId: "NCC1", entries: [{ debit: "331", credit: "111", amount: 200 }] }
+  ];
+  const debts = ctx.calculatePartnerDebts();
+  const rec = ctx.computeDebt131Reconciliation(debts, "", "");
+  assert.equal(rec.ledgerClose, 1530, "Sổ cái TK131 = real 131 lines (500 + 30 + 1000)");
+  assert.equal(rec.detailClose, 1530);
+  assert.equal(rec.closeMatched, true, "Khớp still compares ledger vs Σ real 131 lines");
+  assert.equal(rec.refund331Adj, 170, "bridge = Nợ 331 payments to customers (100 + 70)");
+  assert.equal(rec.kpiNet, (630) + (70) + (1000 - 300));
+  assert.equal(rec.ledgerClose + rec.refund331Adj + rec.other331Adj, rec.kpiNet, "Sổ cái + bridge + other331Adj = KPI ròng");
+  assert.equal(rec.other331Adj, -300, "dual-role genuine 331 payable");
+  const html = renderAudit(ctx);
+  assert.ok(html.includes("Phiếu chi cho khách hạch toán Nợ 331 (đọc là Nợ 131 theo chuẩn)"), "renamed bridge line");
+  assert.ok(html.includes("+170"), "bridge rendered with + sign");
+  assert.ok(!html.includes("cấn trừ phải thu"), "old backwards wording removed");
+}
+
+function testAuditFlagsPossibleDoubleRefund() {
+  const ctx = loadDebtWithLedger();
+  ctx.state.partners = [
+    { id: "KH01", name: "Khách <i>01</i>", type: "retail" },
+    { id: "NCC1", name: "NCC", type: "supplier" }
+  ];
+  ctx.state.initialBalances = {};
+  const sr = (id, date, partnerId, entries) => ({ id, type: "sales_return", date, partnerId, entries });
+  const pc = (id, date, partnerId, amount, description, debit = "331") =>
+    ({ id, type: "payment", date, partnerId, amount, description, entries: [{ debit, credit: "111", amount }] });
+  ctx.state.vouchers = [
+    { id: "BH1", type: "sales", date: "2026-02-20", partnerId: "KH01", entries: [{ debit: "131", credit: "511", amount: 5000 }] },
+    // Trả hàng đã hoàn tiền mặt (Có 111/112, không có 131)
+    sr("TL1", "2026-03-01", "KH01", [{ debit: "5213", credit: "111", amount: 450 }, { debit: "3331", credit: "111", amount: 50 }]),
+    // Trả hàng ghi giảm công nợ (Có 131) — không phải hoàn tiền
+    sr("TL2", "2026-03-01", "KH01", [{ debit: "5213", credit: "131", amount: 800 }]),
+    sr("TL3", "2026-03-01", "NCC1", [{ debit: "5213", credit: "112", amount: 600 }]),
+    pc("PC_DUP", "2026-03-05", "KH01", 500, "Chi trả lại tiền hàng cho khách"),
+    pc("PC_DUP2", "2026-02-25", "KH01", 500, "HOÀN tiền đơn trả", "131"),
+    pc("PC_FAR", "2026-03-20", "KH01", 500, "hoàn tiền"),
+    pc("PC_AMT", "2026-03-02", "KH01", 400, "trả lại tiền"),
+    pc("PC_NOWORD", "2026-03-02", "KH01", 500, "chi khác"),
+    pc("PC_RET131", "2026-03-02", "KH01", 800, "trả lại"),
+    pc("PC_SUP", "2026-03-02", "NCC1", 600, "trả lại")
+  ];
+  const range = { fromDate: "2026-03-01", toDate: "2026-03-31" };
+  const rec = ctx.computeDebt131Reconciliation(ctx.calculatePartnerDebts(range.fromDate, range.toDate), range.fromDate, range.toDate);
+  const diag = plain(rec.possibleDoubleRefunds);
+  assert.deepStrictEqual(diag.rows.map(r => r.id), ["PC_DUP"], "only the in-period customer refund matching a cash sales return");
+  assert.equal(diag.count, 1);
+  assert.equal(diag.total, 500);
+  assert.equal(diag.rows[0].returnId, "TL1");
+
+  const all = plain(ctx.computeDebt131Reconciliation(ctx.calculatePartnerDebts(), "", "").possibleDoubleRefunds);
+  assert.deepStrictEqual(all.rows.map(r => r.id).sort(), ["PC_DUP", "PC_DUP2"], "±7 days both directions, case-insensitive, any debit account");
+
+  const html = renderAudit(ctx, range);
+  assert.ok(html.includes("Có thể chi hoàn tiền 2 lần"), "diagnostic shown");
+  assert.ok(html.includes("PC_DUP") && html.includes("TL1"), "row lists payment and sales return");
+  assert.ok(html.includes("<details>"), "collapsible list");
+  assert.ok(!html.includes("Khách <i>01</i>") && html.includes("Khách &lt;i&gt;01&lt;/i&gt;"), "partner name escaped");
+}
+
 async function runAll() {
   testReceiptWithLoanEntriesDoesNotTouch131();
   testPaymentWithSalaryEntriesDoesNotTouch331();
@@ -1003,6 +1274,15 @@ async function runAll() {
   testNonDebtVouchersDoNotCreateEmptyUnmatchedBucket();
   testAccumulateDebtEntryLinesCoercesAmount();
   testAuditOther331AdjBridgeCases();
+  testRefundToOverpaidCustomerClearsBalance();
+  testPaymentToOwingCustomerIncreasesReceivable();
+  testSupplierPaymentStillReducesPayable();
+  testDualRoleWithGenuinePayableStaysSeparate();
+  testPaymentFormDefaultsDebitByPartner();
+  await testPaymentNo131AutoCreatesCustomer();
+  testFifoRefundDoesNotSettleInvoices();
+  testAuditCustomerPaymentBridgeIdentity();
+  testAuditFlagsPossibleDoubleRefund();
   console.log("debt-audit-tests.js: all tests passed");
 }
 

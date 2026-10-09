@@ -27,7 +27,9 @@ function isPartnerAuditVoucher(v) {
 }
 
 function createEmptyDebtCounters() {
-    return { debit131: 0, credit131: 0, debit331: 0, credit331: 0 };
+    // paymentDebit331: phần Nợ 331 đến từ PHIẾU CHI (đã nằm trong debit331) — dùng để đọc
+    // phiếu chi cho khách là Nợ 131 (xem computeDebtSides).
+    return { debit131: 0, credit131: 0, debit331: 0, credit331: 0, paymentDebit331: 0 };
 }
 
 function getDebtOpeningBasis(partnerType, op) {
@@ -38,67 +40,87 @@ function getDebtOpeningBasis(partnerType, op) {
     return { debit131: op.debit || 0, credit131: op.credit || 0, debit331: 0, credit331: 0 };
 }
 
-function accumulateDebtEntryLines(e, counters) {
+function accumulateDebtEntryLines(e, counters, voucherType) {
     const amount = Number(e.amount) || 0;
     if (e.debit && e.debit.startsWith("131")) counters.debit131 += amount;
     if (e.credit && e.credit.startsWith("131")) counters.credit131 += amount;
     if (e.credit && e.credit.startsWith("331")) counters.credit331 += amount;
-    if (e.debit && e.debit.startsWith("331")) counters.debit331 += amount;
+    if (e.debit && e.debit.startsWith("331")) {
+        counters.debit331 += amount;
+        if (voucherType === "payment") counters.paymentDebit331 = (counters.paymentDebit331 || 0) + amount;
+    }
 }
 
-// Quy tắc cấn trừ 131 + 331 (Bug A) — TÀI LIỆU THIẾT KẾ:
-// Phiếu chi của app LUÔN ghi Nợ 331 (kể cả khi chi trả/hoàn tiền cho KHÁCH HÀNG),
-// nên ý nghĩa của số phát sinh 331 phụ thuộc VAI TRÒ thực tế của đối tác:
-//   • Vai trò "supplier" (khai báo supplier, HOẶC chỉ có phát sinh 331 mà không có 131):
-//     dùng T-account chuẩn hợp nhất: phải trả = net331 − net131.
-//     (NCC trả thừa ⇒ net331 âm ⇒ hiện bên Dư Nợ = khoản phải thu lại.)
-//   • Vai trò "customer" (có phát sinh 131): Nợ 331 được hiểu là chi trả/hoàn tiền
-//     cho khách ⇒ GIẢM phải thu: phải thu = net131 + net331 (net331 = Có − Nợ).
+// Đối tác có phát sinh 331 THẬT (không tính Nợ 331 của phiếu chi): Có 331 (mua hàng) hoặc
+// Nợ 331 từ chứng từ khác phiếu chi, hoặc số dư đầu kỳ phía 331.
+function hasGenuine331Activity(basis, priorCounters, periodCounters) {
+    const nonPayment331Debit = c => (c.debit331 || 0) - (c.paymentDebit331 || 0);
+    return basis.debit331 + basis.credit331 +
+        priorCounters.credit331 + periodCounters.credit331 +
+        nonPayment331Debit(priorCounters) + nonPayment331Debit(periodCounters) > 0;
+}
+
+// Quy tắc 131 + 331 — TÀI LIỆU THIẾT KẾ (Task 5, theo TT133/TT200):
+// Chi tiền cho KHÁCH HÀNG (trả lại tiền thừa, hoàn tiền) là Nợ 131 / Có 111(112): làm số dư
+// của khách dịch về phía Dư Nợ (hết trả thừa / tăng phải thu), KHÔNG "giảm phải thu".
+//   • Phiếu chi cũ của app ghi Nợ 331 cả khi chi cho khách. Với đối tác vai trò KHÁCH
+//     (không khai báo supplier/both và KHÔNG có phát sinh 331 thật — xem hasGenuine331Activity),
+//     Nợ 331 của phiếu chi được ĐỌC là Nợ 131 (chỉ khi tính toán, không sửa dữ liệu lưu).
+//     Các phiếu chi này không tự biến khách thành NCC hay đối tác hai chiều.
+//   • Vai trò "supplier" (khai báo supplier, HOẶC chỉ có phát sinh 331 thật mà không có 131)
+//     và đối tác hai chiều có 331 thật: Nợ 331 của phiếu chi giữ là 331 (trả NCC).
+//   • Số dư dùng T-account hợp nhất cho mọi vai trò: phải thu ròng = net131 − net331
+//     (net131 = Nợ − Có, net331 = Có − Nợ). NCC trả thừa ⇒ net331 âm ⇒ Dư Nợ = phải thu lại.
 //   • Nếu CẢ net131 > 0 VÀ net331 > 0 (đối tác 2 vai thực sự): hiện cả hai bên,
 //     KHÔNG cấn trừ chéo (đúng nguyên tắc không bù trừ 131/331).
-// Cột "Phát sinh Nợ/Có" cũng theo vai trò để bảo toàn Đầu kỳ + Nợ − Có = Cuối kỳ:
-//   customer: PS Nợ = Nợ131 + Có331, PS Có = Có131 + Nợ331
-//   supplier: PS Nợ = Nợ131 + Nợ331, PS Có = Có131 + Có331 (thô, đúng T-account)
-function computeDebtSides(initialOpening, priorCounters, periodCounters, partnerType) {
+// Cột "Phát sinh Nợ/Có" thô theo T-account: PS Nợ = Nợ131 + Nợ331, PS Có = Có131 + Có331,
+// nên Đầu kỳ + Nợ − Có = Cuối kỳ (khi không tách hai bên).
+function computeDebtSides(initialOpening, priorCountersRaw, periodCountersRaw, partnerType) {
     const basis = getDebtOpeningBasis(partnerType, initialOpening);
+
+    // Phiếu chi Nợ 331 cho khách ⇒ đọc là Nợ 131 (bản sao, không sửa bộ đếm gốc)
+    const readPayments331As131 = partnerType !== "supplier" && partnerType !== "both" &&
+        !hasGenuine331Activity(basis, priorCountersRaw, periodCountersRaw);
+    const asCustomerPayments = c => {
+        const moved = readPayments331As131 ? (c.paymentDebit331 || 0) : 0;
+        return { ...c, debit131: c.debit131 + moved, debit331: c.debit331 - moved, moved };
+    };
+    const priorCounters = asCustomerPayments(priorCountersRaw);
+    const periodCounters = asCustomerPayments(periodCountersRaw);
 
     const open131Debit = basis.debit131 + priorCounters.debit131;
     const open131Credit = basis.credit131 + priorCounters.credit131;
     const open331Debit = basis.debit331 + priorCounters.debit331;
     const open331Credit = basis.credit331 + priorCounters.credit331;
 
-    const net131Open = open131Debit - open131Credit;
+    const netOpen131 = open131Debit - open131Credit;
     const net331Open = open331Credit - open331Debit;
 
     const activity131 = open131Debit + open131Credit + periodCounters.debit131 + periodCounters.credit131;
     const activity331 = open331Debit + open331Credit + periodCounters.debit331 + periodCounters.credit331;
 
-    // Vai trò quyết định cách diễn giải số phát sinh 331 (xem tài liệu thiết kế ở trên)
     const roleSupplier = partnerType === "supplier" || (activity331 > 0 && activity131 === 0);
 
     const resolveSides = (net131, net331) => {
         if (net131 > 0 && net331 > 0) {
             return { debit: net131, credit: net331 };
         }
-        const combined = roleSupplier ? (net331 - net131) : (net131 + net331);
-        if (roleSupplier) {
-            return combined >= 0 ? { debit: 0, credit: combined } : { debit: -combined, credit: 0 };
-        }
+        const combined = net131 - net331;
         return combined >= 0 ? { debit: combined, credit: 0 } : { debit: 0, credit: -combined };
     };
 
-    const openSides = resolveSides(net131Open, net331Open);
+    const openSides = resolveSides(netOpen131, net331Open);
 
-    const net131Close = net131Open + periodCounters.debit131 - periodCounters.credit131;
+    const netClose131 = netOpen131 + periodCounters.debit131 - periodCounters.credit131;
     const net331Close = net331Open + periodCounters.credit331 - periodCounters.debit331;
-    const closeSides = resolveSides(net131Close, net331Close);
+    const closeSides = resolveSides(netClose131, net331Close);
 
-    const debitTrans = roleSupplier ?
-        periodCounters.debit131 + periodCounters.debit331 :
-        periodCounters.debit131 + periodCounters.credit331;
-    const creditTrans = roleSupplier ?
-        periodCounters.credit131 + periodCounters.credit331 :
-        periodCounters.credit131 + periodCounters.debit331;
+    const debitTrans = periodCounters.debit131 + periodCounters.debit331;
+    const creditTrans = periodCounters.credit131 + periodCounters.credit331;
+
+    // Đối chiếu Sổ cái TK 131: CHỈ dòng 131 thật (không gồm phiếu chi Nợ 331 đọc là 131)
+    const net131Open = netOpen131 - priorCounters.moved;
+    const net131Close = netClose131 - priorCounters.moved - periodCounters.moved;
 
     return {
         openingDebit: openSides.debit,
@@ -111,12 +133,12 @@ function computeDebtSides(initialOpening, priorCounters, periodCounters, partner
         has331: activity331 > 0,
         supplierReceivable: roleSupplier ? Math.max(-net331Close, 0) : 0,
         roleSupplier,
-        // Chỉ phục vụ đối chiếu Sổ cái TK 131 (Task 4): số dư ròng CHỈ từ dòng 131 (Nợ − Có),
-        // và phần 331 (Có − Nợ) đã cấn trừ vào phải thu theo vai trò khách hàng.
+        // Chỉ phục vụ đối chiếu Sổ cái TK 131 (Task 4): số dư ròng CHỈ từ dòng 131 thật (Nợ − Có),
+        // và tổng phiếu chi Nợ 331 cho khách đã đọc là Nợ 131 (cầu nối Sổ cái → KPI, Task 5).
         net131Open,
         net131Close,
         net331Close,
-        netted331Into131: (!roleSupplier && !(net131Close > 0 && net331Close > 0)) ? net331Close : 0
+        customerPayment331As131: priorCounters.moved + periodCounters.moved
     };
 }
 
@@ -203,7 +225,6 @@ function extractLedgerAmountsFromVoucher(v, debtRole) {
     let debitAmount = 0;
     let creditAmount = 0;
     const offsetAccountSet = new Set();
-    const role = debtRole === "supplier" ? "supplier" : (debtRole === "both" ? "both" : "customer");
 
     getVoucherDebtEntries(v).forEach(e => {
         const touches131 = (e.debit && e.debit.startsWith("131")) || (e.credit && e.credit.startsWith("131"));
@@ -211,20 +232,11 @@ function extractLedgerAmountsFromVoucher(v, debtRole) {
         if (!touches131 && !touches331) return;
 
         const amount = Number(e.amount || 0);
-        if (role === "both") {
-            if (e.debit && (e.debit.startsWith("131") || e.debit.startsWith("331"))) debitAmount += amount;
-            if (e.credit && (e.credit.startsWith("131") || e.credit.startsWith("331"))) creditAmount += amount;
-        } else if (role === "supplier") {
-            if (e.debit && (e.debit.startsWith("131") || e.debit.startsWith("331"))) debitAmount += amount;
-            if (e.credit && (e.credit.startsWith("131") || e.credit.startsWith("331"))) creditAmount += amount;
-        } else {
-            // Khách hàng: Nợ 131 / Có 331 làm tăng phải thu;
-            // Có 131 / Nợ 331 làm giảm phải thu. Quy tắc này phải giống computeDebtSides().
-            if (e.debit && e.debit.startsWith("131")) debitAmount += amount;
-            if (e.credit && e.credit.startsWith("331")) debitAmount += amount;
-            if (e.credit && e.credit.startsWith("131")) creditAmount += amount;
-            if (e.debit && e.debit.startsWith("331")) creditAmount += amount;
-        }
+        // T-account hợp nhất cho mọi vai trò (debtRole chỉ còn quyết định chiều số dư ở người gọi):
+        // Nợ 131/331 là phát sinh Nợ, Có 131/331 là phát sinh Có — giống computeDebtSides().
+        // Phiếu chi Nợ 331 cho khách vì vậy làm TĂNG phải thu, như Nợ 131 (Task 5).
+        if (e.debit && (e.debit.startsWith("131") || e.debit.startsWith("331"))) debitAmount += amount;
+        if (e.credit && (e.credit.startsWith("131") || e.credit.startsWith("331"))) creditAmount += amount;
         if (e.debit && (e.credit || "").length > 0) offsetAccountSet.add(e.credit);
         if (e.credit && (e.debit || "").length > 0) offsetAccountSet.add(e.debit);
     });
@@ -240,7 +252,7 @@ function computePriorDebtCountersForPartner(partnerId, partnerType, fromDate) {
     state.vouchers.forEach(v => {
         if (resolvePid(v) !== partnerId) return;
         if (v.date >= fromDate) return;
-        getVoucherDebtEntries(v).forEach(e => accumulateDebtEntryLines(e, prior));
+        getVoucherDebtEntries(v).forEach(e => accumulateDebtEntryLines(e, prior, v.type));
     });
     return prior;
 }
@@ -254,6 +266,7 @@ function calculatePartnerDebtLedger(matchingPartners, fromDate = "", toDate = ""
     const matchingIds = new Set(partners.map(item => item.id));
     let has131 = false;
     let has331 = false;
+    let hasPayment331 = false;
     partners.forEach(item => {
         const op = state.partnerOpeningBalances[item.id] || { debit: 0, credit: 0 };
         if (Number(op.debit || 0) !== 0 || Number(op.credit || 0) !== 0) {
@@ -267,9 +280,15 @@ function calculatePartnerDebtLedger(matchingPartners, fromDate = "", toDate = ""
         if (toDate && v.date > toDate) return;
         getVoucherDebtEntries(v).forEach(e => {
             if ((e.debit && e.debit.startsWith("131")) || (e.credit && e.credit.startsWith("131"))) has131 = true;
-            if ((e.debit && e.debit.startsWith("331")) || (e.credit && e.credit.startsWith("331"))) has331 = true;
+            if (e.credit && e.credit.startsWith("331")) has331 = true;
+            // Nợ 331 của phiếu chi cho khách được đọc là Nợ 131 (Task 5) — không tự làm thành NCC
+            if (e.debit && e.debit.startsWith("331")) {
+                if (v.type === "payment") hasPayment331 = true;
+                else has331 = true;
+            }
         });
     });
+    if (hasPayment331 && (has331 || partners.some(item => item.type === "supplier" || item.type === "both"))) has331 = true;
     const role = debtRole === "supplier" || (has331 && !has131) ? "supplier" : "customer";
 
     let totalOpeningDebit = 0;
@@ -446,7 +465,7 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
         const d = debts[pid];
         const isPrior = fromDate && v.date < fromDate;
         getVoucherDebtEntries(v).forEach(e => {
-            accumulateDebtEntryLines(e, isPrior ? d.priorCounters : d.periodCounters);
+            accumulateDebtEntryLines(e, isPrior ? d.priorCounters : d.periodCounters, v.type);
         });
     });
 
@@ -492,7 +511,7 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
         d.supplierReceivable = sides.supplierReceivable;
         d.net131Open = sides.net131Open;
         d.net131Close = sides.net131Close;
-        d.netted331Into131 = sides.netted331Into131;
+        d.customerPayment331As131 = sides.customerPayment331As131;
         d.debtRole = inferPartnerDebtRole(d.type, sides.has131, sides.has331);
         if (d.debtRole === "both") {
             d.type = "both";
@@ -554,7 +573,7 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
             closingCredit: unmatchedSides.closingCredit,
             net131Open: unmatchedPrior.debit131 - unmatchedPrior.credit131,
             net131Close: unmatchedPrior.debit131 - unmatchedPrior.credit131 + unmatchedPeriod.debit131 - unmatchedPeriod.credit131,
-            netted331Into131: 0,
+            customerPayment331As131: 0,
             // Số dư của đối tác đã xóa là dữ liệu chưa xác minh: hiển thị để
             // đối chiếu, tuyệt đối không tự khôi phục vào số dư kế toán.
             orphanOpeningDebit,
@@ -2931,10 +2950,71 @@ function computePartnerCashWithoutDebtLines(fromDate = "", toDate = "") {
   return result;
 }
 
+// Phiếu chi cho KHÁCH có diễn giải "trả lại"/"hoàn" trong khi cùng khách đã có phiếu trả hàng
+// hoàn tiền mặt/ngân hàng (Có 111/112, không có dòng 131) cùng số tiền trong ±7 ngày —
+// có thể đã chi hoàn tiền 2 lần. Chỉ đọc, không sửa dữ liệu.
+function getDebtAuditDayNumber(isoDate) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(isoDate || ""));
+  return m ? Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 86400000 : null;
+}
+
+function computePossibleDoubleRefunds(allDebts, fromDate = "", toDate = "") {
+  const result = { count: 0, total: 0, rows: [] };
+  const customerIds = new Set();
+  const partnerNames = new Map();
+  (allDebts || []).forEach(d => {
+    if (d && d.debtRole === "customer" && d.type !== "unmatched") {
+      customerIds.add(d.id);
+      partnerNames.set(d.id, d.name || "");
+    }
+  });
+  if (customerIds.size === 0) return result;
+  const resolvePid = createVoucherPartnerResolver(state.partners);
+  const cashReturns = new Map();
+  (state.vouchers || []).forEach(v => {
+    if (!v || v.type !== "sales_return" || !Array.isArray(v.entries)) return;
+    const pid = resolvePid(v);
+    if (!customerIds.has(pid)) return;
+    if (v.entries.some(e => e && ((e.debit && String(e.debit).startsWith("131")) || (e.credit && String(e.credit).startsWith("131"))))) return;
+    const refunded = v.entries.reduce((sum, e) => sum +
+      (e && e.credit && /^(111|112)/.test(String(e.credit)) ? (Number(e.amount) || 0) : 0), 0);
+    if (refunded <= 0) return;
+    if (!cashReturns.has(pid)) cashReturns.set(pid, []);
+    cashReturns.get(pid).push({ v, amount: refunded, day: getDebtAuditDayNumber(v.date) });
+  });
+  if (cashReturns.size === 0) return result;
+  (state.vouchers || []).forEach(v => {
+    if (!v || v.type !== "payment") return;
+    if (fromDate && v.date < fromDate) return;
+    if (toDate && v.date > toDate) return;
+    if (!/trả lại|hoàn/.test(String(v.description || "").normalize("NFC").toLowerCase())) return;
+    const pid = resolvePid(v);
+    const returns = cashReturns.get(pid);
+    if (!returns) return;
+    const amount = Number(v.amount) ||
+      (Array.isArray(v.entries) ? v.entries.reduce((sum, e) => sum + (e ? Number(e.amount) || 0 : 0), 0) : 0);
+    const day = getDebtAuditDayNumber(v.date);
+    if (amount <= 0 || day === null) return;
+    const match = returns.find(r => r.day !== null && Math.abs(r.day - day) <= 7 && Math.abs(r.amount - amount) <= 1);
+    if (!match) return;
+    result.count++;
+    result.total += amount;
+    result.rows.push({
+      id: v.id, date: v.date || "", partnerId: pid,
+      partnerName: partnerNames.get(pid) || v.partnerName || "",
+      amount, description: v.description || "",
+      returnId: match.v.id, returnDate: match.v.date || ""
+    });
+  });
+  result.rows.sort((a, b) => (a.date || "").localeCompare(b.date || "") || String(a.id || "").localeCompare(String(b.id || "")));
+  return result;
+}
+
 /**
  * Đối chiếu TK 131: Sổ cái thật ↔ Σ net131 của công nợ chi tiết ↔ KPI ròng.
  *   ledgerClose ± closeDiff = detailClose (Khớp khi |closeDiff| ≤ 1)
  *   detailClose + refund331Adj + other331Adj = kpiNet
+ *   refund331Adj = Σ phiếu chi cho khách hạch toán Nợ 331, đọc là Nợ 131 theo chuẩn (Task 5)
  * Kỳ lọc giống calculatePartnerDebts: cuối kỳ tính đến toDate (rỗng = toàn bộ),
  * đầu kỳ (khi có fromDate) là số dư đến hết ngày trước fromDate.
  */
@@ -2946,7 +3026,7 @@ function computeDebt131Reconciliation(allDebts, fromDate = "", toDate = "") {
     detailClose += Number(d.net131Close) || 0;
     if (isDebtKpiReceivableRow(d)) {
       kpiNet += (d.closingDebit || 0) - (d.closingCredit || 0);
-      refund331Adj += Number(d.netted331Into131) || 0;
+      refund331Adj += Number(d.customerPayment331As131) || 0;
     }
     if (d.type !== "unmatched" && (d.declaredType || d.type) !== "supplier") {
       partnerOpeningSum += (d.initialOpeningDebit || 0) - (d.initialOpeningCredit || 0);
@@ -2976,7 +3056,8 @@ function computeDebt131Reconciliation(allDebts, fromDate = "", toDate = "") {
     refund331Adj, other331Adj, kpiNet,
     initialLedgerOpening, partnerOpeningSum, initialOpeningDiff,
     initialOpeningMatched: Math.abs(initialOpeningDiff) <= 1,
-    partnerCashWithoutDebt: computePartnerCashWithoutDebtLines(fromDate, toDate)
+    partnerCashWithoutDebt: computePartnerCashWithoutDebtLines(fromDate, toDate),
+    possibleDoubleRefunds: computePossibleDoubleRefunds(rows, fromDate, toDate)
   };
 }
 
@@ -3030,6 +3111,45 @@ function renderPartnerCashWithoutDebtBlock(diag, showDate) {
             <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
               <table class="data-table" style="font-size: 12px; width: 100%;">
                 <thead><tr><th>Số chứng từ</th><th>Ngày</th><th>Đối tác</th><th class="text-right">Số tiền</th><th>TK đối ứng</th></tr></thead>
+                <tbody>${rowsHtml}</tbody>
+              </table>
+            </div>
+            ${moreNote}
+          </details>
+        </div>
+      </div>`;
+}
+
+function renderPossibleDoubleRefundBlock(diag, showDate) {
+  if (!diag || !diag.count) return "";
+  const esc = escapeDebtAuditText;
+  const label = 'Có thể chi hoàn tiền 2 lần';
+  const line = (text, value, cls = '') => `<div class="debt-audit-line"><span class="debt-audit-line-label">${text}</span><span class="debt-audit-line-value font-numeric ${cls}">${value}</span></div>`;
+  const shown = diag.rows.slice(0, PARTNER_CASH_NO_DEBT_LIST_LIMIT);
+  const rowsHtml = shown.map(r => `<tr>
+              <td>${esc(r.id)}</td>
+              <td>${showDate(r.date)}</td>
+              <td>${esc(r.partnerName ? `${r.partnerName} (${r.partnerId})` : r.partnerId)}</td>
+              <td class="text-right font-numeric">${formatVND(r.amount)}</td>
+              <td>${esc(r.description)}</td>
+              <td>${esc(r.returnId)} (${showDate(r.returnDate)})</td>
+            </tr>`).join("");
+  const moreNote = diag.rows.length > shown.length
+    ? `<p class="debt-alert-warning-note">Hiển thị ${shown.length}/${diag.rows.length} phiếu đầu tiên.</p>` : "";
+  return `
+      <div class="debt-alert-warning">
+        <div class="debt-alert-warning-header">
+          <span>${label}</span>
+          <span class="badge badge-danger">${diag.count.toLocaleString('vi-VN')} phiếu</span>
+        </div>
+        <div class="debt-alert-warning-body">
+          ${line('Tổng số tiền', formatVND(diag.total), 'text-danger')}
+          <p class="debt-alert-warning-note">Phiếu chi cho khách ghi "trả lại"/"hoàn" trong khi cùng khách đã có phiếu trả hàng hoàn tiền (Có 111/112) cùng số tiền trong vòng ±7 ngày. Cần kiểm tra lại để tránh hoàn tiền trùng.</p>
+          <details>
+            <summary>Xem danh sách phiếu</summary>
+            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+              <table class="data-table" style="font-size: 12px; width: 100%;">
+                <thead><tr><th>Số chứng từ</th><th>Ngày</th><th>Đối tác</th><th class="text-right">Số tiền</th><th>Diễn giải</th><th>Phiếu trả hàng</th></tr></thead>
                 <tbody>${rowsHtml}</tbody>
               </table>
             </div>
@@ -3204,7 +3324,7 @@ function renderDebtOverview(allDebts, dateRange) {
           </div>
           <div class="debt-audit-lines">
             ${line('Công nợ chi tiết (Σ 131)', formatVND(rec.detailClose))}
-            ${line('Chi trả/hoàn tiền khách hạch toán Nợ 331 (cấn trừ phải thu)', signed(rec.refund331Adj), 'text-warning')}
+            ${line('Phiếu chi cho khách hạch toán Nợ 331 (đọc là Nợ 131 theo chuẩn)', signed(rec.refund331Adj), 'text-warning')}
             ${Math.abs(rec.other331Adj) > 1 ? line('Điều chỉnh 331 (đối tác vai trò NCC / hai chiều / chưa khớp)', signed(rec.other331Adj), 'text-warning') : ''}
             ${line('KPI Tổng phải thu (Dư Nợ)', formatVND(totalRec), 'text-success')}
             ${line('− Khách trả thừa/trả trước (Dư Có)', `−${formatVND(totalRowOvp)}`, 'text-warning')}
@@ -3216,6 +3336,7 @@ function renderDebtOverview(allDebts, dateRange) {
         </div>
       </div>
       ${renderPartnerCashWithoutDebtBlock(rec.partnerCashWithoutDebt, showDate)}
+      ${renderPossibleDoubleRefundBlock(rec.possibleDoubleRefunds, showDate)}
       ${unmatchedBucket ? `
       <div class="debt-alert-warning">
         <div class="debt-alert-warning-header">
@@ -3820,6 +3941,7 @@ window.classifyPartnerCategory = classifyPartnerCategory;
 window.renderDebtOverview = renderDebtOverview;
 window.computeDebt131Reconciliation = computeDebt131Reconciliation;
 window.computePartnerCashWithoutDebtLines = computePartnerCashWithoutDebtLines;
+window.computePossibleDoubleRefunds = computePossibleDoubleRefunds;
 window.viewUnmatchedPartnerLedger = viewUnmatchedPartnerLedger;
 window.showUnmatchedPartnerIds = showUnmatchedPartnerIds;
 window.renderDebtsIndividualTable = renderDebtsIndividualTable;

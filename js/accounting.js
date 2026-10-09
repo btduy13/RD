@@ -467,6 +467,22 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
     return amount - left;
   };
 
+  // Task 5 (giống debts.js computeDebtSides): phiếu chi Nợ 331 cho đối tác vai trò KHÁCH
+  // (không khai báo supplier/both, không có phát sinh 331 thật) được đọc là Nợ 131.
+  // Chi tiền cho khách (Nợ 131) chỉ dùng hết khoản khách trả thừa/trả trước, KHÔNG tất toán hóa đơn.
+  const partnerTypeById = Object.create(null);
+  (state.partners || []).forEach(p => { if (p) partnerTypeById[p.id] = p.type; });
+  const genuine331Pids = new Set();
+  state.vouchers.forEach(v => {
+    if (!v.entries || v.entries.length === 0) return;
+    const pid = resolveVoucherPartnerIdForCalc(v);
+    if (!pid) return;
+    if (v.entries.some(e => e && ((e.credit && String(e.credit).startsWith("331")) ||
+      (v.type !== "payment" && e.debit && String(e.debit).startsWith("331"))))) genuine331Pids.add(pid);
+  });
+  const readsPayment331As131 = pid => pid && partnerTypeById[pid] !== undefined &&
+    partnerTypeById[pid] !== "supplier" && partnerTypeById[pid] !== "both" && !genuine331Pids.has(pid);
+
   state.vouchers.forEach(v => {
     const isDebtType = (v.type === "sales" || v.type === "purchase" || v.type === "sales_return" || v.type === "purchase_return");
     if (!v.entries || v.entries.length === 0) {
@@ -487,6 +503,15 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
     });
 
     if (isDebtType) v.remainingDebt = 0;
+
+    if (v.type === "payment" && pid) {
+      let refund131 = debit131;
+      if (debit331 > 0 && readsPayment331As131(pid)) {
+        refund131 += debit331;
+        debit331 = 0;
+      }
+      if (refund131 > 0) consumeAdvance(arAdvances, pid, refund131);
+    }
 
     if (v.type === "sales" && debit131 > 0) {
       const used = pid ? consumeAdvance(arAdvances, pid, debit131) : 0;

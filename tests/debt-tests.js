@@ -158,11 +158,11 @@ function testBothAccountsPerPartner() {
   const debts = ctx.calculatePartnerDebts();
   const kh = debts.find(d => d.id === "KH01");
   assert.ok(kh, "partner debt row exists");
-  // Vai trò customer: Nợ 331 (chi hoàn tiền cho khách) tính vào PS Có (giảm phải thu)
-  // để giữ bất biến T-account: Đầu kỳ + PS Nợ − PS Có = Cuối kỳ.
-  assert.equal(kh.debitTrans, 1100000, "PS Nợ = phát sinh Nợ 131 (doanh thu + thuế)");
-  assert.equal(kh.creditTrans, 200000, "PS Có = Nợ 331 hoàn tiền khách, giảm phải thu");
-  assert.equal(kh.closingDebit, 900000, "net receivable after refund payment on 331");
+  // Task 5 (TT133/TT200): chi tiền cho khách là Nợ 131 — phiếu chi Nợ 331 của khách được đọc
+  // là Nợ 131, làm TĂNG phải thu; vẫn giữ bất biến Đầu kỳ + PS Nợ − PS Có = Cuối kỳ.
+  assert.equal(kh.debitTrans, 1300000, "PS Nợ = Nợ 131 (doanh thu + thuế) + phiếu chi cho khách");
+  assert.equal(kh.creditTrans, 0, "phiếu chi cho khách không phải PS Có");
+  assert.equal(kh.closingDebit, 1300000, "payment to customer increases the receivable");
   assert.equal(kh.openingDebit + kh.debitTrans - kh.creditTrans, kh.closingDebit, "T-account invariant holds");
 }
 
@@ -189,14 +189,15 @@ function testDebtNoticeUsesSameLedgerAsOverview() {
     .find(row => row.id === partner.id);
   const ledger = ctx.calculatePartnerDebtLedger([partner], "2026-01-01", "2026-07-31", "customer");
 
-  assert.equal(overview.debitTrans, 60002317, "overview customer debit includes Nợ 131");
-  assert.equal(overview.creditTrans, 75000000, "overview customer credit includes Có 131 + Nợ 331");
-  assert.equal(overview.closingCredit, 14997683, "overview closes on Có side");
+  // Task 5: phiếu chi Nợ 331 cho khách đọc là Nợ 131 (tăng phải thu)
+  assert.equal(overview.debitTrans, 90002317, "overview customer debit includes Nợ 131 + payment to customer");
+  assert.equal(overview.creditTrans, 45000000, "overview customer credit is the Có 131 receipt");
+  assert.equal(overview.closingDebit, 45002317, "overview closes on Nợ side");
   assert.equal(ledger.debitSum, overview.debitTrans, "notice ledger debit matches overview");
   assert.equal(ledger.creditSum, overview.creditTrans, "notice ledger credit matches overview");
-  assert.equal(ledger.closingVal, -overview.closingCredit, "notice signed closing matches overview side and amount");
-  assert.ok(ledger.ledgerEntries.some(entry => entry.id === "PC-A" && entry.credit === 30000000),
-    "customer notice includes Nợ 331 payment as a credit-side debt movement");
+  assert.equal(ledger.closingVal, overview.closingDebit, "notice signed closing matches overview side and amount");
+  assert.ok(ledger.ledgerEntries.some(entry => entry.id === "PC-A" && entry.debit === 30000000),
+    "customer notice includes Nợ 331 payment as a debit-side debt movement");
 }
 
 function testMatchedVoucherWithoutEntriesUsesFallback() {

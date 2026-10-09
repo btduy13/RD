@@ -3483,12 +3483,13 @@
           <div class="form-group">
             <label class="form-label">Nhà cung cấp / Đối tượng nhận tiền</label>
             <input type="text" id="payment-partner" class="form-control" required
-              placeholder="Gõ mã hoặc tên đối tác..." list="datalist-partners">
+              placeholder="Gõ mã hoặc tên đối tác..." list="datalist-partners" onchange="onPaymentPartnerChange()">
           </div>
           <div class="form-group">
             <label class="form-label">Tài khoản Nợ</label>
-            <select id="payment-debit" class="form-control" required>
+            <select id="payment-debit" class="form-control" required onchange="markPaymentDebitChosen()">
               <option value="331" selected>Phải trả người bán (TK 331)</option>
+              <option value="131">Chi trả / hoàn tiền khách hàng (TK 131)</option>
               <option value="156">Nhập mua hàng hóa (TK 156)</option>
               <option value="642">Chi phí quản lý DN / thuê xưởng (TK 642)</option>
               <option value="244">Chi ký quỹ, ký cược (TK 244/1386)</option>

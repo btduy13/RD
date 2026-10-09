@@ -54,7 +54,26 @@ function resetReceiptForm() {
     if (submitBtn) submitBtn.innerText = "Ghi sổ";
 }
 
+// TK Nợ mặc định của phiếu chi theo đối tác (TT133/TT200): chi cho khách (lẻ / doanh nghiệp /
+// công trình) là Nợ 131, chi cho NCC là Nợ 331. Chỉ đổi giữa 131/331 khi người dùng chưa tự chọn.
+let paymentDebitChosen = false;
+
+function markPaymentDebitChosen() {
+    paymentDebitChosen = true;
+}
+
+function onPaymentPartnerChange() {
+    if (paymentDebitChosen) return;
+    const debitEl = document.getElementById("payment-debit");
+    const partnerEl = document.getElementById("payment-partner");
+    if (!debitEl || !partnerEl || (debitEl.value !== "131" && debitEl.value !== "331")) return;
+    const p = typeof findExistingPartner === "function" ? findExistingPartner(partnerEl.value) : null;
+    if (!p) return;
+    debitEl.value = (p.type === "supplier" || p.type === "both") ? "331" : "131";
+}
+
 function resetPaymentForm() {
+    paymentDebitChosen = false;
     editingPaymentId = null;
     const modalTitle = document.querySelector("#modal-add-payment .card-title");
     if (modalTitle) modalTitle.innerText = "Lập Phiếu Chi Tiền (Cash Payment)";
@@ -395,6 +414,7 @@ function editPaymentVoucher(id) {
   const pObj = typeof getPartnerForVoucher === "function" ? getPartnerForVoucher(v) : null;
   document.getElementById("payment-partner").value = pObj ? `${pObj.name} (${pObj.id})` : (v.partnerName || "");
   document.getElementById("payment-debit").value = entry.debit || "331";
+  paymentDebitChosen = true; // tài khoản đã lưu là lựa chọn của kế toán — không tự đổi
   document.getElementById("payment-credit").value = entry.credit || v.paymentMethod || "111";
   document.getElementById("payment-amount").value = formatVND(v.amount || 0).replace("đ", "").trim();
   document.getElementById("payment-desc").value = v.description || "";
@@ -1098,4 +1118,6 @@ window.editReceiptVoucher = editReceiptVoucher;
 window.editPaymentVoucher = editPaymentVoucher;
 window.openAddReceiptModal = openAddReceiptModal;
 window.openAddPaymentModal = openAddPaymentModal;
+window.onPaymentPartnerChange = onPaymentPartnerChange;
+window.markPaymentDebitChosen = markPaymentDebitChosen;
 window.syncCashDepositAccountOptions = syncCashDepositAccountOptions;
