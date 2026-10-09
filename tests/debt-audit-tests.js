@@ -549,6 +549,170 @@ function testReportAccountsName1388BothStandards() {
   });
 }
 
+// ---- Task 4: hộp "Kiểm toán T-tài khoản 131" đối chiếu với Sổ cái thật ----
+
+// debts.js + accounting.js (getAccountBalance — hàm Sổ cái dùng chung) trong cùng sandbox.
+function loadDebtWithLedger() {
+  const ctx = loadDebtModule();
+  Object.assign(ctx, {
+    DEFAULT_DATA: { products: [], initialBalances: {} },
+    saveState() {},
+    refreshUI() {},
+    cacheProductOptions() {},
+    updateExcelHubUI() {},
+    safeParseFloat: (v) => Number(v) || 0
+  });
+  ctx.state.accountingStandard = "TT200";
+  ctx.state.products = [];
+  ctx.state.initialBalances = {};
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "js", "accounting.js"), "utf8"), ctx, { filename: "accounting.js" });
+  const elements = new Map();
+  ctx.document.getElementById = id => {
+    if (!elements.has(id)) elements.set(id, { innerHTML: "", value: "", style: {} });
+    return elements.get(id);
+  };
+  return ctx;
+}
+
+function renderAudit(ctx, range) {
+  ctx.renderDebtOverview(ctx.calculatePartnerDebts(range ? range.fromDate : "", range ? range.toDate : ""), range);
+  return ctx.document.getElementById("debt-audit-content").innerHTML;
+}
+
+function baseLedgerFixture(ctx) {
+  ctx.state.partners = [{ id: "KH01", name: "Khách 01", type: "retail" }];
+  ctx.state.partnerOpeningBalances = { KH01: { debit: 500, credit: 0 } };
+  ctx.state.initialBalances = { "131": { name: "Phải thu của khách hàng", type: "debit", balance: 500 } };
+  ctx.state.vouchers = [
+    { id: "BH1", type: "sales", date: "2026-01-10", partnerId: "KH01",
+      entries: [{ debit: "131", credit: "511", amount: 1000 }] },
+    { id: "PT1", type: "receipt", date: "2026-02-10", partnerId: "KH01",
+      entries: [{ debit: "111", credit: "131", amount: 300 }] }
+  ];
+}
+
+function testAudit131MatchesLedger() {
+  const ctx = loadDebtWithLedger();
+  baseLedgerFixture(ctx);
+  const rec = ctx.computeDebt131Reconciliation(ctx.calculatePartnerDebts(), "", "");
+  assert.equal(rec.ledgerClose, ctx.getAccountBalance("131"), "ledger figure comes from getAccountBalance");
+  assert.equal(rec.ledgerClose, 1200);
+  assert.equal(rec.detailClose, 1200);
+  assert.equal(rec.closeMatched, true);
+  const html = renderAudit(ctx);
+  assert.ok(html.includes("Sổ cái TK 131"), "ledger line shown");
+  assert.ok(html.includes("Công nợ chi tiết (Σ 131)"), "detail line shown");
+  assert.ok(/debt-audit-match-badge">Khớp</.test(html), "Khớp when ledger == detail");
+  assert.ok(!html.includes("Lệch"), "no Lệch badge when everything agrees");
+}
+
+function testAudit131FlagsLedgerOnlyEntry() {
+  const ctx = loadDebtWithLedger();
+  baseLedgerFixture(ctx);
+  // Bút toán 131 không gắn đối tác (phiếu kế toán tổng hợp) — Sổ cái có, công nợ chi tiết không có
+  ctx.state.vouchers.push({ id: "PKT1", type: "general", date: "2026-03-01",
+    entries: [{ debit: "131", credit: "711", amount: 250 }] });
+  const rec = ctx.computeDebt131Reconciliation(ctx.calculatePartnerDebts(), "", "");
+  assert.equal(rec.ledgerClose, 1450);
+  assert.equal(rec.detailClose, 1200);
+  assert.equal(rec.closeDiff, 250);
+  assert.equal(rec.closeMatched, false);
+  const html = renderAudit(ctx);
+  assert.ok(/debt-audit-match-badge">Lệch 250</.test(html), "Lệch badge carries the 250 difference");
+}
+
+function testAudit131FlagsOpeningMismatch() {
+  const ctx = loadDebtWithLedger();
+  baseLedgerFixture(ctx);
+  // Số dư đầu kỳ Sổ cái 700 nhưng tổng đầu kỳ đối tác (phía 131) chỉ 500 (vd. đối tác đã bị xóa)
+  ctx.state.initialBalances["131"].balance = 700;
+  ctx.state.partnerOpeningBalances.DA_XOA = { debit: 200, credit: 0 };
+  const rec = ctx.computeDebt131Reconciliation(ctx.calculatePartnerDebts(), "", "");
+  assert.equal(rec.initialLedgerOpening, 700);
+  assert.equal(rec.partnerOpeningSum, 500, "orphan opening is not part of Σ partner opening");
+  assert.equal(rec.initialOpeningDiff, 200);
+  assert.equal(rec.closeDiff, 200, "opening gap flows into the closing difference");
+  const html = renderAudit(ctx);
+  assert.ok(html.includes("Số dư đầu kỳ khai báo trên Sổ cái TK 131"), "opening comparison shown");
+  assert.ok(html.includes("Σ số dư đầu kỳ đối tác (phía 131)"));
+  assert.ok(/debt-audit-match-badge">Lệch 200</.test(html), "closing Lệch 200");
+  assert.ok(/Lệch đầu kỳ 200/.test(html), "opening mismatch badge with amount");
+}
+
+function testAudit131RefundBridgeEqualsKpiNet() {
+  const ctx = loadDebtWithLedger();
+  ctx.state.partners = [{ id: "KH02", name: "Khách 02", type: "retail" }];
+  ctx.state.partnerOpeningBalances = {};
+  ctx.state.initialBalances = { "131": { type: "debit", balance: 0 }, "331": { type: "credit", balance: 0 } };
+  ctx.state.vouchers = [
+    { id: "BH2", type: "sales", date: "2026-01-10", partnerId: "KH02",
+      entries: [{ debit: "131", credit: "511", amount: 1000 }] },
+    // Phiếu chi hoàn tiền khách: app luôn ghi Nợ 331 (thiết kế, debts.js:48-57)
+    { id: "PC2", type: "payment", date: "2026-01-20", partnerId: "KH02",
+      entries: [{ debit: "331", credit: "111", amount: 200 }] }
+  ];
+  const debts = ctx.calculatePartnerDebts();
+  const rec = ctx.computeDebt131Reconciliation(debts, "", "");
+  assert.equal(rec.ledgerClose, 1000);
+  assert.equal(rec.detailClose, 1000, "Σ net131 uses 131 lines only");
+  assert.equal(rec.closeMatched, true);
+  assert.equal(rec.refund331Adj, -200, "Nợ 331 refund netted into receivables");
+  assert.equal(rec.other331Adj, 0);
+  assert.equal(rec.kpiNet, 800);
+  assert.equal(rec.detailClose + rec.refund331Adj + rec.other331Adj, rec.kpiNet, "bridge reconciles to KPI net");
+  const row = debts.find(d => d.id === "KH02");
+  assert.equal(row.closingDebit - row.closingCredit, 800, "KPI keeps netting the refund (Task 3 revert)");
+  const html = renderAudit(ctx);
+  assert.ok(html.includes("Chi trả/hoàn tiền khách hạch toán Nợ 331 (cấn trừ phải thu)"), "bridge line shown");
+  assert.ok(/debt-audit-match-badge">Khớp</.test(html));
+}
+
+function testAudit131RespectsPeriodFilter() {
+  const ctx = loadDebtWithLedger();
+  baseLedgerFixture(ctx);
+  ctx.state.vouchers.push({ id: "BH-SAU", type: "sales", date: "2026-05-01", partnerId: "KH01",
+    entries: [{ debit: "131", credit: "511", amount: 999 }] });
+  const range = { fromDate: "2026-02-01", toDate: "2026-02-28" };
+  const rec = ctx.computeDebt131Reconciliation(ctx.calculatePartnerDebts(range.fromDate, range.toDate), range.fromDate, range.toDate);
+  assert.equal(rec.ledgerOpen, ctx.getAccountBalance("131", "2026-01-31"), "ledger opening = balance up to the day before fromDate");
+  assert.equal(rec.ledgerOpen, 1500);
+  assert.equal(rec.detailOpen, 1500);
+  assert.equal(rec.ledgerClose, ctx.getAccountBalance("131", "2026-02-28"));
+  assert.equal(rec.ledgerClose, 1200, "voucher after toDate excluded");
+  assert.equal(rec.detailClose, 1200);
+  assert.equal(rec.closeMatched, true);
+  const html = renderAudit(ctx, range);
+  assert.ok(/debt-audit-match-badge">Khớp</.test(html));
+  assert.ok(html.includes("Sổ cái TK 131 đầu kỳ"), "period opening comparison shown when filtered");
+}
+
+function testAudit131CreditNatureInitialBalance() {
+  const ctx = loadDebtWithLedger();
+  ctx.state.partners = [{ id: "KH03", name: "Khách trả trước", type: "retail" }];
+  ctx.state.partnerOpeningBalances = { KH03: { debit: 0, credit: 400 } };
+  ctx.state.initialBalances = { "131": { type: "credit", balance: 400 } };
+  ctx.state.vouchers = [{ id: "BH3", type: "sales", date: "2026-01-10", partnerId: "KH03",
+    entries: [{ debit: "131", credit: "511", amount: 100 }] }];
+  const rec = ctx.computeDebt131Reconciliation(ctx.calculatePartnerDebts(), "", "");
+  assert.equal(rec.initialLedgerOpening, -400, "credit-nature opening is negative (Nợ − Có)");
+  assert.equal(rec.partnerOpeningSum, -400);
+  assert.equal(rec.ledgerClose, -300);
+  assert.equal(rec.detailClose, -300);
+  assert.equal(rec.closeMatched, true);
+}
+
+function testAuditEscapesOrphanPartnerIds() {
+  const ctx = loadDebtWithLedger();
+  ctx.escapeHtmlAttr = (s) => String(s).replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  ctx.state.partners = [];
+  ctx.state.initialBalances = {};
+  ctx.state.vouchers = [{ id: "BH4", type: "sales", date: "2026-01-10", partnerId: "<img src=x>",
+    entries: [{ debit: "131", credit: "511", amount: 100 }] }];
+  const html = renderAudit(ctx);
+  assert.ok(!html.includes("<img src=x>"), "orphan partner id is escaped");
+  assert.ok(html.includes("&lt;img src=x&gt;"));
+}
+
 async function runAll() {
   testReceiptWithLoanEntriesDoesNotTouch131();
   testPaymentWithSalaryEntriesDoesNotTouch331();
@@ -566,6 +730,13 @@ async function runAll() {
   await testReimportKeepsExistingPartnerAssignment();
   testImportSourceHasNoInventedPartnerCodes();
   testReportAccountsName1388BothStandards();
+  testAudit131MatchesLedger();
+  testAudit131FlagsLedgerOnlyEntry();
+  testAudit131FlagsOpeningMismatch();
+  testAudit131RefundBridgeEqualsKpiNet();
+  testAudit131RespectsPeriodFilter();
+  testAudit131CreditNatureInitialBalance();
+  testAuditEscapesOrphanPartnerIds();
   console.log("debt-audit-tests.js: all tests passed");
 }
 

@@ -109,7 +109,13 @@ function computeDebtSides(initialOpening, priorCounters, periodCounters, partner
         has131: activity131 > 0,
         has331: activity331 > 0,
         supplierReceivable: roleSupplier ? Math.max(-net331Close, 0) : 0,
-        roleSupplier
+        roleSupplier,
+        // Chỉ phục vụ đối chiếu Sổ cái TK 131 (Task 4): số dư ròng CHỈ từ dòng 131 (Nợ − Có),
+        // và phần 331 (Có − Nợ) đã cấn trừ vào phải thu theo vai trò khách hàng.
+        net131Open,
+        net131Close,
+        net331Close,
+        netted331Into131: (!roleSupplier && !(net131Close > 0 && net331Close > 0)) ? net331Close : 0
     };
 }
 
@@ -479,6 +485,9 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
         d.has131 = sides.has131;
         d.has331 = sides.has331;
         d.supplierReceivable = sides.supplierReceivable;
+        d.net131Open = sides.net131Open;
+        d.net131Close = sides.net131Close;
+        d.netted331Into131 = sides.netted331Into131;
         d.debtRole = inferPartnerDebtRole(d.type, sides.has131, sides.has331);
         if (d.debtRole === "both") {
             d.type = "both";
@@ -538,6 +547,9 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
             creditTrans: unmatchedSides.creditTrans,
             closingDebit: unmatchedSides.closingDebit,
             closingCredit: unmatchedSides.closingCredit,
+            net131Open: unmatchedPrior.debit131 - unmatchedPrior.credit131,
+            net131Close: unmatchedPrior.debit131 - unmatchedPrior.credit131 + unmatchedPeriod.debit131 - unmatchedPeriod.credit131,
+            netted331Into131: 0,
             // Số dư của đối tác đã xóa là dữ liệu chưa xác minh: hiển thị để
             // đối chiếu, tuyệt đối không tự khôi phục vào số dư kế toán.
             orphanOpeningDebit,
@@ -888,7 +900,7 @@ function filterDebts() {
   };
 
   if (currentDebtsViewTab === 'overview') {
-    renderDebtOverview(allDebts);
+    renderDebtOverview(allDebts, { fromDate, toDate });
     updateBatchDebtsUI();
     return;
   }
@@ -2845,9 +2857,88 @@ function classifyPartnerCategory(partner) {
 }
 
 // =====================================================================
+// ĐỐI CHIẾU SỔ CÁI TK 131 (Task 4)
+// =====================================================================
+function isDebtKpiReceivableRow(d) {
+  return d.type !== 'supplier' || d.has131;
+}
+
+function getPreviousIsoDate(isoDate) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(isoDate || ""));
+  if (!m) return "";
+  return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]) - 1)).toISOString().slice(0, 10);
+}
+
+// Số dư Sổ cái theo chiều Nợ − Có, dùng ĐÚNG getAccountBalance (accounting.js) —
+// cùng công thức với Sổ cái / Bảng cân đối phát sinh (đầu kỳ initialBalances + Nợ − Có).
+function getLedgerNetDebitBalance(acctCode, toDate) {
+  if (typeof getAccountBalance !== "function") return null;
+  const ib = state.initialBalances && state.initialBalances[acctCode];
+  const bal = Number(getAccountBalance(acctCode, toDate || "")) || 0;
+  return ib && ib.type === "credit" ? -bal : bal;
+}
+
+/**
+ * Đối chiếu TK 131: Sổ cái thật ↔ Σ net131 của công nợ chi tiết ↔ KPI ròng.
+ *   ledgerClose ± closeDiff = detailClose (Khớp khi |closeDiff| ≤ 1)
+ *   detailClose + refund331Adj + other331Adj = kpiNet
+ * Kỳ lọc giống calculatePartnerDebts: cuối kỳ tính đến toDate (rỗng = toàn bộ),
+ * đầu kỳ (khi có fromDate) là số dư đến hết ngày trước fromDate.
+ */
+function computeDebt131Reconciliation(allDebts, fromDate = "", toDate = "") {
+  const rows = allDebts || [];
+  let detailOpen = 0, detailClose = 0, refund331Adj = 0, kpiNet = 0, partnerOpeningSum = 0;
+  rows.forEach(d => {
+    detailOpen += Number(d.net131Open) || 0;
+    detailClose += Number(d.net131Close) || 0;
+    if (isDebtKpiReceivableRow(d)) {
+      kpiNet += (d.closingDebit || 0) - (d.closingCredit || 0);
+      refund331Adj += Number(d.netted331Into131) || 0;
+    }
+    if (d.type !== "unmatched" && (d.declaredType || d.type) !== "supplier") {
+      partnerOpeningSum += (d.initialOpeningDebit || 0) - (d.initialOpeningCredit || 0);
+    }
+  });
+  const other331Adj = kpiNet - detailClose - refund331Adj;
+
+  const ib = state.initialBalances && state.initialBalances["131"];
+  const initialLedgerOpening = ib ? (ib.type === "credit" ? -(Number(ib.balance) || 0) : (Number(ib.balance) || 0)) : 0;
+
+  const ledgerClose = getLedgerNetDebitBalance("131", toDate);
+  const available = ledgerClose !== null;
+  const ledgerOpen = !available ? null :
+    (fromDate ? getLedgerNetDebitBalance("131", getPreviousIsoDate(fromDate)) : initialLedgerOpening);
+
+  const closeDiff = available ? ledgerClose - detailClose : null;
+  const openDiff = available ? ledgerOpen - detailOpen : null;
+  const initialOpeningDiff = initialLedgerOpening - partnerOpeningSum;
+  return {
+    available,
+    fromDate, toDate,
+    ledgerOpen, ledgerClose,
+    detailOpen, detailClose,
+    openDiff, closeDiff,
+    openMatched: available && Math.abs(openDiff) <= 1,
+    closeMatched: available && Math.abs(closeDiff) <= 1,
+    refund331Adj, other331Adj, kpiNet,
+    initialLedgerOpening, partnerOpeningSum, initialOpeningDiff,
+    initialOpeningMatched: Math.abs(initialOpeningDiff) <= 1
+  };
+}
+
+function escapeDebtAuditText(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// =====================================================================
 // TAB: TỔNG QUAN — render KPI cards + breakdown table + audit
 // =====================================================================
-function renderDebtOverview(allDebts) {
+function renderDebtOverview(allDebts, dateRange) {
   const kpiEl = document.getElementById('debt-overview-kpis');
   const breakdownEl = document.getElementById('debt-overview-breakdown-body');
   const auditEl = document.getElementById('debt-audit-content');
@@ -2856,7 +2947,6 @@ function renderDebtOverview(allDebts) {
   const cats = { individual: { rec: 0, overpaid: 0, count: 0 }, project: { rec: 0, overpaid: 0, count: 0 }, company: { rec: 0, overpaid: 0, count: 0 }, unmatched: { rec: 0, overpaid: 0, count: 0 } };
   let totalRec = 0, totalPay = 0, totalNetRec = 0, partnersWithDebt = 0, partnersOverpaid = 0;
   let totalSupplierReceivable = 0;
-  let totalInitOB = 0, totalDebitTx = 0, totalCreditTx = 0;
 
   const partnerMap = {};
   (state.partners || []).forEach(p => partnerMap[p.id] = p);
@@ -2865,7 +2955,7 @@ function renderDebtOverview(allDebts) {
 
   allDebts.forEach(d => {
     if (d.type === "unmatched") unmatchedBucket = d;
-    if (d.type !== 'supplier' || d.has131) {
+    if (isDebtKpiReceivableRow(d)) {
       const net = (d.closingDebit || 0) - (d.closingCredit || 0);
       if (d.closingDebit > 0) { totalRec += d.closingDebit; partnersWithDebt++; }
       if (d.closingCredit > 0) { partnersOverpaid++; }
@@ -2875,10 +2965,6 @@ function renderDebtOverview(allDebts) {
       cs.rec += d.closingDebit || 0;
       cs.overpaid += d.closingCredit || 0;
       if (d.closingDebit > 0 || d.closingCredit > 0) cs.count++;
-
-      totalInitOB += (d.openingDebit || 0) - (d.openingCredit || 0);
-      totalDebitTx += d.debitTrans || 0;
-      totalCreditTx += d.creditTrans || 0;
     }
     if (d.type === 'supplier' || d.type === 'both') {
       totalPay += d.closingCredit || 0;
@@ -2953,46 +3039,74 @@ function renderDebtOverview(allDebts) {
     breakdownEl.innerHTML = rows.join('');
   }
 
-  // Audit section
+  // Audit section — đối chiếu với Sổ cái THẬT (getAccountBalance), không tự so với chính mình
   if (auditEl) {
-    // ① T-account closing: ĐầuKỳ + PhátSinhNợ(131) - PhátSinhCó(131) = Số dư ròng
-    const closingCalc = totalInitOB + totalDebitTx - totalCreditTx;
-    // ② KPI approach: tổng closingDebit - tổng closingCredit = Số dư ròng
-    // Bất biến: closingCalc === (totalRec - totalRowOvp) -- nếu khác = có lỗi logic
-    const netRec = totalRec - totalRowOvp;
-    const diffOk = Math.abs(closingCalc - netRec) < 1;
-    const matchBadge = diffOk
+    const range = dateRange || (typeof getDebtDateRange === "function" ? getDebtDateRange() : { fromDate: "", toDate: "" });
+    const fromDate = range.fromDate || "";
+    const toDate = range.toDate || "";
+    const rec = computeDebt131Reconciliation(allDebts, fromDate, toDate);
+    const showDate = (v) => escapeDebtAuditText(typeof formatDateDisplay === "function" ? formatDateDisplay(v) : v);
+    const signed = (v) => `${v < 0 ? '−' : '+'}${formatVND(Math.abs(v))}`;
+    const line = (label, value, cls = '') => `<div class="debt-audit-line"><span class="debt-audit-line-label">${label}</span><span class="debt-audit-line-value font-numeric ${cls}">${value}</span></div>`;
+    const diffBadge = (matched, diff, prefix = 'Lệch') => matched
       ? '<span class="badge badge-success debt-audit-match-badge">Khớp</span>'
-      : `<span class="badge badge-danger debt-audit-match-badge">Lệch ${formatVND(Math.abs(closingCalc - netRec))}</span>`;
+      : `<span class="badge badge-danger debt-audit-match-badge">${prefix} ${formatVND(Math.abs(diff))}</span>`;
+    const closeLabel = toDate ? `đến ${showDate(toDate)}` : 'cuối kỳ';
+    const netRec = totalRec - totalRowOvp;
+
+    let ledgerPanel;
+    if (!rec.available) {
+      ledgerPanel = `<div class="debt-audit-lines">${line('Sổ cái TK 131', 'Không đọc được Sổ cái', 'text-danger')}</div>`;
+    } else {
+      const periodLines = fromDate ? `
+            ${line(`Sổ cái TK 131 đầu kỳ (trước ${showDate(fromDate)})`, formatVND(rec.ledgerOpen))}
+            ${line('Công nợ chi tiết (Σ 131) đầu kỳ', formatVND(rec.detailOpen))}
+            ${line('Chênh lệch đầu kỳ', `<span class="${rec.openMatched ? 'text-success' : 'text-danger'}">${formatVND(rec.openDiff)}</span>`)}` : '';
+      ledgerPanel = `
+          <div class="debt-audit-lines">
+            ${line(`Sổ cái TK 131 (số dư ${closeLabel}, Nợ − Có)`, formatVND(rec.ledgerClose))}
+            ${line('Công nợ chi tiết (Σ 131)', formatVND(rec.detailClose))}
+            <div class="debt-audit-line debt-audit-line-total">
+              <span class="debt-audit-line-label">Chênh lệch (Sổ cái − Chi tiết)</span>
+              <span class="debt-audit-line-value debt-audit-final-value">
+                <span class="font-numeric ${rec.closeMatched ? 'text-success' : 'text-danger'}">${formatVND(rec.closeDiff)}</span>
+                ${diffBadge(rec.closeMatched, rec.closeDiff)}
+              </span>
+            </div>${periodLines}
+            ${line('Số dư đầu kỳ khai báo trên Sổ cái TK 131', formatVND(rec.initialLedgerOpening))}
+            ${line('Σ số dư đầu kỳ đối tác (phía 131)', formatVND(rec.partnerOpeningSum))}
+            <div class="debt-audit-line">
+              <span class="debt-audit-line-label">Chênh lệch số dư đầu kỳ</span>
+              <span class="debt-audit-line-value debt-audit-final-value">
+                <span class="font-numeric ${rec.initialOpeningMatched ? 'text-success' : 'text-danger'}">${formatVND(rec.initialOpeningDiff)}</span>
+                ${rec.initialOpeningMatched ? '' : `<span class="badge badge-danger">Lệch đầu kỳ ${formatVND(Math.abs(rec.initialOpeningDiff))}</span>`}
+              </span>
+            </div>
+          </div>`;
+    }
 
     auditEl.innerHTML = `
       <div class="debt-audit-grid">
         <div class="debt-audit-panel">
           <div class="debt-audit-panel-header">
             <span class="debt-audit-step">①</span>
-            <span>Kiểm toán T-tài khoản 131</span>
-          </div>
-          <div class="debt-audit-lines">
-            <div class="debt-audit-line"><span class="debt-audit-line-label">Số dư đầu kỳ</span><span class="debt-audit-line-value font-numeric">${formatVND(totalInitOB)}</span></div>
-            <div class="debt-audit-line"><span class="debt-audit-line-label">+ Phát sinh Nợ trong kỳ (bán chịu)</span><span class="debt-audit-line-value font-numeric text-success">+${formatVND(totalDebitTx)}</span></div>
-            <div class="debt-audit-line"><span class="debt-audit-line-label">− Phát sinh Có trong kỳ (thu tiền/giảm giá)</span><span class="debt-audit-line-value font-numeric text-warning">−${formatVND(totalCreditTx)}</span></div>
-            <div class="debt-audit-line debt-audit-line-total"><span class="debt-audit-line-label">= Số dư ròng cuối kỳ</span><span class="debt-audit-line-value font-numeric text-success">${formatVND(closingCalc)}</span></div>
-          </div>
+            <span>Kiểm toán T-tài khoản 131 — đối chiếu Sổ cái</span>
+          </div>${ledgerPanel}
         </div>
         <div class="debt-audit-panel">
           <div class="debt-audit-panel-header">
             <span class="debt-audit-step">②</span>
-            <span>Đối chiếu với KPI</span>
+            <span>Từ Σ 131 đến KPI phải thu ròng</span>
           </div>
           <div class="debt-audit-lines">
-            <div class="debt-audit-line"><span class="debt-audit-line-label">KPI Tổng phải thu (chỉ đối tác Dư Nợ)</span><span class="debt-audit-line-value font-numeric text-success">${formatVND(totalRec)}</span></div>
-            <div class="debt-audit-line"><span class="debt-audit-line-label">− Khách trả thừa/trả trước (Dư Có, giảm phải thu)</span><span class="debt-audit-line-value font-numeric text-warning">−${formatVND(totalRowOvp)}</span></div>
+            ${line('Công nợ chi tiết (Σ 131)', formatVND(rec.detailClose))}
+            ${line('Chi trả/hoàn tiền khách hạch toán Nợ 331 (cấn trừ phải thu)', signed(rec.refund331Adj), 'text-warning')}
+            ${Math.abs(rec.other331Adj) > 1 ? line('Số dư 331 của đối tác hai chiều / nhóm chưa khớp tính vào KPI', signed(rec.other331Adj), 'text-warning') : ''}
+            ${line('KPI Tổng phải thu (Dư Nợ)', formatVND(totalRec), 'text-success')}
+            ${line('− Khách trả thừa/trả trước (Dư Có)', `−${formatVND(totalRowOvp)}`, 'text-warning')}
             <div class="debt-audit-line debt-audit-line-total">
-              <span class="debt-audit-line-label">= Số dư ròng cuối kỳ (phải khớp ①)</span>
-              <span class="debt-audit-line-value debt-audit-final-value">
-                <span class="font-numeric ${diffOk ? 'text-success' : 'text-danger'}">${formatVND(netRec)}</span>
-                ${matchBadge}
-              </span>
+              <span class="debt-audit-line-label">= Số dư ròng phải thu (KPI)</span>
+              <span class="debt-audit-line-value font-numeric text-success">${formatVND(netRec)}</span>
             </div>
           </div>
         </div>
@@ -3006,7 +3120,7 @@ function renderDebtOverview(allDebts) {
         </div>
         <div class="debt-alert-warning-body">
           <div class="debt-audit-line"><span class="debt-audit-line-label">Dư Nợ / Dư Có của nhóm chưa khớp</span><span class="debt-audit-line-value font-numeric text-danger">${formatVND(unmatchedBucket.closingDebit || 0)} / ${formatVND(unmatchedBucket.closingCredit || 0)}</span></div>
-          <p class="debt-alert-warning-note">Các mã: ${(unmatchedBucket.orphanPartnerIds || []).slice(0, 10).map(unmatchedPartnerLabel).join(", ")}${(unmatchedBucket.orphanPartnerIds || []).length > 10 ? "…" : ""} — mở tab <a href="#" onclick="switchDebtsViewTab('project'); return false;" style="color:var(--color-danger); font-weight:700;">Khách Cá Nhân</a>: dòng cảnh báo màu đỏ ở <strong>đầu bảng</strong>. Số phát sinh đã được tính vào tổng; không tự gán sang đối tác có tên gần giống.</p>
+          <p class="debt-alert-warning-note">Các mã: ${(unmatchedBucket.orphanPartnerIds || []).slice(0, 10).map(id => escapeDebtAuditText(unmatchedPartnerLabel(id))).join(", ")}${(unmatchedBucket.orphanPartnerIds || []).length > 10 ? "…" : ""} — mở tab <a href="#" onclick="switchDebtsViewTab('project'); return false;" style="color:var(--color-danger); font-weight:700;">Khách Cá Nhân</a>: dòng cảnh báo màu đỏ ở <strong>đầu bảng</strong>. Số phát sinh đã được tính vào tổng; không tự gán sang đối tác có tên gần giống.</p>
           ${unmatchedBucket.orphanOpeningBalances && unmatchedBucket.orphanOpeningBalances.length ? `<p class="debt-alert-warning-note"><strong>${unmatchedBucket.orphanOpeningBalances.length} số dư đầu kỳ còn lưu của đối tác không tồn tại:</strong> Nợ ${formatVND(unmatchedBucket.orphanOpeningDebit)} / Có ${formatVND(unmatchedBucket.orphanOpeningCredit)}. Đây là dữ liệu chưa xác minh, <strong>chưa cộng vào tổng</strong>; cần xác nhận mã đối tác và quyết định khôi phục trước khi ghi nhận.</p>` : ""}
         </div>
       </div>` : ""}`;
@@ -3599,6 +3713,7 @@ window.viewGroupedPartnerLedger = viewGroupedPartnerLedger;
 // New tabs
 window.classifyPartnerCategory = classifyPartnerCategory;
 window.renderDebtOverview = renderDebtOverview;
+window.computeDebt131Reconciliation = computeDebt131Reconciliation;
 window.viewUnmatchedPartnerLedger = viewUnmatchedPartnerLedger;
 window.showUnmatchedPartnerIds = showUnmatchedPartnerIds;
 window.renderDebtsIndividualTable = renderDebtsIndividualTable;
