@@ -14,6 +14,13 @@ let pinnedUnmatchedDebt = null;
 let activeLedgerMatchingIds = new Set();
 let activeLedgerExplicitGroupIds = null;
 
+// Các đối tác của sổ chi tiết đang mở. Xuất Excel và thông báo nợ dùng đúng tập này,
+// không tự dựng lại theo tên (dễ lệch với nhóm đang hiển thị).
+function getActiveLedgerPartners() {
+  const ids = activeLedgerMatchingIds instanceof Set ? activeLedgerMatchingIds : new Set();
+  return (state.partners || []).filter(item => ids.has(item.id));
+}
+
 function isUnmatchedDebt(d) {
     return d && d.id === UNMATCHED_PARTNER_ID;
 }
@@ -376,7 +383,10 @@ function refreshOpenPartnerLedgerModal() {
         const st = window.getComputedStyle(modal);
         if (st.display === "none") return;
     }
-    if (activeLedgerExplicitGroupIds) {
+    if (activeLedgerExplicitGroupIds && !activeLedgerCombined && typeof viewGroupedPartnerLedger === "function") {
+        // Sổ mở từ tab "Theo Đối tác" (gộp theo tên): mở lại đúng nhóm mã đó
+        viewGroupedPartnerLedger(activePartnerNameForGroupedLedger, activeLedgerExplicitGroupIds);
+    } else if (activeLedgerExplicitGroupIds) {
         viewLedgerByIds(activeLedgerExplicitGroupIds, activePartnerNameForGroupedLedger);
     } else if (activePartnerIdForLedger === UNMATCHED_PARTNER_ID) {
         viewUnmatchedPartnerLedger();
@@ -1039,6 +1049,9 @@ function calculatePartnerDebtsGrouped(fromDate = "", toDate = "") {
   // Build map: normalizedName → group
   const groups = {};
   allDebts.forEach(d => {
+    // Nhóm "Chưa khớp" không phải một đối tác: không gộp, không mở được sổ.
+    if (isUnmatchedDebt(d)) return;
+    const isSupplierRole = d.type === "supplier" || d.debtRole === "supplier";
     const key = typeof getPartnerGroupKey === "function"
       ? getPartnerGroupKey(d.name || "")
       : (d.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -1049,6 +1062,8 @@ function calculatePartnerDebtsGrouped(fromDate = "", toDate = "") {
       normalizedKey = normalizedKey.replace(/\s*\([^)]*(?:kh|kht|ncc|dt|t\d|\d{2}\/\d{2}|\d{4})[^)]*\)$/i, '');
       normalizedKey = normalizedKey.trim();
     }
+    // NCC và khách trùng tên là hai nhóm riêng: không cấn trừ 331 với 131.
+    normalizedKey = `${isSupplierRole ? "S" : "C"}|${normalizedKey}`;
 
     if (!groups[normalizedKey]) {
       const displayName = typeof getPartnerGroupDisplayName === "function"
@@ -1056,7 +1071,7 @@ function calculatePartnerDebtsGrouped(fromDate = "", toDate = "") {
         : d.name.trim().replace(/\s*\([^)]*(?:kh|kht|ncc|dt|t\d|\d{2}\/\d{2}|\d{4})[^)]*\)$/i, '');
       groups[normalizedKey] = {
         name: displayName,
-        primaryType: d.type,
+        primaryType: isSupplierRole ? "supplier" : "customer",
         openingDebit: 0,
         openingCredit: 0,
         debitTrans: 0,
@@ -1065,6 +1080,8 @@ function calculatePartnerDebtsGrouped(fromDate = "", toDate = "") {
         closingCredit: 0,
         childIds: [],       // danh sách mã thành phần
         childNames: [],     // danh sách tên gốc của từng mã
+        // Số dư cuối kỳ chia theo phía (getDebtKpiParts) để chỉ cấn trừ trong cùng một tài khoản
+        receivable: 0, overpaid: 0, payable: 0, supplierReceivable: 0
       };
     }
     const g = groups[normalizedKey];
@@ -1074,23 +1091,25 @@ function calculatePartnerDebtsGrouped(fromDate = "", toDate = "") {
     g.creditTrans += d.creditTrans || 0;
     g.childIds.push(d.id);
     g.childNames.push(d.id); // dùng mã để hiển thị
-    // Nếu có nhiều loại, ưu tiên 'customer' rồi 'supplier' rồi 'both'
-    if (d.type !== 'supplier') g.primaryType = 'customer';
-    else if (d.type === 'supplier' && g.primaryType !== 'customer') g.primaryType = 'supplier';
+    const parts = getDebtKpiParts(d);
+    g.receivable += parts.receivable;
+    g.overpaid += parts.overpaid;
+    g.payable += parts.payable;
+    g.supplierReceivable += parts.supplierReceivable;
   });
 
   // Tính lại số dư cuối kỳ dựa trên tổng gộp
+  // Số dư cuối kỳ: các mã của cùng một khách được cấn trừ trên 131 (gộp mã tách),
+  // của cùng một NCC trên 331; phía còn lại (đối tác hai chiều) giữ nguyên, không bù trừ chéo.
   return Object.values(groups).map(g => {
-    const balance = g.openingDebit - g.openingCredit + g.debitTrans - g.creditTrans;
+    const net131 = g.receivable - g.overpaid;
+    const net331 = g.payable - g.supplierReceivable;
     if (g.primaryType === 'customer') {
-      // customer: Nợ > 0 là KH đang nợ; Có > 0 là công ty nợ KH
-      if (balance >= 0) { g.closingDebit = balance; g.closingCredit = 0; }
-      else { g.closingDebit = 0; g.closingCredit = -balance; }
+      g.closingDebit = Math.max(net131, 0) + g.supplierReceivable;
+      g.closingCredit = Math.max(-net131, 0) + g.payable;
     } else {
-      // supplier
-      const supBalance = g.openingCredit - g.openingDebit + g.creditTrans - g.debitTrans;
-      if (supBalance >= 0) { g.closingCredit = supBalance; g.closingDebit = 0; }
-      else { g.closingCredit = 0; g.closingDebit = -supBalance; }
+      g.closingCredit = Math.max(net331, 0) + g.overpaid;
+      g.closingDebit = Math.max(-net331, 0) + g.receivable;
     }
     return g;
   }).sort((a, b) => a.name.localeCompare(b.name, 'vi'));
@@ -1115,6 +1134,7 @@ function renderDebtsGroupedTable() {
   if (infoEl) infoEl.innerText = `Hiển thị ${startIdx + 1}–${Math.min(startIdx + perPage, total)} trong số ${total} đối tác (gộp theo tên)`;
 
   tbody.innerHTML = '';
+  debtsGroupedRowsForClick = [];
   if (pageItems.length === 0) {
     renderEmptyState(tbody, 9, 'Không tìm thấy đối tác nào', 'Thử tìm kiếm với từ khóa khác');
   } else {
@@ -1146,7 +1166,7 @@ function renderDebtsGroupedTable() {
     tbody.appendChild(trTot);
 
     pageItems.forEach(g => {
-      const encodedName = encodeURIComponent(g.name);
+      const groupIndex = debtsGroupedRowsForClick.push(g) - 1;
       const countBadge = g.childIds.length > 1
         ? `<span style="display:inline-block; background:var(--color-primary); color:#fff; border-radius:9px; padding:1px 8px; font-size:11px; font-weight:700; margin-left:6px;">${g.childIds.length} mã</span>`
         : '';
@@ -1154,12 +1174,12 @@ function renderDebtsGroupedTable() {
       tr.className = 'clickable-row';
       tr.innerHTML = `
         <td style="font-weight:600;">
-          <a href="#" onclick="viewGroupedPartnerLedger(decodeURIComponent('${encodedName}')); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${g.name}</a>
+          <a href="#" onclick="viewGroupedPartnerLedgerAt(${groupIndex}); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${escapeDebtAuditText(g.name)}</a>
           ${countBadge}
         </td>
         <td style="text-align:center;">
           <button onclick="toggleGroupChildren(this)" style="font-size:11px; padding:2px 8px; border:1px solid var(--border-color); border-radius:4px; background:var(--bg-secondary); cursor:pointer; color:var(--text-secondary);">Xem mã</button>
-          <div class="group-children" style="display:none; margin-top:6px; font-size:11px; color:var(--text-muted); line-height:1.7;">${g.childNames.map(id => `<span style='display:block;'>• ${id}</span>`).join('')}</div>
+          <div class="group-children" style="display:none; margin-top:6px; font-size:11px; color:var(--text-muted); line-height:1.7;">${g.childNames.map(id => `<span style='display:block;'>• ${escapeDebtAuditText(id)}</span>`).join('')}</div>
         </td>
         <td style="text-align:right; font-weight:500;" class="font-numeric">${g.openingDebit > 0 ? formatVND(g.openingDebit).replace('đ', '') : '-'}</td>
         <td style="text-align:right; font-weight:500;" class="font-numeric">${g.openingCredit > 0 ? formatVND(g.openingCredit).replace('đ', '') : '-'}</td>
@@ -1168,7 +1188,7 @@ function renderDebtsGroupedTable() {
         <td style="text-align:right; font-weight:700;" class="font-numeric ${g.closingDebit > 0 ? 'text-success' : ''}">${g.closingDebit > 0 ? formatVND(g.closingDebit).replace('đ', '') : '-'}</td>
         <td style="text-align:right; font-weight:700;" class="font-numeric ${g.closingCredit > 0 ? 'text-warning' : ''}">${g.closingCredit > 0 ? formatVND(g.closingCredit).replace('đ', '') : '-'}</td>
         <td style="text-align:center;">
-          <button class="btn btn-secondary btn-sm" onclick="viewGroupedPartnerLedger(decodeURIComponent('${encodedName}'))" style="padding:2px 8px;">Xem Sổ</button>
+          <button class="btn btn-secondary btn-sm" onclick="viewGroupedPartnerLedgerAt(${groupIndex})" style="padding:2px 8px;">Xem Sổ</button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -1259,15 +1279,25 @@ function switchDebtsViewTab(tabName) {
 }
 
 // Xem sổ chi tiết gộp: lấy chứng từ từ tất cả các mã cùng tên đối tác
-function viewGroupedPartnerLedger(partnerName) {
-  activeLedgerExplicitGroupIds = null;
+// Dòng của tab "Theo Đối tác" đang hiển thị; nút mở sổ dùng chỉ số thay vì nhúng tên vào onclick.
+let debtsGroupedRowsForClick = [];
+
+function viewGroupedPartnerLedgerAt(index) {
+  const g = debtsGroupedRowsForClick[index];
+  if (g) viewGroupedPartnerLedger(g.name, g.childIds);
+}
+
+function viewGroupedPartnerLedger(partnerName, childIds) {
+  activeLedgerExplicitGroupIds = Array.isArray(childIds) ? childIds.slice() : null;
   const normalizedName = typeof getPartnerGroupKey === "function"
     ? getPartnerGroupKey(partnerName || "")
     : (partnerName || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
   // Phải dùng cùng khóa chuẩn hóa với calculatePartnerDebtsGrouped(). Nếu dùng
   // so sánh tên tuyệt đối, các nhóm đã bỏ tiền tố/mã hậu tố sẽ mở ra sổ rỗng.
+  const explicitIds = activeLedgerExplicitGroupIds ? new Set(activeLedgerExplicitGroupIds) : null;
   const matchingPartners = state.partners.filter(p => {
+    if (explicitIds) return explicitIds.has(p.id);
     const key = typeof getPartnerGroupKey === "function"
       ? getPartnerGroupKey(p.name || "")
       : (p.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -1680,24 +1710,8 @@ async function exportPartnerDebtExcel(partnerId) {
   }
 
   try {
-    // 1. Get ledger data (supporting grouped accounts)
-    let matchingPartners = [];
-    if (activeLedgerCombined) {
-      const parent = state.partners.find(item => item.id === activeLedgerTargetId);
-      if (parent) {
-        matchingPartners.push(parent);
-        const childProjects = state.partners.filter(item => item.type === 'project' && item.parentId === parent.id);
-        matchingPartners.push(...childProjects);
-      }
-    } else if (activeLedgerTargetId) {
-      const activeP = state.partners.find(item => item.id === activeLedgerTargetId);
-      if (activeP) matchingPartners.push(activeP);
-    } else if (activePartnerNameForGroupedLedger) {
-      const normalizedName = activePartnerNameForGroupedLedger.trim().toLowerCase().replace(/\s+/g, ' ');
-      matchingPartners = state.partners.filter(item =>
-        (item.name || '').trim().toLowerCase().replace(/\s+/g, ' ') === normalizedName
-      );
-    }
+    // 1. Đúng tập mã của sổ đang mở (nhóm theo tên, công ty, công trình hoặc một mã)
+    let matchingPartners = getActiveLedgerPartners();
     if (matchingPartners.length === 0) {
       matchingPartners = [p];
     }
@@ -1990,37 +2004,8 @@ function previewPartnerDebtNotice(partnerId) {
     return;
   }
 
-  // Get ledger data (supporting grouped accounts)
-  let matchingPartners = [];
-  if (activeLedgerCombined) {
-    let parent = state.partners.find(item => item.id === activeLedgerTargetId);
-    if (parent && parent.type === 'project') {
-      parent = state.partners.find(item => item.id === parent.parentId);
-    }
-    if (parent) {
-      matchingPartners.push(parent);
-      const childProjects = state.partners.filter(item => item.type === 'project' && item.parentId === parent.id);
-      matchingPartners.push(...childProjects);
-    }
-  } else if (activeLedgerTargetId) {
-    const activeP = state.partners.find(item => item.id === activeLedgerTargetId);
-    if (activeP) matchingPartners.push(activeP);
-  } else if (activePartnerNameForGroupedLedger) {
-    const parent = state.partners.find(item =>
-      item.type === 'enterprise' &&
-      (item.name || '').trim().toLowerCase() === activePartnerNameForGroupedLedger.trim().toLowerCase()
-    );
-    if (parent) {
-      matchingPartners.push(parent);
-      const childProjects = state.partners.filter(item => item.type === 'project' && item.parentId === parent.id);
-      matchingPartners.push(...childProjects);
-    } else {
-      const normalizedName = activePartnerNameForGroupedLedger.trim().toLowerCase().replace(/\s+/g, ' ');
-      matchingPartners = state.partners.filter(item =>
-        (item.name || '').trim().toLowerCase().replace(/\s+/g, ' ') === normalizedName
-      );
-    }
-  }
+  // Đúng tập mã của sổ đang mở — số tiền trên thông báo phải khớp sổ trên màn hình
+  let matchingPartners = getActiveLedgerPartners();
   if (matchingPartners.length === 0) {
     matchingPartners = [p];
   }

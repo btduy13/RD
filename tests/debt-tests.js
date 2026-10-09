@@ -503,6 +503,43 @@ function testSupplierReceivableKpisDoNotOverlap() {
   assert.equal(values[4], 50 + 20, "supplier prepayments (Dư Nợ 331) of both partners, each amount counted once");
 }
 
+function testGroupedViewKeepsSuppliersOutOfCustomerGroups() {
+  const ctx = loadDebtModule();
+  installDebtTestDOM(ctx);
+  ctx.state.partners = [
+    { id: "KH-A1", name: "Cô Loan (KH68T5R)", type: "retail" },
+    { id: "KH-A2", name: "Cô Loan", type: "retail" },
+    { id: "NCC-A", name: "Cô Loan", type: "supplier" }
+  ];
+  ctx.state.vouchers = [
+    { id: "BH1", type: "sales", date: "2026-01-01", partnerId: "KH-A1", entries: [{ debit: "131", credit: "511", amount: 500 }] },
+    { id: "PT1", type: "receipt", date: "2026-01-02", partnerId: "KH-A2", entries: [{ debit: "111", credit: "131", amount: 200 }] },
+    { id: "NK1", type: "purchase", date: "2026-01-03", partnerId: "NCC-A", entries: [{ debit: "156", credit: "331", amount: 300 }] },
+    { id: "BH9", type: "sales", date: "2026-01-04", partnerId: "GONE", entries: [{ debit: "131", credit: "511", amount: 9 }] }
+  ];
+  const groups = ctx.calculatePartnerDebtsGrouped();
+  const customer = groups.find(g => g.primaryType === "customer");
+  const supplier = groups.find(g => g.primaryType === "supplier");
+  assert.deepEqual(Array.from(customer.childIds).sort(), ["KH-A1", "KH-A2"], "split customer codes are grouped together");
+  assert.equal(customer.closingDebit, 300, "customer codes net on 131 only");
+  assert.equal(customer.closingCredit, 0, "supplier payable is not netted into the customer group");
+  assert.deepEqual(Array.from(supplier.childIds), ["NCC-A"]);
+  assert.equal(supplier.closingCredit, 300);
+  assert.ok(!groups.some(g => g.childIds.includes("__UNMATCHED__")), "unmatched bucket is not a group");
+
+  const opened = [];
+  ctx.openModal = id => opened.push(id);
+  ctx.switchPartnerLedgerTab = () => {};
+  vm.runInContext("filteredDebtsGroupedList = __groups; renderDebtsGroupedTable();", Object.assign(ctx, { __groups: groups }));
+  const tbody = ctx.document.getElementById("debts-by-partner-body");
+  const rowHtml = tbody.children.map(c => c.innerHTML).join("");
+  assert.ok(/viewGroupedPartnerLedgerAt\(\d+\)/.test(rowHtml), "grouped rows open the ledger by row index, not by an inlined name");
+  assert.ok(!rowHtml.includes("decodeURIComponent"), "no partner name inlined into onclick");
+  const customerIndex = vm.runInContext("debtsGroupedRowsForClick.findIndex(g => g.primaryType === 'customer')", ctx);
+  ctx.viewGroupedPartnerLedgerAt(customerIndex);
+  assert.deepEqual(ctx.getActiveLedgerPartners().map(p => p.id).sort(), ["KH-A1", "KH-A2"], "export/notice use the codes of the ledger on screen");
+}
+
 function testFifoReceiptAllocatesSales() {
   const ctx = loadAccountingFifo();
   ctx.state.vouchers = [
@@ -704,6 +741,7 @@ async function runAll() {
   testGroupedOrdersUseEveryPartnerAndDateRange();
   testOrphan331ExportPreservesCreditDirection();
   testSupplierReceivableKpisDoNotOverlap();
+  testGroupedViewKeepsSuppliersOutOfCustomerGroups();
   testSupplierOverpaymentShowsAsReceivable();
   testFifoReceiptAllocatesSales();
   testDebtAdjustmentPreserved();
