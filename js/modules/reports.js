@@ -19,6 +19,7 @@ function getReportAccounts() {
     { code: "112", name: "Tiền gửi ngân hàng" },
     { code: "131", name: "Phải thu của khách hàng" },
     { code: "1331", name: "Thuế GTGT đầu vào được khấu trừ" },
+    { code: "1388", name: "Phải thu khác" },
     { code: "156", name: "Hàng hóa nhập kho" },
     { code: std === "TT200" ? "244" : "1386", name: "Phải thu ký quỹ, ký cược" },
     { code: "331", name: "Phải trả cho người bán" },

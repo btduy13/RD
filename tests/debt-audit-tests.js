@@ -247,7 +247,267 @@ function testFifoMatchesDebtSummaryForLoanReceipt() {
   assert.equal(row.closingDebit, sale.remainingDebt, "debt summary equals FIFO remaining");
 }
 
-function runAll() {
+// ---- Task 2: nhập Excel không phân loại sai tài khoản, không bịa mã đối tác ----
+
+// Real-source sandbox: utils.js + partner-identity.js + excel-integration.js,
+// with XLSX / IPC / FileReader stubbed so the import functions read synthetic rows.
+function loadImportSandbox(partners) {
+  const sandbox = {
+    console, Date, JSON, Number, Math, Array, Object, String, Set, Map, Intl, Promise, Uint8Array, ArrayBuffer,
+    setTimeout: (fn) => { fn(); return 0; },
+    clearTimeout() {},
+    state: {
+      partners: partners || [],
+      products: [],
+      vouchers: [],
+      partnerOpeningBalances: {},
+      partnerOpeningBalanceTs: {}
+    },
+    document: {
+      getElementById() { return null; },
+      querySelector() { return null; },
+      querySelectorAll() { return []; },
+      addEventListener() {}
+    },
+    __rows: [],
+    __lastReader: null,
+    showToast() {},
+    saveState() {},
+    recalculateAccounting() {},
+    formatVND: (v) => String(v),
+    invalidatePartnerCache() {},
+    normalizeProductId: (id) => String(id || "").trim().toUpperCase(),
+    findProductIndexById: (id, list) => (list || []).findIndex(p => p.id === id)
+  };
+  sandbox.XLSX = {
+    read: () => ({ SheetNames: ["S"], Sheets: { S: {} } }),
+    utils: { sheet_to_json: () => sandbox.__rows }
+  };
+  sandbox.FileReader = class {
+    readAsArrayBuffer() {
+      sandbox.__lastReader = this.onload({ target: { result: new ArrayBuffer(8) } });
+    }
+  };
+  sandbox.window = sandbox;
+  vm.createContext(sandbox);
+  ["js/utils.js", "js/core/partner-identity.js", "js/excel-integration.js"].forEach(rel => {
+    vm.runInContext(fs.readFileSync(path.join(repoRoot, rel), "utf8"), sandbox, { filename: rel });
+  });
+  // utils.js defines the real IPC reader; replace it after loading.
+  vm.runInContext("readExcelViaIPC = async () => new ArrayBuffer(8);", sandbox);
+  return sandbox;
+}
+
+async function runManualImport(ctx, rows, type) {
+  ctx.__rows = rows;
+  ctx.parseExcelFile({ name: "x.xlsx" }, type);
+  await ctx.__lastReader;
+}
+
+async function runAutoCashImport(ctx, rows) {
+  ctx.__rows = rows;
+  await ctx.autoIntegrateVouchersExcel();
+}
+
+// Cash rows (Thu__chi_tien layout): 0 date, 2 id, 3 description, 4 amount, 5 partner name, 8 type.
+function cashRow(id, description, amount, partnerName, kind) {
+  return ["2026-01-05", "", id, description, amount, partnerName, "", "", kind];
+}
+const CASH_HEADER = [["THU CHI TIỀN"], ["Ngày", "", "Số chứng từ"]];
+
+function cashImportPartners() {
+  return [
+    { id: "BANLET05/2025(CH)", name: "Bán Lẻ T05/2025", type: "retail" },
+    { id: "DT_1054", name: "Bán Lẻ T05/2025 - 229/2 Ba cu", type: "retail" },
+    { id: "KHTHANH", name: "Chị thanh", type: "retail" },
+    { id: "KHDUY", name: "Chị Duy", type: "retail" },
+    { id: "NCCTHEP", name: "Công ty Thép Miền Nam", type: "supplier" }
+  ];
+}
+
+function importedVoucher(ctx, id) {
+  const v = ctx.state.vouchers.find(x => x.id === id);
+  assert.ok(v, `voucher ${id} imported`);
+  return { v, e: v.entries[0] };
+}
+
+async function checkCashImportAccountMapping(runImport, label) {
+  const ctx = loadImportSandbox(cashImportPartners());
+  const partnerCount = ctx.state.partners.length;
+  await runImport(ctx, CASH_HEADER.concat([
+    cashRow("PT3713", "PT3713/q75 Chị thanh CK sacombank", 5000000, "Chị thanh", "PHIẾU THU"),
+    cashRow("PT1", "Chị thanh CK sacomban", 1000000, "Chị thanh", "PHIẾU THU"),
+    cashRow("PT2", "Nhận tiền vay ngân hàng Sacombank", 900000000, "Chị thanh", "PHIẾU THU"),
+    cashRow("PT3", "Giải ngân khoản vay HĐ 01", 800000000, "Chị thanh", "PHIẾU THU"),
+    cashRow("PT4", "Nhận nợ vay Việt Nga", 700000000, "Chị thanh", "PHIẾU THU"),
+    cashRow("PT5", "Chị thanh trả tiền vay mượn", 300000, "Chị thanh", "PHIẾU THU"),
+    cashRow("PT6", "Thu tiền Việt Nga", 300000, "Chị thanh", "PHIẾU THU"),
+    cashRow("PC6882", "Chi duy vay mua chung cư golsea", 1400000000, "Chị Duy", "PHIẾU CHI"),
+    cashRow("PC1", "Thanh toán tiền hàng HĐ 12", 20000000, "Công ty Thép Miền Nam", "PHIẾU CHI"),
+    cashRow("PC2", "Chi tiền cho người lạ", 150000, "Người Lạ Hoàn Toàn", "PHIẾU CHI"),
+    cashRow("PC3", "Trả lương tháng 5", 7000000, "Chị Duy", "PHIẾU CHI"),
+    cashRow("PC4", "Trả gốc vay sacombank", 50000000, "Chị Duy", "PHIẾU CHI")
+  ]));
+
+  // (a) tên ngân hàng chỉ là kênh chuyển khoản — vẫn Có 131
+  assert.equal(importedVoucher(ctx, "PT3713").e.credit, "131", `${label}: "CK sacombank" receipt stays Có 131`);
+  assert.equal(importedVoucher(ctx, "PT1").e.credit, "131", `${label}: "sacomban" alone stays Có 131`);
+  assert.equal(importedVoucher(ctx, "PT5").e.credit, "131", `${label}: bare "vay" stays Có 131`);
+  assert.equal(importedVoucher(ctx, "PT6").e.credit, "131", `${label}: "việt nga" alone stays Có 131`);
+  // cụm vay rõ ràng → Có 341
+  assert.equal(importedVoucher(ctx, "PT2").e.credit, "341", `${label}: "vay ngân hàng" → Có 341`);
+  assert.equal(importedVoucher(ctx, "PT3").e.credit, "341", `${label}: "giải ngân" → Có 341`);
+  assert.equal(importedVoucher(ctx, "PT4").e.credit, "341", `${label}: "nhận nợ vay" → Có 341`);
+
+  // (b) phiếu chi không khớp từ khóa: 331 chỉ khi đối tác là NCC
+  const pc6882 = importedVoucher(ctx, "PC6882");
+  assert.equal(pc6882.e.debit, "1388", `${label}: non-supplier unknown payment → Nợ 1388`);
+  assert.equal(pc6882.v.needsReview, true, `${label}: 1388 fallback flagged needsReview`);
+  assert.equal(pc6882.v.partnerId, "KHDUY");
+  const pc1 = importedVoucher(ctx, "PC1");
+  assert.equal(pc1.e.debit, "331", `${label}: supplier payment keeps Nợ 331`);
+  assert.ok(!pc1.v.needsReview, `${label}: resolved supplier payment not flagged`);
+  const pc2 = importedVoucher(ctx, "PC2");
+  assert.equal(pc2.e.debit, "1388", `${label}: unresolved-partner payment → Nợ 1388`);
+  assert.equal(pc2.v.needsReview, true);
+  assert.equal(pc2.v.partnerId, "", `${label}: unresolved partner left empty`);
+  assert.equal(pc2.v.partnerName, "Người Lạ Hoàn Toàn", `${label}: file partner name kept`);
+  // từ khóa cũ vẫn giữ
+  assert.equal(importedVoucher(ctx, "PC3").e.debit, "334", `${label}: salary keyword kept`);
+  assert.ok(!importedVoucher(ctx, "PC3").v.needsReview);
+  assert.equal(importedVoucher(ctx, "PC4").e.debit, "341", `${label}: loan repayment keyword kept`);
+
+  // (c) không tạo đối tác mới
+  assert.equal(ctx.state.partners.length, partnerCount, `${label}: import must not create partners`);
+}
+
+async function testCashImportAccountMappingAuto() {
+  await checkCashImportAccountMapping(runAutoCashImport, "auto");
+}
+
+async function testCashImportAccountMappingManual() {
+  await checkCashImportAccountMapping((ctx, rows) => runManualImport(ctx, rows, "vouchers"), "manual");
+}
+
+function resolutionPartners() {
+  return [
+    { id: "BANLET05/2025(CH)", name: "Bán Lẻ T05/2025", type: "retail" },
+    { id: "DT_1054", name: "Bán Lẻ T05/2025 - 229/2 Ba cu", type: "retail" },
+    { id: "108/2TRANPHU(CH)", name: "108/2 Trần Phú", type: "retail" },
+    { id: "KL_ANHLUC", name: "Anh Lực", type: "retail" },
+    { id: "X1", name: "Trùng Tên Đối Tác", type: "retail" },
+    { id: "X2", name: "trùng tên đối tác", type: "retail" },
+    { id: "AB", name: "An Bình", type: "retail" },
+    { id: "BANLE", name: "Bán Lẻ", type: "retail" },
+    { id: "BANLET05", name: "Bán Lẻ T05", type: "retail" },
+    { id: "DT_9999", name: "Khách Chỉ Có Mã DT", type: "retail" }
+  ];
+}
+
+async function testImportPartnerMatchingRules() {
+  const cases = [
+    // [file partner name, expected partnerId ("" = unresolved)]
+    ["Bán Lẻ T05/2025 - 229/2 Ba cu", "BANLET05/2025(CH)"], // DT_ twin ignored → longest real prefix
+    ["  bán lẻ t05/2025 ", "BANLET05/2025(CH)"],             // trimmed, case-insensitive
+    ["BAN LE T05/2025", "BANLET05/2025(CH)"],                // accent-insensitive
+    ["Bán Lẻ T05/2025(CT A)", "BANLET05/2025(CH)"],          // "(" boundary
+    ["Bán Lẻ T05/2025-Q7", "BANLET05/2025(CH)"],             // "-" boundary
+    ["Bán Lẻ T05 khu A", "BANLET05"],                        // longest real prefix wins over "Bán Lẻ"
+    ["Bán Lẻ T05/20256", ""],                                // no word boundary after a real name
+    ["108/2 Trần Phú (anh Tâm)", "108/2TRANPHU(CH)"],
+    ["Anh Lực", ""],                                         // only an auto-generated KL_ match → unresolved
+    ["Khách Chỉ Có Mã DT", ""],                              // only DT_ → unresolved
+    ["Trùng Tên Đối Tác", ""],                               // two real exact matches → unresolved
+    ["An Bình 2", ""],                                       // prefix shorter than 8 chars
+    ["Bán Lẻ khác", ""]                                      // "ban le" shorter than 8 chars
+  ];
+  const rows = CASH_HEADER.concat(cases.map(([name], i) => cashRow(`PT9${i}`, "Thu tiền hàng", 1000, name, "PHIẾU THU")));
+  const ctx = loadImportSandbox(resolutionPartners());
+  const before = ctx.state.partners.length;
+  await runAutoCashImport(ctx, rows);
+  cases.forEach(([name, expected], i) => {
+    const v = ctx.state.vouchers.find(x => x.id === `PT9${i}`);
+    assert.equal(v.partnerId, expected, `partner "${name}" resolves to "${expected}"`);
+    assert.equal(v.partnerName, name.trim(), `file partner name kept for "${name}"`);
+    if (expected) assert.ok(!v.needsReview, `resolved "${name}" not flagged`);
+    else assert.equal(v.needsReview, true, `unresolved "${name}" flagged needsReview`);
+  });
+  assert.equal(ctx.state.partners.length, before, "matching never creates partners");
+}
+
+async function testSalesImportsDoNotCreatePartners() {
+  // Ban_hang layout: 2 id, 6 partner name, 8..11 amounts, 14 doc type.
+  const salesRow = (id, name) => ["2026-01-05", "", id, "", "", "", name, "Bán hàng", 1000, 0, 0, 1000, "", "", ""];
+  const ctx = loadImportSandbox(resolutionPartners());
+  const before = ctx.state.partners.length;
+  ctx.__rows = [["BÁN HÀNG"], ["hdr"], salesRow("BH1", "Bán Lẻ T05/2025 - 12 Lê Lợi"), salesRow("BH2", "Khách Mới Toanh")];
+  await ctx.autoIntegrateSalesExcel();
+  assert.equal(ctx.state.vouchers.find(v => v.id === "BH1").partnerId, "BANLET05/2025(CH)");
+  const bh2 = ctx.state.vouchers.find(v => v.id === "BH2");
+  assert.equal(bh2.partnerId, "");
+  assert.equal(bh2.needsReview, true);
+  assert.equal(bh2.partnerName, "Khách Mới Toanh");
+
+  // SO_CHI_TIET_BAN_HANG layout: 2 id, 5 desc, 7 partner code, 8 partner name, 9 product, 12 qty, 13 price.
+  const detailRow = (id, code, name) => ["", "2026-01-05", id, "", "", "Bán hàng", "", code, name, "SP1", "Sản phẩm 1", "Cái", 1, 1000, 0, 0];
+  ctx.__rows = [["SỔ"], ["x"], ["hdr"],
+    detailRow("BH3", "", "108/2 Trần Phú - giao Q1"),
+    detailRow("BH4", "MA_KHONG_CO", "Ai Đó Không Có"),
+    detailRow("BH5", "AB", "Tên khác")];
+  await ctx.autoIntegrateSoChiTietBanHangExcel();
+  assert.equal(ctx.state.vouchers.find(v => v.id === "BH3").partnerId, "108/2TRANPHU(CH)", "blank code → name match");
+  const bh4 = ctx.state.vouchers.find(v => v.id === "BH4");
+  assert.equal(bh4.partnerId, "", "unknown code + unknown name → unresolved");
+  assert.equal(bh4.needsReview, true);
+  assert.equal(ctx.state.vouchers.find(v => v.id === "BH5").partnerId, "AB", "existing partner code in file is used");
+  assert.equal(ctx.state.partners.length, before, "sales imports never create partners");
+}
+
+async function testCongNoPhaiTraImportDoesNotCreatePartners() {
+  const ctx = loadImportSandbox(resolutionPartners().concat([{ id: "NCCTHEP", name: "Công ty Thép Miền Nam", type: "supplier" }]));
+  ctx.state.vouchers.push({ id: "NK_OLD", type: "purchase", partnerId: "NCCTHEP", partnerName: "Công ty Thép Miền Nam", amount: 1 });
+  const before = ctx.state.partners.length;
+  await runManualImport(ctx, [
+    ["CHI TIẾT CÔNG NỢ PHẢI TRẢ THEO HÓA ĐƠN"], [""], [""],
+    ["Tên nhà cung cấp : Công ty Thép Miền Nam (2 )"],
+    ["", "", "2026-01-05", "NK1", "HD1", "Nhập thép", "", 5000],
+    ["Tên nhà cung cấp : Nhà Cung Cấp Lạ"],
+    ["", "", "2026-01-06", "NK2", "HD2", "Nhập cát", "", 7000],
+    ["", "", "2026-01-06", "NK_OLD", "HD3", "Cập nhật", "", 7000]
+  ], "purchase");
+  assert.equal(ctx.state.vouchers.find(v => v.id === "NK1").partnerId, "NCCTHEP");
+  const nk2 = ctx.state.vouchers.find(v => v.id === "NK2");
+  assert.equal(nk2.partnerId, "");
+  assert.equal(nk2.partnerName, "Nhà Cung Cấp Lạ");
+  assert.equal(nk2.needsReview, true);
+  assert.equal(ctx.state.vouchers.find(v => v.id === "NK_OLD").partnerId, "NCCTHEP", "unresolved name must not wipe an existing voucher's partner");
+  assert.equal(ctx.state.partners.length, before, "công nợ phải trả import never creates partners");
+}
+
+function testImportSourceHasNoInventedPartnerCodes() {
+  const src = fs.readFileSync(path.join(repoRoot, "js", "excel-integration.js"), "utf8");
+  assert.ok(!/Math\.random\(\)\s*\*\s*9000/.test(src), "no random DT_ partner codes");
+  assert.ok(!/AUTO_\$\{/.test(src), "no AUTO_<voucher> partner codes");
+}
+
+function testReportAccountsName1388BothStandards() {
+  const src = fs.readFileSync(path.join(repoRoot, "js", "modules", "reports.js"), "utf8");
+  ["TT133", "TT200"].forEach(std => {
+    const sandbox = {
+      console, Map, Set, String, Object, Array, Number, JSON, Date, Math,
+      state: { accountingStandard: std, vouchers: [], initialBalances: {} },
+      document: { getElementById() { return null; }, addEventListener() {}, querySelectorAll() { return []; } },
+      window: {}
+    };
+    sandbox.window = sandbox;
+    vm.createContext(sandbox);
+    vm.runInContext(src, sandbox, { filename: "reports.js" });
+    const acc = sandbox.getReportAccounts().find(a => a.code === "1388");
+    assert.ok(acc && acc.name === "Phải thu khác", `${std}: 1388 named "Phải thu khác"`);
+  });
+}
+
+async function runAll() {
   testReceiptWithLoanEntriesDoesNotTouch131();
   testPaymentWithSalaryEntriesDoesNotTouch331();
   testOtherNonDebtCashVouchersIgnored();
@@ -256,12 +516,17 @@ function runAll() {
   testMixedEntriesReturnOnlyDebtLines();
   testVoucherWithoutEntriesStillUsesFallback();
   testFifoMatchesDebtSummaryForLoanReceipt();
+  await testCashImportAccountMappingAuto();
+  await testCashImportAccountMappingManual();
+  await testImportPartnerMatchingRules();
+  await testSalesImportsDoNotCreatePartners();
+  await testCongNoPhaiTraImportDoesNotCreatePartners();
+  testImportSourceHasNoInventedPartnerCodes();
+  testReportAccountsName1388BothStandards();
   console.log("debt-audit-tests.js: all tests passed");
 }
 
-try {
-  runAll();
-} catch (err) {
+runAll().catch((err) => {
   console.error("debt-audit-tests.js FAILED:", err);
   process.exit(1);
-}
+});
