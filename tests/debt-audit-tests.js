@@ -1271,6 +1271,16 @@ function testKpiTilesClassifyByRoleNotDeclaredType() {
   assert.equal(rec.kpiNet, 100 - 200);
 }
 
+function testOpeningBalanceVersionOnlyMovesForward() {
+  const ctx = loadDebtModule();
+  const future = Date.now() + 3600 * 1000;
+  ctx.state.partnerOpeningBalanceTs = { "KH'01": future };
+  ctx.stampPartnerOpeningBalanceTs("KH'01");
+  assert.equal(ctx.state.partnerOpeningBalanceTs["KH'01"], future + 1, "edit after a clock-skewed stamp still wins the sync merge");
+  ctx.stampPartnerOpeningBalanceTs("KH02");
+  assert.ok(ctx.state.partnerOpeningBalanceTs.KH02 >= Date.now() - 1000);
+}
+
 function testAuditFlagsPossibleDoubleRefund() {
   const ctx = loadDebtWithLedger();
   ctx.state.partners = [
@@ -1356,6 +1366,7 @@ async function runAll() {
   testAuditCustomerPaymentBridgeIdentity();
   testAuditFlagsPossibleDoubleRefund();
   testKpiTilesClassifyByRoleNotDeclaredType();
+  testOpeningBalanceVersionOnlyMovesForward();
   console.log("debt-audit-tests.js: all tests passed");
 }
 

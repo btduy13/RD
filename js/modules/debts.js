@@ -860,10 +860,10 @@ function renderDebtsTable() {
       const escapedId = escapeHtmlAttr(d.id);
       tr.className = "clickable-row";
       tr.setAttribute("data-type", "partner");
-      tr.setAttribute("data-id", escapedId);
+      tr.setAttribute("data-id", d.id);
       tr.innerHTML = `
         <td style="text-align: center;">
-          <input type="checkbox" class="debt-checkbox" value="${escapedId}" onchange="updateBatchDebtsUI()">
+          <input type="checkbox" class="debt-checkbox" value="${escapeDebtAuditText(d.id)}" onchange="updateBatchDebtsUI()">
         </td>
         <td style="font-weight:bold; color:var(--color-primary);">${escapeDebtAuditText(d.id)}</td>
         <td style="font-weight:600;"><a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${escapeDebtAuditText(d.name)}</a></td>
@@ -2423,8 +2423,7 @@ function handleEditDebtSubmit(e) {
 
       state.partnerOpeningBalances = state.partnerOpeningBalances || {};
       state.partnerOpeningBalances[targetId] = { debit: newDebit, credit: newCredit };
-      state.partnerOpeningBalanceTs = state.partnerOpeningBalanceTs || {};
-      state.partnerOpeningBalanceTs[targetId] = Date.now();
+      stampPartnerOpeningBalanceTs(targetId);
       if (typeof syncPartnerOpeningAccounts === "function") syncPartnerOpeningAccounts();
 
       saveState();
@@ -2440,6 +2439,8 @@ function handleEditDebtSubmit(e) {
     if (activePartnerIdForLedger) {
       renderPartnerLedgerOrders();
     }
+    // Số dư đầu/cuối kỳ trong sổ đang mở phải cập nhật ngay, không đợi mở lại
+    refreshOpenPartnerLedgerModal();
   } catch (err) {
     if (typeof addErrorLog === "function") {
       addErrorLog("handleEditDebtSubmit", err.message, err);
@@ -2824,6 +2825,15 @@ function updateBatchDebtsUI() {
   }
 }
 
+// Phiên bản số dư đầu kỳ chỉ tăng (giống recordPartnerOpeningDeletion trong partners.js):
+// nếu mốc cũ đến từ máy có đồng hồ chạy nhanh, Date.now() thuần sẽ thua khi đồng bộ
+// và bản cloud cũ ghi đè lại thay đổi vừa lưu.
+function stampPartnerOpeningBalanceTs(id) {
+  state.partnerOpeningBalanceTs = state.partnerOpeningBalanceTs || {};
+  const oldTs = Number(state.partnerOpeningBalanceTs[id]) || 0;
+  state.partnerOpeningBalanceTs[id] = Math.max(Date.now(), oldTs + 1);
+}
+
 async function batchDeleteDebts() {
   const checked = Array.from(document.querySelectorAll(".debt-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
@@ -2840,8 +2850,7 @@ async function batchDeleteDebts() {
   const idsToReset = checked.map(cb => cb.value);
   idsToReset.forEach(id => {
     state.partnerOpeningBalances[id] = { debit: 0, credit: 0 };
-    state.partnerOpeningBalanceTs = state.partnerOpeningBalanceTs || {};
-    state.partnerOpeningBalanceTs[id] = Date.now();
+    stampPartnerOpeningBalanceTs(id);
   });
   if (typeof syncPartnerOpeningAccounts === "function") syncPartnerOpeningAccounts();
 
@@ -3435,7 +3444,7 @@ function renderDebtsIndividualTable() {
     tr.className = 'clickable-row';
     tr.setAttribute('data-type', 'partner'); tr.setAttribute('data-id', escapedId);
     tr.innerHTML = `
-      <td style="text-align:center;"><input type="checkbox" class="debt-checkbox" value="${escapedId}"></td>
+      <td style="text-align:center;"><input type="checkbox" class="debt-checkbox" value="${escapeDebtAuditText(d.id)}"></td>
       <td style="font-weight:bold; color:var(--color-primary);">${escapeDebtAuditText(d.id)}</td>
       <td style="font-weight:600;"><a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline;">${escapeDebtAuditText(d.name)}</a></td>
       <td style="text-align:right;" class="font-numeric">${d.openingDebit > 0 ? formatVND(d.openingDebit).replace('đ', '') : '-'}</td>
