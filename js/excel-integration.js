@@ -2183,14 +2183,22 @@ function parseExcelFile(file, type) {
                         (inactiveVal || "").toString().trim() === "Có";
 
                     const idx = state.partners.findIndex(p => String(p.id) === String(id));
-                    const pObj = { id, name, type, phone, email: "", address, taxCode, group, inactive };
                     if (idx !== -1) {
-                        state.partners[idx] = pObj;
+                        // File chỉ phân biệt KH/NCC: giữ loại chi tiết (doanh nghiệp, công trình, hai chiều...)
+                        // và DN mẹ khi file không mâu thuẫn; giữ các trường file không có.
+                        const existing = state.partners[idx];
+                        const keepType = (type === "supplier") === (existing.type === "supplier");
+                        const merged = { ...existing, id, name, type: keepType ? existing.type : type, phone, address, taxCode, group, inactive };
+                        if (merged.type !== "project") delete merged.parentId;
+                        if (typeof stampPartnerSyncFields === "function") stampPartnerSyncFields(merged);
+                        else merged._updatedAt = Date.now();
+                        state.partners[idx] = merged;
                     } else {
-                        state.partners.push(pObj);
+                        state.partners.push({ id, name, type, phone, email: "", address, taxCode, group, inactive, _updatedAt: Date.now() });
                     }
                     count++;
                 }
+                if (typeof invalidatePartnerCache === "function") invalidatePartnerCache();
 
                 // Cập nhật datalist
                 const datalist = document.getElementById("datalist-partners");

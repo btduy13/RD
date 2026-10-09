@@ -1033,7 +1033,7 @@ function handleAssignToProjectSubmit(e) {
   if (!newId) {
     newId = getUniquePartnerId(p.name, "project", p.id);
   }
-  if (newId !== p.id && state.partners.some(x => x.id === newId && x.id !== p.id)) {
+  if (newId !== p.id && partnerIdTaken(newId, p.id)) {
     showToast(`Mã "${newId}" đã tồn tại!`, "danger");
     return;
   }
@@ -1049,9 +1049,11 @@ function handleAssignToProjectSubmit(e) {
     ...p,
     id: newId,
     type: "project",
-    parentId: parentP.id,
-    _updatedAt: Date.now()
+    parentId: parentP.id
   };
+  stampPartnerSyncFields(state.partners[idx]);
+  if (typeof invalidatePartnerCache === "function") invalidatePartnerCache();
+  if (p.type !== "project" && typeof syncPartnerOpeningAccounts === "function") syncPartnerOpeningAccounts();
 
   saveState();
   initExcelIntegration();

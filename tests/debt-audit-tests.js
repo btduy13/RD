@@ -1281,6 +1281,33 @@ function testOpeningBalanceVersionOnlyMovesForward() {
   assert.ok(ctx.state.partnerOpeningBalanceTs.KH02 >= Date.now() - 1000);
 }
 
+async function testPartnerListImportKeepsHierarchy() {
+  const ctx = loadImportSandbox([
+    { id: "DN1", name: "Công ty 1", type: "enterprise", email: "a@b.c" },
+    { id: "CT1", name: "Công trình 1", type: "project", parentId: "DN1", excelRow: ["CT1"] },
+    { id: "AB", name: "Hai chiều", type: "both" },
+    { id: "TUANMINH", name: "NCC", type: "supplier" }
+  ]);
+  await runManualImport(ctx, [
+    ["DANH SÁCH"], ["Mã khách hàng", "Tên"],
+    ["DN1", "Công ty 1", "Đ/c", "KH", "", "", ""],
+    ["CT1", "Công trình 1 mới", "Đ/c 2", "KH", "", "0909", ""],
+    ["AB", "Hai chiều", "", "KH", "", "", ""],
+    ["TUANMINH", "NCC", "", "KH", "", "", ""],
+    ["KHNEW", "Khách mới", "", "KH", "", "", ""]
+  ], "partners");
+  const byId = id => ctx.state.partners.find(p => p.id === id);
+  assert.equal(byId("DN1").type, "enterprise", "re-import of an export keeps enterprises");
+  assert.equal(byId("DN1").email, "a@b.c", "fields not in the file are kept");
+  assert.equal(byId("CT1").type, "project");
+  assert.equal(byId("CT1").parentId, "DN1", "re-import keeps the parent enterprise");
+  assert.equal(byId("CT1").name, "Công trình 1 mới");
+  assert.equal(byId("CT1").phone, "0909");
+  assert.equal(byId("AB").type, "both");
+  assert.equal(byId("TUANMINH").type, "retail", "a file that contradicts KH/NCC still wins");
+  assert.equal(byId("KHNEW").type, "retail");
+}
+
 function testAuditFlagsPossibleDoubleRefund() {
   const ctx = loadDebtWithLedger();
   ctx.state.partners = [
@@ -1368,6 +1395,7 @@ async function runAll() {
   testAuditFlagsPossibleDoubleRefund();
   testKpiTilesClassifyByRoleNotDeclaredType();
   testOpeningBalanceVersionOnlyMovesForward();
+  await testPartnerListImportKeepsHierarchy();
   console.log("debt-audit-tests.js: all tests passed");
 }
 
