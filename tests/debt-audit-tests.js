@@ -766,6 +766,112 @@ function testAuditFlagsPartnerCashWithoutDebtLines() {
   assert.ok(!html.includes("Khách <b>01</b>") && html.includes("Khách &lt;b&gt;01&lt;/b&gt;"), "partner name escaped");
 }
 
+// F2: cash.js trong vm sandbox (cùng cách tests/cash-table-totals-tests.js nạp cash.js),
+// thêm stub DOM/form tối thiểu để chạy handler lưu phiếu và bộ lọc danh sách.
+function loadCashModule(partners) {
+  const elements = new Map();
+  const getEl = id => {
+    if (!elements.has(id)) elements.set(id, { id, value: "", innerHTML: "", innerText: "", style: {}, reset() {} });
+    return elements.get(id);
+  };
+  const sandbox = {
+    console, Date, JSON, Number, Math, Array, Object, String, Set, Map, Promise,
+    state: { partners: partners || [], vouchers: [], accountingStandard: "TT200" },
+    document: { getElementById: getEl, querySelector: () => null, querySelectorAll: () => [] },
+    clientSessionId: "test-session",
+    itemsPerPage: 50,
+    beginVoucherSubmit: () => true,
+    endVoucherSubmit() {},
+    setVoucherFormStatus() {},
+    recalculateAccounting() {},
+    saveStateAndSyncVoucher: async () => true,
+    openModal() {}, closeModal() {}, showToast() {},
+    formatVND: v => String(v),
+    getLocalDateString: () => "2026-01-01",
+    matchAdvancedQuery: () => true,
+    getPartnerNameForVoucher: v => v.partnerName || "",
+    getPartnerForVoucher: v => (sandbox.state.partners || []).find(p => p.id === v.partnerId) || null,
+    resolvePartner: val => {
+      const m = /\(([^)]+)\)\s*$/.exec(String(val || ""));
+      const p = (sandbox.state.partners || []).find(x => x.id === (m ? m[1] : val));
+      return p ? { id: p.id, name: p.name } : { id: "", name: String(val || "") };
+    }
+  };
+  sandbox.window = sandbox;
+  sandbox.getComputedStyle = () => ({ display: "block" });
+  vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "js", "modules", "cash.js"), "utf8"), sandbox, { filename: "cash.js" });
+  sandbox.renderCashTable = () => {};
+  sandbox.recalculateCashKpis = () => {};
+  return { ctx: sandbox, getEl };
+}
+
+async function testCashSaveClearsNeedsReview() {
+  const { ctx } = loadCashModule([{ id: "NV01", name: "Nhân viên A", type: "supplier" }]);
+  ctx.state.vouchers = [
+    { id: "PC100", type: "payment", date: "2026-02-01", partnerId: "NV01", partnerName: "Nhân viên A",
+      paymentMethod: "111", amount: 1000, description: "chi khác", isImported: true, needsReview: true,
+      entries: [{ debit: "1388", credit: "111", amount: 1000 }] },
+    { id: "PT100", type: "receipt", date: "2026-02-02", partnerId: "NV01", partnerName: "Nhân viên A",
+      paymentMethod: "112", amount: 2000, description: "thu", isImported: true, needsReview: true,
+      entries: [{ debit: "112", credit: "341", amount: 2000 }] }
+  ];
+  ctx.editPaymentVoucher("PC100");
+  await ctx.handlePaymentSubmit({ preventDefault() {} });
+  const pc = ctx.state.vouchers.find(v => v.id === "PC100");
+  assert.equal(pc.isManual, true, "payment was saved through the edit form");
+  assert.equal(pc.isImported, true, "other fields of the old voucher are kept");
+  assert.ok(!("needsReview" in pc), "manual save clears needsReview (payment)");
+
+  ctx.editReceiptVoucher("PT100");
+  await ctx.handleReceiptSubmit({ preventDefault() {} });
+  const pt = ctx.state.vouchers.find(v => v.id === "PT100");
+  assert.equal(pt.isManual, true, "receipt was saved through the edit form");
+  assert.ok(!("needsReview" in pt), "manual save clears needsReview (receipt)");
+}
+
+function testCashNeedsReviewFilter() {
+  const { ctx, getEl } = loadCashModule([]);
+  ctx.state.vouchers = [
+    { id: "PC1", type: "payment", date: "2026-02-01", amount: 10, needsReview: true },
+    { id: "PC2", type: "payment", date: "2026-02-01", amount: 20 },
+    { id: "PT1", type: "receipt", date: "2026-02-01", amount: 30, needsReview: true },
+    { id: "PT2", type: "receipt", date: "2026-02-01", amount: 40, needsReview: false },
+    { id: "BH1", type: "sales", date: "2026-02-01", amount: 50, needsReview: true }
+  ];
+  getEl("cash-type-filter").value = "needsReview";
+  getEl("cash-method-filter").value = "all";
+  ctx.filterCash();
+  const ids = vm.runInContext("filteredCashList", ctx).map(v => v.id).sort();
+  assert.deepStrictEqual(ids, ["PC1", "PT1"], "filter shows only cash vouchers flagged needsReview");
+  getEl("cash-type-filter").value = "all";
+  ctx.filterCash();
+  assert.equal(vm.runInContext("filteredCashList", ctx).length, 4, "default filter unchanged");
+}
+
+async function testSupplierRematchClearsNeedsReview() {
+  const ctx = loadImportSandbox(resolutionPartners().concat([{ id: "NCCTHEP", name: "Công ty Thép Miền Nam", type: "supplier" }]));
+  ctx.state.vouchers.push(
+    // Lần nạp trước: tên NCC không khớp → để trống mã, cần rà soát
+    { id: "NK_REV", type: "purchase", partnerId: "", partnerName: "Thép MN", amount: 1, needsReview: true },
+    // Phiếu chi Nợ 1388: lý do rà soát là tài khoản, không phải đối tác → giữ cờ
+    { id: "PC_1388", type: "payment", partnerId: "", partnerName: "Thép MN", amount: 1, needsReview: true,
+      entries: [{ debit: "1388", credit: "111", amount: 1 }] }
+  );
+  await runManualImport(ctx, [
+    ["CHI TIẾT CÔNG NỢ PHẢI TRẢ THEO HÓA ĐƠN"], [""], [""],
+    ["Tên nhà cung cấp : Công ty Thép Miền Nam (2 )"],
+    ["", "", "2026-01-05", "NK_REV", "HD1", "Nhập thép", "", 5000],
+    ["", "", "2026-01-05", "PC_1388", "", "Chi", "", 1]
+  ], "purchase");
+  const nk = ctx.state.vouchers.find(v => v.id === "NK_REV");
+  assert.equal(nk.partnerId, "NCCTHEP");
+  assert.ok(!("needsReview" in nk), "supplier re-match clears needsReview once a partner is assigned");
+  const pc = ctx.state.vouchers.find(v => v.id === "PC_1388");
+  assert.equal(pc.partnerId, "NCCTHEP");
+  assert.equal(pc.needsReview, true, "Nợ 1388 payment stays flagged for account review");
+}
+
 async function runAll() {
   testReceiptWithLoanEntriesDoesNotTouch131();
   testPaymentWithSalaryEntriesDoesNotTouch331();
@@ -791,6 +897,9 @@ async function runAll() {
   testAudit131CreditNatureInitialBalance();
   testAuditEscapesOrphanPartnerIds();
   testAuditFlagsPartnerCashWithoutDebtLines();
+  await testCashSaveClearsNeedsReview();
+  testCashNeedsReviewFilter();
+  await testSupplierRematchClearsNeedsReview();
   console.log("debt-audit-tests.js: all tests passed");
 }
 

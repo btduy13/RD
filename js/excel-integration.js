@@ -1996,8 +1996,14 @@ function parseExcelFile(file, type) {
                                 // Không ghi đè đối tác đã gán bằng mã rỗng khi tên NCC không khớp
                                 if (!resolvedPartner) continue;
                                 // Cập nhật nhà cung cấp cho chứng từ đã tồn tại
-                                state.vouchers[existingIdx].partnerId = pId;
-                                state.vouchers[existingIdx].partnerName = pName;
+                                const existingVoucher = state.vouchers[existingIdx];
+                                existingVoucher.partnerId = pId;
+                                existingVoucher.partnerName = pName;
+                                // Đã gán được NCC → bỏ cờ rà soát, trừ phiếu hạch toán Nợ 1388
+                                // (lý do rà soát là tài khoản, không phải đối tác).
+                                const debit1388 = Array.isArray(existingVoucher.entries) &&
+                                    existingVoucher.entries.some(e => e && String(e.debit || "").startsWith("1388"));
+                                if (!debit1388) delete existingVoucher.needsReview;
                                 countUpdated++;
                             } else {
                                 // Tạo chứng từ mới

@@ -269,6 +269,8 @@ function filterCash() {
       matchesType = v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay";
     } else if (filterType === "payment") {
       matchesType = v.type === "payment" || v.type === "escrow_pay" || v.type === "escrow_refund_receive";
+    } else if (filterType === "needsReview") {
+      matchesType = v.needsReview === true;
     }
 
     let matchesMethod = true;
@@ -501,6 +503,8 @@ async function handleReceiptSubmit(e) {
         { debit, credit, amount, desc }
       ]
     };
+    // Kế toán đã lưu lại từ form sửa: bỏ cờ "cần rà soát" của lần nhập Excel.
+    delete updatedVoucher.needsReview;
 
     if (editId) {
       const idx = state.vouchers.findIndex(v => v.id === editId);
@@ -612,6 +616,8 @@ async function handlePaymentSubmit(e) {
         { debit, credit, amount, desc }
       ]
     };
+    // Kế toán đã lưu lại từ form sửa: bỏ cờ "cần rà soát" của lần nhập Excel.
+    delete updatedVoucher.needsReview;
 
     if (editId) {
       const idx = state.vouchers.findIndex(v => v.id === editId);
@@ -682,6 +688,8 @@ function exportCashToExcel() {
       matchesType = v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay";
     } else if (filterType === "payment") {
       matchesType = v.type === "payment" || v.type === "escrow_pay" || v.type === "escrow_refund_receive";
+    } else if (filterType === "needsReview") {
+      matchesType = v.needsReview === true;
     }
 
     let matchesMethod = true;
