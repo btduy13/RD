@@ -279,9 +279,10 @@ async function assertAllDistributedVouchers(label) {
   assert.equal(new Set(ids).size, 8, `${label}: all eight distributed vouchers must have unique IDs`);
 }
 
-async function cleanupDistributedRows() {
-  if (station === 'A') {
-    await evaluate(`(async () => {
+// The app under test syncs with the configured shared cloud, so test rows (vouchers, partners and
+// barrier markers such as `${runId}-MARK-…`) must also be removed when a run fails.
+function cleanupScript() {
+  return `(async () => {
       const voucherIds = state.vouchers
         .filter(item => item && String(item.description || '').startsWith(${JSON.stringify(`${runId} distributed`)}))
         .map(item => item.id);
@@ -296,7 +297,12 @@ async function cleanupDistributedRows() {
       state.products = state.products.filter(item => item && item.id !== ${JSON.stringify(productId)});
       await saveStateAndSyncVoucher();
       return { voucherIds, partnerIds };
-    })()`, 120000);
+    })()`;
+}
+
+async function cleanupDistributedRows() {
+  if (station === 'A') {
+    await evaluate(cleanupScript(), 120000);
   }
   await waitFor(
     `!state.vouchers.some(item => item && String(item.description || '').startsWith(${JSON.stringify(`${runId} distributed`)})) &&
@@ -333,6 +339,15 @@ async function run() {
   } catch (error) {
     console.error(`[distributed:${station}] FAIL:`, error);
     console.error(`[distributed:${station}] recent Electron log:\n${appLog.slice(-100).join('\n')}`);
+    // Best effort: each station removes the test rows it can see, so a failed run leaves nothing behind.
+    if (appProcess) {
+      try {
+        const removed = await evaluate(cleanupScript(), 120000);
+        console.error(`[distributed:${station}] cleanup after failure:`, JSON.stringify(removed));
+      } catch (cleanupError) {
+        console.error(`[distributed:${station}] cleanup after failure did not complete:`, cleanupError.message);
+      }
+    }
     throw error;
   } finally {
     await stopApp();
