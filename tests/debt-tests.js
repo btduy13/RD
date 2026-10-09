@@ -625,6 +625,43 @@ function testDualRoleLedgerShowsBothSidesLikeTheList() {
   assert.equal(ctx.formatLedgerClosingText(splitLedger), "0 (Nợ)");
 }
 
+function testCompanyTabGroupsAndFilters() {
+  const ctx = loadDebtModule();
+  installDebtTestDOM(ctx);
+  ctx.matchAdvancedQuery = (text, query) => !query || text.toLowerCase().includes(String(query).toLowerCase());
+  ctx.state.partners = [
+    { id: "DN1", name: "Công ty Một", type: "enterprise" },
+    { id: "CT-A", name: "Nhà A", type: "project", parentId: "DN1" },
+    { id: "CT-B", name: "Nhà B", type: "project", parentId: "DN1" },
+    { id: "CT-X", name: "Công trình lẻ X", type: "project", parentId: "" },
+    { id: "CT-Y", name: "Công trình lẻ Y", type: "project", parentId: "DN-GONE" }
+  ];
+  const sale = (id, pid, amt) => ({ id, type: "sales", date: "2026-01-02", partnerId: pid, entries: [{ debit: "131", credit: "511", amount: amt }] });
+  ctx.state.vouchers = [
+    sale("BH-A", "CT-A", 100),
+    { id: "PT-B", type: "receipt", date: "2026-01-03", partnerId: "CT-B", entries: [{ debit: "111", credit: "131", amount: 30 }] },
+    { id: "NK-A", type: "purchase", date: "2026-01-04", partnerId: "CT-A", entries: [{ debit: "156", credit: "331", amount: 40 }] },
+    sale("BH-X", "CT-X", 10), sale("BH-Y", "CT-Y", 20)
+  ];
+  const rows = ctx.calculatePartnerDebts();
+  const groups = ctx.buildCompanyGroupedList(rows.filter(d => ["project", "enterprise"].includes(d.declaredType || d.type)));
+  const dn1 = groups.find(g => g.key === "DN1");
+  assert.equal(dn1.closingDebit, 70, "projects net on 131: 100 − 30");
+  assert.equal(dn1.closingCredit, 40, "the 331 payable stays on its own side");
+  assert.ok(groups.find(g => g.key === "unassigned:CT-X") && groups.find(g => g.key === "unassigned:CT-Y"),
+    "parentless and dead-parent projects are separate debtors, not one 'chưa xác định' sum");
+
+  ctx.document.getElementById("debt-search-input").value = "Công ty Một";
+  ctx.renderDebtsCompanyGroupedTable = () => {}; // table rendering is not under test here
+  vm.runInContext("currentDebtsViewTab = 'company'; filterDebts();", ctx);
+  const shown = vm.runInContext("filteredCompanyGroupedList", ctx);
+  assert.equal(shown.length, 1);
+  assert.deepEqual(Array.from(shown[0].childIds).sort(), ["CT-A", "CT-B", "DN1"], "searching the company keeps all its projects");
+
+  assert.equal(ctx.pickLedgerAddressee([ctx.state.partners[1]], ctx.state.partners[0]).id, "CT-A", "single code on screen is the addressee");
+  assert.equal(ctx.pickLedgerAddressee(ctx.state.partners.slice(0, 3), ctx.state.partners[1]).id, "DN1", "company ledger is addressed to the enterprise");
+}
+
 function testFifoReceiptAllocatesSales() {
   const ctx = loadAccountingFifo();
   ctx.state.vouchers = [
@@ -831,6 +868,7 @@ async function runAll() {
   testDetailedExportResolvesPartnerLikeTheList();
   testCompanyDetailSheetTotalIsDebtMovement();
   testDualRoleLedgerShowsBothSidesLikeTheList();
+  testCompanyTabGroupsAndFilters();
   testSupplierOverpaymentShowsAsReceivable();
   testFifoReceiptAllocatesSales();
   testDebtAdjustmentPreserved();

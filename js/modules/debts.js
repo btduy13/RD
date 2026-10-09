@@ -21,6 +21,15 @@ function getActiveLedgerPartners() {
   return (state.partners || []).filter(item => ids.has(item.id));
 }
 
+// Người nhận thông báo / tiêu đề file theo đúng sổ đang hiển thị: một mã → chính mã đó;
+// nhiều mã → doanh nghiệp mẹ nếu có. Trước đây luôn là mã mở sổ ban đầu, nên sau khi
+// chọn công trình khác trong sổ, thông báo gửi tên công trình cũ với số tiền mới.
+function pickLedgerAddressee(matchingPartners, fallback) {
+  if (!Array.isArray(matchingPartners) || matchingPartners.length === 0) return fallback;
+  if (matchingPartners.length === 1) return matchingPartners[0];
+  return matchingPartners.find(item => item.type === "enterprise") || fallback;
+}
+
 function isUnmatchedDebt(d) {
     return d && d.id === UNMATCHED_PARTNER_ID;
 }
@@ -1043,11 +1052,15 @@ function filterDebts() {
   if (currentDebtsViewTab === 'company') {
     const companyDebts = allDebts.filter(d => {
       const dt = d.declaredType || d.type;
-      if (dt !== 'project' && dt !== 'enterprise') return false;
-      if (!makeFilter(d)) return false;
-      return true;
+      return dt === 'project' || dt === 'enterprise';
     });
-    filteredCompanyGroupedList = buildCompanyGroupedList(companyDebts);
+    // Gộp TRƯỚC rồi mới lọc theo nhóm: lọc từng công trình trước khi gộp làm dòng công ty,
+    // sổ và file xuất thiếu các công trình không khớp từ khóa hoặc đang có số dư 0.
+    filteredCompanyGroupedList = buildCompanyGroupedList(companyDebts).filter(g => {
+      const groupRow = { id: g.key, name: g.displayName, closingDebit: g.closingDebit, closingCredit: g.closingCredit,
+        has131: g.children.some(c => c.has131), has331: g.children.some(c => c.has331), declaredType: 'enterprise' };
+      return makeFilter(groupRow) || g.children.some(c => makeFilter({ ...c, closingDebit: g.closingDebit, closingCredit: g.closingCredit }));
+    });
     debtsCompanyPage = 1;
     renderDebtsCompanyGroupedTable();
     return;
@@ -1490,6 +1503,9 @@ function viewLedgerByIds(partnerIds, groupName) {
   activePartnerNameForGroupedLedger = groupName;
   activeLedgerCombined = true;
   activeLedgerTargetId = parent ? parent.id : matchingPartners[0].id;
+  // Sổ công ty không dùng dropdown công trình: ẩn dropdown còn sót từ sổ đã mở trước đó
+  const projTabsDiv = document.getElementById('partner-ledger-projects-tabs');
+  if (projTabsDiv) projTabsDiv.style.display = 'none';
   switchPartnerLedgerTab('entries');
   openModal('modal-view-partner-ledger');
 }
@@ -1502,7 +1518,7 @@ let activeLedgerTargetId = "";
 
 function viewPartnerLedger(partnerId) {
   activeLedgerExplicitGroupIds = null;
-  const p = state.partners.find(item => item.id === partnerId);
+  let p = state.partners.find(item => item.id === partnerId);
   if (!p) {
     viewUnmatchedPartnerLedger();
     return;
@@ -1727,7 +1743,7 @@ async function exportPartnerDebtExcel(partnerId) {
     return;
   }
 
-  const p = state.partners.find(item => item.id === partnerId);
+  let p = state.partners.find(item => item.id === partnerId);
   if (!p) {
     showToast("Không tìm thấy đối tác này!", "danger");
     return;
@@ -1736,6 +1752,7 @@ async function exportPartnerDebtExcel(partnerId) {
   try {
     // 1. Đúng tập mã của sổ đang mở (nhóm theo tên, công ty, công trình hoặc một mã)
     let matchingPartners = getActiveLedgerPartners();
+    p = pickLedgerAddressee(matchingPartners, p);
     if (matchingPartners.length === 0) {
       matchingPartners = [p];
     }
@@ -2022,7 +2039,7 @@ function exportCurrentPartnerDebtExcel() {
 }
 
 function previewPartnerDebtNotice(partnerId) {
-  const p = state.partners.find(item => item.id === partnerId);
+  let p = state.partners.find(item => item.id === partnerId);
   if (!p) {
     showToast("Không tìm thấy đối tác này!", "danger");
     return;
@@ -2030,6 +2047,7 @@ function previewPartnerDebtNotice(partnerId) {
 
   // Đúng tập mã của sổ đang mở — số tiền trên thông báo phải khớp sổ trên màn hình
   let matchingPartners = getActiveLedgerPartners();
+  p = pickLedgerAddressee(matchingPartners, p);
   if (matchingPartners.length === 0) {
     matchingPartners = [p];
   }
@@ -3522,41 +3540,52 @@ function buildCompanyGroupedList(companyDebts) {
     const p = (state.partners || []).find(x => x.id === d.id);
     if (!p) return;
 
-    let parentId = p.parentId;
-    let parentName = '';
-
+    let key;
+    let parentName;
     if (p.type === 'enterprise') {
-      parentId = p.id;
+      key = p.id;
       parentName = p.name;
     } else if (p.type === 'project') {
-      parentId = p.parentId;
-      const parentEnt = (state.partners || []).find(x => x.id === p.parentId);
-      parentName = parentEnt ? parentEnt.name : 'Doanh nghiệp chưa xác định';
+      const parentEnt = (state.partners || []).find(x => x.id === p.parentId && x.type === 'enterprise');
+      if (parentEnt) {
+        key = parentEnt.id;
+        parentName = parentEnt.name;
+      } else {
+        // Công trình chưa có (hoặc mất) DN mẹ là một con nợ riêng: không cộng chung với
+        // các công trình không liên quan khác vào một dòng "Doanh nghiệp chưa xác định".
+        key = `unassigned:${p.id}`;
+        parentName = `${p.name} (chưa gán DN mẹ)`;
+      }
     } else {
       return;
     }
 
-    const key = parentId || 'unknown';
     if (!groups[key]) {
-      groups[key] = { displayName: parentName, key: key, openingDebit: 0, openingCredit: 0, debitTrans: 0, creditTrans: 0, closingDebit: 0, closingCredit: 0, childIds: [], childNames: [], children: [] };
+      groups[key] = { displayName: parentName, key, openingDebit: 0, openingCredit: 0, debitTrans: 0, creditTrans: 0, closingDebit: 0, closingCredit: 0,
+        receivable: 0, overpaid: 0, payable: 0, supplierReceivable: 0, childIds: [], childNames: [], children: [] };
     }
     const g = groups[key];
     g.openingDebit += d.openingDebit || 0;
     g.openingCredit += d.openingCredit || 0;
     g.debitTrans += d.debitTrans || 0;
     g.creditTrans += d.creditTrans || 0;
-    g.closingDebit += d.closingDebit || 0;
-    g.closingCredit += d.closingCredit || 0;
+    const parts = getDebtKpiParts(d);
+    g.receivable += parts.receivable;
+    g.overpaid += parts.overpaid;
+    g.payable += parts.payable;
+    g.supplierReceivable += parts.supplierReceivable;
     g.childIds.push(d.id);
     g.childNames.push(d.name);
     g.children.push(d);
   });
 
+  // Các công trình cấn trừ với nhau trên 131 (công ty nợ ròng) và trên 331; không bù trừ 131 với 331.
   return Object.values(groups)
     .map(g => {
-      const bal = g.openingDebit - g.openingCredit + g.debitTrans - g.creditTrans;
-      if (bal >= 0) { g.closingDebit = bal; g.closingCredit = 0; }
-      else { g.closingDebit = 0; g.closingCredit = -bal; }
+      const net131 = g.receivable - g.overpaid;
+      const net331 = g.payable - g.supplierReceivable;
+      g.closingDebit = Math.max(net131, 0) + Math.max(-net331, 0);
+      g.closingCredit = Math.max(-net131, 0) + Math.max(net331, 0);
       return g;
     })
     .sort((a, b) => a.displayName.localeCompare(b.displayName, 'vi'));
