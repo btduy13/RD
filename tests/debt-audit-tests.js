@@ -909,6 +909,23 @@ function testNonDebtVouchersDoNotCreateEmptyUnmatchedBucket() {
   assert.deepStrictEqual(plain(bucket.orphanPartnerIds).sort(), ["", "MA_CU"], "only vouchers with 131/331 lines add orphan ids");
 }
 
+// F5: số tiền dạng chuỗi / thiếu được ép kiểu số
+function testAccumulateDebtEntryLinesCoercesAmount() {
+  const ctx = loadDebtModule();
+  const counters = ctx.createEmptyDebtCounters();
+  ctx.accumulateDebtEntryLines({ debit: "131", credit: "511", amount: "1000" }, counters);
+  ctx.accumulateDebtEntryLines({ debit: "111", credit: "131", amount: "250" }, counters);
+  ctx.accumulateDebtEntryLines({ debit: "156", credit: "331", amount: undefined }, counters);
+  assert.strictEqual(counters.debit131, 1000, "string amount coerced, not concatenated");
+  assert.strictEqual(counters.credit131, 250);
+  assert.strictEqual(counters.credit331, 0, "missing amount counts as 0, not NaN");
+
+  ctx.state.partners = [{ id: "KH01", name: "Khách A", type: "retail" }];
+  ctx.state.vouchers = [{ id: "BH1", type: "sales", date: "2026-01-10", partnerId: "KH01",
+    entries: [{ debit: "131", credit: "511", amount: "1000" }] }];
+  assert.strictEqual(ctx.calculatePartnerDebts().find(d => d.id === "KH01").closingDebit, 1000);
+}
+
 async function runAll() {
   testReceiptWithLoanEntriesDoesNotTouch131();
   testPaymentWithSalaryEntriesDoesNotTouch331();
@@ -939,6 +956,7 @@ async function runAll() {
   await testSupplierRematchClearsNeedsReview();
   testAuditOther331AdjLabel();
   testNonDebtVouchersDoNotCreateEmptyUnmatchedBucket();
+  testAccumulateDebtEntryLinesCoercesAmount();
   console.log("debt-audit-tests.js: all tests passed");
 }
 

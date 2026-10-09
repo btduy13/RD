@@ -39,10 +39,11 @@ function getDebtOpeningBasis(partnerType, op) {
 }
 
 function accumulateDebtEntryLines(e, counters) {
-    if (e.debit && e.debit.startsWith("131")) counters.debit131 += e.amount;
-    if (e.credit && e.credit.startsWith("131")) counters.credit131 += e.amount;
-    if (e.credit && e.credit.startsWith("331")) counters.credit331 += e.amount;
-    if (e.debit && e.debit.startsWith("331")) counters.debit331 += e.amount;
+    const amount = Number(e.amount) || 0;
+    if (e.debit && e.debit.startsWith("131")) counters.debit131 += amount;
+    if (e.credit && e.credit.startsWith("131")) counters.credit131 += amount;
+    if (e.credit && e.credit.startsWith("331")) counters.credit331 += amount;
+    if (e.debit && e.debit.startsWith("331")) counters.debit331 += amount;
 }
 
 // Quy tắc cấn trừ 131 + 331 (Bug A) — TÀI LIỆU THIẾT KẾ:
