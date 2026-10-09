@@ -555,6 +555,25 @@ function testLedgerMatchesListForUndatedAndBadAmounts() {
   assert.ok(Number.isFinite(ledger.closingVal), "non-numeric amount does not turn the ledger into NaN");
 }
 
+function testDetailedExportResolvesPartnerLikeTheList() {
+  const ctx = loadDebtModule();
+  ctx.state.partners = [{ id: "KH01", name: "Khách 01", type: "retail" }];
+  ctx.state.vouchers = [
+    { id: "BH-SP", type: "sales", date: "2026-01-02", partnerId: " KH01 ", entries: [{ debit: "131", credit: "511", amount: 250 }] }
+  ];
+  const row = ctx.calculatePartnerDebts().find(d => d.id === "KH01");
+  assert.equal(row.closingDebit, 250, "list resolves the padded partnerId");
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "xlsx.full.min.js"), "utf8"), ctx);
+  const realXLSX = ctx.XLSX;
+  let exported;
+  ctx.XLSX = { ...realXLSX, writeFile: workbook => { exported = workbook; } };
+  ctx.getLocalDateString = () => "2026-09-04";
+  ctx.dateStrToSerial = value => Date.parse(value) / 86400000 + 25569;
+  ctx.exportDebtsToExcelDetailed();
+  const rows = realXLSX.utils.sheet_to_json(exported.Sheets["Chi tiet cong no"], { header: 1 });
+  assert.ok(rows.some(values => values[1] === "BH-SP"), "detailed export lists the voucher under KH01 like the summary");
+}
+
 function testFifoReceiptAllocatesSales() {
   const ctx = loadAccountingFifo();
   ctx.state.vouchers = [
@@ -758,6 +777,7 @@ async function runAll() {
   testSupplierReceivableKpisDoNotOverlap();
   testGroupedViewKeepsSuppliersOutOfCustomerGroups();
   testLedgerMatchesListForUndatedAndBadAmounts();
+  testDetailedExportResolvesPartnerLikeTheList();
   testSupplierOverpaymentShowsAsReceivable();
   testFifoReceiptAllocatesSales();
   testDebtAdjustmentPreserved();

@@ -2643,6 +2643,10 @@ function exportDebtsToExcelDetailed() {
 
     const calculatedDebts = calculatePartnerDebts(fromDate, toDate);
     let rowIdx = 2;
+    // Gán chứng từ cho đối tác bằng cùng bộ phân giải mã với calculatePartnerDebts,
+    // để chi tiết từng đối tác cộng đúng bằng dòng tổng hợp.
+    const resolvePid = createVoucherPartnerResolver(state.partners);
+    const knownPartnerIds = new Set(state.partners.map(item => item.id));
 
     calculatedDebts.forEach((d) => {
       const unmatched = isUnmatchedDebt(d);
@@ -2663,8 +2667,12 @@ function exportDebtsToExcelDetailed() {
       let creditSum = 0;
 
       state.vouchers.forEach(v => {
-        if (!matchingIds.has(v.partnerId || "")) return;
-        if (unmatched && !isPartnerAuditVoucher(v)) return;
+        if (unmatched) {
+          if (knownPartnerIds.has(resolvePid(v)) || !matchingIds.has(v.partnerId || "")) return;
+          if (!isPartnerAuditVoucher(v)) return;
+        } else if (resolvePid(v) !== p.id) {
+          return;
+        }
         if (fromDate && v.date < fromDate) return;
         if (toDate && v.date > toDate) return;
         let debitAmount = 0;
