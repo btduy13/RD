@@ -99,8 +99,6 @@ function computeDebtSides(initialOpening, priorCounters, periodCounters, partner
         periodCounters.credit131 + periodCounters.credit331 :
         periodCounters.credit131 + periodCounters.debit331;
 
-    // Số dư theo TỪNG tài khoản, không cấn trừ chéo 131/331. Dùng cho Tổng Quan:
-    // phải thu / khách trả thừa chỉ lấy phía 131; phải trả NCC / NCC trả thừa lấy phía 331.
     return {
         openingDebit: openSides.debit,
         openingCredit: openSides.credit,
@@ -108,13 +106,6 @@ function computeDebtSides(initialOpening, priorCounters, periodCounters, partner
         creditTrans,
         closingDebit: closeSides.debit,
         closingCredit: closeSides.credit,
-        opening131Net: net131Open,
-        debit131Trans: periodCounters.debit131,
-        credit131Trans: periodCounters.credit131,
-        closing131Debit: Math.max(net131Close, 0),
-        closing131Credit: Math.max(-net131Close, 0),
-        closing331Debit: Math.max(-net331Close, 0),
-        closing331Credit: Math.max(net331Close, 0),
         has131: activity131 > 0,
         has331: activity331 > 0,
         supplierReceivable: roleSupplier ? Math.max(-net331Close, 0) : 0,
@@ -485,13 +476,6 @@ function calculatePartnerDebts(fromDate = "", toDate = "") {
         d.closingCredit = sides.closingCredit;
         // Giữ lại dấu vết tài khoản thực tế để phân tab theo phát sinh, thay vì
         // chỉ dựa vào loại đối tác được khai báo trong danh mục.
-        d.opening131Net = sides.opening131Net;
-        d.debit131Trans = sides.debit131Trans;
-        d.credit131Trans = sides.credit131Trans;
-        d.closing131Debit = sides.closing131Debit;
-        d.closing131Credit = sides.closing131Credit;
-        d.closing331Debit = sides.closing331Debit;
-        d.closing331Credit = sides.closing331Credit;
         d.has131 = sides.has131;
         d.has331 = sides.has331;
         d.supplierReceivable = sides.supplierReceivable;
@@ -2881,30 +2865,26 @@ function renderDebtOverview(allDebts) {
 
   allDebts.forEach(d => {
     if (d.type === "unmatched") unmatchedBucket = d;
-    const isUnmatched = d.type === "unmatched";
-    if (isUnmatched || d.type !== 'supplier' || d.has131) {
-      // Phải thu / khách trả thừa CHỈ lấy phía 131 (không trộn 331 của đối tác hai vai).
-      // Nhóm "chưa khớp" chưa biết vai trò nên giữ nguyên số dư gộp đã tính riêng từng mã.
-      const rec131 = isUnmatched ? (d.closingDebit || 0) : (d.closing131Debit || 0);
-      const ovp131 = isUnmatched ? (d.closingCredit || 0) : (d.closing131Credit || 0);
-      if (rec131 > 0) { totalRec += rec131; partnersWithDebt++; }
-      if (ovp131 > 0) { partnersOverpaid++; }
-      totalNetRec += rec131 - ovp131;
-      const cat = isUnmatched ? "unmatched" : classifyPartnerCategory(partnerMap[d.id] || { name: d.name });
+    if (d.type !== 'supplier' || d.has131) {
+      const net = (d.closingDebit || 0) - (d.closingCredit || 0);
+      if (d.closingDebit > 0) { totalRec += d.closingDebit; partnersWithDebt++; }
+      if (d.closingCredit > 0) { partnersOverpaid++; }
+      totalNetRec += net;
+      const cat = d.type === "unmatched" ? "unmatched" : classifyPartnerCategory(partnerMap[d.id] || { name: d.name });
       const cs = cats[cat] || cats.project;
-      cs.rec += rec131;
-      cs.overpaid += ovp131;
-      if (rec131 > 0 || ovp131 > 0) cs.count++;
+      cs.rec += d.closingDebit || 0;
+      cs.overpaid += d.closingCredit || 0;
+      if (d.closingDebit > 0 || d.closingCredit > 0) cs.count++;
 
-      totalInitOB += isUnmatched ? (d.openingDebit || 0) - (d.openingCredit || 0) : (d.opening131Net || 0);
-      totalDebitTx += isUnmatched ? (d.debitTrans || 0) : (d.debit131Trans || 0);
-      totalCreditTx += isUnmatched ? (d.creditTrans || 0) : (d.credit131Trans || 0);
+      totalInitOB += (d.openingDebit || 0) - (d.openingCredit || 0);
+      totalDebitTx += d.debitTrans || 0;
+      totalCreditTx += d.creditTrans || 0;
     }
-    if (!isUnmatched && (d.type === 'supplier' || d.type === 'both' || d.has331)) {
-      // Phía 331 của mọi đối tác (kể cả hai vai) vào phải trả / NCC trả thừa.
-      // Hai thẻ này là tài khoản 331, còn phải thu là 131 nên không tính trùng nhau.
-      totalPay += d.closing331Credit || 0;
-      totalSupplierReceivable += d.closing331Debit || 0;
+    if (d.type === 'supplier' || d.type === 'both') {
+      totalPay += d.closingCredit || 0;
+      // Đối tác hai chiều đã nằm trong tổng phải thu phía trên; chỉ đưa NCC
+      // thuần 331 vào KPI bổ sung để hai thẻ không tính trùng nhau.
+      if (!d.has131) totalSupplierReceivable += d.supplierReceivable || 0;
     }
   });
 
@@ -2923,7 +2903,7 @@ function renderDebtOverview(allDebts) {
     if (totalSupplierReceivable > 0) {
       kpiData.push({ label: 'NCC Trả Thừa (Phải Thu Lại)', value: totalSupplierReceivable, hint: 'Dư Nợ TK 331', icon: 'M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z', accent: 'var(--color-info)' });
     }
-    if (kpiData.length > 4) kpiData[4].hint = 'Dư Nợ TK 331 (gồm đối tác hai vai); không trùng phải thu 131';
+    if (kpiData.length > 4) kpiData[4].hint = 'NCC chỉ có 331; không trùng tổng phải thu KH';
     kpiEl.innerHTML = kpiData.map(k => `
       <div class="kpi-card" style="--card-accent: ${k.accent}">
         <div class="kpi-info">

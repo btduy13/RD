@@ -549,53 +549,6 @@ function testReportAccountsName1388BothStandards() {
   });
 }
 
-// ---- Task 3: KPI "Khách trả thừa" không trộn số dư 331 của đối tác hai vai ----
-
-function testOverviewKpiSeparates131And331ForDualRole() {
-  const ctx = loadDebtModule();
-  const els = {};
-  ctx.document.getElementById = (id) => (els[id] = els[id] || { innerHTML: "", innerText: "", children: [] });
-  ctx.state.partners = [
-    { id: "CUS", name: "Pure customer", type: "retail" },
-    { id: "SUP", name: "Pure supplier", type: "supplier" },
-    { id: "DUAL", name: "Dual owes both ways", type: "retail" },
-    { id: "BACU", name: "Dual with 331 debit", type: "retail" }
-  ];
-  ctx.state.vouchers = [
-    { id: "BH1", type: "sales", date: "2026-03-01", partnerId: "CUS", entries: [{ debit: "131", credit: "511", amount: 200 }] },
-    { id: "MH1", type: "purchase", date: "2026-03-01", partnerId: "SUP", entries: [{ debit: "156", credit: "331", amount: 500 }] },
-    { id: "BH2", type: "sales", date: "2026-03-01", partnerId: "DUAL", entries: [{ debit: "131", credit: "511", amount: 100 }] },
-    { id: "MH2", type: "purchase", date: "2026-03-02", partnerId: "DUAL", entries: [{ debit: "156", credit: "331", amount: 40 }] },
-    { id: "BH3", type: "sales", date: "2026-03-01", partnerId: "BACU", entries: [{ debit: "131", credit: "511", amount: 30 }] },
-    { id: "PC1", type: "payment", date: "2026-03-02", partnerId: "BACU", entries: [{ debit: "331", credit: "111", amount: 1000 }] }
-  ];
-
-  const debts = ctx.calculatePartnerDebts();
-  const bacu = debts.find(d => d.id === "BACU");
-  assert.equal(bacu.closing131Debit, 30, "per-side 131 debit");
-  assert.equal(bacu.closing131Credit, 0, "331 debit must not appear as 131 overpayment");
-  assert.equal(bacu.closing331Debit, 1000, "per-side 331 debit");
-  assert.equal(bacu.closing331Credit, 0);
-  const dual = debts.find(d => d.id === "DUAL");
-  assert.equal(dual.closing131Debit, 100);
-  assert.equal(dual.closing331Credit, 40);
-
-  ctx.renderDebtOverview(debts);
-  const html = els["debt-overview-kpis"].innerHTML;
-  const values = Array.from(html.matchAll(/kpi-value font-numeric">([^<]+)</g), m => Number(m[1]));
-  assert.equal(values[0], 330, "Tổng phải thu = 131 only (200+100+30)");
-  assert.equal(values[1], 540, "Tổng phải trả NCC = 331 credit (500 + dual 40)");
-  assert.equal(values[2], 3, "partners with 131 debt");
-  assert.equal(values[3], 0, "no 131 overpayment: 331 debit of dual partner is not khách trả thừa");
-  assert.equal(values[4], 1000, "NCC trả thừa = 331 debit of dual partner");
-
-  const breakdown = els["debt-overview-breakdown-body"].innerHTML;
-  const total = breakdown.split("debt-breakdown-total-row")[1];
-  assert.ok(total.includes(">330<"), "breakdown total receivable uses 131 side");
-  assert.ok(!total.includes("970") && !total.includes("1000"), "breakdown has no 331-derived overpaid");
-  assert.ok(els["debt-audit-content"].innerHTML.includes("Khớp"), "audit invariant holds on 131-only basis");
-}
-
 async function runAll() {
   testReceiptWithLoanEntriesDoesNotTouch131();
   testPaymentWithSalaryEntriesDoesNotTouch331();
@@ -613,7 +566,6 @@ async function runAll() {
   await testReimportKeepsExistingPartnerAssignment();
   testImportSourceHasNoInventedPartnerCodes();
   testReportAccountsName1388BothStandards();
-  testOverviewKpiSeparates131And331ForDualRole();
   console.log("debt-audit-tests.js: all tests passed");
 }
 
