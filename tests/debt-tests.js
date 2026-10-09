@@ -540,6 +540,21 @@ function testGroupedViewKeepsSuppliersOutOfCustomerGroups() {
   assert.deepEqual(ctx.getActiveLedgerPartners().map(p => p.id).sort(), ["KH-A1", "KH-A2"], "export/notice use the codes of the ledger on screen");
 }
 
+function testLedgerMatchesListForUndatedAndBadAmounts() {
+  const ctx = loadDebtModule();
+  const partner = { id: "KH-ND", name: "Khách thiếu ngày", type: "retail" };
+  ctx.state.partners = [partner];
+  ctx.state.vouchers = [
+    { id: "BH-ND", type: "sales", partnerId: "KH-ND", entries: [{ debit: "131", credit: "511", amount: 100 }] },
+    { id: "BH-BAD", type: "sales", date: "2026-02-01", partnerId: "KH-ND", entries: [{ debit: "131", credit: "511", amount: "1,000" }] }
+  ];
+  const row = ctx.calculatePartnerDebts("2026-01-01", "2026-12-31").find(d => d.id === "KH-ND");
+  const ledger = ctx.calculatePartnerDebtLedger([partner], "2026-01-01", "2026-12-31", "customer");
+  assert.equal(ledger.openingVal, row.openingDebit - row.openingCredit, "undated voucher is not also counted in the opening");
+  assert.equal(ledger.closingVal, row.closingDebit - row.closingCredit, "ledger closing equals list closing");
+  assert.ok(Number.isFinite(ledger.closingVal), "non-numeric amount does not turn the ledger into NaN");
+}
+
 function testFifoReceiptAllocatesSales() {
   const ctx = loadAccountingFifo();
   ctx.state.vouchers = [
@@ -742,6 +757,7 @@ async function runAll() {
   testOrphan331ExportPreservesCreditDirection();
   testSupplierReceivableKpisDoNotOverlap();
   testGroupedViewKeepsSuppliersOutOfCustomerGroups();
+  testLedgerMatchesListForUndatedAndBadAmounts();
   testSupplierOverpaymentShowsAsReceivable();
   testFifoReceiptAllocatesSales();
   testDebtAdjustmentPreserved();

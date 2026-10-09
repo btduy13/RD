@@ -259,7 +259,7 @@ function extractLedgerAmountsFromVoucher(v, debtRole) {
         const touches331 = (e.debit && e.debit.startsWith("331")) || (e.credit && e.credit.startsWith("331"));
         if (!touches131 && !touches331) return;
 
-        const amount = Number(e.amount || 0);
+        const amount = Number(e.amount) || 0; // giống accumulateDebtEntryLines: không ra NaN
         // T-account hợp nhất cho mọi vai trò (debtRole chỉ còn quyết định chiều số dư ở người gọi):
         // Nợ 131/331 là phát sinh Nợ, Có 131/331 là phát sinh Có — giống computeDebtSides().
         // Phiếu chi Nợ 331 cho khách vì vậy làm TĂNG phải thu, như Nợ 131 (Task 5).
@@ -279,7 +279,9 @@ function computePriorDebtCountersForPartner(partnerId, partnerType, fromDate) {
     const resolvePid = createVoucherPartnerResolver(state.partners);
     state.vouchers.forEach(v => {
         if (resolvePid(v) !== partnerId) return;
-        if (v.date >= fromDate) return;
+        // Cùng điều kiện "trước kỳ" với calculatePartnerDebts: chứng từ thiếu ngày thuộc kỳ,
+        // không bị tính cả vào đầu kỳ lẫn trong kỳ.
+        if (!(v.date < fromDate)) return;
         getVoucherDebtEntries(v).forEach(e => accumulateDebtEntryLines(e, prior, v.type));
     });
     return prior;
