@@ -3025,7 +3025,7 @@ function computePossibleDoubleRefunds(allDebts, fromDate = "", toDate = "") {
   const customerIds = new Set();
   const partnerNames = new Map();
   (allDebts || []).forEach(d => {
-    if (d && d.debtRole === "customer" && d.type !== "unmatched") {
+    if (d && (d.debtRole === "customer" || d.debtRole === "both") && d.type !== "unmatched") {
       customerIds.add(d.id);
       partnerNames.set(d.id, d.name || "");
     }
@@ -3049,7 +3049,8 @@ function computePossibleDoubleRefunds(allDebts, fromDate = "", toDate = "") {
     if (!v || v.type !== "payment") return;
     if (fromDate && v.date < fromDate) return;
     if (toDate && v.date > toDate) return;
-    if (!/trả lại|hoàn/.test(String(v.description || "").normalize("NFC").toLowerCase())) return;
+    // "hoàn tiền / hoàn trả / hoàn lại" — không bắt "hoàn thành", "hoàn ứng"...
+    if (!/trả lại|hoàn (?:tiền|trả|lại)/.test(String(v.description || "").normalize("NFC").toLowerCase())) return;
     const pid = resolvePid(v);
     const returns = cashReturns.get(pid);
     if (!returns) return;

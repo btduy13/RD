@@ -1304,7 +1304,8 @@ function testAuditFlagsPossibleDoubleRefund() {
     pc("PC_AMT", "2026-03-02", "KH01", 400, "trả lại tiền"),
     pc("PC_NOWORD", "2026-03-02", "KH01", 500, "chi khác"),
     pc("PC_RET131", "2026-03-02", "KH01", 800, "trả lại"),
-    pc("PC_SUP", "2026-03-02", "NCC1", 600, "trả lại")
+    pc("PC_SUP", "2026-03-02", "NCC1", 600, "trả lại"),
+    pc("PC_DONE", "2026-03-03", "KH01", 500, "Chi tiền hoàn thành công trình")
   ];
   const range = { fromDate: "2026-03-01", toDate: "2026-03-31" };
   const rec = ctx.computeDebt131Reconciliation(ctx.calculatePartnerDebts(range.fromDate, range.toDate), range.fromDate, range.toDate);
