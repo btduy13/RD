@@ -104,7 +104,8 @@ function recordPartnerOpeningDeletion(id, atLeastTs) {
 function propagatePartnerIdChange(oldId, newId, newName) {
   if (!oldId || !newId || String(oldId) === String(newId)) return;
   state.vouchers.forEach(v => {
-    if (String(v.partnerId) === String(oldId)) {
+    // Khớp cả mã có khoảng trắng thừa — cùng quy tắc với bộ phân giải mã của sổ công nợ
+    if (String(v.partnerId == null ? "" : v.partnerId).trim() === String(oldId).trim()) {
       v.partnerId = newId;
       if (newName) v.partnerName = newName;
       stampPartnerSyncFields(v);
@@ -1242,6 +1243,11 @@ async function deletePartner(id) {
     showToast(`Không thể xóa đối tác "${id}" vì còn số dư đầu kỳ. Hãy đối chiếu và xử lý số dư trước.`, "danger", 8000);
     return;
   }
+  const childCount = (state.partners || []).filter(p => String(p.parentId || "") === String(id)).length;
+  if (childCount > 0) {
+    showToast(`Không thể xóa "${id}" vì còn ${childCount} công trình con. Hãy chuyển các công trình sang doanh nghiệp khác trước.`, "danger", 8000);
+    return;
+  }
   const ok = await showConfirmModal({
     title: "Xác nhận xóa đối tác",
     message: `Bạn có chắc chắn muốn xóa đối tác "${id}" không?`,
@@ -1520,6 +1526,13 @@ async function batchDeletePartners() {
   });
   if (withOpening.length > 0) {
     showToast(`Không thể xóa: ${withOpening.length} đối tác còn số dư đầu kỳ: ${withOpening.slice(0, 5).join(", ")}${withOpening.length > 5 ? "…" : ""}. Hãy đối chiếu và xử lý số dư trước.`, "danger", 10000);
+    return;
+  }
+  // Doanh nghiệp còn công trình con không bị xóa cùng lô thì không xóa được (công trình sẽ trỏ vào mã không tồn tại)
+  const withChildren = idsToDelete.filter(id => (state.partners || []).some(p =>
+    String(p.parentId || "") === String(id) && !idsToDelete.includes(p.id)));
+  if (withChildren.length > 0) {
+    showToast(`Không thể xóa: ${withChildren.length} doanh nghiệp còn công trình con: ${withChildren.slice(0, 5).join(", ")}${withChildren.length > 5 ? "…" : ""}. Hãy chuyển các công trình trước.`, "danger", 10000);
     return;
   }
 

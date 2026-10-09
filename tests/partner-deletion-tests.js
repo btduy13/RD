@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-function loadPartners({ vouchers = [], balances = {}, selected = [], confirmed = true } = {}) {
+function loadPartners({ vouchers = [], balances = {}, selected = [], confirmed = true, extraPartners = [] } = {}) {
   const calls = { confirm: 0, save: 0, sync: 0, deleted: [], toasts: [] };
   const checkboxes = selected.map(value => ({ value, checked: true }));
   const sandbox = {
@@ -13,7 +13,8 @@ function loadPartners({ vouchers = [], balances = {}, selected = [], confirmed =
     state: {
       partners: [
         { id: 'KEEP', name: 'Khách đang theo dõi', type: 'retail' },
-        { id: 'FREE', name: 'Khách chưa giao dịch', type: 'retail' }
+        { id: 'FREE', name: 'Khách chưa giao dịch', type: 'retail' },
+        ...extraPartners
       ],
       vouchers: JSON.parse(JSON.stringify(vouchers)),
       partnerOpeningBalances: JSON.parse(JSON.stringify(balances)),
@@ -77,6 +78,10 @@ async function run() {
     vouchers: [{ id: 'BH1', type: 'sales', partnerId: 'KEEP', totalAmount: 100 }],
     selected: ['FREE', 'KEEP']
   }, true, 'mixed batch containing linked partner');
+
+  const child = [{ id: 'CT1', name: 'Công trình', type: 'project', parentId: 'KEEP' }];
+  await expectBlocked({ extraPartners: child }, false, 'enterprise with a child project');
+  await expectBlocked({ extraPartners: child, selected: ['KEEP'] }, true, 'batch enterprise with a child project left behind');
 
   for (const batch of [false, true]) {
     const { sandbox, calls } = loadPartners({

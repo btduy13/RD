@@ -35,10 +35,23 @@ function mergePartnerRecords(sourceId, targetId, options) {
   if (!source) return { ok: false, error: `Không tìm thấy đối tác nguồn: ${sourceId}` };
   if (!target) return { ok: false, error: `Không tìm thấy đối tác đích: ${targetId}` };
 
+  // Công trình con chỉ được chuyển sang một doanh nghiệp khác (không lồng công trình, không treo vào khách lẻ).
+  const hasChildren = (state.partners || []).some(p => String(p.parentId || "") === String(sourceId) && String(p.id) !== String(targetId));
+  if (hasChildren && target.type !== "enterprise") {
+    return { ok: false, error: `"${sourceId}" còn công trình con: chỉ gộp được vào một Doanh nghiệp.` };
+  }
+  // Số dư đầu kỳ của NCC nằm bên 331, của khách nằm bên 131: cộng thẳng sẽ sai tài khoản.
+  const srcOpening = (state.partnerOpeningBalances || {})[sourceId] || {};
+  const srcHasOpening = (Number(srcOpening.debit) || 0) !== 0 || (Number(srcOpening.credit) || 0) !== 0;
+  if (srcHasOpening && (source.type === "supplier") !== (target.type === "supplier")) {
+    return { ok: false, error: "Hai mã khác phía 131/331 (khách và NCC) và mã nguồn còn số dư đầu kỳ: hãy xử lý số dư trước khi gộp." };
+  }
+
   let voucherCount = 0;
   (state.vouchers || []).forEach((v) => {
     if (!v) return;
-    if (String(v.partnerId) === String(sourceId)) {
+    // Khớp cả mã có khoảng trắng thừa (nhập Excel) — giống bộ phân giải mã của sổ công nợ
+    if (String(v.partnerId == null ? "" : v.partnerId).trim() === String(sourceId).trim()) {
       v.partnerId = targetId;
       if (!opts.keepPartnerNameOnVoucher) {
         v.partnerName = target.name;
@@ -65,6 +78,7 @@ function mergePartnerRecords(sourceId, targetId, options) {
   });
 
   if (typeof invalidatePartnerCache === "function") invalidatePartnerCache();
+  if (typeof syncPartnerOpeningAccounts === "function") syncPartnerOpeningAccounts();
   if (typeof invalidateAccounting === "function") invalidateAccounting(state);
 
   if (opts.recalculate !== false && typeof recalculateAccounting === "function") {
