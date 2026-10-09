@@ -52,6 +52,17 @@ function normalizeImportPartnerName(name) {
     return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+// Phiếu thu vay vốn (Có 341): mô tả có TỪ "vay" (đúng ranh giới từ) hoặc "giải ngân",
+// hoặc đối tác là ngân hàng. Tên ngân hàng chỉ nằm trong mô tả => vẫn là kênh CK (Có 131).
+function isLoanReceipt(description, partner) {
+    const fold = (t) => String(t || "").toLowerCase().normalize("NFD")
+        .replace(/[̀-ͯ]/g, "").replace(/đ/g, "d");
+    const desc = fold(description);
+    if (/(^|[^a-z0-9])vay([^a-z0-9]|$)/.test(desc) || desc.includes("giai ngan")) return true;
+    if (!partner) return false;
+    return String(partner.id || "").toUpperCase() === "SACOMBANK" || fold(partner.name).trim().startsWith("ngan hang");
+}
+
 function createImportPartnerResolver(partners) {
     const list = Array.isArray(partners) ? partners : [];
     const byId = new Map();
@@ -357,10 +368,8 @@ async function autoIntegrateVouchersExcel() {
                 if (descLower.includes("doanh thu") || descLower.includes("bán hàng")) {
                     creditAccount = "511";
                 } else if (
-                    // Chỉ cụm từ vay rõ ràng mới là Có 341; tên ngân hàng ("CK sacombank") chỉ là kênh chuyển khoản.
-                    descLower.includes("vay ngân hàng") || descLower.includes("vay sacombank") ||
-                    descLower.includes("giải ngân") || descLower.includes("vay giải ngân") ||
-                    descLower.includes("nhận nợ vay")
+                    // Có 341 khi mô tả có từ "vay"/"giải ngân" hoặc đối tác là ngân hàng; tên ngân hàng trong mô tả ("CK sacombank") chỉ là kênh chuyển khoản.
+                    isLoanReceipt(descLower, resolveImportPartner(partnerName))
                 ) {
                     creditAccount = "341";
                 }
@@ -2361,10 +2370,8 @@ function parseExcelFile(file, type) {
                         if (descLower.includes("doanh thu") || descLower.includes("bán hàng")) {
                             creditAccount = "511";
                         } else if (
-                            // Chỉ cụm từ vay rõ ràng mới là Có 341; tên ngân hàng ("CK sacombank") chỉ là kênh chuyển khoản.
-                            descLower.includes("vay ngân hàng") || descLower.includes("vay sacombank") ||
-                            descLower.includes("giải ngân") || descLower.includes("vay giải ngân") ||
-                            descLower.includes("nhận nợ vay")
+                            // Có 341 khi mô tả có từ "vay"/"giải ngân" hoặc đối tác là ngân hàng; tên ngân hàng trong mô tả ("CK sacombank") chỉ là kênh chuyển khoản.
+                            isLoanReceipt(descLower, resolveImportPartner(partnerName))
                         ) {
                             creditAccount = "341";
                         }

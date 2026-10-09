@@ -321,7 +321,8 @@ function cashImportPartners() {
     { id: "DT_1054", name: "Bán Lẻ T05/2025 - 229/2 Ba cu", type: "retail" },
     { id: "KHTHANH", name: "Chị thanh", type: "retail" },
     { id: "KHDUY", name: "Chị Duy", type: "retail" },
-    { id: "NCCTHEP", name: "Công ty Thép Miền Nam", type: "supplier" }
+    { id: "NCCTHEP", name: "Công ty Thép Miền Nam", type: "supplier" },
+    { id: "SACOMBANK", name: "Ngân hàng sacombank", type: "supplier" }
   ];
 }
 
@@ -341,6 +342,18 @@ async function checkCashImportAccountMapping(runImport, label) {
     cashRow("PT3", "Giải ngân khoản vay HĐ 01", 800000000, "Chị thanh", "PHIẾU THU"),
     cashRow("PT4", "Nhận nợ vay Việt Nga", 700000000, "Chị thanh", "PHIẾU THU"),
     cashRow("PT5", "Chị thanh trả tiền vay mượn", 300000, "Chị thanh", "PHIẾU THU"),
+    cashRow("PT7", "vay ngaan hàng sacombank 3 tháng", 300000000, "Ngân hàng sacombank", "PHIẾU THU"),
+    cashRow("PT8", "thu vay sacomban TM", 99500000, "Ngân hàng sacombank", "PHIẾU THU"),
+    cashRow("PT9", "Thu vay ngân hàng sombank 99 tr tm  147.385.877 ck lan thanh", 99000000, "Ngân hàng sacombank", "PHIẾU THU"),
+    cashRow("PT10", "thu vay sacombank trả lan thanh", 1000000, "Ngân hàng sacombank", "PHIẾU THU"),
+    cashRow("PT11", "Vay giải ngân thanh toán Hwta", 1000000, "Ngân hàng sacombank", "PHIẾU THU"),
+    cashRow("PT12", "Thu vay ngân hàng trả lan thanh", 1000000, "Ngân hàng sacombank", "PHIẾU THU"),
+    cashRow("PT13", "PT3765/q76 Em Huyền (KH7730T05/2025) CK sacombank", 1000000, "Chị thanh", "PHIẾU THU"),
+    cashRow("PT14", "PT3735/q75 Anh Thạch thầu (KH7726T05/2025) sacombank", 1000000, "Chị thanh", "PHIẾU THU"),
+    cashRow("PT15", "PT4011/q81 Anh Dương (KH7845T09/2025) ck sacombank xuất hđ r", 1000000, "Chị thanh", "PHIẾU THU"),
+    cashRow("PT16", "Chị thanh xoay tiền hoàn thành", 1000000, "Chị thanh", "PHIẾU THU"),
+    cashRow("PT17", "Thu tiền hàng", 1000000, "Ngân hàng sacombank", "PHIẾU THU"),
+    cashRow("PT18", "Doanh thu bán hàng vay", 1000000, "Chị thanh", "PHIẾU THU"),
     cashRow("PT6", "Thu tiền Việt Nga", 300000, "Chị thanh", "PHIẾU THU"),
     cashRow("PC6882", "Chi duy vay mua chung cư golsea", 1400000000, "Chị Duy", "PHIẾU CHI"),
     cashRow("PC1", "Thanh toán tiền hàng HĐ 12", 20000000, "Công ty Thép Miền Nam", "PHIẾU CHI"),
@@ -352,12 +365,18 @@ async function checkCashImportAccountMapping(runImport, label) {
   // (a) tên ngân hàng chỉ là kênh chuyển khoản — vẫn Có 131
   assert.equal(importedVoucher(ctx, "PT3713").e.credit, "131", `${label}: "CK sacombank" receipt stays Có 131`);
   assert.equal(importedVoucher(ctx, "PT1").e.credit, "131", `${label}: "sacomban" alone stays Có 131`);
-  assert.equal(importedVoucher(ctx, "PT5").e.credit, "131", `${label}: bare "vay" stays Có 131`);
+  assert.equal(importedVoucher(ctx, "PT5").e.credit, "341", `${label}: "vay" as a word → Có 341`);
+  ["PT13", "PT14", "PT15", "PT16"].forEach(pid =>
+    assert.equal(importedVoucher(ctx, pid).e.credit, "131", `${label}: ${pid} customer/CK or "xoay" stays Có 131`));
+  assert.equal(importedVoucher(ctx, "PT18").e.credit, "511", `${label}: doanh thu keeps precedence over vay`);
   assert.equal(importedVoucher(ctx, "PT6").e.credit, "131", `${label}: "việt nga" alone stays Có 131`);
   // cụm vay rõ ràng → Có 341
   assert.equal(importedVoucher(ctx, "PT2").e.credit, "341", `${label}: "vay ngân hàng" → Có 341`);
   assert.equal(importedVoucher(ctx, "PT3").e.credit, "341", `${label}: "giải ngân" → Có 341`);
   assert.equal(importedVoucher(ctx, "PT4").e.credit, "341", `${label}: "nhận nợ vay" → Có 341`);
+  ["PT7", "PT8", "PT9", "PT10", "PT11", "PT12"].forEach(pid =>
+    assert.equal(importedVoucher(ctx, pid).e.credit, "341", `${label}: ${pid} real loan receipt → Có 341`));
+  assert.equal(importedVoucher(ctx, "PT17").e.credit, "341", `${label}: receipt from bank partner (no "vay") → Có 341`);
 
   // (b) phiếu chi không khớp từ khóa: 331 chỉ khi đối tác là NCC
   const pc6882 = importedVoucher(ctx, "PC6882");
