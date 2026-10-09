@@ -574,6 +574,35 @@ function testDetailedExportResolvesPartnerLikeTheList() {
   assert.ok(rows.some(values => values[1] === "BH-SP"), "detailed export lists the voucher under KH01 like the summary");
 }
 
+function testCompanyDetailSheetTotalIsDebtMovement() {
+  const ctx = loadDebtModule();
+  ctx.state.partners = [{ id: "CT01", name: "Công trình 01", type: "project", parentId: "DN01", address: "Số 1" }];
+  ctx.state.products = [{ id: "SP1", name: "Ống", unit: "m" }];
+  ctx.state.vouchers = [
+    { id: "BH1", type: "sales", date: "2026-01-02", partnerId: "CT01", items: [{ productId: "SP1", qty: 10, price: 100, discount: 10 }],
+      entries: [{ debit: "131", credit: "511", amount: 900 }, { debit: "131", credit: "3331", amount: 90 }] },
+    { id: "PT1", type: "receipt", date: "2026-01-05", partnerId: "CT01", amount: 990, entries: [{ debit: "111", credit: "131", amount: 990 }] },
+    { id: "BH2", type: "sales", date: "2026-01-06", partnerId: "CT01", paymentMethod: "111", items: [{ productId: "SP1", qty: 1, price: 50 }],
+      entries: [{ debit: "111", credit: "511", amount: 50 }] }
+  ];
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "xlsx.full.min.js"), "utf8"), ctx);
+  const realXLSX = ctx.XLSX;
+  let exported;
+  ctx.XLSX = { ...realXLSX, writeFile: workbook => { exported = workbook; } };
+  ctx.getLocalDateString = () => "2026-09-04";
+  ctx.getVoucherLineGrossAmount = item => (Number(item.qty) || 0) * (Number(item.price) || 0);
+  ctx.getVoucherLineNetAmount = item => Math.round(ctx.getVoucherLineGrossAmount(item) * (1 - (Number(item.discount) || 0) / 100));
+  ctx.exportCompanyToExcel("Công ty 01", ["CT01"]);
+  assert.ok(exported, "company workbook written");
+  const detail = exported.SheetNames.map(n => realXLSX.utils.sheet_to_json(exported.Sheets[n], { header: 1 }))
+    .find(rows => rows.some(r => String(r[0] || "").startsWith("PHÁT SINH CÔNG NỢ")));
+  assert.ok(detail, "detail sheet has the debt-movement total row");
+  const itemRow = detail.find(r => r[2] === "BH1" && r[4] === "Ống");
+  assert.equal(itemRow[9], 900, "Thành tiền is after the %CK shown next to it");
+  const total = detail.find(r => String(r[0] || "").startsWith("PHÁT SINH CÔNG NỢ"));
+  assert.equal(total[9], 0, "sale 990 (incl. VAT) − receipt 990; cash sale adds nothing");
+}
+
 function testFifoReceiptAllocatesSales() {
   const ctx = loadAccountingFifo();
   ctx.state.vouchers = [
@@ -778,6 +807,7 @@ async function runAll() {
   testGroupedViewKeepsSuppliersOutOfCustomerGroups();
   testLedgerMatchesListForUndatedAndBadAmounts();
   testDetailedExportResolvesPartnerLikeTheList();
+  testCompanyDetailSheetTotalIsDebtMovement();
   testSupplierOverpaymentShowsAsReceivable();
   testFifoReceiptAllocatesSales();
   testDebtAdjustmentPreserved();

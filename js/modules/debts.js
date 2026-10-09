@@ -3919,8 +3919,7 @@ function exportCompanyToExcel(companyName, childPartnerIds) {
           setCell(ws2, r2, 3, vTypeLabel(v.type), 's', bs(cL));
           setCell(ws2, r2, 4, v.description || '', 's', { font: fntN, fill: bg, alignment: cL, border: b4 });
           merges2.push({ s: { r: r2, c: 4 }, e: { r: r2, c: 8 } });
-          setCell(ws2, r2, 9, v.amount || 0, 'n', bs(cR), numFmt);
-          grandTotal += v.amount || 0;
+          setCell(ws2, r2, 9, Number(v.amount ?? v.totalAmount) || 0, 'n', bs(cR), numFmt);
           rowIdx++; r2++;
           return;
         }
@@ -3949,16 +3948,21 @@ function exportCompanyToExcel(companyName, childPartnerIds) {
           setCell(ws2, r2, 6, item.qty || 0, 'n', bs(cR), '#,##0.##');
           setCell(ws2, r2, 7, item.price || 0, 'n', bs(cR), numFmt);
           setCell(ws2, r2, 8, item.discount || 0, 'n', bs(cC), '0.##"%"');
-          const grossAmount = getVoucherLineGrossAmount(item);
-          setCell(ws2, r2, 9, grossAmount, 'n', bs(cR), numFmt);
-          grandTotal += grossAmount;
+          // Thành tiền sau chiết khấu, khớp cột % CK bên cạnh
+          setCell(ws2, r2, 9, getVoucherLineNetAmount(item), 'n', bs(cR), numFmt);
           rowIdx++; r2++;
         });
+      });
+      // Tổng = phát sinh công nợ thật của các chứng từ (Nợ − Có 131/331, gồm VAT; phiếu thu,
+      // hàng trả lại mang dấu âm; bán thu tiền ngay bằng 0) — cùng số với sổ chi tiết.
+      vList.forEach(v => {
+        const extracted = extractLedgerAmountsFromVoucher(v, "customer");
+        grandTotal += extracted.debitAmount - extracted.creditAmount;
       });
 
       // Grand total
       const ts2 = al => ({ font: fntB, fill: totBg, alignment: al, border: b4 });
-      setCell(ws2, r2, 0, 'TỔNG CỘNG', 's', ts2(cL));
+      setCell(ws2, r2, 0, 'PHÁT SINH CÔNG NỢ TRONG KỲ (Nợ − Có)', 's', ts2(cL));
       merges2.push({ s: { r: r2, c: 0 }, e: { r: r2, c: 8 } });
       setCell(ws2, r2, 9, grandTotal, 'n', ts2(cR), numFmt);
 
