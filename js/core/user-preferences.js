@@ -35,6 +35,7 @@ const DEFAULT_USER_PREFS = {
   debtsViewTab: "overview",
   // Mặc định chỉ hiện đối tác còn công nợ: 9.000+ mã số dư 0 làm danh sách khó dùng
   debtActiveOnly: true,
+  debtActiveOnlyDefaulted: true,
   debtTypeFilter: "all",
   debtPeriodFilter: "all"
 };
@@ -59,7 +60,14 @@ function loadRawUserPrefs() {
     const raw = storage.getItem(USER_PREFS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      return { ...DEFAULT_USER_PREFS, ...parsed, v: USER_PREFS_VERSION };
+      const prefs = { ...DEFAULT_USER_PREFS, ...parsed, v: USER_PREFS_VERSION };
+      // Bản cũ lưu sẵn debtActiveOnly=false cho mọi người dùng: áp mặc định mới (bật) đúng một lần,
+      // sau đó tôn trọng lựa chọn của người dùng.
+      if (parsed.debtActiveOnlyDefaulted !== true) {
+        prefs.debtActiveOnly = true;
+        prefs.debtActiveOnlyDefaulted = true;
+      }
+      return prefs;
     }
   } catch (_) {
     /* fall through to migration */

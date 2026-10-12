@@ -383,6 +383,11 @@ function resetSalesForm() {
   const modalTitle = document.querySelector("#modal-add-sales .card-title");
   if (modalTitle) modalTitle.innerText = "Lập hóa đơn bán hàng xuất kho";
   resetDynamicVoucherForm("form-sales", { date: getLocalDateString() });
+  // Hình thức thu tiền: dùng lựa chọn gần nhất của người dùng thay vì luôn mặc định ghi nợ 131
+  // (bán lẻ thu tiền ngay bị ghi nhầm thành công nợ khi quên đổi).
+  const paymentEl = document.getElementById("sale-payment");
+  const lastPayment = typeof getUserPrefs === "function" ? getUserPrefs().salePaymentDefault : "";
+  if (paymentEl && ["131", "111", "112"].includes(lastPayment)) paymentEl.value = lastPayment;
   const descEl = document.getElementById("sale-desc");
   if (descEl) delete descEl.dataset.userEdited;
   // Auto-focus vào ô “Khách hàng mua” — trường quan trọng nhất khi mở form

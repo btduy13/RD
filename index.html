@@ -4243,7 +4243,7 @@
 
           <div class="form-group" style="grid-column: span 3;">
             <label class="form-label">Hình thức thu tiền</label>
-            <select id="sale-payment" class="form-control" required>
+            <select id="sale-payment" class="form-control" required onchange="if (typeof saveUserPrefs === 'function') saveUserPrefs({ salePaymentDefault: this.value })">
               <option value="131">Chưa thu tiền (Ghi nợ TK 131)</option>
               <option value="111">Tiền mặt (TK 111)</option>
               <option value="112">Tiền gửi ngân hàng (TK 112)</option>

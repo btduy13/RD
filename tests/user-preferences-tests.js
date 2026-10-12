@@ -38,6 +38,16 @@ function testMigrateLegacyTheme() {
   console.log('legacy theme migration passed');
 }
 
+function testActiveOnlyDefaultAppliedOnceToOldPrefs() {
+  const storage = createStorage({ rd_user_prefs: JSON.stringify({ v: 1, debtActiveOnly: false, theme: 'dark' }) });
+  let api = loadUserPrefsModule(storage);
+  assert.equal(api.getUserPrefs().debtActiveOnly, true, 'old saved false is replaced by the new default once');
+  api.saveUserPrefs({ debtActiveOnly: false });
+  api = loadUserPrefsModule(storage);
+  assert.equal(api.getUserPrefs().debtActiveOnly, false, 'a choice made after the upgrade is kept');
+  console.log('active-only default migration passed');
+}
+
 function testSaveAndMergePrefs() {
   const storage = createStorage({});
   const api = loadUserPrefsModule(storage);
@@ -94,6 +104,7 @@ function testPrintTemplatePersist() {
 
 testMigrateLegacyTheme();
 testSaveAndMergePrefs();
+testActiveOnlyDefaultAppliedOnceToOldPrefs();
 testPrintFontScalePersist();
 testPrinterPreferencesPersist();
 testPrintTemplatePersist();
