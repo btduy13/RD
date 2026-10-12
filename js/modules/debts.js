@@ -991,6 +991,16 @@ function changeDebtsPage(p) {
   renderDebtsTable();
 }
 
+
+// Danh sách công nợ sắp theo độ lớn số dư (lớn nhất lên đầu), cùng số dư thì theo tên.
+function debtBalanceSize(row) {
+  return Math.max(Number(row && row.closingDebit) || 0, Number(row && row.closingCredit) || 0);
+}
+function sortDebtRowsByBalance(rows) {
+  return rows.sort((a, b) => debtBalanceSize(b) - debtBalanceSize(a) ||
+    String(a.name || a.displayName || "").localeCompare(String(b.name || b.displayName || ""), "vi"));
+}
+
 function filterDebts() {
   const query = document.getElementById("debt-search-input") ? document.getElementById("debt-search-input").value : "";
   const filterType = document.getElementById("debt-type-filter") ? document.getElementById("debt-type-filter").value : "all";
@@ -1030,6 +1040,7 @@ function filterDebts() {
       if (!makeFilter(d)) return false;
       return true;
     });
+    sortDebtRowsByBalance(filteredDebtsList);
     debtsPage = 1;
     renderDebtsTable();
     return;
@@ -1044,6 +1055,7 @@ function filterDebts() {
       if (!makeFilter(d)) return false;
       return true;
     });
+    sortDebtRowsByBalance(filteredDebtsList);
     debtsPage = 1;
     renderDebtsTable();
     return;
@@ -1061,6 +1073,7 @@ function filterDebts() {
         has131: g.children.some(c => c.has131), has331: g.children.some(c => c.has331), declaredType: 'enterprise' };
       return makeFilter(groupRow) || g.children.some(c => makeFilter({ ...c, closingDebit: g.closingDebit, closingCredit: g.closingCredit }));
     });
+    sortDebtRowsByBalance(filteredCompanyGroupedList);
     debtsCompanyPage = 1;
     renderDebtsCompanyGroupedTable();
     return;
@@ -1081,9 +1094,11 @@ function filterDebts() {
       if (activeOnly) matchesActive = (g.closingDebit > 0 || g.closingCredit > 0);
       return matchesQuery && matchesType && matchesActive;
     });
+    sortDebtRowsByBalance(filteredDebtsGroupedList);
     debtsGroupedPage = 1;
     renderDebtsGroupedTable();
   } else {
+    sortDebtRowsByBalance(filteredDebtsList);
     renderDebtsTable();
   }
 }

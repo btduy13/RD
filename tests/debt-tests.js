@@ -670,6 +670,22 @@ function testResolverMatchesCodesIgnoringCase() {
   assert.equal(row.closingDebit, 70, "a voucher still carrying the old mixed-case code belongs to the upper-case partner");
 }
 
+function testDebtListsSortByBalance() {
+  const ctx = loadDebtModule();
+  installDebtTestDOM(ctx);
+  ctx.matchAdvancedQuery = () => true;
+  ctx.state.partners = [
+    { id: "A", name: "Nhỏ", type: "retail" }, { id: "B", name: "Lớn", type: "retail" }, { id: "C", name: "Trả thừa", type: "retail" }, { id: "Z", name: "Rỗng", type: "retail" }
+  ];
+  const sale = (id, pid, amt) => ({ id, type: "sales", date: "2026-01-02", partnerId: pid, entries: [{ debit: "131", credit: "511", amount: amt }] });
+  ctx.state.vouchers = [sale("1", "A", 10), sale("2", "B", 500),
+    { id: "3", type: "receipt", date: "2026-01-02", partnerId: "C", entries: [{ debit: "111", credit: "131", amount: 80 }] }];
+  ctx.document.getElementById("debt-active-only-filter").checked = true;
+  ctx.renderDebtsTable = () => {};
+  vm.runInContext("currentDebtsViewTab = 'project'; filterDebts();", ctx);
+  assert.deepEqual(vm.runInContext("filteredDebtsList.map(d => d.id)", ctx), ["B", "C", "A"], "largest balance first, zero balances hidden");
+}
+
 function testFifoReceiptAllocatesSales() {
   const ctx = loadAccountingFifo();
   ctx.state.vouchers = [
@@ -878,6 +894,7 @@ async function runAll() {
   testDualRoleLedgerShowsBothSidesLikeTheList();
   testCompanyTabGroupsAndFilters();
   testResolverMatchesCodesIgnoringCase();
+  testDebtListsSortByBalance();
   testSupplierOverpaymentShowsAsReceivable();
   testFifoReceiptAllocatesSales();
   testDebtAdjustmentPreserved();

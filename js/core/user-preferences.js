@@ -33,7 +33,8 @@ const DEFAULT_USER_PREFS = {
   },
   lastTab: "dashboard",
   debtsViewTab: "overview",
-  debtActiveOnly: false,
+  // Mặc định chỉ hiện đối tác còn công nợ: 9.000+ mã số dư 0 làm danh sách khó dùng
+  debtActiveOnly: true,
   debtTypeFilter: "all",
   debtPeriodFilter: "all"
 };
@@ -127,7 +128,7 @@ function restoreDebtsUIFromPrefs(prefs) {
 
   if (typeEl && p.debtTypeFilter) typeEl.value = p.debtTypeFilter;
   if (periodEl && p.debtPeriodFilter) periodEl.value = p.debtPeriodFilter;
-  if (activeEl) activeEl.checked = !!p.debtActiveOnly;
+  if (activeEl) activeEl.checked = p.debtActiveOnly !== false;
 
   if (typeof changeDebtPeriodFilter === "function") {
     changeDebtPeriodFilter();
