@@ -271,6 +271,14 @@ async function submitLogin(event) {
 }
 
 
+async function confirmLogoutUser() {
+  const ok = typeof showConfirmModal === "function"
+    ? await showConfirmModal({ title: "Đăng xuất", message: "Bạn muốn đăng xuất khỏi phần mềm?", confirmText: "Đăng xuất", cancelText: "Ở lại", type: "danger" })
+    : true;
+  if (ok) logoutUser();
+}
+window.confirmLogoutUser = confirmLogoutUser;
+
 function logoutUser() {
   if (window.currentUser) {
     // Ghi nhật ký đăng xuất mấu chốt
@@ -302,11 +310,21 @@ function applyRolePermissions() {
   if (userInfoDisplay) {
     if (window.currentUser) {
       const roleName = role === 'admin' ? 'Quản trị' : (role === 'accountant' ? 'Kế toán' : 'Xem');
+      // Menu người dùng: "Đổi mật khẩu" và "Đăng xuất" nằm trong menu thả xuống thay vì hai link
+      // chữ nhỏ cạnh tên (dễ bấm nhầm Thoát).
+      const esc = v => String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
       userInfoDisplay.innerHTML = `
-        <span class="chip-dot" style="background-color: var(--color-primary);"></span>
-        <span>${window.currentUser.name} (${roleName})</span>
-        <a onclick="showChangePasswordModal()" style="margin-left: 10px; color: var(--color-primary-light); cursor: pointer; font-size: 11px; text-decoration: underline;">Đổi mật khẩu</a>
-        <a onclick="logoutUser()" style="margin-left: 10px; color: #ef4444; cursor: pointer; font-size: 11px; text-decoration: underline;">Thoát</a>
+        <details class="user-menu">
+          <summary class="user-menu-trigger" aria-label="Tài khoản">
+            <span class="chip-dot" style="background-color: var(--color-primary);"></span>
+            <span>${esc(window.currentUser.name)} (${roleName})</span>
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <div class="user-menu-list" role="menu">
+            <button type="button" role="menuitem" onclick="this.closest('details').open=false; showChangePasswordModal()">Đổi mật khẩu</button>
+            <button type="button" role="menuitem" class="user-menu-danger" onclick="this.closest('details').open=false; confirmLogoutUser()">Đăng xuất</button>
+          </div>
+        </details>
       `;
       userInfoDisplay.style.display = 'inline-flex';
     } else {

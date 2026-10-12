@@ -73,8 +73,8 @@ function buildInventoryTableRowHtml(p) {
         <td style="text-align: center;">
           <input type="checkbox" class="product-checkbox" value="${escapedId}" onchange="updateBatchProductsUI()">
         </td>
-        <td class="font-numeric" style="font-weight:700;">${p.id}</td>
-        <td><span style="font-weight:600; color:var(--text-primary);">${p.name}</span></td>
+        <td class="font-numeric" style="font-weight:700;">${escapeHtmlText(p.id)}</td>
+        <td class="cell-clip" title="${escapeHtmlText(p.name)}"><span style="font-weight:600; color:var(--text-primary);">${escapeHtmlText(p.name)}</span></td>
         <td>${p.unit || "Cái"}</td>
         <td class="text-right font-numeric" style="color: var(--text-secondary);">${formatVND(initialCostVal)}</td>
         <td class="text-right font-numeric" style="color: var(--text-secondary);">${formatVND(lastPurchasePriceVal)}</td>
@@ -83,8 +83,9 @@ function buildInventoryTableRowHtml(p) {
         <td class="text-right font-numeric">${formatVND(p.avgCost || 0)}</td>
         <td class="text-right font-numeric" style="font-weight:700;">${formatVND(p.totalValue || 0)}</td>
         <td>
-          <span class="badge ${isLow ? 'badge-danger' : 'badge-success'}">
-            ${isLow ? 'Cảnh báo tồn thấp' : 'Đầy đủ'}
+          <span class="badge ${isLow ? 'badge-danger' : 'badge-success'}" style="white-space:nowrap;"
+            title="${(p.stock || 0) < 0 ? 'Tồn kho âm: xuất nhiều hơn nhập, cần kiểm tra chứng từ' : isLow ? 'Tồn kho bằng hoặc dưới mức tối thiểu' : 'Tồn kho trên mức tối thiểu'}">
+            ${(p.stock || 0) < 0 ? 'Âm kho' : isLow ? 'Sắp hết' : 'Đủ hàng'}
           </span>
         </td>
         <td style="text-align: center;">

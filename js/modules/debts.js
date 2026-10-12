@@ -3361,13 +3361,22 @@ function renderDebtOverview(allDebts, dateRange) {
       { label: 'Đối tác trả thừa', value: partnersOverpaid, hint: 'Đối tác Dư Có', icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z', accent: 'var(--color-danger)', isCount: true }
     ];
     // NCC trả thừa (dư Nợ 331) = khoản phải thu lại từ NCC — hiển thị để không "biến mất"
-    kpiData[0].hint = 'KH / đối tác hai chiều, gồm nhóm chưa khớp';
+    // Chú thích ngắn bằng lời thường; giải thích kỹ thuật nằm trong tooltip của thẻ
+    kpiData[0].hint = 'Khách còn nợ công ty (TK 131)';
+    kpiData[0].tip = 'Tổng Dư Nợ TK 131 của khách hàng, kể cả đối tác vừa mua vừa bán và nhóm chứng từ chưa khớp đối tác.';
+    kpiData[1].hint = 'Công ty còn nợ nhà cung cấp (TK 331)';
+    kpiData[1].tip = 'Tổng Dư Có TK 331. Khoản phải trả của đối tác hai chiều cũng nằm ở đây, không trừ vào phải thu.';
+    kpiData[2].hint = 'Số khách còn nợ';
+    kpiData[3].hint = 'Số khách đã trả dư tiền';
     if (totalSupplierReceivable > 0) {
       kpiData.push({ label: 'NCC Trả Thừa (Phải Thu Lại)', value: totalSupplierReceivable, hint: 'Dư Nợ TK 331', icon: 'M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z', accent: 'var(--color-info)' });
     }
-    if (kpiData.length > 4) kpiData[4].hint = 'Dư Nợ TK 331; không trùng tổng phải thu KH';
+    if (kpiData.length > 4) {
+      kpiData[4].hint = 'Nhà cung cấp đang giữ tiền của công ty';
+      kpiData[4].tip = 'Dư Nợ TK 331 (đã trả trước / trả dư cho NCC). Không cộng trùng vào tổng phải thu khách.';
+    }
     kpiEl.innerHTML = kpiData.map(k => `
-      <div class="kpi-card" style="--card-accent: ${k.accent}">
+      <div class="kpi-card" style="--card-accent: ${k.accent}"${k.tip ? ` title="${k.tip}"` : ''}>
         <div class="kpi-info">
           <span class="kpi-label">${k.label}</span>
           <span class="kpi-value font-numeric">${k.isCount ? k.value.toLocaleString('vi-VN') : formatVND(k.value)}</span>

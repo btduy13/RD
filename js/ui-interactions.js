@@ -916,6 +916,9 @@ function updateSidebarBadges() {
         var badge = document.createElement('span');
         badge.className = 'nav-badge badge-amber';
         badge.textContent = unsettledCount > 99 ? '99+' : unsettledCount;
+        // Huy hiệu phải nói rõ đang đếm gì
+        badge.title = unsettledCount + ' hóa đơn bán chịu chưa thu hết tiền';
+        badge.setAttribute('aria-label', badge.title);
         debtsMenuItem.appendChild(badge);
       }
     }
@@ -927,6 +930,8 @@ function updateSidebarBadges() {
         var badge2 = document.createElement('span');
         badge2.className = 'nav-badge';
         badge2.textContent = negativeStock > 99 ? '99+' : negativeStock;
+        badge2.title = negativeStock + ' mặt hàng đang âm kho';
+        badge2.setAttribute('aria-label', badge2.title);
         invMenuItem.appendChild(badge2);
       }
     }

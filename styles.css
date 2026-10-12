@@ -7362,3 +7362,20 @@ body.light-theme .custom-confirm-overlay.is-active {
 .data-table td a[style*="underline"]:focus-visible {
   text-decoration: underline !important;
 }
+
+/* Menu tài khoản trên thanh tiêu đề */
+.user-menu { position: relative; }
+.user-menu > summary { list-style: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.user-menu > summary::-webkit-details-marker { display: none; }
+.user-menu-list {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 1000; min-width: 170px;
+  display: flex; flex-direction: column; padding: 6px;
+  background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.user-menu-list button {
+  text-align: left; padding: 8px 10px; border: 0; border-radius: 6px; background: transparent;
+  color: var(--text-primary); font-size: 13px; cursor: pointer;
+}
+.user-menu-list button:hover, .user-menu-list button:focus-visible { background: var(--bg-tertiary); }
+.user-menu-list .user-menu-danger { color: var(--color-danger); }
