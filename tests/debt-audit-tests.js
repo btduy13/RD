@@ -773,6 +773,15 @@ function testAuditFlagsPartnerCashWithoutDebtLines() {
   assert.equal(diag.payments.total, 1500);
   assert.deepStrictEqual(diag.payments.accounts, { "334": 1500 }, "payment debit accounts listed");
   assert.deepStrictEqual(diag.rows.map(r => r.id), ["PT_341", "PC_334"]);
+  assert.equal(diag.rows[0].review, true, "Có 341 from a customer (not a bank) needs review");
+  assert.match(diag.rows[0].reason, /không phải ngân hàng/);
+  assert.equal(diag.rows[1].review, false, "salary payment (Nợ 334) is normal");
+  assert.deepStrictEqual({ ...diag.review }, { count: 1, total: 2000 });
+  assert.deepStrictEqual({ ...diag.normal }, { count: 1, total: 1500 });
+  const bankLoan = ctx.classifyCashWithoutDebt("receipt", ["341"], { name: "Ngân hàng Sacombank" }, "SACOMBANK");
+  assert.equal(bankLoan.review, false, "loan from a bank is normal");
+  assert.equal(ctx.classifyCashWithoutDebt("receipt", ["511"], { name: "CH Thành Công" }, "THANHCONG").review, true);
+  assert.equal(ctx.classifyCashWithoutDebt("payment", ["156"], { name: "Nhập hàng TQ" }, "TRUNGQUOC").review, true);
 
   // Không lọc ngày: phiếu Có 511 ngoài kỳ cũng được đếm
   const recAll = ctx.computeDebt131Reconciliation(ctx.calculatePartnerDebts(), "", "");
@@ -781,6 +790,7 @@ function testAuditFlagsPartnerCashWithoutDebtLines() {
 
   const html = renderAudit(ctx, range);
   assert.ok(html.includes("Phiếu thu/chi có đối tác nhưng không hạch toán 131/331"), "diagnostic line shown");
+  assert.ok(html.includes("1 cần xem") && html.includes("Cần xem vì"), "review group shown with reasons");
   assert.ok(html.includes("PT_341") && html.includes("PC_334"), "list rows rendered");
   assert.ok(!html.includes("PT_511"), "list respects date filter");
   assert.ok(!html.includes("Khách <b>01</b>") && html.includes("Khách &lt;b&gt;01&lt;/b&gt;"), "partner name escaped");

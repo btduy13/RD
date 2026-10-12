@@ -3061,15 +3061,47 @@ function getLedgerNetDebitBalance(acctCode, toDate) {
 // Phiếu thu/chi CÓ đối tác nhưng bút toán thật không chạm 131/331 (vd. thu khách hạch toán
 // Có 341, chi Nợ 334/1388/211). Không làm thay đổi công nợ, nên cả Sổ cái lẫn chi tiết đều
 // không thấy — liệt kê riêng để kế toán rà soát. Chỉ đọc, không sửa dữ liệu.
+// Phân loại phiếu thu/chi có đối tác mà không qua 131/331:
+// - "Bình thường": lương (334), BHXH/phải trả khác (338), thuế (333), chi phí (641/642), lãi vay (635),
+//   tài sản cố định (211), phải thu khác (1388), và vay/trả vay (341) với NGÂN HÀNG.
+// - "Cần xem": các trường hợp còn lại, có lý do (vd. thu tiền ghi thẳng Có 511, vay 341 với khách/NCC,
+//   chi Nợ 156 không qua phiếu nhập kho).
+const CASH_NO_DEBT_NORMAL_ACCOUNTS = ["334", "338", "333", "641", "642", "635", "211", "1388"];
+function isBankPartner(partner, partnerId) {
+  const text = `${partnerId || ""} ${partner && partner.name || ""}`;
+  return /ng[âa]n h[àa]ng|bank/i.test(text);
+}
+function classifyCashWithoutDebt(type, accounts, partner, partnerId) {
+  const reasons = [];
+  accounts.forEach(acc => {
+    if (CASH_NO_DEBT_NORMAL_ACCOUNTS.some(n => acc === n || acc.startsWith(n))) return;
+    if (acc.startsWith("341")) {
+      if (!isBankPartner(partner, partnerId)) {
+        reasons.push(type === "receipt"
+          ? "Ghi Có 341 (tiền vay) nhưng đối tác không phải ngân hàng — có thể là tiền khách trả nợ (Có 131)"
+          : "Ghi Nợ 341 (trả vay) nhưng đối tác không phải ngân hàng — có thể là trả nợ NCC (Nợ 331)");
+      }
+      return;
+    }
+    if (acc.startsWith("511")) { reasons.push("Thu tiền ghi thẳng doanh thu (Có 511): không trừ kho, có thể trùng với hóa đơn bán chịu"); return; }
+    if (acc.startsWith("156")) { reasons.push("Chi tiền ghi thẳng Nợ 156: có thể trùng với phiếu nhập kho đã ghi Có 331"); return; }
+    reasons.push(`Tài khoản ${acc} ít gặp trên phiếu ${type === "receipt" ? "thu" : "chi"} có đối tác`);
+  });
+  return { review: reasons.length > 0, reason: reasons.join("; ") };
+}
+
 function computePartnerCashWithoutDebtLines(fromDate = "", toDate = "") {
   const result = {
     count: 0, total: 0,
     receipts: { count: 0, total: 0, accounts: {} },
     payments: { count: 0, total: 0, accounts: {} },
+    review: { count: 0, total: 0 },
+    normal: { count: 0, total: 0 },
     rows: []
   };
   const partnerNames = new Map();
-  (state.partners || []).forEach(p => { if (p) partnerNames.set(String(p.id), p.name || ""); });
+  const partnersById = new Map();
+  (state.partners || []).forEach(p => { if (p) { partnerNames.set(String(p.id), p.name || ""); partnersById.set(String(p.id), p); } });
   (state.vouchers || []).forEach(v => {
     if (!v || (v.type !== "receipt" && v.type !== "payment")) return;
     if (!v.partnerId) return;
@@ -3094,12 +3126,19 @@ function computePartnerCashWithoutDebtLines(fromDate = "", toDate = "") {
     result.count++;
     result.total += amount;
     const pid = String(v.partnerId);
+    const cls = classifyCashWithoutDebt(v.type, Array.from(accounts), partnersById.get(pid), pid);
+    const group = cls.review ? result.review : result.normal;
+    group.count++;
+    group.total += amount;
     result.rows.push({
       id: v.id, date: v.date || "", type: v.type,
       partnerId: pid,
       partnerName: partnerNames.get(pid) || v.partnerName || "",
       amount,
-      accounts: Array.from(accounts).join(", ")
+      accounts: Array.from(accounts).join(", "),
+      description: v.description || "",
+      review: cls.review,
+      reason: cls.reason
     });
   });
   result.rows.sort((a, b) => (a.date || "").localeCompare(b.date || "") || String(a.id || "").localeCompare(String(b.id || "")));
@@ -3241,37 +3280,50 @@ function renderPartnerCashWithoutDebtBlock(diag, showDate) {
     .sort((a, b) => b[1] - a[1])
     .map(([acc, amt]) => `TK ${esc(acc)}: ${formatVND(amt)}`)
     .join("; ") || "-";
-  const shown = diag.rows.slice(0, PARTNER_CASH_NO_DEBT_LIST_LIMIT);
-  const rowsHtml = shown.map(r => `<tr>
+  const review = diag.rows.filter(r => r.review);
+  const normal = diag.rows.filter(r => !r.review);
+  const table = (rows, withReason) => {
+    const shown = rows.slice(0, PARTNER_CASH_NO_DEBT_LIST_LIMIT);
+    const body = shown.map(r => `<tr>
               <td>${esc(r.id)}</td>
               <td>${showDate(r.date)}</td>
               <td>${esc(r.partnerName ? `${r.partnerName} (${r.partnerId})` : r.partnerId)}</td>
               <td class="text-right font-numeric">${formatVND(r.amount)}</td>
               <td>${esc(r.accounts)}</td>
+              <td class="cell-clip" title="${esc(r.description || "")}">${esc(r.description || "")}</td>
+              ${withReason ? `<td>${esc(r.reason || "")}</td>` : ""}
             </tr>`).join("");
-  const moreNote = diag.rows.length > shown.length
-    ? `<p class="debt-alert-warning-note">Hiển thị ${shown.length}/${diag.rows.length} phiếu đầu tiên.</p>` : "";
+    const more = rows.length > shown.length ? `<p class="debt-alert-warning-note">Hiển thị ${shown.length}/${rows.length} phiếu đầu tiên.</p>` : "";
+    return `<div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+              <table class="data-table" style="font-size: 12px; width: 100%;">
+                <thead><tr><th>Số chứng từ</th><th>Ngày</th><th>Đối tác</th><th class="text-right">Số tiền</th><th>TK đối ứng</th><th>Diễn giải</th>${withReason ? "<th>Cần xem vì</th>" : ""}</tr></thead>
+                <tbody>${body}</tbody>
+              </table>
+            </div>${more}`;
+  };
+  const reviewTotal = review.reduce((s, r) => s + r.amount, 0);
+  const normalTotal = normal.reduce((s, r) => s + r.amount, 0);
   return `
       <div class="debt-alert-warning">
         <div class="debt-alert-warning-header">
           <span>${label}</span>
-          <span class="badge badge-danger">${diag.count.toLocaleString('vi-VN')} phiếu</span>
+          <span class="badge ${review.length ? 'badge-danger' : 'badge-success'}">${review.length.toLocaleString('vi-VN')} cần xem</span>
+          <span class="badge badge-secondary">${diag.count.toLocaleString('vi-VN')} phiếu</span>
         </div>
         <div class="debt-alert-warning-body">
-          ${line('Tổng số tiền', formatVND(diag.total), 'text-danger')}
+          ${line(`Cần xem (${review.length})`, formatVND(reviewTotal), review.length ? 'text-danger' : 'text-success')}
+          ${line(`Bình thường (${normal.length}) — lương, BHXH, thuế, chi phí, tài sản, vay và lãi ngân hàng`, formatVND(normalTotal))}
           ${line(`Phiếu thu (${diag.receipts.count}) — TK ghi Có: ${accountList(diag.receipts.accounts)}`, formatVND(diag.receipts.total), 'text-warning')}
           ${line(`Phiếu chi (${diag.payments.count}) — TK ghi Nợ: ${accountList(diag.payments.accounts)}`, formatVND(diag.payments.total), 'text-warning')}
-          <p class="debt-alert-warning-note">Các phiếu này không làm thay đổi công nợ nên Sổ cái 131 và công nợ chi tiết vẫn khớp. Cần kiểm tra lại tài khoản hạch toán (vd. thu tiền khách bị ghi Có 341).</p>
-          <details>
-            <summary>Xem danh sách phiếu</summary>
-            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
-              <table class="data-table" style="font-size: 12px; width: 100%;">
-                <thead><tr><th>Số chứng từ</th><th>Ngày</th><th>Đối tác</th><th class="text-right">Số tiền</th><th>TK đối ứng</th></tr></thead>
-                <tbody>${rowsHtml}</tbody>
-              </table>
-            </div>
-            ${moreNote}
-          </details>
+          <p class="debt-alert-warning-note">Các phiếu này không làm thay đổi công nợ nên Sổ cái 131 và công nợ chi tiết vẫn khớp. Nhóm "Cần xem" có thể hạch toán sai tài khoản; nhóm "Bình thường" đúng bản chất, chỉ gắn đối tác cho tiện tra cứu.</p>
+          ${review.length ? `<details open>
+            <summary>Xem ${review.length} phiếu cần xem</summary>
+            ${table(review, true)}
+          </details>` : ""}
+          ${normal.length ? `<details>
+            <summary>Xem ${normal.length} phiếu bình thường</summary>
+            ${table(normal, false)}
+          </details>` : ""}
         </div>
       </div>`;
 }
