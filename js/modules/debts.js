@@ -416,6 +416,39 @@ function formatLedgerClosingText(ledger) {
         : (v >= 0 ? `${formatVND(v)} (Nợ)` : `${formatVND(-v)} (Có)`);
 }
 
+// Cột "Số dư" luỹ kế và dòng cộng phát sinh cho sổ chi tiết (mẫu S31/S13: đầu kỳ ± từng dòng).
+// Hàng dữ liệu trong tbody theo đúng thứ tự entries; số dư theo chiều của vai trò sổ.
+function appendLedgerBalanceColumn(tbody, entries, openingVal, role) {
+    if (!tbody || !Array.isArray(entries)) return;
+    const isSupplier = role === "supplier";
+    const side = v => isSupplier ? (v >= 0 ? "Có" : "Nợ") : (v >= 0 ? "Nợ" : "Có");
+    const fmt = v => `${formatVND(Math.abs(v)).replace("đ", "")} (${side(v)})`;
+    const dataRows = Array.from(tbody.children || []).filter(tr => (tr.children ? tr.children.length : 0) >= 6);
+    let running = Number(openingVal) || 0;
+    let debitSum = 0, creditSum = 0;
+    entries.forEach((le, i) => {
+        const debit = Number(le.debit) || 0, credit = Number(le.credit) || 0;
+        debitSum += debit; creditSum += credit;
+        running += isSupplier ? credit - debit : debit - credit;
+        const tr = dataRows[i];
+        if (!tr || typeof document.createElement !== "function") return;
+        const td = document.createElement("td");
+        td.style.textAlign = "right";
+        td.style.fontWeight = "600";
+        td.className = "font-numeric";
+        td.textContent = fmt(running);
+        tr.appendChild(td);
+    });
+    if (entries.length === 0 || typeof document.createElement !== "function") return;
+    const total = document.createElement("tr");
+    total.className = "ledger-total-row";
+    total.innerHTML = `<td colspan="4" style="font-weight:700;">Cộng phát sinh trong kỳ</td>
+        <td style="text-align:right; font-weight:700;" class="font-numeric">${formatVND(debitSum).replace("đ", "")}</td>
+        <td style="text-align:right; font-weight:700;" class="font-numeric">${formatVND(creditSum).replace("đ", "")}</td>
+        <td style="text-align:right; font-weight:700;" class="font-numeric">${fmt(running)}</td>`;
+    tbody.appendChild(total);
+}
+
 function refreshOpenPartnerLedgerModal() {
     const modal = document.getElementById("modal-view-partner-ledger");
     if (!modal) return;
@@ -797,7 +830,7 @@ function viewUnmatchedPartnerLedger() {
   ledgerEntries.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
 
   if (ledgerEntries.length === 0) {
-    renderEmptyState(tbody, 6, "Không có giao dịch phát sinh công nợ trong kỳ", "Chọn kỳ khác hoặc kiểm tra chứng từ phát sinh");
+    renderEmptyState(tbody, 7, "Không có giao dịch phát sinh công nợ trong kỳ", "Chọn kỳ khác hoặc kiểm tra chứng từ phát sinh");
   } else {
     ledgerEntries.forEach(le => {
       const tr = document.createElement("tr");
@@ -821,6 +854,7 @@ function viewUnmatchedPartnerLedger() {
   const closingText = closingVal >= 0
     ? `${formatVND(closingVal)} (Nợ)`
     : `${formatVND(-closingVal)} (Có)`;
+  appendLedgerBalanceColumn(tbody, ledgerEntries, openingVal, "customer");
   document.getElementById("partner-ledger-closing").innerText = `${formatVND(bucket.closingDebit)} (Nợ) / ${formatVND(bucket.closingCredit)} (Có)`;
 
   renderLedgerOrdersForTarget(orphanIds);
@@ -1404,7 +1438,7 @@ function viewGroupedPartnerLedger(partnerName, childIds) {
 
   // Thu thập tất cả chứng từ từ các mã con
   if (ledgerEntries.length === 0) {
-    renderEmptyState(tbody, 6, 'Không có giao dịch phát sinh công nợ trong kỳ', 'Chọn kỳ khác hoặc kiểm tra chứng từ phát sinh');
+    renderEmptyState(tbody, 7, 'Không có giao dịch phát sinh công nợ trong kỳ', 'Chọn kỳ khác hoặc kiểm tra chứng từ phát sinh');
   } else {
     ledgerEntries.forEach(le => {
       const tr = document.createElement('tr');
@@ -1434,6 +1468,7 @@ function viewGroupedPartnerLedger(partnerName, childIds) {
   // Tính số dư cuối kỳ gộp (role 'both' dùng công thức customer, khớp với openingVal ở trên)
   const closingText = formatLedgerClosingText(ledger);
 
+  appendLedgerBalanceColumn(tbody, ledgerEntries, openingVal, ledger.role);
   document.getElementById('partner-ledger-closing').innerText = closingText;
 
   // Sử dụng lại môđan sẵn có
@@ -1485,7 +1520,7 @@ function viewLedgerByIds(partnerIds, groupName) {
   tbody.innerHTML = '';
 
   if (ledgerEntries.length === 0) {
-    renderEmptyState(tbody, 6, 'Không có giao dịch phát sinh công nợ trong kỳ', 'Chọn kỳ khác hoặc kiểm tra chứng từ phát sinh');
+    renderEmptyState(tbody, 7, 'Không có giao dịch phát sinh công nợ trong kỳ', 'Chọn kỳ khác hoặc kiểm tra chứng từ phát sinh');
   } else {
     ledgerEntries.forEach(le => {
       const tr2 = document.createElement('tr');
@@ -1511,6 +1546,7 @@ function viewLedgerByIds(partnerIds, groupName) {
   }
 
   const closingText = formatLedgerClosingText(ledger);
+  appendLedgerBalanceColumn(tbody, ledgerEntries, openingVal, ledger.role);
   document.getElementById('partner-ledger-closing').innerText = closingText;
 
   const parent = matchingPartners.find(p => p.type === 'enterprise');
@@ -1671,7 +1707,7 @@ function renderLedgerForTarget(targetId, isCombined) {
   const { ledgerEntries } = ledger;
 
   if (ledgerEntries.length === 0) {
-    renderEmptyState(tbody, 6, 'Không có giao dịch phát sinh công nợ trong kỳ', 'Chọn kỳ khác hoặc kiểm tra chứng từ phát sinh');
+    renderEmptyState(tbody, 7, 'Không có giao dịch phát sinh công nợ trong kỳ', 'Chọn kỳ khác hoặc kiểm tra chứng từ phát sinh');
   } else {
     ledgerEntries.forEach(le => {
       const tr = document.createElement("tr");
@@ -1713,6 +1749,7 @@ function renderLedgerForTarget(targetId, isCombined) {
   let closingVal = ledger.closingVal;
   const closingText = formatLedgerClosingText(ledger);
 
+  appendLedgerBalanceColumn(tbody, ledgerEntries, openingVal, ledger.role);
   document.getElementById("partner-ledger-closing").innerText = closingText;
 
   renderLedgerOrdersForTarget(matchingIds);

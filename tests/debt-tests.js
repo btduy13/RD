@@ -686,6 +686,23 @@ function testDebtListsSortByBalance() {
   assert.deepEqual(vm.runInContext("filteredDebtsList.map(d => d.id)", ctx), ["B", "C", "A"], "largest balance first, zero balances hidden");
 }
 
+function testLedgerRunningBalanceColumn() {
+  const ctx = loadDebtModule();
+  installDebtTestDOM(ctx);
+  const tbody = ctx.document.getElementById("ledger-test");
+  const row = () => { const tr = ctx.document.createElement("tr"); for (let i = 0; i < 6; i++) tr.appendChild(ctx.document.createElement("td")); return tr; };
+  tbody.appendChild(row()); tbody.appendChild(row());
+  ctx.appendLedgerBalanceColumn(tbody, [{ debit: 100, credit: 0 }, { debit: 0, credit: 250 }], 50, "customer");
+  assert.equal(tbody.children[0].children[6].textContent, "150 (Nợ)");
+  assert.equal(tbody.children[1].children[6].textContent, "100 (Có)", "running balance crosses to the credit side");
+  assert.ok(tbody.children[2].innerHTML.includes("Cộng phát sinh"), "totals row appended");
+  assert.ok(tbody.children[2].innerHTML.includes(">100<") && tbody.children[2].innerHTML.includes(">250<"));
+  const sup = ctx.document.getElementById("ledger-test-2");
+  sup.appendChild(row());
+  ctx.appendLedgerBalanceColumn(sup, [{ debit: 0, credit: 300 }], 0, "supplier");
+  assert.equal(sup.children[0].children[6].textContent, "300 (Có)", "supplier ledger runs on the credit side");
+}
+
 function testFifoReceiptAllocatesSales() {
   const ctx = loadAccountingFifo();
   ctx.state.vouchers = [
@@ -895,6 +912,7 @@ async function runAll() {
   testCompanyTabGroupsAndFilters();
   testResolverMatchesCodesIgnoringCase();
   testDebtListsSortByBalance();
+  testLedgerRunningBalanceColumn();
   testSupplierOverpaymentShowsAsReceivable();
   testFifoReceiptAllocatesSales();
   testDebtAdjustmentPreserved();
