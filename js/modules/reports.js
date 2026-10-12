@@ -63,7 +63,38 @@ function handleReportTypeChange() {
     acctSelect.style.display = "none";
   }
 
+  reportShowAllRows = false;
   generateReport();
+}
+
+// Trên màn hình chỉ dựng tối đa REPORT_SCREEN_ROW_LIMIT dòng chi tiết: Sổ nhật ký chung đủ năm là
+// hơn 100.000 phần tử DOM (khoảng 10 MB) và còn nằm lại sau khi rời tab. Tổng cộng vẫn tính đủ;
+// khi in hoặc bấm "Hiện toàn bộ" thì dựng hết.
+const REPORT_SCREEN_ROW_LIMIT = 500;
+let reportShowAllRows = false;
+
+function showFullReport() {
+  reportShowAllRows = true;
+  generateReport();
+}
+window.showFullReport = showFullReport;
+
+function resetReportRowLimit() {
+  reportShowAllRows = false;
+}
+window.resetReportRowLimit = resetReportRowLimit;
+
+function reportTruncatedNoticeRow(shown, total, colspan) {
+  return `<tr class="report-truncated-row"><td colspan="${colspan}" style="border:1px solid #000; padding:10px; text-align:center; color:#000; background:#fff7ed;">
+    Đang hiện ${shown.toLocaleString("vi-VN")} / ${total.toLocaleString("vi-VN")} dòng (tổng cộng bên dưới tính đủ).
+    <button type="button" class="btn btn-secondary btn-sm" onclick="showFullReport()" style="margin-left:8px;">Hiện toàn bộ</button>
+    — khi in báo cáo luôn in đủ.</td></tr>`;
+}
+
+// Chứng từ theo thứ tự thời gian (ngày, rồi số chứng từ) — số dư lũy kế phải chạy theo ngày.
+function getReportVouchersChronological() {
+  return (state.vouchers || []).slice().sort((a, b) =>
+    String(a.date || "").localeCompare(String(b.date || "")) || String(a.id || "").localeCompare(String(b.id || "")));
 }
 
 // Tạo lập Báo cáo Động
@@ -103,9 +134,12 @@ function generateReport() {
     if (state.vouchers.length === 0) {
       html += `<tr><td colspan="6" style="text-align:center; padding:10px; border:1px solid #000;">Chưa có dữ liệu chứng từ.</td></tr>`;
     } else {
-      state.vouchers.forEach(v => {
+      let journalRows = 0;
+      getReportVouchersChronological().forEach(v => {
         (v.entries || []).forEach((e, idx) => {
           totalVal += Number(e.amount) || 0;
+          journalRows++;
+          if (!reportShowAllRows && journalRows > REPORT_SCREEN_ROW_LIMIT) return;
           html += `
             <tr>
               <td style="border:1px solid #000; padding:6px; color:#000;">${idx === 0 ? escapeReportText(formatDateDisplay(v.date)) : ""}</td>
@@ -118,6 +152,9 @@ function generateReport() {
           `;
         });
       });
+      if (!reportShowAllRows && journalRows > REPORT_SCREEN_ROW_LIMIT) {
+        html += reportTruncatedNoticeRow(REPORT_SCREEN_ROW_LIMIT, journalRows, 6);
+      }
     }
 
     html += `
@@ -167,7 +204,7 @@ function generateReport() {
 
     html += `
       <tr style="background-color: rgba(0,0,0,0.02); font-style: italic;">
-        <td>01/01/2026</td>
+        <td>-</td>
         <td>-</td>
         <td style="font-weight:700;">SỐ DƯ ĐẦU KỲ</td>
         <td style="text-align:center;">-</td>
@@ -180,12 +217,14 @@ function generateReport() {
     let totalDebit = 0;
     let totalCredit = 0;
 
-    // Quét qua các nghiệp vụ trong nhật ký
-    state.vouchers.forEach(v => {
+    // Quét qua các nghiệp vụ trong nhật ký (theo thứ tự ngày để số dư lũy kế đúng)
+    let ledgerRows = 0;
+    getReportVouchersChronological().forEach(v => {
       (v.entries || []).forEach(e => {
         const debitCode = String(e.debit ?? '').trim();
         const creditCode = String(e.credit ?? '').trim();
         if (debitCode !== acctCode && creditCode !== acctCode) return;
+        ledgerRows++;
 
         let dbAmt = 0;
         let crAmt = 0;
@@ -204,6 +243,7 @@ function generateReport() {
           currentBalance += isDebitAccount ? -crAmt : crAmt;
         }
 
+        if (!reportShowAllRows && ledgerRows > REPORT_SCREEN_ROW_LIMIT) return;
         html += `
           <tr>
             <td style="border:1px solid #000; padding:6px; color:#000;">${escapeReportText(formatDateDisplay(v.date))}</td>
@@ -217,6 +257,9 @@ function generateReport() {
         `;
       });
     });
+    if (!reportShowAllRows && ledgerRows > REPORT_SCREEN_ROW_LIMIT) {
+      html += reportTruncatedNoticeRow(REPORT_SCREEN_ROW_LIMIT, ledgerRows, 7);
+    }
 
     html += `
           <tr style="background-color:#f3f4f6; font-weight:bold;">
@@ -368,6 +411,8 @@ function triggerPrint() {
 window.triggerPrint = triggerPrint;
 
 function printReport() {
+  // Bản in luôn đủ dòng (giữ bản đầy đủ trên màn hình sau khi in: hộp thoại in có thể chụp trang muộn)
+  if (!reportShowAllRows) { reportShowAllRows = true; generateReport(); }
   document.body.classList.add("printing-report");
   triggerPrint();
   setTimeout(() => {

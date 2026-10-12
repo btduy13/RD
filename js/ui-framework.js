@@ -77,6 +77,7 @@ function renderTabIfNeeded(tabId) {
       recalculateCashKpis();
     } else if (tabId === "reports") {
       if (typeof populateReportAccountDropdown === "function") populateReportAccountDropdown();
+      if (typeof resetReportRowLimit === "function") resetReportRowLimit();
       if (typeof generateReport === "function") generateReport();
     } else if (tabId === "settings") {
       if (typeof updateErrorLogsUI === "function") {

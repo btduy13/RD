@@ -55,5 +55,20 @@ assert.equal(formatted.at(-1), 100, 'same-account debit/credit movement must not
 sandbox.populateReportAccountDropdown();
 assert.match(elements['select-report-account'].innerHTML, /3388/);
 assert.equal(elements['select-report-account'].value, '111', 'refresh preserves selected account');
+// Screen view caps detail rows, totals stay complete, journal is chronological
+const many = [];
+for (let i = 0; i < 700; i++) many.push({ id: 'PT' + String(i).padStart(4, '0'), date: i % 2 ? '2026-02-01' : '2026-01-01', entries: [{ debit: '111', credit: '131', amount: 1, desc: 'd' + i }] });
+state.vouchers = many;
+elements['select-report-type'].value = 'journal';
+sandbox.resetReportRowLimit();
+sandbox.generateReport();
+let html = elements['printable-report-area'].innerHTML;
+assert.equal((html.match(/<tr>/g) || []).length, 500, 'screen shows 500 detail rows');
+assert.match(html, /Đang hiện 500 \/ 700 dòng/);
+assert.match(html, />700<\/td>/, 'journal total still sums all 700 rows');
+assert.ok(html.indexOf('2026-01-01') < html.indexOf('2026-02-01'), 'journal runs in date order');
+sandbox.showFullReport();
+html = elements['printable-report-area'].innerHTML;
+assert.equal((html.match(/<tr>/g) || []).length, 700, '"Hiện toàn bộ" renders every row');
 console.log('reports regression tests passed');
 
