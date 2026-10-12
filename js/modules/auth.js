@@ -54,6 +54,74 @@ function clearAuthSession() {
   }
 }
 
+// ===========================================================================
+// MẬT KHẨU: chỉ lưu bản băm PBKDF2-SHA256 (muối riêng từng tài khoản), không lưu mật khẩu thô.
+// Danh sách tài khoản được đồng bộ lên cloud, nên mật khẩu thô ở đó ai đọc được metadata cũng thấy.
+// ===========================================================================
+const PASSWORD_HASH_ITERATIONS = 150000;
+const PASSWORD_HASH_ALGO = `pbkdf2-sha256-${PASSWORD_HASH_ITERATIONS}`;
+
+function bytesToHex(bytes) {
+  return Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, "0")).join("");
+}
+function hexToBytes(hex) {
+  const out = new Uint8Array(Math.floor(String(hex || "").length / 2));
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.substr(i * 2, 2), 16);
+  return out;
+}
+
+async function derivePasswordHash(password, saltHex) {
+  const subtle = (globalThis.crypto && globalThis.crypto.subtle) || null;
+  if (!subtle) throw new Error("Máy không hỗ trợ mã hóa mật khẩu (WebCrypto).");
+  const key = await subtle.importKey("raw", new TextEncoder().encode(String(password)), "PBKDF2", false, ["deriveBits"]);
+  const bits = await subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: hexToBytes(saltHex), iterations: PASSWORD_HASH_ITERATIONS }, key, 256);
+  return bytesToHex(bits);
+}
+
+// Đặt mật khẩu mới cho tài khoản: lưu băm + muối, xóa mật khẩu thô.
+async function setUserPassword(user, password) {
+  const salt = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(salt);
+  user.passwordSalt = bytesToHex(salt);
+  user.passwordHash = await derivePasswordHash(password, user.passwordSalt);
+  user.passwordAlgo = PASSWORD_HASH_ALGO;
+  delete user.password;
+  return user;
+}
+
+// Kiểm tra mật khẩu. Tài khoản đã có bản băm thì chỉ so bản băm (bỏ qua mật khẩu thô do bản
+// app cũ ghi lại); tài khoản cũ còn mật khẩu thô thì so trực tiếp rồi chuyển sang bản băm.
+async function verifyUserPassword(user, password) {
+  if (!user || typeof password !== "string" || password === "") return false;
+  if (user.passwordHash && user.passwordSalt) {
+    const hash = await derivePasswordHash(password, user.passwordSalt);
+    const stored = String(user.passwordHash);
+    let diff = hash.length ^ stored.length;
+    for (let i = 0; i < hash.length; i++) diff |= hash.charCodeAt(i) ^ stored.charCodeAt(i);
+    return diff === 0;
+  }
+  if (typeof user.password === "string" && user.password !== "" && user.password === password) {
+    await setUserPassword(user, password);
+    if (typeof saveState === "function") saveState();
+    return true;
+  }
+  return false;
+}
+
+// Chuyển mọi mật khẩu thô còn lại sang bản băm (chạy khi khởi động).
+async function migratePlainPasswords(users) {
+  let changed = false;
+  for (const u of users || []) {
+    if (u.passwordHash && u.passwordSalt) {
+      if ("password" in u) { delete u.password; changed = true; }
+    } else if (typeof u.password === "string" && u.password !== "") {
+      await setUserPassword(u, u.password);
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 // Khởi chạy hệ thống Auth khi ứng dụng nạp xong dữ liệu
 async function initAuth() {
   let users = state.users || [];
@@ -66,26 +134,27 @@ async function initAuth() {
     
     const defaultAdmin = {
       username: defaultAdminUsername,
-      password: defaultAdminPassword,
       name: "Administrator",
-      role: "admin"
+      role: "admin",
+      mustChangePassword: true
     };
-    
+    try {
+      await setUserPassword(defaultAdmin, defaultAdminPassword);
+    } catch (err) {
+      console.error("[Auth] Không thể mã hóa mật khẩu mặc định:", err);
+      defaultAdmin.password = defaultAdminPassword;
+    }
+
     state.users = [defaultAdmin];
     saveState(); // Lưu SQLite & Sync Cloud
     users = state.users;
   }
-  
-  // Đảm bảo mọi người dùng đều có mật khẩu thô dạng plain text
-  let migrated = false;
-  users.forEach(u => {
-    if (!u.password) {
-      u.password = u.passwordHash ? "admin" : u.username;
-      migrated = true;
-    }
-  });
-  if (migrated) {
-    saveState();
+
+  // Mật khẩu thô (bản cũ) được chuyển sang bản băm; không bao giờ tự đặt mật khẩu thô nữa.
+  try {
+    if (await migratePlainPasswords(users)) saveState();
+  } catch (err) {
+    console.error("[Auth] Không thể chuyển mật khẩu sang dạng mã hóa:", err);
   }
   
   const savedSession = readSavedAuthSession();
@@ -112,14 +181,9 @@ function handleUsernameInput(el) {
   const pwdInput = document.getElementById('login-password');
   if (!pwdGroup || !pwdInput) return;
   
-  if (el.value.trim().toLowerCase() === 'admin') {
-    pwdGroup.style.display = 'block';
-    pwdInput.setAttribute('required', 'required');
-  } else {
-    pwdGroup.style.display = 'none';
-    pwdInput.removeAttribute('required');
-    pwdInput.value = '';
-  }
+  // Mọi tài khoản đều cần mật khẩu
+  pwdGroup.style.display = 'block';
+  pwdInput.setAttribute('required', 'required');
 }
 window.handleUsernameInput = handleUsernameInput;
 
@@ -155,13 +219,13 @@ function showLoginForm() {
           </div>
         </div>
         
-        <div id="login-password-group" class="login-field" style="display: none;">
-          <label class="login-label" for="login-password">Mật khẩu Admin</label>
+        <div id="login-password-group" class="login-field">
+          <label class="login-label" for="login-password">Mật khẩu</label>
           <div class="login-input-shell">
             <svg class="login-input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.5 10.5V7.75a4.5 4.5 0 00-9 0v2.75M6.75 10.5h10.5a1.5 1.5 0 011.5 1.5v6.25a1.5 1.5 0 01-1.5 1.5H6.75a1.5 1.5 0 01-1.5-1.5V12a1.5 1.5 0 011.5-1.5z"></path>
             </svg>
-            <input type="password" id="login-password" class="login-input" placeholder="Nhập mật khẩu" autocomplete="current-password">
+            <input type="password" id="login-password" class="login-input" required placeholder="Nhập mật khẩu" autocomplete="current-password">
           </div>
         </div>
         
@@ -205,70 +269,41 @@ async function submitLogin(event) {
   if (!username) return;
 
   const users = state.users || [];
-  
-  if (username.toLowerCase() === 'admin') {
-    const adminUser = users.find(u => u.username.toLowerCase() === 'admin');
-    if (!adminUser) {
-      // Fallback: nếu chưa có admin trong DB, cho phép admin/admin
-      if (password === 'admin') {
-        const defaultAdmin = {
-          username: 'admin',
-          name: 'Quản trị viên',
-          role: 'admin',
-          password: 'admin'
-        };
-        state.users = state.users || [];
-        state.users.push(defaultAdmin);
-        saveState();
-        window.currentUser = defaultAdmin;
-        await saveAuthSession(defaultAdmin);
-        hideLoginOverlay();
-        applyRolePermissions();
-        logUserAction("Đăng nhập", "Người dùng Quản trị viên (admin) đã đăng nhập thành công.");
-        if (typeof showToast === 'function') showToast("Đăng nhập thành công! Chào mừng Quản trị viên", 'success');
-      } else {
-        showLoginError("Mật khẩu Admin không chính xác.");
-      }
-      return;
-    }
+  const user = users.find(u => String(u.username || "").toLowerCase() === username.toLowerCase());
+  // Không còn tự tạo tài khoản khi gõ một tên lạ (trước đây ai cũng vào được với vai trò Kế toán).
+  if (!user) {
+    showLoginError("Tài khoản không tồn tại. Hãy nhờ quản trị viên tạo tài khoản.");
+    return;
+  }
+  if (!user.passwordHash && !user.password) {
+    showLoginError("Tài khoản chưa có mật khẩu. Hãy nhờ quản trị viên đặt mật khẩu.");
+    return;
+  }
+  let ok = false;
+  try {
+    ok = await verifyUserPassword(user, password);
+  } catch (err) {
+    showLoginError(err.message || "Không kiểm tra được mật khẩu.");
+    return;
+  }
+  if (!ok) {
+    showLoginError("Mật khẩu không chính xác.");
+    return;
+  }
 
-    if (adminUser.password === password) {
-      window.currentUser = adminUser;
-      await saveAuthSession(adminUser);
-      hideLoginOverlay();
-      applyRolePermissions();
-      logUserAction("Đăng nhập", "Người dùng Quản trị viên (admin) đã đăng nhập thành công.");
-      if (typeof showToast === 'function') showToast("Đăng nhập thành công! Chào mừng Quản trị viên", 'success');
-    } else {
-      showLoginError("Mật khẩu Admin không chính xác.");
-    }
-  } else {
-    // Đăng nhập không cần mật khẩu cho các tài khoản khác
-    let user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
-    
-    if (!user) {
-      // Nếu chưa tồn tại -> Tự động đăng ký mới làm Kế toán viên (accountant)
-      user = {
-        username: username,
-        name: username,
-        role: 'accountant',
-        password: ''
-      };
-      state.users = state.users || [];
-      state.users.push(user);
-      saveState();
-    }
-    
-    window.currentUser = user;
-    await saveAuthSession(user);
-    hideLoginOverlay();
-    applyRolePermissions();
-    logUserAction("Đăng nhập", `Người dùng ${user.name} (${user.username}) đã đăng nhập thành công.`);
-    if (typeof showToast === 'function') {
-      showToast(`Đăng nhập thành công! Chào mừng ${user.name}`, 'success');
-    }
+  window.currentUser = user;
+  await saveAuthSession(user);
+  hideLoginOverlay();
+  applyRolePermissions();
+  logUserAction("Đăng nhập", `Người dùng ${user.name} (${user.username}) đã đăng nhập thành công.`);
+  if (typeof showToast === 'function') showToast(`Đăng nhập thành công! Chào mừng ${user.name}`, 'success');
+  // Mật khẩu mặc định / do quản trị viên cấp: yêu cầu đổi ngay
+  if (user.mustChangePassword || (String(user.username).toLowerCase() === "admin" && password === "admin")) {
+    if (typeof showToast === 'function') showToast("Bạn đang dùng mật khẩu mặc định. Hãy đổi mật khẩu ngay.", 'warning', 8000);
+    showChangePasswordModal();
   }
 }
+
 
 
 async function confirmLogoutUser() {
@@ -406,8 +441,8 @@ function showEditUserModal(username) {
   document.getElementById('user-edit-username').value = user.username;
   document.getElementById('user-edit-username').disabled = true;
   document.getElementById('user-edit-name').value = user.name;
-  document.getElementById('user-edit-password').value = user.password || "";
-  document.getElementById('user-edit-password').placeholder = "Mật khẩu...";
+  document.getElementById('user-edit-password').value = "";
+  document.getElementById('user-edit-password').placeholder = "Để trống nếu giữ mật khẩu cũ";
   document.getElementById('user-edit-role').value = user.role;
   document.getElementById('user-edit-mode').value = "edit";
   
@@ -415,7 +450,7 @@ function showEditUserModal(username) {
 }
 
 // Lưu người dùng (Cả Add và Edit)
-function saveUserFromModal() {
+async function saveUserFromModal() {
   const mode = document.getElementById('user-edit-mode').value;
   const username = document.getElementById('user-edit-username').value.trim();
   const name = document.getElementById('user-edit-name').value.trim();
@@ -439,12 +474,10 @@ function saveUserFromModal() {
       return;
     }
     
-    state.users.push({
-      username: username,
-      name: name,
-      password: password,
-      role: role
-    });
+    // Mật khẩu do quản trị viên cấp: người dùng phải tự đổi ở lần đăng nhập đầu
+    const newUser = { username: username, name: name, role: role, mustChangePassword: true };
+    await setUserPassword(newUser, password);
+    state.users.push(newUser);
     
     logUserAction("Thêm tài khoản", `Đã tạo tài khoản mới: ${username} (${name}), vai trò: ${role}`);
   } else {
@@ -456,7 +489,8 @@ function saveUserFromModal() {
     user.role = role;
     
     if (password) {
-      user.password = password;
+      await setUserPassword(user, password);
+      user.mustChangePassword = !(window.currentUser && window.currentUser.username === username);
     }
     
     state.users[idx] = user;
@@ -518,7 +552,7 @@ function showChangePasswordModal() {
   openModal('modal-change-password');
 }
 
-function submitChangePassword() {
+async function submitChangePassword() {
   const currentPassword = document.getElementById('change-pwd-current').value;
   const newPassword = document.getElementById('change-pwd-new').value;
   const confirmPassword = document.getElementById('change-pwd-confirm').value;
@@ -534,7 +568,7 @@ function submitChangePassword() {
   
   if (!window.currentUser) return;
   
-  if (currentPassword !== window.currentUser.password) {
+  if (!(await verifyUserPassword(window.currentUser, currentPassword))) {
     if (errDiv) {
       errDiv.textContent = 'Mật khẩu hiện tại không chính xác.';
       errDiv.style.display = 'block';
@@ -542,9 +576,9 @@ function submitChangePassword() {
     return;
   }
   
-  if (newPassword.length < 4) {
+  if (newPassword.length < 6 || newPassword.toLowerCase() === 'admin' || newPassword === currentPassword) {
     if (errDiv) {
-      errDiv.textContent = 'Mật khẩu mới phải dài tối thiểu 4 ký tự.';
+      errDiv.textContent = 'Mật khẩu mới phải dài tối thiểu 6 ký tự, khác "admin" và khác mật khẩu hiện tại.';
       errDiv.style.display = 'block';
     }
     return;
@@ -560,8 +594,9 @@ function submitChangePassword() {
   
   const idx = state.users.findIndex(u => u.username === window.currentUser.username);
   if (idx !== -1) {
-    state.users[idx].password = newPassword;
-    window.currentUser.password = newPassword;
+    await setUserPassword(state.users[idx], newPassword);
+    delete state.users[idx].mustChangePassword;
+    window.currentUser = state.users[idx];
     
     saveState();
     logUserAction("Đổi mật khẩu", `Đã tự thay đổi mật khẩu của tài khoản: ${window.currentUser.username}`);
