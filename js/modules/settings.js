@@ -6,7 +6,9 @@ window.addEventListener("beforeunload", () => {
 
 // Cập nhật các thông tin công ty lên giao diện
 function updateCompanyUI() {
-  document.getElementById("header-company-name").innerText = state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông";
+  const headerCompany = document.getElementById("header-company-name");
+  headerCompany.innerText = state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông";
+  headerCompany.title = headerCompany.innerText; // tên dài bị cắt trên thanh tiêu đề: xem đủ khi rê chuột
   document.getElementById("setting-company-name").value = state.companyName || "";
   document.getElementById("setting-tax-code").value = state.taxCode || "";
   document.getElementById("setting-address").value = state.address || "";

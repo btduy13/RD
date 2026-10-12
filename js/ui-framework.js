@@ -113,6 +113,26 @@ function refreshUI() {
 // Biến toàn cục lưu trữ trạng thái các modal đang mở theo từng tab
 let activeModalsByTab = {};
 
+// Trợ năng: ô nhập không có <label for>, aria-label hay aria-labelledby được gắn aria-label từ
+// placeholder, tiêu đề hoặc nhãn trong cùng .form-group (trình đọc màn hình đọc được tên ô).
+function ensureAccessibleLabels(root) {
+  const scope = root || document;
+  if (!scope || typeof scope.querySelectorAll !== "function") return 0;
+  let labeled = 0;
+  scope.querySelectorAll("input:not([type=hidden]), select, textarea").forEach(el => {
+    if (el.getAttribute("aria-label") || el.getAttribute("aria-labelledby")) return;
+    if (el.id && document.querySelector(`label[for="${CSS && CSS.escape ? CSS.escape(el.id) : el.id}"]`)) return;
+    if (el.closest && el.closest("label")) return;
+    const group = el.closest ? el.closest(".form-group, .login-field") : null;
+    const groupLabel = group ? group.querySelector("label, .form-label") : null;
+    const text = (el.getAttribute("placeholder") || el.getAttribute("title") || (groupLabel ? groupLabel.textContent : "") || "").replace(/\s+/g, " ").trim();
+    if (text) { el.setAttribute("aria-label", text.replace(/\*$/, "").trim()); labeled++; }
+  });
+  return labeled;
+}
+window.ensureAccessibleLabels = ensureAccessibleLabels;
+document.addEventListener("DOMContentLoaded", () => setTimeout(() => ensureAccessibleLabels(document), 0));
+
 // 4. ĐIỀU HƯỚNG TAB CHỨNG TỪ (UI TABS SWITCHER)
 function switchTab(tabId) {
   if (typeof closeMobileSidebar === "function") closeMobileSidebar();
@@ -316,6 +336,7 @@ function openModal(modalId) {
     const alreadyOpen = modal.style.display === "flex" || modal.style.display === "block";
     modal.style.display = "flex";
     if (!alreadyOpen) setupModalAccessibility(modal, modalId);
+    if (!alreadyOpen) ensureAccessibleLabels(modal);
     if (modal.classList.contains("cloud-sync-modal")) {
       document.body.classList.add("cloud-sync-modal-open");
     }
