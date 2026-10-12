@@ -191,11 +191,9 @@
       <div class="sidebar-footer">
         <div class="sidebar-config">
           <span class="brand-subtitle" style="margin-bottom: 2px;">Chế độ Kế toán</span>
-          <div class="standard-switch">
-            <button id="btn-standard-200" class="switch-btn active" onclick="setAccountingStandard('TT200')">TT
-              200</button>
-            <button id="btn-standard-133" class="switch-btn" onclick="setAccountingStandard('TT133')">TT 133</button>
-          </div>
+          <!-- Chỉ hiển thị; đổi chế độ nằm trong Thiết lập (quản trị viên) vì áp dụng cho cả công ty -->
+          <button type="button" id="sidebar-standard-label" class="switch-btn active" style="width:100%;"
+            onclick="switchTab('settings')" title="Đổi chế độ kế toán trong Thiết lập (quản trị viên)">TT 200</button>
         </div>
       </div>
     </aside>
@@ -2857,6 +2855,16 @@
               </div>
               <button class="btn btn-primary" onclick="saveCompanySettings()"
                 style="margin-top: 16px; align-self: flex-start;">Lưu thông tin</button>
+            </div>
+
+            <!-- Chế độ kế toán: áp dụng cho mọi máy và ghi sổ lại toàn bộ, chỉ quản trị viên được đổi -->
+            <div class="chart-card" data-role-required="admin" style="min-height: auto;">
+              <span class="card-title">Chế độ kế toán</span>
+              <p class="header-subtitle" style="margin-bottom: 12px;">Áp dụng cho mọi máy trạm; đổi chế độ sẽ ghi sổ lại toàn bộ sổ sách.</p>
+              <div class="standard-switch">
+                <button id="btn-standard-200" class="switch-btn active" onclick="setAccountingStandard('TT200')">TT 200/2014</button>
+                <button id="btn-standard-133" class="switch-btn" onclick="setAccountingStandard('TT133')">TT 133/2016</button>
+              </div>
             </div>
 
             <!-- Quản lý Cơ sở dữ liệu -->

@@ -36,8 +36,19 @@ function settingsHarness(confirmResult, startStandard) {
   const el = () => ({ innerText: "", value: "", classList: { add() {}, remove() {} } });
   c.document.getElementById = () => el();
   c.state.accountingStandard = startStandard;
+  c.currentUser = { username: "admin", role: "admin" };
   return { c, calls };
 }
+
+test("only an administrator can switch the standard", async () => {
+  const { c, calls } = settingsHarness(true, "TT200");
+  c.currentUser = { username: "kt", role: "accountant" };
+  await c.setAccountingStandard("TT133");
+  assert.strictEqual(c.state.accountingStandard, "TT200");
+  assert.strictEqual(calls.confirm.length, 0);
+  assert.strictEqual(calls.save, 0);
+  assert.ok(calls.toast.some(m => /quản trị/i.test(m)));
+});
 
 test("declined confirmation leaves the standard unchanged and does not save", async () => {
   const { c, calls } = settingsHarness(false, "TT200");

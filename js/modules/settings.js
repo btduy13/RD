@@ -11,6 +11,9 @@ function updateCompanyUI() {
   document.getElementById("setting-tax-code").value = state.taxCode || "";
   document.getElementById("setting-address").value = state.address || "";
 
+  const sidebarLabel = document.getElementById("sidebar-standard-label");
+  if (sidebarLabel) sidebarLabel.innerText = state.accountingStandard === "TT200" ? "TT 200" : "TT 133";
+
   // Toggle active button Thông tư
   if (state.accountingStandard === "TT200") {
     document.getElementById("btn-standard-200").classList.add("active");
@@ -34,6 +37,10 @@ function saveCompanySettings() {
 // Thay đổi chế độ kế toán (TT200 / TT133)
 async function setAccountingStandard(standard) {
   if (standard === state.accountingStandard) return;
+  if (!window.currentUser || window.currentUser.role !== "admin") {
+    showToast("Chỉ quản trị viên được đổi chế độ kế toán.", "danger");
+    return;
+  }
   const label = standard === "TT200" ? "Thông tư 200/2014/TT-BTC" : "Thông tư 133/2016/TT-BTC";
   const ok = await showConfirmModal({
     title: "Xác nhận đổi chế độ kế toán",
