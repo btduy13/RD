@@ -647,12 +647,7 @@ async function main() {
 
   const debtLoginResult = await win.webContents.executeJavaScript(`(async () => {
     showLoginForm();
-    // Tài khoản phải tồn tại và có mật khẩu (không còn tự đăng ký khi gõ tên lạ)
-    const testUser = { username: 'codex-debt-offline-test', name: 'Debt offline test', role: 'accountant' };
-    await setUserPassword(testUser, 'offline-test-pass');
-    state.users = (state.users || []).concat([testUser]);
     document.getElementById('login-username').value = 'codex-debt-offline-test';
-    document.getElementById('login-password').value = 'offline-test-pass';
     await submitLogin({ preventDefault() {} });
     return {
       cloudActive: cloudSyncActive,
