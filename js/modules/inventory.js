@@ -254,16 +254,27 @@ function renderLedgerProductList() {
     selectedLedgerProductId = products[0].id;
   }
 
+  // Cột trái chỉ dựng tối đa LEDGER_PRODUCT_LIST_LIMIT mặt hàng (dựng cả 1.300+ mặt hàng tạo hơn
+  // 10.000 phần tử DOM và lặp lại mỗi lần bấm chọn); mặt hàng đang chọn luôn có trong danh sách.
+  const LEDGER_PRODUCT_LIST_LIMIT = 150;
+  const hiddenCount = Math.max(products.length - LEDGER_PRODUCT_LIST_LIMIT, 0);
+  if (hiddenCount > 0) {
+    const shown = products.slice(0, LEDGER_PRODUCT_LIST_LIMIT);
+    const selected = products.find(p => String(p.id) === String(selectedLedgerProductId));
+    if (selected && !shown.includes(selected)) shown.unshift(selected);
+    products = shown;
+  }
+
   const html = products.map(p => {
     const isActive = String(p.id) === String(selectedLedgerProductId);
     return `
       <div class="ledger-product-item ${isActive ? 'active' : ''}" onclick="selectLedgerProduct('${escapeHtmlAttr(p.id)}')">
         <div style="font-weight: 700; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
-          <span>${escapeHtmlAttr(p.id)}</span>
-          <span style="font-size: 11px; color: var(--text-secondary); background: rgba(255, 255, 255, 0.05); padding: 2px 6px; border-radius: 4px;">${escapeHtmlAttr(p.unit || 'Cái')}</span>
+          <span>${escapeHtmlText(p.id)}</span>
+          <span style="font-size: 11px; color: var(--text-secondary); background: rgba(255, 255, 255, 0.05); padding: 2px 6px; border-radius: 4px;">${escapeHtmlText(p.unit || 'Cái')}</span>
         </div>
-        <div style="font-size: 12px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtmlAttr(p.name)}">
-          ${escapeHtmlAttr(p.name)}
+        <div style="font-size: 12px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtmlText(p.name)}">
+          ${escapeHtmlText(p.name)}
         </div>
         <div style="font-size: 11px; margin-top: 6px; display: flex; justify-content: space-between;">
           <span style="color: var(--text-muted);">Tồn kho:</span>
@@ -271,7 +282,9 @@ function renderLedgerProductList() {
         </div>
       </div>
     `;
-  }).join("");
+  }).join("") + (hiddenCount > 0
+    ? `<div style="padding: 12px; text-align: center; color: var(--text-muted); font-size: 12px;">Còn ${hiddenCount.toLocaleString("vi-VN")} mặt hàng khác — gõ mã hoặc tên vào ô tìm kiếm.</div>`
+    : "");
 
   container.innerHTML = html;
 }
