@@ -7345,3 +7345,20 @@ body.light-theme .custom-confirm-overlay.is-active {
 #printable-report-area .data-table td {
   color: #000;
 }
+
+/* Ô văn bản dài trong bảng danh sách: một dòng, cắt bằng "…", xem đủ qua tooltip (title) */
+.data-table td.cell-clip {
+  max-width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Tên/mã dạng liên kết trong bảng: chỉ gạch chân khi rê chuột (bớt rối mắt) */
+.data-table td a[style*="underline"] {
+  text-decoration: none !important;
+}
+.data-table td a[style*="underline"]:hover,
+.data-table td a[style*="underline"]:focus-visible {
+  text-decoration: underline !important;
+}

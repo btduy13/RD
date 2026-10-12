@@ -736,7 +736,7 @@ function renderPartnersTable() {
         <td>${typeBadge}</td>
         <td>${parentCell}</td>
         <td class="font-numeric">${escapePartnerText(p.phone || "-")}</td>
-        <td>${escapePartnerText(p.address || "-")}</td>
+        <td class="cell-clip" title="${escapePartnerText(p.address || "")}">${escapePartnerText(p.address || "-")}</td>
         <td>
           <span class="badge ${p.inactive ? 'badge-danger' : 'badge-success'}">
             ${p.inactive ? 'Ngừng theo dõi' : 'Đang theo dõi'}

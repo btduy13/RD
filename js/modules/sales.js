@@ -127,7 +127,7 @@ function buildSalesTableRowHtml(v) {
     : null;
   const exactPartner = resolvedPartner && resolvedPartner.id === v.partnerId ? resolvedPartner : null;
   const partnerLabel = exactPartner
-    ? getPartnerNameForVoucher(v)
+    ? escapeHtmlText(getPartnerNameForVoucher(v))
     : `<span style="color:var(--color-danger); font-weight:700;" title="Mã đối tác trên đơn không còn tồn tại trong danh mục">⚠ Chưa khớp: ${escapeHtmlAttr(v.partnerId || "thiếu mã đối tác")}</span>`;
   return `
       <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
@@ -137,7 +137,7 @@ function buildSalesTableRowHtml(v) {
         <td class="font-numeric" style="color: var(--color-success); font-weight:700;">${v.id}</td>
         <td>${formattedDate}</td>
         <td><span style="font-weight:600;">${partnerLabel}</span></td>
-        <td>${v.description}</td>
+        <td class="cell-clip" title="${escapeHtmlText(v.description || "")}">${escapeHtmlText(v.description || "")}</td>
         <td><span class="badge ${v.paymentMethod === '131' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '131' ? 'Công nợ (131)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
         <td class="text-right font-numeric">${formatVND(v.totalAmount)}</td>
         <td class="text-right font-numeric" style="color:var(--text-secondary);">${formatVND(v.cogsAmount)}</td>
@@ -1008,8 +1008,8 @@ function renderSalesReturnTable() {
         </td>
         <td class="font-numeric" style="color: var(--color-success); font-weight:700;">${v.id}</td>
         <td>${formattedDate}</td>
-        <td><span style="font-weight:600;">${getPartnerNameForVoucher(v)}</span></td>
-        <td>${v.description}</td>
+        <td><span style="font-weight:600;">${escapeHtmlText(getPartnerNameForVoucher(v))}</span></td>
+        <td class="cell-clip" title="${escapeHtmlText(v.description || "")}">${escapeHtmlText(v.description || "")}</td>
         <td><span class="badge ${v.paymentMethod === '131' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '131' ? 'Công nợ (131)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
         <td class="text-right font-numeric" style="font-weight:700; color:var(--color-success);">${formatVND(v.totalAmount)}</td>
         <td>
@@ -1710,8 +1710,8 @@ function renderQuotationTable() {
         </td>
         <td class="font-numeric" style="color: var(--color-success); font-weight:700;">${v.id}</td>
         <td>${formattedDate}</td>
-        <td><span style="font-weight:600;">${getPartnerNameForVoucher(v)}</span></td>
-        <td>${v.description}</td>
+        <td><span style="font-weight:600;">${escapeHtmlText(getPartnerNameForVoucher(v))}</span></td>
+        <td class="cell-clip" title="${escapeHtmlText(v.description || "")}">${escapeHtmlText(v.description || "")}</td>
         <td><span class="badge ${v.paymentMethod === '131' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '131' ? 'Công nợ (131)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
         <td class="text-right font-numeric" style="font-weight:700; color:var(--color-success);">${formatVND(v.totalAmount)}</td>
         <td style="text-align: center;">

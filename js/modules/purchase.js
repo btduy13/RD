@@ -121,8 +121,8 @@ function buildPurchaseTableRowHtml(v) {
         </td>
         <td class="font-numeric" style="color: var(--color-primary); font-weight:700;">${v.id}</td>
         <td>${formattedDate}</td>
-        <td style="font-weight:600; color:var(--text-primary);">${getPartnerNameForVoucher(v)}</td>
-        <td>${v.description}</td>
+        <td class="cell-clip" style="font-weight:600; color:var(--text-primary);" title="${escapeHtmlText(getPartnerNameForVoucher(v))}">${escapeHtmlText(getPartnerNameForVoucher(v))}</td>
+        <td class="cell-clip" title="${escapeHtmlText(v.description || "")}">${escapeHtmlText(v.description || "")}</td>
         <td><span class="badge ${v.paymentMethod === '331' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '331' ? 'Công nợ (331)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
         <td class="text-right font-numeric" style="font-weight:700; color:var(--color-primary);">${formatVND(v.totalAmount)}</td>
         <td>
@@ -1413,8 +1413,8 @@ function renderPurchaseOrderTable() {
         </td>
         <td class="font-numeric" style="color: var(--color-primary); font-weight:700;">${v.id}</td>
         <td>${formattedDate}</td>
-        <td style="font-weight:600; color:var(--text-primary);">${getPartnerNameForVoucher(v)}</td>
-        <td>${v.description}</td>
+        <td class="cell-clip" style="font-weight:600; color:var(--text-primary);" title="${escapeHtmlText(getPartnerNameForVoucher(v))}">${escapeHtmlText(getPartnerNameForVoucher(v))}</td>
+        <td class="cell-clip" title="${escapeHtmlText(v.description || "")}">${escapeHtmlText(v.description || "")}</td>
         <td><span class="badge ${v.paymentMethod === '331' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '331' ? 'Công nợ (331)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
         <td class="text-right font-numeric" style="font-weight:700; color:var(--color-primary);">${formatVND(v.totalAmount)}</td>
         <td>
@@ -1886,8 +1886,8 @@ function renderPurchaseReturnTable() {
         </td>
         <td class="font-numeric" style="color: var(--color-primary); font-weight:700;">${v.id}</td>
         <td>${formattedDate}</td>
-        <td style="font-weight:600; color:var(--text-primary);">${getPartnerNameForVoucher(v)}</td>
-        <td>${v.description}</td>
+        <td class="cell-clip" style="font-weight:600; color:var(--text-primary);" title="${escapeHtmlText(getPartnerNameForVoucher(v))}">${escapeHtmlText(getPartnerNameForVoucher(v))}</td>
+        <td class="cell-clip" title="${escapeHtmlText(v.description || "")}">${escapeHtmlText(v.description || "")}</td>
         <td><span class="badge ${v.paymentMethod === '131' ? 'badge-danger' : 'badge-success'}">${v.paymentMethod === '131' ? 'Công nợ (131)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'}</span></td>
         <td class="text-right font-numeric" style="font-weight:700; color:var(--color-primary);">${formatVND(v.totalAmount)}</td>
         <td>

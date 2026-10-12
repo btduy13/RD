@@ -175,8 +175,8 @@ function renderCashTable() {
         <td>${formattedDate}</td>
         <td>${formattedDate}</td>
         <td style="font-weight:bold; color:var(--color-primary);">${v.id}</td>
-        <td><a href="#" onclick="viewPartnerLedger('${escapedPartnerId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${getPartnerNameForVoucher(v)}</a></td>
-        <td>${v.description}</td>
+        <td><a href="#" onclick="viewPartnerLedger('${escapedPartnerId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${escapeHtmlText(getPartnerNameForVoucher(v))}</a></td>
+        <td class="cell-clip" title="${escapeHtmlText(v.description || "")}">${escapeHtmlText(v.description || "")}</td>
         <td style="text-align:right; font-weight:700;" class="font-numeric">${formatVND(v.amount).replace("đ", "")}</td>
         <td>
           <span class="badge ${isReceipt ? 'badge-success' : 'badge-danger'}">

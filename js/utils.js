@@ -207,6 +207,14 @@ async function readExcelViaIPC(filename) {
 }
 
 // Trích xuất ID nằm trong dấu ngoặc kép ở cuối chuỗi, hỗ trợ cả ngoặc lồng nhau (ví dụ: "(37NGUYENBINH(CH))")
+// Chèn văn bản (tên, diễn giải… từ Excel/máy khác) vào HTML an toàn.
+function escapeHtmlText(value) {
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+window.escapeHtmlText = escapeHtmlText;
+
 // Mã đối tác chuẩn: bỏ khoảng trắng hai đầu, CHỮ HOA (kể cả chữ có dấu: "Mùi" → "MÙI").
 function normalizePartnerCode(id) {
   return String(id == null ? "" : id).trim().toUpperCase();
