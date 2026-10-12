@@ -435,6 +435,7 @@ function appendLedgerBalanceColumn(tbody, entries, openingVal, role) {
         const td = document.createElement("td");
         td.style.textAlign = "right";
         td.style.fontWeight = "600";
+        td.style.whiteSpace = "nowrap";
         td.className = "font-numeric";
         td.textContent = fmt(running);
         tr.appendChild(td);
@@ -445,7 +446,7 @@ function appendLedgerBalanceColumn(tbody, entries, openingVal, role) {
     total.innerHTML = `<td colspan="4" style="font-weight:700;">Cộng phát sinh trong kỳ</td>
         <td style="text-align:right; font-weight:700;" class="font-numeric">${formatVND(debitSum).replace("đ", "")}</td>
         <td style="text-align:right; font-weight:700;" class="font-numeric">${formatVND(creditSum).replace("đ", "")}</td>
-        <td style="text-align:right; font-weight:700;" class="font-numeric">${fmt(running)}</td>`;
+        <td style="text-align:right; font-weight:700; white-space:nowrap;" class="font-numeric">${fmt(running)}</td>`;
     tbody.appendChild(total);
 }
 
