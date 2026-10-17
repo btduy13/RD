@@ -218,6 +218,111 @@ function calculateInventoryValueAt(products, vouchers, toDate) {
   return totalValue;
 }
 
+// ---------------------------------------------------------------------------
+// Gợi ý sửa tài khoản đối ứng trên phiếu thu/chi — dùng chung cho nhập Excel sổ quỹ và
+// công cụ rà soát ở tab Công nợ. Chỉ gợi ý khi có bằng chứng rõ (đối tác đã có chứng từ
+// ghi công nợ, mô tả nêu rõ GTGT/môn bài/trả nợ); trường hợp mơ hồ để kế toán tự quyết.
+// ---------------------------------------------------------------------------
+function foldAccountingText(text) {
+  return String(text || "").toLowerCase().normalize("NFD")
+    .replace(/[̀-ͯ]/g, "").replace(/đ/g, "d");
+}
+
+function isBankLikePartner(partner, partnerId) {
+  const text = foldAccountingText(`${partnerId || ""} ${partner && partner.name || ""}`);
+  return /ngan hang|bank|sacom/.test(text);
+}
+
+// Số chứng từ ghi công nợ theo đối tác: hóa đơn bán chịu (131) và phiếu nhập mua chịu (331).
+function buildPartnerDebtVoucherStats(vouchers) {
+  const stats = new Map();
+  (vouchers || []).forEach(v => {
+    if (!v || !v.partnerId) return;
+    const pid = String(v.partnerId);
+    const method = String(v.paymentMethod ?? "").trim();
+    let s = stats.get(pid);
+    if (!s) { s = { salesOn131: 0, purchasesOn331: 0 }; stats.set(pid, s); }
+    if (v.type === "sales" && method === "131") s.salesOn131++;
+    if (v.type === "purchase" && method === "331") s.purchasesOn331++;
+  });
+  return stats;
+}
+
+// Trả về { from, to, reason } hoặc null. account: TK ghi Có (phiếu thu) / ghi Nợ (phiếu chi).
+function suggestCashAccountFix(type, account, description, partner, partnerId, stats) {
+  const acc = String(account ?? "").trim();
+  const desc = foldAccountingText(description);
+  const st = stats || { salesOn131: 0, purchasesOn331: 0 };
+  const hasLoanWord = /(^|[^a-z0-9])vay([^a-z0-9]|$)/.test(desc) || desc.includes("giai ngan");
+  const fix = (to, reason) => ({ from: acc, to, reason });
+  if (type === "payment") {
+    // Phiếu gộp thuế với phí vận chuyển/bốc xếp ("thuế GTGT + phí lô hàng") cần tách tay — không gợi ý.
+    const mixedTaxPayment = /\+|van chuyen|boc xep|(^|[^a-z0-9])phi([^a-z0-9]|$)/.test(desc);
+    if (acc === "333" && desc.includes("gtgt") && !mixedTaxPayment) return fix("3331", "Nộp thuế GTGT ghi giảm TK 3331 (thuế GTGT phải nộp), không ghi TK tổng hợp 333");
+    if (acc === "333" && desc.includes("mon bai")) return fix("3338", "Lệ phí môn bài hạch toán TK 3338");
+    if (!partnerId) return null;
+    if (acc === "341" && !hasLoanWord && !isBankLikePartner(partner, partnerId) && /(^|[^a-z0-9])no([^a-z0-9]|$)/.test(desc) && st.purchasesOn331 > 0) {
+      return fix("331", "Trả nợ nhà cung cấp (đối tác có phiếu nhập ghi Có 331), không phải trả nợ vay 341");
+    }
+    if (acc === "156" && st.purchasesOn331 > 0) {
+      return fix("331", "Thanh toán cho NCC đã có phiếu nhập ghi Có 331 — ghi Nợ 156 lần nữa sẽ tăng kho hai lần");
+    }
+    return null;
+  }
+  if (type === "receipt") {
+    if (!partnerId) return null;
+    if (acc === "341" && !hasLoanWord && !isBankLikePartner(partner, partnerId)) {
+      return fix("131", "Tiền khách trả (ngân hàng trong diễn giải chỉ là kênh chuyển khoản), không phải tiền vay 341");
+    }
+    if (acc === "511" && st.salesOn131 > 0) {
+      return fix("131", "Khách đã có hóa đơn bán chịu ghi Nợ 131 — thu tiền ghi Có 511 lần nữa làm doanh thu tăng hai lần");
+    }
+  }
+  return null;
+}
+
+// Gợi ý cho cả một phiếu thu/chi: chỉ xét vế đối ứng (Có của phiếu thu, Nợ của phiếu chi).
+function suggestCashVoucherAccountFixes(v, partner, stats) {
+  if (!v || (v.type !== "receipt" && v.type !== "payment") || !Array.isArray(v.entries)) return [];
+  const side = v.type === "receipt" ? "credit" : "debit";
+  const out = [];
+  v.entries.forEach((e, index) => {
+    if (!e) return;
+    const s = suggestCashAccountFix(v.type, e[side], e.desc || v.description, partner, v.partnerId, stats);
+    if (s) out.push({ ...s, index, side, amount: Number(e.amount) || 0 });
+  });
+  return out;
+}
+
+// Số dư đầu kỳ ký quỹ: TT133 không có TK 244/344 — số dư đã khai ở 244/344 (tên ghi rõ "TK 1386/3386
+// theo TT133") được đọc gộp vào 1386/3386, khớp với bút toán ký quỹ (mapCashDepositEntries). Chỉ đọc,
+// không đổi dữ liệu đã lưu, để chuyển lại TT200 vẫn giữ nguyên số dư gốc.
+const TT133_OPENING_ALIASES = { "1386": "244", "3386": "344" };
+const TT133_OPENING_ALIAS_SOURCES = new Set(Object.values(TT133_OPENING_ALIASES));
+
+function isHiddenOpeningAlias(code, standard) {
+  return standard !== "TT200" && TT133_OPENING_ALIAS_SOURCES.has(String(code));
+}
+
+function getOpeningBalanceForAccount(initialBalances, code, standard) {
+  const all = initialBalances || {};
+  const key = String(code);
+  const primary = all[key];
+  const aliasKey = standard !== "TT200" ? TT133_OPENING_ALIASES[key] : undefined;
+  const alias = aliasKey ? all[aliasKey] : undefined;
+  if (!alias) return primary || { type: "debit", balance: 0 };
+  const signed = ob => ob ? (ob.type === "credit" ? -1 : 1) * (Number(ob.balance) || 0) : 0;
+  const type = (primary || alias).type === "credit" ? "credit" : "debit";
+  const net = signed(primary) + signed(alias);
+  return { name: (primary && primary.name) || alias.name, type, balance: type === "credit" ? -net : net };
+}
+
+window.getOpeningBalanceForAccount = getOpeningBalanceForAccount;
+window.isHiddenOpeningAlias = isHiddenOpeningAlias;
+window.buildPartnerDebtVoucherStats = buildPartnerDebtVoucherStats;
+window.suggestCashAccountFix = suggestCashAccountFix;
+window.suggestCashVoucherAccountFixes = suggestCashVoucherAccountFixes;
+window.isBankLikePartner = isBankLikePartner;
 window.createVoucherPartnerResolver = createVoucherPartnerResolver;
 window.compareVouchersForAccounting = compareVouchersForAccounting;
 window.getRecalcWatermark = getRecalcWatermark;

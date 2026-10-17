@@ -24,6 +24,7 @@ const REPORT_ACCOUNT_NAME_CATALOG = {
   "242": "Chi phí trả trước",
   "333": "Thuế và các khoản phải nộp Nhà nước",
   "3334": "Thuế thu nhập doanh nghiệp",
+  "3338": "Thuế bảo vệ môi trường và các loại thuế khác",
   "334": "Phải trả người lao động",
   "338": "Phải trả, phải nộp khác",
   "341": "Vay và nợ thuê tài chính",
@@ -71,11 +72,22 @@ function getReportAccounts() {
     if (!/^\d{3,}$/.test(code) || byCode.has(code)) return;
     byCode.set(code, { code, name: name || getReportAccountCatalogName(code, std) || `Tài khoản ${code}` });
   };
-  Object.entries(state.initialBalances || {}).forEach(([code, balance]) => include(code, balance && balance.name));
+  Object.entries(state.initialBalances || {}).forEach(([code, balance]) => {
+    // TT133: số dư 244/344 được gộp vào 1386/3386 (getReportOpeningBalance), không hiện dòng riêng.
+    if (typeof isHiddenOpeningAlias === "function" && isHiddenOpeningAlias(code, std)) return;
+    include(code, balance && balance.name);
+  });
   (state.vouchers || []).forEach(v => (v.entries || []).forEach(e => {
     include(e.debit); include(e.credit);
   }));
   return [...byCode.values()].sort((a, b) => a.code.localeCompare(b.code));
+}
+
+function getReportOpeningBalance(acctCode) {
+  if (typeof getOpeningBalanceForAccount === "function") {
+    return getOpeningBalanceForAccount(state.initialBalances, acctCode, state.accountingStandard);
+  }
+  return (state.initialBalances && state.initialBalances[acctCode]) || { type: "debit", balance: 0 };
 }
 
 function populateReportAccountDropdown() {
@@ -208,7 +220,9 @@ function generateReport() {
   // B. BÁO CÁO 2: SỔ CÁI CHI TIẾT TÀI KHOẢN
   else if (type === "ledger") {
     const acctCode = document.getElementById("select-report-account").value;
-    const acctName = state.initialBalances[acctCode] ? state.initialBalances[acctCode].name : "Tài khoản";
+    // Cùng tên với dropdown/Bảng cân đối (danh mục chuẩn), không chỉ tên ở số dư đầu kỳ.
+    const reportAcct = getReportAccounts().find(a => a.code === acctCode);
+    const acctName = reportAcct ? reportAcct.name : (getReportOpeningBalance(acctCode).name || "Tài khoản");
 
     html += `
       <div style="text-align:center; font-family:'Times New Roman', serif; color:#000; margin-bottom:20px;">
@@ -233,7 +247,7 @@ function generateReport() {
     `;
 
     // Lấy số dư đầu kỳ
-    const initBalObj = state.initialBalances[acctCode] || { type: "debit", balance: 0 };
+    const initBalObj = getReportOpeningBalance(acctCode);
     let currentBalance = Number(initBalObj.balance) || 0;
     const isDebitAccount = initBalObj.type === "debit";
 
@@ -476,7 +490,7 @@ function calculateTrialBalance() {
 
   accounts.forEach(acct => {
     // 1. Số dư đầu kỳ
-    const initBalObj = state.initialBalances[acct.code] || { type: "debit", balance: 0 };
+    const initBalObj = getReportOpeningBalance(acct.code);
     let openDeb = 0;
     let openCre = 0;
 
