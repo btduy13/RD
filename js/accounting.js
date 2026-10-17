@@ -621,6 +621,10 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
 
 // Call only after an explicit edit/import of partner opening balances.
 function syncPartnerOpeningAccounts() {
+  if (typeof applyPartnerOpeningTotals === "function") {
+    applyPartnerOpeningTotals(state);
+    return;
+  }
   if (state.initialBalances && state.partnerOpeningBalances) {
     let customerNetOpen = 0;
     let supplierNetOpen = 0;

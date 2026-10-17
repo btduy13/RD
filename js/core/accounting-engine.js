@@ -319,6 +319,63 @@ function getOpeningBalanceForAccount(initialBalances, code, standard) {
 
 window.getOpeningBalanceForAccount = getOpeningBalanceForAccount;
 window.isHiddenOpeningAlias = isHiddenOpeningAlias;
+// ---------------------------------------------------------------------------
+// Số dư đầu kỳ TK 131/331 = tổng số dư đầu kỳ chi tiết đối tác (khách: Nợ − Có; NCC: Có − Nợ).
+// Chi tiết đối tác đồng bộ cloud theo TỪNG mã còn tổng 131/331 đồng bộ cả tài khoản, nên sau khi
+// pull ghép số dư từ nhiều máy thì phải cộng lại (applyPartnerOpeningTotals) — nếu không Sổ cái 131
+// lệch công nợ chi tiết.
+// ---------------------------------------------------------------------------
+function computePartnerOpeningTotals(partners, openings) {
+  let customerNet = 0, supplierNet = 0;
+  const all = openings || {};
+  (partners || []).forEach(p => {
+    if (!p) return;
+    const op = all[p.id];
+    if (!op) return;
+    const debit = Number(op.debit) || 0, credit = Number(op.credit) || 0;
+    if (p.type === "supplier") supplierNet += credit - debit;
+    else customerNet += debit - credit;
+  });
+  const round2 = n => Math.round(n * 100) / 100;
+  return { customerNet: round2(customerNet), supplierNet: round2(supplierNet) };
+}
+
+// Ghi tổng vào initialBalances["131"/"331"] của targetState (chỉ khi tài khoản đã khai báo).
+// Trả về true nếu có thay đổi.
+function applyPartnerOpeningTotals(targetState) {
+  if (!targetState || !targetState.initialBalances || !targetState.partnerOpeningBalances) return false;
+  const { customerNet, supplierNet } = computePartnerOpeningTotals(targetState.partners, targetState.partnerOpeningBalances);
+  let changed = false;
+  const put = (code, net, positiveType, negativeType) => {
+    const ib = targetState.initialBalances[code];
+    if (!ib) return;
+    const type = net >= 0 ? positiveType : negativeType;
+    const balance = Math.abs(net);
+    if (ib.type === type && Math.abs((Number(ib.balance) || 0) - balance) < 0.005) return;
+    targetState.initialBalances[code] = { ...ib, type, balance };
+    changed = true;
+  };
+  put("131", customerNet, "debit", "credit");
+  put("331", supplierNet, "credit", "debit");
+  return changed;
+}
+
+// Dấu vân tay các dữ liệu làm thay đổi tổng 131/331: số dư đầu kỳ từng mã + loại đối tác.
+function partnerOpeningTotalsInputKey(st) {
+  if (!st) return "";
+  const openings = st.partnerOpeningBalances || {};
+  const parts = [];
+  (st.partners || []).forEach(p => {
+    if (!p || !openings[p.id]) return;
+    const op = openings[p.id];
+    parts.push(JSON.stringify([String(p.id), p.type === "supplier" ? "S" : "C", Number(op.debit) || 0, Number(op.credit) || 0]));
+  });
+  return parts.sort().join(",");
+}
+
+window.computePartnerOpeningTotals = computePartnerOpeningTotals;
+window.applyPartnerOpeningTotals = applyPartnerOpeningTotals;
+window.partnerOpeningTotalsInputKey = partnerOpeningTotalsInputKey;
 window.buildPartnerDebtVoucherStats = buildPartnerDebtVoucherStats;
 window.suggestCashAccountFix = suggestCashAccountFix;
 window.suggestCashVoucherAccountFixes = suggestCashVoucherAccountFixes;

@@ -236,6 +236,69 @@ async function main() {
     assert.equal(state.initialBalances['131'].balance, 1, 'viewer cannot resync');
   });
 
+  await test('partner list audit: merge same-name duplicates, rename code-named, delete junk', async () => {
+    const state = {
+      accountingStandard: 'TT133', products: [], initialBalances: { '131': { type: 'debit', balance: 0 } },
+      partnerOpeningBalances: { 'BANLET08/2026(CH)': { debit: 0, credit: 0 }, BUSY: { debit: 5, credit: 0 } }, partnerOpeningBalanceTs: {},
+      partners: [
+        { id: 'BANLET08(CH)', name: 'Bán Lẻ T08/2026', type: 'retail', address: '', phone: '' },
+        { id: 'BANLET08/2026(CH)', name: 'Bán Lẻ T08/2026', type: 'retail', address: '', phone: '' },
+        { id: 'AN1', name: 'Anh An', type: 'retail', address: '12 Lê Lợi', phone: '' },
+        { id: 'AN2', name: 'Anh An', type: 'retail', address: '', phone: '' },
+        { id: 'BANLET07/2026(CH)', name: 'BANLET07/2026(CH)', type: 'retail' },
+        { id: 'CHỊ PHƯỢNG (KH8101)', name: 'CHỊ PHƯỢNG (KH8101)', type: 'project' },
+        { id: 'TEST', name: 'test', type: 'retail' }, { id: 'CÂY', name: '150', type: 'retail' },
+        { id: '17', name: '17', type: 'retail' }, { id: 'BUSY', name: '18', type: 'retail' }
+      ],
+      vouchers: [
+        { id: 'BH1', type: 'sales', partnerId: 'BANLET08(CH)', partnerName: 'Bán Lẻ T08/2026' },
+        { id: 'BH2', type: 'sales', partnerId: 'BANLET08(CH)', partnerName: 'Bán Lẻ T08/2026' },
+        { id: 'BG1', type: 'sales_quotation', partnerId: 'BANLET08/2026(CH)', partnerName: 'Bán Lẻ T08/2026 - chị Hoa' },
+        { id: 'BH3', type: 'sales', partnerId: '17', partnerName: '17' }
+      ]
+    };
+    const c = makeContext(state, ['js/core/accounting-engine.js', 'js/core/partner-merge.js', 'js/modules/partners.js', 'js/modules/partner-audit.js']);
+    const deleted = [];
+    c.trackDeletedIds = ids => { deleted.push(...ids); };
+    c.showConfirmModal = async () => true;
+    let saved = 0;
+    const logs = [];
+    c.saveStateAndSyncVoucher = async () => { saved++; return true; };
+    c.recalculateAccounting = () => {};
+    c.logUserAction = (t, d) => logs.push(t + ': ' + d);
+    c.filterPartners = () => {};
+
+    const issues = c.computePartnerAuditIssues();
+    assert.deepEqual(issues.duplicates.map(d => `${d.sourceId}>${d.targetId}`), ['BANLET08/2026(CH)>BANLET08(CH)'],
+      'only exact same name+address+phone; "Anh An" with one address differing is not merged');
+    assert.deepEqual(issues.nameIsCode.map(n => `${n.id}=${n.suggestedName}`), ['BANLET07/2026(CH)=Bán Lẻ T07/2026']);
+    assert.deepEqual(issues.junk.map(j => j.id), ['TEST', 'CÂY'], 'junk only without vouchers/opening');
+
+    await c.mergeDuplicatePartner('BANLET08/2026(CH)', 'BANLET08(CH)');
+    assert.ok(!state.partners.some(p => p.id === 'BANLET08/2026(CH)'));
+    const bg = state.vouchers.find(v => v.id === 'BG1');
+    assert.equal(bg.partnerId, 'BANLET08(CH)');
+    assert.equal(bg.partnerName, 'Bán Lẻ T08/2026 - chị Hoa', 'voucher name snapshot kept');
+    assert.ok(deleted.includes('BANLET08/2026(CH)'), 'merged code tombstoned for cloud');
+
+    await c.renamePartnerFromCode('BANLET07/2026(CH)');
+    const p7 = state.partners.find(p => p.id === 'BANLET07/2026(CH)');
+    assert.equal(p7.name, 'Bán Lẻ T07/2026');
+    assert.ok(p7._updatedAt > 0);
+
+    await c.deleteJunkPartners();
+    assert.deepEqual(state.partners.map(p => p.id).filter(id => ['TEST', 'CÂY', '17', 'BUSY'].includes(id)), ['17', 'BUSY']);
+    assert.equal(saved, 3);
+    assert.equal(logs.length, 3);
+    const after = c.computePartnerAuditIssues();
+    assert.equal(after.duplicates.length + after.nameIsCode.length + after.junk.length, 0);
+
+    c.window.currentUser = { role: 'viewer' };
+    state.partners.push({ id: 'TEST2', name: 'test', type: 'retail' });
+    await c.deleteJunkPartners();
+    assert.ok(state.partners.some(p => p.id === 'TEST2'), 'viewer cannot delete');
+  });
+
   await test('report catalog uses official TT133/TT200 names', () => {
     const state = { accountingStandard: 'TT133', initialBalances: {}, vouchers: [{ id: 'X', entries: [{ debit: '211', credit: '1111', amount: 1 }, { debit: '156', credit: '1121', amount: 1 }] }] };
     const c = makeContext(state, ['js/core/accounting-engine.js', 'js/modules/reports.js']);

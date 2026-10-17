@@ -835,6 +835,7 @@ function filterPartners() {
 
   partnersPage = 1;
   renderPartnersTable();
+  if (typeof renderPartnerAuditPanel === "function") renderPartnerAuditPanel();
 }
 
 function openAddPartnerModal() {
