@@ -327,6 +327,14 @@ function applyRolePermissions() {
         </details>
       `;
       userInfoDisplay.style.display = 'inline-flex';
+      // Toast góc phải trên (z-index cao hơn header) nằm đè lên menu thả xuống ngay sau khi đăng nhập
+      // — mở menu thì đóng các toast đang hiện để bấm được "Đăng xuất".
+      const userMenu = userInfoDisplay.querySelector('details.user-menu');
+      if (userMenu) {
+        userMenu.addEventListener('toggle', () => {
+          if (userMenu.open) document.querySelectorAll('.toast-container .toast').forEach(t => t.remove());
+        });
+      }
     } else {
       userInfoDisplay.style.display = 'none';
     }

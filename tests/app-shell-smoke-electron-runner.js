@@ -658,6 +658,21 @@ async function main() {
   assert.deepEqual(debtLoginResult, { cloudActive: false, loggedIn: true, overlayHidden: true },
     'debt UI test uses normal login in the offline disposable profile');
 
+  // Menu tài khoản: "Đăng xuất" phải bấm được — không bị header (overflow) cắt, không bị toast đè.
+  const accountMenuResult = await win.webContents.executeJavaScript(`(async () => {
+    showToast('toast 1', 'info'); showToast('toast 2', 'info');
+    const menu = document.querySelector('#user-info-display details.user-menu');
+    menu.querySelector('summary').click();
+    await new Promise(resolve => setTimeout(resolve, 50));
+    const btn = menu.querySelector('.user-menu-danger');
+    const r = btn.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    menu.open = false;
+    return { visible: r.width > 0 && r.height > 0, clickable: hit === btn };
+  })()`, true);
+  assert.deepEqual(accountMenuResult, { visible: true, clickable: true }, 'logout item in the account menu must be clickable');
+  console.log('[app-shell-smoke] account menu logout reachable');
+
   const debtUiResult = await win.webContents.executeJavaScript(`(() => {
     const saved = { partners: state.partners, vouchers: state.vouchers, opening: state.partnerOpeningBalances };
     try {
