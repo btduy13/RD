@@ -10,6 +10,41 @@ function escapeReportText(value) {
     .replace(/'/g, "&#039;");
 }
 
+// Danh mục tên tài khoản theo TT133/TT200. Chỉ dùng để đặt tên cho tài khoản thực sự có số liệu
+// (số dư đầu kỳ hoặc bút toán) — không tự thêm tài khoản bằng 0 vào báo cáo.
+const REPORT_ACCOUNT_NAME_CATALOG = {
+  "1111": "Tiền mặt Việt Nam",
+  "1121": "Tiền gửi ngân hàng Việt Nam",
+  "152": "Nguyên liệu, vật liệu",
+  "153": "Công cụ, dụng cụ",
+  "154": "Chi phí sản xuất, kinh doanh dở dang",
+  "155": "Thành phẩm",
+  "211": "Tài sản cố định hữu hình",
+  "214": "Hao mòn tài sản cố định",
+  "242": "Chi phí trả trước",
+  "333": "Thuế và các khoản phải nộp Nhà nước",
+  "3334": "Thuế thu nhập doanh nghiệp",
+  "334": "Phải trả người lao động",
+  "338": "Phải trả, phải nộp khác",
+  "341": "Vay và nợ thuê tài chính",
+  "421": "Lợi nhuận sau thuế chưa phân phối",
+  "515": "Doanh thu hoạt động tài chính",
+  "5211": "Chiết khấu thương mại",
+  "5212": "Giảm giá hàng bán",
+  "5213": "Hàng bán bị trả lại",
+  "635": "Chi phí tài chính",
+  "641": "Chi phí bán hàng",
+  "711": "Thu nhập khác",
+  "811": "Chi phí khác",
+  "821": "Chi phí thuế thu nhập doanh nghiệp",
+  "911": "Xác định kết quả kinh doanh"
+};
+
+function getReportAccountCatalogName(code, std) {
+  if (code === "642") return std === "TT200" ? "Chi phí quản lý doanh nghiệp" : "Chi phí quản lý kinh doanh";
+  return REPORT_ACCOUNT_NAME_CATALOG[code] || "";
+}
+
 function getReportAccounts() {
   const std = state.accountingStandard;
 
@@ -34,7 +69,7 @@ function getReportAccounts() {
   const include = (rawCode, name) => {
     const code = String(rawCode ?? '').trim();
     if (!/^\d{3,}$/.test(code) || byCode.has(code)) return;
-    byCode.set(code, { code, name: name || `Tài khoản ${code}` });
+    byCode.set(code, { code, name: name || getReportAccountCatalogName(code, std) || `Tài khoản ${code}` });
   };
   Object.entries(state.initialBalances || {}).forEach(([code, balance]) => include(code, balance && balance.name));
   (state.vouchers || []).forEach(v => (v.entries || []).forEach(e => {
