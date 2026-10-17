@@ -176,8 +176,11 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
 
       // TT133: thuế GTGT gộp vào giá hàng mua (cộng tax vào TK 156)
       const purchaseDebitAmount = (state.accountingStandard === "TT133") ? (itemSubtotal + taxAmount) : itemSubtotal;
+      // Phiếu nhập thiếu hình thức thanh toán (vd. nhập Excel không khớp NCC) từng sinh bút toán thiếu vế Có
+      // làm lệch Bảng cân đối phát sinh — mặc định ghi công nợ 331.
+      if (!String(v.paymentMethod ?? "").trim()) v.paymentMethod = "331";
       v.entries = [
-        { debit: "156", credit: v.paymentMethod, amount: purchaseDebitAmount, desc: `Nhập kho ${v.description}` },
+        { debit: "156", credit: v.paymentMethod, amount: purchaseDebitAmount, desc: `Nhập kho ${v.description || v.notes || v.id || ""}` },
       ];
       // TT200: tách riêng TK 1331 cho thuế GTGT đầu vào
       if (taxAmount > 0 && state.accountingStandard !== "TT133") {
@@ -221,14 +224,14 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
       // Nợ 511: Giảm doanh thu / Có 131: Giảm công nợ phải thu
       const creditAccSR = v.paymentMethod && v.paymentMethod !== "131" ? v.paymentMethod : "131";
       v.entries = [
-        { debit: "511", credit: creditAccSR, amount: itemSubtotal, desc: `Giảm doanh thu bán hàng trả lại: ${v.description}` }
+        { debit: "511", credit: creditAccSR, amount: itemSubtotal, desc: `Giảm doanh thu bán hàng trả lại: ${v.description || v.notes || v.id || ""}` }
       ];
       if (taxAmountSR > 0) {
         v.entries.push({ debit: "3331", credit: creditAccSR, amount: taxAmountSR, desc: "Giảm thuế GTGT đầu ra" });
       }
       // Nhập lại kho: Nợ 156 / Có 632
       if (totalCogs > 0) {
-        v.entries.push({ debit: "156", credit: "632", amount: totalCogs, desc: `Nhập lại kho hàng bán trả lại: ${v.description}` });
+        v.entries.push({ debit: "156", credit: "632", amount: totalCogs, desc: `Nhập lại kho hàng bán trả lại: ${v.description || v.notes || v.id || ""}` });
       }
 
     } else if (v.type === "purchase_return") {
@@ -274,7 +277,7 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
       const creditAccPR = v.paymentMethod && v.paymentMethod !== "331" ? v.paymentMethod : "331";
       // Entry chính: Nợ 331 / Có 156 theo giá trị trả (itemSubtotal) — tác động đúng đến công nợ
       v.entries = [
-        { debit: creditAccPR, credit: "156", amount: itemSubtotal, desc: `Xuất trả hàng NCC: ${v.description}` }
+        { debit: creditAccPR, credit: "156", amount: itemSubtotal, desc: `Xuất trả hàng NCC: ${v.description || v.notes || v.id || ""}` }
       ];
       // Nếu giá vốn khác giá trị trả: ghi chênh lệch vào TK 711
       // C7 Fix: Ghi chênh lệch vào TK 632/711, không credit TK 156 lần thứ hai
@@ -337,8 +340,11 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
       // Định khoản kép cho bán hàng (2 cặp bút toán song song):
       // Bút toán 1: Ghi nhận doanh thu
       // Nợ TK 111, 112, 131 / Có TK 511 (Doanh thu), Có TK 3331 (Thuế GTGT đầu ra)
+      // Hóa đơn thiếu hình thức thanh toán (vd. nhập Excel không khớp khách hàng) từng sinh bút toán
+      // thiếu vế Nợ làm lệch Bảng cân đối phát sinh — mặc định ghi công nợ 131.
+      if (!String(v.paymentMethod ?? "").trim()) v.paymentMethod = "131";
       v.entries = [
-        { debit: v.paymentMethod, credit: "511", amount: itemSubtotal, desc: `Doanh thu ${v.description}` }
+        { debit: v.paymentMethod, credit: "511", amount: itemSubtotal, desc: `Doanh thu ${v.description || v.notes || v.id || ""}` }
       ];
       if (taxAmount > 0) {
         v.entries.push({ debit: v.paymentMethod, credit: "3331", amount: taxAmount, desc: "Thuế GTGT đầu ra phải nộp" });
@@ -347,7 +353,7 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
       // Bút toán 2: Ghi nhận giá vốn
       // Nợ TK 632 / Có TK 156
       if (totalCogs > 0) {
-        v.entries.push({ debit: "632", credit: "156", amount: totalCogs, desc: `Giá vốn ${v.description}` });
+        v.entries.push({ debit: "632", credit: "156", amount: totalCogs, desc: `Giá vốn ${v.description || v.notes || v.id || ""}` });
       }
 
     } else if (v.type === "escrow_pay") {
@@ -615,6 +621,10 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
 
 // Call only after an explicit edit/import of partner opening balances.
 function syncPartnerOpeningAccounts() {
+  if (typeof applyPartnerOpeningTotals === "function") {
+    applyPartnerOpeningTotals(state);
+    return;
+  }
   if (state.initialBalances && state.partnerOpeningBalances) {
     let customerNetOpen = 0;
     let supplierNetOpen = 0;
@@ -716,7 +726,9 @@ async function deleteVoucher(id) {
 
 // Tìm số dư của tài khoản (111, 112, 156, etc.) phục vụ Dashboard và báo cáo
 function getAccountBalance(acctCode, toDate = "") {
-  const initBalObj = (state.initialBalances && state.initialBalances[acctCode]) || { type: "debit", balance: 0 };
+  const initBalObj = typeof getOpeningBalanceForAccount === "function"
+    ? getOpeningBalanceForAccount(state.initialBalances, acctCode, state.accountingStandard)
+    : ((state.initialBalances && state.initialBalances[acctCode]) || { type: "debit", balance: 0 });
   let bal = Number(initBalObj.balance) || 0;
   const isDebit = initBalObj.type === "debit";
 

@@ -44,6 +44,16 @@ assert.equal(complete.find(r => r.code === '711').moveCredit, 75, 'inventory adj
 assert.equal(complete.find(r => r.code === '1121').moveDebit, 10, 'imported subaccounts must appear');
 assert.equal(complete.find(r => r.code === '3388').openCredit, 25, 'non-default opening accounts must appear');
 assert.equal(complete.reduce((s,r) => s+r.moveDebit, 0), complete.reduce((s,r) => s+r.moveCredit, 0), 'every double-entry movement stays balanced');
+// Tài khoản có số liệu lấy tên chuẩn từ danh mục; tên người dùng đặt ở số dư đầu kỳ được ưu tiên
+assert.equal(complete.find(r => r.code === '711').name, 'Thu nhập khác', 'catalog names known accounts');
+assert.equal(complete.find(r => r.code === '3388').name, 'Khoản phải trả khác', 'user-entered opening name wins over catalog');
+assert.ok(!complete.some(r => r.code === '911'), 'catalog must not add zero accounts to the trial balance');
+state.vouchers.push({ id:'EXP', entries:[{ debit:'642', credit:'111', amount:'5' }, { debit:'9999', credit:'111', amount:'1' }] });
+assert.equal(sandbox.getReportAccounts().find(a => a.code === '642').name, 'Chi phí quản lý doanh nghiệp', 'TT200 name for 642');
+assert.equal(sandbox.getReportAccounts().find(a => a.code === '9999').name, 'Tài khoản 9999', 'unknown accounts keep generic name');
+state.accountingStandard = 'TT133';
+assert.equal(sandbox.getReportAccounts().find(a => a.code === '642').name, 'Chi phí quản lý kinh doanh', 'TT133 name for 642');
+state.accountingStandard = 'TT200';
 const elements = { 'printable-report-area':{}, 'select-report-type':{value:'ledger'}, 'select-report-account':{value:'111'} };
 sandbox.document = {getElementById:id => elements[id]};
 sandbox.formatDateDisplay = value => value || '';

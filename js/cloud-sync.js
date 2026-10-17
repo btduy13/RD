@@ -2674,6 +2674,15 @@ async function pullAndMergeFromCloud(options = {}) {
     // top-level state object.
     if (hasDurablePendingField) merged._pendingCloudWrite = durablePendingWrite;
     const stats = mergeResult.stats;
+    // Số dư đầu kỳ đối tác/loại đối tác vừa ghép từ máy khác: cộng lại tổng 131/331 để Sổ cái khớp
+    // công nợ chi tiết (tổng đồng bộ cả tài khoản nên có thể là bản cũ). Đẩy lên cloud ở lần push sau.
+    if (typeof applyPartnerOpeningTotals === "function" &&
+        partnerOpeningTotalsInputKey(merged) !== partnerOpeningTotalsInputKey(state) &&
+        applyPartnerOpeningTotals(merged)) {
+      stats.changed = true;
+      pushPending = true;
+      cloudSyncLog("Pull: số dư đầu kỳ đối tác thay đổi, đã cộng lại tổng TK 131/331.");
+    }
     const prunedCount = cloudSyncPruneStaleLocalOnlyItems(merged, state, cloudSnapshot, checkpoint);
     renumberedVouchers.forEach(({ oldId, newId, refIds }) => {
       [oldId, newId, ...refIds].forEach(id => stats.changedIdsByEntity.vouchers.add(id));

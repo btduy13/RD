@@ -404,7 +404,9 @@ body.light-theme .brand-logo {
   box-sizing: border-box;
   position: relative;
   z-index: 100;
-  overflow: hidden;
+  /* clip (không phải hidden) chỉ cắt chiều ngang, để menu tài khoản thả xuống được dưới header */
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
 .header-title-section {
@@ -5440,6 +5442,13 @@ body.role-accountant [data-role-required="recalibrate"] {
   color: var(--color-accent);
   white-space: nowrap;
   max-width: min(320px, 34vw);
+}
+
+/* Cắt tên dài trong chip, nhưng không cắt menu thả xuống (.user-menu-list) */
+.user-chip .user-menu,
+.user-chip .user-menu-trigger { min-width: 0; max-width: 100%; }
+.user-chip .user-menu-trigger > span:not(.chip-dot) {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }

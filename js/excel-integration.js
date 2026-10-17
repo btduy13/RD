@@ -307,6 +307,8 @@ async function autoIntegrateVouchersExcel() {
 
         let count = 0;
         const resolveImportPartner = createImportPartnerResolver(state.partners);
+        // Thống kê công nợ theo đối tác để sửa TK đối ứng theo bằng chứng (xem suggestCashAccountFix).
+        const importDebtStats = typeof buildPartnerDebtVoucherStats === "function" ? buildPartnerDebtVoucherStats(state.vouchers) : null;
         for (let i = 2; i < rows.length; i++) {
             const row = rows[i];
             const id = (row[2] || "").toString().trim();
@@ -392,6 +394,12 @@ async function autoIntegrateVouchersExcel() {
             if (type === "payment" && !debitAccount) {
                 debitAccount = defaultImportedPaymentDebit(matched);
                 if (debitAccount !== "331") needsReview = true;
+            }
+            if (importDebtStats && typeof suggestCashAccountFix === "function") {
+                const accountFix = suggestCashAccountFix(type, type === "receipt" ? creditAccount : debitAccount,
+                    description, matched, partnerId, importDebtStats.get(String(partnerId)));
+                if (accountFix && type === "receipt") creditAccount = accountFix.to;
+                else if (accountFix) debitAccount = accountFix.to;
             }
 
             const vObj = {
@@ -2326,6 +2334,8 @@ function parseExcelFile(file, type) {
             } else if (type === 'vouchers') {
                 let count = 0;
                 const resolveImportPartner = createImportPartnerResolver(state.partners);
+                // Thống kê công nợ theo đối tác để sửa TK đối ứng theo bằng chứng (xem suggestCashAccountFix).
+                const importDebtStats = typeof buildPartnerDebtVoucherStats === "function" ? buildPartnerDebtVoucherStats(state.vouchers) : null;
                 for (let i = 2; i < rows.length; i++) {
                     const row = rows[i];
                     const id = (row[2] || "").toString().trim();
@@ -2416,6 +2426,12 @@ function parseExcelFile(file, type) {
                     if (type === "payment" && !debitAccount) {
                         debitAccount = defaultImportedPaymentDebit(matched);
                         if (debitAccount !== "331") needsReview = true;
+                    }
+                    if (importDebtStats && typeof suggestCashAccountFix === "function") {
+                        const accountFix = suggestCashAccountFix(type, type === "receipt" ? creditAccount : debitAccount,
+                            description, matched, partnerId, importDebtStats.get(String(partnerId)));
+                        if (accountFix && type === "receipt") creditAccount = accountFix.to;
+                        else if (accountFix) debitAccount = accountFix.to;
                     }
 
                     const vObj = {
