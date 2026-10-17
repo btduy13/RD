@@ -13,13 +13,12 @@ function escapeReportText(value) {
 // Danh mục tên tài khoản theo TT133/TT200. Chỉ dùng để đặt tên cho tài khoản thực sự có số liệu
 // (số dư đầu kỳ hoặc bút toán) — không tự thêm tài khoản bằng 0 vào báo cáo.
 const REPORT_ACCOUNT_NAME_CATALOG = {
-  "1111": "Tiền mặt Việt Nam",
-  "1121": "Tiền gửi ngân hàng Việt Nam",
+  "1111": "Tiền Việt Nam",
+  "1121": "Tiền Việt Nam",
   "152": "Nguyên liệu, vật liệu",
   "153": "Công cụ, dụng cụ",
   "154": "Chi phí sản xuất, kinh doanh dở dang",
   "155": "Thành phẩm",
-  "211": "Tài sản cố định hữu hình",
   "214": "Hao mòn tài sản cố định",
   "242": "Chi phí trả trước",
   "333": "Thuế và các khoản phải nộp Nhà nước",
@@ -42,7 +41,9 @@ const REPORT_ACCOUNT_NAME_CATALOG = {
 };
 
 function getReportAccountCatalogName(code, std) {
+  // Tên khác nhau giữa hai chế độ: TT133 gộp TSCĐ vào 211 và chi phí bán hàng + QLDN vào 642.
   if (code === "642") return std === "TT200" ? "Chi phí quản lý doanh nghiệp" : "Chi phí quản lý kinh doanh";
+  if (code === "211") return std === "TT200" ? "Tài sản cố định hữu hình" : "Tài sản cố định";
   return REPORT_ACCOUNT_NAME_CATALOG[code] || "";
 }
 
@@ -56,7 +57,7 @@ function getReportAccounts() {
     { code: "131", name: "Phải thu của khách hàng" },
     { code: "1331", name: "Thuế GTGT đầu vào được khấu trừ" },
     { code: "1388", name: "Phải thu khác" },
-    { code: "156", name: "Hàng hóa nhập kho" },
+    { code: "156", name: "Hàng hóa" },
     { code: std === "TT200" ? "244" : "1386", name: "Phải thu ký quỹ, ký cược" },
     { code: "331", name: "Phải trả cho người bán" },
     { code: "3331", name: "Thuế GTGT phải nộp" },

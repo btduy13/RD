@@ -3253,6 +3253,7 @@ function computeDebt131Reconciliation(allDebts, fromDate = "", toDate = "") {
     initialOpeningMatched: Math.abs(initialOpeningDiff) <= 1,
     partnerCashWithoutDebt: computePartnerCashWithoutDebtLines(fromDate, toDate),
     cashAccountFixes: computeCashAccountFixSuggestions(),
+    orphanPartnerRelinks: computeOrphanPartnerRelinks(),
     possibleDoubleRefunds: computePossibleDoubleRefunds(rows, fromDate, toDate)
   };
 }
@@ -3342,6 +3343,162 @@ async function applyCashAccountFixes() {
     logUserAction("Sửa tài khoản", `Sửa TK đối ứng ${changed.length} phiếu: ${changed.slice(0, 30).join("; ")}${changed.length > 30 ? "…" : ""}`);
   }
   showToast(`Đã sửa tài khoản cho ${changed.length} phiếu thu/chi.`, "success");
+  if (typeof filterDebts === "function") filterDebts();
+}
+
+// Chứng từ trỏ tới mã đối tác không còn trong danh mục (vd. mã DT_ ngẫu nhiên do bản nhập Excel cũ
+// tự sinh, sau đó đã bị xóa) → gợi ý gán lại theo TÊN trên chứng từ bằng đúng bộ khớp tên của luồng
+// nhập Excel (createImportPartnerResolver: mã, cùng thương hiệu, tên chính xác duy nhất, tiền tố dài nhất).
+// Không tạo đối tác mới; tên mơ hồ/không khớp để kế toán tự xử lý.
+const PARTNER_RELINK_TYPES = new Set(["sales", "sales_return", "purchase", "purchase_return", "receipt", "payment"]);
+function computeOrphanPartnerRelinks() {
+  if (typeof createImportPartnerResolver !== "function") return [];
+  const partners = state.partners || [];
+  const resolveExisting = createVoucherPartnerResolver(partners);
+  const idSet = new Set(partners.map(p => String(p.id)));
+  const resolveByName = createImportPartnerResolver(partners);
+  const rows = [];
+  (state.vouchers || []).forEach(v => {
+    if (!v || !PARTNER_RELINK_TYPES.has(v.type)) return;
+    const current = v.partnerId ? resolveExisting(v) : "";
+    if (current && idSet.has(String(current))) return;
+    const name = String(v.partnerName || "").trim();
+    if (!name) return;
+    const target = resolveByName(name);
+    if (!target) return;
+    const isSupplier = target.type === "supplier";
+    if ((v.type === "sales" || v.type === "sales_return") && isSupplier) return;
+    if ((v.type === "purchase" || v.type === "purchase_return") && !isSupplier) return;
+    rows.push({
+      id: v.id, date: v.date || "", type: v.type,
+      from: v.partnerId ? String(v.partnerId) : "",
+      to: String(target.id), toName: target.name || "",
+      partnerName: name,
+      amount: Number(v.totalAmount ?? v.amount) || 0
+    });
+  });
+  rows.sort((a, b) => (a.date || "").localeCompare(b.date || "") || String(a.id).localeCompare(String(b.id)));
+  return rows;
+}
+
+async function applyOrphanPartnerRelinks() {
+  if (window.currentUser && window.currentUser.role === "viewer") {
+    showToast("Tài khoản chỉ xem không được sửa chứng từ.", "error");
+    return;
+  }
+  const rows = computeOrphanPartnerRelinks();
+  if (!rows.length) { showToast("Không còn chứng từ nào gán lại được theo tên.", "info"); return; }
+  const targets = new Set(rows.map(r => r.to));
+  const ok = typeof showConfirmModal === "function" ? await showConfirmModal({
+    title: "Gán lại đối tác theo tên",
+    message: `Gán ${rows.length} chứng từ chưa khớp đối tác vào ${targets.size} đối tác có trong danh mục (khớp theo tên trên chứng từ)? Công nợ từng đối tác sẽ được tính lại.`,
+    confirmText: "Gán lại",
+    cancelText: "Hủy bỏ",
+    type: "warning"
+  }) : true;
+  if (!ok) return;
+  const byVoucher = new Map(rows.map(r => [String(r.id), r]));
+  const changed = [];
+  (state.vouchers || []).forEach(v => {
+    const r = v && byVoucher.get(String(v.id));
+    if (!r || String(v.partnerId || "") !== r.from) return;
+    v.partnerId = r.to;
+    delete v.needsReview;
+    v._updatedAt = Math.max(Date.now(), (Number(v._updatedAt) || 0) + 1);
+    changed.push(`${v.id}: ${r.from || "(trống)"}→${r.to}`);
+  });
+  if (!changed.length) return;
+  if (typeof recalculateAccounting === "function") recalculateAccounting(false);
+  try {
+    if (typeof saveStateAndSyncVoucher === "function") await saveStateAndSyncVoucher();
+    else saveState();
+  } catch (err) {
+    console.error("[Debts] Lưu gán lại đối tác thất bại:", err);
+    showToast("Không lưu được thay đổi: " + err.message, "error");
+    return;
+  }
+  if (typeof logUserAction === "function") {
+    logUserAction("Gán lại đối tác", `Gán lại ${changed.length} chứng từ: ${changed.slice(0, 30).join("; ")}${changed.length > 30 ? "…" : ""}`);
+  }
+  showToast(`Đã gán lại đối tác cho ${changed.length} chứng từ.`, "success");
+  if (typeof filterDebts === "function") filterDebts();
+}
+
+function renderOrphanPartnerRelinkBlock(rows, showDate) {
+  if (!rows || !rows.length) return "";
+  const esc = escapeDebtAuditText;
+  const shown = rows.slice(0, PARTNER_CASH_NO_DEBT_LIST_LIMIT);
+  const total = rows.reduce((sum, r) => sum + r.amount, 0);
+  const body = shown.map(r => `<tr>
+              <td>${esc(r.id)}</td>
+              <td>${showDate(r.date)}</td>
+              <td>${esc(r.partnerName)}</td>
+              <td>${esc(r.from || "-")}</td>
+              <td><strong>${esc(r.to)}</strong> — ${esc(r.toName)}</td>
+              <td class="text-right font-numeric">${formatVND(r.amount)}</td>
+            </tr>`).join("");
+  const more = rows.length > shown.length ? `<p class="debt-alert-warning-note">Hiển thị ${shown.length}/${rows.length} chứng từ đầu tiên.</p>` : "";
+  return `
+      <div class="debt-alert-warning" id="orphan-partner-relink-block">
+        <div class="debt-alert-warning-header">
+          <span>Chứng từ chưa khớp đối tác gán lại được theo tên</span>
+          <span class="badge badge-danger">${rows.length.toLocaleString('vi-VN')} chứng từ</span>
+        </div>
+        <div class="debt-alert-warning-body">
+          <div class="debt-audit-line"><span class="debt-audit-line-label">Tổng giá trị</span><span class="debt-audit-line-value font-numeric text-danger">${formatVND(total)}</span></div>
+          <p class="debt-alert-warning-note">Mã đối tác trên các chứng từ này không còn trong danh mục (thường là mã DT_ do bản nhập Excel cũ tự sinh). Tên trên chứng từ khớp duy nhất một đối tác hiện có theo cùng quy tắc của luồng nhập Excel. Tên không khớp hoặc khớp nhiều đối tác không được gán.</p>
+          <details>
+            <summary>Xem ${rows.length} chứng từ</summary>
+            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+              <table class="data-table" style="font-size: 12px; width: 100%;">
+                <thead><tr><th>Số chứng từ</th><th>Ngày</th><th>Tên trên chứng từ</th><th>Mã cũ</th><th>Gán vào</th><th class="text-right">Giá trị</th></tr></thead>
+                <tbody>${body}</tbody>
+              </table>
+            </div>${more}
+          </details>
+          <button type="button" class="btn btn-primary btn-sm" data-role-required="write" onclick="applyOrphanPartnerRelinks()" style="margin-top: 8px;">Gán lại đối tác theo tên (${rows.length})</button>
+        </div>
+      </div>`;
+}
+
+// Đặt lại số dư đầu kỳ TK 131/331 = tổng số dư đầu kỳ chi tiết đối tác (syncPartnerOpeningAccounts),
+// sau khi kế toán xác nhận. Không đổi số dư từng đối tác.
+async function resyncPartnerOpeningTotals() {
+  if (window.currentUser && window.currentUser.role === "viewer") {
+    showToast("Tài khoản chỉ xem không được sửa số dư.", "error");
+    return;
+  }
+  if (typeof syncPartnerOpeningAccounts !== "function" || !state.initialBalances) return;
+  const signed = code => {
+    const ib = state.initialBalances[code];
+    if (!ib) return 0;
+    const bal = Number(ib.balance) || 0;
+    return code === "131" ? (ib.type === "credit" ? -bal : bal) : (ib.type === "debit" ? -bal : bal);
+  };
+  const before = { "131": signed("131"), "331": signed("331") };
+  const ok = typeof showConfirmModal === "function" ? await showConfirmModal({
+    title: "Cộng lại số dư đầu kỳ 131/331",
+    message: "Đặt số dư đầu kỳ TK 131 và 331 bằng tổng số dư đầu kỳ của từng đối tác? Số dư từng đối tác giữ nguyên.",
+    confirmText: "Cộng lại",
+    cancelText: "Hủy bỏ",
+    type: "warning"
+  }) : true;
+  if (!ok) return;
+  syncPartnerOpeningAccounts();
+  const after = { "131": signed("131"), "331": signed("331") };
+  if (typeof recalculateAccounting === "function") recalculateAccounting(false);
+  try {
+    if (typeof saveStateAndSyncVoucher === "function") await saveStateAndSyncVoucher();
+    else saveState();
+  } catch (err) {
+    console.error("[Debts] Lưu số dư đầu kỳ thất bại:", err);
+    showToast("Không lưu được thay đổi: " + err.message, "error");
+    return;
+  }
+  if (typeof logUserAction === "function") {
+    logUserAction("Sửa số dư đầu kỳ", `Cộng lại đầu kỳ theo chi tiết đối tác: 131 ${Math.round(before["131"])} → ${Math.round(after["131"])}; 331 ${Math.round(before["331"])} → ${Math.round(after["331"])}`);
+  }
+  showToast("Đã cộng lại số dư đầu kỳ 131/331 theo chi tiết đối tác.", "success");
   if (typeof filterDebts === "function") filterDebts();
 }
 
@@ -3638,6 +3795,8 @@ function renderDebtOverview(allDebts, dateRange) {
                 ${rec.initialOpeningMatched ? '' : `<span class="badge badge-danger">Lệch đầu kỳ ${formatVND(Math.abs(rec.initialOpeningDiff))}</span>`}
               </span>
             </div>
+            ${rec.initialOpeningMatched ? '' : `<p class="debt-alert-warning-note">Số dư đầu kỳ TK 131/331 là tổng số dư đầu kỳ từng đối tác. Lệch thường do số dư đối tác được sửa trên máy khác rồi đồng bộ về mà tổng chưa được cộng lại.</p>
+            <button type="button" class="btn btn-secondary btn-sm" data-role-required="write" onclick="resyncPartnerOpeningTotals()">Cộng lại số dư đầu kỳ 131/331 theo chi tiết đối tác</button>`}
           </div>`;
     }
 
@@ -3667,6 +3826,7 @@ function renderDebtOverview(allDebts, dateRange) {
           </div>
         </div>
       </div>
+      ${renderOrphanPartnerRelinkBlock(rec.orphanPartnerRelinks, showDate)}
       ${renderCashAccountFixBlock(rec.cashAccountFixes, showDate)}
       ${renderPartnerCashWithoutDebtBlock(rec.partnerCashWithoutDebt, showDate)}
       ${renderPossibleDoubleRefundBlock(rec.possibleDoubleRefunds, showDate)}
@@ -4291,6 +4451,9 @@ window.computeDebt131Reconciliation = computeDebt131Reconciliation;
 window.computePartnerCashWithoutDebtLines = computePartnerCashWithoutDebtLines;
 window.computeCashAccountFixSuggestions = computeCashAccountFixSuggestions;
 window.applyCashAccountFixes = applyCashAccountFixes;
+window.computeOrphanPartnerRelinks = computeOrphanPartnerRelinks;
+window.applyOrphanPartnerRelinks = applyOrphanPartnerRelinks;
+window.resyncPartnerOpeningTotals = resyncPartnerOpeningTotals;
 window.computePossibleDoubleRefunds = computePossibleDoubleRefunds;
 window.viewUnmatchedPartnerLedger = viewUnmatchedPartnerLedger;
 window.showUnmatchedPartnerIds = showUnmatchedPartnerIds;

@@ -166,6 +166,87 @@ async function main() {
     assert.equal(saved, 1, 'viewer cannot apply');
   });
 
+  await test('orphan partner vouchers relink by name to existing partners only', async () => {
+    const state = {
+      accountingStandard: 'TT133', products: [], initialBalances: {}, partnerOpeningBalances: {},
+      partners: [
+        { id: 'BANLET01/2025(CH)', name: 'Bán lẻ T01/2025', type: 'retail' },
+        { id: 'NCC1', name: 'Công ty Lan Thanh', type: 'supplier' },
+        { id: 'A1', name: 'Anh Thanh', type: 'retail' }, { id: 'A2', name: 'Anh Thanh', type: 'retail' },
+        { id: 'KH1', name: 'Anh Lực', type: 'project' }
+      ],
+      vouchers: [
+        { id: 'BH1', type: 'sales', date: '2025-01-04', partnerId: 'DT_1735', partnerName: 'Bán lẻ T01/2025 - A Nam cty', totalAmount: 100, _updatedAt: 3 },
+        { id: 'BH2', type: 'sales', date: '2025-02-05', partnerId: 'DT_5430', partnerName: 'Bán Lẻ T02/2025', totalAmount: 50 },
+        { id: 'BH3', type: 'sales', date: '2025-01-05', partnerId: 'DT_1', partnerName: 'Anh Thanh', totalAmount: 7 },
+        { id: 'BH4', type: 'sales', date: '2025-01-06', partnerId: 'DT_2', partnerName: 'Công ty Lan Thanh', totalAmount: 9 },
+        { id: 'NK1', type: 'purchase', date: '2025-01-06', partnerId: '', partnerName: 'Công ty Lan Thanh', totalAmount: 11, needsReview: true },
+        { id: 'BH5', type: 'sales', date: '2025-01-07', partnerId: 'kh1', partnerName: 'Tên cũ', totalAmount: 1 },
+        { id: 'BH6', type: 'sales', date: '2025-01-08', partnerId: 'KH1', partnerName: 'Anh Lực', totalAmount: 1 }
+      ]
+    };
+    const c = makeContext(state, ['js/utils.js', 'js/core/partner-identity.js', 'js/core/accounting-engine.js', 'js/excel-integration.js', 'js/modules/debts.js']);
+    c.showConfirmModal = async () => true;
+    let saved = 0;
+    c.saveStateAndSyncVoucher = async () => { saved++; return true; };
+    c.recalculateAccounting = () => {};
+    c.logUserAction = () => {};
+    c.filterDebts = () => {};
+    const rows = c.computeOrphanPartnerRelinks();
+    assert.deepEqual(rows.map(r => `${r.id}:${r.from}>${r.to}`), ['BH1:DT_1735>BANLET01/2025(CH)', 'NK1:>NCC1'],
+      'prefix match only; no match, ambiguous names, supplier on sales and case-only ids are left alone');
+    assert.match(c.renderOrphanPartnerRelinkBlock(rows, d => d), /Gán lại đối tác theo tên \(2\)/);
+    await c.applyOrphanPartnerRelinks();
+    const byId = id => state.vouchers.find(v => v.id === id);
+    assert.equal(byId('BH1').partnerId, 'BANLET01/2025(CH)');
+    assert.equal(byId('BH1').partnerName, 'Bán lẻ T01/2025 - A Nam cty', 'file name snapshot kept');
+    assert.ok(byId('BH1')._updatedAt > 3);
+    assert.equal(byId('NK1').partnerId, 'NCC1');
+    assert.equal(byId('NK1').needsReview, undefined);
+    assert.equal(byId('BH2').partnerId, 'DT_5430', 'unresolved stays for manual review');
+    assert.equal(byId('BH5').partnerId, 'kh1', 'case-insensitive id already resolves, untouched');
+    assert.equal(saved, 1);
+    assert.equal(c.computeOrphanPartnerRelinks().length, 0);
+  });
+
+  await test('resync 131/331 openings to partner detail totals', async () => {
+    const state = {
+      accountingStandard: 'TT133', products: [], vouchers: [],
+      partners: [{ id: 'KH1', type: 'retail' }, { id: 'KH2', type: 'project' }, { id: 'NCC1', type: 'supplier' }],
+      partnerOpeningBalances: { KH1: { debit: 100, credit: 0 }, KH2: { debit: 0, credit: 30 }, NCC1: { debit: 0, credit: 50 }, GONE: { debit: 999, credit: 0 } },
+      initialBalances: { '131': { name: 'Phải thu', type: 'debit', balance: 40 }, '331': { name: 'Phải trả', type: 'credit', balance: 50 } }
+    };
+    const c = makeContext(state, ['js/core/accounting-engine.js', 'js/accounting.js', 'js/modules/debts.js']);
+    c.showConfirmModal = async () => true;
+    let saved = 0, logged = '';
+    c.saveStateAndSyncVoucher = async () => { saved++; return true; };
+    c.recalculateAccounting = () => {};
+    c.logUserAction = (_t, d) => { logged = d; };
+    c.filterDebts = () => {};
+    await c.resyncPartnerOpeningTotals();
+    assert.deepEqual({ type: state.initialBalances['131'].type, balance: state.initialBalances['131'].balance }, { type: 'debit', balance: 70 });
+    assert.equal(state.initialBalances['331'].balance, 50);
+    assert.equal(state.initialBalances['131'].name, 'Phải thu', 'account name kept');
+    assert.equal(state.partnerOpeningBalances.KH1.debit, 100, 'partner detail untouched');
+    assert.equal(saved, 1);
+    assert.match(logged, /131 40 → 70/);
+    c.window.currentUser = { role: 'viewer' };
+    state.initialBalances['131'].balance = 1;
+    await c.resyncPartnerOpeningTotals();
+    assert.equal(state.initialBalances['131'].balance, 1, 'viewer cannot resync');
+  });
+
+  await test('report catalog uses official TT133/TT200 names', () => {
+    const state = { accountingStandard: 'TT133', initialBalances: {}, vouchers: [{ id: 'X', entries: [{ debit: '211', credit: '1111', amount: 1 }, { debit: '156', credit: '1121', amount: 1 }] }] };
+    const c = makeContext(state, ['js/core/accounting-engine.js', 'js/modules/reports.js']);
+    const name = code => c.getReportAccounts().find(a => a.code === code).name;
+    assert.equal(name('211'), 'Tài sản cố định');
+    assert.equal(name('1111'), 'Tiền Việt Nam');
+    assert.equal(name('156'), 'Hàng hóa');
+    state.accountingStandard = 'TT200';
+    assert.equal(name('211'), 'Tài sản cố định hữu hình');
+  });
+
   await test('report catalog names new tax account 3338', () => {
     const state = { accountingStandard: 'TT133', initialBalances: {}, vouchers: [{ id: 'X', entries: [{ debit: '3338', credit: '111', amount: 1 }] }] };
     const c = makeContext(state, ['js/core/accounting-engine.js', 'js/modules/reports.js']);
