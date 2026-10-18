@@ -23,3 +23,7 @@ backup/
 scratch/
 sync_debug.log
 
+
+# Test screenshots and graphify knowledge graph output
+diagnostics/
+graphify-out/
