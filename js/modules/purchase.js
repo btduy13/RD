@@ -140,6 +140,9 @@ function buildPurchaseTableRowHtml(v) {
             <button class="print-btn" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')" title="Xem và In mẫu chứng từ">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
             </button>
+            <button class="copy-btn" onclick="copyPurchaseVoucher('${escapeHtmlAttr(v.id)}')" title="Sao chép hóa đơn">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+            </button>
             <button class="edit-btn" onclick="editPurchaseVoucher('${escapeHtmlAttr(v.id)}')" title="Chỉnh sửa hóa đơn">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
             </button>
@@ -578,7 +581,14 @@ function editPurchaseVoucher(id) {
     document.getElementById("pur-tax-rate").value = v.taxRate || 0;
   }
 
-  const formItems = v.items.map(item => {
+  replaceDynamicFormTableRows("purchase-form-items-body", buildPurchaseFormItemsFromVoucher(v));
+
+  openModal("modal-add-purchase");
+}
+
+// Chuyển dòng hàng của chứng từ thành dữ liệu dòng form (dùng cho sửa và sao chép)
+function buildPurchaseFormItemsFromVoucher(v) {
+  return (v.items || []).map(item => {
     const prod = state.products.find(p => String(p.id) === String(item.productId));
     const prodVal = prod ? `${prod.name} (${prod.id})` : item.productId;
     return {
@@ -588,9 +598,31 @@ function editPurchaseVoucher(id) {
       discount: normalizeDynamicDiscountValue(item.discount, item.qty, item.price)
     };
   });
-  replaceDynamicFormTableRows("purchase-form-items-body", formItems);
+}
+
+// Sao chép hóa đơn mua: mở form LẬP MỚI với dữ liệu của chứng từ gốc,
+// số chứng từ mới, ngày hôm nay và không liên kết với chứng từ gốc.
+function copyPurchaseVoucher(id) {
+  const v = state.vouchers.find(v => v.id === id);
+  if (!v) return;
+
+  resetPurchaseForm();
+  if (typeof noteVoucherEditOpened === "function") noteVoucherEditOpened("purchase", null);
+
+  const pObj = getPartnerForVoucher(v);
+  document.getElementById("pur-partner").value = pObj ? `${pObj.name} (${pObj.id})` : (v.partnerName || "");
+  document.getElementById("pur-desc").value = v.description || "";
+  if (v.paymentMethod) document.getElementById("pur-payment").value = v.paymentMethod;
+  if (document.getElementById("pur-tax-rate")) {
+    document.getElementById("pur-tax-rate").value = v.taxRate || 0;
+  }
+  const idEl = document.getElementById("pur-id");
+  if (idEl) idEl.value = generateNextPurchaseVoucherId(document.getElementById("pur-payment").value);
+
+  replaceDynamicFormTableRows("purchase-form-items-body", buildPurchaseFormItemsFromVoucher(v));
 
   openModal("modal-add-purchase");
+  showToast(`Đã sao chép hóa đơn ${id} — kiểm tra rồi lưu`, "info");
 }
 
 // Đăng ký toàn cục các hàm cho thiết bị Electron
@@ -917,6 +949,8 @@ function exportPurchasesToExcel(detailed = true) {
 
 
 window.editPurchaseVoucher = editPurchaseVoucher;
+window.copyPurchaseVoucher = copyPurchaseVoucher;
+window.copyPurchaseOrderVoucher = copyPurchaseOrderVoucher;
 window.resetPurchaseForm = resetPurchaseForm;
 window.autoFillPurchasePrice = autoFillPurchasePrice;
 // Purchases
@@ -1237,19 +1271,34 @@ function editPurchaseOrderVoucher(id) {
     document.getElementById("pur-order-tax-rate").value = v.taxRate || 0;
   }
 
-  const formItems = v.items.map(item => {
-    const prod = state.products.find(p => String(p.id) === String(item.productId));
-    const prodVal = prod ? `${prod.name} (${prod.id})` : item.productId;
-    return {
-      productId: prodVal,
-      qty: item.qty,
-      price: item.price,
-      discount: normalizeDynamicDiscountValue(item.discount, item.qty, item.price)
-    };
-  });
-  replaceDynamicFormTableRows("purchase-order-form-items-body", formItems);
+  replaceDynamicFormTableRows("purchase-order-form-items-body", buildPurchaseFormItemsFromVoucher(v));
 
   openModal("modal-add-purchase-order");
+}
+
+// Sao chép đơn đặt hàng: mở form LẬP MỚI với dữ liệu của đơn gốc,
+// số chứng từ mới, ngày hôm nay và không liên kết với đơn gốc.
+function copyPurchaseOrderVoucher(id) {
+  const v = state.vouchers.find(v => v.id === id);
+  if (!v) return;
+
+  resetPurchaseOrderForm();
+  if (typeof noteVoucherEditOpened === "function") noteVoucherEditOpened("purchase-order", null);
+
+  const pObj = getPartnerForVoucher(v);
+  document.getElementById("pur-order-partner").value = pObj ? `${pObj.name} (${pObj.id})` : (v.partnerName || "");
+  document.getElementById("pur-order-desc").value = v.description || "";
+  if (v.paymentMethod) document.getElementById("pur-order-payment").value = v.paymentMethod;
+  if (document.getElementById("pur-order-tax-rate")) {
+    document.getElementById("pur-order-tax-rate").value = v.taxRate || 0;
+  }
+  const idEl = document.getElementById("pur-order-id");
+  if (idEl) idEl.value = generateNextPurchaseOrderVoucherId();
+
+  replaceDynamicFormTableRows("purchase-order-form-items-body", buildPurchaseFormItemsFromVoucher(v));
+
+  openModal("modal-add-purchase-order");
+  showToast(`Đã sao chép đơn hàng ${id} — kiểm tra rồi lưu`, "info");
 }
 
 function renderPurchaseOrderTable() {
@@ -1426,6 +1475,9 @@ function renderPurchaseOrderTable() {
           <div class="table-actions">
             <button class="print-btn" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')" title="Xem và In mẫu đơn hàng">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            </button>
+            <button class="copy-btn" onclick="copyPurchaseOrderVoucher('${escapeHtmlAttr(v.id)}')" title="Sao chép đơn hàng">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
             </button>
             <button class="edit-btn" onclick="editPurchaseOrderVoucher('${escapeHtmlAttr(v.id)}')" title="Chỉnh sửa đơn hàng">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>

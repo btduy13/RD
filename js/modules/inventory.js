@@ -99,6 +99,9 @@ function buildInventoryTableRowHtml(p) {
             <button class="btn btn-secondary" onclick="promptQuickImport('${escapedId}')" title="Nhập kho nhanh" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-success); cursor: pointer; transition: all 0.2s; padding: 0;">
               <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 15px; height: 15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
             </button>
+            <button class="btn btn-secondary" onclick="copyProduct('${escapedId}')" title="Sao chép sản phẩm" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; padding: 0;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 15px; height: 15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+            </button>
             <button class="btn btn-secondary" onclick="promptEditProductPrice('${escapedId}')" title="Chỉnh sửa sản phẩm" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-primary); cursor: pointer; transition: all 0.2s; padding: 0;">
               <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 15px; height: 15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
             </button>
@@ -722,6 +725,7 @@ window.promptAdjustStock = promptAdjustStock;
 window.handleAdjustStockSubmit = handleAdjustStockSubmit;
 window.promptEditProductPrice = promptEditProductPrice;
 window.handleEditProductPriceSubmit = handleEditProductPriceSubmit;
+window.copyProduct = copyProduct;
 
 // ==========================================================================
 // CÁC CHỨC NĂNG QUẢN LÝ KHO HÀNG MỞ RỘNG (EXTENDED INVENTORY MANAGEMENT)
@@ -997,6 +1001,49 @@ function promptEditProductPrice(productId) {
     if (typeof addErrorLog === "function") {
       addErrorLog("promptEditProductPrice", err.message, err);
     }
+  }
+}
+
+// Sao chép sản phẩm: mở form Thêm mặt hàng mới với thông tin mô tả của sản phẩm nguồn.
+// Mã mới, tồn đầu kỳ = 0; lưu qua handleProductSubmit để áp dụng kiểm tra trùng mã.
+function copyProduct(productId) {
+  try {
+    const p = findProductById(productId, state.products);
+    if (!p) {
+      showToast(`Không tìm thấy sản phẩm với mã: ${productId}`, "danger");
+      return;
+    }
+
+    const baseId = normalizeProductId(p.id);
+    let newId = `${baseId}-COPY`;
+    for (let n = 2; findProductIndexById(newId, state.products) >= 0; n++) {
+      newId = `${baseId}-COPY${n}`;
+    }
+
+    const formatNum = (v) => v !== undefined && v !== null && !isNaN(v) ? Number(v).toLocaleString("vi-VN") : "0";
+    const row = p.excelRow || [];
+    const costVal = p.initialCost !== undefined ? p.initialCost : (p.avgCost || 0);
+    const salePrice1Val = p.salePrice1 !== undefined ? p.salePrice1 : (row[21] !== undefined ? Number(row[21]) : 0);
+
+    const form = document.getElementById("form-product");
+    if (form) form.reset();
+    document.getElementById("prod-id").value = newId;
+    document.getElementById("prod-name").value = p.name || "";
+    document.getElementById("prod-unit").value = p.unit || "Cái";
+    document.getElementById("prod-nature").value = p.nature || row[2] || "Vật tư hàng hóa";
+    document.getElementById("prod-group").value = p.group || row[3] || "";
+    // Không định dạng vi-VN: handleProductSubmit đọc bằng safeParseFloat, "1.500" sẽ thành 1.5
+    document.getElementById("prod-min-stock").value = String(p.minStock !== undefined ? p.minStock : 5);
+    document.getElementById("prod-stock").value = "0";
+    document.getElementById("prod-cost").value = formatNum(costVal);
+    document.getElementById("prod-sale-price").value = formatNum(salePrice1Val);
+    document.getElementById("prod-inactive").checked = false;
+
+    openModal("modal-add-product");
+    showToast(`Đã sao chép "${p.name}" — kiểm tra lại và bấm Lưu mặt hàng.`, "info");
+  } catch (err) {
+    if (typeof addErrorLog === "function") addErrorLog("copyProduct", err.message, err);
+    showToast("Lỗi khi sao chép sản phẩm: " + err.message, "danger");
   }
 }
 

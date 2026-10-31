@@ -157,6 +157,9 @@ function buildSalesTableRowHtml(v) {
             <button class="print-btn" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')" title="Xem và In mẫu chứng từ">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
             </button>
+            <button class="copy-btn" onclick="copySalesVoucher('${escapeHtmlAttr(v.id)}')" title="Sao chép đơn hàng">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+            </button>
             <button class="edit-btn" onclick="editSalesVoucher('${escapeHtmlAttr(v.id)}')" title="Chỉnh sửa hóa đơn">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
             </button>
@@ -711,6 +714,55 @@ function editSalesVoucher(id) {
   replaceDynamicFormTableRows("sales-form-items-body", formItems);
 
   openModal("modal-add-sales");
+}
+
+// Dòng hàng của chứng từ gốc -> dòng form (dùng cho Sao chép)
+function salesVoucherItemsToFormItems(v) {
+  return (v.items || []).map(item => {
+    const prod = state.products.find(p => String(p.id) === String(item.productId));
+    const prodId = prod ? prod.id : item.productId;
+    const itemDesc = item.itemDesc || (prod ? prod.name : item.productId);
+    return {
+      productId: prodId,
+      desc: itemDesc,
+      qty: item.qty,
+      price: item.price,
+      discount: normalizeDynamicDiscountValue(item.discount, item.qty, item.price)
+    };
+  });
+}
+
+// Sao chép hóa đơn: mở form LẬP MỚI điền sẵn từ chứng từ gốc
+// (số mới, ngày hôm nay, không liên kết với bản gốc; lưu qua luồng tạo mới).
+function copySalesVoucher(id) {
+  const v = state.vouchers.find(v => v.id === id);
+  if (!v) return;
+
+  resetSalesForm();
+  if (typeof noteVoucherEditOpened === "function") noteVoucherEditOpened("sales", null);
+
+  const idEl = document.getElementById("sale-id");
+  if (idEl) idEl.value = generateNextSalesVoucherId(v.paymentMethod);
+
+  const pObj = getPartnerForVoucher(v);
+  document.getElementById("sale-partner").value = pObj ? `${pObj.name} (${pObj.id})` : (v.partnerName || "");
+  const descEl = document.getElementById("sale-desc");
+  if (descEl) {
+    descEl.value = v.description || "";
+    descEl.dataset.userEdited = "1";
+  }
+  if (v.paymentMethod) document.getElementById("sale-payment").value = v.paymentMethod;
+  if (document.getElementById("sale-note")) {
+    document.getElementById("sale-note").value = v.note || "";
+  }
+  if (document.getElementById("sale-tax-rate")) {
+    document.getElementById("sale-tax-rate").value = v.taxRate || 0;
+  }
+
+  replaceDynamicFormTableRows("sales-form-items-body", salesVoucherItemsToFormItems(v));
+
+  openModal("modal-add-sales");
+  showToast(`Đã sao chép hóa đơn ${id} — kiểm tra rồi lưu`, "info");
 }
 
 function toggleSelectAllSales(masterCheckbox) {
@@ -1727,6 +1779,9 @@ function renderQuotationTable() {
             <button class="convert-btn" onclick="convertQuotationToOrder('${escapeHtmlAttr(v.id)}')" title="Chuyển thành Đơn bán hàng">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
             </button>
+            <button class="copy-btn" onclick="copyQuotationVoucher('${escapeHtmlAttr(v.id)}')" title="Sao chép báo giá">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+            </button>
             <button class="edit-btn" onclick="editQuotationVoucher('${escapeHtmlAttr(v.id)}')" title="Chỉnh sửa báo giá">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
             </button>
@@ -2038,6 +2093,32 @@ function editQuotationVoucher(id) {
   replaceDynamicFormTableRows("quotation-form-items-body", formItems);
 
   openModal("modal-add-sales-quotation");
+}
+
+// Sao chép báo giá: mở form LẬP MỚI điền sẵn từ báo giá gốc
+// (số mới, ngày hôm nay, không liên kết với bản gốc; lưu qua luồng tạo mới).
+function copyQuotationVoucher(id) {
+  const v = state.vouchers.find(v => v.id === id);
+  if (!v) return;
+
+  resetQuotationForm();
+  if (typeof noteVoucherEditOpened === "function") noteVoucherEditOpened("quotation", null);
+
+  const idEl = document.getElementById("quotation-id");
+  if (idEl) idEl.value = generateNextQuotationVoucherId();
+
+  const pObj = getPartnerForVoucher(v);
+  document.getElementById("quotation-partner").value = pObj ? `${pObj.name} (${pObj.id})` : (v.partnerName || "");
+  document.getElementById("quotation-desc").value = v.description || "";
+  if (v.paymentMethod) document.getElementById("quotation-payment").value = v.paymentMethod;
+  if (document.getElementById("quotation-tax-rate")) {
+    document.getElementById("quotation-tax-rate").value = v.taxRate || 0;
+  }
+
+  replaceDynamicFormTableRows("quotation-form-items-body", salesVoucherItemsToFormItems(v));
+
+  openModal("modal-add-sales-quotation");
+  showToast(`Đã sao chép báo giá ${id} — kiểm tra rồi lưu`, "info");
 }
 
 const quotationConversionsInProgress = new Set();
@@ -2383,6 +2464,7 @@ window.toggleSelectAllQuotations = toggleSelectAllQuotations;
 window.updateBatchQuotationsUI = updateBatchQuotationsUI;
 window.batchDeleteQuotations = batchDeleteQuotations;
 window.editQuotationVoucher = editQuotationVoucher;
+window.copyQuotationVoucher = copyQuotationVoucher;
 window.resetQuotationForm = resetQuotationForm;
 window.changeQuotationPage = changeQuotationPage;
 window.clearQuotationDateFilter = clearQuotationDateFilter;
@@ -2399,6 +2481,7 @@ window.toggleSelectAllSales = toggleSelectAllSales;
 window.updateBatchSalesUI = updateBatchSalesUI;
 window.batchDeleteSales = batchDeleteSales;
 window.editSalesVoucher = editSalesVoucher;
+window.copySalesVoucher = copySalesVoucher;
 window.resetSalesForm = resetSalesForm;
 window.changeSalesPage = changeSalesPage;
 window.clearSalesDateFilter = clearSalesDateFilter;
