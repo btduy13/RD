@@ -6156,6 +6156,7 @@ body.light-theme .app-loading-overlay {
 .print-btn,
 .trash-btn,
 .convert-btn,
+.copy-btn,
 .icon-action-btn {
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -6209,10 +6210,21 @@ body.light-theme .app-loading-overlay {
   border-color: var(--color-warning);
 }
 
+.copy-btn {
+  color: var(--text-secondary);
+}
+
+.copy-btn:hover {
+  background-color: rgba(var(--color-primary-rgb), 0.1);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
 .edit-btn svg,
 .print-btn svg,
 .trash-btn svg,
 .convert-btn svg,
+.copy-btn svg,
 .icon-action-btn svg {
   width: 16px;
   height: 16px;

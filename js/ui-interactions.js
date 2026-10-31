@@ -1408,6 +1408,11 @@ function showF3LookupModal(activeInput, type) {
         border-color: var(--color-primary, #0ea5e9);
         box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
       }
+      .f3-lookup-search-grid {
+        display: grid;
+        grid-template-columns: 1.4fr 1.4fr 0.8fr 1fr;
+        gap: 8px;
+      }
       .f3-lookup-body {
         flex: 1;
         overflow-y: auto;
@@ -1495,17 +1500,28 @@ function showF3LookupModal(activeInput, type) {
     title = 'Tra cứu nhanh đối tác';
     columnsHTML = `
       <tr>
-        <th style="width: 15%;">Mã ĐT</th>
-        <th style="width: 28%;">Tên đối tác</th>
-        <th style="width: 15%;">Phân loại</th>
+        <th style="width: 30%;">Tên đối tác</th>
+        <th style="width: 30%;">Địa chỉ</th>
+        <th style="width: 12%;">Mã ĐT</th>
         <th style="width: 15%;">Số điện thoại</th>
-        <th style="width: 27%;">Địa chỉ</th>
+        <th style="width: 13%;">Phân loại</th>
       </tr>
     `;
   }
 
   let filteredItems = [...items];
   let selectedIndex = 0;
+
+  // Đối tác: tách ô tìm kiếm theo Tên / Địa chỉ / Mã / Số điện thoại (lọc AND)
+  const searchHTML = type === 'product'
+    ? `<input type="text" class="f3-lookup-search-input" id="f3-lookup-search" placeholder="Nhập từ khóa tìm kiếm (AND/OR, viết không dấu...)" autocomplete="off">`
+    : `<div class="f3-lookup-search-grid">
+          <input type="text" class="f3-lookup-search-input" id="f3-lookup-search-name" data-field="name" placeholder="Tên đối tác..." autocomplete="off">
+          <input type="text" class="f3-lookup-search-input" id="f3-lookup-search-address" data-field="address" placeholder="Địa chỉ..." autocomplete="off">
+          <input type="text" class="f3-lookup-search-input" id="f3-lookup-search-id" data-field="id" placeholder="Mã ĐT..." autocomplete="off">
+          <input type="text" class="f3-lookup-search-input" id="f3-lookup-search-phone" data-field="phone" placeholder="Số điện thoại..." autocomplete="off">
+        </div>`;
+  const tabHint = type === 'product' ? '' : `, <span class="f3-lookup-kbd">Tab</span> để chuyển ô tìm`;
 
   const overlay = document.createElement('div');
   overlay.id = 'f3-lookup-overlay';
@@ -1518,7 +1534,7 @@ function showF3LookupModal(activeInput, type) {
         <button class="f3-lookup-close-btn" id="f3-lookup-close">×</button>
       </div>
       <div class="f3-lookup-search-container">
-        <input type="text" class="f3-lookup-search-input" id="f3-lookup-search" placeholder="Nhập từ khóa tìm kiếm (AND/OR, viết không dấu...)" autocomplete="off">
+        ${searchHTML}
       </div>
       <div class="f3-lookup-body">
         <table class="f3-lookup-table">
@@ -1531,7 +1547,7 @@ function showF3LookupModal(activeInput, type) {
         </table>
       </div>
       <div class="f3-lookup-footer">
-        <div>Dùng phím <span class="f3-lookup-kbd">↑</span> <span class="f3-lookup-kbd">↓</span> để di chuyển, <span class="f3-lookup-kbd">Enter</span> để chọn, <span class="f3-lookup-kbd">Esc</span> để đóng</div>
+        <div>Dùng phím <span class="f3-lookup-kbd">↑</span> <span class="f3-lookup-kbd">↓</span> để di chuyển, <span class="f3-lookup-kbd">Enter</span> để chọn${tabHint}, <span class="f3-lookup-kbd">Esc</span> để đóng</div>
         <div id="f3-lookup-count">Đang hiển thị 0 dòng</div>
       </div>
     </div>
@@ -1539,7 +1555,8 @@ function showF3LookupModal(activeInput, type) {
 
   document.body.appendChild(overlay);
 
-  const searchInput = overlay.querySelector('#f3-lookup-search');
+  const searchInputs = Array.from(overlay.querySelectorAll('.f3-lookup-search-input'));
+  const searchInput = searchInputs[0];
   const tbody = overlay.querySelector('#f3-lookup-tbody');
   const countDisplay = overlay.querySelector('#f3-lookup-count');
   const closeBtn = overlay.querySelector('#f3-lookup-close');
@@ -1578,11 +1595,11 @@ function showF3LookupModal(activeInput, type) {
         const label = typeLabels[item.type] || item.type || 'Khách hàng';
         return `
           <tr class="f3-lookup-row ${isSelected}" data-index="${idx}">
-            <td style="font-weight: 600;">${escapeHtmlAttr(item.id)}</td>
             <td>${escapeHtmlAttr(item.name)}</td>
-            <td>${label}</td>
-            <td>${escapeHtmlAttr(item.phone || '')}</td>
             <td style="color: var(--text-secondary);">${escapeHtmlAttr(item.address || '')}</td>
+            <td style="font-weight: 600;">${escapeHtmlAttr(item.id)}</td>
+            <td>${escapeHtmlAttr(item.phone || '')}</td>
+            <td>${label}</td>
           </tr>
         `;
       }
@@ -1596,7 +1613,35 @@ function showF3LookupModal(activeInput, type) {
     }
   }
 
+  function matchField(value, query) {
+    return typeof matchAdvancedQuery === 'function'
+      ? matchAdvancedQuery(value, query)
+      : value.toLowerCase().includes(query.toLowerCase());
+  }
+
   function filterList() {
+    if (type !== 'product') {
+      const normPhone = s => String(s || '').replace(/[\s.\-]/g, '');
+      // Địa chỉ có dấu phẩy là ký tự thường, không phải toán tử OR của matchAdvancedQuery
+      const normAddress = s => String(s || '').replace(/[,|]/g, ' ').replace(/\s+/g, ' ').trim();
+      const criteria = searchInputs
+        .map(inp => ({ field: inp.dataset.field, query: inp.value.trim() }))
+        .filter(c => c.query);
+      filteredItems = items.filter(item => criteria.every(({ field, query }) => {
+        if (field === 'phone') {
+          const q = normPhone(query);
+          return !q || matchField(normPhone(item.phone), q);
+        }
+        if (field === 'address') {
+          const q = normAddress(query);
+          return !q || matchField(normAddress(item.address), q);
+        }
+        return matchField(String(item[field] || ''), query);
+      }));
+      selectedIndex = 0;
+      renderTable();
+      return;
+    }
     const query = searchInput.value.trim();
     if (!query) {
       filteredItems = [...items];
@@ -1619,7 +1664,7 @@ function showF3LookupModal(activeInput, type) {
 
   renderTable();
 
-  searchInput.addEventListener('input', filterList);
+  searchInputs.forEach(inp => inp.addEventListener('input', filterList));
 
   function confirmSelection() {
     const selectedItem = filteredItems[selectedIndex];
@@ -1672,8 +1717,16 @@ function showF3LookupModal(activeInput, type) {
     } else if (e.key === 'Enter') {
       e.preventDefault();
       confirmSelection();
+    } else if (e.key === 'Tab' && searchInputs.length > 1) {
+      // Tab / Shift+Tab xoay vòng giữa các ô tìm kiếm đối tác
+      e.preventDefault();
+      e.stopPropagation();
+      const cur = searchInputs.indexOf(document.activeElement);
+      const step = e.shiftKey ? -1 : 1;
+      const next = cur === -1 ? 0 : (cur + step + searchInputs.length) % searchInputs.length;
+      searchInputs[next].focus();
     } else {
-      if (document.activeElement !== searchInput && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
+      if (!searchInputs.includes(document.activeElement) && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
         searchInput.focus();
       }
     }
