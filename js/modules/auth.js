@@ -54,45 +54,79 @@ function clearAuthSession() {
   }
 }
 
-// Khởi chạy hệ thống Auth khi ứng dụng nạp xong dữ liệu
-async function initAuth() {
-  let users = state.users || [];
-  
-  if (users.length === 0) {
-    // Tự động khởi tạo tài khoản admin mặc định nếu CSDL trống
-    console.log('[Auth] CSDL chưa có tài khoản nào. Đang tạo tài khoản admin mặc định...');
-    const defaultAdminUsername = 'admin';
-    const defaultAdminPassword = 'admin';
-    
-    const defaultAdmin = {
-      username: defaultAdminUsername,
-      password: defaultAdminPassword,
-      name: "Administrator",
-      role: "admin"
-    };
-    
-    state.users = [defaultAdmin];
-    saveState(); // Lưu SQLite & Sync Cloud
-    users = state.users;
+// Mật khẩu lưu dạng "pbkdf2$<vòng lặp>$<salt base64>$<hash base64>" (PBKDF2-SHA256).
+const PASSWORD_HASH_ITERATIONS = 150000;
+const authB64 = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes)));
+const authUnB64 = text => Uint8Array.from(atob(text), c => c.charCodeAt(0));
+
+async function pbkdf2(password, salt, iterations) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(String(password)), "PBKDF2", false, ["deriveBits"]);
+  return crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, key, 256);
+}
+
+async function hashPassword(password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  return `pbkdf2$${PASSWORD_HASH_ITERATIONS}$${authB64(salt)}$${authB64(await pbkdf2(password, salt, PASSWORD_HASH_ITERATIONS))}`;
+}
+
+function isPbkdf2Hash(value) {
+  return typeof value === "string" && value.startsWith("pbkdf2$");
+}
+
+// Kiểm tra mật khẩu; tài khoản cũ còn mật khẩu thô được chuyển sang hash ngay khi đăng nhập đúng.
+async function verifyUserPassword(user, password) {
+  if (!user || !password) return false;
+  if (isPbkdf2Hash(user.passwordHash)) {
+    const [, iterations, salt, expected] = user.passwordHash.split("$");
+    return authB64(await pbkdf2(password, authUnB64(salt), Number(iterations))) === expected;
   }
-  
-  // Đảm bảo mọi người dùng đều có mật khẩu thô dạng plain text
+  if (typeof user.password !== "string" || user.password === "" || user.password !== password) return false;
+  // Mật khẩu cũ dạng dễ đoán (admin hoặc trùng tên đăng nhập, vd. do bản cũ tự tạo lại) phải đổi ngay.
+  if (password === "admin" || password.toLowerCase() === String(user.username || "").toLowerCase()) user.mustChangePassword = true;
+  user.passwordHash = await hashPassword(password);
+  delete user.password;
+  saveState();
+  return true;
+}
+
+async function setUserPassword(user, password) {
+  user.passwordHash = await hashPassword(password);
+  delete user.password;
+  delete user.mustChangePassword;
+}
+
+// Khởi chạy hệ thống Auth khi ứng dụng nạp xong dữ liệu
+// Dùng khi khởi động và sau khi khôi phục dữ liệu (importData): bảo đảm có tài khoản đăng nhập được.
+function migrateAuthUsers() {
   let migrated = false;
-  users.forEach(u => {
-    if (!u.password) {
+  if (!(state.users || []).length) {
+    // CSDL trống: tạo admin/admin, bắt buộc đổi mật khẩu ở lần đăng nhập đầu.
+    console.log('[Auth] CSDL chưa có tài khoản nào. Đang tạo tài khoản admin mặc định...');
+    state.users = [{ username: "admin", password: "admin", name: "Administrator", role: "admin", mustChangePassword: true }];
+    migrated = true;
+  }
+  // Tài khoản cũ không có mật khẩu: tạm dùng tên đăng nhập (hoặc "admin" cho kiểu hash cũ) và bắt đổi.
+  state.users.forEach(u => {
+    if (!u.password && !isPbkdf2Hash(u.passwordHash)) {
       u.password = u.passwordHash ? "admin" : u.username;
+      delete u.passwordHash;
+      u.mustChangePassword = true;
       migrated = true;
     }
   });
-  if (migrated) {
-    saveState();
-  }
-  
+  if (migrated) saveState();
+  return migrated;
+}
+
+async function initAuth() {
+  migrateAuthUsers();
+  const users = state.users;
+
   const savedSession = readSavedAuthSession();
   const bootSessionId = await getAuthBootSessionId();
   if (savedSession && savedSession.username && savedSession.bootSessionId === bootSessionId) {
     const savedUser = users.find(u => u.username && u.username.toLowerCase() === String(savedSession.username).toLowerCase());
-    if (savedUser) {
+    if (savedUser && !savedUser.mustChangePassword) {
       window.currentUser = savedUser;
       hideLoginOverlay();
       applyRolePermissions();
@@ -106,22 +140,6 @@ async function initAuth() {
   // Hiển thị màn hình đăng nhập tiêu chuẩn
   showLoginForm();
 }
-
-function handleUsernameInput(el) {
-  const pwdGroup = document.getElementById('login-password-group');
-  const pwdInput = document.getElementById('login-password');
-  if (!pwdGroup || !pwdInput) return;
-  
-  if (el.value.trim().toLowerCase() === 'admin') {
-    pwdGroup.style.display = 'block';
-    pwdInput.setAttribute('required', 'required');
-  } else {
-    pwdGroup.style.display = 'none';
-    pwdInput.removeAttribute('required');
-    pwdInput.value = '';
-  }
-}
-window.handleUsernameInput = handleUsernameInput;
 
 // ===========================================================================
 // GIAO DIỆN MÀN HÌNH ĐĂNG NHẬP OVERLAY
@@ -151,17 +169,17 @@ function showLoginForm() {
             <svg class="login-input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.75 7.5a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a8.25 8.25 0 0115 0"></path>
             </svg>
-            <input type="text" id="login-username" class="login-input" required placeholder="Nhập tên đăng nhập" autocomplete="username" autofocus oninput="handleUsernameInput(this)">
+            <input type="text" id="login-username" class="login-input" required placeholder="Nhập tên đăng nhập" autocomplete="username" autofocus>
           </div>
         </div>
         
-        <div id="login-password-group" class="login-field" style="display: none;">
-          <label class="login-label" for="login-password">Mật khẩu Admin</label>
+        <div id="login-password-group" class="login-field">
+          <label class="login-label" for="login-password">Mật khẩu</label>
           <div class="login-input-shell">
             <svg class="login-input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.5 10.5V7.75a4.5 4.5 0 00-9 0v2.75M6.75 10.5h10.5a1.5 1.5 0 011.5 1.5v6.25a1.5 1.5 0 01-1.5 1.5H6.75a1.5 1.5 0 01-1.5-1.5V12a1.5 1.5 0 011.5-1.5z"></path>
             </svg>
-            <input type="password" id="login-password" class="login-input" placeholder="Nhập mật khẩu" autocomplete="current-password">
+            <input type="password" id="login-password" class="login-input" required placeholder="Nhập mật khẩu" autocomplete="current-password">
           </div>
         </div>
         
@@ -191,85 +209,77 @@ function showLoginError(msg) {
   }
 }
 
-// Xử lý sự kiện đăng nhập
+// Xử lý sự kiện đăng nhập. Không tự tạo tài khoản: chỉ admin thêm người dùng.
 async function submitLogin(event) {
   if (event) event.preventDefault();
-  
+
   const usernameEl = document.getElementById('login-username');
   const passwordEl = document.getElementById('login-password');
   if (!usernameEl) return;
-  
+
   const username = usernameEl.value.trim();
   const password = passwordEl ? passwordEl.value : '';
-  
   if (!username) return;
 
-  const users = state.users || [];
-  
-  if (username.toLowerCase() === 'admin') {
-    const adminUser = users.find(u => u.username.toLowerCase() === 'admin');
-    if (!adminUser) {
-      // Fallback: nếu chưa có admin trong DB, cho phép admin/admin
-      if (password === 'admin') {
-        const defaultAdmin = {
-          username: 'admin',
-          name: 'Quản trị viên',
-          role: 'admin',
-          password: 'admin'
-        };
-        state.users = state.users || [];
-        state.users.push(defaultAdmin);
-        saveState();
-        window.currentUser = defaultAdmin;
-        await saveAuthSession(defaultAdmin);
-        hideLoginOverlay();
-        applyRolePermissions();
-        logUserAction("Đăng nhập", "Người dùng Quản trị viên (admin) đã đăng nhập thành công.");
-        if (typeof showToast === 'function') showToast("Đăng nhập thành công! Chào mừng Quản trị viên", 'success');
-      } else {
-        showLoginError("Mật khẩu Admin không chính xác.");
-      }
-      return;
-    }
-
-    if (adminUser.password === password) {
-      window.currentUser = adminUser;
-      await saveAuthSession(adminUser);
-      hideLoginOverlay();
-      applyRolePermissions();
-      logUserAction("Đăng nhập", "Người dùng Quản trị viên (admin) đã đăng nhập thành công.");
-      if (typeof showToast === 'function') showToast("Đăng nhập thành công! Chào mừng Quản trị viên", 'success');
-    } else {
-      showLoginError("Mật khẩu Admin không chính xác.");
-    }
-  } else {
-    // Đăng nhập không cần mật khẩu cho các tài khoản khác
-    let user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
-    
-    if (!user) {
-      // Nếu chưa tồn tại -> Tự động đăng ký mới làm Kế toán viên (accountant)
-      user = {
-        username: username,
-        name: username,
-        role: 'accountant',
-        password: ''
-      };
-      state.users = state.users || [];
-      state.users.push(user);
-      saveState();
-    }
-    
-    window.currentUser = user;
-    await saveAuthSession(user);
-    hideLoginOverlay();
-    applyRolePermissions();
-    logUserAction("Đăng nhập", `Người dùng ${user.name} (${user.username}) đã đăng nhập thành công.`);
-    if (typeof showToast === 'function') {
-      showToast(`Đăng nhập thành công! Chào mừng ${user.name}`, 'success');
-    }
+  const user = (state.users || []).find(u => u.username && u.username.toLowerCase() === username.toLowerCase());
+  if (!user || !(await verifyUserPassword(user, password))) {
+    const tempHint = user && user.mustChangePassword && !isPbkdf2Hash(user.passwordHash)
+      ? " Lần đăng nhập đầu sau khi cập nhật: mật khẩu tạm là tên đăng nhập (tài khoản admin mặc định: admin)." : "";
+    showLoginError("Tên đăng nhập hoặc mật khẩu không chính xác." + tempHint);
+    return;
   }
+  if (user.mustChangePassword) {
+    showForcedPasswordChange(user);
+    return;
+  }
+  await completeLogin(user);
 }
 
+async function completeLogin(user) {
+  window.currentUser = user;
+  await saveAuthSession(user);
+  hideLoginOverlay();
+  applyRolePermissions();
+  logUserAction("Đăng nhập", `Người dùng ${user.name} (${user.username}) đã đăng nhập thành công.`);
+  if (typeof showToast === 'function') showToast(`Đăng nhập thành công! Chào mừng ${user.name}`, 'success');
+}
+
+// Mật khẩu mặc định/tạm: phải đặt mật khẩu mới trước khi vào phần mềm.
+function showForcedPasswordChange(user) {
+  const overlay = document.getElementById('login-overlay');
+  if (!overlay) return;
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `
+    <div class="login-card">
+      <div class="login-header">
+        <h2 class="login-title">Đặt mật khẩu mới</h2>
+        <p class="login-subtitle">Tài khoản ${escapeHtmlText(user.username)} đang dùng mật khẩu tạm. Hãy đặt mật khẩu mới.</p>
+      </div>
+      <div id="login-error" class="login-error-msg" style="display: none;"></div>
+      <form class="login-form" id="forced-password-form">
+        <div class="login-field">
+          <label class="login-label" for="forced-pwd-new">Mật khẩu mới</label>
+          <input type="password" id="forced-pwd-new" class="login-input" required minlength="6" autocomplete="new-password">
+        </div>
+        <div class="login-field">
+          <label class="login-label" for="forced-pwd-confirm">Nhập lại mật khẩu mới</label>
+          <input type="password" id="forced-pwd-confirm" class="login-input" required minlength="6" autocomplete="new-password">
+        </div>
+        <button type="submit" class="login-submit-btn"><span>Lưu và đăng nhập</span></button>
+      </form>
+    </div>
+  `;
+  document.getElementById('forced-password-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const next = document.getElementById('forced-pwd-new').value;
+    if (next.length < 6) return showLoginError("Mật khẩu mới phải dài tối thiểu 6 ký tự.");
+    if (next !== document.getElementById('forced-pwd-confirm').value) return showLoginError("Mật khẩu xác nhận không trùng khớp.");
+    if (await verifyUserPassword(user, next)) return showLoginError("Mật khẩu mới phải khác mật khẩu tạm.");
+    await setUserPassword(user, next);
+    saveState();
+    await completeLogin(user);
+  });
+}
 
 async function confirmLogoutUser() {
   const ok = typeof showConfirmModal === "function"
@@ -370,15 +380,15 @@ function renderUserListTable() {
     
     html += `
       <tr>
-        <td style="font-weight: 600; color: var(--text-primary);">${u.name}</td>
-        <td><code>${u.username}</code></td>
+        <td style="font-weight: 600; color: var(--text-primary);">${escapeHtmlText(u.name)}</td>
+        <td><code>${escapeHtmlText(u.username)}</code></td>
         <td><span class="badge badge-${u.role === 'admin' ? 'danger' : (u.role === 'accountant' ? 'success' : 'info')}">${roleText}</span></td>
         <td>
-          <button class="btn btn-secondary btn-sm" onclick="showEditUserModal('${u.username}')" style="padding: 2px 8px; font-size: 11px;">
+          <button class="btn btn-secondary btn-sm" onclick="showEditUserModal(${escapeHtmlText(JSON.stringify(u.username))})" style="padding: 2px 8px; font-size: 11px;">
             Sửa
           </button>
           ${!isSelf ? `
-            <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.username}')" style="padding: 2px 8px; font-size: 11px; margin-left: 4px;">
+            <button class="btn btn-danger btn-sm" onclick="deleteUser(${escapeHtmlText(JSON.stringify(u.username))})" style="padding: 2px 8px; font-size: 11px; margin-left: 4px;">
               Xóa
             </button>
           ` : ''}
@@ -414,8 +424,8 @@ function showEditUserModal(username) {
   document.getElementById('user-edit-username').value = user.username;
   document.getElementById('user-edit-username').disabled = true;
   document.getElementById('user-edit-name').value = user.name;
-  document.getElementById('user-edit-password').value = user.password || "";
-  document.getElementById('user-edit-password').placeholder = "Mật khẩu...";
+  document.getElementById('user-edit-password').value = "";
+  document.getElementById('user-edit-password').placeholder = "Để trống nếu không đổi mật khẩu";
   document.getElementById('user-edit-role').value = user.role;
   document.getElementById('user-edit-mode').value = "edit";
   
@@ -423,7 +433,7 @@ function showEditUserModal(username) {
 }
 
 // Lưu người dùng (Cả Add và Edit)
-function saveUserFromModal() {
+async function saveUserFromModal() {
   const mode = document.getElementById('user-edit-mode').value;
   const username = document.getElementById('user-edit-username').value.trim();
   const name = document.getElementById('user-edit-name').value.trim();
@@ -447,12 +457,9 @@ function saveUserFromModal() {
       return;
     }
     
-    state.users.push({
-      username: username,
-      name: name,
-      password: password,
-      role: role
-    });
+    const newUser = { username, name, role };
+    await setUserPassword(newUser, password);
+    state.users.push(newUser);
     
     logUserAction("Thêm tài khoản", `Đã tạo tài khoản mới: ${username} (${name}), vai trò: ${role}`);
   } else {
@@ -464,7 +471,7 @@ function saveUserFromModal() {
     user.role = role;
     
     if (password) {
-      user.password = password;
+      await setUserPassword(user, password);
     }
     
     state.users[idx] = user;
@@ -526,7 +533,7 @@ function showChangePasswordModal() {
   openModal('modal-change-password');
 }
 
-function submitChangePassword() {
+async function submitChangePassword() {
   const currentPassword = document.getElementById('change-pwd-current').value;
   const newPassword = document.getElementById('change-pwd-new').value;
   const confirmPassword = document.getElementById('change-pwd-confirm').value;
@@ -542,7 +549,7 @@ function submitChangePassword() {
   
   if (!window.currentUser) return;
   
-  if (currentPassword !== window.currentUser.password) {
+  if (!(await verifyUserPassword(window.currentUser, currentPassword))) {
     if (errDiv) {
       errDiv.textContent = 'Mật khẩu hiện tại không chính xác.';
       errDiv.style.display = 'block';
@@ -568,9 +575,9 @@ function submitChangePassword() {
   
   const idx = state.users.findIndex(u => u.username === window.currentUser.username);
   if (idx !== -1) {
-    state.users[idx].password = newPassword;
-    window.currentUser.password = newPassword;
-    
+    await setUserPassword(state.users[idx], newPassword);
+    if (state.users[idx] !== window.currentUser) await setUserPassword(window.currentUser, newPassword);
+
     saveState();
     logUserAction("Đổi mật khẩu", `Đã tự thay đổi mật khẩu của tài khoản: ${window.currentUser.username}`);
     
@@ -620,10 +627,10 @@ function renderActivityLogTable() {
     html += `
       <tr>
         <td style="color: var(--text-secondary);">${formattedTime}</td>
-        <td><code>${log.username}</code></td>
-        <td style="font-weight: 500;">${log.name}</td>
-        <td><span class="badge badge-info" style="font-weight: 600; background-color: var(--color-primary-light); color: white; padding: 2px 6px; border-radius: 4px;">${log.action}</span></td>
-        <td style="color: var(--text-primary);">${log.description}</td>
+        <td><code>${escapeHtmlText(log.username)}</code></td>
+        <td style="font-weight: 500;">${escapeHtmlText(log.name)}</td>
+        <td><span class="badge badge-info" style="font-weight: 600; background-color: var(--color-primary-light); color: white; padding: 2px 6px; border-radius: 4px;">${escapeHtmlText(log.action)}</span></td>
+        <td style="color: var(--text-primary);">${escapeHtmlText(log.description)}</td>
       </tr>
     `;
   });
@@ -675,12 +682,17 @@ function autoTagRoleButtons() {
   });
 }
 
-// Chạy tự động quét nút trên toàn trang khi khởi tạo
-setInterval(autoTagRoleButtons, 1000);
+// Gắn nhãn khi DOM thay đổi (modal/bảng vừa render) thay vì quét mỗi giây.
+autoTagRoleButtons();
+if (typeof MutationObserver === "function") {
+  new MutationObserver(autoTagRoleButtons).observe(document.body, { childList: true, subtree: true });
+}
 
 // Đăng ký toàn cục các hàm để HTML onclick có thể gọi
 window.initAuth = initAuth;
 window.submitLogin = submitLogin;
+window.hashPassword = hashPassword;
+window.verifyUserPassword = verifyUserPassword;
 window.logoutUser = logoutUser;
 window.showAddUserModal = showAddUserModal;
 window.showEditUserModal = showEditUserModal;

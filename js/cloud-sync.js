@@ -120,11 +120,14 @@ const CLOUD_SYNC_ENTITY_DEFS = [
   { stateKey: "partners", rowPrefix: "part_", deleteType: "partner" }
 ];
 
-const CLOUD_SYNC_MERGE_ENTITY_KEYS = ["vouchers", "products", "partners", "cashEntries", "escrowItems"];
+const CLOUD_SYNC_MERGE_ENTITY_KEYS = ["vouchers", "products", "partners", "cashEntries", "escrowItems", "employees", "payrolls"];
 const CLOUD_SYNC_DELETE_DEFS = [
   ...CLOUD_SYNC_ENTITY_DEFS,
   { stateKey: "cashEntries", rowPrefix: "cash_", deleteType: "cashEntry" },
-  { stateKey: "escrowItems", rowPrefix: "escrow_", deleteType: "escrowItem" }
+  { stateKey: "escrowItems", rowPrefix: "escrow_", deleteType: "escrowItem" },
+  // Lương: ride inside the metadata row like cashEntries; typed tombstone rows only for deletions.
+  { stateKey: "employees", rowPrefix: "emp_", deleteType: "employee" },
+  { stateKey: "payrolls", rowPrefix: "pay_", deleteType: "payroll" }
 ];
 
 const cloudSyncEgressMetrics = {
@@ -306,6 +309,13 @@ function cloudSyncEntityNeedsPush(previous, current) {
   return false;
 }
 
+// Every anon-callable RPC takes p_workspace_secret once the v6 migration is
+// installed. Sent only when configured: pre-v6 servers reject unknown params.
+function cloudSyncRpc(client, name, args) {
+  const secret = String(typeof cloudSyncSettings !== "undefined" && cloudSyncSettings && cloudSyncSettings.workspaceSecret || "").trim();
+  return client.rpc(name, secret ? { ...args, p_workspace_secret: secret } : args);
+}
+
 function cloudSyncDefaultState() {
   return {
     companyName: "",
@@ -320,6 +330,8 @@ function cloudSyncDefaultState() {
     partners: [],
     cashEntries: [],
     escrowItems: [],
+    employees: [],
+    payrolls: [],
     deletedIds: [],
     deletedCloudKeys: []
   };
@@ -407,6 +419,8 @@ function cloudSyncPrefixForEntity(entityType) {
   if (entityType === "partner") return "part_";
   if (entityType === "cashEntry") return "cash_";
   if (entityType === "escrowItem") return "escrow_";
+  if (entityType === "employee") return "emp_";
+  if (entityType === "payroll") return "pay_";
   return "v_";
 }
 
@@ -656,10 +670,9 @@ function cloudSyncSplitMetadata(sourceState) {
     _lastPulledCloudTs,
     _cloudWatermark,
     _cloudDatasetIdentity,
-    _accountingValid,
-    _accountingValidTs,
-    _recalcWatermark,
     _pendingCloudWrite,
+    // Login accounts (password hashes) stay on this station; never synced.
+    users,
     ...metadata
   } = sourceState || {};
   return metadata;
@@ -697,6 +710,7 @@ function isVoucherEntryModalOpen() {
     "modal-add-sales-return",
     "modal-add-sales-quotation",
     "modal-add-receipt",
+    "modal-general-journal",
     "modal-add-payment",
     "modal-edit-debt"
   ];
@@ -989,7 +1003,7 @@ async function cloudSyncReadWithRetry(createRequest, label, options = {}) {
 async function cloudSyncFetchMetadata(options = {}) {
   if (cloudUsesVersionedRpc) {
     const { data, error } = await cloudSyncReadWithRetry(
-      () => supabaseClient.rpc("rd_cloud_status", {
+      () => cloudSyncRpc(supabaseClient, "rd_cloud_status", {
         p_workspace_id: cloudWorkspaceId
       }),
       "cloud status read",
@@ -1191,7 +1205,7 @@ function cloudSyncSetWriteReady(detail) {
 
 async function cloudSyncAuthenticateAndBootstrap() {
   const { data, error } = await cloudSyncReadWithRetry(
-    () => supabaseClient.rpc("rd_cloud_status", {
+    () => cloudSyncRpc(supabaseClient, "rd_cloud_status", {
       p_workspace_id: cloudWorkspaceId
     }),
     "cloud bootstrap",
@@ -1205,6 +1219,10 @@ async function cloudSyncAuthenticateAndBootstrap() {
     const message = String(error.message || "").toLowerCase();
     const missingRpc = code === "PGRST202" || code === "42883" ||
       message.includes("rd_cloud_status") && (message.includes("not found") || message.includes("does not exist"));
+    if (missingRpc && String(cloudSyncSettings && cloudSyncSettings.workspaceSecret || "").trim()) {
+      // Có Mã bảo mật mà RPC không nhận chữ ký có p_workspace_secret: máy chủ chưa chạy v6 — không lùi về đọc bảng trực tiếp.
+      throw new Error("Máy chủ chưa chạy bản cập nhật bảo mật v6 (supabase_online_v6_security_migration.sql) — xóa Mã bảo mật hoặc cập nhật máy chủ");
+    }
     if (missingRpc) {
       cloudUsesVersionedRpc = false;
       cloudSyncVersion = 0;
@@ -1231,7 +1249,7 @@ async function cloudSyncFetchAllRows() {
 
     let createRequest;
     if (cloudUsesVersionedRpc) {
-      createRequest = () => supabaseClient.rpc("rd_sync_snapshot", {
+      createRequest = () => cloudSyncRpc(supabaseClient, "rd_sync_snapshot", {
         p_workspace_id: cloudWorkspaceId,
         p_after_id: lastSeenId || null,
         p_limit: CLOUD_SYNC_PAGE_SIZE
@@ -1295,7 +1313,7 @@ async function cloudSyncFetchRowsSince(sinceTs) {
     let request;
     let createLegacyRequest = null;
     if (cloudUsesVersionedRpc) {
-      request = supabaseClient.rpc("rd_sync_delta", {
+      request = cloudSyncRpc(supabaseClient, "rd_sync_delta", {
         p_workspace_id: cloudWorkspaceId,
         p_after_version: lastSeenVersion,
         p_after_id: lastSeenId || null,
@@ -1368,6 +1386,8 @@ function cloudSyncStateFromRows(rows, options = {}) {
       
       delete metaData.deletedIds;
       delete metaData.deletedCloudKeys;
+      // Older stations still upload login accounts; never adopt them.
+      delete metaData.users;
       
       Object.assign(cloudState, metaData);
       
@@ -1574,51 +1594,9 @@ function cloudSyncMetaComparable(meta) {
   delete comparable.deletedCloudKeys;
   delete comparable.cashEntries;
   delete comparable.escrowItems;
+  delete comparable.employees;
+  delete comparable.payrolls;
   return cloudSyncStableStringify(comparable);
-}
-
-// Merge từng tài khoản theo username (3-way với baseline): tài khoản chỉ bị
-// thêm/sửa/xóa ở MỘT phía lấy phía đó; cùng sửa một tài khoản thì phía có
-// timestamp cả cục mới hơn thắng (users không mang _updatedAt riêng).
-function cloudSyncMergeUserAccounts(localUsers, cloudUsers, baseUsers, cloudWins) {
-  if (!Array.isArray(localUsers) && !Array.isArray(cloudUsers)) return undefined;
-  const toMap = list => new Map(
-    (Array.isArray(list) ? list : [])
-      .filter(u => u && u.username)
-      .map(u => [String(u.username).toLowerCase(), u])
-  );
-  const localMap = toMap(localUsers);
-  const cloudMap = toMap(cloudUsers);
-  const baseMap = toMap(baseUsers);
-  const merged = [];
-  const keys = new Set([...localMap.keys(), ...cloudMap.keys()]);
-  keys.forEach(key => {
-    const localUser = localMap.get(key);
-    const cloudUser = cloudMap.get(key);
-    const baseUser = baseMap.get(key);
-    if (localUser && cloudUser) {
-      if (cloudSyncEqual(localUser, cloudUser)) {
-        merged.push(localUser);
-        return;
-      }
-      const localChanged = !cloudSyncEqual(localUser, baseUser);
-      const cloudChanged = !cloudSyncEqual(cloudUser, baseUser);
-      if (localChanged && !cloudChanged) merged.push(localUser);
-      else if (cloudChanged && !localChanged) merged.push(cloudUser);
-      else merged.push(cloudWins ? cloudUser : localUser);
-      return;
-    }
-    const existing = localUser || cloudUser;
-    if (!baseUser) {
-      // Mới thêm ở một phía → giữ.
-      merged.push(existing);
-      return;
-    }
-    // Có trong baseline nhưng một phía đã xóa: nếu phía còn lại không sửa gì
-    // thì tôn trọng việc xóa; nếu phía còn lại có sửa thì giữ bản sửa.
-    if (!cloudSyncEqual(existing, baseUser)) merged.push(existing);
-  });
-  return merged;
 }
 
 function cloudSyncMergeMetadata(localState, cloudState, baselineState = null) {
@@ -1640,9 +1618,11 @@ function cloudSyncMergeMetadata(localState, cloudState, baselineState = null) {
     fieldKeys.forEach(key => {
       if (key === "_lastModified" || key === "lastModifiedBy") return;
       // Các khối có cơ chế merge chuyên biệt phía dưới.
-      if (key === "partnerOpeningBalances" || key === "partnerOpeningBalanceTs" || key === "initialBalances" || key === "users") return;
+      if (key === "partnerOpeningBalances" || key === "partnerOpeningBalanceTs" || key === "initialBalances") return;
       const localChanged = !cloudSyncEqual(localMeta[key], baseMeta[key]);
-      const cloudChanged = !cloudSyncEqual(cloudMeta[key], baseMeta[key]);
+      // A key the cloud row lacks but the baseline had was dropped by an older
+      // station that does not know it, not deleted: keep ours.
+      const cloudChanged = (key in cloudMeta || !(key in baseMeta)) && !cloudSyncEqual(cloudMeta[key], baseMeta[key]);
       if (localChanged === cloudChanged) return; // cả hai đổi (giữ ts winner) hoặc không ai đổi
       const winnerMeta = localChanged ? localMeta : cloudMeta;
       if (Object.prototype.hasOwnProperty.call(winnerMeta, key)) {
@@ -1651,14 +1631,17 @@ function cloudSyncMergeMetadata(localState, cloudState, baselineState = null) {
         delete merged[key];
       }
     });
-    const mergedUsers = cloudSyncMergeUserAccounts(
-      localMeta.users,
-      cloudMeta.users,
-      baseMeta.users,
-      cloudWins
-    );
-    if (mergedUsers !== undefined) merged.users = mergedUsers;
-    else delete merged.users;
+    // Tax inputs are keyed by period/year and edited independently per station.
+    // A cloud row missing the key/field (older station) counts as unchanged.
+    const localTax = localMeta.taxSettings || {};
+    const baseTax = baseMeta.taxSettings || {};
+    const cloudTax = "taxSettings" in cloudMeta ? (cloudMeta.taxSettings || {}) : baseTax;
+    ["vatInputs", "prevYearRevenue"].forEach(field => {
+      const cloudField = field in cloudTax ? cloudTax[field] : baseTax[field];
+      if (!localTax[field] && !cloudField) return;
+      const mergedField = cloudSyncMergeKeyed3Way(localTax[field] || {}, cloudField || {}, baseTax[field] || {}, cloudWins);
+      merged.taxSettings = { ...(merged.taxSettings || {}), [field]: mergedField };
+    });
   }
 
   const localOP = localMeta.partnerOpeningBalances || {};
@@ -1699,19 +1682,27 @@ function cloudSyncMergeMetadata(localState, cloudState, baselineState = null) {
   if (baseState) {
     // 3-way theo TỪNG TÀI KHOẢN: chỉ một phía đổi thì lấy phía đó; cả hai đổi
     // thì phía thắng timestamp (giống các trường metadata khác).
-    const baseIB = cloudSyncSplitMetadata(baseState).initialBalances || {};
-    const localIB = localMeta.initialBalances || {};
-    const cloudIB = cloudMeta.initialBalances || {};
-    const mergedIB = {};
-    new Set([...Object.keys(localIB), ...Object.keys(cloudIB), ...Object.keys(baseIB)]).forEach(acc => {
-      const localChanged = !cloudSyncEqual(localIB[acc], baseIB[acc]);
-      const cloudChanged = !cloudSyncEqual(cloudIB[acc], baseIB[acc]);
-      const src = (localChanged === cloudChanged ? cloudWins : cloudChanged) ? cloudIB : localIB;
-      if (Object.prototype.hasOwnProperty.call(src, acc)) mergedIB[acc] = src[acc];
-    });
-    merged.initialBalances = mergedIB;
+    merged.initialBalances = cloudSyncMergeKeyed3Way(
+      localMeta.initialBalances || {},
+      cloudMeta.initialBalances || {},
+      cloudSyncSplitMetadata(baseState).initialBalances || {},
+      cloudWins
+    );
   }
 
+  return merged;
+}
+
+// Per-key 3-way merge of a keyed object: a key changed on one side only takes
+// that side; changed on both sides takes the timestamp winner.
+function cloudSyncMergeKeyed3Way(local, cloud, base, cloudWins) {
+  const merged = {};
+  new Set([...Object.keys(local), ...Object.keys(cloud), ...Object.keys(base)]).forEach(key => {
+    const localChanged = !cloudSyncEqual(local[key], base[key]);
+    const cloudChanged = !cloudSyncEqual(cloud[key], base[key]);
+    const src = (localChanged === cloudChanged ? cloudWins : cloudChanged) ? cloud : local;
+    if (Object.prototype.hasOwnProperty.call(src, key)) merged[key] = src[key];
+  });
   return merged;
 }
 
@@ -1821,6 +1812,8 @@ function cloudSyncMergeStatesCore(localState, cloudState, options = {}) {
   // Overridden by the entity merge below; drop before compare/clone.
   delete mergedMeta.cashEntries;
   delete mergedMeta.escrowItems;
+  delete mergedMeta.employees;
+  delete mergedMeta.payrolls;
   if (stats && !stats.changed) {
     stats.changed = cloudSyncMetaComparable(mergedMeta) !== cloudSyncMetaComparable(cloudSyncSplitMetadata(localState));
   }
@@ -1842,14 +1835,13 @@ function cloudSyncMergeStatesCore(localState, cloudState, options = {}) {
   if (Object.keys(mergedTombstoneTs).length > 0) {
     merged._deletedCloudKeyTs = mergedTombstoneTs;
   }
-  // Audit logs intentionally stay on the machine that recorded them. Preserve
-  // them explicitly because cloudSyncSplitMetadata excludes them from both
-  // sides of the cloud merge.
-  if (Object.prototype.hasOwnProperty.call(localState || {}, "actionLogs")) {
-    merged.actionLogs = options.cloneMetadata
-      ? cloudSyncClone(localState.actionLogs || [])
-      : (localState.actionLogs || []);
-  }
+  // Audit logs and login accounts intentionally stay on the machine that
+  // recorded them. Preserve them explicitly because cloudSyncSplitMetadata
+  // excludes them from both sides of the cloud merge.
+  ["actionLogs", "users"].forEach(key => {
+    if (!Object.prototype.hasOwnProperty.call(localState || {}, key)) return;
+    merged[key] = options.cloneMetadata ? cloudSyncClone(localState[key] || []) : (localState[key] || []);
+  });
 
   return { state: merged, stats };
 }
@@ -1936,15 +1928,9 @@ async function cloudSyncPersistPullDeltaToCache(mergedState, changedIdsByEntity 
       }
     });
 
-    // Same metadata key list as executeSaveState (js/state.js), plus _lastModified
-    // which the full save path also persists.
-    const metadataKeys = [
-      'companyName', 'address', 'taxCode', 'accountingStandard',
-      'initialBalances', 'partnerOpeningBalances', 'partnerOpeningBalanceTs', 'deletedIds', 'deletedCloudKeys',
-      '_lastModified', '_lastPulledCloudTs', '_cloudDatasetIdentity', '_pendingCloudWrite',
-      'cashEntries', 'escrowItems', 'salesTemplatesData', 'users', 'actionLogs'
-    ];
-    metadataKeys.forEach(key => {
+    // Shared key list (js/core/state-diff.js), plus _lastModified which the
+    // full save path also persists.
+    [...STATE_METADATA_KEYS, '_lastModified'].forEach(key => {
       const currentValStr = JSON.stringify(mergedState[key] !== undefined ? mergedState[key] : null);
       const prevValStr = JSON.stringify(lastSavedState[key] !== undefined ? lastSavedState[key] : null);
       if (currentValStr !== prevValStr) {
@@ -3130,7 +3116,7 @@ async function cloudSyncFetchRowsByKeys(keys) {
     // definer), nên khi chạy chế độ versioned RPC phải dùng rd_rows_by_ids.
     const { data, error } = await cloudSyncReadWithRetry(
       () => cloudUsesVersionedRpc
-        ? supabaseClient.rpc("rd_rows_by_ids", { p_workspace_id: cloudWorkspaceId, p_ids: batch })
+        ? cloudSyncRpc(supabaseClient, "rd_rows_by_ids", { p_workspace_id: cloudWorkspaceId, p_ids: batch })
         : supabaseClient
             .from(CLOUD_SYNC_TABLE)
             .select("id,data,last_modified")
@@ -3376,7 +3362,7 @@ async function cloudSyncPushNow() {
         const batch = transactionBatches[batchIndex];
         cloudSyncNoteNewVoucherRows(batch, { sent: true });
         const { data: rpcResult, error: rpcError } = await withTimeout(
-          supabaseClient.rpc("rd_apply_sync_transaction", {
+          cloudSyncRpc(supabaseClient, "rd_apply_sync_transaction", {
             p_workspace_id: cloudWorkspaceId,
             p_expected_sync_version: transactionExpectedVersion,
             p_rows: batch,
@@ -4039,7 +4025,7 @@ async function cloudSyncStartSupabaseClientAttempt() {
         retryDelayMs ? "read-only" : "error",
         retryDelayMs
           ? `Cloud tạm gián đoạn; dữ liệu vẫn lưu trên máy và sẽ tự kết nối lại sau khoảng ${Math.ceil(retryDelayMs / 1000)} giây.`
-          : "Không thể xác thực hoặc tải dữ liệu cloud."
+          : `Không thể xác thực hoặc tải dữ liệu cloud: ${errorSummary}`
       );
     }
     cloudSyncStartupMetrics.completedAt = Date.now();
@@ -4263,7 +4249,7 @@ async function fetchCloudMaxVoucherSequence(prefix, options = {}) {
     let afterId = null;
     for (let page = 0; page < 30; page++) {
       const { data, error } = await cloudSyncReadWithRetry(
-        () => client.rpc("rd_ids_by_prefix", {
+        () => cloudSyncRpc(client, "rd_ids_by_prefix", {
           p_workspace_id: cloudWorkspaceId,
           p_prefix: lower,
           p_after_id: afterId,
@@ -4323,7 +4309,7 @@ async function tryReserveCloudVoucherId(voucherId, options = {}) {
   if (cloudUsesVersionedRpc) {
     const updatedBy = cloudSyncGetUpdatedByToken();
     const { data, error } = await cloudSyncReadWithRetry(
-      () => client.rpc("rd_reserve_voucher_id", {
+      () => cloudSyncRpc(client, "rd_reserve_voucher_id", {
         p_workspace_id: cloudWorkspaceId,
         p_lock_id: lockId,
         p_data: { voucherId, rowPrefix, reservedBy: cloudSyncGetSessionId(), reservedAt: now },
@@ -4395,7 +4381,7 @@ async function fetchExistingCloudIdsByKeysFromClient(client, keys) {
     const batch = uniqueKeys.slice(i, i + 100);
     const { data, error } = await cloudSyncReadWithRetry(
       () => cloudUsesVersionedRpc
-        ? client.rpc("rd_find_ids", { p_workspace_id: cloudWorkspaceId, p_ids: batch })
+        ? cloudSyncRpc(client, "rd_find_ids", { p_workspace_id: cloudWorkspaceId, p_ids: batch })
         : client.from(CLOUD_SYNC_TABLE).select("id").in("id", batch),
       `existing cloud ids batch ${Math.floor(i / 100) + 1}`,
       { attempts: 4, timeoutMs: 20000 }

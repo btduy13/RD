@@ -1,49 +1,42 @@
 /* ==========================================================================
-   STATE DIFF — So sánh entity nhanh bằng _updatedAt + hash thay vì JSON.stringify
+   STATE DIFF — So sánh entity nhanh bằng _updatedAt + so sánh cấu trúc (không JSON.stringify)
    ========================================================================== */
 
-const ENTITY_WATCH_FIELDS = {
-  voucher: [
-    "_updatedAt", "type", "date", "partnerId", "description", "paymentMethod",
-    "totalAmount", "amount", "entries", "debtAdjustment", "cogsAmount", "remainingDebt", "taxRate", "note", "items",
-    "partnerName", "isManual", "isImported", "escrowRefId"
-  ],
-  product: [
-    "_updatedAt", "name", "unit", "stock", "avgCost", "totalValue",
-    "initialStock", "initialCost", "actualStock", "lastPurchasePrice"
-  ],
-  partner: [
-    "_updatedAt", "name", "type", "phone", "address", "taxCode", "contacts"
-  ]
-};
+// Metadata keys persisted to SQLite (main.js), diffed on save (here) and after a
+// pull (cloud-sync.js). _lastModified is written separately: it changes on
+// every save and must not by itself count as a change.
+const STATE_METADATA_KEYS = [
+  "companyName", "address", "taxCode", "accountingStandard",
+  "preparerName", "chiefAccountantName", "directorName", "allowNegativeStock",
+  "initialBalances", "partnerOpeningBalances", "partnerOpeningBalanceTs",
+  "deletedIds", "deletedCloudKeys", "_deletedCloudKeyTs", "_lastPulledCloudTs", "_cloudDatasetIdentity", "_pendingCloudWrite",
+  "cashEntries", "escrowItems", "employees", "payrolls", "taxSettings", "salesTemplatesData", "users", "actionLogs",
+  "schemaVersion"
+];
 
-function fnv1aHash(str) {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < str.length; i++) {
-    hash ^= str.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
+// Structural equality for JSON data without serialising: a save at ~20k vouchers
+// re-checks every entity, and recalculation rewrites derived fields (entries,
+// cogsUnit, remainingDebt, vatBreakdown) without bumping _updatedAt.
+// undefined == null mirrors JSON (the saved snapshot is a JSON clone).
+function sameJsonValue(a, b) {
+  if (a === b) return true;
+  if (a == null || b == null) return a == b;
+  if (typeof a !== "object" || typeof b !== "object") return false;
+  if (Array.isArray(a)) {
+    if (!Array.isArray(b) || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (!sameJsonValue(a[i], b[i])) return false;
+    return true;
   }
-  return (hash >>> 0).toString(36);
+  if (Array.isArray(b)) return false;
+  for (const k in a) if (a[k] !== undefined && !sameJsonValue(a[k], b[k])) return false;
+  for (const k in b) if (b[k] !== undefined && a[k] === undefined) return false;
+  return true;
 }
 
-function entityContentHash(entity, kind) {
-  const fields = ENTITY_WATCH_FIELDS[kind] || ["_updatedAt"];
-  const parts = fields.map((key) => {
-    const val = entity[key];
-    if (val === undefined || val === null) return "";
-    if (typeof val === "object") return JSON.stringify(val);
-    return String(val);
-  });
-  return fnv1aHash(parts.join("\x1e"));
-}
-
-function entityChanged(prev, current, kind) {
-  if (!prev) return true;
-  if (!current) return true;
-  const prevTs = Number(prev._updatedAt) || 0;
-  const curTs = Number(current._updatedAt) || 0;
-  if (curTs !== prevTs) return true;
-  return entityContentHash(prev, kind) !== entityContentHash(current, kind);
+function entityChanged(prev, current) {
+  if (!prev || !current) return true;
+  if ((Number(prev._updatedAt) || 0) !== (Number(current._updatedAt) || 0)) return true;
+  return !sameJsonValue(prev, current);
 }
 
 function touchEntityUpdatedAt(entity) {
@@ -52,8 +45,26 @@ function touchEntityUpdatedAt(entity) {
   return entity;
 }
 
-function pruneResolvedDeletionMarkers(currentState) {
+const TOMBSTONE_LOCAL_KEEP_MS = 180 * 24 * 60 * 60 * 1000;
+
+function pruneResolvedDeletionMarkers(currentState, now = Date.now()) {
   if (!currentState || typeof currentState !== "object") return currentState;
+
+  // Old local tombstones only bloat every save. Safe to forget once no local
+  // write is pending (the deletion reached the cloud as a typed tombstone row,
+  // which stays authoritative and a full snapshot pull re-delivers it). Keys
+  // without a timestamp have unknown age and are kept.
+  const tombstoneTs = currentState._deletedCloudKeyTs;
+  if (!currentState._pendingCloudWrite && tombstoneTs && typeof tombstoneTs === "object" && Array.isArray(currentState.deletedCloudKeys)) {
+    const expired = new Set(Object.keys(tombstoneTs).filter(key => {
+      const ts = Number(tombstoneTs[key]) || 0;
+      return ts > 0 && ts < now - TOMBSTONE_LOCAL_KEEP_MS;
+    }));
+    if (expired.size > 0) {
+      currentState.deletedCloudKeys = currentState.deletedCloudKeys.filter(key => !expired.has(String(key)));
+      expired.forEach(key => delete tombstoneTs[key]);
+    }
+  }
 
   const activeIds = new Set();
   const activeCloudKeys = new Set();
@@ -75,6 +86,8 @@ function pruneResolvedDeletionMarkers(currentState) {
   addActive(currentState.partners, "part_");
   addActive(currentState.cashEntries, "cash_");
   addActive(currentState.escrowItems, "escrow_");
+  addActive(currentState.employees, "emp_");
+  addActive(currentState.payrolls, "pay_");
 
   if (Array.isArray(currentState.deletedIds)) {
     currentState.deletedIds = currentState.deletedIds.filter(id =>
@@ -126,7 +139,7 @@ function buildStateDelta(state, lastSavedState) {
       delta.vouchers.upsert.push(v);
       addedVouchers.push(v.id);
       hasVoucherChanges = true;
-    } else if (entityChanged(prev, v, "voucher")) {
+    } else if (entityChanged(prev, v)) {
       delta.vouchers.upsert.push(v);
       updatedVouchers.push(v.id);
       hasVoucherChanges = true;
@@ -153,7 +166,7 @@ function buildStateDelta(state, lastSavedState) {
       delta.products.upsert.push(p);
       addedProducts.push(p.id);
       hasProductChanges = true;
-    } else if (entityChanged(prev, p, "product")) {
+    } else if (entityChanged(prev, p)) {
       delta.products.upsert.push(p);
       updatedProducts.push(p.id);
       hasProductChanges = true;
@@ -180,7 +193,7 @@ function buildStateDelta(state, lastSavedState) {
       delta.partners.upsert.push(p);
       addedPartners.push(p.id);
       hasPartnerChanges = true;
-    } else if (entityChanged(prev, p, "partner")) {
+    } else if (entityChanged(prev, p)) {
       delta.partners.upsert.push(p);
       updatedPartners.push(p.id);
       hasPartnerChanges = true;
@@ -194,20 +207,10 @@ function buildStateDelta(state, lastSavedState) {
     }
   }
 
-  const metadataKeys = [
-    "companyName", "address", "taxCode", "accountingStandard",
-    "initialBalances", "partnerOpeningBalances", "partnerOpeningBalanceTs",
-    "deletedIds", "deletedCloudKeys", "_deletedCloudKeyTs", "_lastPulledCloudTs", "_cloudDatasetIdentity", "_pendingCloudWrite",
-    "cashEntries", "escrowItems", "salesTemplatesData", "users", "actionLogs",
-    "schemaVersion", "_accountingValid", "_accountingValidTs", "_recalcWatermark"
-  ];
-
   let hasMetaChanges = false;
-  metadataKeys.forEach((key) => {
-    const currentValStr = JSON.stringify(state[key] !== undefined ? state[key] : null);
-    const prevValStr = JSON.stringify(lastSavedState[key] !== undefined ? lastSavedState[key] : null);
-    if (currentValStr !== prevValStr) {
-      delta.metadata[key] = currentValStr;
+  STATE_METADATA_KEYS.forEach((key) => {
+    if (!sameJsonValue(state[key], lastSavedState[key])) {
+      delta.metadata[key] = JSON.stringify(state[key] !== undefined ? state[key] : null);
       hasMetaChanges = true;
     }
   });
@@ -248,9 +251,14 @@ function applyDeltaToSnapshot(lastSavedState, delta) {
   });
 }
 
-window.entityChanged = entityChanged;
-window.entityContentHash = entityContentHash;
-window.touchEntityUpdatedAt = touchEntityUpdatedAt;
-window.pruneResolvedDeletionMarkers = pruneResolvedDeletionMarkers;
-window.buildStateDelta = buildStateDelta;
-window.applyDeltaToSnapshot = applyDeltaToSnapshot;
+if (typeof window !== "undefined") {
+  window.STATE_METADATA_KEYS = STATE_METADATA_KEYS;
+  window.sameJsonValue = sameJsonValue;
+  window.entityChanged = entityChanged;
+  window.touchEntityUpdatedAt = touchEntityUpdatedAt;
+  window.pruneResolvedDeletionMarkers = pruneResolvedDeletionMarkers;
+  window.buildStateDelta = buildStateDelta;
+  window.applyDeltaToSnapshot = applyDeltaToSnapshot;
+}
+// main.js (Node) reads the shared metadata key list.
+if (typeof module !== "undefined" && module.exports) module.exports = { STATE_METADATA_KEYS };

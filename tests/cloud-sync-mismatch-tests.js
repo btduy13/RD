@@ -32,13 +32,13 @@ const META = {
   users: [{ username: "admin", name: "Admin", role: "admin" }, { username: "ketoan", name: "KT", role: "user" }],
   salesTemplatesData: [{ filename: "mau1.xlsx", rows: [1, 2] }]
 };
+// users are station-local (never synced): A keeps its own, B and the cloud never see them.
 const metaOf = s => ({
   companyName: s.state.companyName,
   accountingStandard: s.state.accountingStandard,
-  users: (s.state.users || []).map(u => u.username),
   tpl: (s.state.salesTemplatesData || []).length
 });
-const EXPECTED = { companyName: "Cong ty RD", accountingStandard: "TT133", users: ["admin", "ketoan"], tpl: 1 };
+const EXPECTED = { companyName: "Cong ty RD", accountingStandard: "TT133", tpl: 1 };
 
 async function seededPair() {
   const server = new FakeServer();
@@ -60,7 +60,8 @@ test("voucher-id reservation by another station does not wipe metadata on increm
   await B.pull({ reason: "poll", force: false });
   assert.deepStrictEqual(metaOf(B), EXPECTED);
   assert.strictEqual(B.run("lastSyncState.companyName"), "Cong ty RD");
-  assert.strictEqual(B.run("lastSyncState.users.length"), 2);
+  assert.strictEqual(B.run("lastSyncState.users"), undefined);
+  assert.strictEqual(B.state.users, undefined, "login accounts never reach another station");
 });
 
 test("a station that reserved an id then saves/pushes keeps cloud and local metadata intact", async () => {
@@ -73,7 +74,8 @@ test("a station that reserved an id then saves/pushes keeps cloud and local meta
   const cloudMeta = server.rows.get("metadata").data;
   assert.strictEqual(cloudMeta.companyName, "Cong ty RD");
   assert.strictEqual(cloudMeta.accountingStandard, "TT133");
-  assert.strictEqual(cloudMeta.users.length, 2);
+  assert.strictEqual(cloudMeta.users, undefined, "login accounts never reach the cloud");
+  assert.deepStrictEqual(A.state.users.map(u => u.username), ["admin", "ketoan"], "pushing station keeps its accounts");
   await B.pull({ force: false });
   assert.deepStrictEqual(metaOf(B), EXPECTED);
   assert.ok(B.state.vouchers.some(v => v.id === id), "voucher still syncs");
@@ -90,6 +92,36 @@ test("an empty-data metadata row in a delta is not authoritative", async () => {
   server.version += 1; // some other change that bumps the workspace version
   await B.pull({ reason: "poll", force: false });
   assert.deepStrictEqual(metaOf(B), EXPECTED);
+});
+
+test("workspace secret is sent with every RPC only when configured", async () => {
+  const server = new FakeServer();
+  const calls = [];
+  const orig = server.rpc.bind(server);
+  server.rpc = async (station, name, p) => { calls.push({ station, name, p }); return orig(station, name, p); };
+  const A = makeStation("A", server), B = makeStation("B", server);
+  A.run(`cloudSyncSettings.workspaceSecret = " s3cret "`);
+  await A.startup(); await B.startup();
+  A.state.vouchers.push({ id: "PT1", type: "receipt", amount: 1, _updatedAt: Date.now(), _sessionId: "session-A" });
+  A.state._lastModified = Date.now();
+  await A.run(`getCloudSafeVoucherId({ prefix: 'PT' })`);
+  assert.strictEqual(await A.push(), true);
+  const aCalls = calls.filter(c => c.station === "A"), bCalls = calls.filter(c => c.station === "B");
+  assert.ok(new Set(aCalls.map(c => c.name)).size >= 4, "several RPC kinds exercised: " + aCalls.map(c => c.name));
+  aCalls.forEach(c => assert.strictEqual(c.p.p_workspace_secret, "s3cret", c.name + " carries the secret"));
+  bCalls.forEach(c => assert.ok(!("p_workspace_secret" in c.p), c.name + " without a secret keeps the pre-v6 signature"));
+});
+
+test("with a workspace secret, a pre-v6 server (PGRST202) fails clearly instead of falling back to direct tables", async () => {
+  const server = new FakeServer();
+  const A = makeStation("A", server);
+  A.sandbox.__client.rpc = async () => ({ data: null, error: { code: "PGRST202", message: "Could not find the function public.rd_cloud_status" } });
+  A.run(`cloudUsesVersionedRpc = true; cloudSyncSettings.workspaceSecret = "s3cret"`);
+  await assert.rejects(A.run(`cloudSyncAuthenticateAndBootstrap()`), /bản cập nhật bảo mật v6/);
+  assert.strictEqual(A.run("cloudUsesVersionedRpc"), true, "no fallback to the legacy table path");
+  A.run(`cloudSyncSettings.workspaceSecret = ""`);
+  await A.run(`cloudSyncAuthenticateAndBootstrap()`);
+  assert.strictEqual(A.run("cloudUsesVersionedRpc"), false, "without a secret the pre-v6 fallback stays");
 });
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -447,6 +479,25 @@ test("delayed push whose number was re-issued to another station is renumbered, 
   assert.deepStrictEqual(deltaEntityIds(B), []);
   assert.deepStrictEqual([...A.sandbox.__errors.filter(e => !/NETWORK_DOWN/.test(e)), ...B.sandbox.__errors], []);
 }, { expectErrors: [/^A: \[CloudSync\] Push failed: NETWORK_DOWN$/] });
+
+test("two stations offline both issue the same next number: the later pusher is renumbered", async () => {
+  const server = new FakeServer();
+  const A = makeStation("A", server), B = makeStation("B", server);
+  await A.startup(); await B.startup();
+  const offlineId = st => st.run(`(async () => { cloudSyncActive = false; try { return await getCloudSafeVoucherId({ prefix: 'BH' }); } finally { cloudSyncActive = true; } })()`);
+  const idA = await offlineId(A), idB = await offlineId(B);
+  assert.strictEqual(idA, "BH1"); assert.strictEqual(idB, "BH1", "offline stations cannot coordinate numbers");
+  A.state.vouchers.push({ id: idA, type: "sales", partnerName: "Khach cua A", totalAmount: 100, _updatedAt: Date.now(), _sessionId: "session-A" });
+  A.state._lastModified = Date.now();
+  B.state.vouchers.push({ id: idB, type: "sales", partnerName: "Khach cua B", totalAmount: 200, _updatedAt: Date.now() + 1, _sessionId: "session-B" });
+  B.state._lastModified = Date.now() + 1;
+  assert.strictEqual(await A.push(), true);
+  assert.strictEqual(await B.push(), true);
+  await A.pull();
+  assert.strictEqual(server.rows.get("v_BH1").data.partnerName, "Khach cua A", "first pusher keeps the number");
+  assert.strictEqual(server.rows.get("v_BH2").data.partnerName, "Khach cua B", "second pusher renumbered, not overwritten");
+  for (const st of [A, B]) assert.deepStrictEqual(vIds(st), ["BH1", "BH2"], st.name + " vouchers");
+});
 
 test("collision with an older-stamped foreign voucher does not overwrite it in the cloud", async () => {
   const { server, A, B } = await collisionSetup();

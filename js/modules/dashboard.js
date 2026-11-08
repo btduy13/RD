@@ -17,36 +17,20 @@ function renderDashboard() {
     }
   }
 
-  // A. Tổng quỹ tiền: Dư nợ TK 111 + TK 112 (tính lũy kế đến toDate)
-  const bal111 = getAccountBalance("111", toDate);
-  const bal112 = getAccountBalance("112", toDate);
-  animateCountUp(document.getElementById("kpi-cash-value"), bal111 + bal112);
+  // A. Tổng quỹ tiền: số dư cuối TK 111 + 112 (gồm TK con) đến toDate — cùng nguồn Sổ cái với báo cáo
+  const dashboardKpis = computeDashboardKpis(state, fromDate, toDate);
+  animateCountUp(document.getElementById("kpi-cash-value"), dashboardKpis.cash);
 
-  // B. Tổng doanh thu kỳ này: Tổng Có phát sinh TK 511 (trong khoảng từ/đến ngày)
-  let totalRevenue = 0;
-  state.vouchers.forEach(v => {
-    if (v.type === "sales") {
-      if (fromDate && v.date < fromDate) return;
-      if (toDate && v.date > toDate) return;
-      v.items.forEach(item => {
-        totalRevenue += item.amount;
-      });
-    }
-  });
-  animateCountUp(document.getElementById("kpi-revenue-value"), totalRevenue);
+  // B. Doanh thu thuần kỳ này (511 − giảm trừ), như B02
+  animateCountUp(document.getElementById("kpi-revenue-value"), dashboardKpis.revenue);
 
   // C. Giá trị tồn kho: Tổng giá trị hàng hóa (lũy kế đến toDate)
   const totalInventoryVal = getInventoryValueAt(toDate);
   animateCountUp(document.getElementById("kpi-inventory-value"), totalInventoryVal);
 
-  const acctEscrowPay = state.accountingStandard === "TT200" ? "244" : "1386";
-  const acctEscrowReceive = state.accountingStandard === "TT200" ? "344" : "3386";
-  const bal244 = getAccountBalance(acctEscrowPay, toDate);
-  const bal344 = getAccountBalance(acctEscrowReceive, toDate);
-
   const escrowValueEl = document.getElementById("kpi-escrow-value");
   if (escrowValueEl) {
-    animateCountUp(escrowValueEl, bal244 + bal344);
+    animateCountUp(escrowValueEl, dashboardKpis.escrow);
   }
 
   // CẢNH BÁO SẢN PHẨM ÂM KHO
@@ -60,6 +44,17 @@ function renderDashboard() {
 
   // Update sidebar notification badges
   if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
+}
+
+// Số liệu thẻ KPI: tiền, ký quỹ (đã nộp 244|1386 dư Nợ + đã nhận 344|3386 dư Có, cùng hiện số dương), doanh thu thuần.
+function computeDashboardKpis(st, fromDate, toDate) {
+  const net = code => { const t = getAccountTurnover(st, code, "", toDate); return t.closeDebit - t.closeCredit; };
+  const tt99 = isTT99Family(st.accountingStandard);
+  return {
+    cash: net("111") + net("112"),
+    escrow: net(tt99 ? "244" : "1386") - net(tt99 ? "344" : "3386"),
+    revenue: computeProfitLoss(st, fromDate, toDate).netRevenue
+  };
 }
 
 function filterDashboard() {
@@ -152,7 +147,7 @@ function renderDashboardDebts() {
 
         tr.innerHTML = `
           <td style="font-weight:bold;">${idCol}</td>
-          <td><a href="#" onclick="viewPartnerLedger('${escapedPartnerId}'); return false;" style="font-weight:600; color:var(--text-primary); text-decoration:underline;">${item.partnerName}</a></td>
+          <td><a href="#" onclick="viewPartnerLedger('${escapedPartnerId}'); return false;" style="font-weight:600; color:var(--text-primary); text-decoration:underline;">${escapeHtmlText(item.partnerName)}</a></td>
           <td style="text-align:right;" class="font-numeric">${formatVND(item.totalAmount).replace("đ", "")}</td>
           <td style="text-align:right; font-weight:700; color:var(--color-warning);" class="font-numeric">${formatVND(item.remainingDebt).replace("đ", "")}</td>
           <td style="text-align:center;">
@@ -240,7 +235,7 @@ function renderDashboardDebts() {
         }
 
         tr.innerHTML = `
-          <td><a href="#" onclick="viewPartnerLedger('${escapeHtmlAttr(item.partnerId)}'); return false;" style="font-weight:600; color:var(--text-primary); text-decoration:underline;">${item.partnerName}</a></td>
+          <td><a href="#" onclick="viewPartnerLedger('${escapeHtmlAttr(item.partnerId)}'); return false;" style="font-weight:600; color:var(--text-primary); text-decoration:underline;">${escapeHtmlText(item.partnerName)}</a></td>
           <td style="text-align:right; font-weight:700; color:var(--color-warning);" class="font-numeric">${formatVND(item.remainingDebt).replace("đ", "")}</td>
           <td>${formatDateDisplay(item.date)}</td>
           <td style="text-align:center;"><span class="badge ${dayClass}">${dayLabel}</span></td>
@@ -292,10 +287,10 @@ function renderDashboardNegativeStocks() {
     return `
       <tr>
         <td class="font-numeric" style="font-weight: 700;">
-          <a onclick="viewStockLedgerForProduct('${escapedId}')" style="cursor: pointer; color: var(--color-primary); text-decoration: underline;">${p.id}</a>
+          <a onclick="viewStockLedgerForProduct('${escapedId}')" style="cursor: pointer; color: var(--color-primary); text-decoration: underline;">${escapeHtmlText(p.id)}</a>
         </td>
-        <td><span style="font-weight: 600; color: var(--text-primary);">${p.name}</span></td>
-        <td style="text-align: center;">${p.unit || 'Cái'}</td>
+        <td><span style="font-weight: 600; color: var(--text-primary);">${escapeHtmlText(p.name)}</span></td>
+        <td style="text-align: center;">${escapeHtmlText(p.unit || 'Cái')}</td>
         <td class="text-right font-numeric" style="color: var(--color-danger); font-weight: 700;">${stockVal}</td>
         <td class="text-right font-numeric">${formatVND(p.avgCost || 0)}</td>
       </tr>
@@ -337,8 +332,8 @@ function renderRecentActivities() {
     return `
       <div class="activity-item type-${v.type}">
         <div class="activity-desc">
-          <span class="activity-title">${v.description}</span>
-          <span class="activity-date">${formatDateDisplay(v.date)} &bull; ${v.id}</span>
+          <span class="activity-title">${escapeHtmlText(v.description)}</span>
+          <span class="activity-date">${formatDateDisplay(v.date)} &bull; ${escapeHtmlText(v.id)}</span>
         </div>
         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
           <span class="activity-price font-numeric">${formatVND(amount)}</span>
@@ -353,4 +348,5 @@ function renderRecentActivities() {
 // Dashboard
 window.renderDashboard = renderDashboard;
 window.filterDashboard = filterDashboard;
+window.computeDashboardKpis = computeDashboardKpis;
 window.clearDashboardDateFilter = clearDashboardDateFilter;

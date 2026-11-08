@@ -26,7 +26,7 @@ function context(files, extra = {}) {
 
 function settingsHarness(confirmResult, startStandard) {
   const calls = { confirm: [], save: 0, recalc: 0, ui: 0, toast: [] };
-  const c = context(["js/modules/settings.js"], {
+  const c = context(["js/core/chart-of-accounts.js", "js/modules/settings.js"], {
     showConfirmModal: async opts => { calls.confirm.push(opts); return confirmResult; },
     saveState: () => { calls.save++; },
     recalculateAccounting: () => { calls.recalc++; },
@@ -48,6 +48,22 @@ test("only an administrator can switch the standard", async () => {
   assert.strictEqual(calls.confirm.length, 0);
   assert.strictEqual(calls.save, 0);
   assert.ok(calls.toast.some(m => /quản trị/i.test(m)));
+});
+
+test("switching warns with the count of journals invalid in the target chart", async () => {
+  const { c, calls } = settingsHarness(true, "TT200");
+  const asked = [];
+  c.confirm = msg => { asked.push(msg); return false; };
+  c.state.vouchers = [
+    { id: "PKT1", type: "general_journal", entries: [{ debit: "641", credit: "111", amount: 1 }] },
+    { id: "PKT2", type: "general_journal", citProvision: "2026-Q1", entries: [{ debit: "82111", credit: "3334", amount: 1 }] },
+    { id: "PKT3", type: "general_journal", entries: [{ debit: "6421", credit: "111", amount: 1 }] }
+  ];
+  await c.setAccountingStandard("TT133");
+  assert.strictEqual(asked.length, 1);
+  assert.ok(asked[0].includes("Có 1 phiếu kế toán"), asked[0]);
+  assert.strictEqual(c.state.accountingStandard, "TT200", "declined: unchanged");
+  assert.strictEqual(calls.confirm.length, 0);
 });
 
 test("declined confirmation leaves the standard unchanged and does not save", async () => {
@@ -104,7 +120,7 @@ test("switched standard survives a two-station sync round-trip", async () => {
 });
 
 function postEscrow(standard) {
-  const c = context(["js/core/accounting-engine.js", "js/accounting.js"]);
+  const c = context(["js/core/chart-of-accounts.js", "js/core/accounting-engine.js", "js/accounting.js"]);
   c.state.accountingStandard = standard;
   c.state.vouchers = [
     { id: "E1", type: "escrow_pay", date: "2026-01-02", paymentMethod: "111", amount: 500, description: "Ky quy", isManual: true },
@@ -126,7 +142,7 @@ test("recalculation posts escrow to 244/344 under TT200 and 1386/3386 under TT13
 
 // ---- Final review F5: manual receipt/payment deposit accounts follow the standard ----
 function cashDepositContext(standard) {
-  const c = context(["js/core/accounting-engine.js", "js/accounting.js"]);
+  const c = context(["js/core/chart-of-accounts.js", "js/core/accounting-engine.js", "js/accounting.js"]);
   c.state.accountingStandard = standard;
   c.state.vouchers = [
     { id: "PT1", type: "receipt", date: "2026-01-02", paymentMethod: "111", amount: 700, description: "Nhan ky quy", isManual: true,
@@ -187,14 +203,14 @@ test("switching the standard re-posts manual deposit entries consistently both w
 });
 
 test("cash forms offer the deposit account of the active standard", async () => {
-  const select = values => ({ value: "", options: values.map(v => ({ value: v, textContent: v })) });
+  const select = values => ({ value: "", options: values.map(v => ({ value: v, textContent: v })), add(o) { this.options.push(o); } });
   const els = { "receipt-credit": select(["131", "511", "344", "711"]), "payment-debit": select(["331", "156", "642", "244", "811"]) };
-  const c = context(["js/core/accounting-engine.js", "js/accounting.js", "js/modules/cash.js"]);
+  const c = context(["js/core/chart-of-accounts.js", "js/core/accounting-engine.js", "js/accounting.js", "js/modules/cash.js"], { Option: function (text, value) { this.textContent = text; this.value = value; } });
   c.document.getElementById = id => els[id] || null;
   c.state.accountingStandard = "TT133";
   c.syncCashDepositAccountOptions();
   assert.deepStrictEqual(els["receipt-credit"].options.map(o => o.value), ["131", "511", "3386", "711"]);
-  assert.deepStrictEqual(els["payment-debit"].options.map(o => o.value), ["331", "156", "642", "1386", "811"]);
+  assert.deepStrictEqual(els["payment-debit"].options.slice(0, 5).map(o => o.value), ["331", "156", "642", "1386", "811"]);
   assert.ok(els["receipt-credit"].options[2].textContent.includes("3386"));
   c.state.accountingStandard = "TT200";
   c.syncCashDepositAccountOptions();

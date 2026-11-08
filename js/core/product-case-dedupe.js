@@ -202,7 +202,6 @@
 
     if (changed) {
       stateObj._lastModified = Date.now();
-      stateObj._accountingValid = false;
     }
 
     return {
@@ -260,7 +259,6 @@
     if (removedIds.length > 0) {
       trackRemovedProductIds(stateObj, removedIds);
       stateObj._lastModified = Date.now();
-      stateObj._accountingValid = false;
     }
 
     return {

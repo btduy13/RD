@@ -153,6 +153,18 @@
             <span>Báo cáo kế toán</span>
           </a>
         </li>
+        <li class="menu-item" data-tab="tax">
+          <a onclick="switchTab('tax')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"></path></svg>
+            <span>Thuế &amp; BCTC</span>
+          </a>
+        </li>
+        <li class="menu-item" data-tab="payroll">
+          <a onclick="switchTab('payroll')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            <span>Tiền lương</span>
+          </a>
+        </li>
         <li class="menu-section-label" aria-hidden="true">Hệ thống</li>
         <li class="menu-item" data-tab="logs" data-role-required="admin">
           <a onclick="switchTab('logs')">
@@ -193,7 +205,7 @@
           <span class="brand-subtitle" style="margin-bottom: 2px;">Chế độ Kế toán</span>
           <!-- Chỉ hiển thị; đổi chế độ nằm trong Thiết lập (quản trị viên) vì áp dụng cho cả công ty -->
           <button type="button" id="sidebar-standard-label" class="switch-btn active" style="width:100%;"
-            onclick="switchTab('settings')" title="Đổi chế độ kế toán trong Thiết lập (quản trị viên)">TT 200</button>
+            onclick="switchTab('settings')" title="Đổi chế độ kế toán trong Thiết lập (quản trị viên)">TT 99</button>
         </div>
       </div>
     </aside>
@@ -629,7 +641,7 @@
                   </svg>
                   <input type="text" id="search-purchase" class="search-input"
                     style="height: 36px; padding-top: 0; padding-bottom: 0; font-size: 13px;"
-                    placeholder="Tìm số chứng từ, nhà cung cấp..." oninput="filterPurchaseTable()">
+                    placeholder="Tìm số chứng từ, nhà cung cấp..." oninput="debounceCall(filterPurchaseTable)">
                 </div>
 
                 <div
@@ -813,7 +825,7 @@
                   </svg>
                   <input type="text" id="search-purchase-order" class="search-input"
                     style="height: 36px; padding-top: 0; padding-bottom: 0; font-size: 13px;"
-                    placeholder="Tìm số đơn hàng, nhà cung cấp..." oninput="filterPurchaseOrderTable()">
+                    placeholder="Tìm số đơn hàng, nhà cung cấp..." oninput="debounceCall(filterPurchaseOrderTable)">
                 </div>
 
                 <div
@@ -967,7 +979,7 @@
                   </svg>
                   <input type="text" id="search-purchase-return" class="search-input"
                     style="height: 36px; padding-top: 0; padding-bottom: 0; font-size: 13px;"
-                    placeholder="Tìm số chứng từ, nhà cung cấp..." oninput="filterPurchaseReturnTable()">
+                    placeholder="Tìm số chứng từ, nhà cung cấp..." oninput="debounceCall(filterPurchaseReturnTable)">
                 </div>
 
                 <div
@@ -1143,7 +1155,7 @@
                   </svg>
                   <input type="text" id="search-sales" class="search-input"
                     style="height: 36px; padding-top: 0; padding-bottom: 0; font-size: 13px;"
-                    placeholder="Tìm số chứng từ, khách hàng..." oninput="filterSalesTable()">
+                    placeholder="Tìm số chứng từ, khách hàng..." oninput="debounceCall(filterSalesTable)">
                 </div>
 
                 <div
@@ -1339,7 +1351,7 @@
                   </svg>
                   <input type="text" id="search-sales-return" class="search-input"
                     style="height: 36px; padding-top: 0; padding-bottom: 0; font-size: 13px;"
-                    placeholder="Tìm số chứng từ, khách hàng..." oninput="filterSalesReturnTable()">
+                    placeholder="Tìm số chứng từ, khách hàng..." oninput="debounceCall(filterSalesReturnTable)">
                 </div>
 
                 <div
@@ -1490,7 +1502,7 @@
                   </svg>
                   <input type="text" id="search-quotation" class="search-input"
                     style="height: 36px; padding-top: 0; padding-bottom: 0; font-size: 13px;"
-                    placeholder="Tìm số báo giá, khách hàng..." oninput="filterQuotationTable()">
+                    placeholder="Tìm số báo giá, khách hàng..." oninput="debounceCall(filterQuotationTable)">
                 </div>
 
                 <div
@@ -1638,7 +1650,7 @@
                   </svg>
                   <input type="text" id="search-sales-template" class="search-input"
                     style="height: 36px; padding-top: 0; padding-bottom: 0; font-size: 13px;"
-                    placeholder="Tìm tên phiếu mẫu..." oninput="filterSalesTemplateTable()">
+                    placeholder="Tìm tên phiếu mẫu..." oninput="debounceCall(filterSalesTemplateTable)">
                 </div>
 
                 <!-- Bộ lọc phân loại nhanh -->
@@ -1707,7 +1719,7 @@
                   </svg>
                   <input type="text" id="search-inventory" class="search-input"
                     style="height: 36px; padding-top: 0; padding-bottom: 0; font-size: 13px;"
-                    placeholder="Tìm kiếm sản phẩm..." oninput="filterInventoryTable()">
+                    placeholder="Tìm kiếm sản phẩm..." oninput="debounceCall(filterInventoryTable)">
                 </div>
               </div>
 
@@ -1820,7 +1832,7 @@
                     </svg>
                     <input type="text" id="search-ledger-products" class="search-input"
                       style="height: 32px; padding-top: 0; padding-bottom: 0; font-size: 13px;"
-                      placeholder="Tìm sản phẩm..." oninput="filterLedgerProducts()">
+                      placeholder="Tìm sản phẩm..." oninput="debounceCall(filterLedgerProducts)">
                   </div>
                 </div>
                 <div id="ledger-product-list" class="ledger-product-list">
@@ -2041,7 +2053,6 @@
                         (MISA SME)</span>
                     </div>
                   </div>
-                  <button class="btn btn-secondary btn-sm" onclick="viewExcelFormSample('PT')">Xem / In mẫu</button>
                 </div>
 
                 <!-- Form Phiếu Chi -->
@@ -2058,7 +2069,6 @@
                         (MISA SME)</span>
                     </div>
                   </div>
-                  <button class="btn btn-secondary btn-sm" onclick="viewExcelFormSample('PC')">Xem / In mẫu</button>
                 </div>
               </div>
 
@@ -2150,15 +2160,10 @@
                 <span class="card-title" style="margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
                   🚀 Bảng Điều khiển Đồng bộ Kế toán Excel
                 </span>
-                <span style="font-size: 12px; color: var(--text-secondary);">Nhấp vào các nút bên phải để ghi đè cơ sở
-                  dữ liệu hoặc nạp dữ liệu Sổ chi tiết mua/bán hàng từ thư mục Excel.</span>
+                <span style="font-size: 12px; color: var(--text-secondary);">Nhấp vào các nút bên phải để nạp dữ liệu Sổ chi tiết mua/bán hàng từ thư mục Excel.</span>
               </div>
 
               <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                <button class="btn btn-primary" onclick="syncDefaultExcelDatabase()"
-                  style="box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4);">
-                  Đồng bộ dữ liệu Excel mẫu
-                </button>
                 <button class="btn btn-secondary" onclick="autoIntegrateSoChiTietMuaHangExcel(true)"
                   style="color: var(--color-info); border-color: var(--color-info); background: transparent;">
                   Tích hợp Sổ chi tiết mua hàng
@@ -2187,7 +2192,7 @@
                 </svg>
                 <input type="text" id="partner-search-input" class="search-input"
                   style="height: 36px; padding-top: 0; padding-bottom: 0; font-size: 13px;"
-                  placeholder="Tìm theo mã hoặc tên đối tác..." oninput="filterPartners()">
+                  placeholder="Tìm theo mã hoặc tên đối tác..." oninput="debounceCall(filterPartners)">
               </div>
 
               <select id="partner-type-filter" class="form-control"
@@ -2663,7 +2668,7 @@
                 </svg>
                 <input type="text" id="cash-search-input" class="search-input"
                   style="height: 36px; padding-top: 0; padding-bottom: 0; font-size: 13px;"
-                  placeholder="Tìm số CT, đối tượng, lý do..." oninput="filterCash()">
+                  placeholder="Tìm số CT, đối tượng, lý do..." oninput="debounceCall(filterCash)">
               </div>
 
               <select id="cash-type-filter" class="form-control"
@@ -2673,6 +2678,7 @@
                 <option value="receipt">Phiếu Thu</option>
                 <option value="payment">Phiếu Chi</option>
                 <option value="needsReview">Cần rà soát</option>
+                <option value="general_journal">Phiếu kế toán</option>
               </select>
 
               <select id="cash-method-filter" class="form-control"
@@ -2749,6 +2755,10 @@
               <button class="btn btn-primary" onclick="openAddPaymentModal()"
                 style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; background-color: var(--color-warning); border-color: var(--color-warning); box-shadow: 0 4px 10px rgba(245, 158, 11, 0.25); cursor: pointer; transition: all 0.2s;">
                 + Lập Phiếu Chi
+              </button>
+              <button class="btn btn-secondary" onclick="openGeneralJournalModal()" title="Phiếu kế toán tổng hợp: bút toán Nợ/Có tự do"
+                style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600;">
+                + Phiếu kế toán
               </button>
             </div>
           </div>
@@ -2832,6 +2842,14 @@
           <div id="printable-report-area" aria-live="polite"></div>
         </section>
 
+        <section id="view-tax" class="tab-view">
+          <div id="tax-reports-root"></div>
+          <div id="tax-calendar-root"></div>
+        </section>
+        <section id="view-payroll" class="tab-view">
+          <div id="payroll-root"></div>
+        </section>
+
         <!-- ==========================================================
              8. TAB: THIẾT LẬP (SETTINGS)
              ========================================================== -->
@@ -2854,7 +2872,23 @@
                   <label class="form-label">Địa chỉ trụ sở</label>
                   <input type="text" id="setting-address" class="form-control" value="">
                 </div>
+                <div class="form-group">
+                  <label class="form-label" for="setting-preparer-name">Người lập biểu</label>
+                  <input type="text" id="setting-preparer-name" class="form-control" value="">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="setting-chief-accountant-name">Kế toán trưởng</label>
+                  <input type="text" id="setting-chief-accountant-name" class="form-control" value="">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="setting-director-name">Người đại diện theo pháp luật</label>
+                  <input type="text" id="setting-director-name" class="form-control" value="">
+                </div>
               </div>
+              <label style="display:flex; gap:8px; align-items:center; margin-top:12px; font-size:13px;">
+                <input type="checkbox" id="setting-allow-negative-stock">
+                Cho phép xuất kho vượt tồn (tồn kho âm) — mặc định chặn theo VAS 02 / TT99 TK 156
+              </label>
               <button class="btn btn-primary" onclick="saveCompanySettings()"
                 style="margin-top: 16px; align-self: flex-start;">Lưu thông tin</button>
             </div>
@@ -2864,7 +2898,7 @@
               <span class="card-title">Chế độ kế toán</span>
               <p class="header-subtitle" style="margin-bottom: 12px;">Áp dụng cho mọi máy trạm; đổi chế độ sẽ ghi sổ lại toàn bộ sổ sách.</p>
               <div class="standard-switch">
-                <button id="btn-standard-200" class="switch-btn active" onclick="setAccountingStandard('TT200')">TT 200/2014</button>
+                <button id="btn-standard-200" class="switch-btn active" onclick="setAccountingStandard('TT99')">TT 99/2025</button>
                 <button id="btn-standard-133" class="switch-btn" onclick="setAccountingStandard('TT133')">TT 133/2016</button>
               </div>
             </div>
@@ -3088,6 +3122,11 @@
               <label class="form-label" for="setting-cloud-supabase-key">Supabase Anon Key</label>
               <input type="password" id="setting-cloud-supabase-key" class="form-control"
                 placeholder="eyJhbGciOiJIUzI1NiIs..." autocomplete="new-password" spellcheck="false">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="setting-cloud-workspace-secret">Mã bảo mật workspace (không bắt buộc)</label>
+              <input type="password" id="setting-cloud-workspace-secret" class="form-control"
+                autocomplete="new-password" spellcheck="false">
             </div>
           </div>
 
@@ -3535,6 +3574,48 @@
     </div>
   </div>
 
+  <!-- A-3b. MODAL: PHIẾU KẾ TOÁN TỔNG HỢP (general_journal) -->
+  <div id="modal-general-journal" class="modal-overlay voucher-entry-modal">
+    <div class="modal-content-container modal-w-xl">
+      <div class="modal-header">
+        <h3 class="card-title">Lập phiếu kế toán tổng hợp</h3>
+        <button class="icon-btn modal-close-btn" onclick="closeModal('modal-general-journal')" aria-label="Đóng phiếu kế toán">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-general-journal" class="form-grid" style="grid-template-columns: repeat(12, 1fr);"
+          onsubmit="handleGeneralJournalSubmit(event)">
+          <div class="form-group" style="grid-column: span 3;">
+            <label class="form-label" for="gj-id">Số chứng từ</label>
+            <input type="text" id="gj-id" class="form-control" placeholder="PKT...">
+          </div>
+          <div class="form-group" style="grid-column: span 3;">
+            <label class="form-label" for="gj-date">Ngày chứng từ</label>
+            <input type="date" id="gj-date" class="form-control" required>
+          </div>
+          <div class="form-group" style="grid-column: span 6;">
+            <label class="form-label" for="gj-desc">Diễn giải</label>
+            <input type="text" id="gj-desc" class="form-control" required placeholder="Ví dụ: Phân bổ chi phí trả trước tháng 11">
+          </div>
+          <div class="form-group col-span-full">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label class="form-label">Bút toán (TK theo danh mục của chế độ kế toán đang dùng)</label>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="addGeneralJournalRow()">+ Thêm dòng</button>
+            </div>
+            <table class="data-table">
+              <thead><tr><th style="width: 15%;">TK Nợ</th><th style="width: 15%;">TK Có</th><th style="width: 20%; text-align: right;">Số tiền (đ)</th><th>Diễn giải dòng</th><th style="width: 6%;"></th></tr></thead>
+              <tbody id="gj-rows"></tbody>
+            </table>
+            <datalist id="datalist-gj-accounts"></datalist>
+          </div>
+          <div class="form-actions col-span-full" style="margin-top: 12px; display: flex; justify-content: flex-end; gap: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('modal-general-journal')">Hủy</button>
+            <button type="submit" class="btn btn-primary">Ghi sổ</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- A-4. MODAL: XEM SỔ CHI TIẾT CÔNG NỢ ĐỐI TÁC -->
   <div id="modal-view-partner-ledger" class="modal-overlay">
     <div class="modal-content-container modal-w-xl">
@@ -3791,6 +3872,14 @@
           </div>
 
           <div class="form-group" style="margin-top: 12px;">
+            <label class="form-label" for="adjust-stock-cause">Nguyên nhân chênh lệch kiểm kê</label>
+            <select id="adjust-stock-cause" class="form-control">
+              <option value="unknown" selected>Chưa rõ nguyên nhân (thiếu: Nợ 1381 / thừa: Có 3381)</option>
+              <option value="norm">Hao hụt trong định mức (Nợ 632)</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-top: 12px;">
             <label class="form-label">Lý do điều chỉnh <span style="color: var(--color-danger);">*</span></label>
             <textarea id="adjust-stock-reason" class="form-control" rows="2" required
               placeholder="Ví dụ: Kiểm kê cuối kỳ, hàng hỏng, sai sót nhập liệu..."
@@ -3948,6 +4037,28 @@
             </select>
           </div>
 
+          <!-- Thông tin hóa đơn (TT 91/2026 Đ4): chỉ lưu khi nhập Số HĐ -->
+          <div class="form-group" style="grid-column: span 1;">
+            <label class="form-label">Mẫu số</label>
+            <input type="text" id="pur-inv-form" class="form-control" maxlength="1" inputmode="numeric" value="1">
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label class="form-label">Ký hiệu HĐ</label>
+            <input type="text" id="pur-inv-symbol" class="form-control" maxlength="6" placeholder="C26TAA" style="text-transform: uppercase;">
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label class="form-label">Số HĐ</label>
+            <input type="text" id="pur-inv-no" class="form-control" maxlength="8" inputmode="numeric" placeholder="Tối đa 8 số">
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label class="form-label">Ngày HĐ</label>
+            <input type="date" id="pur-inv-date" class="form-control" title="Để trống = ngày hạch toán">
+          </div>
+          <div class="form-group" style="grid-column: span 5;">
+            <label class="form-label">MST người bán</label>
+            <input type="text" id="pur-inv-taxcode" class="form-control" maxlength="14" placeholder="Lấy theo đối tác">
+          </div>
+
           <div class="form-group col-span-full">
             <label class="form-label">Diễn giải</label>
             <input type="text" id="pur-desc" class="form-control" required
@@ -3977,6 +4088,7 @@
                 <label class="form-label">Thuế suất GTGT đầu vào</label>
                 <select id="pur-tax-rate" class="form-control" onchange="recalculatePurchaseTotals()">
                   <option value="10">10%</option>
+                  <option value="8">8%</option>
                   <option value="5">5%</option>
                   <option value="0" selected>0%</option>
                 </select>
@@ -4052,6 +4164,32 @@
             </select>
           </div>
 
+          <!-- Thông tin hóa đơn (TT 91/2026 Đ4): chỉ lưu khi nhập Số HĐ -->
+          <div class="form-group" style="grid-column: span 1;">
+            <label class="form-label">Mẫu số</label>
+            <input type="text" id="ret-inv-form" class="form-control" maxlength="1" inputmode="numeric" value="1">
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label class="form-label">Ký hiệu HĐ</label>
+            <input type="text" id="ret-inv-symbol" class="form-control" maxlength="6" placeholder="C26TAA" style="text-transform: uppercase;">
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label class="form-label">Số HĐ</label>
+            <input type="text" id="ret-inv-no" class="form-control" maxlength="8" inputmode="numeric" placeholder="Tối đa 8 số">
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label class="form-label">Ngày HĐ</label>
+            <input type="date" id="ret-inv-date" class="form-control" title="Để trống = ngày hạch toán">
+          </div>
+          <div class="form-group" style="grid-column: span 3;">
+            <label class="form-label">MST người bán</label>
+            <input type="text" id="ret-inv-taxcode" class="form-control" maxlength="14" placeholder="Lấy theo đối tác">
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label class="form-label">Hóa đơn gốc</label>
+            <input type="text" id="ret-inv-orig" class="form-control" maxlength="20" placeholder="Số HĐ bị điều chỉnh">
+          </div>
+
           <div class="form-group col-span-full">
             <label class="form-label">Diễn giải</label>
             <input type="text" id="ret-desc" class="form-control" required
@@ -4081,6 +4219,7 @@
                 <label class="form-label">Thuế suất GTGT đầu vào</label>
                 <select id="ret-tax-rate" class="form-control" onchange="recalculatePurchaseReturnTotals()">
                   <option value="10">10%</option>
+                  <option value="8">8%</option>
                   <option value="5">5%</option>
                   <option value="0" selected>0%</option>
                 </select>
@@ -4260,6 +4399,28 @@
             </select>
           </div>
 
+          <!-- Thông tin hóa đơn (TT 91/2026 Đ4): chỉ lưu khi nhập Số HĐ -->
+          <div class="form-group" style="grid-column: span 1;">
+            <label class="form-label">Mẫu số</label>
+            <input type="text" id="sale-inv-form" class="form-control" maxlength="1" inputmode="numeric" value="1">
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label class="form-label">Ký hiệu HĐ</label>
+            <input type="text" id="sale-inv-symbol" class="form-control" maxlength="6" placeholder="C26TAA" style="text-transform: uppercase;">
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label class="form-label">Số HĐ</label>
+            <input type="text" id="sale-inv-no" class="form-control" maxlength="8" inputmode="numeric" placeholder="Tối đa 8 số">
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label class="form-label">Ngày HĐ</label>
+            <input type="date" id="sale-inv-date" class="form-control" title="Để trống = ngày hạch toán">
+          </div>
+          <div class="form-group" style="grid-column: span 5;">
+            <label class="form-label">MST người mua</label>
+            <input type="text" id="sale-inv-taxcode" class="form-control" maxlength="14" placeholder="Lấy theo đối tác">
+          </div>
+
           <div class="form-group col-span-full">
             <label class="form-label">Diễn giải</label>
             <input type="text" id="sale-desc" class="form-control" required
@@ -4307,6 +4468,7 @@
                 <label class="form-label">Thuế suất GTGT đầu ra</label>
                 <select id="sale-tax-rate" class="form-control" onchange="recalculateSalesTotals()">
                   <option value="0" selected>0%</option>
+                  <option value="8">8%</option>
                   <option value="5">5%</option>
                   <option value="10">10%</option>
                 </select>
@@ -4472,6 +4634,7 @@
                 <label class="form-label">Thuế suất GTGT đầu ra</label>
                 <select id="quotation-tax-rate" class="form-control" onchange="recalculateQuotationTotals()">
                   <option value="0" selected>0%</option>
+                  <option value="8">8%</option>
                   <option value="5">5%</option>
                   <option value="10">10%</option>
                 </select>
@@ -4547,6 +4710,32 @@
             </select>
           </div>
 
+          <!-- Thông tin hóa đơn (TT 91/2026 Đ4): chỉ lưu khi nhập Số HĐ -->
+          <div class="form-group" style="grid-column: span 1;">
+            <label class="form-label">Mẫu số</label>
+            <input type="text" id="sales-ret-inv-form" class="form-control" maxlength="1" inputmode="numeric" value="1">
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label class="form-label">Ký hiệu HĐ</label>
+            <input type="text" id="sales-ret-inv-symbol" class="form-control" maxlength="6" placeholder="C26TAA" style="text-transform: uppercase;">
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label class="form-label">Số HĐ</label>
+            <input type="text" id="sales-ret-inv-no" class="form-control" maxlength="8" inputmode="numeric" placeholder="Tối đa 8 số">
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label class="form-label">Ngày HĐ</label>
+            <input type="date" id="sales-ret-inv-date" class="form-control" title="Để trống = ngày hạch toán">
+          </div>
+          <div class="form-group" style="grid-column: span 3;">
+            <label class="form-label">MST người mua</label>
+            <input type="text" id="sales-ret-inv-taxcode" class="form-control" maxlength="14" placeholder="Lấy theo đối tác">
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label class="form-label">Hóa đơn gốc</label>
+            <input type="text" id="sales-ret-inv-orig" class="form-control" maxlength="20" placeholder="Số HĐ bị điều chỉnh">
+          </div>
+
           <div class="form-group col-span-full">
             <label class="form-label">Diễn giải</label>
             <input type="text" id="sales-ret-desc" class="form-control" required
@@ -4587,6 +4776,7 @@
                 <label class="form-label">Thuế suất GTGT</label>
                 <select id="sales-ret-tax-rate" class="form-control" onchange="recalculateSalesReturnTotals()">
                   <option value="0" selected>0%</option>
+                  <option value="8">8%</option>
                   <option value="5">5%</option>
                   <option value="10">10%</option>
                 </select>
@@ -5089,10 +5279,9 @@
 
   <!-- FILE JAVASCRIPT LOGIC CHÍNH -->
   <script src="xlsx.full.min.js"></script>
-  <script src="prepopulated_database.js"></script>
   <script src="data.js"></script>
   <!-- Thư viện Supabase Cloud Database CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   
   <!-- Các Module Core Hệ thống -->
   <script src="js/utils.js"></script>
@@ -5106,6 +5295,8 @@
   <script src="js/core/partner-merge.js"></script>
   <script src="js/core/product-case-dedupe.js"></script>
   <script src="js/core/product-identity.js"></script>
+  <script src="js/core/chart-of-accounts.js"></script>
+  <script src="js/core/tax-rules.js"></script>
   <script src="js/core/accounting-engine.js"></script>
   <script src="js/core/table-render.js"></script>
   <script src="js/state.js"></script>
@@ -5128,6 +5319,10 @@
   <script src="js/modules/debts.js"></script>
   <script src="js/modules/cash.js"></script>
   <script src="js/modules/reports.js"></script>
+  <script src="js/core/payroll-calc.js"></script>
+  <script src="js/modules/tax-reports.js"></script>
+  <script src="js/modules/tax-calendar.js"></script>
+  <script src="js/modules/payroll.js"></script>
   <script src="js/modules/settings.js"></script>
   <script src="js/modules/auth.js"></script>
   <script src="js/modules/autosave.js"></script>

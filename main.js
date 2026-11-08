@@ -14,10 +14,7 @@ const {
   resolvePrinterDeviceName,
   sanitizePrinterList
 } = require('./js/core/printer-job');
-const {
-  readLatestValidJsonBackup,
-  writeJsonBackup
-} = require('./js/core/backup-store');
+const { writeJsonBackup } = require('./js/core/backup-store');
 const { resolvePackagedExcelFile } = require('./js/core/platform-paths');
 const {
   archiveLegacyStateFile,
@@ -26,8 +23,12 @@ const {
 const {
   isAllowedExternalUrl,
   isAllowedUpdateRequestUrl,
-  isAllowedUpdateRedirectUrl
+  isAllowedUpdateRedirectUrl,
+  parseReleaseAssetUrl,
+  expectedSha256FromRelease,
+  sha256File
 } = require('./js/core/url-security');
+const { STATE_METADATA_KEYS } = require('./js/core/state-diff');
 
 // Tăng giới hạn heap V8 lên 4 GB để xử lý tập dữ liệu lớn (7000+ chứng từ, 1600+ sản phẩm)
 // Ngăn chặn lỗi "FATAL ERROR: Oilpan: Large allocation" khi ghi nhớ vượt ngưỡng mặc định ~1.5 GB
@@ -71,15 +72,18 @@ function cleanOldBackups() {
     files.slice(MAX_BACKUP_FILES).forEach(f => {
       try { fs.unlinkSync(path.join(BACKUP_DIR, f.name)); } catch(e) {}
     });
+
+    // Full-DB copies left by the retired load-time product dedupe; never rotated before.
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    fs.readdirSync(BACKUP_DIR)
+      .filter(f => f.startsWith('rd_local_pre_product_dedupe_') && f.endsWith('.db'))
+      .forEach(f => {
+        const filePath = path.join(BACKUP_DIR, f);
+        try { if (fs.statSync(filePath).mtimeMs < cutoff) fs.unlinkSync(filePath); } catch(e) {}
+      });
   } catch(e) {
     console.error('Lỗi dọn backup cũ:', e);
   }
-}
-
-function makeBackupTimestamp() {
-  const now = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  return `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
 }
 
 // ===========================================================================
@@ -167,38 +171,6 @@ function createWindow() {
   // 4. Hiển thị cửa sổ khi đã nạp xong toàn bộ tài nguyên
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
-    setTimeout(async () => {
-      try {
-        const db = await mainWindow.webContents.executeJavaScript("JSON.stringify(state)");
-        console.log('--- LOCAL_STORAGE_DB_SIZE: ' + (db ? db.length : 0));
-        if (db && db !== '{}') {
-          const parsed = JSON.parse(db);
-          console.log('--- LOCAL_STORAGE_VOUCHERS_COUNT: ' + (parsed.vouchers ? parsed.vouchers.length : 0));
-          const types = {};
-          if (parsed.vouchers) {
-            parsed.vouchers.forEach(v => types[v.type] = (types[v.type] || 0) + 1);
-          }
-          console.log('--- LOCAL_STORAGE_VOUCHER_TYPES: ' + JSON.stringify(types));
-          
-          const errLogs = await mainWindow.webContents.executeJavaScript("localStorage.getItem('rd_accounting_error_logs')");
-          let errorLogCount = 0;
-          try {
-            const parsedErrorLogs = JSON.parse(errLogs || '[]');
-            errorLogCount = Array.isArray(parsedErrorLogs) ? parsedErrorLogs.length : 0;
-          } catch (error) {}
-          console.log('--- LOCAL_STORAGE_ERRORS_SUMMARY: ' + JSON.stringify({
-            count: errorLogCount,
-            bytes: Buffer.byteLength(errLogs || '', 'utf8')
-          }));
-          const restoreV6 = await mainWindow.webContents.executeJavaScript("localStorage.getItem('db_restore_v6')");
-          console.log('--- LOCAL_STORAGE_RESTORE_V6: ' + restoreV6);
-          const cloudStatus = await mainWindow.webContents.executeJavaScript("({ active: cloudSyncActive, hasClient: !!supabaseClient, hasSupabase: typeof supabase !== 'undefined', badge: document.getElementById('cloud-sync-status-text') ? document.getElementById('cloud-sync-status-text').innerText : 'no badge' })");
-          console.log('--- SUPABASE_STATUS: ' + JSON.stringify(cloudStatus));
-        }
-      } catch (err) {
-        console.error('Error reading localStorage:', err);
-      }
-    }, 5000);
   });
 
   // 5. Tự động sao lưu và đẩy Cloud trước khi đóng (ngăn tắt tức thì, chờ xong rồi destroy)
@@ -285,22 +257,6 @@ function createWindow() {
 // IPC HANDLERS GIAO TIẾP ĐỂ TỰ ĐỘNG CẬP NHẬT
 // ===========================================================================
 
-ipcMain.handle('list-template-files', async () => {
-  try {
-    const templateDir = path.join(__dirname, 'excel', 'phieu mau');
-    if (!fs.existsSync(templateDir)) {
-      return { ok: false, error: 'Thư mục phiếu mẫu không tồn tại.' };
-    }
-    const files = fs.readdirSync(templateDir)
-      .filter(f => (/\.xlsx?$/i.test(f)) && !f.startsWith('~$'))
-      .sort((a, b) => a.localeCompare(b, 'vi'));
-    return { ok: true, files };
-  } catch (err) {
-    console.error('Lỗi đọc danh sách file mẫu:', err);
-    return { ok: false, error: err.message };
-  }
-});
-
 ipcMain.handle('read-excel-file', async (event, filename) => {
   try {
     // Templates are listed from excel/phieu mau while legacy files live in excel/.
@@ -328,12 +284,6 @@ ipcMain.handle('save-backup-on-exit', async (event, jsonData) => {
   }
 });
 
-// IPC Handler: Trả về đường dẫn thư mục backup
-ipcMain.handle('get-backup-dir', () => {
-  ensureBackupDir();
-  return BACKUP_DIR;
-});
-
 // Open only the app-owned backup directory. Do not pass file:// URLs through
 // openExternalUrl: that API intentionally accepts web protocols only.
 ipcMain.handle('open-backup-folder', async () => {
@@ -355,6 +305,10 @@ ipcMain.handle('save-excel-and-open', async (event, filename, base64Data) => {
     if (!safeName || !base64Data) {
       return { ok: false, error: 'Thiếu tên file hoặc dữ liệu Excel' };
     }
+    // shell.openPath runs the file: only ever open a spreadsheet, never an .exe/.bat/.lnk.
+    if (!/\.xlsx$/i.test(safeName)) {
+      return { ok: false, error: 'Chỉ cho phép xuất file .xlsx' };
+    }
     const filePath = path.join(app.getPath('downloads'), safeName);
     fs.writeFileSync(filePath, Buffer.from(String(base64Data), 'base64'));
     const openError = await shell.openPath(filePath);
@@ -372,6 +326,10 @@ ipcMain.handle('save-excel-and-open', async (event, filename, base64Data) => {
 ipcMain.handle('write-log', async (event, content) => {
   try {
     const logPath = path.join(app.getPath('userData'), 'sync_debug.log');
+    // Keep one previous generation; the log grew without bound before.
+    try {
+      if (fs.statSync(logPath).size > 5 * 1024 * 1024) fs.renameSync(logPath, `${logPath}.1`);
+    } catch (_) {}
     fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${content}\n`, 'utf8');
     return { ok: true };
   } catch (err) {
@@ -406,20 +364,6 @@ ipcMain.handle('open-external-url', async (event, url) => {
     return { ok: true };
   } catch (err) {
     console.error('Lỗi mở URL:', err);
-    return { ok: false, error: err.message };
-  }
-});
-
-// 3. Tự động cập nhật — mở trang GitHub Releases để tải bộ cài mới (không dùng git pull
-//    vì bản đóng gói không có git)
-ipcMain.handle('trigger-auto-update', async (event, downloadUrl) => {
-  const url = downloadUrl || 'https://github.com/btduy13/RD/releases/latest';
-  try {
-    if (!isAllowedUpdateRequestUrl(url)) throw new Error('URL cập nhật không thuộc kho phát hành chính thức.');
-    await shell.openExternal(url);
-    return { ok: true, message: 'Đã mở trang tải bộ cài mới trong trình duyệt.' };
-  } catch (err) {
-    console.error('Lỗi mở trang tải:', err);
     return { ok: false, error: err.message };
   }
 });
@@ -507,6 +451,50 @@ function downloadFile(fileUrl, destPath, progressCallback) {
   });
 }
 
+function fetchText(url, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const get = (target, redirects) => {
+      if (!isAllowedUpdateRedirectUrl(target) && new URL(target).hostname !== 'api.github.com') {
+        return reject(new Error('Máy chủ kiểm tra bản cập nhật không được phép.'));
+      }
+      const request = https.get(target, { headers: { 'User-Agent': 'rd-accounting', ...headers } }, (response) => {
+        if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location && redirects < 5) {
+          response.resume();
+          return get(new URL(response.headers.location, target).toString(), redirects + 1);
+        }
+        let body = '';
+        response.setEncoding('utf8');
+        response.on('data', chunk => { if (body.length < 4 * 1024 * 1024) body += chunk; });
+        response.on('end', () => resolve({ status: response.statusCode, body }));
+      });
+      request.setTimeout(UPDATE_REQUEST_TIMEOUT_MS, () => request.destroy(new Error('Hết thời gian chờ máy chủ cập nhật.')));
+      request.on('error', reject);
+    };
+    get(url, 0);
+  });
+}
+
+// Expected installer hash: the release asset `digest` from the GitHub API, else
+// a "<asset>.sha256" release asset. No hash means no install.
+async function fetchExpectedInstallerSha256(downloadUrl) {
+  const asset = parseReleaseAssetUrl(downloadUrl);
+  if (!asset) throw new Error('URL bộ cài không phải tệp phát hành GitHub.');
+  try {
+    const api = await fetchText(
+      `https://api.github.com/repos/btduy13/RD/releases/tags/${encodeURIComponent(asset.tag)}`,
+      { Accept: 'application/vnd.github+json' }
+    );
+    const fromApi = api.status === 200 ? expectedSha256FromRelease(JSON.parse(api.body), asset.name) : null;
+    if (fromApi) return fromApi;
+  } catch (err) {
+    console.warn('[Update] Không đọc được digest từ GitHub API:', err.message);
+  }
+  const sidecar = await fetchText(`${downloadUrl}.sha256`);
+  const match = sidecar.status === 200 && /\b([a-f0-9]{64})\b/i.exec(sidecar.body);
+  if (!match) throw new Error('Không tìm thấy mã SHA-256 của bộ cài; đã hủy cập nhật.');
+  return match[1].toLowerCase();
+}
+
 async function launchDetachedInstaller(installerPath) {
   let openPathError = '';
   try {
@@ -543,6 +531,8 @@ ipcMain.handle('download-and-install-update', async (event, downloadUrl) => {
       throw new Error('URL cập nhật không thuộc kho phát hành chính thức.');
     }
 
+    const expectedSha256 = await fetchExpectedInstallerSha256(downloadUrl);
+
     updateTempDir = fs.mkdtempSync(path.join(app.getPath('temp'), 'rd-accounting-update-'));
     const destPath = path.join(updateTempDir, 'Ke_Toan_Rang_Dong_Setup_Update.exe');
     const sender = event.sender;
@@ -551,6 +541,10 @@ ipcMain.handle('download-and-install-update', async (event, downloadUrl) => {
         sender.send('download-progress', percent);
       }
     });
+
+    if (await sha256File(destPath) !== expectedSha256) {
+      throw new Error('Bộ cài tải về không khớp mã kiểm tra SHA-256; đã hủy cài đặt.');
+    }
 
     await launchDetachedInstaller(destPath);
 
@@ -917,7 +911,6 @@ const STATE_FILE_PATH = path.join(STATE_DIR_PATH, 'rd_state.json');
 const SCHEMA_VERSION = 4;
 
 const Database = require('better-sqlite3');
-const { dedupeProductCatalogOnState, cleanGarbageProducts } = require('./js/core/product-case-dedupe.js');
 let db = null;
 let databaseInitError = null;
 
@@ -939,7 +932,6 @@ function getEmptyStateObject() {
     partners: [],
     vouchers: [],
     schemaVersion: SCHEMA_VERSION,
-    _accountingValid: false,
     _lastModified: Date.now()
   };
 }
@@ -959,11 +951,7 @@ function runSchemaMigrations(stateObj) {
     if (!Array.isArray(stateObj.deletedCloudKeys)) stateObj.deletedCloudKeys = [];
     version = 3;
   }
-  if (version < 4) {
-    if (stateObj._accountingValid === undefined) stateObj._accountingValid = false;
-    if (stateObj._accountingValidTs === undefined) stateObj._accountingValidTs = 0;
-    version = 4;
-  }
+  if (version < 4) version = 4;
 
   stateObj.schemaVersion = SCHEMA_VERSION;
   return stateObj;
@@ -1173,43 +1161,13 @@ function saveStateToSQLite(stateObj) {
   requireDatabase();
   
   const transaction = db.transaction(() => {
-    // 1. Lưu metadata
+    // 1. Lưu metadata. Missing keys are written as null (read back as "absent")
+    // so a full save also clears stale values such as _pendingCloudWrite.
     const stmtMetadata = db.prepare('INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)');
-    stmtMetadata.run('companyName', JSON.stringify(stateObj.companyName || ''));
-    stmtMetadata.run('address', JSON.stringify(stateObj.address || ''));
-    stmtMetadata.run('taxCode', JSON.stringify(stateObj.taxCode || ''));
-    stmtMetadata.run('accountingStandard', JSON.stringify(stateObj.accountingStandard || 'TT200'));
-    stmtMetadata.run('initialBalances', JSON.stringify(stateObj.initialBalances || {}));
-    stmtMetadata.run('partnerOpeningBalances', JSON.stringify(stateObj.partnerOpeningBalances || {}));
-    stmtMetadata.run('deletedIds', JSON.stringify(stateObj.deletedIds || []));
-    stmtMetadata.run('deletedCloudKeys', JSON.stringify(stateObj.deletedCloudKeys || []));
-    stmtMetadata.run('_deletedCloudKeyTs', JSON.stringify(stateObj._deletedCloudKeyTs || {}));
+    for (const key of STATE_METADATA_KEYS) {
+      stmtMetadata.run(key, JSON.stringify(stateObj[key] === undefined ? null : stateObj[key]));
+    }
     stmtMetadata.run('_lastModified', JSON.stringify(stateObj._lastModified || Date.now()));
-    stmtMetadata.run('_lastPulledCloudTs', JSON.stringify(stateObj._lastPulledCloudTs || 0));
-    stmtMetadata.run('_cloudDatasetIdentity', JSON.stringify(stateObj._cloudDatasetIdentity || ''));
-    stmtMetadata.run('_pendingCloudWrite', JSON.stringify(stateObj._pendingCloudWrite || null));
-    stmtMetadata.run('schemaVersion', JSON.stringify(stateObj.schemaVersion || SCHEMA_VERSION));
-    stmtMetadata.run('_accountingValid', JSON.stringify(!!stateObj._accountingValid));
-    stmtMetadata.run('_accountingValidTs', JSON.stringify(stateObj._accountingValidTs || 0));
-    stmtMetadata.run('_recalcWatermark', JSON.stringify(stateObj._recalcWatermark || null));
-    if (stateObj.partnerOpeningBalanceTs) {
-      stmtMetadata.run('partnerOpeningBalanceTs', JSON.stringify(stateObj.partnerOpeningBalanceTs));
-    }
-    if (stateObj.cashEntries) {
-      stmtMetadata.run('cashEntries', JSON.stringify(stateObj.cashEntries));
-    }
-    if (stateObj.escrowItems) {
-      stmtMetadata.run('escrowItems', JSON.stringify(stateObj.escrowItems));
-    }
-    if (stateObj.salesTemplatesData) {
-      stmtMetadata.run('salesTemplatesData', JSON.stringify(stateObj.salesTemplatesData));
-    }
-    if (stateObj.users) {
-      stmtMetadata.run('users', JSON.stringify(stateObj.users));
-    }
-    if (stateObj.actionLogs) {
-      stmtMetadata.run('actionLogs', JSON.stringify(stateObj.actionLogs));
-    }
 
     // 2. Lưu vouchers
     db.prepare('DELETE FROM vouchers').run();
@@ -1362,7 +1320,10 @@ function readStateFromSQLite() {
     taxCode: "",
     accountingStandard: "TT200",
     initialBalances: {},
+    partnerOpeningBalances: {},
     deletedIds: [],
+    deletedCloudKeys: [],
+    _deletedCloudKeyTs: {},
     products: [],
     partners: [],
     vouchers: []
@@ -1371,31 +1332,10 @@ function readStateFromSQLite() {
   // 1. Đọc metadata
   const metadataRows = db.prepare('SELECT key, value FROM metadata').all();
   for (const row of metadataRows) {
+    if (row.key !== '_lastModified' && !STATE_METADATA_KEYS.includes(row.key)) continue;
     try {
       const parsedVal = JSON.parse(row.value);
-      if (row.key === 'companyName') stateObj.companyName = parsedVal;
-      else if (row.key === 'address') stateObj.address = parsedVal;
-      else if (row.key === 'taxCode') stateObj.taxCode = parsedVal;
-      else if (row.key === 'accountingStandard') stateObj.accountingStandard = parsedVal;
-      else if (row.key === 'initialBalances') stateObj.initialBalances = parsedVal;
-      else if (row.key === 'partnerOpeningBalances') stateObj.partnerOpeningBalances = parsedVal;
-      else if (row.key === 'deletedIds') stateObj.deletedIds = parsedVal;
-      else if (row.key === 'deletedCloudKeys') stateObj.deletedCloudKeys = parsedVal;
-      else if (row.key === '_deletedCloudKeyTs') stateObj._deletedCloudKeyTs = parsedVal || {};
-      else if (row.key === '_lastModified') stateObj._lastModified = parsedVal;
-      else if (row.key === '_lastPulledCloudTs') stateObj._lastPulledCloudTs = parsedVal;
-      else if (row.key === '_cloudDatasetIdentity') stateObj._cloudDatasetIdentity = parsedVal;
-      else if (row.key === '_pendingCloudWrite') stateObj._pendingCloudWrite = parsedVal;
-      else if (row.key === 'partnerOpeningBalanceTs') stateObj.partnerOpeningBalanceTs = parsedVal;
-      else if (row.key === 'schemaVersion') stateObj.schemaVersion = parsedVal;
-      else if (row.key === '_accountingValid') stateObj._accountingValid = parsedVal;
-      else if (row.key === '_accountingValidTs') stateObj._accountingValidTs = parsedVal;
-      else if (row.key === '_recalcWatermark') stateObj._recalcWatermark = parsedVal;
-      else if (row.key === 'cashEntries') stateObj.cashEntries = parsedVal;
-      else if (row.key === 'escrowItems') stateObj.escrowItems = parsedVal;
-      else if (row.key === 'salesTemplatesData') stateObj.salesTemplatesData = parsedVal;
-      else if (row.key === 'users') stateObj.users = parsedVal;
-      else if (row.key === 'actionLogs') stateObj.actionLogs = parsedVal;
+      if (parsedVal !== null) stateObj[row.key] = parsedVal;
     } catch (e) {
       console.error(`[SQLiteStore] Lỗi parse metadata key ${row.key}:`, e);
     }
@@ -1434,71 +1374,6 @@ function readStateFromSQLite() {
   return runSchemaMigrations(stateObj);
 }
 
-function backupSqliteBeforeProductDedupe() {
-  try {
-    ensureBackupDir();
-    if (fs.existsSync(STATE_DB_PATH)) {
-      const stamp = typeof makeBackupTimestamp === 'function' ? makeBackupTimestamp() : Date.now();
-      const dest = path.join(BACKUP_DIR, `rd_local_pre_product_dedupe_${stamp}.db`);
-      fs.copyFileSync(STATE_DB_PATH, dest);
-      console.log('[ProductDedupe] Đã sao lưu CSDL trước khi gộp mã:', dest);
-      return dest;
-    }
-  } catch (err) {
-    console.warn('[ProductDedupe] Không thể sao lưu CSDL:', err.message);
-  }
-  return null;
-}
-
-function applyProductCaseDedupeInDatabase(stateObj) {
-  if (!stateObj || !Array.isArray(stateObj.products) || stateObj.products.length === 0) {
-    return { ok: true, changed: false };
-  }
-
-  const garbageResult = cleanGarbageProducts(stateObj);
-  if (garbageResult && garbageResult.removed > 0) {
-    console.log(`[ProductClean] SQLite: xóa ${garbageResult.removed} mã hàng rác.`);
-  }
-
-  const result = dedupeProductCatalogOnState(stateObj);
-  if (!result.changed && (!garbageResult || garbageResult.removed === 0)) {
-    return result;
-  }
-
-  backupSqliteBeforeProductDedupe();
-  saveStateToSQLite(stateObj);
-
-  try {
-    db.prepare('INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)').run(
-      'productCaseDedupe_v1',
-      JSON.stringify({
-        at: Date.now(),
-        beforeCount: result.beforeCount,
-        afterCount: result.afterCount,
-        removedCount: result.removedCount,
-        voucherItemUpdates: result.voucherItemUpdates
-      })
-    );
-  } catch (metaErr) {
-    console.warn('[ProductDedupe] Không ghi metadata migration:', metaErr.message);
-  }
-
-  console.log(
-    `[ProductDedupe] SQLite đã dọn: ${result.beforeCount} → ${result.afterCount} mặt hàng ` +
-    `(gộp ${result.removedCount}, cập nhật ${result.voucherItemUpdates} dòng CT)`
-  );
-  return result;
-}
-
-function readStateFromSQLiteWithDedupe() {
-  const stateObj = readStateFromSQLite();
-  if (!stateObj) return null;
-  // Product dedupe/garbage cleanup is NOT applied on load: it mutated this station's SQLite silently
-  // (no pending cloud write / deletion marker), so the change never synced and stations diverged.
-  // Run it explicitly via `npm run db:dedupe-products` (applyProductCaseDedupeInDatabase is kept for that).
-  return stateObj;
-}
-
 // Đăng ký các IPC handlers
 ipcMain.handle('write-state-file', async (event, jsonData) => {
   try {
@@ -1523,7 +1398,7 @@ ipcMain.handle('write-state-delta', async (event, delta) => {
 
 ipcMain.handle('read-state-file', async (event) => {
   try {
-    const stateObj = readStateFromSQLiteWithDedupe();
+    const stateObj = readStateFromSQLite();
     if (!stateObj) {
       return { ok: true, data: getEmptyStateObject(), isEmpty: true };
     }
@@ -1535,21 +1410,6 @@ ipcMain.handle('read-state-file', async (event) => {
 });
 
 ipcMain.handle('get-database-health', async () => getDatabaseHealth());
-
-// Đọc backup gần nhất để phục hồi khi state file bị hỏng
-ipcMain.handle('read-latest-backup', async (event) => {
-  try {
-    ensureBackupDir();
-    const result = readLatestValidJsonBackup(BACKUP_DIR);
-    if (!result.ok) {
-      return { ok: false, error: result.error, invalidFiles: result.invalidFiles };
-    }
-    return result;
-  } catch (err) {
-    console.error('[StateFile] Lỗi đọc backup gần nhất:', err);
-    return { ok: false, error: err.message };
-  }
-});
 
 // Hiển thị hộp thoại xác nhận native đồng bộ của hệ điều hành
 ipcMain.on('show-confirm-dialog', (event, message) => {
@@ -1577,6 +1437,8 @@ ipcMain.on('show-confirm-dialog', (event, message) => {
 // Khởi chạy khi Electron sẵn sàng
 app.whenReady().then(() => {
   initDatabase(); // Khởi tạo SQLite database cục bộ
+  ensureBackupDir();
+  cleanOldBackups();
   createWindow();
 
   app.on('activate', () => {

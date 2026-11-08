@@ -121,156 +121,21 @@ function keepExistingImportPartner(vObj, existing) {
 
 // Phiếu chi không khớp từ khóa nào: chỉ hạch toán Nợ 331 khi đối tác là nhà cung cấp;
 // còn lại Nợ 1388 (phải thu khác — có ở cả TT133 và TT200) và cần kế toán rà soát.
-function defaultImportedPaymentDebit(partner) {
-    return partner && partner.type === "supplier" ? "331" : "1388";
+// % chiết khấu lưu chính xác, không làm tròn: CK 1.500 trên 100.000 là 1,5%; làm tròn thành 2% thì
+// mở/lưu lại chứng từ sẽ ra 98.000 thay vì 98.500.
+// Mã chứng từ -> vị trí đầu tiên trong state.vouchers; tránh findIndex trên ~20k chứng từ ở mỗi dòng Excel.
+function importVoucherIndexById() {
+    const map = new Map();
+    state.vouchers.forEach((v, i) => { if (!map.has(v.id)) map.set(v.id, i); });
+    return map;
 }
 
-async function autoIntegrateProductsExcel() {
-    const hasProducts = state.products && state.products.length > 5;
-    if (state.productsExcelIntegrated && hasProducts) {
-        console.log("Products Excel database is already integrated.");
-        return;
-    }
+function importDiscountPercent(discountAmount, grossAmount) {
+    return grossAmount > 0 ? (discountAmount / grossAmount) * 100 : 0;
+}
 
-    if (typeof XLSX === "undefined") {
-        console.warn("SheetJS not loaded yet, deferring Products Excel integration...");
-        setTimeout(autoIntegrateProductsExcel, 1000);
-        return;
-    }
-
-    console.log("Starting automatic integration of excel/Vat_tu__hang_hoa__dich_vu.xlsx...");
-    try {
-        let data;
-        try {
-            data = await readExcelViaIPC('Vat_tu__hang_hoa__dich_vu.xlsx');
-        } catch (fetchErr) {
-            console.warn("No excel/Vat_tu__hang_hoa__dich_vu.xlsx file found or failed to read. Skipping auto-integration.", fetchErr.message);
-            return;
-        }
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-
-        if (rows.length < 2) {
-            console.warn("excel/Vat_tu__hang_hoa__dich_vu.xlsx is empty.");
-            return;
-        }
-
-        let count = 0;
-        // Detect header row dynamically
-        let headerRowIdx = 1;
-        for (let r = 0; r < Math.min(rows.length, 5); r++) {
-            const rCells = rows[r] || [];
-            const hasMa = rCells.some(cell => {
-                const val = (cell || "").toString().trim().toLowerCase();
-                return val === "mã" || val === "mã hàng" || val === "mã sản phẩm" || val === "mã đối tác";
-            });
-            const hasTen = rCells.some(cell => {
-                const val = (cell || "").toString().trim().toLowerCase();
-                return val === "tên" || val === "tên sản phẩm" || val === "tên đối tác";
-            });
-            if (hasMa && hasTen) {
-                headerRowIdx = r;
-                break;
-            }
-        }
-
-        const headerRow = rows[headerRowIdx] || [];
-        const isNewFormat = headerRow.length <= 15;
-
-        for (let i = headerRowIdx + 1; i < rows.length; i++) {
-            const row = rows[i];
-            const id = normalizeProductId((row[0] || "").toString().trim());
-            const name = (row[1] || "").toString().trim();
-            if (!id || !name || id === "MÃ" || id === "MÃ SẢN PHẨM" || id === "MÃ HÀNG" || id === "TỔNG CỘNG") continue;
-
-            let unit, minStock, stock, totalVal, avgCost;
-            let initialStock, initialCost, salePrice1;
-            let nature = "Vật tư hàng hóa";
-            let defaultWarehouse = "";
-            let warehouseAccount = "1561";
-            let cogsAccount = "632";
-            let revenueAccount = "51111";
-            let inactive = false;
-
-            if (isNewFormat) {
-                unit = (row[4] || "Cái").toString().trim();
-                minStock = safeParseFloat(row[5]);
-                stock = safeParseFloat(row[11]);
-                totalVal = safeParseFloat(row[12]);
-                avgCost = stock > 0 ? Math.round(totalVal / stock) : 0;
-                initialStock = stock;
-                initialCost = avgCost;
-                salePrice1 = avgCost;
-
-                nature = String(row[2] || "Vật tư hàng hóa").trim();
-                defaultWarehouse = String(row[6] || "").trim();
-                warehouseAccount = String(row[7] || "1561").trim();
-                cogsAccount = String(row[8] || "632").trim();
-                revenueAccount = String(row[9] || "51111").trim();
-
-                const inactiveVal = String(row[10] || "").trim();
-                inactive = inactiveVal === "1" || inactiveVal === "Có" || inactiveVal === "True" || inactiveVal === "true";
-            } else {
-                unit = (row[7] || "Cái").toString().trim();
-                minStock = safeParseFloat(row[9]);
-                stock = safeParseFloat(row[31]);
-                totalVal = safeParseFloat(row[33]);
-                avgCost = stock > 0 ? Math.round(totalVal / stock) : (safeParseFloat(row[20]) || safeParseFloat(row[19]) || 0);
-
-                initialStock = stock;
-                initialCost = safeParseFloat(row[19]) || avgCost || 0;
-                salePrice1 = safeParseFloat(row[21]);
-
-                nature = String(row[2] || "Vật tư hàng hóa").trim();
-                defaultWarehouse = String(row[11] || "").trim();
-                warehouseAccount = String(row[12] || "1561").trim();
-                cogsAccount = String(row[13] || "632").trim();
-                revenueAccount = String(row[14] || "51111").trim();
-
-                const inactiveVal = String(row[30] || "").trim();
-                inactive = inactiveVal === "1" || inactiveVal === "Có" || inactiveVal === "True" || inactiveVal === "true";
-            }
-
-            const idx = findProductIndexById(id, state.products);
-            const pObj = {
-                id,
-                name,
-                unit,
-                stock,
-                avgCost,
-                totalValue: stock * avgCost,
-                minStock,
-                group: (row[isNewFormat ? 3 : 3] || "").toString().trim(),
-                initialStock,
-                actualStock: stock,
-                initialCost,
-                salePrice1,
-                lastPurchasePrice: safeParseFloat(row[20]) || avgCost,
-                nature,
-                defaultWarehouse,
-                warehouseAccount,
-                cogsAccount,
-                revenueAccount,
-                inactive,
-                excelRow: row
-            };
-            if (idx !== -1) {
-                state.products[idx] = {...state.products[idx], ...pObj };
-            } else {
-                state.products.push(pObj);
-            }
-            count++;
-        }
-
-        state.productsExcelIntegrated = true;
-        saveState();
-        recalculateAccounting();
-        console.log(`Successfully auto-integrated ${count} products from excel/Vat_tu__hang_hoa__dich_vu.xlsx!`);
-        if (typeof renderInventoryTable === "function") renderInventoryTable();
-    } catch (err) {
-        console.error("Error auto-integrating products Excel:", err);
-    }
+function defaultImportedPaymentDebit(partner) {
+    return partner && partner.type === "supplier" ? "331" : "1388";
 }
 
 async function autoIntegrateVouchersExcel() {
@@ -309,6 +174,7 @@ async function autoIntegrateVouchersExcel() {
         const resolveImportPartner = createImportPartnerResolver(state.partners);
         // Thống kê công nợ theo đối tác để sửa TK đối ứng theo bằng chứng (xem suggestCashAccountFix).
         const importDebtStats = typeof buildPartnerDebtVoucherStats === "function" ? buildPartnerDebtVoucherStats(state.vouchers) : null;
+        const voucherIndexById = importVoucherIndexById();
         for (let i = 2; i < rows.length; i++) {
             const row = rows[i];
             const id = (row[2] || "").toString().trim();
@@ -379,7 +245,7 @@ async function autoIntegrateVouchersExcel() {
                 }
             }
 
-            const idx = state.vouchers.findIndex(v => v.id === id);
+            const idx = voucherIndexById.has(id) ? voucherIndexById.get(id) : -1;
             let matched = resolveImportPartner(partnerName);
             let partnerId = matched ? matched.id : "";
             let voucherPartnerName = partnerName;
@@ -418,7 +284,7 @@ async function autoIntegrateVouchersExcel() {
             if (idx !== -1) {
                 state.vouchers[idx] = vObj;
             } else {
-                state.vouchers.push(vObj);
+                voucherIndexById.set(id, state.vouchers.push(vObj) - 1);
             }
             count++;
         }
@@ -516,7 +382,7 @@ async function autoIntegrateSalesExcel() {
                     productId: "SP_GENERIC",
                     qty: 1,
                     price: H,
-                    discount: H > 0 ? Math.round((C / H) * 100) : 0,
+                    discount: importDiscountPercent(C, H),
                     amount: H - C
                 }],
                 excelRow: originalRow
@@ -645,7 +511,7 @@ async function autoIntegrateSoChiTietBanHangExcel() {
 
                 const grossAmount = qty * price;
                 const amount = grossAmount - discountVal;
-                const discountPercent = grossAmount > 0 ? Math.round((discountVal / grossAmount) * 100) : 0;
+                const discountPercent = importDiscountPercent(discountVal, grossAmount);
 
                 if (qty !== 0 || amount !== 0) {
                     itemsArray.push({
@@ -883,7 +749,7 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
                 const amount = grossAmount - discountVal;
 
                 const finalPrice = price || (qty > 0 ? Math.round(grossAmount / qty) : 0);
-                const discountPercent = (qty * finalPrice) > 0 ? Math.round((discountVal / (qty * finalPrice)) * 100) : 0;
+                const discountPercent = importDiscountPercent(discountVal, qty * finalPrice);
 
                 if (qty === 0 && amount === 0) continue; // bỏ qua dòng trống
 
@@ -1868,14 +1734,8 @@ function resolveProduct(value) {
         return p;
     }
 
-    // 2. Tìm chính xác theo Tên
-    p = state.products.find(item => item.name.toLowerCase() === val.toLowerCase());
-    if (p) {
-        return p;
-    }
-
-    // 3. Tìm tương đối theo Tên hoặc ID
-    p = state.products.find(item => item.name.toLowerCase().includes(val.toLowerCase()) || String(item.id).toLowerCase().includes(val.toLowerCase()));
+    // 2. Tìm chính xác theo Tên. Không tìm "chứa chuỗi": mã gõ sai sẽ lặng lẽ ghi sổ nhầm mặt hàng.
+    p = state.products.find(item => String(item.name || "").toLowerCase() === val.toLowerCase());
     return p || null;
 }
 
@@ -2336,6 +2196,7 @@ function parseExcelFile(file, type) {
                 const resolveImportPartner = createImportPartnerResolver(state.partners);
                 // Thống kê công nợ theo đối tác để sửa TK đối ứng theo bằng chứng (xem suggestCashAccountFix).
                 const importDebtStats = typeof buildPartnerDebtVoucherStats === "function" ? buildPartnerDebtVoucherStats(state.vouchers) : null;
+                const voucherIndexById = importVoucherIndexById();
                 for (let i = 2; i < rows.length; i++) {
                     const row = rows[i];
                     const id = (row[2] || "").toString().trim();
@@ -2411,7 +2272,7 @@ function parseExcelFile(file, type) {
                         }
                     }
 
-                    const idx = state.vouchers.findIndex(v => v.id === id);
+                    const idx = voucherIndexById.has(id) ? voucherIndexById.get(id) : -1;
                     let matched = resolveImportPartner(partnerName);
                     let partnerId = matched ? matched.id : "";
                     let voucherPartnerName = partnerName;
@@ -2450,7 +2311,7 @@ function parseExcelFile(file, type) {
                     if (idx !== -1) {
                         state.vouchers[idx] = vObj;
                     } else {
-                        state.vouchers.push(vObj);
+                        voucherIndexById.set(id, state.vouchers.push(vObj) - 1);
                     }
                     count++;
                 }
@@ -2591,7 +2452,7 @@ function parseExcelFile(file, type) {
 
                             const grossAmount = qty * price;
                             const amount = grossAmount - discountVal;
-                            const discountPercent = grossAmount > 0 ? Math.round((discountVal / grossAmount) * 100) : 0;
+                            const discountPercent = importDiscountPercent(discountVal, grossAmount);
 
                             if (qty !== 0 || amount !== 0) {
                                 itemsArray.push({ productId, qty, price, discount: discountPercent, amount });
@@ -2713,7 +2574,7 @@ function parseExcelFile(file, type) {
                                 productId: "SP_GENERIC",
                                 qty: 1,
                                 price: H,
-                                discount: H > 0 ? Math.round((C / H) * 100 * 100) / 100 : 0,
+                                discount: importDiscountPercent(C, H),
                                 amount: H - C
                             }],
                             excelRow: originalRow
@@ -2841,7 +2702,7 @@ function parseExcelFile(file, type) {
 
                             const grossAmount = qty * price;
                             const amount = grossAmount - discountVal;
-                            const discountPercent = grossAmount > 0 ? Math.round((discountVal / grossAmount) * 100) : 0;
+                            const discountPercent = importDiscountPercent(discountVal, grossAmount);
 
                             itemsArray.push({
                                 productId: productId,
@@ -2951,7 +2812,7 @@ function parseExcelFile(file, type) {
                                 productId: "SP_GENERIC",
                                 qty: 1,
                                 price: H,
-                                discount: H > 0 ? Math.round((C / H) * 100) : 0,
+                                discount: importDiscountPercent(C, H),
                                 amount: H - C
                             }],
                             excelRow: originalRow
@@ -3101,7 +2962,7 @@ function parseExcelFile(file, type) {
                         const discountVal = colDiscount !== -1 ? Math.abs(safeParseFloat(row[colDiscount])) : 0;
                         const grossAmount = safeParseFloat(row[colAmount]) || (qty * price);
                         const amount = grossAmount - discountVal;
-                        const discountPercent = grossAmount > 0 ? Math.round((discountVal / grossAmount) * 100) : 0;
+                        const discountPercent = importDiscountPercent(discountVal, grossAmount);
 
                         if (qty !== 0 || amount !== 0) {
                             itemsArray.push({ productId, qty, price, discount: discountPercent, amount });
@@ -3481,60 +3342,6 @@ function excelDateToISOString(serial) {
         return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
     }
     return excelDateToISOString("");
-}
-
-// Ghi đè cơ sở dữ liệu mặc định từ Excel
-function syncDefaultExcelDatabase() {
-    if (typeof PREPOPULATED_DATABASE === "undefined") {
-        showToast("Cơ sở dữ liệu tích hợp Excel chưa được nạp sẵn!", "danger");
-        return;
-    }
-    if (confirm("XÁC NHẬN: Bạn có chắc chắn muốn đồng bộ toàn bộ dữ liệu Excel gốc? Toàn bộ giao dịch và thiết lập hiện tại sẽ được ghi đè hoàn toàn bằng 9.297 đối tác, 1.588 sản phẩm và 2.153 chứng từ từ folder Excel.")) {
-        state = JSON.parse(JSON.stringify(PREPOPULATED_DATABASE));
-        initializeMissingExcelRows();
-        saveState();
-        initExcelIntegration();
-        recalculateAccounting();
-        showToast("Đồng bộ Cơ sở dữ liệu tích hợp Excel thành công!", "success");
-        switchTab("dashboard");
-    }
-}
-
-// Xem biểu mẫu in ấn chứng từ excel mẫu chuẩn MISA
-function viewExcelFormSample(type) {
-    const id = type === 'PT' ? 'PT13134' : 'PC7194';
-    const v = state.vouchers.find(x => x.id === id);
-    if (v) {
-        viewVoucher(id);
-    } else {
-        let sampleV = {};
-        if (type === 'PT') {
-            sampleV = {
-                id: "PT13134",
-                type: "receipt",
-                date: "2026-05-18",
-                partnerName: "Anh Cường (KH7970T02/2026)",
-                paymentMethod: "111",
-                description: "PT4054/q82 Anh Cường (KH7970T02/2026) nộp tiền mua hàng",
-                amount: 17944820,
-                entries: [{ debit: "1111", credit: "131", amount: 17944820, desc: "PT4054/q82 Anh Cường thu nợ" }]
-            };
-        } else {
-            sampleV = {
-                id: "PC7194",
-                type: "payment",
-                date: "2026-05-19",
-                partnerName: "Công ty TNHH Sản Xuất Thương Mại Dịch Vụ Lan Thanh",
-                paymentMethod: "111",
-                description: "Chi khác ck thanh toán lan thanh",
-                amount: 120000000,
-                entries: [{ debit: "331", credit: "1111", amount: 120000000, desc: "Chi trả nợ cho Lan Thanh" }]
-            };
-        }
-        state.vouchers.push(sampleV);
-        viewVoucher(sampleV.id);
-        state.vouchers = state.vouchers.filter(x => x.id !== id);
-    }
 }
 
 // Xuất dữ liệu hệ thống ra file Excel

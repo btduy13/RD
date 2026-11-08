@@ -72,7 +72,6 @@ function testPartnerMerge() {
     deleted: [],
     trackDeletedIds(ids) { sandbox.deleted = ids; },
     invalidatePartnerCache() {},
-    invalidateAccounting() {},
     recalced: false,
     saved: false,
     recalculateAccounting() { sandbox.recalced = true; },

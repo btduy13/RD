@@ -43,6 +43,7 @@ function loadDebtModule() {
   };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "js", "core", "chart-of-accounts.js"), "utf8"), sandbox, { filename: "chart-of-accounts.js" });
   vm.runInContext(fs.readFileSync(path.join(repoRoot, "js", "core", "accounting-engine.js"), "utf8"), sandbox, { filename: "accounting-engine.js" });
   vm.runInContext(debtsSource, sandbox, { filename: "debts.js" });
   return sandbox;
@@ -78,6 +79,7 @@ function loadAccountingFifo() {
   };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "js", "core", "chart-of-accounts.js"), "utf8"), sandbox, { filename: "chart-of-accounts.js" });
   vm.runInContext(fs.readFileSync(path.join(repoRoot, "js", "core", "accounting-engine.js"), "utf8"), sandbox, { filename: "accounting-engine.js" });
   vm.runInContext(accountingSource, sandbox, { filename: "accounting.js" });
   return sandbox;
@@ -563,6 +565,9 @@ function testReportAccountsName1388BothStandards() {
     };
     sandbox.window = sandbox;
     vm.createContext(sandbox);
+    // Tên tài khoản lấy từ danh mục theo chế độ
+    vm.runInContext(fs.readFileSync(path.join(repoRoot, "js", "core", "chart-of-accounts.js"), "utf8"), sandbox, { filename: "chart-of-accounts.js" });
+    vm.runInContext(fs.readFileSync(path.join(repoRoot, "js", "core", "accounting-engine.js"), "utf8"), sandbox, { filename: "accounting-engine.js" });
     vm.runInContext(src, sandbox, { filename: "reports.js" });
     const acc = sandbox.getReportAccounts().find(a => a.code === "1388");
     assert.ok(acc && acc.name === "Phải thu khác", `${std}: 1388 named "Phải thu khác"`);
@@ -819,6 +824,7 @@ function loadCashModule(partners) {
     formatVND: v => String(v),
     getLocalDateString: () => "2026-01-01",
     matchAdvancedQuery: () => true,
+    naturalCompare: (a, b) => String(a).localeCompare(String(b), "vi", { numeric: true }),
     getPartnerNameForVoucher: v => v.partnerName || "",
     getPartnerForVoucher: v => (sandbox.state.partners || []).find(p => p.id === v.partnerId) || null,
     resolvePartner: val => {
@@ -830,6 +836,7 @@ function loadCashModule(partners) {
   sandbox.window = sandbox;
   sandbox.getComputedStyle = () => ({ display: "block" });
   vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "js", "core", "chart-of-accounts.js"), "utf8"), sandbox, { filename: "chart-of-accounts.js" });
   vm.runInContext(fs.readFileSync(path.join(repoRoot, "js", "modules", "cash.js"), "utf8"), sandbox, { filename: "cash.js" });
   sandbox.renderCashTable = () => {};
   sandbox.recalculateCashKpis = () => {};

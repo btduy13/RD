@@ -10,7 +10,7 @@ function load(state, withUtils) {
     DEFAULT_DATA: { products: [] }, saveState() {}, refreshUI() {}, safeParseFloat: v => Number(v) || 0 };
   ctx.window = ctx;
   vm.createContext(ctx);
-  const files = ['js/core/accounting-engine.js', 'js/accounting.js'];
+  const files = ['js/core/chart-of-accounts.js', 'js/core/accounting-engine.js', 'js/accounting.js'];
   if (withUtils) files.push('js/utils.js');
   files.forEach(f => vm.runInContext(fs.readFileSync(path.join(REPO, f), 'utf8'), ctx));
   ctx.state = state;
@@ -27,7 +27,7 @@ const baseState = vouchers => ({ accountingStandard: 'TT200', initialBalances: {
 function figures(vouchers) {
   const st = baseState(clone(vouchers));
   const c = load(st);
-  c.recalculateAccounting(false, true);
+  c.recalculateAccounting(false);
   const p = st.products[0];
   return { stock: p.stock, avgCost: p.avgCost, totalValue: p.totalValue,
     cogs: Object.fromEntries(st.vouchers.filter(v => v.type === 'sales').map(v => [v.id, v.cogsAmount])),
@@ -106,7 +106,7 @@ test('recalculation does not rewrite voucher.partnerId or _updatedAt', () => {
     st.partners = order.map(i => clone(partners[i]));
     const c = load(st, true);
     c.state = st;
-    c.recalculateAccounting(false, true);
+    c.recalculateAccounting(false);
     assert.equal(st.vouchers[0].partnerId, 'OLD9');
     assert.equal(st.vouchers[0]._updatedAt, 50);
   });
@@ -118,7 +118,7 @@ test('recalculation does not rewrite partnerId even for unique name match, and s
   st.products[0].initialStock = 5; st.products[0].initialCost = 100;
   const c = load(st, true);
   c.state = st;
-  c.recalculateAccounting(false, true);
+  c.recalculateAccounting(false);
   assert.equal(st.vouchers[0].partnerId, 'khach 1');
   assert.equal(st.vouchers[0].remainingDebt, 1000);
 });
@@ -134,7 +134,7 @@ function loadFull(st) {
     toasts: [], confirmed: 0 };
   ctx.window = ctx;
   vm.createContext(ctx);
-  ['js/utils.js', 'js/core/accounting-engine.js', 'js/accounting.js', 'js/modules/partners.js', 'js/modules/debts.js'].forEach(f =>
+  ['js/utils.js', 'js/core/chart-of-accounts.js', 'js/core/accounting-engine.js', 'js/accounting.js', 'js/modules/partners.js', 'js/modules/debts.js'].forEach(f =>
     vm.runInContext(fs.readFileSync(path.join(REPO, f), 'utf8'), ctx, { filename: f }));
   ctx.state = st;
   return ctx;
@@ -147,7 +147,7 @@ test('padded id shares one FIFO queue; legacy name-style partnerId is not rewrit
     { id: 'PT1', type: 'receipt', date: '2026-10-03', partnerId: 'KH1', paymentMethod: '111', amount: 1200, isManual: true, entries: [{ debit: '111', credit: '131', amount: 1200 }] }]);
   st.products[0].initialStock = 10; st.products[0].initialCost = 100;
   const ctx = loadFull(st);
-  ctx.recalculateAccounting(false, true);
+  ctx.recalculateAccounting(false);
   assert.deepStrictEqual(st.vouchers.map(v => v.partnerId).sort(), ['KH1', 'KH1 ', 'khach 1']);
   const byId = Object.fromEntries(st.vouchers.map(v => [v.id, v]));
   // FIFO: 1200 receipt clears BH1 (1000) then 200 of BH2 -> one queue for all three spellings

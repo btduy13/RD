@@ -8,7 +8,8 @@ const VOUCHER_ENTRY_MODAL_IDS = new Set([
   "modal-add-sales-quotation",
   "modal-add-sales-return",
   "modal-add-receipt",
-  "modal-add-payment"
+  "modal-add-payment",
+  "modal-general-journal"
 ]);
 
 const voucherSubmitBusy = new Set();
@@ -21,7 +22,8 @@ const VOUCHER_SUBMIT_LABELS = {
   "modal-add-sales-quotation": "Lưu phiếu báo giá",
   "modal-add-sales-return": "Ghi sổ chứng từ",
   "modal-add-receipt": "Ghi sổ",
-  "modal-add-payment": "Ghi sổ"
+  "modal-add-payment": "Ghi sổ",
+  "modal-general-journal": "Ghi sổ"
 };
 
 function isVoucherEntryModalId(modalId) {
@@ -134,7 +136,7 @@ function isVoucherFormBusy(modalId) {
 }
 
 function beginVoucherSubmit(modalId, message = "Đang xử lý chứng từ...") {
-  if (voucherSubmitBusy.has(modalId)) return false;
+  if (voucherSubmitBusy.has(modalId) || window.assertCanWriteRole?.() === false) return false;
 
   ensureVoucherModalChrome(modalId);
   const els = getVoucherModalElements(modalId);
@@ -302,6 +304,16 @@ function createStandardDynamicFormTableConfig(options = {}) {
     });
   }
 
+  if (options.hasVat) {
+    columns.push({
+      key: "vatRate",
+      type: "vat",
+      label: options.vatLabel || "Thuế GTGT",
+      width: widths.vatRate || "9%",
+      align: "center"
+    });
+  }
+
   columns.push(
     {
       key: "amount",
@@ -418,10 +430,13 @@ function formatDynamicQuantity(value) {
   return String(raw);
 }
 
+// Ô số lượng hiển thị kiểu VN ("1,125" = 1.125, "1.234,5"): phẩy luôn là thập phân, chấm chỉ là phân nhóm nghìn
+// khi đúng nhóm 3 số ("1.234"); safeParseFloat coi "1,125" là 1125 nên không dùng cho số lượng.
 function parseDynamicQuantity(value) {
-  if (typeof safeParseFloat === "function") return safeParseFloat(value) || 0;
-  const normalized = String(value || "").replace(/\s/g, "").replace(",", ".");
-  return Number.parseFloat(normalized) || 0;
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  let s = String(value ?? "").replace(/\s/g, "");
+  if (s.includes(",") || /^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, "").replace(",", ".");
+  return Number.parseFloat(s) || 0;
 }
 
 function parseDynamicMoney(value) {
@@ -453,7 +468,7 @@ function normalizeDynamicDiscountValue(discount, qty, price) {
   const numericDiscount = Number(discount) || 0;
   if (numericDiscount <= 100) return numericDiscount;
   const gross = (Number(qty) || 0) * (Number(price) || 0);
-  return gross > 0 ? Math.round((numericDiscount / gross) * 100) : 0;
+  return gross > 0 ? (numericDiscount / gross) * 100 : 0;
 }
 
 function formatDynamicMoney(value) {
@@ -470,7 +485,32 @@ function setDynamicMoneyDisplay(elementId, value) {
   else element.textContent = formatted;
 }
 
+// Thuế suất GTGT theo dòng (C1). Dòng chưa có thuế suất lấy thuế suất chung của chứng từ (ô ẩn, chứng từ cũ).
+const VAT_RATE_OPTIONS = ["10", "8", "5", "0", "KCT", "KKKNT"];
+
+function createDynamicVatSelect(column, value, config) {
+  const select = document.createElement("select");
+  select.className = "form-control item-vatrate";
+  select.dataset.fieldKey = column.key;
+  select.setAttribute("aria-label", column.label || column.key);
+  VAT_RATE_OPTIONS.forEach(rate => select.add(new Option(/^\d+$/.test(rate) ? `${rate}%` : rate, rate)));
+  const own = value === undefined || value === null || value === "" ? "" : String(value).trim().toUpperCase();
+  const headerRate = config.totals && config.totals.taxRateId ? document.getElementById(config.totals.taxRateId)?.value : "";
+  select.value = own || String(headerRate || "0");
+  if (!select.value) select.value = "0";
+  select.addEventListener("change", () => refreshDynamicFormTable(config.tbodyId));
+  return select;
+}
+
+// Giá trị lưu vào item.vatRate: số (0|5|8|10) hoặc "KCT"/"KKKNT"; undefined khi form không có cột thuế.
+function readDynamicVatRate(row) {
+  const value = row && row.querySelector(".item-vatrate")?.value;
+  if (value === undefined || value === "") return undefined;
+  return /^\d+$/.test(value) ? Number(value) : value;
+}
+
 function createDynamicFormInput(column, value, config) {
+  if (column.type === "vat") return createDynamicVatSelect(column, value, config);
   const input = document.createElement("input");
   input.type = "text";
   input.className = "form-control";
@@ -501,7 +541,8 @@ function createDynamicFormInput(column, value, config) {
     input.value = Number(parseDynamicMoney(value)).toLocaleString("vi-VN");
     input.addEventListener("input", () => refreshDynamicFormTable(config.tbodyId));
   } else if (column.type === "discount") {
-    input.classList.add("item-discount", "text-right", "number-format");
+    // qty-format (không phải number-format) để gõ được "2,5" %.
+    input.classList.add("item-discount", "text-right", "qty-format");
     input.placeholder = "0";
     input.value = value === undefined || value === null || value === "" ? "0" : String(value);
     input.addEventListener("input", () => refreshDynamicFormTable(config.tbodyId));
@@ -647,6 +688,7 @@ function resetDynamicVoucherForm(formId, fieldOverrides = {}) {
   Object.entries(config.fieldIds || {}).forEach(([key, elementId]) => {
     const element = document.getElementById(elementId);
     if (!element || !("value" in element)) return;
+    delete element.dataset.loaded;
     if (Object.prototype.hasOwnProperty.call(fieldOverrides, key)) {
       element.value = fieldOverrides[key];
     } else if (config.fieldDefaults && Object.prototype.hasOwnProperty.call(config.fieldDefaults, key)) {
@@ -668,6 +710,7 @@ function recalculateDynamicFormTable(tbodyId) {
   if (!config || !tbody) return { subtotal: 0, taxAmount: 0, total: 0 };
 
   let subtotal = 0;
+  const vatLines = [];
   tbody.querySelectorAll("tr").forEach(row => {
     const qty = parseDynamicQuantity(row.querySelector(".item-qty")?.value);
     const price = parseDynamicMoney(row.querySelector(".item-price")?.value);
@@ -679,6 +722,7 @@ function recalculateDynamicFormTable(tbodyId) {
       : Math.round(qty * price * (1 - discount / 100));
     const grossAmount = Math.round(qty * price);
     subtotal += netAmount;
+    vatLines.push({ amount: netAmount, vatRate: readDynamicVatRate(row) });
     const amountDisplay = row.querySelector(".item-total-display");
     if (amountDisplay) amountDisplay.textContent = formatDynamicMoney(grossAmount);
   });
@@ -690,13 +734,144 @@ function recalculateDynamicFormTable(tbodyId) {
   } else if (totals.taxRateId) {
     taxRate = Number.parseInt(document.getElementById(totals.taxRateId)?.value, 10) || 0;
   }
-  const taxAmount = Math.round(subtotal * (taxRate / 100));
+  // Cùng công thức với sổ cái (computeVatBreakdown): thuế làm tròn theo từng nhóm thuế suất.
+  const vat = typeof computeVatBreakdown === "function" ? computeVatBreakdown(vatLines, taxRate) : null;
+  const taxAmount = vat ? vat.tax : Math.round(subtotal * (taxRate / 100));
   const total = subtotal + taxAmount;
 
   setDynamicMoneyDisplay(totals.subtotalId, subtotal);
   setDynamicMoneyDisplay(totals.taxId, taxAmount);
   setDynamicMoneyDisplay(totals.totalId, total);
+  renderDynamicVoucherTaxNote(config, vat, total);
   return { subtotal, taxAmount, total };
+}
+
+// ---------------------------------------------------------------------------
+// Thông tin hóa đơn (C9, TT 91/2026 Đ4): mẫu số 1 chữ số, ký hiệu 6 ký tự, số ≤ 8 chữ số.
+// Ô nhập theo tiền tố form: `${prefix}-inv-no`... Chỉ lưu khi có số HĐ hoặc HĐ gốc — chứng từ cũ giữ nguyên.
+// ---------------------------------------------------------------------------
+const VOUCHER_INVOICE_FIELDS = {
+  invoiceForm: "inv-form", invoiceSymbol: "inv-symbol", invoiceNo: "inv-no",
+  invoiceDate: "inv-date", partnerTaxCode: "inv-taxcode", originalInvoiceNo: "inv-orig"
+};
+
+function voucherInvoiceFieldIds(prefix, withOriginal = false) {
+  const ids = {};
+  Object.entries(VOUCHER_INVOICE_FIELDS).forEach(([key, suffix]) => {
+    if (key !== "originalInvoiceNo" || withOriginal) ids[key] = `${prefix}-${suffix}`;
+  });
+  return ids;
+}
+
+function isValidInvoiceSymbol(symbol) {
+  return /^[CK]\d{2}[TDLMNBGHXF][A-Z]{2}$/.test(String(symbol ?? "").trim());
+}
+
+function defaultSalesInvoiceSymbol(date) {
+  return `C${String(date || "").slice(2, 4) || "00"}TAA`;
+}
+
+// Lỗi đầu tiên hoặc "". Giá trị không đổi so với lúc mở chứng từ (loaded) không bị chặn — dữ liệu nhập Excel cũ vẫn lưu được.
+function validateVoucherInvoice(fields, loaded = {}) {
+  const bad = (key, ok) => fields[key] && fields[key] !== loaded[key] && !ok(fields[key]);
+  if (bad("invoiceForm", value => /^\d$/.test(value))) return "Mẫu số hóa đơn là 1 chữ số (1 = hóa đơn GTGT, 2 = hóa đơn bán hàng).";
+  if (bad("invoiceSymbol", isValidInvoiceSymbol)) return "Ký hiệu hóa đơn gồm 6 ký tự, vd. C26TAA (C/K + 2 số năm + loại T/D/L/M/N/B/G/H/X/F + 2 chữ in hoa) — TT 91/2026 Đ4.";
+  if (bad("invoiceNo", value => /^\d{1,8}$/.test(value))) return "Số hóa đơn tối đa 8 chữ số.";
+  return "";
+}
+
+// Dòng ghi chú hóa đơn điều chỉnh giảm khi hàng bán bị trả lại (TT 91/2026 Đ10).
+function buildInvoiceAdjustmentNote(originalNo, originalType) {
+  const vouchers = typeof state !== "undefined" && Array.isArray(state.vouchers) ? state.vouchers : [];
+  const orig = vouchers.find(v => v && v.type === originalType && String(v.invoiceNo ?? "") === originalNo);
+  const parts = orig
+    ? [`Mẫu số ${orig.invoiceForm || "1"}`, orig.invoiceSymbol ? `ký hiệu ${orig.invoiceSymbol}` : "", `số ${originalNo}`, `ngày ${formatDateDisplay(orig.invoiceDate || orig.date)}`]
+    : [`số ${originalNo}`];
+  return `Điều chỉnh giảm cho hóa đơn ${parts.filter(Boolean).join(" ")}`;
+}
+
+// context: { date, partner, originalType }. Trả về { fields, error }; fields rỗng khi không nhập số HĐ / HĐ gốc.
+function readVoucherInvoiceFields(prefix, context = {}) {
+  const fields = {};
+  const loaded = {};
+  Object.entries(VOUCHER_INVOICE_FIELDS).forEach(([key, suffix]) => {
+    const el = document.getElementById(`${prefix}-${suffix}`);
+    if (!el) return;
+    const value = el.value.trim();
+    if (value) fields[key] = key === "invoiceSymbol" ? value.toUpperCase() : value;
+    loaded[key] = el.dataset.loaded || "";
+  });
+  if (!fields.invoiceNo && !fields.originalInvoiceNo) return { fields: {}, error: "" };
+  const error = validateVoucherInvoice(fields, loaded);
+  if (fields.invoiceNo) {
+    fields.invoiceForm = fields.invoiceForm || "1";
+    fields.invoiceDate = fields.invoiceDate || context.date || "";
+  }
+  if (!fields.partnerTaxCode && context.partner && context.partner.taxCode) fields.partnerTaxCode = context.partner.taxCode;
+  if (fields.originalInvoiceNo) fields.invoiceNote = buildInvoiceAdjustmentNote(fields.originalInvoiceNo, context.originalType);
+  return { fields, error };
+}
+
+function fillVoucherInvoiceFields(prefix, v, defaults = {}) {
+  Object.entries(VOUCHER_INVOICE_FIELDS).forEach(([key, suffix]) => {
+    const el = document.getElementById(`${prefix}-${suffix}`);
+    if (!el) return;
+    const stored = v && v[key] !== undefined && v[key] !== null ? String(v[key]) : "";
+    el.dataset.loaded = stored;
+    el.value = stored || defaults[key] || "";
+  });
+}
+
+// MST người mua/bán lấy từ danh mục đối tác khi ô còn trống.
+function initVoucherInvoicePartnerTaxCode() {
+  ["sale", "sales-ret", "pur", "ret"].forEach(prefix => {
+    const partnerEl = document.getElementById(`${prefix}-partner`);
+    const taxEl = document.getElementById(`${prefix}-inv-taxcode`);
+    if (!partnerEl || !taxEl) return;
+    partnerEl.addEventListener("change", () => {
+      const partner = typeof findExistingPartner === "function" ? findExistingPartner(partnerEl.value) : null;
+      if (partner && partner.taxCode && !taxEl.value.trim()) taxEl.value = partner.taxCode;
+    });
+  });
+}
+
+// Cảnh báo C4: mua hàng trả tiền mặt (111) từ ngưỡng → thuế GTGT không được khấu trừ, chi phí không được trừ.
+function getCashPaymentVatWarning(paymentMethod, total, date) {
+  if (typeof isCashOverVatThreshold !== "function" || !isCashOverVatThreshold({ paymentMethod, date }, total)) return "";
+  return `Thanh toán tiền mặt từ ${formatDynamicMoney(getTaxRule("vat.cashThreshold", date).value)}: thuế GTGT không được khấu trừ và chi phí không được trừ khi tính thuế TNDN (NĐ 181/2025 Đ26, NĐ 320/2025 Đ9)`;
+}
+
+// Tổng tiền theo từng thuế suất + cảnh báo (không chặn lưu) ngay dưới ô tổng cộng.
+function renderDynamicVoucherTaxNote(config, vat, total) {
+  const totalEl = config.totals && config.totals.totalId ? document.getElementById(config.totals.totalId) : null;
+  if (!totalEl || !config.columns.some(column => column.type === "vat")) return;
+  let note = document.getElementById(`${config.tbodyId}-tax-note`);
+  if (!note) {
+    note = document.createElement("div");
+    note.id = `${config.tbodyId}-tax-note`;
+    note.className = "voucher-tax-note";
+    note.style.cssText = "font-size: 12px; margin-top: 6px; color: var(--text-secondary);";
+    totalEl.insertAdjacentElement("afterend", note);
+  }
+  const fields = config.fieldIds || {};
+  const date = document.getElementById(fields.date)?.value || "";
+  const lines = Object.entries(vat ? vat.breakdown : {}).map(([rate, group]) => [
+    `Thuế suất ${/^\d+$/.test(rate) ? `${rate}%` : rate}: tiền hàng ${formatDynamicMoney(group.base)} — thuế ${formatDynamicMoney(group.tax)}`, ""
+  ]);
+  const reduced = date && typeof getTaxRule === "function" ? getTaxRule("vat.reduced8.window", date) : null;
+  if (reduced && vat && vat.breakdown["10"]) {
+    lines.push([`Đang trong thời gian giảm thuế GTGT 10% → 8% đến ${formatDateDisplay(reduced.value.to)} (NĐ 174/2025): kiểm tra các dòng 10%`, "warning"]);
+  }
+  if (config.cashThresholdWarning) {
+    const warning = getCashPaymentVatWarning(document.getElementById(fields.payment)?.value, total, date);
+    if (warning) lines.push([warning, "danger"]);
+  }
+  note.replaceChildren(...lines.map(([text, tone]) => {
+    const line = document.createElement("div");
+    line.textContent = text;
+    if (tone) line.style.color = `var(--color-${tone})`;
+    return line;
+  }));
 }
 
 function refreshDynamicProductPrices(tbodyId, options = {}) {
@@ -835,6 +1010,12 @@ document.addEventListener("DOMContentLoaded", () => {
   VOUCHER_ENTRY_MODAL_IDS.forEach(ensureVoucherModalChrome);
   patchVoucherModalLifecycle();
   initDynamicItemsTables();
+  initVoucherInvoicePartnerTaxCode();
+  // Đổi ngày / hình thức thanh toán thì cập nhật lại tổng thuế và cảnh báo.
+  document.addEventListener("change", event => {
+    const config = getDynamicFormTableConfigs().find(c => c.fieldIds && [c.fieldIds.date, c.fieldIds.payment].includes(event.target.id));
+    if (config) refreshDynamicFormTable(config.tbodyId);
+  });
 });
 
 window.isVoucherEntryModalId = isVoucherEntryModalId;
@@ -858,6 +1039,15 @@ window.parseDynamicQuantity = parseDynamicQuantity;
 window.parseDynamicMoney = parseDynamicMoney;
 window.parseDynamicDiscount = parseDynamicDiscount;
 window.validateDynamicVoucherLine = validateDynamicVoucherLine;
+window.readDynamicVatRate = readDynamicVatRate;
+window.getCashPaymentVatWarning = getCashPaymentVatWarning;
+window.voucherInvoiceFieldIds = voucherInvoiceFieldIds;
+window.isValidInvoiceSymbol = isValidInvoiceSymbol;
+window.defaultSalesInvoiceSymbol = defaultSalesInvoiceSymbol;
+window.validateVoucherInvoice = validateVoucherInvoice;
+window.buildInvoiceAdjustmentNote = buildInvoiceAdjustmentNote;
+window.readVoucherInvoiceFields = readVoucherInvoiceFields;
+window.fillVoucherInvoiceFields = fillVoucherInvoiceFields;
 window.mountDynamicFormRow = mountDynamicFormRow;
 window.removeDynamicFormRow = removeDynamicFormRow;
 window.insertDynamicFormRowAfter = insertDynamicFormRowAfter;

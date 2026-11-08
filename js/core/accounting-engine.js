@@ -1,5 +1,5 @@
 /* ==========================================================================
-   ACCOUNTING ENGINE — Watermark / skip-recalc helpers (pure, no DOM)
+   ACCOUNTING ENGINE — thứ tự ghi sổ, định giá kho, kết chuyển (pure, no DOM)
    ========================================================================== */
 
 // Deterministic voucher order for valuation / allocation (moving-average cost, COGS, FIFO debt).
@@ -7,7 +7,8 @@
 // so every workstation computes identical figures regardless of array order.
 const ACCOUNTING_TYPE_RANK = {
   purchase: 0, sales_return: 0,
-  sales: 2, purchase_return: 2
+  sales: 2, purchase_return: 2,
+  period_close: 3 // kết chuyển cuối kỳ đứng sau mọi chứng từ cùng ngày
 };
 // An inventory adjustment whose every line increases stock is a stock-in.
 function accountingTypeRank(voucher) {
@@ -67,152 +68,115 @@ function createVoucherPartnerResolver(partners) {
   };
 }
 
-function accountingInputFingerprint(value) {
-  const text = JSON.stringify(value);
-  let first = 2166136261, second = 5381;
-  for (let i = 0; i < text.length; i++) {
-    first = Math.imul(first ^ text.charCodeAt(i), 16777619);
-    second = Math.imul(second, 33) ^ text.charCodeAt(i);
+// +1 nhập kho, −1 xuất kho, 0 không đổi tồn.
+function stockDirection(type, item) {
+  if (type === "purchase" || type === "sales_return") return 1;
+  if (type === "sales" || type === "purchase_return") return -1;
+  if (type === "inventory_adjust") return item && item.adjustDir === "in" ? 1 : -1;
+  return 0;
+}
+
+// Số dư đầu kỳ một mặt hàng (initialStock/initialCost do recalculateAccounting chốt).
+function stockOpening(p) {
+  const stock = Number((Number(p.initialStock) || 0).toFixed(3));
+  const avgCost = Number(p.initialCost) || 0;
+  return { stock, avgCost, totalValue: stock * avgCost, lastPurchasePrice: p.lastPurchasePrice !== undefined ? p.lastPurchasePrice : avgCost };
+}
+
+// Định giá một dòng hàng theo bình quân gia quyền liên hoàn — dùng chung cho recalculateAccounting và
+// calculateInventoryValueAt để giá trị kho tại mọi ngày khớp sổ 156. b = { stock, avgCost, totalValue, lastPurchasePrice }.
+// Trả về { unit, value, adjust }: value = giá trị dòng (giá vốn khi xuất); adjust = chênh lệch khi lần nhập bù hết tồn âm.
+function applyStockItem(b, type, item) {
+  const dir = stockDirection(type, item);
+  if (!dir || !item) return null;
+  const qty = Number(item.qty) || 0;
+  const vatInCost = type === "purchase" || type === "purchase_return" ? Number(item.vatInCost) || 0 : 0;
+  let unit, value;
+  if (type === "purchase") {
+    value = (Number(item.amount) || 0) + vatInCost;
+    unit = qty ? roundMoney2(value / qty) : Number(item.price) || 0;
+    b.lastPurchasePrice = item.price;
+  } else {
+    if (type === "inventory_adjust") unit = b.avgCost || b.lastPurchasePrice || Number(item.price) || 0;
+    else unit = b.avgCost = b.avgCost > 0 ? b.avgCost : (b.lastPurchasePrice || 0);
+    value = Math.round(qty * unit);
   }
-  return `${text.length}:${first >>> 0}:${second >>> 0}`;
+  const before = b.stock;
+  b.stock = Number((before + dir * qty).toFixed(3));
+  b.totalValue += dir > 0 ? value : -(value + vatInCost);
+  let adjust = 0;
+  if (dir > 0 && before < 0 && b.stock >= 0) {
+    // Lần nhập bù hết tồn âm: đặt lại theo đơn giá lần nhập; chênh lệch là giá vốn đã xuất âm chưa đúng (632 – 156).
+    b.avgCost = unit;
+    const reset = Math.round(b.stock * unit);
+    adjust = Math.round(b.totalValue - reset);
+    b.totalValue = reset;
+  } else if (b.stock > 0) {
+    b.avgCost = roundMoney2(b.totalValue / b.stock);
+  } else if (b.stock === 0) {
+    b.totalValue = 0;
+  } else if (!(b.avgCost > 0)) {
+    b.avgCost = unit; // còn âm: giữ giá trị lũy kế (âm) để sổ 156 khớp kho
+  }
+  return { unit, value, adjust };
 }
 
-function getRecalcWatermark(state) {
-  const vouchers = state.vouchers || [];
-  let maxUpdatedAt = 0;
-  vouchers.forEach((v) => {
-    const ts = Number(v && v._updatedAt) || 0;
-    if (ts > maxUpdatedAt) maxUpdatedAt = ts;
-  });
-  return {
-    inputs: accountingInputFingerprint({
-      standard: state.accountingStandard,
-      openings: state.partnerOpeningBalances,
-      partners: (state.partners || []).map(p => [p.id, p.type]),
-      products: (state.products || []).map(p => [p.id, p.initialStock, p.initialCost, p.actualStock]),
-      vouchers: vouchers.map(v => [v.id, v.type, v.date, v.partnerId, v.paymentMethod,
-        v.amount, v.taxRate, v.items, v.entries, v.debtAdjustment, v.isImported, v.isManual])
-    }),
-    voucherCount: vouchers.length,
-    productCount: (state.products || []).length,
-    lastModified: Number(state._lastModified) || 0,
-    maxVoucherUpdatedAt: maxUpdatedAt
+// Tồn kho âm không được phép (TT99 TK 156, VAS 02): mã hàng mà chứng từ xuất này làm tồn âm (hoặc âm thêm)
+// tại vị trí chứng từ hoặc bất kỳ lúc nào sau đó. st.allowNegativeStock = true tắt kiểm tra.
+function findNegativeStockProducts(st, voucher) {
+  if (!st || st.allowNegativeStock === true || !voucher || !Array.isArray(voucher.items)) return [];
+  const ids = new Set(voucher.items.filter(i => i && stockDirection(voucher.type, i) < 0).map(i => String(i.productId)));
+  if (!ids.size) return [];
+  const others = (st.vouchers || []).filter(v => v && v.id !== voucher.id);
+  // Sửa chứng từ: so với bản đã lưu (thay thế nó), không so với "không có chứng từ" — lưu lại bản cũ không đổi không bị chặn.
+  const prev = (st.vouchers || []).find(v => v && v.id === voucher.id);
+  const from = prev && compareVouchersForAccounting(prev, voucher) < 0 ? prev : voucher;
+  const lowest = ins => {
+    const stock = new Map(), low = new Map();
+    (st.products || []).forEach(p => { if (p && ids.has(String(p.id))) stock.set(String(p.id), stockOpening(p).stock); });
+    const apply = v => (v.items || []).forEach(item => {
+      const id = item && String(item.productId);
+      if (stock.has(id)) stock.set(id, Number((stock.get(id) + stockDirection(v.type, item) * (Number(item.qty) || 0)).toFixed(3)));
+    });
+    const mark = () => stock.forEach((s, id) => low.set(id, Math.min(low.has(id) ? low.get(id) : s, s)));
+    let started = false;
+    (ins ? [...others, ins] : others).sort(compareVouchersForAccounting).forEach(v => {
+      if (!started && compareVouchersForAccounting(v, from) >= 0) { started = true; mark(); }
+      apply(v);
+      if (started) mark();
+    });
+    if (!started) mark();
+    return low;
   };
+  const withIt = lowest(voucher), before = lowest(prev);
+  return [...withIt.keys()].filter(id => withIt.get(id) < -0.0005 && withIt.get(id) < before.get(id) - 0.0005);
 }
 
-function shouldSkipFullRecalc(state, shouldSave, forceFullRecalc) {
-  if (forceFullRecalc) return false;
-  if (shouldSave !== false) return false;
-  if (state._accountingValid !== true) return false;
-  const validTs = Number(state._accountingValidTs) || 0;
-  const lastMod = Number(state._lastModified) || 0;
-  if (validTs < lastMod) return false;
-  const saved = state._recalcWatermark;
-  if (!saved) return false;
-  const current = getRecalcWatermark(state);
-  return (
-    saved.inputs === current.inputs &&
-    saved.voucherCount === current.voucherCount &&
-    saved.productCount === current.productCount &&
-    saved.lastModified === current.lastModified &&
-    saved.maxVoucherUpdatedAt === current.maxVoucherUpdatedAt
-  );
-}
-
-function markAccountingValid(state) {
-  state._accountingValid = true;
-  state._accountingValidTs = Date.now();
-  state._recalcWatermark = getRecalcWatermark(state);
-}
-
-function invalidateAccounting(state) {
-  state._accountingValid = false;
-  state._recalcWatermark = null;
+// Mã hàng tồn âm cuối ngày `date` (không cho kết chuyển/khóa kỳ khi còn tồn âm).
+function negativeStockProductsAt(st, date) {
+  const stock = new Map(((st && st.products) || []).filter(Boolean).map(p => [String(p.id), stockOpening(p).stock]));
+  ((st && st.vouchers) || []).forEach(v => {
+    if (!v || (date && String(v.date || "") > date)) return;
+    (v.items || []).forEach(item => {
+      const id = item && String(item.productId);
+      if (stock.has(id)) stock.set(id, stock.get(id) + stockDirection(v.type, item) * (Number(item.qty) || 0));
+    });
+  });
+  return [...stock].filter(([, s]) => s < -0.0005).map(([id]) => id);
 }
 
 function calculateInventoryValueAt(products, vouchers, toDate) {
   const balances = new Map();
   (Array.isArray(products) ? products : []).forEach(product => {
-    if (!product || product.id === undefined || product.id === null) return;
-    const stock = Number(product.initialStock) || 0;
-    const avgCost = Number(product.initialCost) || 0;
-    balances.set(String(product.id), {
-      stock,
-      avgCost,
-      totalValue: stock * avgCost,
-      lastPurchasePrice: Number(product.lastPurchasePrice) || avgCost
-    });
+    if (product && product.id !== undefined && product.id !== null) balances.set(String(product.id), stockOpening(product));
   });
-
-  const chronological = [...(Array.isArray(vouchers) ? vouchers : [])].sort(compareVouchersForAccounting);
-
-  chronological.forEach(voucher => {
+  [...(Array.isArray(vouchers) ? vouchers : [])].sort(compareVouchersForAccounting).forEach(voucher => {
     if (!voucher || (toDate && String(voucher.date || "") > toDate) || !Array.isArray(voucher.items)) return;
-
     voucher.items.forEach(item => {
-      if (!item) return;
-      const balance = balances.get(String(item.productId));
-      if (!balance) return;
-
-      const qty = Number(item.qty) || 0;
-      if (qty <= 0) return;
-      const price = Number(item.price) || 0;
-      const rawAmount = Number(item.amount);
-      const itemAmount = Number.isFinite(rawAmount) ? rawAmount : Math.round(qty * price);
-
-      if (voucher.type === "purchase") {
-        const oldStock = balance.stock;
-        balance.stock = Number((balance.stock + qty).toFixed(3));
-        balance.totalValue += itemAmount;
-
-        if (oldStock >= 0 && balance.stock > 0) {
-          balance.avgCost = Math.round((balance.totalValue / balance.stock) * 100) / 100;
-        } else if (balance.stock > 0) {
-          balance.avgCost = price;
-          balance.totalValue = Math.round(balance.stock * balance.avgCost);
-        } else {
-          if (!balance.avgCost || balance.avgCost <= 0) balance.avgCost = price;
-          balance.totalValue = Math.round(balance.stock * balance.avgCost);
-        }
-        balance.lastPurchasePrice = price;
-        return;
-      }
-
-      if (!balance.avgCost || balance.avgCost <= 0) {
-        balance.avgCost = balance.lastPurchasePrice || price || 0;
-      }
-      const rawCogs = Number(item.cogsAmount);
-      const cogsAmount = Number.isFinite(rawCogs)
-        ? rawCogs
-        : Math.round(qty * balance.avgCost);
-
-      if (voucher.type === "sales_return") {
-        balance.stock = Number((balance.stock + qty).toFixed(3));
-        balance.totalValue += cogsAmount;
-        if (balance.stock > 0) balance.avgCost = Math.round((balance.totalValue / balance.stock) * 100) / 100;
-      } else if (voucher.type === "sales" || voucher.type === "purchase_return") {
-        balance.stock = Number((balance.stock - qty).toFixed(3));
-        balance.totalValue -= cogsAmount;
-        if (balance.stock <= 0) balance.totalValue = 0;
-        else balance.avgCost = Math.round((balance.totalValue / balance.stock) * 100) / 100;
-      } else if (voucher.type === "inventory_adjust") {
-        const adjustmentAmount = Number.isFinite(rawAmount)
-          ? rawAmount
-          : Math.round(qty * balance.avgCost);
-        if (item.adjustDir === "in") {
-          balance.stock = Number((balance.stock + qty).toFixed(3));
-          balance.totalValue += adjustmentAmount;
-          if (balance.stock > 0) balance.avgCost = Math.round((balance.totalValue / balance.stock) * 100) / 100;
-        } else {
-          balance.stock = Number((balance.stock - qty).toFixed(3));
-          balance.totalValue -= adjustmentAmount;
-          if (balance.stock <= 0) balance.totalValue = 0;
-          else balance.avgCost = Math.round((balance.totalValue / balance.stock) * 100) / 100;
-        }
-      }
+      const balance = item && balances.get(String(item.productId));
+      if (balance) applyStockItem(balance, voucher.type, item);
     });
   });
-
   let totalValue = 0;
   balances.forEach(balance => { totalValue += Number(balance.totalValue) || 0; });
   return totalValue;
@@ -301,14 +265,14 @@ const TT133_OPENING_ALIASES = { "1386": "244", "3386": "344" };
 const TT133_OPENING_ALIAS_SOURCES = new Set(Object.values(TT133_OPENING_ALIASES));
 
 function isHiddenOpeningAlias(code, standard) {
-  return standard !== "TT200" && TT133_OPENING_ALIAS_SOURCES.has(String(code));
+  return !isTT99Family(standard) && TT133_OPENING_ALIAS_SOURCES.has(String(code));
 }
 
 function getOpeningBalanceForAccount(initialBalances, code, standard) {
   const all = initialBalances || {};
   const key = String(code);
   const primary = all[key];
-  const aliasKey = standard !== "TT200" ? TT133_OPENING_ALIASES[key] : undefined;
+  const aliasKey = !isTT99Family(standard) ? TT133_OPENING_ALIASES[key] : undefined;
   const alias = aliasKey ? all[aliasKey] : undefined;
   if (!alias) return primary || { type: "debit", balance: 0 };
   const signed = ob => ob ? (ob.type === "credit" ? -1 : 1) * (Number(ob.balance) || 0) : 0;
@@ -373,6 +337,175 @@ function partnerOpeningTotalsInputKey(st) {
   return parts.sort().join(",");
 }
 
+// ---------------------------------------------------------------------------
+// Thuế GTGT theo từng dòng (C1): item.vatRate (0|5|8|10|"KCT"|"KKKNT") ưu tiên hơn thuế suất chứng từ.
+// Thuế tính và làm tròn theo từng nhóm thuế suất; KCT/KKKNT thuế 0 nhưng vẫn theo dõi doanh số.
+// Chứng từ cũ (không có item.vatRate) ra đúng một nhóm = round(tổng × v.taxRate%) như trước.
+// ---------------------------------------------------------------------------
+function vatRateKey(rate) {
+  const text = String(rate ?? "").trim().toUpperCase();
+  if (text === "KCT" || text === "KKKNT") return text;
+  return String(Number(text) || 0);
+}
+
+function computeVatBreakdown(items, defaultRate) {
+  const breakdown = {};
+  let subtotal = 0, tax = 0;
+  (items || []).forEach(item => {
+    if (!item) return;
+    const own = item.vatRate !== undefined && item.vatRate !== null && item.vatRate !== "";
+    const key = vatRateKey(own ? item.vatRate : defaultRate);
+    const amount = Number(item.amount) || 0;
+    (breakdown[key] = breakdown[key] || { base: 0, tax: 0 }).base += amount;
+    subtotal += amount;
+  });
+  Object.keys(breakdown).forEach(key => {
+    breakdown[key].tax = Math.round(breakdown[key].base * ((Number(key) || 0) / 100));
+    tax += breakdown[key].tax;
+  });
+  return { breakdown, subtotal, tax };
+}
+
+// ---------------------------------------------------------------------------
+// Số dư / phát sinh tài khoản trong kỳ [from, to]. match(code) chọn mã (tiền tố hoặc đúng mã).
+// from/to rỗng = không giới hạn. "Trước kỳ" = số dư khai báo + phát sinh trước from.
+// ---------------------------------------------------------------------------
+function sumAccountMovements(st, match, from, to, skipVoucher) {
+  let beforeNet = 0, debit = 0, credit = 0;
+  const tt133 = !isTT99Family(st && st.accountingStandard);
+  const aliasTarget = Object.fromEntries(Object.entries(TT133_OPENING_ALIASES).map(([k, v]) => [v, k]));
+  Object.entries((st && st.initialBalances) || {}).forEach(([key, ob]) => {
+    // TT133 đọc số dư 244/344 như 1386/3386 (giống getOpeningBalanceForAccount)
+    const mapped = tt133 && aliasTarget[key] ? aliasTarget[key] : key;
+    if (ob && match(mapped)) beforeNet += (ob.type === "credit" ? -1 : 1) * (Number(ob.balance) || 0);
+  });
+  ((st && st.vouchers) || []).forEach(v => {
+    if (!v || !Array.isArray(v.entries) || (skipVoucher && skipVoucher(v))) return;
+    const date = String(v.date || "");
+    if (to && date > to) return;
+    const before = from && date < from;
+    v.entries.forEach(e => {
+      if (!e) return;
+      const amount = Number(e.amount) || 0;
+      if (match(String(e.debit ?? "").trim())) { if (before) beforeNet += amount; else debit += amount; }
+      if (match(String(e.credit ?? "").trim())) { if (before) beforeNet -= amount; else credit += amount; }
+    });
+  });
+  return { beforeNet, debit, credit };
+}
+
+const roundMoney2 = n => Math.round(n * 100) / 100;
+
+// Gồm TK con theo tiền tố (vd. "112" gồm "1121").
+function getAccountTurnover(st, code, from, to) {
+  const prefix = String(code ?? "").trim();
+  const { beforeNet, debit, credit } = sumAccountMovements(st, c => c.startsWith(prefix), from, to);
+  const closeNet = beforeNet + debit - credit;
+  return {
+    openDebit: roundMoney2(Math.max(beforeNet, 0)), openCredit: roundMoney2(Math.max(-beforeNet, 0)),
+    debit: roundMoney2(debit), credit: roundMoney2(credit),
+    closeDebit: roundMoney2(Math.max(closeNet, 0)), closeCredit: roundMoney2(Math.max(-closeNet, 0))
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Kết chuyển cuối kỳ — bút toán cho chứng từ period_close ngày `to`, theo thứ tự (B5, xac_minh_truoc_sua.md):
+// 1) bù trừ GTGT Nợ 3331 / Có 1331 số nhỏ hơn; 2) 521 → 511 (TT133 không có 521); 3) 511/515/711 → 911;
+// 4) 911 → 632/635/641/642/811; 5) 821 → 911; 6) 911 → 4212 (lãi Nợ 911/Có 4212; lỗ Nợ 4212/Có 911).
+// Lần kết chuyển đầu tiên của năm (có `from`) còn chuyển số dư 4212 cuối năm trước sang 4211 (B1, TT99 TK 421 điểm e)
+// và kết quả năm trước chưa kết chuyển thẳng vào 4211.
+// Tính trên số dư lũy kế đến `to` từng mã chi tiết; kết chuyển ngày `to` trở về sau không tính (ghi sổ lại vẫn cùng kết quả).
+// ---------------------------------------------------------------------------
+const PERIOD_CLOSE_GROUPS = ["521", "511", "515", "711", "632", "635", "641", "642", "811", "821", "911"];
+const PERIOD_CLOSE_ORDER = [["511", "515", "711"], ["632", "635", "641", "642", "811"], ["821"]];
+const isPeriodCloseCode = c => PERIOD_CLOSE_GROUPS.some(g => c.startsWith(g));
+
+// Số dư (Nợ − Có) lũy kế theo mã chi tiết, cộng dần theo thứ tự ghi sổ: recalculateAccounting sinh mọi kết chuyển
+// trong một lượt (quét lại toàn bộ chứng từ cho từng kết chuyển là O(n × số kỳ)).
+function createCloseLedger(st) {
+  const net = {}, yearStart = {}, closedYears = new Set();
+  let year = "", posted = false;
+  const add = (code, amount) => { code = String(code ?? "").trim(); if (code) net[code] = (net[code] || 0) + amount; };
+  // TT133 đọc số dư khai báo 244/344 như 1386/3386 (giống getOpeningBalanceForAccount)
+  const alias = isTT99Family(st && st.accountingStandard) ? {} : Object.fromEntries(Object.entries(TT133_OPENING_ALIASES).map(([k, v]) => [v, k]));
+  Object.entries((st && st.initialBalances) || {}).forEach(([key, ob]) => {
+    if (ob) add(alias[key] || key, (ob.type === "credit" ? -1 : 1) * (Number(ob.balance) || 0));
+  });
+  // Số dư trước 01/01 năm y; số dư khai báo coi là lũy kế năm đầu tiên có chứng từ (như các TK kết quả).
+  const enterYear = y => { if (y > year) { yearStart[y] = posted ? { ...net } : {}; year = y; } };
+  return {
+    net,
+    post(v) {
+      if (!v) return;
+      const date = String(v.date || "");
+      enterYear(date.slice(0, 4));
+      posted = true;
+      if (v.type === "period_close") closedYears.add(date.slice(0, 4));
+      (Array.isArray(v.entries) ? v.entries : []).forEach(e => {
+        if (!e) return;
+        const amount = Number(e.amount) || 0;
+        add(e.debit, amount); add(e.credit, -amount);
+      });
+    },
+    close(from, to) {
+      const y = String(to || "").slice(0, 4);
+      enterYear(y);
+      const prior = from && !closedYears.has(y) ? yearStart[y] || {} : null;
+      const sumOf = (map, test) => roundMoney2(Object.keys(map).filter(test).reduce((sum, c) => sum + map[c], 0));
+      const entries = [];
+      const push = (debit, credit, amount, desc) => {
+        const value = roundMoney2(amount);
+        if (value > 0) entries.push({ debit, credit, amount: value, desc });
+      };
+      const prior4212 = prior ? sumOf(prior, c => c.startsWith("4212")) : 0;
+      if (prior4212 < 0) push("4212", "4211", -prior4212, "Kết chuyển lợi nhuận sau thuế năm trước sang TK 4211");
+      else if (prior4212 > 0) push("4211", "4212", prior4212, "Kết chuyển lỗ năm trước sang TK 4211");
+
+      const vatIn = sumOf(net, c => c.startsWith("1331"));
+      const vatOut = -sumOf(net, c => c.startsWith("3331"));
+      if (vatIn > 0 && vatOut > 0) push("3331", "1331", Math.min(vatIn, vatOut), "Khấu trừ thuế GTGT đầu vào với đầu ra");
+
+      const nets = {};
+      Object.keys(net).filter(isPeriodCloseCode).forEach(c => { nets[c] = roundMoney2(net[c]); });
+      // 521 → 511 (521 dư Nợ: Nợ 511 / Có 521)
+      Object.keys(nets).filter(c => c.startsWith("521")).sort().forEach(c => {
+        if (nets[c] > 0) push("511", c, nets[c], "Kết chuyển các khoản giảm trừ doanh thu");
+        else push(c, "511", -nets[c], "Kết chuyển các khoản giảm trừ doanh thu");
+        nets["511"] = roundMoney2((nets["511"] || 0) + nets[c]);
+        delete nets[c];
+      });
+      let result = 0; // Có 911 − Nợ 911 (dương = lãi)
+      Object.keys(nets).filter(c => c.startsWith("911")).forEach(c => { result -= nets[c]; });
+      PERIOD_CLOSE_ORDER.forEach(group => Object.keys(nets).filter(c => group.some(g => c.startsWith(g))).sort().forEach(c => {
+        const n = nets[c];
+        if (n < 0) push(c, "911", -n, `Kết chuyển TK ${c} sang TK 911`);
+        else if (n > 0) push("911", c, n, `Kết chuyển TK ${c} sang TK 911`);
+        result -= n;
+      }));
+      const priorResult = prior ? -sumOf(prior, isPeriodCloseCode) : 0;
+      result = roundMoney2(result - priorResult);
+      if (priorResult > 0) push("911", "4211", priorResult, "Kết chuyển lãi sau thuế năm trước");
+      else if (priorResult < 0) push("4211", "911", -priorResult, "Kết chuyển lỗ năm trước");
+      if (result > 0) push("911", "4212", result, "Kết chuyển lãi sau thuế");
+      else if (result < 0) push("4212", "911", -result, "Kết chuyển lỗ");
+      return entries;
+    }
+  };
+}
+
+function buildPeriodCloseEntries(st, from, to) {
+  const ledger = createCloseLedger(st);
+  ((st && st.vouchers) || [])
+    .filter(v => v && Array.isArray(v.entries) && !(to && String(v.date || "") > to) && !(v.type === "period_close" && String(v.date || "") >= String(to || "")))
+    .sort(compareVouchersForAccounting)
+    .forEach(v => ledger.post(v));
+  return ledger.close(from, to);
+}
+
+window.computeVatBreakdown = computeVatBreakdown;
+window.getAccountTurnover = getAccountTurnover;
+window.buildPeriodCloseEntries = buildPeriodCloseEntries;
+window.createCloseLedger = createCloseLedger;
 window.computePartnerOpeningTotals = computePartnerOpeningTotals;
 window.applyPartnerOpeningTotals = applyPartnerOpeningTotals;
 window.partnerOpeningTotalsInputKey = partnerOpeningTotalsInputKey;
@@ -382,8 +515,6 @@ window.suggestCashVoucherAccountFixes = suggestCashVoucherAccountFixes;
 window.isBankLikePartner = isBankLikePartner;
 window.createVoucherPartnerResolver = createVoucherPartnerResolver;
 window.compareVouchersForAccounting = compareVouchersForAccounting;
-window.getRecalcWatermark = getRecalcWatermark;
-window.shouldSkipFullRecalc = shouldSkipFullRecalc;
-window.markAccountingValid = markAccountingValid;
-window.invalidateAccounting = invalidateAccounting;
 window.calculateInventoryValueAt = calculateInventoryValueAt;
+window.findNegativeStockProducts = findNegativeStockProducts;
+window.negativeStockProductsAt = negativeStockProductsAt;

@@ -11,7 +11,7 @@ const fs = require('fs');
 const path = require('path');
 
 function loadCoreScript(relativePath, extraGlobals) {
-  const code = fs.readFileSync(path.join(__dirname, '..', relativePath), 'utf8');
+  const code = [].concat(relativePath).map(p => fs.readFileSync(path.join(__dirname, '..', p), 'utf8')).join('\n');
   const sandbox = { window: {}, console, JSON, Math, Date, Set, Map, parseFloat, parseInt, Number, String, Array, Object, isNaN: Number.isNaN };
   Object.assign(sandbox, extraGlobals || {});
   vm.runInNewContext(code, sandbox);
@@ -29,6 +29,22 @@ function testStateDiff() {
   for (const change of [{ amount: 20 }, { entries: [{ debit: '111', credit: '131', amount: 20 }] }, { debtAdjustment: 20 }]) {
     assert.equal(core.entityChanged(prev, { ...prev, ...change }, 'voucher'), true, 'cash/accounting edits must be persisted even with unchanged timestamps');
   }
+
+  // Recalculation rewrites derived fields without touching _updatedAt; they must still persist.
+  const recalcPrev = { ...prev, items: [{ productId: 'P', cogsUnit: 5 }], vatBreakdown: { 10: { vat: 1 } } };
+  assert.equal(core.entityChanged(recalcPrev, JSON.parse(JSON.stringify(recalcPrev))), false);
+  assert.equal(core.entityChanged(recalcPrev, { ...recalcPrev, items: [{ productId: 'P', cogsUnit: 6 }] }), true);
+  assert.equal(core.entityChanged(recalcPrev, { ...recalcPrev, vatBreakdown: { 10: { vat: 2 } } }), true);
+  assert.equal(core.entityChanged(recalcPrev, { ...recalcPrev, escrowRefId: undefined }), false, 'undefined fields match the JSON snapshot');
+
+  const day = 24 * 60 * 60 * 1000;
+  const now = 1000 * day;
+  const tomb = () => ({ vouchers: [], deletedCloudKeys: ['v_OLD', 'v_NEW', 'v_NOTS'], _deletedCloudKeyTs: { v_OLD: now - 200 * day, v_NEW: now - day } });
+  const pruned = core.pruneResolvedDeletionMarkers(tomb(), now);
+  assert.deepEqual(pruned.deletedCloudKeys, ['v_NEW', 'v_NOTS'], 'tombstones older than 180 days are dropped, undated kept');
+  assert.deepEqual(Object.keys(pruned._deletedCloudKeyTs), ['v_NEW']);
+  const pending = core.pruneResolvedDeletionMarkers({ ...tomb(), _pendingCloudWrite: { token: 't' } }, now);
+  assert.equal(pending.deletedCloudKeys.length, 3, 'never prune while a local write may still carry the deletion');
 
   const lastSavedState = {
     companyName: 'A',
@@ -105,31 +121,7 @@ function testStateDiff() {
 }
 
 function testAccountingEngine() {
-  const core = loadCoreScript('js/core/accounting-engine.js');
-  const state = {
-    _lastModified: 100,
-    _accountingValid: true,
-    _accountingValidTs: 200,
-    _recalcWatermark: { voucherCount: 1, productCount: 0, lastModified: 100, maxVoucherUpdatedAt: 0 },
-    vouchers: [{ id: 'BH1', _updatedAt: 0 }],
-    products: []
-  };
-
-  state._recalcWatermark = core.getRecalcWatermark(state);
-  assert.equal(core.shouldSkipFullRecalc(state, false, false), true);
-  state.vouchers[0].amount = 300;
-  assert.equal(core.shouldSkipFullRecalc(state, false, false), false, 'same-count edits invalidate accounting even without a timestamp change');
-  state._recalcWatermark = core.getRecalcWatermark(state);
-  assert.equal(core.shouldSkipFullRecalc(state, true, false), false);
-  assert.equal(core.shouldSkipFullRecalc(state, false, true), false);
-
-  state._lastModified = 300;
-  assert.equal(core.shouldSkipFullRecalc(state, false, false), false);
-
-  core.markAccountingValid(state);
-  assert.equal(state._accountingValid, true);
-  assert.ok(state._recalcWatermark);
-
+  const core = loadCoreScript(['js/core/chart-of-accounts.js', 'js/core/accounting-engine.js']);
   const products = [{ id: 'P1', initialStock: 10, initialCost: 100 }];
   const vouchers = [
     {

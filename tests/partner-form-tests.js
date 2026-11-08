@@ -28,6 +28,7 @@ function loadPartners(partners, openings = {}) {
   const utilsSrc = fs.readFileSync(path.join(repoRoot, "js", "utils.js"), "utf8");
   const helper = utilsSrc.slice(utilsSrc.indexOf("function normalizePartnerCode"), utilsSrc.indexOf("window.normalizePartnerCode"));
   vm.runInContext(helper, ctx, { filename: "utils.js#normalizePartnerCode" });
+  vm.runInContext(utilsSrc.slice(utilsSrc.indexOf("function escapeHtmlText"), utilsSrc.indexOf("window.escapeHtmlText")), ctx, { filename: "utils.js#escapeHtmlText" });
   vm.runInContext(fs.readFileSync(path.join(repoRoot, "js", "modules", "partners.js"), "utf8"), ctx, { filename: "partners.js" });
   ctx.findExistingPartner = v => ctx.state.partners.find(p => p.id === v || `${p.name} (${p.id})` === v) || null;
   ctx.trackDeletedIds = () => {};
@@ -104,7 +105,7 @@ function testListAndDatalistEscaping() {
     { id: "DN1", name: "Công ty <b>1</b>", type: "enterprise" },
     { id: "CT9", name: "Nối RN 32 x1''", type: "project", parentId: "DN-GONE" }
   ]);
-  assert.equal(ctx.escapePartnerText(`a<b>"'&`), "a&lt;b&gt;&quot;&#039;&amp;");
+  assert.equal(ctx.escapeHtmlText(`a<b>"'&`), "a&lt;b&gt;&quot;&#039;&amp;");
   assert.equal(ctx.getPartnerParentName(ctx.state.partners[1]), "", "a deleted parent shows as unassigned, not as its dead code");
   ctx.populateEnterpriseDatalist("dl");
   assert.ok(ctx.document.getElementById("dl").innerHTML.includes("Công ty &lt;b&gt;1&lt;/b&gt; (DN1)"));

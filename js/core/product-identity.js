@@ -35,7 +35,6 @@ function dedupeProductCatalogCase(options) {
   });
 
   if (result.changed && opts.recalculate !== false) {
-    if (typeof invalidateAccounting === "function") invalidateAccounting(state);
     if (typeof recalculateAccounting === "function") recalculateAccounting(true);
     else if (typeof saveStateSync === "function") saveStateSync();
     else if (typeof saveState === "function") saveState();

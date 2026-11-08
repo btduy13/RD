@@ -128,13 +128,13 @@ function buildSalesTableRowHtml(v) {
   const exactPartner = resolvedPartner && resolvedPartner.id === v.partnerId ? resolvedPartner : null;
   const partnerLabel = exactPartner
     ? escapeHtmlText(getPartnerNameForVoucher(v))
-    : `<span style="color:var(--color-danger); font-weight:700;" title="Mã đối tác trên đơn không còn tồn tại trong danh mục">⚠ Chưa khớp: ${escapeHtmlAttr(v.partnerId || "thiếu mã đối tác")}</span>`;
+    : `<span style="color:var(--color-danger); font-weight:700;" title="Mã đối tác trên đơn không còn tồn tại trong danh mục">⚠ Chưa khớp: ${escapeHtmlText(v.partnerId || "thiếu mã đối tác")}</span>`;
   return `
       <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
         <td style="text-align: center;">
           <input type="checkbox" class="sale-checkbox" value="${escapeHtmlAttr(v.id)}" onchange="updateBatchSalesUI()">
         </td>
-        <td class="font-numeric" style="color: var(--color-success); font-weight:700;">${v.id}</td>
+        <td class="font-numeric" style="color: var(--color-success); font-weight:700;">${escapeHtmlText(v.id)}</td>
         <td>${formattedDate}</td>
         <td><span style="font-weight:600;">${partnerLabel}</span></td>
         <td class="cell-clip" title="${escapeHtmlText(v.description || "")}">${escapeHtmlText(v.description || "")}</td>
@@ -146,7 +146,7 @@ function buildSalesTableRowHtml(v) {
           <div class="accounting-detail-box">
             ${v.entries.map(e => `
               <div class="accounting-entry-row">
-                <span>Nợ <span class="acct-debit">${e.debit}</span> / Có <span class="acct-credit">${e.credit}</span></span>
+                <span>Nợ <span class="acct-debit">${escapeHtmlText(e.debit)}</span> / Có <span class="acct-credit">${escapeHtmlText(e.credit)}</span></span>
                 <span class="font-numeric">${formatVND(e.amount)}</span>
               </div>
             `).join("")}
@@ -262,7 +262,7 @@ function renderSalesTable() {
     if (b.date !== a.date) {
       return b.date.localeCompare(a.date);
     }
-    return b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' });
+    return naturalCompare(b.id, a.id);
   });
 
   const totalCount = sales.length;
@@ -385,7 +385,8 @@ let salesSubmitInProgress = false;
 function resetSalesForm() {
   const modalTitle = document.querySelector("#modal-add-sales .card-title");
   if (modalTitle) modalTitle.innerText = "Lập hóa đơn bán hàng xuất kho";
-  resetDynamicVoucherForm("form-sales", { date: getLocalDateString() });
+  const saleDate = getLocalDateString();
+  resetDynamicVoucherForm("form-sales", { date: saleDate, invoiceSymbol: defaultSalesInvoiceSymbol(saleDate) });
   // Hình thức thu tiền: dùng lựa chọn gần nhất của người dùng thay vì luôn mặc định ghi nợ 131
   // (bán lẻ thu tiền ngay bị ghi nhầm thành công nợ khi quên đổi).
   const paymentEl = document.getElementById("sale-payment");
@@ -519,7 +520,7 @@ async function handleSalesSubmit(e) {
 
     const productId = resolvedProduct.id;
     const itemDesc = row.querySelector(".item-desc") ? row.querySelector(".item-desc").value.trim() : "";
-    const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
+    const qty = parseDynamicQuantity(row.querySelector(".item-qty").value) || 0;
     const price = parseDynamicMoney(row.querySelector(".item-price").value);
     const discount = parseDynamicDiscount(row.querySelector(".item-discount").value);
     const lineError = validateDynamicVoucherLine(qty, price, discount);
@@ -530,30 +531,24 @@ async function handleSalesSubmit(e) {
     }
     const amount = Math.round(qty * price * (1 - discount / 100));
 
-    // Kiểm tra hàng tồn kho khả dụng (Cộng lại lượng đã bán cũ của chứng từ này nếu đang edit)
-    let oldQty = 0;
-    if (editingSalesId) {
-      const oldVoucher = state.vouchers.find(v => v.id === editingSalesId);
-      if (oldVoucher) {
-        const oldItem = oldVoucher.items.find(item => String(item.productId) === String(productId));
-        if (oldItem) oldQty = oldItem.qty || 0;
-      }
-    }
-    if ((resolvedProduct.stock + oldQty) < qty) {
-      showToast(`Cảnh báo: Hàng tồn kho sản phẩm "${resolvedProduct.name}" không đủ (Còn tồn ${resolvedProduct.stock + oldQty}, cần bán ${qty})!`, "warning");
-    }
-
     voucherItems.push({
       productId,
       itemDesc,
       qty,
       price,
       discount,
-      amount
+      amount,
+      vatRate: readDynamicVatRate(row)
     });
   }
 
   if (isStockInsufficient) return;
+  if (blockNegativeStockIssue({ id: editingSalesId || voucherId, type: "sales", date: document.getElementById("sale-date").value, items: voucherItems })) return;
+  const invoiceError = readVoucherInvoiceFields("sale").error;
+  if (invoiceError) {
+    showToast(invoiceError, "danger");
+    return;
+  }
 
   const modalId = "modal-add-sales";
   if (!beginVoucherSubmit(modalId, "Đang kiểm tra dữ liệu...")) return;
@@ -606,6 +601,7 @@ async function handleSalesSubmit(e) {
     note: document.getElementById("sale-note") ? document.getElementById("sale-note").value.trim() : "",
     items: voucherItems,
     taxRate: parseInt(document.getElementById("sale-tax-rate").value),
+    ...readVoucherInvoiceFields("sale", { date: document.getElementById("sale-date").value, partner: resolvedPartner }).fields,
     isManual: true,
     _updatedAt: Date.now(),
     _sessionId: clientSessionId
@@ -698,20 +694,9 @@ function editSalesVoucher(id) {
   if (document.getElementById("sale-tax-rate")) {
     document.getElementById("sale-tax-rate").value = v.taxRate || 0;
   }
+  fillVoucherInvoiceFields("sale", v, { invoiceForm: "1", invoiceSymbol: defaultSalesInvoiceSymbol(v.date) });
 
-  const formItems = v.items.map(item => {
-    const prod = state.products.find(p => String(p.id) === String(item.productId));
-    const prodId = prod ? prod.id : item.productId;
-    const itemDesc = item.itemDesc || (prod ? prod.name : item.productId);
-    return {
-      productId: prodId,
-      desc: itemDesc,
-      qty: item.qty,
-      price: item.price,
-      discount: normalizeDynamicDiscountValue(item.discount, item.qty, item.price)
-    };
-  });
-  replaceDynamicFormTableRows("sales-form-items-body", formItems);
+  replaceDynamicFormTableRows("sales-form-items-body", salesVoucherItemsToFormItems(v));
 
   openModal("modal-add-sales");
 }
@@ -727,7 +712,8 @@ function salesVoucherItemsToFormItems(v) {
       desc: itemDesc,
       qty: item.qty,
       price: item.price,
-      discount: normalizeDynamicDiscountValue(item.discount, item.qty, item.price)
+      discount: normalizeDynamicDiscountValue(item.discount, item.qty, item.price),
+      vatRate: item.vatRate
     };
   });
 }
@@ -794,6 +780,7 @@ function updateBatchSalesUI() {
 }
 
 async function batchDeleteSales() {
+  if (window.assertCanWriteRole?.() === false) return; // utils.js có thể chưa nạp (sandbox test)
   const checked = Array.from(document.querySelectorAll(".sale-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
 
@@ -981,7 +968,7 @@ function renderSalesReturnTable() {
     if (b.date !== a.date) {
       return b.date.localeCompare(a.date);
     }
-    return b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' });
+    return naturalCompare(b.id, a.id);
   });
 
   const totalCount = returns.length;
@@ -1063,7 +1050,7 @@ function renderSalesReturnTable() {
         <td style="text-align: center;">
           <input type="checkbox" class="sales-return-checkbox" value="${escapeHtmlAttr(v.id)}" onchange="updateBatchSalesReturnsUI()">
         </td>
-        <td class="font-numeric" style="color: var(--color-success); font-weight:700;">${v.id}</td>
+        <td class="font-numeric" style="color: var(--color-success); font-weight:700;">${escapeHtmlText(v.id)}</td>
         <td>${formattedDate}</td>
         <td><span style="font-weight:600;">${escapeHtmlText(getPartnerNameForVoucher(v))}</span></td>
         <td class="cell-clip" title="${escapeHtmlText(v.description || "")}">${escapeHtmlText(v.description || "")}</td>
@@ -1073,7 +1060,7 @@ function renderSalesReturnTable() {
           <div class="accounting-detail-box">
             ${v.entries.map(e => `
               <div class="accounting-entry-row">
-                <span>Nợ <span class="acct-debit">${e.debit}</span> / Có <span class="acct-credit">${e.credit}</span></span>
+                <span>Nợ <span class="acct-debit">${escapeHtmlText(e.debit)}</span> / Có <span class="acct-credit">${escapeHtmlText(e.credit)}</span></span>
                 <span class="font-numeric">${formatVND(e.amount)}</span>
               </div>
             `).join("")}
@@ -1250,7 +1237,7 @@ async function handleSalesReturnSubmit(e) {
     }
 
     const productId = resolvedProduct.id;
-    const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
+    const qty = parseDynamicQuantity(row.querySelector(".item-qty").value) || 0;
     const price = parseDynamicMoney(row.querySelector(".item-price").value);
     const discount = parseDynamicDiscount(row.querySelector(".item-discount").value);
     const lineError = validateDynamicVoucherLine(qty, price, discount);
@@ -1266,11 +1253,17 @@ async function handleSalesReturnSubmit(e) {
       qty,
       price,
       discount,
-      amount
+      amount,
+      vatRate: readDynamicVatRate(row)
     });
   }
 
   if (hasError) return;
+  const invoiceError = readVoucherInvoiceFields("sales-ret").error;
+  if (invoiceError) {
+    showToast(invoiceError, "danger");
+    return;
+  }
 
   const modalId = "modal-add-sales-return";
   if (!beginVoucherSubmit(modalId, "Đang kiểm tra dữ liệu...")) return;
@@ -1305,6 +1298,7 @@ async function handleSalesReturnSubmit(e) {
     description: document.getElementById("sales-ret-desc").value,
     items: voucherItems,
     taxRate: parseInt(document.getElementById("sales-ret-tax-rate").value) || 0,
+    ...readVoucherInvoiceFields("sales-ret", { date: document.getElementById("sales-ret-date").value, partner: resolvedPartner, originalType: "sales" }).fields,
     isManual: true,
     _updatedAt: Date.now(),
     _sessionId: clientSessionId
@@ -1390,6 +1384,7 @@ function editSalesReturnVoucher(id) {
   if (document.getElementById("sales-ret-tax-rate")) {
     document.getElementById("sales-ret-tax-rate").value = v.taxRate || 0;
   }
+  fillVoucherInvoiceFields("sales-ret", v, { invoiceForm: "1" });
 
   const formItems = v.items.map(item => {
     const prod = state.products.find(p => String(p.id) === String(item.productId));
@@ -1398,7 +1393,8 @@ function editSalesReturnVoucher(id) {
       productId: prodVal,
       qty: item.qty,
       price: item.price,
-      discount: normalizeDynamicDiscountValue(item.discount, item.qty, item.price)
+      discount: normalizeDynamicDiscountValue(item.discount, item.qty, item.price),
+      vatRate: item.vatRate
     };
   });
   replaceDynamicFormTableRows("sales-return-form-items-body", formItems);
@@ -1436,6 +1432,7 @@ function updateBatchSalesReturnsUI() {
 }
 
 async function batchDeleteSalesReturns() {
+  if (window.assertCanWriteRole?.() === false) return; // utils.js có thể chưa nạp (sandbox test)
   const checked = Array.from(document.querySelectorAll(".sales-return-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
 
@@ -1513,7 +1510,7 @@ function exportSalesReturnsToExcel() {
   );
   if (fromDate) filteredReturns = filteredReturns.filter(v => v.date >= fromDate);
   if (toDate) filteredReturns = filteredReturns.filter(v => v.date <= toDate);
-  filteredReturns.sort((a, b) => new Date(a.date) - new Date(b.date) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+  filteredReturns.sort((a, b) => new Date(a.date) - new Date(b.date) || naturalCompare(a.id, b.id));
 
   try {
     // ── MISA SO_CHI_TIET_BAN_HANG format (cùng cột, nhưng SL bán=0, SL trả lại=thực tế) ──
@@ -1727,7 +1724,7 @@ function renderQuotationTable() {
     if (b.date !== a.date) {
       return b.date.localeCompare(a.date);
     }
-    return b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' });
+    return naturalCompare(b.id, a.id);
   });
 
   const totalCount = quotations.length;
@@ -1765,7 +1762,7 @@ function renderQuotationTable() {
         <td style="text-align: center;">
           <input type="checkbox" class="quotation-checkbox" value="${escapeHtmlAttr(v.id)}" onchange="updateBatchQuotationsUI()">
         </td>
-        <td class="font-numeric" style="color: var(--color-success); font-weight:700;">${v.id}</td>
+        <td class="font-numeric" style="color: var(--color-success); font-weight:700;">${escapeHtmlText(v.id)}</td>
         <td>${formattedDate}</td>
         <td><span style="font-weight:600;">${escapeHtmlText(getPartnerNameForVoucher(v))}</span></td>
         <td class="cell-clip" title="${escapeHtmlText(v.description || "")}">${escapeHtmlText(v.description || "")}</td>
@@ -1953,7 +1950,7 @@ async function handleQuotationSubmit(e) {
 
     const productId = resolvedProduct.id;
     const itemDesc = row.querySelector(".item-desc") ? row.querySelector(".item-desc").value.trim() : "";
-    const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
+    const qty = parseDynamicQuantity(row.querySelector(".item-qty").value) || 0;
     const price = parseDynamicMoney(row.querySelector(".item-price").value);
     const discount = parseDynamicDiscount(row.querySelector(".item-discount").value);
     const lineError = validateDynamicVoucherLine(qty, price, discount);
@@ -1969,7 +1966,8 @@ async function handleQuotationSubmit(e) {
       qty,
       price,
       discount,
-      amount
+      amount,
+      vatRate: readDynamicVatRate(row)
     });
   }
 
@@ -2087,7 +2085,8 @@ function editQuotationVoucher(id) {
       desc: itemDesc,
       qty: item.qty,
       price: item.price,
-      discount: normalizeDynamicDiscountValue(item.discount, item.qty, item.price)
+      discount: normalizeDynamicDiscountValue(item.discount, item.qty, item.price),
+      vatRate: item.vatRate
     };
   });
   replaceDynamicFormTableRows("quotation-form-items-body", formItems);
@@ -2288,6 +2287,7 @@ function updateBatchQuotationsUI() {
 }
 
 async function batchDeleteQuotations() {
+  if (window.assertCanWriteRole?.() === false) return; // utils.js có thể chưa nạp (sandbox test)
   const checkboxes = document.querySelectorAll(".quotation-checkbox:checked");
   const ids = Array.from(checkboxes).map(cb => cb.value);
   if (ids.length === 0) return;
@@ -2357,7 +2357,7 @@ function exportQuotationsToExcel() {
   );
   if (fromDate) filteredQuotations = filteredQuotations.filter(v => v.date >= fromDate);
   if (toDate) filteredQuotations = filteredQuotations.filter(v => v.date <= toDate);
-  filteredQuotations.sort((a, b) => new Date(a.date) - new Date(b.date) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+  filteredQuotations.sort((a, b) => new Date(a.date) - new Date(b.date) || naturalCompare(a.id, b.id));
 
   try {
     const wb = XLSX.utils.book_new();
@@ -2519,7 +2519,7 @@ function renderSalesTemplateTable() {
   const tbody = document.getElementById("sales-template-table-body");
   if (!tbody) return;
   
-  if (!state.salesTemplatesData || state.salesTemplatesData.length === 0) {
+  if (state.salesTemplatesData == null) { // [] = người dùng đã xóa hết mẫu, không nạp lại mẫu gốc
     state.salesTemplatesData = JSON.parse(JSON.stringify(window.salesTemplatesData || []));
   }
   allTemplateFiles = state.salesTemplatesData;
@@ -2537,8 +2537,8 @@ function displaySalesTemplateTable(list) {
   tbody.innerHTML = list.map((item, idx) => `
     <tr data-type="template" data-id="${escapeHtmlAttr(item.filename)}">
       <td style="text-align: center; font-weight: 600;">${idx + 1}</td>
-      <td style="font-weight: 600; color: var(--color-primary);">${escapeHtmlAttr(item.filename)}</td>
-      <td>${escapeHtmlAttr(item.desc)}</td>
+      <td style="font-weight: 600; color: var(--color-primary);">${escapeHtmlText(item.filename)}</td>
+      <td>${escapeHtmlText(item.desc)}</td>
       <td style="text-align: center;">
         <div style="display:flex; gap:8px; justify-content:center; align-items:center;">
           <button class="btn btn-primary btn-sm" onclick="modifySalesTemplate('${escapeHtmlAttr(item.filename)}')" title="Lên đơn hàng" style="padding:5px 10px;">
@@ -2951,6 +2951,7 @@ function handleTemplateSubmit(event) {
 }
 
 async function deleteSalesTemplate(filename) {
+  if (window.assertCanWriteRole?.() === false) return; // utils.js có thể chưa nạp (sandbox test)
   const ok = await showConfirmModal({
     title: "Xác nhận xóa phiếu mẫu",
     message: `Bạn có chắc chắn muốn xóa phiếu mẫu "${filename}" không?`,
@@ -2995,11 +2996,12 @@ if (typeof registerDynamicFormTable === "function") {
     productLabel: "Mã SP",
     productPlaceholder: "Mã SP...",
     productListId: "datalist-sales-products",
-    widths: { productId: "12%", desc: "23%", qty: "10%", price: "16%", discount: "13%", amount: "13%", actions: "8%" },
+    hasVat: true,
+    widths: { productId: "12%", desc: "16%", qty: "9%", price: "15%", discount: "11%", vatRate: "9%", amount: "13%", actions: "8%" },
     onProductInput: autoFillProductPrice,
     totals: { taxRateId: "sale-tax-rate", subtotalId: "sale-subtotal-display", taxId: "sale-tax-display", totalId: "sale-total-display" },
-    fieldIds: { id: "sale-id", partner: "sale-partner", date: "sale-date", payment: "sale-payment", desc: "sale-desc", note: "sale-note", taxRate: "sale-tax-rate" },
-    fieldDefaults: { payment: "131", desc: "Bán hàng xuất kho", taxRate: "0" },
+    fieldIds: { id: "sale-id", partner: "sale-partner", date: "sale-date", payment: "sale-payment", desc: "sale-desc", note: "sale-note", taxRate: "sale-tax-rate", ...voucherInvoiceFieldIds("sale") },
+    fieldDefaults: { payment: "131", desc: "Bán hàng xuất kho", taxRate: "0", invoiceForm: "1" },
     getEditingId: () => editingSalesId,
     setEditingId: value => { editingSalesId = value || null; }
   }));
@@ -3013,9 +3015,10 @@ if (typeof registerDynamicFormTable === "function") {
     priceLabel: "Đơn giá trả lại (đ)",
     productListId: "datalist-sales-products",
     onProductInput: autoFillSalesReturnPrice,
+    hasVat: true,
     totals: { taxRateId: "sales-ret-tax-rate", subtotalId: "sales-ret-subtotal-display", taxId: "sales-ret-tax-display", totalId: "sales-ret-total-display" },
-    fieldIds: { id: "sales-ret-id", partner: "sales-ret-partner", date: "sales-ret-date", payment: "sales-ret-payment", desc: "sales-ret-desc", taxRate: "sales-ret-tax-rate" },
-    fieldDefaults: { payment: "131", desc: "Nhập hàng bán trả lại", taxRate: "0" },
+    fieldIds: { id: "sales-ret-id", partner: "sales-ret-partner", date: "sales-ret-date", payment: "sales-ret-payment", desc: "sales-ret-desc", taxRate: "sales-ret-tax-rate", ...voucherInvoiceFieldIds("sales-ret", true) },
+    fieldDefaults: { payment: "131", desc: "Nhập hàng bán trả lại", taxRate: "0", invoiceForm: "1" },
     getEditingId: () => editingSalesReturnId,
     setEditingId: value => { editingSalesReturnId = value || null; }
   }));
@@ -3029,7 +3032,8 @@ if (typeof registerDynamicFormTable === "function") {
     productLabel: "Mã SP",
     productPlaceholder: "Mã SP...",
     productListId: "datalist-sales-products",
-    widths: { productId: "12%", desc: "23%", qty: "10%", price: "16%", discount: "13%", amount: "13%", actions: "8%" },
+    hasVat: true,
+    widths: { productId: "12%", desc: "16%", qty: "9%", price: "15%", discount: "11%", vatRate: "9%", amount: "13%", actions: "8%" },
     onProductInput: autoFillQuotationPrice,
     totals: { taxRateId: "quotation-tax-rate", subtotalId: "quotation-subtotal-display", taxId: "quotation-tax-display", totalId: "quotation-total-display" },
     fieldIds: { id: "quotation-id", partner: "quotation-partner", date: "quotation-date", payment: "quotation-payment", desc: "quotation-desc", taxRate: "quotation-tax-rate" },
@@ -3079,3 +3083,273 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
+function exportSalesToExcel(detailed = true) {
+  if (typeof XLSX === "undefined") {
+    showToast("Thư viện SheetJS chưa được nạp!", "danger");
+    return;
+  }
+  let filteredSales = state.vouchers.filter(v => v.type === "sales" || v.type === "sales_return");
+
+  const query = document.getElementById("search-sales") ? document.getElementById("search-sales").value.toLowerCase() : "";
+  const fromDate = document.getElementById("search-sales-from") ? document.getElementById("search-sales-from").value : "";
+  const toDate = document.getElementById("search-sales-to") ? document.getElementById("search-sales-to").value : "";
+
+  if (query) filteredSales = filteredSales.filter(v =>
+    matchStr(v.id, query) ||
+    matchStr(v.partnerName, query) ||
+    matchStr(v.description, query)
+  );
+  if (fromDate) filteredSales = filteredSales.filter(v => v.date >= fromDate);
+  if (toDate) filteredSales = filteredSales.filter(v => v.date <= toDate);
+  filteredSales.sort((a, b) => new Date(a.date) - new Date(b.date) || naturalCompare(a.id, b.id));
+
+  try {
+    const wb = XLSX.utils.book_new();
+    const ws = {};
+    const merges = [];
+    const today = formatDateDisplay(new Date());
+
+    const thin = { style: "thin", color: { rgb: "BBBBBB" } };
+    const b4 = { top: thin, bottom: thin, left: thin, right: thin };
+    const hdrBg = { patternType: "solid", fgColor: { rgb: "1F497D" } };
+    const altBg = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
+    const totBg = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
+    const fntT = { name: "Times New Roman", sz: 12, bold: true };
+    const fntSub = { name: "Times New Roman", sz: 10, italic: true };
+    const fntH = { name: "Times New Roman", sz: 10, bold: true, color: { rgb: "FFFFFF" } };
+    const fntB = { name: "Times New Roman", sz: 10, bold: true };
+    const fntN = { name: "Times New Roman", sz: 10 };
+    const cC = { horizontal: "center", vertical: "center" };
+    const cL = { horizontal: "left", vertical: "center", wrapText: true };
+    const cR = { horizontal: "right", vertical: "center" };
+    const numFmt = "#,##0 ;[Red](#,##0)";
+    const dateFmt = "dd/mm/yyyy";
+
+    const sc = (r, c, v, t, s, z) => {
+      const key = XLSX.utils.encode_cell({ r, c });
+      const cell = { v, t: t || (typeof v === 'number' ? 'n' : 's') };
+      if (s) cell.s = s;
+      if (z) cell.z = z;
+      ws[key] = cell;
+    };
+
+    if (detailed) {
+      // ── MISA SO_CHI_TIET_BAN_HANG format ──
+      // Col: Ngày HT | Ngày CT | Số CT | Ngày HĐ | Số HĐ | DG chung | DG riêng |
+      //      Mã KH | Tên KH | Mã hàng | Tên hàng | ĐVT | SL bán | Đơn giá |
+      //      Doanh số | CK | SL trả lại | GT trả lại | GT giảm giá
+      const NCOLS = 19;
+
+      // ROW 0: Tên công ty
+      sc(0, 0, state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông", 's', { font: fntT, alignment: cL });
+      merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: NCOLS - 1 } });
+
+      // ROW 1: Tiêu đề báo cáo (giống MISA)
+      sc(1, 0, "SỔ CHI TIẾT BÁN HÀNG", 's', { font: fntT, alignment: cC });
+      merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: NCOLS - 1 } });
+
+      // ROW 2: Phạm vi ngày
+      sc(2, 0, `Từ ngày: ${fromDate ? formatDateDisplay(fromDate) : 'đầu kỳ'}   Đến ngày: ${toDate ? formatDateDisplay(toDate) : today}`, 's', { font: fntSub, alignment: cC });
+      merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: NCOLS - 1 } });
+
+      // ROW 3: Headers (đúng tên cột MISA để có thể import lại)
+      const headers = [
+        "Ngày hạch toán", "Ngày chứng từ", "Số chứng từ", "Ngày hóa đơn", "Số hóa đơn",
+        "Diễn giải chung", "Diễn giải", "Mã khách hàng", "Tên khách hàng",
+        "Mã hàng", "Tên hàng", "ĐVT",
+        "Tổng số lượng bán", "Đơn giá", "Doanh số bán", "Chiết khấu",
+        "Tổng số lượng trả lại", "Giá trị trả lại", "Giá trị giảm giá"
+      ];
+      headers.forEach((h, c) => sc(3, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: b4 }));
+
+      // DATA ROWS — 1 dòng mỗi sản phẩm trong mỗi chứng từ
+      let rowIdx = 4;
+      let totalQty = 0, totalGross = 0, totalCK = 0;
+      let totalReturnQty = 0, totalReturnValue = 0;
+
+      filteredSales.forEach((v, vi) => {
+        const bg = vi % 2 === 0 ? null : altBg;
+        const bs = al => ({ font: fntN, fill: bg, alignment: al, border: b4 });
+        const ns = al => ({ font: fntN, fill: bg, alignment: al || cR, border: b4 });
+        const partnerId = v.partnerId || "";
+        const partnerName = v.partnerName || getPartnerNameForVoucher(v);
+        const descCommon = v.description || "";
+        const isReturn = v.type === "sales_return";
+
+        const writeRow = (productId, productName, unit, qty, price, grossAmt, ckAmt) => {
+          sc(rowIdx, 0, dateStrToSerial(v.date), 'n', bs(cC), dateFmt);
+          sc(rowIdx, 1, dateStrToSerial(v.date), 'n', bs(cC), dateFmt);
+          sc(rowIdx, 2, v.id, 's', bs(cC));
+          sc(rowIdx, 3, dateStrToSerial(v.date), 'n', bs(cC), dateFmt);
+          sc(rowIdx, 4, v.invoiceNo || "", 's', bs(cC));
+          sc(rowIdx, 5, descCommon, 's', bs(cL));
+          sc(rowIdx, 6, productName, 's', bs(cL));
+          sc(rowIdx, 7, partnerId, 's', bs(cC));
+          sc(rowIdx, 8, partnerName, 's', bs(cL));
+          sc(rowIdx, 9, productId, 's', bs(cC));
+          sc(rowIdx, 10, productName, 's', bs(cL));
+          sc(rowIdx, 11, unit, 's', bs(cC));
+          
+          if (isReturn) {
+            sc(rowIdx, 12, 0, 'n', ns(cR), "#,##0.##");  // SL bán
+            sc(rowIdx, 13, price, 'n', ns(cR), numFmt);    // Đơn giá
+            sc(rowIdx, 14, 0, 'n', ns(cR), numFmt);        // Doanh số bán
+            sc(rowIdx, 15, 0, 'n', ns(cR), numFmt);        // Chiết khấu
+            sc(rowIdx, 16, qty, 'n', ns(cR), "#,##0.##");  // SL trả lại
+            sc(rowIdx, 17, grossAmt, 'n', ns(cR), numFmt);  // GT trả lại
+            sc(rowIdx, 18, 0, 'n', ns(cR), numFmt);        // GT giảm giá
+            totalReturnQty += qty;
+            totalReturnValue += grossAmt;
+          } else {
+            sc(rowIdx, 12, qty, 'n', ns(cR), "#,##0.##");  // SL bán
+            sc(rowIdx, 13, price, 'n', ns(cR), numFmt);    // Đơn giá
+            sc(rowIdx, 14, grossAmt, 'n', ns(cR), numFmt); // Doanh số bán
+            sc(rowIdx, 15, ckAmt, 'n', ns(cR), numFmt);    // Chiết khấu
+            sc(rowIdx, 16, 0, 'n', ns(cR), "#,##0.##");    // SL trả lại
+            sc(rowIdx, 17, 0, 'n', ns(cR), numFmt);        // GT trả lại
+            sc(rowIdx, 18, 0, 'n', ns(cR), numFmt);        // GT giảm giá
+            totalQty += qty;
+            totalGross += grossAmt;
+            totalCK += ckAmt;
+          }
+          rowIdx++;
+        };
+
+        if (v.items && v.items.length > 0) {
+          v.items.forEach(item => {
+            const prod = (state.products || []).find(p => String(p.id) === String(item.productId));
+            const qty = item.qty || 0;
+            const price = item.price || 0;
+            const grossAmt = qty * price;
+            const ckAmt = grossAmt * ((item.discount || 0) / 100);
+            writeRow(
+              item.productId || "",
+              prod ? prod.name : (item.productName || item.productId || ""),
+              prod ? (prod.unit || "Cái") : (item.unit || "Cái"),
+              qty, price, grossAmt, ckAmt
+            );
+          });
+        } else {
+          // Voucher không có items → 1 dòng tổng
+          const gross = (v.totalAmount || 0) - (v.taxAmount || 0);
+          writeRow(v.id, descCommon, "", 0, 0, gross, 0);
+        }
+      });
+
+      // DÒNG TỔNG
+      const ts = al => ({ font: fntB, fill: totBg, alignment: al, border: b4 });
+      sc(rowIdx, 0, "TỔNG CỘNG", 's', ts(cL));
+      merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 11 } });
+      for (let c = 1; c <= 11; c++) sc(rowIdx, c, "", 's', ts(cL));
+      sc(rowIdx, 12, totalQty, 'n', ts(cR), "#,##0.##");
+      sc(rowIdx, 13, 0, 'n', ts(cR), numFmt);
+      sc(rowIdx, 14, totalGross, 'n', ts(cR), numFmt);
+      sc(rowIdx, 15, totalCK, 'n', ts(cR), numFmt);
+      sc(rowIdx, 16, totalReturnQty, 'n', ts(cR), "#,##0.##");
+      sc(rowIdx, 17, totalReturnValue, 'n', ts(cR), numFmt);
+      sc(rowIdx, 18, 0, 'n', ts(cR), numFmt);
+
+      ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: NCOLS - 1 } });
+      ws['!merges'] = merges;
+      ws['!cols'] = [
+        { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 12 },
+        { wch: 26 }, { wch: 26 }, { wch: 16 }, { wch: 28 },
+        { wch: 14 }, { wch: 28 }, { wch: 7 },
+        { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 12 },
+        { wch: 10 }, { wch: 14 }, { wch: 12 }
+      ];
+      ws['!rows'] = [{ hpt: 20 }, { hpt: 22 }, { hpt: 16 }, { hpt: 22 }];
+
+      XLSX.utils.book_append_sheet(wb, ws, "SO CHI TIET BAN HANG");
+      const suffix = fromDate || toDate ? `_${fromDate || ""}_${toDate || ""}` : "";
+      const outName = `SO_CHI_TIET_BAN_HANG_${getLocalDateString()}${suffix}.xlsx`;
+      XLSX.writeFile(wb, outName);
+      showToast(`Đã xuất Excel: ${outName}`, "success");
+    } else {
+      // ── Xuất danh sách hóa đơn bán hàng (chi tiet = false -> chi xuat thong tin phieu) ──
+      const NCOLS = 11;
+
+      // ROW 0: Tên công ty
+      sc(0, 0, state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông", 's', { font: fntT, alignment: cL });
+      merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: NCOLS - 1 } });
+
+      // ROW 1: Tiêu đề báo cáo
+      sc(1, 0, "DANH SÁCH HÓA ĐƠN BÁN HÀNG", 's', { font: fntT, alignment: cC });
+      merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: NCOLS - 1 } });
+
+      // ROW 2: Phạm vi ngày
+      sc(2, 0, `Từ ngày: ${fromDate ? formatDateDisplay(fromDate) : 'đầu kỳ'}   Đến ngày: ${toDate ? formatDateDisplay(toDate) : today}`, 's', { font: fntSub, alignment: cC });
+      merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: NCOLS - 1 } });
+
+      // ROW 3: Headers
+      const headers = [
+        "Ngày hạch toán", "Ngày chứng từ", "Số chứng từ", "Ngày hóa đơn", "Số hóa đơn",
+        "Khách hàng", "Diễn giải chung", "Doanh số bán", "Thuế GTGT", "Tổng cộng thanh toán", "Phương thức thanh toán"
+      ];
+      headers.forEach((h, c) => sc(3, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: b4 }));
+
+      let rowIdx = 4;
+      let totalAmountGross = 0;
+      let totalAmountTax = 0;
+      let totalAmountTotal = 0;
+
+      filteredSales.forEach((v, vi) => {
+        const bg = vi % 2 === 0 ? null : altBg;
+        const bs = al => ({ font: fntN, fill: bg, alignment: al, border: b4 });
+        const ns = al => ({ font: fntN, fill: bg, alignment: al || cR, border: b4 });
+
+        const isReturn = v.type === "sales_return";
+        const sign = isReturn ? -1 : 1;
+
+        const taxAmt = (v.taxAmount || 0) * sign;
+        const totalAmt = (v.totalAmount || 0) * sign;
+        const grossAmt = totalAmt - taxAmt;
+        const partnerName = v.partnerName || getPartnerNameForVoucher(v);
+
+        sc(rowIdx, 0,  dateStrToSerial(v.date), 'n', bs(cC), dateFmt);  // Ngày HT
+        sc(rowIdx, 1,  dateStrToSerial(v.date), 'n', bs(cC), dateFmt);  // Ngày CT
+        sc(rowIdx, 2,  v.id,              's',  bs(cC));                 // Số CT
+        sc(rowIdx, 3,  dateStrToSerial(v.date), 'n', bs(cC), dateFmt);  // Ngày HĐ
+        sc(rowIdx, 4,  v.invoiceNo || "", 's',  bs(cC));                 // Số HĐ
+        sc(rowIdx, 5,  partnerName,       's',  bs(cL));                 // Khách hàng
+        sc(rowIdx, 6,  v.description || "", 's', bs(cL));                 // Diễn giải chung
+        sc(rowIdx, 7,  grossAmt,          'n',  ns(cR), numFmt);         // Doanh số bán (BTL hiển thị số âm)
+        sc(rowIdx, 8,  taxAmt,            'n',  ns(cR), numFmt);         // Tiền thuế
+        sc(rowIdx, 9,  totalAmt,          'n',  ns(cR), numFmt);         // Tổng cộng
+        sc(rowIdx, 10, isReturn ? 'Trả hàng' : (v.paymentMethod === '131' ? 'Công nợ (131)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'), 's', bs(cC));
+
+        totalAmountGross += grossAmt;
+        totalAmountTax += taxAmt;
+        totalAmountTotal += totalAmt;
+        rowIdx++;
+      });
+
+      // DÒNG TỔNG CỘNG
+      const ts = al => ({ font: fntB, fill: totBg, alignment: al, border: b4 });
+      sc(rowIdx, 0, "TỔNG CỘNG", 's', ts(cL));
+      merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 6 } });
+      for (let c = 1; c <= 6; c++) sc(rowIdx, c, "", 's', ts(cL));
+      sc(rowIdx, 7,  totalAmountGross,  'n', ts(cR), numFmt);
+      sc(rowIdx, 8,  totalAmountTax,    'n', ts(cR), numFmt);
+      sc(rowIdx, 9,  totalAmountTotal,  'n', ts(cR), numFmt);
+      sc(rowIdx, 10, "",                's', ts(cC));
+
+      ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: NCOLS - 1 } });
+      ws['!merges'] = merges;
+      ws['!cols'] = [
+        { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 12 },
+        { wch: 30 }, { wch: 30 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 18 }
+      ];
+      ws['!rows'] = [{ hpt: 20 }, { hpt: 22 }, { hpt: 16 }, { hpt: 22 }];
+
+      XLSX.utils.book_append_sheet(wb, ws, "Danh sach");
+      const suffix = fromDate || toDate ? `_${fromDate || ""}_${toDate || ""}` : "";
+      const outName = `DANH_SACH_BAN_HANG_${getLocalDateString()}${suffix}.xlsx`;
+      XLSX.writeFile(wb, outName);
+      showToast(`Đã xuất Excel: ${outName}`, "success");
+    }
+  } catch (err) {
+    console.error(err);
+    showToast(`Lỗi xuất Excel bán hàng: ${err.message}`, "danger");
+  }
+}

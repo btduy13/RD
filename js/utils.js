@@ -215,6 +215,28 @@ function escapeHtmlText(value) {
 }
 window.escapeHtmlText = escapeHtmlText;
 
+// Vai trò "Xem" (viewer) chỉ được đọc. CSS chỉ ẩn nút; phím tắt Ctrl+S, F8 hay onclick sót lại vẫn gọi được hàm ghi.
+function assertCanWriteRole() {
+  const user = typeof window !== "undefined" ? window.currentUser : null;
+  if (!user || user.role !== "viewer") return true;
+  if (typeof showToast === "function") showToast("Tài khoản chỉ có quyền xem, không được thay đổi dữ liệu.", "danger");
+  return false;
+}
+window.assertCanWriteRole = assertCanWriteRole;
+
+// localeCompare(..., { numeric }) dựng collator mới mỗi lần so sánh; dùng chung một cái khi sắp xếp ~20k chứng từ.
+const naturalCollator = new Intl.Collator("vi", { numeric: true, sensitivity: "base" });
+const naturalCompare = (a, b) => naturalCollator.compare(String(a ?? ""), String(b ?? ""));
+window.naturalCompare = naturalCompare;
+
+// Ô tìm kiếm: lọc lại sau khi ngừng gõ 150ms thay vì lọc toàn bộ danh sách ở mỗi phím.
+const debounceTimers = new Map();
+function debounceCall(fn, ms = 150) {
+  clearTimeout(debounceTimers.get(fn));
+  debounceTimers.set(fn, setTimeout(fn, ms));
+}
+window.debounceCall = debounceCall;
+
 // Mã đối tác chuẩn: bỏ khoảng trắng hai đầu, CHỮ HOA (kể cả chữ có dấu: "Mùi" → "MÙI").
 function normalizePartnerCode(id) {
   return String(id == null ? "" : id).trim().toUpperCase();
@@ -289,7 +311,8 @@ function setupNumberFormattingEventListeners() {
       
       // Xác định sản phẩm và đơn vị để quyết định có cho phép nhập số thập phân hay không
       let allowDecimals = true;
-      const row = input.closest("tr");
+      // Quy tắc "Cái = số nguyên" chỉ áp cho ô số lượng; ô chiết khấu % cùng dòng vẫn được gõ "2,5".
+      const row = input.classList.contains("item-qty") ? input.closest("tr") : null;
       if (row) {
         const prodInput = row.querySelector(".item-productId");
         if (prodInput) {
@@ -397,61 +420,30 @@ function setupNumberFormattingEventListeners() {
       }
     }
     
-    if (e.target && e.target.classList.contains("item-productId")) {
-      const row = e.target.closest("tr");
-      if (row) {
-        const qtyInput = row.querySelector(".item-qty");
-        if (qtyInput) {
-          const prodVal = e.target.value;
-          const resolver = typeof resolveProduct === "function" ? resolveProduct : (window.resolveProduct || null);
-          if (resolver) {
-            const prod = resolver(prodVal);
-            if (prod) {
-              const unit = (prod.unit || "").trim().toLowerCase();
-              const name = (prod.name || "").trim().toLowerCase();
-              if (unit === "cái" && !name.includes("ống")) {
-                const val = qtyInput.value;
-                const cleaned = val.replace(/[^0-9-]/g, "");
-                if (val !== cleaned) {
-                  qtyInput.value = cleaned;
-                  qtyInput.dispatchEvent(new Event("input", { bubbles: true }));
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+    stripQtyDecimalsForCaiRow(e.target);
   }, true);
 
   // Cũng hỗ trợ làm sạch ngay khi người dùng chọn/nhập xong mặt hàng (oninput event)
-  document.addEventListener("input", function (e) {
-    if (e.target && e.target.classList.contains("item-productId")) {
-      const row = e.target.closest("tr");
-      if (row) {
-        const qtyInput = row.querySelector(".item-qty");
-        if (qtyInput) {
-          const prodVal = e.target.value;
-          const resolver = typeof resolveProduct === "function" ? resolveProduct : (window.resolveProduct || null);
-          if (resolver) {
-            const prod = resolver(prodVal);
-            if (prod) {
-              const unit = (prod.unit || "").trim().toLowerCase();
-              const name = (prod.name || "").trim().toLowerCase();
-              if (unit === "cái" && !name.includes("ống")) {
-                const val = qtyInput.value;
-                const cleaned = val.replace(/[^0-9-]/g, "");
-                if (val !== cleaned) {
-                  qtyInput.value = cleaned;
-                  qtyInput.dispatchEvent(new Event("input", { bubbles: true }));
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  });
+  document.addEventListener("input", e => stripQtyDecimalsForCaiRow(e.target));
+}
+
+// Mặt hàng ĐVT "Cái" (trừ ống) bán nguyên chiếc: bỏ phần thập phân ở ô số lượng cùng dòng.
+function stripQtyDecimalsForCaiRow(target) {
+  if (!target || !target.classList.contains("item-productId")) return;
+  const row = target.closest("tr");
+  const qtyInput = row && row.querySelector(".item-qty");
+  const resolver = typeof resolveProduct === "function" ? resolveProduct : (window.resolveProduct || null);
+  const prod = qtyInput && resolver ? resolver(target.value) : null;
+  if (!prod) return;
+  const unit = (prod.unit || "").trim().toLowerCase();
+  const name = (prod.name || "").trim().toLowerCase();
+  if (unit !== "cái" || name.includes("ống")) return;
+  const val = qtyInput.value;
+  const cleaned = val.replace(/[^0-9-]/g, "");
+  if (val !== cleaned) {
+    qtyInput.value = cleaned;
+    qtyInput.dispatchEvent(new Event("input", { bubbles: true }));
+  }
 }
 
 // Lấy ngày hiện tại ở định dạng YYYY-MM-DD theo giờ địa phương.
@@ -508,6 +500,8 @@ function getVoucherLineDiscountAmount(item) {
 window.getVoucherLineDiscountAmount = getVoucherLineDiscountAmount;
 
 function getVoucherLineNetAmount(item) {
+  // item.amount là thành tiền đã ghi sổ (sau CK); tính lại từ % có thể lệch 1đ do làm tròn.
+  if (item && item.amount !== undefined && item.amount !== null && item.amount !== "" && Number.isFinite(Number(item.amount))) return Number(item.amount);
   return Math.round(getVoucherLineGrossAmount(item) - getVoucherLineDiscountAmount(item));
 }
 window.getVoucherLineNetAmount = getVoucherLineNetAmount;

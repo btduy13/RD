@@ -6,7 +6,8 @@
 // Chỉ ánh xạ đúng vị trí form tạo ra (TT200 3386 bên Nợ phiếu chi là BHTN, giữ nguyên).
 function mapCashDepositEntries(v, standard) {
   if (!v || !Array.isArray(v.entries)) return;
-  const isTT200 = standard === "TT200";
+  // TT99 thay TT200 (giá trị lưu "TT200" vẫn là bí danh của TT99): cùng TK 244/344
+  const isTT200 = isTT99Family(standard);
   const side = v.type === "receipt" ? "credit" : v.type === "payment" ? "debit" : "";
   if (!side) return;
   const map = v.type === "receipt"
@@ -22,16 +23,57 @@ function mapCashDepositEntries(v, standard) {
   if (changed) v.entries = entries;
 }
 
+// Ngưỡng tiền mặt và tách thuế GTGT TT133 vào 1331 chỉ áp từ năm tài chính 2026 (TT99): kỳ trước đã khóa sổ, giữ số liệu cũ.
+const NEW_VAT_RULES_FROM = "2026-01-01";
+
+// Thuế tính vào giá kho (không được khấu trừ, hoặc TT133 trước 2026): mỗi dòng nhận đúng thuế của chính dòng đó
+// (chi phí trực tiếp, không phân bổ — B3), dòng cuối nhận phần làm tròn để tổng bằng thuế chứng từ.
+// Lưu item.vatInCost để calculateInventoryValueAt tính lại cùng số.
+function allocateVatInCost(items, tax, defaultRate) {
+  let left = tax;
+  (items || []).forEach((item, i) => {
+    if (!item) return;
+    delete item.nonDeductibleVat; // tên trường cũ
+    const own = item.vatRate !== undefined && item.vatRate !== null && item.vatRate !== "";
+    const rate = Number(vatRateKey(own ? item.vatRate : defaultRate)) || 0;
+    const share = !tax ? 0 : i === items.length - 1 ? left : Math.round((Number(item.amount) || 0) * rate / 100);
+    left -= share;
+    if (share) item.vatInCost = share; else delete item.vatInCost;
+  });
+}
+
+// Ngưỡng thanh toán không dùng tiền mặt (C4): phiếu mua trả tiền mặt (111) có tổng thanh toán (gồm thuế)
+// từ ngưỡng theo ngày chứng từ trở lên → thuế GTGT không được khấu trừ, không được trừ chi phí TNDN (NĐ 181 Đ26.1, Đ23.16).
+function isCashOverVatThreshold(v, totalAmount) {
+  if (String(v.paymentMethod ?? "").trim() !== "111" || typeof getTaxRule !== "function") return false;
+  const rule = getTaxRule("vat.cashThreshold", v.date);
+  return !!rule && totalAmount >= rule.value;
+}
+
 // 3. THUẬT TOÁN KẾ TOÁN CỐT LÕI (ENGINE)
 // - Tính giá vốn bình quân gia quyền liên hoàn sau mỗi lần nhập hàng
 // - Tự động tạo bút toán Nhật ký kép đồng bộ
-function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
-  if (typeof shouldSkipFullRecalc === 'function' && shouldSkipFullRecalc(state, shouldSave, forceFullRecalc)) {
-    return;
-  }
-  if (typeof invalidateAccounting === 'function') {
-    invalidateAccounting(state);
-  }
+// NĐ 181 Đ26.3: nhiều hóa đơn của cùng người bán trong cùng ngày, tổng từ ngưỡng → xét ngưỡng theo tổng.
+// NCC vãng lai gộp nhiều người bán thật khác nhau → không cộng dồn, mỗi hóa đơn xét riêng.
+const isWalkInSupplier = v => String(v.partnerId ?? "").trim() === "DT_VANGLAI" || /vãng lai/i.test(String(v.partnerName || ""));
+const cashPurchaseDayKey = v => `${(!isWalkInSupplier(v) && String(v.partnerId ?? "").trim()) || "#" + v.id}|${v.date}`;
+
+const NEGATIVE_STOCK_DESC = "Điều chỉnh giá vốn xuất kho âm";
+// Lần nhập bù hết tồn âm: chênh lệch giá trị kho trước/sau khi đặt lại đơn giá ghi vào giá vốn (B2).
+function negativeStockEntry(adjust) {
+  return adjust > 0
+    ? { debit: "632", credit: "156", amount: adjust, desc: NEGATIVE_STOCK_DESC }
+    : { debit: "156", credit: "632", amount: -adjust, desc: NEGATIVE_STOCK_DESC };
+}
+
+// Kiểm kê (TT99 TK 152 điểm 3.13): thiếu trong định mức Nợ 632 / Có 156; chưa rõ nguyên nhân thiếu Nợ 1381 / Có 156,
+// thừa Nợ 156 / Có 3381. Phiếu cũ (không có adjustCause) giữ cặp 632/711 như trước.
+function inventoryAdjustEntry(v, dirIn, amount) {
+  if (dirIn) return { debit: "156", credit: v.adjustCause ? "3381" : "711", amount, desc: v.description || "Điều chỉnh tăng tồn kho" };
+  return { debit: v.adjustCause === "unknown" ? "1381" : "632", credit: "156", amount, desc: v.description || "Điều chỉnh giảm tồn kho" };
+}
+
+function recalculateAccounting(shouldSave = true) {
   // Đảm bảo di trú dữ liệu khi nạp/thay đổi trạng thái
   if (state.products) {
     state.products.forEach(p => {
@@ -48,23 +90,9 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
     });
   }
 
-  // BƯỚC A: Reset lại danh mục sản phẩm về trạng thái số dư đầu kỳ
-  // Ta lấy số lượng tồn đầu kỳ và giá vốn đầu kỳ từ danh mục gốc trong data.js hoặc từ state
-  // Ở đây, để đơn giản, ta xem dữ liệu ban đầu trong state.products là số dư đầu kỳ (trước khi phát sinh các voucher)
-  // Nhưng để tính toán chuẩn xác, ta phải tính lại tồn kho bằng cách:
-  // Lấy danh mục sản phẩm rỗng (hoặc chỉ giữ thông số khởi tạo đầu kỳ), sau đó chạy lần lượt các hóa đơn theo thời gian.
+  // BƯỚC A: Reset lại danh mục sản phẩm về số dư đầu kỳ, sau đó chạy lần lượt các chứng từ theo thời gian.
 
-  // Lấy số dư đầu kỳ của hàng hóa từ sản phẩm gốc ban đầu
   const productBalanceMap = {};
-  const originalProducts = DEFAULT_DATA.products;
-
-  // Tối ưu hóa: Tạo map tra cứu O(1) thay vì dùng .find() trong vòng lặp O(N)
-  const originalProductsMap = {};
-  if (Array.isArray(originalProducts)) {
-    originalProducts.forEach(o => {
-      originalProductsMap[o.id] = o;
-    });
-  }
 
   // Tính lượng chênh lệch tồn kho từ các chứng từ nhập khẩu (isImported)
   const voucherChanges = {};
@@ -91,34 +119,34 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
     });
   }
 
-  // Đọc số lượng đầu kỳ của sản phẩm (nếu sản phẩm mới khai báo thì xem như tồn 0, đơn giá 0)
+  // Số dư đầu kỳ chốt một lần trên chính sản phẩm (initialStock/initialCost); sản phẩm chưa chốt lấy stock/avgCost hiện có.
   state.products.forEach(p => {
-    // Tìm thông số khởi tạo của sản phẩm này từ map tra cứu O(1)
-    const orig = originalProductsMap[p.id];
-    let initStock = p.initialStock !== undefined ? p.initialStock : (orig ? orig.stock : (p.stock || 0));
-    initStock = Number((initStock || 0).toFixed(3));
-    
-    // Nếu sản phẩm được nhập từ Excel và có actualStock, ta tính ngược lại tồn đầu kỳ để tồn cuối kỳ chính là actualStock
-    if (!orig && p.initialStock === undefined && p.actualStock !== undefined) {
+    if (p.initialStock === undefined) {
+      // Sản phẩm nhập từ Excel có actualStock: tính ngược tồn đầu kỳ để tồn cuối kỳ chính là actualStock
       const changes = voucherChanges[p.id] || { purchases: 0, sales: 0 };
-      initStock = Number((p.actualStock - changes.purchases + changes.sales).toFixed(3));
-      p.initialStock = initStock;
+      p.initialStock = p.actualStock !== undefined
+        ? Number((p.actualStock - changes.purchases + changes.sales).toFixed(3))
+        : Number((p.stock || 0).toFixed(3));
     }
-
-    const initCost = p.initialCost !== undefined ? p.initialCost : (orig ? orig.avgCost : (p.avgCost || 0));
-    if (p.initialStock === undefined) p.initialStock = initStock;
-    if (p.initialCost === undefined) p.initialCost = initCost;
-    productBalanceMap[p.id] = {
-      stock: initStock,
-      avgCost: initCost,
-      totalValue: initStock * initCost,
-      lastPurchasePrice: p.lastPurchasePrice !== undefined ? p.lastPurchasePrice : (p.excelRow && p.excelRow[20] !== undefined ? safeParseFloat(p.excelRow[20]) : initCost)
-    };
+    if (p.initialCost === undefined) p.initialCost = p.avgCost || 0;
+    if (p.lastPurchasePrice === undefined && p.excelRow && p.excelRow[20] !== undefined) p.lastPurchasePrice = safeParseFloat(p.excelRow[20]);
+    productBalanceMap[p.id] = stockOpening(p);
   });
 
   // BƯỚC B: Sắp xếp các chứng từ kế toán theo ngày hạch toán (Tối ưu hóa: So sánh chuỗi trực tiếp thay vì new Date())
   // Thứ tự xác định (ngày -> nhập trước xuất -> _createdAt -> id) để mọi máy tính ra cùng kết quả.
   state.vouchers.sort(compareVouchersForAccounting);
+
+  // Tổng mọi hóa đơn mua của cùng người bán trong ngày (mọi hình thức thanh toán); chỉ hóa đơn trả 111 mất khấu trừ.
+  const cashPurchaseDayTotals = new Map();
+  state.vouchers.forEach(v => {
+    if (v.type !== "purchase") return;
+    const vat = computeVatBreakdown(v.items, v.taxRate || 0);
+    const key = cashPurchaseDayKey(v);
+    cashPurchaseDayTotals.set(key, (cashPurchaseDayTotals.get(key) || 0) + vat.subtotal + vat.tax);
+  });
+  // Kết chuyển cuối kỳ sinh ngay tại vị trí của nó (sau mọi chứng từ cùng ngày) từ số dư lũy kế.
+  const closeLedger = createCloseLedger(state);
 
   // BƯỚC C: Duyệt qua từng chứng từ để tính giá vốn và tự động cập nhật Định khoản kép
   state.vouchers.forEach(v => {
@@ -128,37 +156,29 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
       v.entries = [];
     } else if (v.type === "sales_quotation") {
       const subtotal = v.items ? v.items.reduce((sum, item) => sum + (item.amount || 0), 0) : 0;
-      const taxRate = v.taxRate || 0;
-      v.taxAmount = Math.round(subtotal * (taxRate / 100));
+      const vat = computeVatBreakdown(v.items, v.taxRate || 0);
+      v.vatBreakdown = vat.breakdown;
+      v.taxAmount = vat.tax;
       v.totalAmount = subtotal + v.taxAmount;
       v.entries = [];
     } else if (v.type === "purchase") {
       // Mua hàng: Tăng số lượng và tăng giá trị tồn
-      let itemSubtotal = 0;
-      v.items.forEach(item => {
+      // Phiếu nhập thiếu hình thức thanh toán (vd. nhập Excel không khớp NCC) từng sinh bút toán thiếu vế Có
+      // làm lệch Bảng cân đối phát sinh — mặc định ghi công nợ 331.
+      if (!String(v.paymentMethod ?? "").trim()) v.paymentMethod = "331";
+      const vat = computeVatBreakdown(v.items, v.taxRate || 0);
+      const taxAmount = vat.tax;
+      const modern = String(v.date || "") >= NEW_VAT_RULES_FROM;
+      // Thuế KHÔNG được khấu trừ (trả tiền mặt từ ngưỡng, NĐ 181 Đ26) tính vào giá 156 — quyết định trước vòng lặp để cộng vào giá trị kho.
+      const nonDeductible = modern && taxAmount > 0 && isCashOverVatThreshold(v, cashPurchaseDayTotals.get(cashPurchaseDayKey(v)) || 0);
+      // Từ 2026 cả TT99 và TT133 đều tách thuế GTGT được khấu trừ vào 1331; chứng từ trước 2026 theo TT133 gộp thuế vào 156 như sổ cũ
+      // — giá trị kho cũng gồm thuế đó để sổ 156 khớp kho (B4).
+      const capitalizeVat = nonDeductible || (!modern && !isTT99Family(state.accountingStandard));
+      allocateVatInCost(v.items, capitalizeVat ? taxAmount : 0, v.taxRate || 0);
+      let itemSubtotal = 0, negAdjust = 0;
+      (v.items || []).forEach(item => {
         const p = productBalanceMap[item.productId];
-        if (p) {
-          const oldStock = p.stock;
-
-          p.stock = Number((p.stock + item.qty).toFixed(3));
-          p.totalValue += item.amount; // Thành tiền mua chưa thuế
-
-          if (oldStock >= 0 && p.stock > 0) {
-            p.avgCost = Math.round((p.totalValue / p.stock) * 100) / 100;
-          } else if (p.stock > 0) {
-            // Trước đó bị âm, nay dương trở lại: Đơn giá bình quân = đơn giá mua mới
-            p.avgCost = item.price;
-            p.totalValue = Math.round(p.stock * p.avgCost);
-          } else {
-            // Vẫn bị âm hoặc bằng 0: giữ nguyên đơn giá cũ
-            if (!p.avgCost || p.avgCost <= 0) {
-              p.avgCost = item.price;
-            }
-            p.totalValue = Math.round(p.stock * p.avgCost);
-          }
-          // Lưu đơn giá mua này làm đơn giá mua gần nhất
-          p.lastPurchasePrice = item.price;
-        }
+        if (p) negAdjust += applyStockItem(p, "purchase", item).adjust;
         itemSubtotal += item.amount;
       });
 
@@ -166,26 +186,27 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
       // Nợ TK 156: Giá mua hàng
       // Nợ TK 1331: Thuế GTGT đầu vào
       // Có TK 331 (Chưa thanh toán), TK 111 (Tiền mặt), TK 112 (Chuyển khoản)
-      const taxRate = v.taxRate || 0;
-      const taxAmount = Math.round(itemSubtotal * (taxRate / 100));
       const totalAmount = itemSubtotal + taxAmount;
 
+      v.vatBreakdown = vat.breakdown;
       v.taxAmount = taxAmount;
       v.totalAmount = totalAmount;
       // Bug C: remainingDebt suy diễn ở BƯỚC C2 (FIFO)
 
-      // TT133: thuế GTGT gộp vào giá hàng mua (cộng tax vào TK 156)
-      const purchaseDebitAmount = (state.accountingStandard === "TT133") ? (itemSubtotal + taxAmount) : itemSubtotal;
-      // Phiếu nhập thiếu hình thức thanh toán (vd. nhập Excel không khớp NCC) từng sinh bút toán thiếu vế Có
-      // làm lệch Bảng cân đối phát sinh — mặc định ghi công nợ 331.
-      if (!String(v.paymentMethod ?? "").trim()) v.paymentMethod = "331";
+      if (nonDeductible) {
+        v.vatNonDeductible = true;
+        v.citNonDeductible = true;
+      } else {
+        delete v.vatNonDeductible;
+        delete v.citNonDeductible;
+      }
       v.entries = [
-        { debit: "156", credit: v.paymentMethod, amount: purchaseDebitAmount, desc: `Nhập kho ${v.description || v.notes || v.id || ""}` },
+        { debit: "156", credit: v.paymentMethod, amount: capitalizeVat ? totalAmount : itemSubtotal, desc: `Nhập kho ${v.description || v.notes || v.id || ""}` },
       ];
-      // TT200: tách riêng TK 1331 cho thuế GTGT đầu vào
-      if (taxAmount > 0 && state.accountingStandard !== "TT133") {
+      if (taxAmount > 0 && !capitalizeVat) {
         v.entries.push({ debit: "1331", credit: v.paymentMethod, amount: taxAmount, desc: "Thuế GTGT đầu vào được khấu trừ" });
       }
+      if (negAdjust) v.entries.push(negativeStockEntry(negAdjust));
 
     } else if (v.type === "sales_return") {
       // Bán hàng trả lại:
@@ -193,28 +214,24 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
       // 2. Giảm doanh thu (Nợ 511)
       // 3. Giảm công nợ phải thu khách hàng (Có 131)
       let totalCogs = 0;
-      let itemSubtotal = 0;
+      let itemSubtotal = 0, negAdjust = 0;
 
       (v.items || []).forEach(item => {
         const p = productBalanceMap[item.productId];
         if (p) {
-          if (!p.avgCost || p.avgCost <= 0) p.avgCost = p.lastPurchasePrice || p.initialCost || 0;
-          item.cogsUnit = p.avgCost;
-          item.cogsAmount = Math.round(item.qty * p.avgCost);
-          p.stock = Number((p.stock + item.qty).toFixed(3));
-          p.totalValue += item.cogsAmount;
-          // C3 Fix: Recalculate avgCost after restoring stock from sales return
-          if (p.stock > 0) {
-            p.avgCost = Math.round((p.totalValue / p.stock) * 100) / 100;
-          }
-          totalCogs += item.cogsAmount;
+          const r = applyStockItem(p, "sales_return", item);
+          item.cogsUnit = r.unit;
+          item.cogsAmount = r.value;
+          totalCogs += r.value;
+          negAdjust += r.adjust;
         }
         itemSubtotal += item.amount;
       });
 
       v.cogsAmount = totalCogs;
-      const taxRateSR = v.taxRate || 0;
-      const taxAmountSR = Math.round(itemSubtotal * (taxRateSR / 100));
+      const vatSR = computeVatBreakdown(v.items, v.taxRate || 0);
+      const taxAmountSR = vatSR.tax;
+      v.vatBreakdown = vatSR.breakdown;
       const totalAmountSR = itemSubtotal + taxAmountSR;
       v.taxAmount = taxAmountSR;
       v.totalAmount = totalAmountSR;
@@ -233,6 +250,7 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
       if (totalCogs > 0) {
         v.entries.push({ debit: "156", credit: "632", amount: totalCogs, desc: `Nhập lại kho hàng bán trả lại: ${v.description || v.notes || v.id || ""}` });
       }
+      if (negAdjust) v.entries.push(negativeStockEntry(negAdjust));
 
     } else if (v.type === "purchase_return") {
       // Mua hàng trả lại (xuất trả NCC):
@@ -241,57 +259,60 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
       // 3. Ghi giảm giá vốn hàng mua (Có 156)
       let totalCogs = 0;
       let itemSubtotal = 0;
+      let returnCost = 0; // giá trị ghi giảm 156: giá vốn; dòng không có mã hàng trong kho thì theo giá trả
+      const vatPR = computeVatBreakdown(v.items, v.taxRate || 0);
+      const taxAmountPR = vatPR.tax;
+      const modernPR = String(v.date || "") >= NEW_VAT_RULES_FROM;
+      // Cùng ngưỡng tiền mặt như phiếu mua: thuế không được khấu trừ thì ghi giảm 156 (và giá trị kho), không ghi giảm 1331.
+      // Trả lại theo hóa đơn gốc: theo đúng việc thuế của phiếu mua gốc có được khấu trừ hay không.
+      const origNo = String(v.originalInvoiceNo ?? "").trim();
+      const origPurchase = origNo ? state.vouchers.find(o => o.type === "purchase" && String(o.invoiceNo ?? "").trim() === origNo && (!v.partnerId || o.partnerId === v.partnerId)) : null;
+      const nonDeductiblePR = modernPR && taxAmountPR > 0 && (origPurchase ? !!origPurchase.vatNonDeductible : isCashOverVatThreshold(v, vatPR.subtotal + taxAmountPR));
+      const legacyTT133PR = !modernPR && !isTT99Family(state.accountingStandard);
+      allocateVatInCost(v.items, nonDeductiblePR || legacyTT133PR ? taxAmountPR : 0, v.taxRate || 0);
+      if (nonDeductiblePR) v.vatNonDeductible = true; else delete v.vatNonDeductible;
 
       (v.items || []).forEach(item => {
         const p = productBalanceMap[item.productId];
+        if (!p) returnCost += item.amount;
         if (p) {
-          if (!p.avgCost || p.avgCost <= 0) p.avgCost = p.lastPurchasePrice || p.initialCost || 0;
-          item.cogsUnit = p.avgCost;
-          item.cogsAmount = Math.round(item.qty * p.avgCost);
-          // Xuất trả NCC → trừ kho (C1 Fix: không clamp Math.max(0) nữa)
-          p.stock = Number((p.stock - item.qty).toFixed(3));
-          p.totalValue -= item.cogsAmount;
-          // Nếu stock <= 0 sau khi trả, reset totalValue để tránh drift
-          if (p.stock <= 0) {
-            p.totalValue = 0;
-            if (!p.avgCost || p.avgCost <= 0) p.avgCost = p.lastPurchasePrice || item.price || 0;
-          } else {
-            p.avgCost = Math.round((p.totalValue / p.stock) * 100) / 100;
-          }
-          totalCogs += item.cogsAmount;
+          // Xuất trả NCC → trừ kho theo giá vốn (và thuế đã tính vào giá kho)
+          const r = applyStockItem(p, "purchase_return", item);
+          item.cogsUnit = r.unit;
+          item.cogsAmount = r.value;
+          returnCost += r.value;
+          totalCogs += r.value;
         }
         itemSubtotal += item.amount;
       });
 
       v.cogsAmount = totalCogs;
-      const taxRatePR = v.taxRate || 0;
-      const taxAmountPR = Math.round(itemSubtotal * (taxRatePR / 100));
+      v.vatBreakdown = vatPR.breakdown;
       const totalAmountPR = itemSubtotal + taxAmountPR;
       v.taxAmount = taxAmountPR;
       v.totalAmount = totalAmountPR;
       // Bug C: remainingDebt suy diễn ở BƯỚC C2 (FIFO)
 
       // Bút toán mua trả lại:
-      // Nợ 331: Giảm công nợ phải trả NCC (theo giá trị trả — itemSubtotal)
-      // Có 156: Giảm hàng tồn kho (theo giá vốn — totalCogs)
+      // Nợ 331 (hoặc TK thanh toán): giá trị trả + thuế GTGT — giảm công nợ đúng số trên hóa đơn điều chỉnh
+      // Có 156: theo GIÁ VỐN đang ghi sổ (không theo giá trả) để kho khớp thẻ kho bình quân
+      // Chênh lệch giá trả và giá vốn (thực hành VAS, hàng đã nhập kho theo giá bình quân):
+      //   giá trả > giá vốn → Có 632 (giảm giá vốn); giá trả < giá vốn → Nợ 632 (tăng giá vốn).
+      //   Chọn 632 thay vì 711/811 vì chênh lệch sinh ra từ giá bình quân, không phải thu nhập/chi phí khác.
+      // Thuế GTGT: Có 1331 cho cả TT99 và TT133 (trước đây TT133 ghi Có 156 — sai).
       const creditAccPR = v.paymentMethod && v.paymentMethod !== "331" ? v.paymentMethod : "331";
-      // Entry chính: Nợ 331 / Có 156 theo giá trị trả (itemSubtotal) — tác động đúng đến công nợ
       v.entries = [
-        { debit: creditAccPR, credit: "156", amount: itemSubtotal, desc: `Xuất trả hàng NCC: ${v.description || v.notes || v.id || ""}` }
+        { debit: creditAccPR, credit: "156", amount: Math.min(itemSubtotal, returnCost), desc: `Xuất trả hàng NCC: ${v.description || v.notes || v.id || ""}` }
       ];
-      // Nếu giá vốn khác giá trị trả: ghi chênh lệch vào TK 711
-      // C7 Fix: Ghi chênh lệch vào TK 632/711, không credit TK 156 lần thứ hai
-      if (totalCogs > 0 && totalCogs !== itemSubtotal) {
-        const diff = itemSubtotal - totalCogs;
-        if (diff > 0) {
-          v.entries.push({ debit: "632", credit: "711", amount: diff, desc: "Chênh lệch giá trả > giá vốn" });
-        } else {
-          v.entries.push({ debit: "632", credit: "711", amount: -diff, desc: "Chênh lệch giá vốn > giá trả" });
-        }
+      if (itemSubtotal > returnCost) {
+        v.entries.push({ debit: creditAccPR, credit: "632", amount: itemSubtotal - returnCost, desc: "Chênh lệch giá trả > giá vốn hàng trả lại" });
+      } else if (returnCost > itemSubtotal) {
+        v.entries.push({ debit: "632", credit: "156", amount: returnCost - itemSubtotal, desc: "Chênh lệch giá vốn > giá trả hàng trả lại" });
       }
-      // Thuế GTGT — chỉ TT200 mới tách riêng 1331
       if (taxAmountPR > 0) {
-        if (state.accountingStandard === "TT133") {
+        if (nonDeductiblePR) {
+          v.entries.push({ debit: creditAccPR, credit: "156", amount: taxAmountPR, desc: "Giảm thuế GTGT không được khấu trừ trong giá hàng trả lại" });
+        } else if (legacyTT133PR) {
           v.entries.push({ debit: creditAccPR, credit: "156", amount: taxAmountPR, desc: "Giảm thuế GTGT gộp trong giá hàng trả lại (TT133)" });
         } else {
           v.entries.push({ debit: creditAccPR, credit: "1331", amount: taxAmountPR, desc: "Giảm thuế GTGT đầu vào" });
@@ -306,33 +327,21 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
       (v.items || []).forEach(item => {
         const p = productBalanceMap[item.productId];
         if (p) {
-          // Nếu chưa có đơn giá bình quân (bị 0), lấy đơn giá mua gần nhất hoặc đơn giá khởi tạo
-          if (!p.avgCost || p.avgCost <= 0) {
-            p.avgCost = p.lastPurchasePrice || p.initialCost || 0;
-          }
           // Lưu giá vốn bình quân tại thời điểm xuất kho vào chi tiết hóa đơn
-          item.cogsUnit = p.avgCost;
-          item.cogsAmount = Math.round(item.qty * p.avgCost);
-
-          // Trừ tồn kho (C2 Fix: nếu stock <= 0 thì reset totalValue)
-          p.stock = Number((p.stock - item.qty).toFixed(3));
-          p.totalValue -= item.cogsAmount;
-          if (p.stock <= 0) {
-            p.totalValue = 0;
-          } else if (p.stock > 0) {
-            p.avgCost = Math.round((p.totalValue / p.stock) * 100) / 100;
-          }
-
-          totalCogs += item.cogsAmount;
+          const r = applyStockItem(p, "sales", item);
+          item.cogsUnit = r.unit;
+          item.cogsAmount = r.value;
+          totalCogs += r.value;
         }
         itemSubtotal += item.amount; // Doanh số bán chưa thuế
       });
 
       v.cogsAmount = totalCogs;
-      const taxRate = v.taxRate || 0;
-      const taxAmount = Math.round(itemSubtotal * (taxRate / 100));
+      const vat = computeVatBreakdown(v.items, v.taxRate || 0);
+      const taxAmount = vat.tax;
       const totalAmount = itemSubtotal + taxAmount;
 
+      v.vatBreakdown = vat.breakdown;
       v.taxAmount = taxAmount;
       v.totalAmount = totalAmount;
       // Bug C: remainingDebt suy diễn ở BƯỚC C2 (FIFO)
@@ -358,25 +367,25 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
 
     } else if (v.type === "escrow_pay") {
       // Ký quỹ mang đi: Nợ TK 244 (hoặc 1386) / Có TK 111 hoặc 112
-      const targetAcct = state.accountingStandard === "TT200" ? "244" : "1386";
+      const targetAcct = isTT99Family(state.accountingStandard) ? "244" : "1386";
       v.entries = [
         { debit: targetAcct, credit: v.paymentMethod, amount: v.amount, desc: v.description }
       ];
     } else if (v.type === "escrow_receive") {
       // Nhận ký quỹ đối tác: Nợ TK 111 hoặc 112 / Có TK 344 (hoặc 3386)
-      const targetAcct = state.accountingStandard === "TT200" ? "344" : "3386";
+      const targetAcct = isTT99Family(state.accountingStandard) ? "344" : "3386";
       v.entries = [
         { debit: v.paymentMethod, credit: targetAcct, amount: v.amount, desc: v.description }
       ];
     } else if (v.type === "escrow_refund_pay") {
       // Thu hồi ký quỹ mang đi: Nợ TK 111 hoặc 112 / Có TK 244 (hoặc 1386)
-      const targetAcct = state.accountingStandard === "TT200" ? "244" : "1386";
+      const targetAcct = isTT99Family(state.accountingStandard) ? "244" : "1386";
       v.entries = [
         { debit: v.paymentMethod, credit: targetAcct, amount: v.amount, desc: v.description }
       ];
     } else if (v.type === "escrow_refund_receive") {
       // Hoàn trả ký quỹ nhận về: Nợ TK 344 (hoặc 3386) / Có TK 111 hoặc 112
-      const targetAcct = state.accountingStandard === "TT200" ? "344" : "3386";
+      const targetAcct = isTT99Family(state.accountingStandard) ? "344" : "3386";
       v.entries = [
         { debit: targetAcct, credit: v.paymentMethod, amount: v.amount, desc: v.description }
       ];
@@ -398,47 +407,56 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
       mapCashDepositEntries(v, state.accountingStandard);
     } else if (v.type === "inventory_adjust") {
       // Điều chỉnh tồn kho: tăng/giảm số lượng theo đơn giá bình quân hiện tại (không đổi avgCost)
-      let totalAmount = 0;
+      let totalAmount = 0, negAdjust = 0;
       (v.items || []).forEach(item => {
         const p = productBalanceMap[item.productId];
         if (!p) return;
-
-        const unitCost = p.avgCost || p.lastPurchasePrice || p.initialCost || item.price || 0;
-        item.price = unitCost;
-        const amt = Math.round((item.qty || 0) * unitCost);
-        item.amount = amt;
-        totalAmount += amt;
-
-        if (item.adjustDir === "in") {
-          p.stock = Number((p.stock + item.qty).toFixed(3));
-          p.totalValue += amt;
-          if (p.stock > 0) {
-            p.avgCost = Math.round((p.totalValue / p.stock) * 100) / 100;
-          }
-        } else {
-          item.cogsUnit = unitCost;
-          item.cogsAmount = amt;
-          p.stock = Number((p.stock - item.qty).toFixed(3));
-          p.totalValue -= amt;
-          if (p.stock <= 0) {
-            p.totalValue = 0;
-          } else {
-            p.avgCost = Math.round((p.totalValue / p.stock) * 100) / 100;
-          }
+        const r = applyStockItem(p, "inventory_adjust", item);
+        item.price = r.unit;
+        item.amount = r.value;
+        totalAmount += r.value;
+        negAdjust += r.adjust;
+        if (item.adjustDir !== "in") {
+          item.cogsUnit = r.unit;
+          item.cogsAmount = r.value;
         }
       });
 
       v.amount = totalAmount;
       v.totalAmount = totalAmount;
-      if (!v.entries || v.entries.length === 0) {
-        const firstItem = (v.items || [])[0];
-        if (firstItem && firstItem.adjustDir === "in") {
-          v.entries = [{ debit: "156", credit: "711", amount: totalAmount, desc: v.description || "Điều chỉnh tăng tồn kho" }];
-        } else {
-          v.entries = [{ debit: "632", credit: "156", amount: totalAmount, desc: v.description || "Điều chỉnh giảm tồn kho" }];
-        }
+      // Giữ tài khoản đã lưu (phiếu cũ) nhưng số tiền luôn theo giá trị tính lại.
+      const stored = (v.entries || []).filter(e => e && e.desc !== NEGATIVE_STOCK_DESC);
+      const firstItem = (v.items || [])[0];
+      if (!stored.length) v.entries = [inventoryAdjustEntry(v, !!firstItem && firstItem.adjustDir === "in", totalAmount)];
+      // shortcut: phiếu nhiều bút toán (chỉ có từ dữ liệu ngoài) giữ nguyên số tiền — tách theo dòng khi có loại phiếu đó.
+      else v.entries = stored.length === 1 ? [{ ...stored[0], amount: totalAmount }] : stored;
+      if (negAdjust) v.entries.push(negativeStockEntry(negAdjust));
+    } else if (v.type === "general_journal") {
+      // Phiếu kế toán tổng hợp: giữ nguyên bút toán tay; TK không có trong danh mục của chế độ hiện hành
+      // vẫn ghi sổ nhưng gắn cảnh báo để kế toán sửa (không tự đổi số liệu).
+      if (!Array.isArray(v.entries)) v.entries = [];
+      if (v.citProvision) {
+        // Phiếu tạm tính thuế TNDN: TK chi phí thuế đổi theo chế độ (TT99 82111 / TT133 821).
+        const [fromAcct, toAcct] = isTT99Family(state.accountingStandard) ? ["821", "82111"] : ["82111", "821"];
+        const remap = code => String(code ?? "").trim() === fromAcct ? toAcct : code;
+        v.entries = v.entries.map(e => e ? { ...e, debit: remap(e.debit), credit: remap(e.credit) } : e);
       }
+      const invalid = new Set();
+      v.entries.forEach(e => {
+        if (!e) return;
+        [e.debit, e.credit].forEach(code => { if (!isValidAccount(code, state.accountingStandard)) invalid.add(String(code ?? "").trim()); });
+      });
+      if (invalid.size) v.accountWarnings = [...invalid].map(code => `TK ${code || "(trống)"} không có trong danh mục tài khoản`);
+      else delete v.accountWarnings;
+    } else if (v.type === "payroll") {
+      // Bảng lương: sinh lại từ bảng lương gốc theo chế độ hiện hành (TK BHTN/641 khác nhau); không có bảng lương thì giữ bút toán đã lưu.
+      const payroll = v.payrollId && typeof buildPayrollEntries === "function" && (state.payrolls || []).find(x => x && x.id === v.payrollId);
+      if (payroll) v.entries = buildPayrollEntries(payroll, state.accountingStandard);
+      else if (!Array.isArray(v.entries)) v.entries = [];
+    } else if (v.type === "period_close") {
+      v.entries = closeLedger.close(v.periodFrom || "", v.periodTo || v.date || "");
     }
+    closeLedger.post(v);
   });
 
   // BƯỚC C2 (Bug C): Suy diễn remainingDebt từ bút toán bằng phân bổ FIFO
@@ -458,20 +476,25 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
     openingRemaining[p.id] = p.type === 'supplier'
       ? { debit: 0, credit: Math.max(-net, 0) }
       : { debit: Math.max(net, 0), credit: 0 };
-    const pool = p.type === 'supplier' ? apAdvances : arAdvances;
-    pool[p.id] = [{ remaining: Math.max(p.type === 'supplier' ? net : -net, 0) }];
+    queueOf(p.type === 'supplier' ? apAdvances : arAdvances, p.id).list.push({ remaining: Math.max(p.type === 'supplier' ? net : -net, 0) });
   });
-  const consumeAdvance = (pool, pid, amount) => {
+  // FIFO theo đối tác; head bỏ qua phần đã tất toán để một đối tác hàng chục nghìn chứng từ vẫn O(n).
+  function queueOf(map, pid) { return map[pid] || (map[pid] = { list: [], head: 0 }); }
+  const settleFifo = (q, amount) => {
     let left = amount;
-    for (const credit of pool[pid] || []) {
-      const used = Math.min(credit.remaining, left);
-      credit.remaining -= used;
-      left -= used;
-      if (credit.v) credit.v.remainingDebt = -credit.remaining;
-      if (left <= 0) break;
+    while (left > 0 && q.head < q.list.length) {
+      const x = q.list[q.head];
+      if (x.remaining > 0) {
+        const used = Math.min(x.remaining, left);
+        x.remaining -= used;
+        left -= used;
+        if (x.v) x.v.remainingDebt = x.isAdvance ? -x.remaining : x.remaining;
+      }
+      if (x.remaining <= 0) q.head++;
     }
-    return amount - left;
+    return left;
   };
+  const consumeAdvance = (pool, pid, amount) => amount - settleFifo(queueOf(pool, pid), amount);
 
   // Task 5 (giống debts.js computeDebtSides): phiếu chi Nợ 331 cho đối tác vai trò KHÁCH
   // (không khai báo supplier/both, không có phát sinh 331 thật) được đọc là Nợ 131.
@@ -522,12 +545,12 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
     if (v.type === "sales" && debit131 > 0) {
       const used = pid ? consumeAdvance(arAdvances, pid, debit131) : 0;
       const order = { v, remaining: debit131 - used };
-      (arQueues[pid] = arQueues[pid] || []).push(order);
+      queueOf(arQueues, pid).list.push(order);
       v.remainingDebt = order.remaining;
     } else if (v.type === "purchase" && credit331 > 0) {
       const used = pid ? consumeAdvance(apAdvances, pid, credit331) : 0;
       const order = { v, remaining: credit331 - used };
-      (apQueues[pid] = apQueues[pid] || []).push(order);
+      queueOf(apQueues, pid).list.push(order);
       v.remainingDebt = order.remaining;
     }
 
@@ -539,16 +562,8 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
         op.debit -= used;
         toAlloc -= used;
       }
-      const q = arQueues[pid] || [];
-      for (let i = 0; i < q.length && toAlloc > 0; i++) {
-        const order = q[i];
-        if (order.remaining <= 0) continue;
-        const used = Math.min(order.remaining, toAlloc);
-        order.remaining -= used;
-        toAlloc -= used;
-        order.v.remainingDebt = order.remaining;
-      }
-      if (toAlloc > 0) (arAdvances[pid] = arAdvances[pid] || []).push({ remaining: toAlloc, v: v.type === "sales_return" ? v : null });
+      toAlloc = settleFifo(queueOf(arQueues, pid), toAlloc);
+      if (toAlloc > 0) queueOf(arAdvances, pid).list.push({ remaining: toAlloc, v: v.type === "sales_return" ? v : null, isAdvance: true });
       if (v.type === "sales_return") {
         v.remainingDebt = -toAlloc;
       }
@@ -562,16 +577,8 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
         op.credit -= used;
         toAlloc -= used;
       }
-      const q = apQueues[pid] || [];
-      for (let i = 0; i < q.length && toAlloc > 0; i++) {
-        const order = q[i];
-        if (order.remaining <= 0) continue;
-        const used = Math.min(order.remaining, toAlloc);
-        order.remaining -= used;
-        toAlloc -= used;
-        order.v.remainingDebt = order.remaining;
-      }
-      if (toAlloc > 0) (apAdvances[pid] = apAdvances[pid] || []).push({ remaining: toAlloc, v: v.type === "purchase_return" ? v : null });
+      toAlloc = settleFifo(queueOf(apQueues, pid), toAlloc);
+      if (toAlloc > 0) queueOf(apAdvances, pid).list.push({ remaining: toAlloc, v: v.type === "purchase_return" ? v : null, isAdvance: true });
       if (v.type === "purchase_return") {
         v.remainingDebt = -toAlloc;
       }
@@ -608,10 +615,6 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
     updateExcelHubUI();
   }
 
-  if (typeof markAccountingValid === 'function') {
-    markAccountingValid(state);
-  }
-
   // Lưu lại và vẽ giao diện
   if (shouldSave) {
     saveState();
@@ -621,37 +624,21 @@ function recalculateAccounting(shouldSave = true, forceFullRecalc = false) {
 
 // Call only after an explicit edit/import of partner opening balances.
 function syncPartnerOpeningAccounts() {
-  if (typeof applyPartnerOpeningTotals === "function") {
-    applyPartnerOpeningTotals(state);
-    return;
-  }
-  if (state.initialBalances && state.partnerOpeningBalances) {
-    let customerNetOpen = 0;
-    let supplierNetOpen = 0;
-    state.partners.forEach(p => {
-      const op = state.partnerOpeningBalances[p.id];
-      if (op) {
-        if (p.type !== 'supplier') {
-          customerNetOpen += (op.debit || 0) - (op.credit || 0);
-        } else if (p.type === 'supplier') {
-          supplierNetOpen += (op.credit || 0) - (op.debit || 0);
-        }
-      }
-    });
-    if (state.initialBalances["131"]) {
-      state.initialBalances["131"].balance = customerNetOpen >= 0 ? customerNetOpen : -customerNetOpen;
-      state.initialBalances["131"].type = customerNetOpen >= 0 ? "debit" : "credit";
-    }
-    if (state.initialBalances["331"]) {
-      state.initialBalances["331"].balance = supplierNetOpen >= 0 ? supplierNetOpen : -supplierNetOpen;
-      state.initialBalances["331"].type = supplierNetOpen >= 0 ? "credit" : "debit";
-    }
-  }
+  applyPartnerOpeningTotals(state);
+}
 
+// Chặn ghi chứng từ xuất làm tồn kho âm (B2); trả về true nếu đã chặn.
+function blockNegativeStockIssue(voucher) {
+  const ids = findNegativeStockProducts(state, voucher);
+  if (!ids.length) return false;
+  const names = ids.map(id => (state.products.find(p => String(p.id) === id) || {}).name || id).join(", ");
+  showToast(`Không đủ tồn kho tại ngày ${voucher.date}: ${names}. Bổ sung phiếu nhập trước hoặc giảm số lượng xuất (Cài đặt cho phép tắt kiểm tra này).`, "danger");
+  return true;
 }
 
 // Xóa chứng từ khỏi sổ cái
 async function deleteVoucher(id) {
+  if (window.assertCanWriteRole?.() === false) return;
   const ok = await showConfirmModal({
     title: "Xác nhận xóa chứng từ",
     message: `Bạn có chắc chắn muốn xóa và hủy ghi sổ chứng từ "${id}"? Việc này sẽ tính toán lại toàn bộ giá trị tồn kho và công nợ.`,
@@ -715,7 +702,7 @@ async function deleteVoucher(id) {
         state.vouchers.push(...removed.filter(v => !active.has(v.id)));
         unlinked.forEach(v => { if (state.vouchers.includes(v) && v.escrowRefId === null) v.escrowRefId = id; });
         if (typeof rollbackTrackedDeletedIds === "function") rollbackTrackedDeletedIds(deletionToken);
-        recalculateAccounting(false, true);
+        recalculateAccounting(false);
       }
       console.error("Lỗi nghiêm trọng trong quá trình xóa chứng từ:", err);
       showToast(`Không thể hoàn tất thao tác xóa: ${err.message}`, "danger");
@@ -724,30 +711,11 @@ async function deleteVoucher(id) {
 
 // 13. CÁC HÀM TIỆN ÍCH DỮ LIỆU & QUỸ (UTILITIES)
 
-// Tìm số dư của tài khoản (111, 112, 156, etc.) phục vụ Dashboard và báo cáo
+// Số dư đúng mã tài khoản (không gồm TK con) đến ngày toDate, theo chiều số dư đầu kỳ khai báo.
 function getAccountBalance(acctCode, toDate = "") {
-  const initBalObj = typeof getOpeningBalanceForAccount === "function"
-    ? getOpeningBalanceForAccount(state.initialBalances, acctCode, state.accountingStandard)
-    : ((state.initialBalances && state.initialBalances[acctCode]) || { type: "debit", balance: 0 });
-  let bal = Number(initBalObj.balance) || 0;
-  const isDebit = initBalObj.type === "debit";
-
-  if (state.vouchers) {
-    state.vouchers.forEach(v => {
-      if (toDate && v.date > toDate) return;
-      if (v.entries && Array.isArray(v.entries)) {
-        v.entries.forEach(e => {
-          if (String(e.debit ?? '').trim() === String(acctCode)) {
-            bal += isDebit ? (Number(e.amount) || 0) : -(Number(e.amount) || 0);
-          }
-          if (String(e.credit ?? '').trim() === String(acctCode)) {
-            bal += isDebit ? -(Number(e.amount) || 0) : (Number(e.amount) || 0);
-          }
-        });
-      }
-    });
-  }
-
-  return bal;
+  const code = String(acctCode);
+  const { beforeNet, debit, credit } = sumAccountMovements(state, c => c === code, "", toDate);
+  const net = beforeNet + debit - credit;
+  return (getOpeningBalanceForAccount(state.initialBalances, code, state.accountingStandard).type === "credit" ? -net : net) || 0;
 }
 window.deleteVoucher = deleteVoucher;

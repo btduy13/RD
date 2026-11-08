@@ -149,6 +149,7 @@ async function renamePartnerFromCode(id) {
 }
 
 async function deleteJunkPartners() {
+  if (window.assertCanWriteRole?.() === false) return; // utils.js có thể chưa nạp (sandbox test)
   if (!partnerAuditCanWrite()) return;
   const ids = computePartnerAuditIssues().junk.map(j => j.id);
   if (!ids.length) return;
@@ -177,7 +178,7 @@ function renderPartnerAuditPanel() {
   const { duplicates, nameIsCode, junk } = computePartnerAuditIssues();
   const total = duplicates.length + nameIsCode.length + junk.length;
   if (!total) { el.innerHTML = ""; el.style.display = "none"; return; }
-  const esc = escapePartnerText;
+  const esc = escapeHtmlText;
   const arg = v => esc(JSON.stringify(String(v)));
   const dupRows = duplicates.map(d => `<tr>
       <td>${esc(d.name)}</td>

@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const { FakeServer, makeStation } = require("./helpers/fake-versioned-cloud");
 
-const engineSrc = fs.readFileSync(path.join(__dirname, "..", "js", "core", "accounting-engine.js"), "utf8");
+const engineSrc = ["chart-of-accounts.js", "accounting-engine.js"].map(f => fs.readFileSync(path.join(__dirname, "..", "js", "core", f), "utf8")).join("\n");
 
 function editOpening(S, id, debit, credit) {
   const ts = Date.now();

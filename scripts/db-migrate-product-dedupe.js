@@ -75,9 +75,6 @@ function saveStateToDb(db, stateObj) {
     stmtMetadata.run('_lastModified', JSON.stringify(stateObj._lastModified || Date.now()));
     stmtMetadata.run('_lastPulledCloudTs', JSON.stringify(stateObj._lastPulledCloudTs || 0));
     stmtMetadata.run('schemaVersion', JSON.stringify(stateObj.schemaVersion || SCHEMA_VERSION));
-    stmtMetadata.run('_accountingValid', JSON.stringify(!!stateObj._accountingValid));
-    stmtMetadata.run('_accountingValidTs', JSON.stringify(stateObj._accountingValidTs || 0));
-    stmtMetadata.run('_recalcWatermark', JSON.stringify(stateObj._recalcWatermark || null));
     if (stateObj.partnerOpeningBalanceTs) {
       stmtMetadata.run('partnerOpeningBalanceTs', JSON.stringify(stateObj.partnerOpeningBalanceTs));
     }

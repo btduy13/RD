@@ -1046,9 +1046,6 @@ async function testNoOpPushDoesNotTouchCloud() {
 function testEntityOnlyDeltaUsesLightweightSignalInsteadOfMetadata() {
   const { internals, sandbox } = loadCloudSyncInternals();
   sandbox.state.cashEntries = [{ id: 'CASH-BASELINE', amount: 10 }];
-  sandbox.state._accountingValid = true;
-  sandbox.state._accountingValidTs = 900;
-  sandbox.state._recalcWatermark = { voucherCount: 0, productCount: 0, lastModified: 1000 };
   sandbox.state._cloudDatasetIdentity = 'local-runtime-a';
   sandbox.state._lastModified = 1000;
   sandbox.window.lastSyncState = JSON.parse(JSON.stringify(sandbox.state));
@@ -1059,8 +1056,6 @@ function testEntityOnlyDeltaUsesLightweightSignalInsteadOfMetadata() {
     _updatedAt: 2000,
     _sessionId: 'session-local'
   });
-  sandbox.state._accountingValidTs = 1900;
-  sandbox.state._recalcWatermark = { voucherCount: 0, productCount: 0, lastModified: 2000 };
   sandbox.state._cloudDatasetIdentity = 'local-runtime-b';
   sandbox.state._lastModified = 2000;
 
@@ -1716,51 +1711,28 @@ function testPerFieldMetadataMergeKeepsBothConcurrentEdits() {
   assert.equal(mergedNoBase.phone, "999");
 }
 
-function testPerUserMergeKeepsConcurrentAccountChanges() {
-  const { internals } = loadCloudSyncInternals();
-  const admin = { username: "admin", name: "Admin", password: "a", role: "admin" };
-  const kt = { username: "ketoan", name: "Kế toán", password: "k", role: "user" };
-  const baselineState = { users: [admin, kt], vouchers: [], products: [], partners: [] };
-  // Local: thêm user mới + đổi mật khẩu admin. Cloud (ts mới hơn): sửa tên kt.
-  const localState = {
-    users: [
-      { ...admin, password: "NEW" },
-      kt,
-      { username: "thukho", name: "Thủ kho", password: "t", role: "user" }
-    ],
-    vouchers: [], products: [], partners: [], deletedIds: [], deletedCloudKeys: [],
-    _lastModified: 1000
-  };
-  const cloudState = {
-    users: [admin, { ...kt, name: "Kế toán trưởng" }],
-    vouchers: [], products: [], partners: [], deletedIds: [], deletedCloudKeys: [],
-    _lastModified: 2000, _cloudWatermark: 2000
-  };
+// Login accounts (password hashes) stay on the station that owns them: never
+// pushed, never adopted from a cloud row written by an older client.
+function testLoginAccountsNeverLeaveTheStation() {
+  const { internals, sandbox } = loadCloudSyncInternals();
+  const admin = { username: "admin", name: "Admin", passwordHash: "pbkdf2$150000$c2FsdA==$aGFzaA==", role: "admin" };
+  const intruder = { username: "intruder", name: "X", password: "x", role: "admin" };
+  const empty = { vouchers: [], products: [], partners: [], deletedIds: [], deletedCloudKeys: [] };
+  const localState = { ...empty, users: [admin], _lastModified: 1000 };
+  const cloudState = { ...empty, users: [intruder], _lastModified: 2000, _cloudWatermark: 2000 };
+  for (const baselineState of [null, cloudState]) {
+    const merged = internals.cloudSyncMergeStatesCore(localState, cloudState, { cloneWinners: true, cloneMetadata: true, baselineState }).state;
+    assert.deepEqual(merged.users.map(u => u.username), ["admin"], "cloud users must never be adopted");
+  }
+  const fromRows = internals.cloudSyncStateFromRows([{ id: "metadata", data: { companyName: "C", users: [intruder] }, last_modified: 1 }]);
+  assert.equal(fromRows.users, undefined, "users in a cloud metadata row are ignored");
 
-  const merged = internals.cloudSyncMergeStatesCore(localState, cloudState, {
-    cloneWinners: true, cloneMetadata: true, baselineState
-  }).state;
-  const byName = Object.fromEntries(merged.users.map(u => [u.username, u]));
-  assert.equal(merged.users.length, 3, "user added locally must survive a newer cloud users blob");
-  assert.equal(byName.admin.password, "NEW", "local password change must survive");
-  assert.equal(byName.ketoan.name, "Kế toán trưởng", "cloud-side user edit must be applied");
-  assert.ok(byName.thukho, "locally added user must be present");
-
-  // Xóa user ở cloud (phía local không sửa gì) → tôn trọng việc xóa.
-  const cloudDeleted = {
-    users: [admin],
-    vouchers: [], products: [], partners: [], deletedIds: [], deletedCloudKeys: [],
-    _lastModified: 2000, _cloudWatermark: 2000
-  };
-  const localUntouched = {
-    users: [admin, kt],
-    vouchers: [], products: [], partners: [], deletedIds: [], deletedCloudKeys: [],
-    _lastModified: 1000
-  };
-  const merged2 = internals.cloudSyncMergeStatesCore(localUntouched, cloudDeleted, {
-    cloneWinners: true, cloneMetadata: true, baselineState
-  }).state;
-  assert.ok(!merged2.users.some(u => u.username === "ketoan"), "a user deleted on another machine must stay deleted");
+  sandbox.state.users = [admin];
+  sandbox.state._lastModified = 5000;
+  sandbox.window.lastSyncState = null;
+  const metaRow = internals.computeDelta().rowsToUpsert.find(row => row.id === "metadata");
+  assert.ok(metaRow, "metadata row is pushed");
+  assert.equal(metaRow.data.users, undefined, "users must never be pushed");
 }
 
 async function run() {
@@ -1820,7 +1792,7 @@ async function run() {
   testPerTombstoneAgeProtectsNewerLocalItem();
   testStateFromRowsRecordsTombstoneTimestamps();
   testPerFieldMetadataMergeKeepsBothConcurrentEdits();
-  testPerUserMergeKeepsConcurrentAccountChanges();
+  testLoginAccountsNeverLeaveTheStation();
   testTrackDeletedIdsStampsPerTombstoneAge();
   testLocalIdAllocationSkipsTombstonedSequences();
   console.log("cloud sync regression tests passed");

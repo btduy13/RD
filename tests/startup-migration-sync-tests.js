@@ -17,7 +17,6 @@ function fnSource(src, name) {
   return src.slice(i, j < 0 ? undefined : j);
 }
 
-const MARK = "\n// Đăng ký";
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
 
@@ -34,34 +33,12 @@ function makeState() {
   };
 }
 
-// Simulates main.js read-state-file: loads readStateFromSQLiteWithDedupe from real source with a fake SQLite read.
-function mainLoad(diskState) {
+test("main.js load path reads SQLite as-is (no product dedupe/cleanup on load)", () => {
   const src = read("main.js");
-  const sandbox = {
-    console: { log() {}, warn() {}, error() {} },
-    dedupeProductCatalogOnState, cleanGarbageProducts,
-    saved: 0,
-    readStateFromSQLite: () => clone(diskState),
-    saveStateToSQLite() { sandbox.saved++; },
-    backupSqliteBeforeProductDedupe() {},
-    db: { prepare: () => ({ run() {} }) }
-  };
-  vm.createContext(sandbox);
-  vm.runInContext(fnSource(src, "applyProductCaseDedupeInDatabase") + "\n" + fnSource(src, "readStateFromSQLiteWithDedupe").split(MARK)[0], sandbox);
-  const loaded = sandbox.readStateFromSQLiteWithDedupe();
-  return { loaded, sandbox };
-}
-
-test("main.js load path does not mutate or re-save products (restart == pre-restart state)", () => {
-  const disk = makeState();
-  const { loaded, sandbox } = mainLoad(disk);
-  assert.deepStrictEqual(loaded, disk, "state after restart must equal state before restart");
-  assert.strictEqual(sandbox.saved, 0, "load must not write back to SQLite");
-});
-
-test("legitimate product whose id looks like junk (PX123) survives load", () => {
-  const { loaded } = mainLoad(makeState());
-  assert.ok(loaded.products.some(p => p.id === "PX123"));
+  const handler = src.slice(src.indexOf("ipcMain.handle('read-state-file'"), src.indexOf("ipcMain.handle('get-database-health'"));
+  assert.ok(handler.includes("readStateFromSQLite()"), "read-state-file must load SQLite directly");
+  assert.ok(!/dedupeProductCatalogOnState|cleanGarbageProducts|saveStateToSQLite/.test(handler), "load must not mutate or re-save products");
+  assert.ok(!src.includes("cleanGarbageProducts"), "main.js no longer carries dead dedupe code");
 });
 
 test("explicit dedupe functions remain available for db:dedupe-products", () => {

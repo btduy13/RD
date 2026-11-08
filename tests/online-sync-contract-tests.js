@@ -30,7 +30,8 @@ assert.match(stateSource, /window\.cloudStartupPromise = Promise\.resolve\(\)[\s
 assert.match(syncSource, /CLOUD_SYNC_PENDING_WRITE_KEY/);
 assert.match(syncSource, /Pending local cloud write detected/);
 assert.match(syncSource, /state\._pendingCloudWrite = \{ token, manifest, createdAt: Date\.now\(\) \}/);
-assert.match(syncSource, /'_lastModified', '_lastPulledCloudTs', '_cloudDatasetIdentity', '_pendingCloudWrite'/);
+assert.match(syncSource, /\[\.\.\.STATE_METADATA_KEYS, '_lastModified'\]/);
+assert.ok(['_lastPulledCloudTs', '_cloudDatasetIdentity', '_pendingCloudWrite'].every(key => require('../js/core/state-diff').STATE_METADATA_KEYS.includes(key)));
 assert.match(stateSource, /function persistStateLocallyWithoutCloud\(\)/);
 assert.match(syncSource, /cloudSyncWriteQueue\.then/);
 assert.match(syncSource, /"cloud upsert",\s*\{ timeoutMs: 20000 \}/);

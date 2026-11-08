@@ -4,6 +4,13 @@ window.addEventListener("beforeunload", () => {
   executeSaveState(true);
 });
 
+// Tên người ký trên báo cáo (khóa trên state, cạnh companyName/taxCode/address).
+const COMPANY_SIGNER_FIELDS = [
+  ["preparerName", "setting-preparer-name"],
+  ["chiefAccountantName", "setting-chief-accountant-name"],
+  ["directorName", "setting-director-name"]
+];
+
 // Cập nhật các thông tin công ty lên giao diện
 function updateCompanyUI() {
   const headerCompany = document.getElementById("header-company-name");
@@ -12,12 +19,19 @@ function updateCompanyUI() {
   document.getElementById("setting-company-name").value = state.companyName || "";
   document.getElementById("setting-tax-code").value = state.taxCode || "";
   document.getElementById("setting-address").value = state.address || "";
+  COMPANY_SIGNER_FIELDS.forEach(([key, id]) => {
+    const input = document.getElementById(id);
+    if (input) input.value = state[key] || "";
+  });
+  const allowNegative = document.getElementById("setting-allow-negative-stock");
+  if (allowNegative) allowNegative.checked = state.allowNegativeStock === true;
 
   const sidebarLabel = document.getElementById("sidebar-standard-label");
-  if (sidebarLabel) sidebarLabel.innerText = state.accountingStandard === "TT200" ? "TT 200" : "TT 133";
+  const tt99 = isTT99Family(state.accountingStandard);
+  if (sidebarLabel) sidebarLabel.innerText = tt99 ? "TT 99" : "TT 133";
 
   // Toggle active button Thông tư
-  if (state.accountingStandard === "TT200") {
+  if (tt99) {
     document.getElementById("btn-standard-200").classList.add("active");
     document.getElementById("btn-standard-133").classList.remove("active");
   } else {
@@ -31,19 +45,29 @@ function saveCompanySettings() {
   state.companyName = document.getElementById("setting-company-name").value.trim() || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông";
   state.taxCode = document.getElementById("setting-tax-code").value.trim();
   state.address = document.getElementById("setting-address").value.trim() || "255 Trương Công Định, Phường Vũng Tàu, Thành Phố Hồ Chí Minh";
+  COMPANY_SIGNER_FIELDS.forEach(([key, id]) => {
+    const input = document.getElementById(id);
+    if (input) state[key] = input.value.trim();
+  });
+  const allowNegative = document.getElementById("setting-allow-negative-stock");
+  if (allowNegative) state.allowNegativeStock = allowNegative.checked;
   saveState();
   updateCompanyUI();
   showToast("Lưu thông tin doanh nghiệp thành công!", "success");
 }
 
-// Thay đổi chế độ kế toán (TT200 / TT133)
+// Thay đổi chế độ kế toán (TT99 — thay TT200 — / TT133)
 async function setAccountingStandard(standard) {
-  if (standard === state.accountingStandard) return;
+  if (isTT99Family(standard) === isTT99Family(state.accountingStandard)) return;
   if (!window.currentUser || window.currentUser.role !== "admin") {
     showToast("Chỉ quản trị viên được đổi chế độ kế toán.", "danger");
     return;
   }
-  const label = standard === "TT200" ? "Thông tư 200/2014/TT-BTC" : "Thông tư 133/2016/TT-BTC";
+  const label = isTT99Family(standard) ? "Thông tư 99/2025/TT-BTC" : "Thông tư 133/2016/TT-BTC";
+  // Phiếu kế toán nhập tay không tự đổi TK (trừ phiếu tạm tính TNDN) — báo trước số phiếu sẽ có TK ngoài danh mục mới.
+  const invalidJournals = state.vouchers.filter(v => v && v.type === "general_journal" && !v.citProvision && (v.entries || [])
+    .some(e => e && [e.debit, e.credit].some(code => !isValidAccount(code, standard)))).length;
+  if (invalidJournals && !confirm(`Có ${invalidJournals} phiếu kế toán dùng tài khoản không có trong danh mục ${label}. Các phiếu này vẫn ghi sổ nhưng cần sửa tay. Tiếp tục?`)) return;
   const ok = await showConfirmModal({
     title: "Xác nhận đổi chế độ kế toán",
     message: `Chuyển sang chế độ kế toán theo ${label}? Thay đổi này áp dụng cho mọi trạm làm việc và hệ thống sẽ tính toán lại (ghi sổ lại) toàn bộ sổ sách kế toán.`,
@@ -52,11 +76,12 @@ async function setAccountingStandard(standard) {
     type: "warning"
   });
   if (!ok) return;
-  state.accountingStandard = standard;
+  // Lưu "TT200" cho nhóm TT99: trạm chạy bản cũ (so sánh === "TT200") và dữ liệu cloud vẫn hiểu đúng.
+  state.accountingStandard = isTT99Family(standard) ? "TT200" : "TT133";
   saveState();
   updateCompanyUI();
   recalculateAccounting();
-  showToast(`Đã chuyển sang chế độ kế toán theo ${standard === "TT200" ? "Thông tư 200/2014/TT-BTC" : "Thông tư 133/2016/TT-BTC"}`, "info");
+  showToast(`Đã chuyển sang chế độ kế toán theo ${label}`, "info");
 }
 
 // 14. SAO LƯU SAO CHÉP CƠ SỞ DỮ LIỆU (DATABASE BACKUP & RESTORE)
@@ -122,6 +147,7 @@ function importData(event) {
       // Kiểm tra sơ bộ tính toàn vẹn
       if (imported.companyName && imported.products && imported.vouchers) {
         state = imported;
+        if (typeof migrateAuthUsers === "function") migrateAuthUsers(); // tài khoản cũ đăng nhập được ngay, không cần khởi động lại
         saveState();
         updateCompanyUI();
         recalculateAccounting();
@@ -161,6 +187,7 @@ function getCloudConfigElements() {
     inputsGroup: document.getElementById("cloud-sync-inputs-group"),
     urlInput: document.getElementById("setting-cloud-supabase-url"),
     keyInput: document.getElementById("setting-cloud-supabase-key"),
+    secretInput: document.getElementById("setting-cloud-workspace-secret"),
     submitButton: document.getElementById("btn-save-cloud-config")
   };
 }
@@ -233,6 +260,7 @@ function loadCloudSettings() {
     if (elements.enabledInput) elements.enabledInput.checked = cloudSyncSettings.enabled !== false;
     if (elements.urlInput) elements.urlInput.value = cloudSyncSettings.supabaseUrl || "";
     if (elements.keyInput) elements.keyInput.value = cloudSyncSettings.supabaseAnonKey || "";
+    if (elements.secretInput) elements.secretInput.value = cloudSyncSettings.workspaceSecret || "";
 
     toggleCloudSyncInputs();
   } catch (e) {
@@ -253,6 +281,7 @@ function toggleCloudSyncInputs() {
   elements.enabledInput.setAttribute("aria-expanded", enabled ? "true" : "false");
   if (elements.urlInput) elements.urlInput.disabled = inputsDisabled;
   if (elements.keyInput) elements.keyInput.disabled = inputsDisabled;
+  if (elements.secretInput) elements.secretInput.disabled = inputsDisabled;
 }
 
 function isSupportedSupabaseUrl(value) {
@@ -297,7 +326,8 @@ async function saveCloudConfig(e) {
     cloudSyncSettings = {
       enabled,
       supabaseUrl,
-      supabaseAnonKey
+      supabaseAnonKey,
+      workspaceSecret: elements.secretInput ? elements.secretInput.value.trim() : (cloudSyncSettings.workspaceSecret || "")
     };
     persistCloudSettings();
 

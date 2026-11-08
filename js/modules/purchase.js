@@ -119,7 +119,7 @@ function buildPurchaseTableRowHtml(v) {
         <td style="text-align: center;">
           <input type="checkbox" class="purchase-checkbox" value="${escapeHtmlAttr(v.id)}" onchange="updateBatchPurchasesUI()">
         </td>
-        <td class="font-numeric" style="color: var(--color-primary); font-weight:700;">${v.id}</td>
+        <td class="font-numeric" style="color: var(--color-primary); font-weight:700;">${escapeHtmlText(v.id)}</td>
         <td>${formattedDate}</td>
         <td class="cell-clip" style="font-weight:600; color:var(--text-primary);" title="${escapeHtmlText(getPartnerNameForVoucher(v))}">${escapeHtmlText(getPartnerNameForVoucher(v))}</td>
         <td class="cell-clip" title="${escapeHtmlText(v.description || "")}">${escapeHtmlText(v.description || "")}</td>
@@ -129,7 +129,7 @@ function buildPurchaseTableRowHtml(v) {
           <div class="accounting-detail-box">
             ${v.entries.map(e => `
               <div class="accounting-entry-row">
-                <span>Nợ <span class="acct-debit">${e.debit}</span> / Có <span class="acct-credit">${e.credit}</span></span>
+                <span>Nợ <span class="acct-debit">${escapeHtmlText(e.debit)}</span> / Có <span class="acct-credit">${escapeHtmlText(e.credit)}</span></span>
                 <span class="font-numeric">${formatVND(e.amount)}</span>
               </div>
             `).join("")}
@@ -232,7 +232,7 @@ function renderPurchaseTable() {
     if (b.date !== a.date) {
       return b.date.localeCompare(a.date);
     }
-    return b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' });
+    return naturalCompare(b.id, a.id);
   });
 
   const totalCount = purchases.length;
@@ -416,7 +416,7 @@ async function handlePurchaseSubmit(e) {
     }
 
     const productId = resolvedProduct.id;
-    const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
+    const qty = parseDynamicQuantity(row.querySelector(".item-qty").value) || 0;
     const price = parseDynamicMoney(row.querySelector(".item-price").value);
     const discount = parseDynamicDiscount(row.querySelector(".item-discount").value);
     const lineError = validateDynamicVoucherLine(qty, price, discount);
@@ -432,11 +432,17 @@ async function handlePurchaseSubmit(e) {
       qty,
       price,
       discount,
-      amount
+      amount,
+      vatRate: readDynamicVatRate(row)
     });
   }
 
   if (hasError) return;
+  const invoiceError = readVoucherInvoiceFields("pur").error;
+  if (invoiceError) {
+    showToast(invoiceError, "danger");
+    return;
+  }
 
   const modalId = "modal-add-purchase";
   if (!beginVoucherSubmit(modalId, "Đang kiểm tra dữ liệu...")) return;
@@ -471,8 +477,9 @@ async function handlePurchaseSubmit(e) {
     paymentMethod,
     description: document.getElementById("pur-desc").value,
     items: voucherItems,
-    taxRate: 0,
+    taxRate: parseInt(document.getElementById("pur-tax-rate").value) || 0,
     taxAmount: 0,
+    ...readVoucherInvoiceFields("pur", { date: document.getElementById("pur-date").value, partner: resolvedPartner }).fields,
     isManual: true,
     _updatedAt: Date.now(),
     _sessionId: clientSessionId
@@ -580,6 +587,7 @@ function editPurchaseVoucher(id) {
   if (document.getElementById("pur-tax-rate")) {
     document.getElementById("pur-tax-rate").value = v.taxRate || 0;
   }
+  fillVoucherInvoiceFields("pur", v, { invoiceForm: "1" });
 
   replaceDynamicFormTableRows("purchase-form-items-body", buildPurchaseFormItemsFromVoucher(v));
 
@@ -595,7 +603,8 @@ function buildPurchaseFormItemsFromVoucher(v) {
       productId: prodVal,
       qty: item.qty,
       price: item.price,
-      discount: normalizeDynamicDiscountValue(item.discount, item.qty, item.price)
+      discount: normalizeDynamicDiscountValue(item.discount, item.qty, item.price),
+      vatRate: item.vatRate
     };
   });
 }
@@ -661,6 +670,7 @@ function updateBatchPurchasesUI() {
 }
 
 async function batchDeletePurchases() {
+  if (window.assertCanWriteRole?.() === false) return; // utils.js có thể chưa nạp (sandbox test)
   const checked = Array.from(document.querySelectorAll(".purchase-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
 
@@ -727,7 +737,7 @@ function exportPurchasesToExcel(detailed = true) {
   );
   if (fromDate) filteredPurchases = filteredPurchases.filter(v => v.date >= fromDate);
   if (toDate) filteredPurchases = filteredPurchases.filter(v => v.date <= toDate);
-  filteredPurchases.sort((a, b) => new Date(a.date) - new Date(b.date) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+  filteredPurchases.sort((a, b) => new Date(a.date) - new Date(b.date) || naturalCompare(a.id, b.id));
 
   try {
     const wb = XLSX.utils.book_new();
@@ -1130,7 +1140,7 @@ async function handlePurchaseOrderSubmit(e) {
     }
 
     const productId = resolvedProduct.id;
-    const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
+    const qty = parseDynamicQuantity(row.querySelector(".item-qty").value) || 0;
     const price = parseDynamicMoney(row.querySelector(".item-price").value);
     const discount = parseDynamicDiscount(row.querySelector(".item-discount").value);
     const lineError = validateDynamicVoucherLine(qty, price, discount);
@@ -1146,7 +1156,8 @@ async function handlePurchaseOrderSubmit(e) {
       qty,
       price,
       discount,
-      amount
+      amount,
+      vatRate: readDynamicVatRate(row)
     });
   }
 
@@ -1378,7 +1389,7 @@ function renderPurchaseOrderTable() {
     if (b.date !== a.date) {
       return b.date.localeCompare(a.date);
     }
-    return b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' });
+    return naturalCompare(b.id, a.id);
   });
 
   const totalCount = orders.length;
@@ -1460,7 +1471,7 @@ function renderPurchaseOrderTable() {
         <td style="text-align: center;">
           <input type="checkbox" class="purchase-order-checkbox" value="${escapeHtmlAttr(v.id)}" onchange="updateBatchPurchaseOrdersUI()">
         </td>
-        <td class="font-numeric" style="color: var(--color-primary); font-weight:700;">${v.id}</td>
+        <td class="font-numeric" style="color: var(--color-primary); font-weight:700;">${escapeHtmlText(v.id)}</td>
         <td>${formattedDate}</td>
         <td class="cell-clip" style="font-weight:600; color:var(--text-primary);" title="${escapeHtmlText(getPartnerNameForVoucher(v))}">${escapeHtmlText(getPartnerNameForVoucher(v))}</td>
         <td class="cell-clip" title="${escapeHtmlText(v.description || "")}">${escapeHtmlText(v.description || "")}</td>
@@ -1544,6 +1555,7 @@ function updateBatchPurchaseOrdersUI() {
 }
 
 async function batchDeletePurchaseOrders() {
+  if (window.assertCanWriteRole?.() === false) return; // utils.js có thể chưa nạp (sandbox test)
   const checked = Array.from(document.querySelectorAll(".purchase-order-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
 
@@ -1613,7 +1625,7 @@ function exportPurchaseOrdersToExcel() {
   }
   if (fromDate) filteredOrders = filteredOrders.filter(v => v.date >= fromDate);
   if (toDate) filteredOrders = filteredOrders.filter(v => v.date <= toDate);
-  filteredOrders.sort((a, b) => new Date(a.date) - new Date(b.date) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+  filteredOrders.sort((a, b) => new Date(a.date) - new Date(b.date) || naturalCompare(a.id, b.id));
 
   try {
     const wb = XLSX.utils.book_new();
@@ -1854,7 +1866,7 @@ function renderPurchaseReturnTable() {
     if (b.date !== a.date) {
       return b.date.localeCompare(a.date);
     }
-    return b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' });
+    return naturalCompare(b.id, a.id);
   });
 
   const totalCount = returns.length;
@@ -1936,7 +1948,7 @@ function renderPurchaseReturnTable() {
         <td style="text-align: center;">
           <input type="checkbox" class="purchase-return-checkbox" value="${escapeHtmlAttr(v.id)}" onchange="updateBatchPurchaseReturnsUI()">
         </td>
-        <td class="font-numeric" style="color: var(--color-primary); font-weight:700;">${v.id}</td>
+        <td class="font-numeric" style="color: var(--color-primary); font-weight:700;">${escapeHtmlText(v.id)}</td>
         <td>${formattedDate}</td>
         <td class="cell-clip" style="font-weight:600; color:var(--text-primary);" title="${escapeHtmlText(getPartnerNameForVoucher(v))}">${escapeHtmlText(getPartnerNameForVoucher(v))}</td>
         <td class="cell-clip" title="${escapeHtmlText(v.description || "")}">${escapeHtmlText(v.description || "")}</td>
@@ -1946,7 +1958,7 @@ function renderPurchaseReturnTable() {
           <div class="accounting-detail-box">
             ${v.entries.map(e => `
               <div class="accounting-entry-row">
-                <span>Nợ <span class="acct-debit">${e.debit}</span> / Có <span class="acct-credit">${e.credit}</span></span>
+                <span>Nợ <span class="acct-debit">${escapeHtmlText(e.debit)}</span> / Có <span class="acct-credit">${escapeHtmlText(e.credit)}</span></span>
                 <span class="font-numeric">${formatVND(e.amount)}</span>
               </div>
             `).join("")}
@@ -2104,7 +2116,7 @@ async function handlePurchaseReturnSubmit(e) {
     }
 
     const productId = resolvedProduct.id;
-    const qty = safeParseFloat(row.querySelector(".item-qty").value) || 0;
+    const qty = parseDynamicQuantity(row.querySelector(".item-qty").value) || 0;
     const price = parseDynamicMoney(row.querySelector(".item-price").value);
     const discount = parseDynamicDiscount(row.querySelector(".item-discount").value);
     const lineError = validateDynamicVoucherLine(qty, price, discount);
@@ -2120,11 +2132,18 @@ async function handlePurchaseReturnSubmit(e) {
       qty,
       price,
       discount,
-      amount
+      amount,
+      vatRate: readDynamicVatRate(row)
     });
   }
 
   if (hasError) return;
+  if (blockNegativeStockIssue({ id: editingPurchaseReturnId || voucherId, type: "purchase_return", date: document.getElementById("ret-date").value, items: voucherItems })) return;
+  const invoiceError = readVoucherInvoiceFields("ret").error;
+  if (invoiceError) {
+    showToast(invoiceError, "danger");
+    return;
+  }
 
   const modalId = "modal-add-purchase-return";
   if (!beginVoucherSubmit(modalId, "Đang kiểm tra dữ liệu...")) return;
@@ -2160,8 +2179,9 @@ async function handlePurchaseReturnSubmit(e) {
     paymentMethod,
     description: document.getElementById("ret-desc").value,
     items: voucherItems,
-    taxRate: 0,
+    taxRate: parseInt(document.getElementById("ret-tax-rate").value) || 0,
     taxAmount: 0,
+    ...readVoucherInvoiceFields("ret", { date: document.getElementById("ret-date").value, partner: resolvedPartner, originalType: "purchase" }).fields,
     isManual: true,
     _updatedAt: Date.now(),
     _sessionId: clientSessionId
@@ -2256,6 +2276,8 @@ function editPurchaseReturnVoucher(id) {
   document.getElementById("ret-partner").value = pObj3 ? `${pObj3.name} (${pObj3.id})` : (v.partnerName || "");
   document.getElementById("ret-desc").value = v.description;
   document.getElementById("ret-payment").value = v.paymentMethod;
+  document.getElementById("ret-tax-rate").value = v.taxRate || 0;
+  fillVoucherInvoiceFields("ret", v, { invoiceForm: "1" });
 
   const formItems = v.items.map(item => {
     const prod = state.products.find(p => String(p.id) === String(item.productId));
@@ -2264,7 +2286,8 @@ function editPurchaseReturnVoucher(id) {
       productId: prodVal,
       qty: item.qty,
       price: item.price,
-      discount: normalizeDynamicDiscountValue(item.discount, item.qty, item.price)
+      discount: normalizeDynamicDiscountValue(item.discount, item.qty, item.price),
+      vatRate: item.vatRate
     };
   });
   replaceDynamicFormTableRows("purchase-return-form-items-body", formItems);
@@ -2301,6 +2324,7 @@ function updateBatchPurchaseReturnsUI() {
 }
 
 async function batchDeletePurchaseReturns() {
+  if (window.assertCanWriteRole?.() === false) return; // utils.js có thể chưa nạp (sandbox test)
   const checked = Array.from(document.querySelectorAll(".purchase-return-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
 
@@ -2367,7 +2391,7 @@ function exportPurchaseReturnsToExcel() {
   );
   if (fromDate) filteredReturns = filteredReturns.filter(v => v.date >= fromDate);
   if (toDate) filteredReturns = filteredReturns.filter(v => v.date <= toDate);
-  filteredReturns.sort((a, b) => new Date(a.date) - new Date(b.date) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+  filteredReturns.sort((a, b) => new Date(a.date) - new Date(b.date) || naturalCompare(a.id, b.id));
 
   try {
     const wb = XLSX.utils.book_new();
@@ -2522,9 +2546,11 @@ if (typeof registerDynamicFormTable === "function") {
     priceLabel: "Đơn giá mua (đ)",
     productListId: "datalist-purchase-products",
     onProductInput: autoFillPurchasePrice,
-    totals: { fixedTaxRate: 0, subtotalId: "pur-subtotal-display", taxId: "pur-tax-display", totalId: "pur-total-display" },
-    fieldIds: { id: "pur-id", partner: "pur-partner", date: "pur-date", payment: "pur-payment", desc: "pur-desc", taxRate: "pur-tax-rate" },
-    fieldDefaults: { payment: "331", desc: "Mua vật tư hàng hóa nhập kho", taxRate: "0" },
+    hasVat: true,
+    cashThresholdWarning: true,
+    totals: { taxRateId: "pur-tax-rate", subtotalId: "pur-subtotal-display", taxId: "pur-tax-display", totalId: "pur-total-display" },
+    fieldIds: { id: "pur-id", partner: "pur-partner", date: "pur-date", payment: "pur-payment", desc: "pur-desc", taxRate: "pur-tax-rate", ...voucherInvoiceFieldIds("pur") },
+    fieldDefaults: { payment: "331", desc: "Mua vật tư hàng hóa nhập kho", taxRate: "0", invoiceForm: "1" },
     getEditingId: () => editingPurchaseId,
     setEditingId: value => { editingPurchaseId = value || null; }
   }));
@@ -2554,9 +2580,10 @@ if (typeof registerDynamicFormTable === "function") {
     priceLabel: "Đơn giá trả lại (đ)",
     productListId: "datalist-purchase-products",
     onProductInput: autoFillPurchaseReturnPrice,
-    totals: { fixedTaxRate: 0, subtotalId: "ret-subtotal-display", taxId: "ret-tax-display", totalId: "ret-total-display" },
-    fieldIds: { id: "pur-return-id", partner: "ret-partner", date: "ret-date", payment: "ret-payment", desc: "ret-desc", taxRate: "ret-tax-rate" },
-    fieldDefaults: { payment: "331", desc: "Trả lại hàng mua cho nhà cung cấp", taxRate: "0" },
+    hasVat: true,
+    totals: { taxRateId: "ret-tax-rate", subtotalId: "ret-subtotal-display", taxId: "ret-tax-display", totalId: "ret-total-display" },
+    fieldIds: { id: "pur-return-id", partner: "ret-partner", date: "ret-date", payment: "ret-payment", desc: "ret-desc", taxRate: "ret-tax-rate", ...voucherInvoiceFieldIds("ret", true) },
+    fieldDefaults: { payment: "331", desc: "Trả lại hàng mua cho nhà cung cấp", taxRate: "0", invoiceForm: "1" },
     getEditingId: () => editingPurchaseReturnId,
     setEditingId: value => { editingPurchaseReturnId = value || null; }
   }));

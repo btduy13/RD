@@ -8,6 +8,7 @@ const vm = require('vm');
 const source = fs.readFileSync(path.join(__dirname, '..', 'js', 'modules', 'cash.js'), 'utf8');
 const sandbox = { window: {}, console };
 vm.createContext(sandbox);
+vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js', 'core', 'chart-of-accounts.js'), 'utf8'), sandbox);
 vm.runInContext(source, sandbox, { filename: 'cash.js' });
 
 const calculateCashListTotals = sandbox.window.calculateCashListTotals;

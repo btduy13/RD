@@ -647,7 +647,7 @@ async function main() {
 
   const debtLoginResult = await win.webContents.executeJavaScript(`(async () => {
     showLoginForm();
-    document.getElementById('login-username').value = 'codex-debt-offline-test';
+    state.users = (state.users || []).filter(u => u.username !== 'codex-debt-offline-test').concat([{ username: 'codex-debt-offline-test', name: 'codex-debt-offline-test', role: 'accountant', password: 'test-pass' }]); document.getElementById('login-username').value = 'codex-debt-offline-test'; document.getElementById('login-password').value = 'test-pass';
     await submitLogin({ preventDefault() {} });
     return {
       cloudActive: cloudSyncActive,

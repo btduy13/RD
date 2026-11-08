@@ -62,8 +62,8 @@ async function main() {
           items: [{ productId: 'X', qty: 2, price: 1000, amount: 2000 }] }
       ]
     };
-    const c = makeContext(state, ['js/core/accounting-engine.js', 'js/accounting.js']);
-    c.recalculateAccounting(false, true);
+    const c = makeContext(state, ['js/core/chart-of-accounts.js', 'js/core/accounting-engine.js', 'js/accounting.js']);
+    c.recalculateAccounting(false);
     const bh = state.vouchers.find(v => v.id === 'BH1');
     const nk = state.vouchers.find(v => v.id === 'NK1');
     assert.equal(bh.paymentMethod, '131');
@@ -75,7 +75,7 @@ async function main() {
   });
 
   await test('cash account rules suggest only with clear evidence', () => {
-    const c = makeContext({}, ['js/core/accounting-engine.js']);
+    const c = makeContext({}, ['js/core/chart-of-accounts.js', 'js/core/accounting-engine.js']);
     const supplier = { salesOn131: 0, purchasesOn331: 3 };
     const customer = { salesOn131: 5, purchasesOn331: 0 };
     const s = (...a) => c.suggestCashAccountFix(...a);
@@ -107,7 +107,7 @@ async function main() {
         { id: 'KQ2', type: 'escrow_receive', date: '2026-01-20', paymentMethod: '111', amount: 15000000, entries: [{ debit: '111', credit: '3386', amount: 15000000 }] }
       ]
     };
-    const c = makeContext(state, ['js/core/accounting-engine.js', 'js/accounting.js', 'js/modules/reports.js']);
+    const c = makeContext(state, ['js/core/chart-of-accounts.js', 'js/core/accounting-engine.js', 'js/accounting.js', 'js/modules/reports.js']);
     assert.equal(c.getAccountBalance('1386'), 70000000, 'dashboard escrow paid includes opening');
     assert.equal(c.getAccountBalance('3386'), 45000000, 'dashboard escrow received includes opening');
     const codes = c.getReportAccounts().map(a => a.code);
@@ -135,7 +135,7 @@ async function main() {
         { id: 'PC3', type: 'payment', date: '2025-01-18', partnerId: 'TQ', paymentMethod: '111', amount: 9, description: 'Trả nợ NCC', entries: [{ debit: '331', credit: '111', amount: 9 }] }
       ]
     };
-    const c = makeContext(state, ['js/core/accounting-engine.js', 'js/modules/debts.js']);
+    const c = makeContext(state, ['js/core/chart-of-accounts.js', 'js/core/accounting-engine.js', 'js/modules/debts.js']);
     let saved = 0, recalcs = 0, logged = '';
     c.showConfirmModal = async () => true;
     c.saveStateAndSyncVoucher = async () => { saved++; return true; };
@@ -185,7 +185,7 @@ async function main() {
         { id: 'BH6', type: 'sales', date: '2025-01-08', partnerId: 'KH1', partnerName: 'Anh Lực', totalAmount: 1 }
       ]
     };
-    const c = makeContext(state, ['js/utils.js', 'js/core/partner-identity.js', 'js/core/accounting-engine.js', 'js/excel-integration.js', 'js/modules/debts.js']);
+    const c = makeContext(state, ['js/utils.js', 'js/core/partner-identity.js', 'js/core/chart-of-accounts.js', 'js/core/accounting-engine.js', 'js/excel-integration.js', 'js/modules/debts.js']);
     c.showConfirmModal = async () => true;
     let saved = 0;
     c.saveStateAndSyncVoucher = async () => { saved++; return true; };
@@ -216,7 +216,7 @@ async function main() {
       partnerOpeningBalances: { KH1: { debit: 100, credit: 0 }, KH2: { debit: 0, credit: 30 }, NCC1: { debit: 0, credit: 50 }, GONE: { debit: 999, credit: 0 } },
       initialBalances: { '131': { name: 'Phải thu', type: 'debit', balance: 40 }, '331': { name: 'Phải trả', type: 'credit', balance: 50 } }
     };
-    const c = makeContext(state, ['js/core/accounting-engine.js', 'js/accounting.js', 'js/modules/debts.js']);
+    const c = makeContext(state, ['js/core/chart-of-accounts.js', 'js/core/accounting-engine.js', 'js/accounting.js', 'js/modules/debts.js']);
     c.showConfirmModal = async () => true;
     let saved = 0, logged = '';
     c.saveStateAndSyncVoucher = async () => { saved++; return true; };
@@ -257,7 +257,7 @@ async function main() {
         { id: 'BH3', type: 'sales', partnerId: '17', partnerName: '17' }
       ]
     };
-    const c = makeContext(state, ['js/core/accounting-engine.js', 'js/core/partner-merge.js', 'js/modules/partners.js', 'js/modules/partner-audit.js']);
+    const c = makeContext(state, ['js/core/chart-of-accounts.js', 'js/core/accounting-engine.js', 'js/core/partner-merge.js', 'js/modules/partners.js', 'js/modules/partner-audit.js']);
     const deleted = [];
     c.trackDeletedIds = ids => { deleted.push(...ids); };
     c.showConfirmModal = async () => true;
@@ -301,7 +301,7 @@ async function main() {
 
   await test('report catalog uses official TT133/TT200 names', () => {
     const state = { accountingStandard: 'TT133', initialBalances: {}, vouchers: [{ id: 'X', entries: [{ debit: '211', credit: '1111', amount: 1 }, { debit: '156', credit: '1121', amount: 1 }] }] };
-    const c = makeContext(state, ['js/core/accounting-engine.js', 'js/modules/reports.js']);
+    const c = makeContext(state, ['js/core/chart-of-accounts.js', 'js/core/accounting-engine.js', 'js/modules/reports.js']);
     const name = code => c.getReportAccounts().find(a => a.code === code).name;
     assert.equal(name('211'), 'Tài sản cố định');
     assert.equal(name('1111'), 'Tiền Việt Nam');
@@ -312,7 +312,7 @@ async function main() {
 
   await test('report catalog names new tax account 3338', () => {
     const state = { accountingStandard: 'TT133', initialBalances: {}, vouchers: [{ id: 'X', entries: [{ debit: '3338', credit: '111', amount: 1 }] }] };
-    const c = makeContext(state, ['js/core/accounting-engine.js', 'js/modules/reports.js']);
+    const c = makeContext(state, ['js/core/chart-of-accounts.js', 'js/core/accounting-engine.js', 'js/modules/reports.js']);
     assert.equal(c.getReportAccounts().find(a => a.code === '3338').name, 'Thuế bảo vệ môi trường và các loại thuế khác');
   });
 

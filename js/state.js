@@ -8,11 +8,16 @@ let state = {
   companyName: "",
   address: "",
   taxCode: "",
+  preparerName: "",
+  chiefAccountantName: "",
+  directorName: "",
   accountingStandard: "TT200",
   products: [],
   partners: [],
   initialBalances: {},
-  vouchers: []
+  vouchers: [],
+  employees: [],
+  payrolls: []
 };
 
 let lastSavedState = null;
@@ -124,6 +129,8 @@ async function initApp() {
       vouchers: []
     };
   }
+  if (!Array.isArray(state.employees)) state.employees = [];
+  if (!Array.isArray(state.payrolls)) state.payrolls = [];
 
   // Đảm bảo khởi tạo các tài khoản số dư đầu kỳ và số dư đối tác
   if (!state.initialBalances || Object.keys(state.initialBalances).length === 0) {
@@ -356,34 +363,13 @@ function saveState() {
 // Khởi tạo snapshot để so sánh chênh lệch (delta) khi lưu
 function initializeLastSavedState(loadedState) {
   if (!loadedState) return;
+  const clone = value => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
   lastSavedState = {
-    companyName: loadedState.companyName || "",
-    address: loadedState.address || "",
-    taxCode: loadedState.taxCode || "",
-    accountingStandard: loadedState.accountingStandard || "TT200",
-    initialBalances: JSON.parse(JSON.stringify(loadedState.initialBalances || {})),
-    partnerOpeningBalances: JSON.parse(JSON.stringify(loadedState.partnerOpeningBalances || {})),
-    partnerOpeningBalanceTs: JSON.parse(JSON.stringify(loadedState.partnerOpeningBalanceTs || {})),
-    deletedIds: [...(loadedState.deletedIds || [])],
-    deletedCloudKeys: [...(loadedState.deletedCloudKeys || [])],
-    _cloudDatasetIdentity: loadedState._cloudDatasetIdentity || "",
-    _pendingCloudWrite: loadedState._pendingCloudWrite
-      ? JSON.parse(JSON.stringify(loadedState._pendingCloudWrite))
-      : null,
-    cashEntries: JSON.parse(JSON.stringify(loadedState.cashEntries || [])),
-    escrowItems: JSON.parse(JSON.stringify(loadedState.escrowItems || [])),
-    salesTemplatesData: JSON.parse(JSON.stringify(loadedState.salesTemplatesData || [])),
-    users: JSON.parse(JSON.stringify(loadedState.users || [])),
-    schemaVersion: loadedState.schemaVersion || 1,
-    _accountingValid: loadedState._accountingValid,
-    _accountingValidTs: loadedState._accountingValidTs,
-    _recalcWatermark: loadedState._recalcWatermark
-      ? JSON.parse(JSON.stringify(loadedState._recalcWatermark))
-      : null,
-    vouchers: new Map((loadedState.vouchers || []).map(v => [v.id, JSON.parse(JSON.stringify(v))])),
-    products: new Map((loadedState.products || []).map(p => [p.id, JSON.parse(JSON.stringify(p))])),
-    partners: new Map((loadedState.partners || []).map(p => [p.id, JSON.parse(JSON.stringify(p))])),
+    vouchers: new Map((loadedState.vouchers || []).map(v => [v.id, clone(v)])),
+    products: new Map((loadedState.products || []).map(p => [p.id, clone(p)])),
+    partners: new Map((loadedState.partners || []).map(p => [p.id, clone(p)])),
   };
+  STATE_METADATA_KEYS.forEach(key => { lastSavedState[key] = clone(loadedState[key]); });
 }
 
 function logDeltaActivity(diffResult, currentVouchers, currentProducts, currentPartners) {
@@ -497,6 +483,24 @@ function queueBackgroundCloudPush(pendingToken = null) {
   });
 }
 
+let localSaveFailed = false;
+let localSaveRetryTimer = null;
+
+// A failed SQLite write must not be silent: lock entry (write gate), tell the
+// user, and retry once in 5s (one pending retry at a time).
+function handleLocalSaveFailure(reason) {
+  localSaveFailed = true;
+  window.localPersistenceHealthy = false;
+  const message = `Lưu dữ liệu trên máy thất bại: ${reason}`;
+  if (window.cloudWriteGate) window.cloudWriteGate.setStatus("error", message);
+  if (typeof showToast === "function") showToast(`${message} Sẽ thử lại sau 5 giây.`, "danger");
+  if (localSaveRetryTimer) return;
+  localSaveRetryTimer = setTimeout(() => {
+    localSaveRetryTimer = null;
+    void saveStateSync();
+  }, 5000);
+}
+
 async function executeSaveState(sync = false, options = {}) {
   if (!saveStateIsDirty) return;
 
@@ -536,10 +540,10 @@ async function executeSaveState(sync = false, options = {}) {
           console.error('[StateFile] Ghi file full thất bại:', result && result.error);
         }
       } else {
-        if (state.companyName !== lastSavedState.companyName || state.taxCode !== lastSavedState.taxCode || state.address !== lastSavedState.address) {
+        if (["companyName", "taxCode", "address"].some(key => (state[key] || "") !== (lastSavedState[key] || ""))) {
           pushActivityLogDirectly("Thay đổi cấu hình", `Đã cập nhật thông tin doanh nghiệp (Tên: ${state.companyName})`);
         }
-        if (state.accountingStandard !== lastSavedState.accountingStandard) {
+        if ((state.accountingStandard || "TT200") !== (lastSavedState.accountingStandard || "TT200")) {
           pushActivityLogDirectly("Thay đổi cấu hình", `Đã chuyển chế độ kế toán sang ${state.accountingStandard}`);
         }
 
@@ -553,10 +557,12 @@ async function executeSaveState(sync = false, options = {}) {
             state.partners || []
           );
 
-          savePhase = "refresh-delta";
-          const refreshedDiff = buildStateDelta(state, lastSavedState);
+          // logDeltaActivity only appends to actionLogs; re-diff just that key.
+          if (!sameJsonValue(state.actionLogs, lastSavedState.actionLogs)) {
+            diffResult.delta.metadata.actionLogs = JSON.stringify(state.actionLogs || null);
+          }
           // The live entity objects may change while IPC is awaiting SQLite.
-          const committedDelta = JSON.parse(JSON.stringify(refreshedDiff.delta));
+          const committedDelta = JSON.parse(JSON.stringify(diffResult.delta));
           savePhase = "persist-delta";
           const result = await persistStateDelta(committedDelta);
           if (result && result.ok) {
@@ -578,15 +584,22 @@ async function executeSaveState(sync = false, options = {}) {
       }
 
       if (!persisted) {
+        handleLocalSaveFailure("SQLite từ chối ghi dữ liệu.");
         return;
       }
 
       if (saveStateRevision === revisionAtStart) {
         saveStateIsDirty = false;
       }
+      if (localSaveFailed) {
+        localSaveFailed = false;
+        window.localPersistenceHealthy = true;
+        if (window.cloudWriteGate) window.cloudWriteGate.setStatus("ready", "Đã lưu lại dữ liệu trên máy.");
+      }
       return true;
     } catch (err) {
       console.error("Lỗi khi lưu trạng thái dữ liệu:", err);
+      handleLocalSaveFailure(err && err.message ? err.message : String(err));
     } finally {
       clearTimeout(slowSaveTimer);
       const elapsed = Date.now() - saveStartedAt;

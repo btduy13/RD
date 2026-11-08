@@ -7,8 +7,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getBootSessionId: () => ipcRenderer.invoke('get-boot-session-id'),
   // Mở URL bên ngoài bằng trình duyệt mặc định
   openExternalUrl: (url) => ipcRenderer.invoke('open-external-url', url),
-  // Mở trang tải bộ cài mới (GitHub Releases) trong trình duyệt
-  triggerAutoUpdate: (downloadUrl) => ipcRenderer.invoke('trigger-auto-update', downloadUrl),
   // Kích hoạt tải và cài đặt cập nhật trực tiếp
   downloadAndInstallUpdate: (url) => ipcRenderer.invoke('download-and-install-update', url),
   // Đăng ký lắng nghe tiến trình tải về
@@ -17,8 +15,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readExcelFile: (filename) => ipcRenderer.invoke('read-excel-file', filename),
   // Sao lưu thủ công (renderer gửi JSON data lên main để ghi file)
   saveBackupOnExit: (jsonData) => ipcRenderer.invoke('save-backup-on-exit', jsonData),
-  // Lấy đường dẫn thư mục backup
-  getBackupDir: () => ipcRenderer.invoke('get-backup-dir'),
   // Mở trực tiếp thư mục backup do ứng dụng quản lý
   openBackupFolder: () => ipcRenderer.invoke('open-backup-folder'),
   // Lưu file Excel vào Downloads và mở bằng Excel/ứng dụng mặc định
@@ -39,11 +35,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Đọc state từ file JSON
   readStateFile: () => ipcRenderer.invoke('read-state-file'),
   getDatabaseHealth: () => ipcRenderer.invoke('get-database-health'),
-  // Đọc file backup gần nhất để phục hồi khi state bị hỏng
-  readLatestBackup: () => ipcRenderer.invoke('read-latest-backup'),
   // Ghi phần chênh lệch (delta) ra SQLite
   writeStateDelta: (delta) => ipcRenderer.invoke('write-state-delta', delta),
-  listTemplateFiles: () => ipcRenderer.invoke('list-template-files'),
   confirm: (message) => ipcRenderer.sendSync('show-confirm-dialog', message),
 });
 

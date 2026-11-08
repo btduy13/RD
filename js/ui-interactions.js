@@ -312,6 +312,7 @@ function initMouseInteractions() {
         const form = visibleOverlays[0].querySelector("form");
         if (form) {
           e.preventDefault();
+          if (window.assertCanWriteRole?.() === false) return;
           if (typeof form.requestSubmit === "function") {
             form.requestSubmit();
           } else {
@@ -859,19 +860,15 @@ function updateBreadcrumb(tabId, subTabId) {
 // Date preset controller
 function setDatePreset(preset, fromId, toId, filterFnName, btnEl) {
   var now = new Date();
-  var from, to;
-  const tzOffset = now.getTimezoneOffset() * 60000;
-  to = new Date(now.getTime() - tzOffset).toISOString().split('T')[0];
+  var from, to = getLocalDateString(now);
   switch (preset) {
     case 'today':
       from = to;
       break;
     case 'week':
-      // Tính thứ 2 đầu tuần theo giờ địa phương
+      // Thứ 2 đầu tuần theo giờ địa phương
       var dayOfWeek = now.getDay();
-      var distance = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      var d = new Date(now.getTime() + distance * 86400000);
-      from = new Date(d.getTime() - tzOffset).toISOString().split('T')[0];
+      from = getLocalDateString(new Date(now.getFullYear(), now.getMonth(), now.getDate() + (dayOfWeek === 0 ? -6 : 1 - dayOfWeek)));
       break;
     case 'month':
       from = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';
@@ -1578,9 +1575,9 @@ function showF3LookupModal(activeInput, type) {
         const stockVal = item.actualStock !== undefined ? item.actualStock : (item.stock || 0);
         return `
           <tr class="f3-lookup-row ${isSelected}" data-index="${idx}">
-            <td style="font-weight: 600;">${escapeHtmlAttr(item.id)}</td>
-            <td>${escapeHtmlAttr(item.name)}</td>
-            <td>${escapeHtmlAttr(item.unit || 'Cái')}</td>
+            <td style="font-weight: 600;">${escapeHtmlText(item.id)}</td>
+            <td>${escapeHtmlText(item.name)}</td>
+            <td>${escapeHtmlText(item.unit || 'Cái')}</td>
             <td style="text-align: right; font-weight: 500;">${stockVal.toLocaleString('vi-VN')}</td>
             <td style="text-align: right; color: var(--text-secondary);">${costStr}</td>
           </tr>
@@ -1595,11 +1592,11 @@ function showF3LookupModal(activeInput, type) {
         const label = typeLabels[item.type] || item.type || 'Khách hàng';
         return `
           <tr class="f3-lookup-row ${isSelected}" data-index="${idx}">
-            <td>${escapeHtmlAttr(item.name)}</td>
-            <td style="color: var(--text-secondary);">${escapeHtmlAttr(item.address || '')}</td>
-            <td style="font-weight: 600;">${escapeHtmlAttr(item.id)}</td>
-            <td>${escapeHtmlAttr(item.phone || '')}</td>
-            <td>${label}</td>
+            <td>${escapeHtmlText(item.name)}</td>
+            <td style="color: var(--text-secondary);">${escapeHtmlText(item.address || '')}</td>
+            <td style="font-weight: 600;">${escapeHtmlText(item.id)}</td>
+            <td>${escapeHtmlText(item.phone || '')}</td>
+            <td>${escapeHtmlText(label)}</td>
           </tr>
         `;
       }

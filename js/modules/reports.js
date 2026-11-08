@@ -10,62 +10,25 @@ function escapeReportText(value) {
     .replace(/'/g, "&#039;");
 }
 
-// Danh mục tên tài khoản theo TT133/TT200. Chỉ dùng để đặt tên cho tài khoản thực sự có số liệu
-// (số dư đầu kỳ hoặc bút toán) — không tự thêm tài khoản bằng 0 vào báo cáo.
-const REPORT_ACCOUNT_NAME_CATALOG = {
-  "1111": "Tiền Việt Nam",
-  "1121": "Tiền Việt Nam",
-  "152": "Nguyên liệu, vật liệu",
-  "153": "Công cụ, dụng cụ",
-  "154": "Chi phí sản xuất, kinh doanh dở dang",
-  "155": "Thành phẩm",
-  "214": "Hao mòn tài sản cố định",
-  "242": "Chi phí trả trước",
-  "333": "Thuế và các khoản phải nộp Nhà nước",
-  "3334": "Thuế thu nhập doanh nghiệp",
-  "3338": "Thuế bảo vệ môi trường và các loại thuế khác",
-  "334": "Phải trả người lao động",
-  "338": "Phải trả, phải nộp khác",
-  "341": "Vay và nợ thuê tài chính",
-  "421": "Lợi nhuận sau thuế chưa phân phối",
-  "515": "Doanh thu hoạt động tài chính",
-  "5211": "Chiết khấu thương mại",
-  "5212": "Giảm giá hàng bán",
-  "5213": "Hàng bán bị trả lại",
-  "635": "Chi phí tài chính",
-  "641": "Chi phí bán hàng",
-  "711": "Thu nhập khác",
-  "811": "Chi phí khác",
-  "821": "Chi phí thuế thu nhập doanh nghiệp",
-  "911": "Xác định kết quả kinh doanh"
-};
-
+// Tên tài khoản lấy từ danh mục theo chế độ (js/core/chart-of-accounts.js). Chỉ dùng để đặt tên cho tài
+// khoản thực sự có số liệu (số dư đầu kỳ hoặc bút toán) — không tự thêm tài khoản bằng 0 vào báo cáo.
+// Mã không có trong danh mục chế độ hiện hành thì thử tên ở danh mục chế độ kia (dữ liệu cũ, vd. 641 dưới TT133).
 function getReportAccountCatalogName(code, std) {
-  // Tên khác nhau giữa hai chế độ: TT133 gộp TSCĐ vào 211 và chi phí bán hàng + QLDN vào 642.
-  if (code === "642") return std === "TT200" ? "Chi phí quản lý doanh nghiệp" : "Chi phí quản lý kinh doanh";
-  if (code === "211") return std === "TT200" ? "Tài sản cố định hữu hình" : "Tài sản cố định";
-  return REPORT_ACCOUNT_NAME_CATALOG[code] || "";
+  if (typeof getAccountName !== "function") return "";
+  return getAccountName(code, std) || getAccountName(code, isTT99Family(std) ? "TT133" : "TT99");
+}
+
+// Tài khoản luôn hiện trên báo cáo (kể cả chưa có số liệu); ký quỹ theo chế độ: TT99 244/344, TT133 1386/3386.
+function getReportBaseAccountCodes(std) {
+  const tt99 = isTT99Family(std);
+  return ["111", "112", "131", "1331", "1388", "156", tt99 ? "244" : "1386", "331", "3331", tt99 ? "344" : "3386", "411", "511", "632"];
 }
 
 function getReportAccounts() {
   const std = state.accountingStandard;
 
   // Danh sách các tài khoản sử dụng
-  const accounts = [
-    { code: "111", name: "Tiền mặt tại quỹ" },
-    { code: "112", name: "Tiền gửi ngân hàng" },
-    { code: "131", name: "Phải thu của khách hàng" },
-    { code: "1331", name: "Thuế GTGT đầu vào được khấu trừ" },
-    { code: "1388", name: "Phải thu khác" },
-    { code: "156", name: "Hàng hóa" },
-    { code: std === "TT200" ? "244" : "1386", name: "Phải thu ký quỹ, ký cược" },
-    { code: "331", name: "Phải trả cho người bán" },
-    { code: "3331", name: "Thuế GTGT phải nộp" },
-    { code: std === "TT200" ? "344" : "3386", name: "Phải trả nhận ký quỹ, ký cược" },
-    { code: "411", name: "Vốn góp của chủ sở hữu" },
-    { code: "511", name: "Doanh thu bán hàng" },
-    { code: "632", name: "Giá vốn hàng bán" }
-  ];
+  const accounts = getReportBaseAccountCodes(std).map(code => ({ code, name: getReportAccountCatalogName(code, std) || `Tài khoản ${code}` }));
 
   const byCode = new Map(accounts.map(account => [account.code, account]));
   const include = (rawCode, name) => {
@@ -75,7 +38,7 @@ function getReportAccounts() {
   };
   Object.entries(state.initialBalances || {}).forEach(([code, balance]) => {
     // TT133: số dư 244/344 được gộp vào 1386/3386 (getReportOpeningBalance), không hiện dòng riêng.
-    if (typeof isHiddenOpeningAlias === "function" && isHiddenOpeningAlias(code, std)) return;
+    if (isHiddenOpeningAlias(code, std)) return;
     include(code, balance && balance.name);
   });
   (state.vouchers || []).forEach(v => (v.entries || []).forEach(e => {
@@ -85,10 +48,7 @@ function getReportAccounts() {
 }
 
 function getReportOpeningBalance(acctCode) {
-  if (typeof getOpeningBalanceForAccount === "function") {
-    return getOpeningBalanceForAccount(state.initialBalances, acctCode, state.accountingStandard);
-  }
-  return (state.initialBalances && state.initialBalances[acctCode]) || { type: "debit", balance: 0 };
+  return getOpeningBalanceForAccount(state.initialBalances, acctCode, state.accountingStandard);
 }
 
 function populateReportAccountDropdown() {
@@ -161,7 +121,7 @@ function generateReport() {
       <div style="text-align:center; font-family:'Times New Roman', serif; color:#000; margin-bottom:20px;">
         <h2 style="font-size: 20px; font-weight: bold; text-transform: uppercase;">SỔ NHẬT KÝ CHUNG</h2>
         <p style="font-style: italic; font-size:13px;">Niên độ kế toán năm ${new Date().getFullYear()}</p>
-        <p style="font-size:12px;">Áp dụng theo ${std === 'TT200' ? 'Thông tư 200/2014/TT-BTC' : 'Thông tư 133/2016/TT-BTC'}</p>
+        <p style="font-size:12px;">Áp dụng theo ${isTT99Family(std) ? 'Thông tư 99/2025/TT-BTC' : 'Thông tư 133/2016/TT-BTC'}</p>
       </div>
 
       <table class="data-table" style="width:100%; font-family:'Times New Roman', serif; border:1px solid #000; border-collapse:collapse; font-size:12px;">
@@ -414,28 +374,25 @@ function generateReport() {
   container.innerHTML = html;
 }
 
-// Bảng chữ ký kế toán Việt Nam mẫu
-function getReportSignaturesHTML() {
+// Khối chữ ký (B6, Luật Kế toán Đ29.1.d): BCTC/sổ — TT99 "Người lập", TT133 "Người lập biểu", kế toán trưởng, người đại diện
+// theo pháp luật; tờ khai thuế (kind "tax") chỉ có người nộp thuế hoặc đại diện hợp pháp. Tên lấy từ Cài đặt doanh nghiệp.
+function getReportSignaturesHTML(kind) {
+  const box = (title, hint, name, dateLine) => `
+      <div style="width:30%;">
+        ${dateLine ? `<span style="font-style:italic;">Lập, ngày … tháng … năm …</span><br>` : ""}
+        <span style="font-weight:bold;">${title}</span><br>
+        <span style="font-style:italic; font-size:11px;">${hint}</span>
+        <div style="height:60px;"></div>
+        <span style="font-weight:bold;">${escapeReportText(name || "")}</span>
+      </div>`;
+  const boxes = kind === "tax"
+    ? `<div style="width:30%;"></div><div style="width:30%;"></div>` +
+      box("NGƯỜI NỘP THUẾ hoặc ĐẠI DIỆN HỢP PHÁP CỦA NGƯỜI NỘP THUẾ", "(Chữ ký, ghi rõ họ tên; chức vụ và đóng dấu (nếu có)/Ký điện tử)", state.directorName)
+    : box(isTT99Family(state.accountingStandard) ? "NGƯỜI LẬP" : "NGƯỜI LẬP BIỂU", "(Ký, họ tên)", state.preparerName) +
+      box("KẾ TOÁN TRƯỞNG", "(Ký, họ tên)", state.chiefAccountantName) +
+      box("NGƯỜI ĐẠI DIỆN THEO PHÁP LUẬT", "(Ký, họ tên, đóng dấu)", state.directorName, true); // B01-DN TT99: ngày lập trên cột đại diện
   return `
-    <div style="display:flex; justify-content:space-between; margin-top:30px; font-family:'Times New Roman', serif; color:#000; text-align:center; font-size:12px;">
-      <div style="width:30%;">
-        <span style="font-weight:bold;">Người lập biểu</span><br>
-        <span style="font-style:italic; font-size:11px;">(Ký, ghi rõ họ tên)</span>
-        <div style="height:60px;"></div>
-        <span style="font-weight:bold;">Kế toán viên</span>
-      </div>
-      <div style="width:30%;">
-        <span style="font-weight:bold;">Kế toán trưởng</span><br>
-        <span style="font-style:italic; font-size:11px;">(Ký, ghi rõ họ tên)</span>
-        <div style="height:60px;"></div>
-        <span style="font-weight:bold;">Nguyễn Văn Minh</span>
-      </div>
-      <div style="width:30%;">
-        <span style="font-weight:bold;">Giám đốc</span><br>
-        <span style="font-style:italic; font-size:11px;">(Ký, đóng dấu, ghi rõ họ tên)</span>
-        <div style="height:60px;"></div>
-        <span style="font-weight:bold;">Lê Hoàng Đông</span>
-      </div>
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:30px; font-family:'Times New Roman', serif; color:#000; text-align:center; font-size:12px;">${boxes}
     </div>
   `;
 }

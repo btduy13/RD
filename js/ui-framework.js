@@ -10,6 +10,8 @@ let tabDirtyStates = {
   debts: true,
   cash: true,
   reports: true,
+  tax: true,
+  payroll: true,
   settings: true
 };
 
@@ -79,6 +81,11 @@ function renderTabIfNeeded(tabId) {
       if (typeof populateReportAccountDropdown === "function") populateReportAccountDropdown();
       if (typeof resetReportRowLimit === "function") resetReportRowLimit();
       if (typeof generateReport === "function") generateReport();
+    } else if (tabId === "tax") {
+      if (typeof renderTaxTab === "function") renderTaxTab();
+      if (typeof renderTaxCalendar === "function") renderTaxCalendar();
+    } else if (tabId === "payroll") {
+      if (typeof renderPayrollTab === "function") renderPayrollTab();
     } else if (tabId === "settings") {
       if (typeof updateErrorLogsUI === "function") {
         updateErrorLogsUI();
@@ -197,6 +204,8 @@ function switchTab(tabId) {
     debts: { title: "Quản lý Công nợ", sub: "Sổ tổng hợp chi tiết công nợ phải thu (TK 131) và phải trả (TK 331)" },
     cash: { title: "Quỹ tiền Thu & Chi", sub: "Sổ quỹ tiền mặt, tiền gửi ngân hàng và hạch toán phiếu thu/chi" },
     reports: { title: "Báo cáo kế toán", sub: "Sổ Nhật ký chung, Sổ Cái và Bảng Cân đối phát sinh" },
+    tax: { title: "Thuế & Báo cáo tài chính", sub: "Tờ khai GTGT, TNDN tạm tính, BCTC và lịch nộp thuế" },
+    payroll: { title: "Tiền lương & Thuế TNCN", sub: "Nhân viên, bảng lương, BHXH/BHYT/BHTN/KPCĐ và thuế TNCN" },
     settings: { title: "Thiết lập hệ thống", sub: "Cấu hình doanh nghiệp và quản lý cơ sở dữ liệu" }
   };
 
@@ -386,6 +395,19 @@ function renderRdBrandedHeader(qrAmount, withQr, qrAddInfo) {
         </div>`;
 }
 
+// Mẫu số / ký hiệu / số / ngày hóa đơn (C9) và dòng "Điều chỉnh giảm cho hóa đơn…" (TT 91/2026 Đ10) nếu có.
+function voucherInvoiceInfoHtml(v) {
+  if (!v || (!v.invoiceNo && !v.invoiceNote)) return "";
+  const parts = [
+    v.invoiceForm ? `Mẫu số ${v.invoiceForm}` : "",
+    v.invoiceSymbol ? `Ký hiệu ${v.invoiceSymbol}` : "",
+    v.invoiceNo ? `Số HĐ ${v.invoiceNo}` : "",
+    v.invoiceDate ? `ngày ${formatDateDisplay(v.invoiceDate)}` : "",
+    v.partnerTaxCode ? `MST ${v.partnerTaxCode}` : ""
+  ].filter(Boolean).join(" · ");
+  return `<div style="text-align:right; font-size: 12px;">${escapeHtmlText(parts)}${v.invoiceNote ? `<div style="font-style:italic;">${escapeHtmlText(v.invoiceNote)}</div>` : ""}</div>`;
+}
+
 function viewVoucher(id) {
   window.currentViewingVoucherId = id;
   const v = state.vouchers.find(v => v.id === id);
@@ -396,7 +418,8 @@ function viewVoucher(id) {
     modalTitle.innerText = "Xem Chứng từ Kế toán";
   }
 
-  const partnerName = getPartnerNameForVoucher(v);
+  // Tên/diễn giải đến từ Excel và máy khác: escape trước khi chèn vào HTML in.
+  const partnerName = escapeHtmlText(getPartnerNameForVoucher(v));
   const std = state.accountingStandard;
   const printArea = document.getElementById("voucher-print-area");
   if (!printArea) return;
@@ -407,16 +430,16 @@ function viewVoucher(id) {
     relatedSalesVoucherHtml = `
       <div class="voucher-info-row" style="margin-top: 6px; padding: 6px 10px; background: rgba(14, 165, 233, 0.05); border: 1px dashed var(--color-primary); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: space-between; gap: 8px;">
         <span class="info-label" style="color: var(--color-primary); font-weight: 600; font-family: 'Times New Roman', serif; font-size: 13px;">- Hóa đơn bán hàng liên quan:</span>
-        <span style="font-weight: bold; color: var(--color-primary); text-decoration: underline; cursor: pointer; font-family: 'Times New Roman', serif; font-size: 13px;" onclick="closeModal('modal-view-voucher'); setTimeout(() => { viewVoucher('${escapeHtmlAttr(relatedSales.id)}'); }, 200);">${relatedSales.id} (${formatVND(relatedSales.totalAmount)})</span>
+        <span style="font-weight: bold; color: var(--color-primary); text-decoration: underline; cursor: pointer; font-family: 'Times New Roman', serif; font-size: 13px;" onclick="closeModal('modal-view-voucher'); setTimeout(() => { viewVoucher('${escapeHtmlAttr(relatedSales.id)}'); }, 200);">${escapeHtmlText(relatedSales.id)} (${formatVND(relatedSales.totalAmount)})</span>
       </div>
     `;
   }
 
   let content = "";
-  const companyName = state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông";
-  const companyAddr = (state.address || "255 Trương Công Định, Phường Vũng Tàu, TP. Hồ Chí Minh")
-    .replace(/Thành\s+Phố/giu, "TP.");
-  const companyTax = state.taxCode || "0100101438";
+  const companyName = escapeHtmlText(state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông");
+  const companyAddr = escapeHtmlText((state.address || "255 Trương Công Định, Phường Vũng Tàu, TP. Hồ Chí Minh")
+    .replace(/Thành\s+Phố/giu, "TP."));
+  const companyTax = escapeHtmlText(state.taxCode || "0100101438");
 
   // TIÊU ĐỀ CHỨNG TỪ THEO CHUẨN IN ẤN
   if (v.type === "purchase_order") {
@@ -461,7 +484,7 @@ function viewVoucher(id) {
         </div>
         
         <div class="voucher-entries-note">
-          <span>Số: <span class="template-bold">${v.id}</span></span><br>
+          <span>Số: <span class="template-bold">${escapeHtmlText(v.id)}</span></span><br>
           <span style="font-size: 13px; color: #666; font-style: italic;">(Không hạch toán kho & kế toán)</span>
         </div>
         
@@ -472,7 +495,7 @@ function viewVoucher(id) {
           </div>
           <div class="voucher-info-row">
             <span class="info-label">- Diễn giải:</span>
-            <span class="info-dotted">${v.description}</span>
+            <span class="info-dotted">${escapeHtmlText(v.description)}</span>
           </div>
         </div>
         
@@ -501,9 +524,9 @@ function viewVoucher(id) {
       return `
                 <tr>
                   <td style="border:1px solid #000; padding:4px; text-align:center;">${idx + 1}</td>
-                  <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${prod.name}</td>
-                  <td style="border:1px solid #000; padding:4px; text-align:center;">${prod.unit || "Cái"}</td>
-                  <td style="border:1px solid #000; padding:4px; text-align:right;">${item.qty}</td>
+                  <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${escapeHtmlText(prod.name)}</td>
+                  <td style="border:1px solid #000; padding:4px; text-align:center;">${escapeHtmlText(prod.unit || "Cái")}</td>
+                  <td style="border:1px solid #000; padding:4px; text-align:right;">${escapeHtmlText(item.qty)}</td>
                   <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVNDNoSymbol(item.price)}</td>
                   <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVNDNoSymbol(amt)}</td>
                   <td style="border:1px solid #000; padding:4px; text-align:center;">${gcVal}</td>
@@ -603,12 +626,12 @@ function viewVoucher(id) {
         <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size: 12.5px;">
           <div><strong>Nhà cung cấp:</strong> <span style="font-size: 14px; font-weight:bold;">${partnerName}</span></div>
           <div style="text-align:right;"><strong>Ngày:</strong> ${formatDateDisplay(v.date)}</div>
-          <div><strong>Điện thoại:</strong> <span>${partner_p.phone || '-'}</span></div>
-          <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size: 13px;">${v.id}</span></div>
-          <div style="grid-column:span 2;"><strong>Địa chỉ NCC:</strong> <span>${partner_p.address || '-'}</span></div>
-          <div style="grid-column:span 2;"><strong>Diễn giải:</strong> ${v.description || `Nhập kho hàng mua`}</div>
+          <div><strong>Điện thoại:</strong> <span>${escapeHtmlText(partner_p.phone || '-')}</span></div>
+          <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size: 13px;">${escapeHtmlText(v.id)}</span></div>${voucherInvoiceInfoHtml(v)}
+          <div style="grid-column:span 2;"><strong>Địa chỉ NCC:</strong> <span>${escapeHtmlText(partner_p.address || '-')}</span></div>
+          <div style="grid-column:span 2;"><strong>Diễn giải:</strong> ${escapeHtmlText(v.description) || `Nhập kho hàng mua`}</div>
           <div style="grid-column:span 2; font-size: 14px; color:#555;">
-            Nợ TK: <strong>156</strong>${v.taxAmount > 0 && state.accountingStandard !== 'TT133' ? ' / Nợ TK: <strong>1331</strong>' : ''} &nbsp;|&nbsp; Có TK: <strong>${v.paymentMethod || '331'}</strong>
+            Nợ TK: <strong>156</strong>${v.taxAmount > 0 && !v.vatNonDeductible ? ' / Nợ TK: <strong>1331</strong>' : ''} &nbsp;|&nbsp; Có TK: <strong>${escapeHtmlText(v.paymentMethod || '331')}</strong>
           </div>
         </div>
         <!-- Bảng sản phẩm -->
@@ -639,9 +662,9 @@ function viewVoucher(id) {
 
       return `<tr>
                 <td style="border:1px solid #000; padding:4px; text-align:center;">${idx + 1}</td>
-                <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${displayName}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:center;">${prod.unit || 'Cái'}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">${item.qty || 0}</td>
+                <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${escapeHtmlText(displayName)}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:center;">${escapeHtmlText(prod.unit || 'Cái')}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:right;">${escapeHtmlText(item.qty || 0)}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVNDNoSymbol(item.price || 0)}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVNDNoSymbol(amt)}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:center;">${gcVal}</td>
@@ -658,7 +681,7 @@ function viewVoucher(id) {
               <td style="border:1px solid #000;"></td>
             </tr>` : ""}
             ${v.taxAmount > 0 ? `<tr>
-              <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right;">Thuế GTGT (${v.taxRate || 0}%):</td>
+              <td colspan="5" style="border:1px solid #000; padding:4px 8px; text-align:right;">Thuế GTGT (${escapeHtmlText(v.taxRate || 0)}%):</td>
               <td style="border:1px solid #000; padding:4px 8px; text-align:right;">${formatVNDNoSymbol(v.taxAmount || 0)}</td>
               <td style="border:1px solid #000;"></td>
             </tr>` : ''}
@@ -673,7 +696,7 @@ function viewVoucher(id) {
         <div style="margin-bottom:6px; font-size: 13px;">
           <strong>Số tiền viết bằng chữ:</strong> <span style="font-style:italic;">${numberToVietnameseWords(v.totalAmount)}</span>
         </div>
-        ${v.note ? `<div style="margin-bottom:10px; font-size: 13px; border:1px dashed #888; padding:5px 8px; border-radius:4px;"><strong>Ghi chú:</strong> ${v.note}</div>` : ''}
+        ${v.note ? `<div style="margin-bottom:10px; font-size: 13px; border:1px dashed #888; padding:5px 8px; border-radius:4px;"><strong>Ghi chú:</strong> ${escapeHtmlText(v.note)}</div>` : ''}
         <!-- Chữ ký -->
         <div class="voucher-signatures" style="display:flex; justify-content:space-between; text-align:center; margin-top:12px; font-size: 12.5px;">
           ${['Người lập phiếu', 'Người giao hàng', 'Thủ kho', 'Kế toán trưởng', 'Giám đốc'].map((s, i) => `
@@ -728,12 +751,12 @@ function viewVoucher(id) {
         <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size: 12.5px;">
           <div><strong>Nhà cung cấp:</strong> <span style="font-size: 14px; font-weight:bold;">${partnerName}</span></div>
           <div style="text-align:right;"><strong>Ngày:</strong> ${formatDateDisplay(v.date)}</div>
-          <div><strong>Điện thoại:</strong> <span>${partner_pr.phone || '-'}</span></div>
-          <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size: 13px;">${v.id}</span></div>
-          <div style="grid-column:span 2;"><strong>Địa chỉ NCC:</strong> <span>${partner_pr.address || '-'}</span></div>
-          <div style="grid-column:span 2;"><strong>Lý do trả:</strong> ${v.description}</div>
+          <div><strong>Điện thoại:</strong> <span>${escapeHtmlText(partner_pr.phone || '-')}</span></div>
+          <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size: 13px;">${escapeHtmlText(v.id)}</span></div>${voucherInvoiceInfoHtml(v)}
+          <div style="grid-column:span 2;"><strong>Địa chỉ NCC:</strong> <span>${escapeHtmlText(partner_pr.address || '-')}</span></div>
+          <div style="grid-column:span 2;"><strong>Lý do trả:</strong> ${escapeHtmlText(v.description)}</div>
           <div style="grid-column:span 2; font-size: 14px; color:#555;">
-            Nợ TK: <strong>331</strong>${!isTT133pr && v.taxAmount > 0 ? ' / Nợ TK: <strong>1331</strong>' : ''} &nbsp;|&nbsp; Có TK: <strong>156</strong>
+            Nợ TK: <strong>331</strong> &nbsp;|&nbsp; Có TK: <strong>156</strong>${v.taxAmount > 0 ? ' / Có TK: <strong>1331</strong>' : ''}
           </div>
         </div>
         <!-- Bảng sản phẩm -->
@@ -756,9 +779,9 @@ function viewVoucher(id) {
       const discountPercent = Number(item.discount) || 0;
       return `<tr>
                 <td style="border:1px solid #000; padding:4px; text-align:center;">${idx + 1}</td>
-                <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${prod.name}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:center;">${prod.unit || 'Cái'}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">${item.qty || 0}</td>
+                <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${escapeHtmlText(prod.name)}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:center;">${escapeHtmlText(prod.unit || 'Cái')}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:right;">${escapeHtmlText(item.qty || 0)}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVNDNoSymbol(item.price || 0)}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVNDNoSymbol(amt)}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:center;">${discountPercent > 0 ? discountPercent : "0"}</td>
@@ -832,12 +855,12 @@ function viewVoucher(id) {
         <div style="display:grid; grid-template-columns:2fr 1fr; row-gap:3px; column-gap:12px; margin-bottom:8px; font-size: 12.5px;">
           <div><strong>Khách hàng trả lại:</strong> <span style="font-size: 14px; font-weight:bold;">${partnerName}</span></div>
           <div style="text-align:right;"><strong>Ngày:</strong> ${formatDateDisplay(v.date)}</div>
-          <div><strong>Điện thoại:</strong> <span>${partner_sr.phone || '-'}</span></div>
-          <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size: 13px;">${v.id}</span></div>
-          <div style="grid-column:span 2;"><strong>Địa chỉ:</strong> <span>${partner_sr.address || '-'}</span></div>
-          <div style="grid-column:span 2;"><strong>Lý do trả:</strong> ${v.description}</div>
+          <div><strong>Điện thoại:</strong> <span>${escapeHtmlText(partner_sr.phone || '-')}</span></div>
+          <div style="text-align:right;"><strong>Số:</strong> <span style="font-family:monospace; font-weight:bold; font-size: 13px;">${escapeHtmlText(v.id)}</span></div>${voucherInvoiceInfoHtml(v)}
+          <div style="grid-column:span 2;"><strong>Địa chỉ:</strong> <span>${escapeHtmlText(partner_sr.address || '-')}</span></div>
+          <div style="grid-column:span 2;"><strong>Lý do trả:</strong> ${escapeHtmlText(v.description)}</div>
           <div style="grid-column:span 2; font-size: 14px; color:#555;">
-            Nợ TK: <strong>511</strong>${v.taxAmount > 0 ? ', <strong>3331</strong>' : ''} &nbsp;|&nbsp; Có TK: <strong>${creditAccSR}</strong>
+            Nợ TK: <strong>511</strong>${v.taxAmount > 0 ? ', <strong>3331</strong>' : ''} &nbsp;|&nbsp; Có TK: <strong>${escapeHtmlText(creditAccSR)}</strong>
             &nbsp;&nbsp; Nợ TK: <strong>156</strong> / Có TK: <strong>632</strong> (nhập lại kho)
           </div>
         </div>
@@ -862,9 +885,9 @@ function viewVoucher(id) {
       const disc = discPercent > 0 ? discPercent + '%' : '0';
       return `<tr>
                 <td style="border:1px solid #000; padding:4px; text-align:center;">${idx + 1}</td>
-                <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${prod.name}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:center;">${prod.unit || 'Cái'}</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">${item.qty || 0}</td>
+                <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${escapeHtmlText(prod.name)}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:center;">${escapeHtmlText(prod.unit || 'Cái')}</td>
+                <td style="border:1px solid #000; padding:4px; text-align:right;">${escapeHtmlText(item.qty || 0)}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVNDNoSymbol(item.price || 0)}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVNDNoSymbol(amt)}</td>
                 <td style="border:1px solid #000; padding:4px; text-align:center;">${disc}</td>
@@ -940,18 +963,19 @@ function viewVoucher(id) {
           </div>
           
           <div>
-            <strong>Điện thoại:</strong> <span>${(getPartnerForVoucher(v) || {}).phone || "-"}</span>
+            <strong>Điện thoại:</strong> <span>${escapeHtmlText((getPartnerForVoucher(v) || {}).phone || "-")}</span>
           </div>
           <div style="text-align: right;">
-            <strong>Số:</strong> <span style="font-family: monospace; font-weight: bold; font-size: 13px;">${v.id}</span>
+            <strong>Số:</strong> <span style="font-family: monospace; font-weight: bold; font-size: 13px;">${escapeHtmlText(v.id)}</span>
+            ${voucherInvoiceInfoHtml(v)}
           </div>
 
           <div style="grid-column: span 2;">
-            <strong>Địa chỉ:</strong> <span>${(getPartnerForVoucher(v) || {}).address || "-"}</span>
+            <strong>Địa chỉ:</strong> <span>${escapeHtmlText((getPartnerForVoucher(v) || {}).address || "-")}</span>
           </div>
           
           <div style="grid-column: span 2;">
-            <strong>Diễn giải:</strong> ${v.description || `Bán hàng ${partnerName}`}
+            <strong>Diễn giải:</strong> ${escapeHtmlText(v.description) || `Bán hàng ${partnerName}`}
           </div>
         </div>
 
@@ -971,7 +995,7 @@ function viewVoucher(id) {
           <tbody>
             ${v.items.map((item, idx) => {
       const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: item.productId };
-      const qtyFormatted = Number.isInteger(item.qty) ? `${item.qty},0` : item.qty.toString().replace(".", ",");
+      const qtyFormatted = Number.isInteger(item.qty) ? `${escapeHtmlText(item.qty)},0` : item.qty.toString().replace(".", ",");
 
       const itemGross = (item.qty || 0) * (item.price || 0);
       let discountPercent = item.discount || 0;
@@ -982,9 +1006,9 @@ function viewVoucher(id) {
       return `
                 <tr>
                   <td style="border: 1px solid #000; padding: 4px 2px; text-align: center;">${idx + 1}</td>
-                  <td style="border: 1px solid #000; padding: 4px 4px; font-weight: 500;" class="voucher-col-desc">${item.itemDesc || prod.name}</td>
-                  <td style="border: 1px solid #000; padding: 4px 2px; text-align: center;">${prod.unit || "Cái"}</td>
-                  <td style="border: 1px solid #000; padding: 4px 2px; text-align: right;" class="font-numeric">${qtyFormatted}</td>
+                  <td style="border: 1px solid #000; padding: 4px 4px; font-weight: 500;" class="voucher-col-desc">${escapeHtmlText(item.itemDesc || prod.name)}</td>
+                  <td style="border: 1px solid #000; padding: 4px 2px; text-align: center;">${escapeHtmlText(prod.unit || "Cái")}</td>
+                  <td style="border: 1px solid #000; padding: 4px 2px; text-align: right;" class="font-numeric">${escapeHtmlText(qtyFormatted)}</td>
                   <td style="border: 1px solid #000; padding: 4px 3px; text-align: right;" class="font-numeric">${formatVNDNoSymbol(item.price)}</td>
                   <td style="border: 1px solid #000; padding: 4px 3px; text-align: right; font-weight: bold;" class="font-numeric">${formatVNDNoSymbol(getVoucherLineGrossAmount(item))}</td>
                   <td style="border: 1px solid #000; padding: 4px 2px; text-align: center;" class="voucher-col-gc">${gcVal}</td>
@@ -1017,7 +1041,7 @@ function viewVoucher(id) {
             <strong>Số tiền viết bằng chữ:</strong> <span style="font-style: italic;">${numberToVietnameseWords(v.totalAmount)}</span>
           </div>
           <div>
-            <strong>Ghi chú:</strong> <span style="font-style: italic; color: #374151;">hàng thừa trả lại dơ bẩn không thu lại. Không thu lại nút bịt.${(v.note || v.notes) ? ` ${v.note || v.notes}` : ""}</span>
+            <strong>Ghi chú:</strong> <span style="font-style: italic; color: #374151;">hàng thừa trả lại dơ bẩn không thu lại. Không thu lại nút bịt.${(v.note || v.notes) ? ` ${escapeHtmlText(v.note || v.notes)}` : ""}</span>
           </div>
         </div>
 
@@ -1082,18 +1106,18 @@ function viewVoucher(id) {
           </div>
           
           <div>
-            <strong>Điện thoại:</strong> <span>${(getPartnerForVoucher(v) || {}).phone || "-"}</span>
+            <strong>Điện thoại:</strong> <span>${escapeHtmlText((getPartnerForVoucher(v) || {}).phone || "-")}</span>
           </div>
           <div style="text-align: right;">
-            <strong>Số báo giá:</strong> <span style="font-family: monospace; font-weight: bold; font-size: 13px;">${v.id}</span>
+            <strong>Số báo giá:</strong> <span style="font-family: monospace; font-weight: bold; font-size: 13px;">${escapeHtmlText(v.id)}</span>
           </div>
 
           <div style="grid-column: span 2;">
-            <strong>Địa chỉ:</strong> <span>${(getPartnerForVoucher(v) || {}).address || "-"}</span>
+            <strong>Địa chỉ:</strong> <span>${escapeHtmlText((getPartnerForVoucher(v) || {}).address || "-")}</span>
           </div>
           
           <div style="grid-column: span 2;">
-            <strong>Nội dung báo giá:</strong> ${v.description || `Báo giá hàng hóa cho ${partnerName}`}
+            <strong>Nội dung báo giá:</strong> ${escapeHtmlText(v.description) || `Báo giá hàng hóa cho ${partnerName}`}
           </div>
         </div>
 
@@ -1113,7 +1137,7 @@ function viewVoucher(id) {
           <tbody>
             ${v.items.map((item, idx) => {
       const prod = state.products.find(p => String(p.id) === String(item.productId)) || { name: item.productId };
-      const qtyFormatted = Number.isInteger(item.qty) ? `${item.qty},0` : item.qty.toString().replace(".", ",");
+      const qtyFormatted = Number.isInteger(item.qty) ? `${escapeHtmlText(item.qty)},0` : item.qty.toString().replace(".", ",");
 
       const itemGross = (item.qty || 0) * (item.price || 0);
       let discountPercent = item.discount || 0;
@@ -1124,9 +1148,9 @@ function viewVoucher(id) {
       return `
                 <tr>
                   <td style="border: 1px solid #000; padding: 4px 2px; text-align: center;">${idx + 1}</td>
-                  <td style="border: 1px solid #000; padding: 4px 4px; font-weight: 500;" class="voucher-col-desc">${item.itemDesc || prod.name}</td>
-                  <td style="border: 1px solid #000; padding: 4px 2px; text-align: center;">${prod.unit || "Cái"}</td>
-                  <td style="border: 1px solid #000; padding: 4px 2px; text-align: right;" class="font-numeric">${qtyFormatted}</td>
+                  <td style="border: 1px solid #000; padding: 4px 4px; font-weight: 500;" class="voucher-col-desc">${escapeHtmlText(item.itemDesc || prod.name)}</td>
+                  <td style="border: 1px solid #000; padding: 4px 2px; text-align: center;">${escapeHtmlText(prod.unit || "Cái")}</td>
+                  <td style="border: 1px solid #000; padding: 4px 2px; text-align: right;" class="font-numeric">${escapeHtmlText(qtyFormatted)}</td>
                   <td style="border: 1px solid #000; padding: 4px 3px; text-align: right;" class="font-numeric">${formatVNDNoSymbol(item.price)}</td>
                   <td style="border: 1px solid #000; padding: 4px 3px; text-align: right; font-weight: bold;" class="font-numeric">${formatVNDNoSymbol(getVoucherLineGrossAmount(item))}</td>
                   <td style="border: 1px solid #000; padding: 4px 2px; text-align: center;" class="voucher-col-gc">${gcVal}</td>
@@ -1206,10 +1230,10 @@ function viewVoucher(id) {
         </div>
 
         <div style="margin-bottom: 12px;">
-          <div><strong>Số chứng từ:</strong> ${v.id}</div>
+          <div><strong>Số chứng từ:</strong> ${escapeHtmlText(v.id)}</div>
           <div><strong>Loại điều chỉnh:</strong> ${dirLabel}</div>
-          <div><strong>Diễn giải:</strong> ${v.description || ""}</div>
-          ${v.adjustReason ? `<div><strong>Lý do:</strong> ${escapeHtmlAttr(v.adjustReason)}</div>` : ""}
+          <div><strong>Diễn giải:</strong> ${escapeHtmlText(v.description)}</div>
+          ${v.adjustReason ? `<div><strong>Lý do:</strong> ${escapeHtmlText(v.adjustReason)}</div>` : ""}
         </div>
 
         <table class="voucher-table" style="width:100%; border-collapse:collapse; margin-bottom:10px; border:1.5px solid #000;">
@@ -1226,9 +1250,9 @@ function viewVoucher(id) {
           <tbody>
             <tr>
               <td style="border:1px solid #000; padding:4px; text-align:center;">1</td>
-              <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${escapeHtmlAttr(prod.name)}</td>
-              <td style="border:1px solid #000; padding:4px; text-align:center;">${escapeHtmlAttr(prod.unit || "Cái")}</td>
-              <td style="border:1px solid #000; padding:4px; text-align:right;">${isIn ? "+" : "-"}${item ? item.qty : 0}</td>
+              <td style="border:1px solid #000; padding:4px 6px; font-weight:500;">${escapeHtmlText(prod.name)}</td>
+              <td style="border:1px solid #000; padding:4px; text-align:center;">${escapeHtmlText(prod.unit || "Cái")}</td>
+              <td style="border:1px solid #000; padding:4px; text-align:right;">${isIn ? "+" : "-"}${escapeHtmlText(item ? item.qty : 0)}</td>
               <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVNDNoSymbol(item ? item.price : 0)}</td>
               <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">${formatVNDNoSymbol(amount)}</td>
             </tr>
@@ -1254,10 +1278,10 @@ function viewVoucher(id) {
               <tbody>
                 ${v.entries.map(e => `
                   <tr>
-                    <td style="border:1px solid #000; padding:4px; text-align:center;">${e.debit || ""}</td>
-                    <td style="border:1px solid #000; padding:4px; text-align:center;">${e.credit || ""}</td>
+                    <td style="border:1px solid #000; padding:4px; text-align:center;">${escapeHtmlText(e.debit)}</td>
+                    <td style="border:1px solid #000; padding:4px; text-align:center;">${escapeHtmlText(e.credit)}</td>
                     <td style="border:1px solid #000; padding:4px; text-align:right;">${formatVNDNoSymbol(e.amount)}</td>
-                    <td style="border:1px solid #000; padding:4px;">${e.desc || ""}</td>
+                    <td style="border:1px solid #000; padding:4px;">${escapeHtmlText(e.desc)}</td>
                   </tr>
                 `).join("")}
               </tbody>
@@ -1312,9 +1336,9 @@ function viewVoucher(id) {
           <div style="text-align:right; font-size: 12px; min-width:140px; flex-shrink:0;">
             <div style="font-size: 12px; color:#555;">${templateCode} &nbsp;(TT 200/2014/TT-BTC)</div>
             <div style="margin-top:3px;">Quyển số: <span style="border-bottom:1px dotted #000; display:inline-block; min-width:50px;">&nbsp;</span></div>
-            <div>Số: <strong>${v.id}</strong></div>
-            <div>Nợ: <strong>${e.debit}</strong></div>
-            <div>Có: <strong>${e.credit}</strong></div>
+            <div>Số: <strong>${escapeHtmlText(v.id)}</strong></div>
+            <div>Nợ: <strong>${escapeHtmlText(e.debit)}</strong></div>
+            <div>Có: <strong>${escapeHtmlText(e.credit)}</strong></div>
           </div>
         </div>
 
@@ -1332,11 +1356,11 @@ function viewVoucher(id) {
           </tr>
           <tr>
             <td style="padding:3px 0;"><strong>Địa chỉ:</strong></td>
-            <td style="padding:3px 6px; border-bottom:1px dotted #999;">${partnerAddrLine || "&nbsp;"}</td>
+            <td style="padding:3px 6px; border-bottom:1px dotted #999;">${escapeHtmlText(partnerAddrLine) || "&nbsp;"}</td>
           </tr>
           <tr>
             <td style="padding:3px 0;"><strong>Lý do ${isReceipt ? "nộp" : "chi"}:</strong></td>
-            <td style="padding:3px 6px; border-bottom:1px dotted #999;">${v.description}</td>
+            <td style="padding:3px 6px; border-bottom:1px dotted #999;">${escapeHtmlText(v.description)}</td>
           </tr>
           <tr>
             <td style="padding:3px 0;"><strong>Số tiền:</strong></td>
@@ -1384,6 +1408,38 @@ function viewVoucher(id) {
       </div>
     `;
 
+  } else if (v.type === "general_journal") {
+    const entries = Array.isArray(v.entries) ? v.entries : [];
+    const cell = "border:1px solid #000; padding:4px 6px;";
+    content = `
+      <div class="printable-voucher" style="max-width:800px; padding:8px; font-family:'Times New Roman',Times,serif; font-size: 13px; color:#000; line-height:1.25;">
+        <div style="border-bottom:2px solid #000; padding-bottom:6px; margin-bottom:8px;">
+          <div style="font-weight:bold; font-size: 14px; text-transform:uppercase;">${companyName}</div>
+          <div style="font-size: 12px;">Địa chỉ: ${companyAddr} · MST: ${companyTax}</div>
+        </div>
+        <div style="text-align:center; margin: 12px 0;">
+          <div class="voucher-document-title">PHIẾU KẾ TOÁN</div>
+          <div style="font-style:italic; font-size: 13px; margin-top: 4px;">Ngày ${formatDateDisplay(v.date)} · Số: ${escapeHtmlText(v.id)}</div>
+        </div>
+        <div style="margin-bottom: 10px;"><strong>Diễn giải:</strong> ${escapeHtmlText(v.description || "")}</div>
+        <table class="voucher-table" style="width:100%; border-collapse:collapse; margin-bottom:10px; border:1.5px solid #000;">
+          <thead><tr style="background-color: #f3f4f6;">
+            <th style="${cell} width:6%;">STT</th><th style="${cell} text-align:left;">Diễn giải</th>
+            <th style="${cell} width:12%;">TK Nợ</th><th style="${cell} width:12%;">TK Có</th><th style="${cell} width:20%; text-align:right;">Số tiền</th>
+          </tr></thead>
+          <tbody>${entries.map((e, i) => `<tr>
+            <td style="${cell} text-align:center;">${i + 1}</td><td style="${cell}">${escapeHtmlText(e.desc || "")}</td>
+            <td style="${cell} text-align:center;">${escapeHtmlText(e.debit)}</td><td style="${cell} text-align:center;">${escapeHtmlText(e.credit)}</td>
+            <td style="${cell} text-align:right;">${formatVND(e.amount || 0)}</td></tr>`).join("")}
+            <tr><td colspan="4" style="${cell} text-align:right; font-weight:bold;">Cộng</td><td style="${cell} text-align:right; font-weight:bold;">${formatVND(v.amount || 0)}</td></tr>
+          </tbody>
+        </table>
+        ${(v.accountWarnings || []).map(w => `<div style="color:#b91c1c; font-size: 12px;">⚠ ${escapeHtmlText(w)}</div>`).join("")}
+        <table style="width:100%; margin-top:16px; text-align:center;"><tr>
+          <td><strong>Người lập</strong></td><td><strong>Kế toán trưởng</strong></td>
+        </tr></table>
+      </div>
+    `;
   }
 
   printArea.innerHTML = content;

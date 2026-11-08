@@ -46,13 +46,6 @@ function buildPartnerTableActions(p) {
   return html;
 }
 
-// Văn bản an toàn để chèn vào HTML (tên, địa chỉ... đến từ Excel và máy khác).
-function escapePartnerText(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-}
-
 function getPartnerParentName(partner) {
   if (!partner || partner.type !== "project" || !partner.parentId) return "";
   const parent = state.partners.find(item => item.id === partner.parentId);
@@ -64,7 +57,7 @@ function populateEnterpriseDatalist(datalistId = "partner-parent-datalist") {
   const datalist = document.getElementById(datalistId);
   if (!datalist) return;
   const enterprises = state.partners.filter(p => p.type === "enterprise" && !p.inactive);
-  datalist.innerHTML = enterprises.map(e => `<option value="${escapePartnerText(`${e.name} (${e.id})`)}"></option>`).join("");
+  datalist.innerHTML = enterprises.map(e => `<option value="${escapeHtmlText(`${e.name} (${e.id})`)}"></option>`).join("");
 }
 
 function resolveEnterpriseParent(inputVal) {
@@ -429,7 +422,7 @@ function handleQuickAddPartnerSubmit(e) {
           const parent = state.partners.find(parent => parent.id === p.parentId);
           if (parent) parentInfo = ` - Thuộc: ${parent.name}`;
         }
-        return `<option value="${escapePartnerText(`${p.name} (${p.id})`)}">[${typeLabel}${escapePartnerText(parentInfo)}]</option>`;
+        return `<option value="${escapeHtmlText(`${p.name} (${p.id})`)}">[${typeLabel}${escapeHtmlText(parentInfo)}]</option>`;
       }).join("");
     }
 
@@ -716,7 +709,7 @@ function renderPartnersTable() {
       if (p.type === "project") {
         const parentName = getPartnerParentName(p);
         parentCell = parentName
-          ? `<span style="font-size: 12px; color: var(--text-secondary);">${escapePartnerText(parentName)}</span>`
+          ? `<span style="font-size: 12px; color: var(--text-secondary);">${escapeHtmlText(parentName)}</span>`
           : `<span style="font-size: 11px; color: var(--color-danger);">Chưa gán DN mẹ</span>`;
       } else if (p.type === "enterprise") {
         const childCount = state.partners.filter(c => c.type === "project" && c.parentId === p.id).length;
@@ -729,14 +722,14 @@ function renderPartnersTable() {
 
       tr.innerHTML = `
         <td style="text-align: center;">
-          <input type="checkbox" class="partner-checkbox" value="${escapePartnerText(p.id)}" onchange="updateBatchPartnersUI()">
+          <input type="checkbox" class="partner-checkbox" value="${escapeHtmlText(p.id)}" onchange="updateBatchPartnersUI()">
         </td>
-        <td style="font-weight:bold; color:var(--color-primary);">${escapePartnerText(p.id)}</td>
-        <td style="${nameStyle}">${namePrefix}<a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${escapePartnerText(p.name)}</a></td>
+        <td style="font-weight:bold; color:var(--color-primary);">${escapeHtmlText(p.id)}</td>
+        <td style="${nameStyle}">${namePrefix}<a href="#" onclick="viewPartnerLedger('${escapedId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${escapeHtmlText(p.name)}</a></td>
         <td>${typeBadge}</td>
         <td>${parentCell}</td>
-        <td class="font-numeric">${escapePartnerText(p.phone || "-")}</td>
-        <td class="cell-clip" title="${escapePartnerText(p.address || "")}">${escapePartnerText(p.address || "-")}</td>
+        <td class="font-numeric">${escapeHtmlText(p.phone || "-")}</td>
+        <td class="cell-clip" title="${escapeHtmlText(p.address || "")}">${escapeHtmlText(p.address || "-")}</td>
         <td>
           <span class="badge ${p.inactive ? 'badge-danger' : 'badge-success'}">
             ${p.inactive ? 'Ngừng theo dõi' : 'Đang theo dõi'}
@@ -1240,6 +1233,7 @@ function handlePartnerSubmit(e) {
 }
 
 async function deletePartner(id) {
+  if (window.assertCanWriteRole?.() === false) return; // utils.js có thể chưa nạp (sandbox test)
   const resolvePid = createVoucherPartnerResolver(state.partners);
   const linkedCount = (state.vouchers || []).filter(v => resolvePid(v) === id).length;
   if (linkedCount > 0) {
@@ -1481,6 +1475,7 @@ function updateBatchPartnersUI() {
 }
 
 async function batchSetPartnersInactive() {
+  if (window.assertCanWriteRole?.() === false) return; // utils.js có thể chưa nạp (sandbox test)
   const checked = Array.from(document.querySelectorAll(".partner-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
 
@@ -1511,6 +1506,7 @@ async function batchSetPartnersInactive() {
 }
 
 async function batchDeletePartners() {
+  if (window.assertCanWriteRole?.() === false) return; // utils.js có thể chưa nạp (sandbox test)
   const checked = Array.from(document.querySelectorAll(".partner-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
 

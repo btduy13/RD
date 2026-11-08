@@ -79,7 +79,6 @@ function mergePartnerRecords(sourceId, targetId, options) {
 
   if (typeof invalidatePartnerCache === "function") invalidatePartnerCache();
   if (typeof syncPartnerOpeningAccounts === "function") syncPartnerOpeningAccounts();
-  if (typeof invalidateAccounting === "function") invalidateAccounting(state);
 
   if (opts.recalculate !== false && typeof recalculateAccounting === "function") {
     recalculateAccounting(true);

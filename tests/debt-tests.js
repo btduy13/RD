@@ -42,6 +42,7 @@ function loadDebtModule() {
   };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "js", "core", "chart-of-accounts.js"), "utf8"), sandbox, { filename: "chart-of-accounts.js" });
   vm.runInContext(fs.readFileSync(path.join(repoRoot, "js", "core", "accounting-engine.js"), "utf8"), sandbox, { filename: "accounting-engine.js" });
   vm.runInContext(debtsSource, sandbox, { filename: "debts.js" });
   return sandbox;
@@ -77,6 +78,7 @@ function loadAccountingFifo() {
   };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(repoRoot, "js", "core", "chart-of-accounts.js"), "utf8"), sandbox, { filename: "chart-of-accounts.js" });
   vm.runInContext(fs.readFileSync(path.join(repoRoot, "js", "core", "accounting-engine.js"), "utf8"), sandbox, { filename: "accounting-engine.js" });
   vm.runInContext(accountingSource, sandbox, { filename: "accounting.js" });
   return sandbox;

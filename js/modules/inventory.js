@@ -75,7 +75,7 @@ function buildInventoryTableRowHtml(p) {
         </td>
         <td class="font-numeric" style="font-weight:700;">${escapeHtmlText(p.id)}</td>
         <td class="cell-clip" title="${escapeHtmlText(p.name)}"><span style="font-weight:600; color:var(--text-primary);">${escapeHtmlText(p.name)}</span></td>
-        <td>${p.unit || "Cái"}</td>
+        <td>${escapeHtmlText(p.unit || "Cái")}</td>
         <td class="text-right font-numeric" style="color: var(--text-secondary);">${formatVND(initialCostVal)}</td>
         <td class="text-right font-numeric" style="color: var(--text-secondary);">${formatVND(lastPurchasePriceVal)}</td>
         <td class="text-right font-numeric" style="color: var(--color-success); font-weight: 600;">${formatVND(salePriceVal)}</td>
@@ -328,16 +328,15 @@ function renderStockLedger() {
   // Cập nhật tiêu đề & thông tin
   const titleEl = document.getElementById("ledger-detail-title");
   if (titleEl) {
-    titleEl.innerHTML = `Sổ thẻ kho chi tiết: <span style="color:var(--color-primary);">${escapeHtmlAttr(prod.name)}</span>`;
+    titleEl.innerHTML = `Sổ thẻ kho chi tiết: <span style="color:var(--color-primary);">${escapeHtmlText(prod.name)}</span>`;
   }
   const subtitleEl = document.getElementById("ledger-detail-subtitle");
   if (subtitleEl) {
-    subtitleEl.innerHTML = `Mã: <span style="font-weight: 700; color:var(--text-primary);">${escapeHtmlAttr(prod.id)}</span> | ĐVT: <span style="font-weight: 700; color:var(--text-primary);">${escapeHtmlAttr(prod.unit || 'Cái')}</span>`;
+    subtitleEl.innerHTML = `Mã: <span style="font-weight: 700; color:var(--text-primary);">${escapeHtmlText(prod.id)}</span> | ĐVT: <span style="font-weight: 700; color:var(--text-primary);">${escapeHtmlText(prod.unit || 'Cái')}</span>`;
   }
 
-  const origProd = DEFAULT_DATA.products.find(o => o.id === prodId);
-  const initStock = origProd ? origProd.stock : (prod.initialStock || 0);
-  const initCost = origProd ? origProd.avgCost : (prod.initialCost || 0);
+  const initStock = prod.initialStock || 0;
+  const initCost = prod.initialCost || 0;
 
   const fromDate = document.getElementById("search-ledger-from") ? document.getElementById("search-ledger-from").value : "";
   const toDate = document.getElementById("search-ledger-to") ? document.getElementById("search-ledger-to").value : "";
@@ -365,7 +364,7 @@ function renderStockLedger() {
   });
 
   // Sắp xếp chứng từ tăng dần theo ngày
-  filteredVouchers.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+  filteredVouchers.sort((a, b) => a.date.localeCompare(b.date) || naturalCompare(a.id, b.id));
 
   let runningStock = initStock;
 
@@ -383,7 +382,7 @@ function renderStockLedger() {
       html += `
         <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
           <td>${formatDateDisplay(v.date)}</td>
-          <td class="font-numeric" style="color:var(--color-primary); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${v.id}</td>
+          <td class="font-numeric" style="color:var(--color-primary); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${escapeHtmlText(v.id)}</td>
           <td class="text-right font-numeric" style="color: var(--color-primary); font-weight:700;">+${item.qty}</td>
           <td class="text-right font-numeric">-</td>
           <td class="text-right font-numeric">${formatVND(item.price)} (Tồn: ${runningStock})</td>
@@ -394,7 +393,7 @@ function renderStockLedger() {
       html += `
         <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
           <td>${formatDateDisplay(v.date)}</td>
-          <td class="font-numeric" style="color:var(--color-success); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${v.id}</td>
+          <td class="font-numeric" style="color:var(--color-success); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${escapeHtmlText(v.id)}</td>
           <td class="text-right font-numeric" style="color: var(--color-success); font-weight:700;">+${item.qty}</td>
           <td class="text-right font-numeric">-</td>
           <td class="text-right font-numeric">${formatVND(item.price)} (Tồn: ${runningStock})</td>
@@ -405,7 +404,7 @@ function renderStockLedger() {
       html += `
         <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
           <td>${formatDateDisplay(v.date)}</td>
-          <td class="font-numeric" style="color:var(--color-success); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${v.id}</td>
+          <td class="font-numeric" style="color:var(--color-success); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${escapeHtmlText(v.id)}</td>
           <td class="text-right font-numeric">-</td>
           <td class="text-right font-numeric" style="color: var(--color-warning); font-weight:700;">-${item.qty}</td>
           <td class="text-right font-numeric" style="color: var(--text-secondary);">${formatVND(item.cogsUnit || 0)} (Tồn: ${runningStock})</td>
@@ -417,7 +416,7 @@ function renderStockLedger() {
         html += `
           <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
             <td>${formatDateDisplay(v.date)}</td>
-            <td class="font-numeric" style="color:var(--color-warning); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${v.id}</td>
+            <td class="font-numeric" style="color:var(--color-warning); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${escapeHtmlText(v.id)}</td>
             <td class="text-right font-numeric" style="color: var(--color-warning); font-weight:700;">+${item.qty}</td>
             <td class="text-right font-numeric">-</td>
             <td class="text-right font-numeric">${formatVND(item.price || 0)} (Tồn: ${runningStock})</td>
@@ -428,7 +427,7 @@ function renderStockLedger() {
         html += `
           <tr class="clickable-row" data-type="voucher" data-subtype="${v.type}" data-id="${escapeHtmlAttr(v.id)}">
             <td>${formatDateDisplay(v.date)}</td>
-            <td class="font-numeric" style="color:var(--color-warning); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${v.id}</td>
+            <td class="font-numeric" style="color:var(--color-warning); cursor:pointer; font-weight:700;" onclick="viewVoucher('${escapeHtmlAttr(v.id)}')">${escapeHtmlText(v.id)}</td>
             <td class="text-right font-numeric">-</td>
             <td class="text-right font-numeric" style="color: var(--color-warning); font-weight:700;">-${item.qty}</td>
             <td class="text-right font-numeric" style="color: var(--text-secondary);">${formatVND(item.price || item.cogsUnit || 0)} (Tồn: ${runningStock})</td>
@@ -510,9 +509,8 @@ function exportStockLedgerToExcel() {
     // ROW 4: Headers
     headers.forEach((h, c) => sc(4, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: border4 }));
 
-    const origProd = DEFAULT_DATA.products.find(o => o.id === prodId);
-    const initStock = origProd ? origProd.stock : (prod.initialStock || 0);
-    const initCost = origProd ? origProd.avgCost : (prod.initialCost || 0);
+    const initStock = prod.initialStock || 0;
+    const initCost = prod.initialCost || 0;
 
     // ROW 5: Tồn đầu kỳ
     let rowIdx = 5;
@@ -537,7 +535,7 @@ function exportStockLedgerToExcel() {
       return true;
     });
 
-    filteredVouchers.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id, undefined, { numeric: true }));
+    filteredVouchers.sort((a, b) => a.date.localeCompare(b.date) || naturalCompare(a.id, b.id));
 
     let runningStock = initStock;
     let totalImport = 0, totalExport = 0;
@@ -637,10 +635,10 @@ function handleProductSubmit(e) {
   }
   const name = document.getElementById("prod-name").value.trim();
   const unit = document.getElementById("prod-unit").value.trim();
-  const initialStock = safeParseFloat(document.getElementById("prod-stock").value) || 0;
+  const initialStock = parseDynamicQuantity(document.getElementById("prod-stock").value) || 0;
   const initialCost = parseInt(document.getElementById("prod-cost").value.replace(/\D/g, "")) || 0;
   const salePrice1 = parseInt(document.getElementById("prod-sale-price").value.replace(/\D/g, "")) || 0;
-  const minStock = safeParseFloat(document.getElementById("prod-min-stock").value) || 0;
+  const minStock = parseDynamicQuantity(document.getElementById("prod-min-stock").value) || 0;
 
   const nature = document.getElementById("prod-nature").value;
   const group = document.getElementById("prod-group").value.trim();
@@ -679,9 +677,7 @@ function handleProductSubmit(e) {
   // Cộng dồn giá trị sản phẩm vào Số dư đầu kỳ tài khoản 156
   let newInvOpBal = 0;
   state.products.forEach(p => {
-    // Nếu sản phẩm có trong mặc định, nó đã được cộng, ta lấy thực tế
-    const orig = DEFAULT_DATA.products.find(o => o.id === p.id);
-    newInvOpBal += orig ? orig.totalValue : ((p.initialStock || 0) * (p.initialCost || 0));
+    newInvOpBal += (p.initialStock || 0) * (p.initialCost || 0);
   });
   state.initialBalances["156"].balance = newInvOpBal;
 
@@ -744,9 +740,9 @@ function promptQuickImport(productId) {
 
     document.getElementById("quick-import-prod-id").value = p.id;
     document.getElementById("quick-import-info-text").innerHTML = `
-      <strong>Mã hàng:</strong> ${p.id}<br>
-      <strong>Tên hàng:</strong> ${p.name}<br>
-      <strong>ĐVT:</strong> ${p.unit || "Cái"}<br>
+      <strong>Mã hàng:</strong> ${escapeHtmlText(p.id)}<br>
+      <strong>Tên hàng:</strong> ${escapeHtmlText(p.name)}<br>
+      <strong>ĐVT:</strong> ${escapeHtmlText(p.unit || "Cái")}<br>
       <strong>Tồn kho hiện tại:</strong> <span style="font-weight:bold; color:var(--color-primary);">${p.stock || 0}</span>
     `;
 
@@ -766,7 +762,7 @@ function handleQuickImportSubmit(e) {
     e.preventDefault();
 
     const prodId = document.getElementById("quick-import-prod-id").value;
-    const qty = safeParseFloat(document.getElementById("quick-import-qty").value) || 0;
+    const qty = parseDynamicQuantity(document.getElementById("quick-import-qty").value) || 0;
     const price = parseInt(document.getElementById("quick-import-price").value.replace(/\D/g, "")) || 0;
 
     if (qty <= 0 || price < 0) {
@@ -777,9 +773,9 @@ function handleQuickImportSubmit(e) {
     const p = state.products.find(x => String(x.id) === String(prodId));
     if (!p) return;
 
-    // Tìm nhà cung cấp đầu tiên hoặc dùng mặc định
-    const supplier = state.partners.find(x => x.type === "supplier" && !x.inactive)
-      || resolvePartner("Nhà cung cấp vãng lai", "supplier");
+    // Ghi công nợ 331 cho NCC vãng lai, không gán bừa cho NCC đầu tiên trong danh mục.
+    const supplier = resolvePartner("Nhà cung cấp vãng lai", "supplier");
+    if (!supplier) return;
 
     // Tạo mã chứng từ nhập kho nhanh
     const updatedAt = Date.now();
@@ -849,15 +845,17 @@ function promptAdjustStock(productId) {
     const currentStock = p.stock || 0;
     document.getElementById("adjust-stock-prod-id").value = p.id;
     document.getElementById("adjust-stock-info-text").innerHTML = `
-      <strong>Mã hàng:</strong> ${escapeHtmlAttr(p.id)}<br>
-      <strong>Tên hàng:</strong> ${escapeHtmlAttr(p.name)}<br>
-      <strong>ĐVT:</strong> ${escapeHtmlAttr(p.unit || "Cái")}<br>
+      <strong>Mã hàng:</strong> ${escapeHtmlText(p.id)}<br>
+      <strong>Tên hàng:</strong> ${escapeHtmlText(p.name)}<br>
+      <strong>ĐVT:</strong> ${escapeHtmlText(p.unit || "Cái")}<br>
       <strong>Tồn kho hiện tại:</strong> <span style="font-weight:bold; color:var(--color-primary);">${currentStock}</span><br>
       <strong>Đơn giá bình quân:</strong> ${formatVND(p.avgCost || 0)}
     `;
 
-    document.getElementById("adjust-stock-new-qty").value = String(currentStock);
+    document.getElementById("adjust-stock-new-qty").value = formatDynamicQuantity(currentStock);
     document.getElementById("adjust-stock-reason").value = "";
+    const causeEl = document.getElementById("adjust-stock-cause");
+    if (causeEl) causeEl.value = "unknown";
 
     openModal("modal-adjust-stock");
     setTimeout(() => {
@@ -879,7 +877,7 @@ function handleAdjustStockSubmit(e) {
     e.preventDefault();
 
     const prodId = document.getElementById("adjust-stock-prod-id").value;
-    const newQty = safeParseFloat(document.getElementById("adjust-stock-new-qty").value);
+    const newQty = parseDynamicQuantity(document.getElementById("adjust-stock-new-qty").value);
     const reason = document.getElementById("adjust-stock-reason").value.trim();
 
     if (newQty === null || newQty === undefined || isNaN(newQty) || newQty < 0) {
@@ -911,12 +909,16 @@ function handleAdjustStockSubmit(e) {
     const updatedAt = Date.now();
     const adjustId = generateUniqueInventoryVoucherId("DK", updatedAt);
 
+    // Kiểm kê: hạch toán theo nguyên nhân (recalculateAccounting sinh bút toán từ adjustCause).
+    const causeEl = document.getElementById("adjust-stock-cause");
+    const adjustCause = causeEl && causeEl.value === "norm" ? "norm" : "unknown";
     const voucher = {
       id: adjustId,
       type: "inventory_adjust",
       date: getLocalDateString(),
       description: `Điều chỉnh tồn kho ${p.name}: ${currentStock} → ${targetQty}. Lý do: ${reason}`,
       adjustReason: reason,
+      adjustCause,
       amount: amount,
       totalAmount: amount,
       isManual: true,
@@ -931,10 +933,14 @@ function handleAdjustStockSubmit(e) {
           amount: amount
         }
       ],
-      entries: adjustDir === "in"
-        ? [{ debit: "156", credit: "711", amount: amount, desc: `Tăng tồn kho do điều chỉnh: ${p.id}` }]
-        : [{ debit: "632", credit: "156", amount: amount, desc: `Giảm tồn kho do điều chỉnh: ${p.id}` }]
+      entries: []
     };
+
+    const negative = findNegativeStockProducts(state, voucher);
+    if (negative.length) {
+      showToast(`Không thể giảm tồn kho ${p.name}: tồn sẽ âm sau ngày ${voucher.date} (đã có chứng từ xuất sau đó).`, "danger");
+      return;
+    }
 
     state.vouchers.push(voucher);
 
@@ -1032,8 +1038,7 @@ function copyProduct(productId) {
     document.getElementById("prod-unit").value = p.unit || "Cái";
     document.getElementById("prod-nature").value = p.nature || row[2] || "Vật tư hàng hóa";
     document.getElementById("prod-group").value = p.group || row[3] || "";
-    // Không định dạng vi-VN: handleProductSubmit đọc bằng safeParseFloat, "1.500" sẽ thành 1.5
-    document.getElementById("prod-min-stock").value = String(p.minStock !== undefined ? p.minStock : 5);
+    document.getElementById("prod-min-stock").value = formatDynamicQuantity(p.minStock !== undefined ? p.minStock : 5);
     document.getElementById("prod-stock").value = "0";
     document.getElementById("prod-cost").value = formatNum(costVal);
     document.getElementById("prod-sale-price").value = formatNum(salePrice1Val);
@@ -1056,9 +1061,9 @@ function handleEditProductPriceSubmit(e) {
     const unit = document.getElementById("edit-prod-unit").value.trim();
 
     const initialCost = parseInt(document.getElementById("edit-prod-initial-cost").value.replace(/\D/g, "")) || 0;
-    const initialStock = safeParseFloat(document.getElementById("edit-prod-initial-stock").value) || 0;
+    const initialStock = parseDynamicQuantity(document.getElementById("edit-prod-initial-stock").value) || 0;
     const avgCost = parseInt(document.getElementById("edit-prod-avg-cost").value.replace(/\D/g, "")) || 0;
-    const minStock = safeParseFloat(document.getElementById("edit-prod-min-stock").value) || 0;
+    const minStock = parseDynamicQuantity(document.getElementById("edit-prod-min-stock").value) || 0;
     const salePrice1 = parseInt(document.getElementById("edit-prod-sale-price").value.replace(/\D/g, "")) || 0;
 
     const nature = document.getElementById("edit-prod-nature").value;
@@ -1139,6 +1144,7 @@ function updateBatchProductsUI() {
 }
 
 async function batchDeleteProducts() {
+  if (window.assertCanWriteRole?.() === false) return; // utils.js có thể chưa nạp (sandbox test)
   const checked = Array.from(document.querySelectorAll(".product-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
 
@@ -1188,6 +1194,7 @@ async function batchDeleteProducts() {
 
 
 async function deleteProduct(prodId) {
+  if (window.assertCanWriteRole?.() === false) return; // utils.js có thể chưa nạp (sandbox test)
   const ok = await showConfirmModal({
     title: "Xác nhận xóa sản phẩm",
     message: `Bạn có chắc chắn muốn xóa sản phẩm "${prodId}"? Dữ liệu tồn kho liên quan có thể bị ảnh hưởng.`,
@@ -1347,7 +1354,7 @@ function handleQuickAddProductSubmit(e) {
     let rawId = idEl ? idEl.value.trim().toUpperCase() : "";
     const name = document.getElementById("qap-prod-name").value.trim();
     const unit = document.getElementById("qap-prod-unit").value.trim();
-    const initStock = safeParseFloat(document.getElementById("qap-prod-stock").value) || 0;
+    const initStock = parseDynamicQuantity(document.getElementById("qap-prod-stock").value) || 0;
     const initCost = parseInt(document.getElementById("qap-prod-cost").value.replace(/\D/g, "")) || 0;
 
     if (!name) {
@@ -1393,10 +1400,7 @@ function handleQuickAddProductSubmit(e) {
     // Cập nhật số dư đầu kỳ TK 156
     let newInvOpBal = 0;
     state.products.forEach(p => {
-      const orig = (typeof DEFAULT_DATA !== 'undefined' && DEFAULT_DATA.products)
-        ? DEFAULT_DATA.products.find(o => o.id === p.id)
-        : null;
-      newInvOpBal += orig ? orig.totalValue : (p.initialStock * p.initialCost);
+      newInvOpBal += (p.initialStock || 0) * (p.initialCost || 0);
     });
     if (state.initialBalances && state.initialBalances["156"]) {
       state.initialBalances["156"].balance = newInvOpBal;

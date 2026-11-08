@@ -18,6 +18,17 @@ const state = {
 };
 const sandbox = { window: {}, state, console, Date, setTimeout };
 vm.createContext(sandbox);
+// Tên tài khoản lấy từ danh mục theo chế độ
+vm.runInContext(
+  fs.readFileSync(path.join(__dirname, '..', 'js', 'core', 'chart-of-accounts.js'), 'utf8'),
+  sandbox,
+  { filename: 'chart-of-accounts.js' }
+);
+vm.runInContext(
+  fs.readFileSync(path.join(__dirname, '..', 'js', 'core', 'accounting-engine.js'), 'utf8'),
+  sandbox,
+  { filename: 'accounting-engine.js' }
+);
 vm.runInContext(
   fs.readFileSync(path.join(__dirname, '..', 'js', 'modules', 'reports.js'), 'utf8'),
   sandbox,

@@ -40,7 +40,9 @@ function findRelatedSalesVoucher(voucherId, description, partnerId, amount) {
 let filteredCashList = [];
 let editingReceiptId = null;
 let editingPaymentId = null;
+let editingJournalId = null;
 if (typeof registerVoucherEditForm === "function") {
+  registerVoucherEditForm({ key: "general_journal", getEditingId: () => editingJournalId, setEditingId: value => { editingJournalId = value || null; } });
   registerVoucherEditForm({ key: "receipt", getEditingId: () => editingReceiptId, setEditingId: value => { editingReceiptId = value || null; } });
   registerVoucherEditForm({ key: "payment", getEditingId: () => editingPaymentId, setEditingId: value => { editingPaymentId = value || null; } });
 }
@@ -156,9 +158,10 @@ function renderCashTable() {
         renderEmptyState(tbody, 10, 'Không tìm thấy chứng từ nào', 'Nhấn "Lập Phiếu Thu" hoặc "Lập Phiếu Chi" để thêm chứng từ');
     } else {
         pageItems.forEach(v => {
-                    const typeLabel = (v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay") ? "Phiếu Thu" : "Phiếu Chi";
+                    const isJournal = v.type === "general_journal";
+                    const typeLabel = isJournal ? "Phiếu KT" : (v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay") ? "Phiếu Thu" : "Phiếu Chi";
                     const isReceipt = v.type === "receipt" || v.type === "escrow_receive" || v.type === "escrow_refund_pay";
-                    const methodLabel = v.paymentMethod === "111" ? "Tiền mặt (111)" : "Ngân hàng (112)";
+                    const methodLabel = isJournal ? "" : v.paymentMethod === "111" ? "Tiền mặt (111)" : "Ngân hàng (112)";
 
                     const tr = document.createElement("tr");
                     const escapedPartnerId = escapeHtmlAttr(v.partnerId);
@@ -174,12 +177,12 @@ function renderCashTable() {
         </td>
         <td>${formattedDate}</td>
         <td>${formattedDate}</td>
-        <td style="font-weight:bold; color:var(--color-primary);">${v.id}</td>
-        <td><a href="#" onclick="viewPartnerLedger('${escapedPartnerId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${escapeHtmlText(getPartnerNameForVoucher(v))}</a></td>
+        <td style="font-weight:bold; color:var(--color-primary);">${escapeHtmlText(v.id)}</td>
+        <td>${isJournal ? "" : `<a href="#" onclick="viewPartnerLedger('${escapedPartnerId}'); return false;" style="color:inherit; text-decoration:underline; cursor:pointer;">${escapeHtmlText(getPartnerNameForVoucher(v))}</a>`}</td>
         <td class="cell-clip" title="${escapeHtmlText(v.description || "")}">${escapeHtmlText(v.description || "")}</td>
         <td style="text-align:right; font-weight:700;" class="font-numeric">${formatVND(v.amount).replace("đ", "")}</td>
         <td>
-          <span class="badge ${isReceipt ? 'badge-success' : 'badge-danger'}">
+          <span class="badge ${isJournal ? 'badge-info' : isReceipt ? 'badge-success' : 'badge-danger'}">
             ${typeLabel}
           </span>
         </td>
@@ -189,8 +192,8 @@ function renderCashTable() {
             <button class="print-btn" onclick="viewVoucher('${escapedVoucherId}')" title="Xem và In mẫu chứng từ" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-success); cursor: pointer; transition: all 0.2s;">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
             </button>
-            ${(v.type === "receipt" || v.type === "payment") ? `
-            <button class="edit-btn" onclick="event.stopPropagation(); ${v.type === "receipt" ? `editReceiptVoucher('${escapedVoucherId}')` : `editPaymentVoucher('${escapedVoucherId}')`}" title="Chỉnh sửa phiếu" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-primary); cursor: pointer; transition: all 0.2s;">
+            ${(v.type === "receipt" || v.type === "payment" || isJournal) ? `
+            <button class="edit-btn" onclick="event.stopPropagation(); ${isJournal ? `editGeneralJournalVoucher('${escapedVoucherId}')` : v.type === "receipt" ? `editReceiptVoucher('${escapedVoucherId}')` : `editPaymentVoucher('${escapedVoucherId}')`}" title="Chỉnh sửa phiếu" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-primary); cursor: pointer; transition: all 0.2s;">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
             </button>` : ""}
             <button class="trash-btn" onclick="deleteVoucher('${escapedVoucherId}')" title="Xóa và Hủy ghi sổ chứng từ" style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-danger); cursor: pointer; transition: all 0.2s;">
@@ -276,7 +279,7 @@ function filterCash() {
   const toDate = document.getElementById("search-cash-to") ? document.getElementById("search-cash-to").value : "";
 
   filteredCashList = state.vouchers.filter(v => {
-    const isCash = v.type === "receipt" || v.type === "payment" || (v.type && v.type.startsWith("escrow_"));
+    const isCash = v.type === "receipt" || v.type === "payment" || v.type === "general_journal" || (v.type && v.type.startsWith("escrow_"));
     if (!isCash) return false;
 
     const partnerName = getPartnerNameForVoucher(v);
@@ -290,6 +293,8 @@ function filterCash() {
       matchesType = v.type === "payment" || v.type === "escrow_pay" || v.type === "escrow_refund_receive";
     } else if (filterType === "needsReview") {
       matchesType = v.needsReview === true;
+    } else if (filterType === "general_journal") {
+      matchesType = v.type === "general_journal";
     }
 
     let matchesMethod = true;
@@ -309,7 +314,7 @@ function filterCash() {
     const db = b.date || "";
     if (da < db) return 1;
     if (da > db) return -1;
-    return b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' });
+    return naturalCompare(b.id, a.id);
   });
 
   cashPage = 1;
@@ -333,7 +338,7 @@ function clearCashDateFilter() {
 // (TT200: 344/244, TT133: 3386/1386), khớp với bút toán ghi sổ.
 function syncCashDepositAccountOptions() {
   if (typeof document === "undefined" || !document) return;
-  const isTT200 = state.accountingStandard === "TT200";
+  const isTT200 = isTT99Family(state.accountingStandard);
   const apply = (selectId, codes, label) => {
     const select = document.getElementById(selectId);
     if (!select || !select.options) return;
@@ -346,6 +351,14 @@ function syncCashDepositAccountOptions() {
   };
   apply("receipt-credit", ["344", "3386"], "Nhận ký quỹ, ký cược");
   apply("payment-debit", ["244", "1386"], "Chi ký quỹ, ký cược");
+  // Nộp thuế TNCN/TNDN nhà thầu, phí – lệ phí (F1): tên lấy từ danh mục tài khoản của chế độ hiện hành.
+  const debitSelect = document.getElementById("payment-debit");
+  if (debitSelect && debitSelect.options && typeof getAccountName === "function") {
+    ["3334", "3335", "3339"].forEach(code => {
+      const name = getAccountName(code, state.accountingStandard);
+      if (name && !Array.from(debitSelect.options).some(option => option.value === code)) debitSelect.add(new Option(`${name} (TK ${code})`, code));
+    });
+  }
 }
 
 // Tài khoản lưu trên phiếu có thể thuộc chế độ cũ: hiển thị theo chế độ hiện hành.
@@ -538,7 +551,7 @@ async function handleReceiptSubmit(e) {
     stagedVoucher = updatedVoucher;
 
     setVoucherFormStatus(modalId, "Đang đồng bộ máy khác...", "sync");
-    recalculateAccounting(false, true);
+    recalculateAccounting(false);
     const cloudCommitted = await saveStateAndSyncVoucher();
     localSaved = true;
     resetReceiptForm();
@@ -561,7 +574,7 @@ async function handleReceiptSubmit(e) {
         if (oldVoucher) state.vouchers[idx] = oldVoucher;
         else state.vouchers.splice(idx, 1);
       }
-      recalculateAccounting(false, true);
+      recalculateAccounting(false);
     }
     console.error("[Cash] Lưu phiếu thu thất bại:", err);
     setVoucherFormStatus(modalId, "Không thể lưu phiếu thu. Vui lòng thử lại.", "error");
@@ -652,7 +665,7 @@ async function handlePaymentSubmit(e) {
     stagedVoucher = updatedVoucher;
 
     setVoucherFormStatus(modalId, "Đang đồng bộ máy khác...", "sync");
-    recalculateAccounting(false, true);
+    recalculateAccounting(false);
     const cloudCommitted = await saveStateAndSyncVoucher();
     localSaved = true;
     resetPaymentForm();
@@ -675,11 +688,159 @@ async function handlePaymentSubmit(e) {
         if (oldVoucher) state.vouchers[idx] = oldVoucher;
         else state.vouchers.splice(idx, 1);
       }
-      recalculateAccounting(false, true);
+      recalculateAccounting(false);
     }
     console.error("[Cash] Lưu phiếu chi thất bại:", err);
     setVoucherFormStatus(modalId, "Không thể lưu phiếu chi. Vui lòng thử lại.", "error");
     showToast("Không thể lưu phiếu chi. Vui lòng thử lại.", "danger");
+  } finally {
+    endVoucherSubmit(modalId);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Phiếu kế toán tổng hợp (general_journal): bút toán tay Nợ/Có theo danh mục tài khoản.
+// ---------------------------------------------------------------------------
+function validateGeneralJournalEntries(entries, std) {
+  if (!entries.length) return "Cần ít nhất một dòng bút toán.";
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    if (!isValidAccount(e.debit, std)) return `Dòng ${i + 1}: TK Nợ "${e.debit}" không có trong danh mục tài khoản.`;
+    if (!isValidAccount(e.credit, std)) return `Dòng ${i + 1}: TK Có "${e.credit}" không có trong danh mục tài khoản.`;
+    if (!(Number(e.amount) > 0)) return `Dòng ${i + 1}: số tiền phải lớn hơn 0.`;
+  }
+  return "";
+}
+
+function addGeneralJournalRow(entry = {}) {
+  const tbody = document.getElementById("gj-rows");
+  if (!tbody) return;
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td><input type="text" class="form-control gj-debit" list="datalist-gj-accounts" placeholder="TK Nợ" aria-label="TK Nợ"></td>
+    <td><input type="text" class="form-control gj-credit" list="datalist-gj-accounts" placeholder="TK Có" aria-label="TK Có"></td>
+    <td><input type="text" class="form-control text-right number-format gj-amount" placeholder="0" aria-label="Số tiền"></td>
+    <td><input type="text" class="form-control gj-desc" placeholder="Diễn giải dòng" aria-label="Diễn giải dòng"></td>
+    <td style="text-align:center;"><button type="button" class="trash-btn" title="Xóa dòng" aria-label="Xóa dòng" onclick="if (this.closest('tbody').rows.length > 1) this.closest('tr').remove()">×</button></td>`;
+  tr.querySelector(".gj-debit").value = entry.debit || "";
+  tr.querySelector(".gj-credit").value = entry.credit || "";
+  tr.querySelector(".gj-amount").value = entry.amount ? Number(entry.amount).toLocaleString("vi-VN") : "";
+  tr.querySelector(".gj-desc").value = entry.desc || "";
+  tbody.appendChild(tr);
+}
+
+function generateNextGeneralJournalId() {
+  const maxNum = typeof getMaxLocalVoucherSequence === "function" ? getMaxLocalVoucherSequence("PKT") : 0;
+  return `PKT${maxNum + 1}`;
+}
+
+function openGeneralJournalModal(v = null) {
+  editingJournalId = v ? v.id : null;
+  if (typeof noteVoucherEditOpened === "function") noteVoucherEditOpened("general_journal", v);
+  const list = document.getElementById("datalist-gj-accounts");
+  if (list && typeof getChartOfAccounts === "function") {
+    list.innerHTML = getChartOfAccounts(state.accountingStandard).filter(a => !a.hidden)
+      .map(a => `<option value="${escapeHtmlAttr(a.code)}">${escapeHtmlText(a.name)}</option>`).join("");
+  }
+  const title = document.querySelector("#modal-general-journal .card-title");
+  if (title) title.innerText = v ? `Chỉnh sửa phiếu kế toán: ${v.id}` : "Lập phiếu kế toán tổng hợp";
+  const idEl = document.getElementById("gj-id");
+  idEl.value = v ? v.id : generateNextGeneralJournalId();
+  idEl.readOnly = !!v;
+  document.getElementById("gj-date").value = v ? v.date : getLocalDateString();
+  document.getElementById("gj-desc").value = v ? v.description || "" : "";
+  document.getElementById("gj-rows").innerHTML = "";
+  ((v && v.entries && v.entries.length) ? v.entries : [{}]).forEach(entry => addGeneralJournalRow(entry));
+  openModal("modal-general-journal");
+}
+
+function editGeneralJournalVoucher(id) {
+  const v = state.vouchers.find(x => x.id === id && x.type === "general_journal");
+  if (v) openGeneralJournalModal(v);
+}
+
+function readGeneralJournalEntries(description) {
+  return Array.from(document.querySelectorAll("#gj-rows tr")).map(tr => ({
+    debit: tr.querySelector(".gj-debit").value.trim(),
+    credit: tr.querySelector(".gj-credit").value.trim(),
+    amount: parseInt(tr.querySelector(".gj-amount").value.replace(/\D/g, ""), 10) || 0,
+    desc: tr.querySelector(".gj-desc").value.trim() || description
+  }));
+}
+
+// Lưu/sửa giống phiếu thu/chi: số chứng từ an toàn theo cloud, khôi phục khi lưu lỗi, đồng bộ qua saveStateAndSyncVoucher.
+async function handleGeneralJournalSubmit(e) {
+  e.preventDefault();
+  const modalId = "modal-general-journal";
+  const date = document.getElementById("gj-date").value;
+  const description = document.getElementById("gj-desc").value.trim();
+  const entries = readGeneralJournalEntries(description);
+  const error = !date ? "Vui lòng nhập ngày chứng từ." : validateGeneralJournalEntries(entries, state.accountingStandard);
+  if (error) {
+    showToast(error, "danger");
+    return;
+  }
+  if (!beginVoucherSubmit(modalId, "Đang lưu phiếu kế toán...")) return;
+
+  if (typeof reconcileVoucherEditForm === "function") reconcileVoucherEditForm("general_journal");
+  const editId = editingJournalId;
+  const oldVoucher = editId ? state.vouchers.find(v => v.id === editId) : null;
+  let stagedVoucher = null;
+  let localSaved = false;
+  try {
+    if (editId && !oldVoucher) throw new Error("Chứng từ đang sửa không còn tồn tại. Hãy tải lại danh sách.");
+    let id = editId || document.getElementById("gj-id").value.trim() || generateNextGeneralJournalId();
+    if (!editId && typeof ensureCloudSafeVoucherIdForSave === "function") {
+      setVoucherFormStatus(modalId, "Đang kiểm tra số phiếu trên cloud...", "cloud");
+      id = await ensureCloudSafeVoucherIdForSave({ currentId: id, prefix: "PKT", fallbackBase: 0 });
+    }
+    const updatedVoucher = {
+      ...(oldVoucher || {}),
+      id,
+      type: "general_journal",
+      date,
+      description,
+      amount: entries.reduce((sum, entry) => sum + entry.amount, 0),
+      entries,
+      isManual: true,
+      _updatedAt: Date.now(),
+      _sessionId: clientSessionId
+    };
+    if (editId) {
+      const idx = state.vouchers.findIndex(v => v.id === editId);
+      if (idx < 0 || state.vouchers[idx] !== oldVoucher) throw new Error("Chứng từ đã thay đổi. Hãy mở lại trước khi sửa.");
+      state.vouchers[idx] = updatedVoucher;
+    } else {
+      if (state.vouchers.some(v => v.id === id)) throw new Error("Số phiếu đã tồn tại. Vui lòng thử lại.");
+      state.vouchers.push(updatedVoucher);
+    }
+    stagedVoucher = updatedVoucher;
+
+    setVoucherFormStatus(modalId, "Đang đồng bộ máy khác...", "sync");
+    recalculateAccounting(false);
+    const cloudCommitted = await saveStateAndSyncVoucher();
+    localSaved = true;
+    editingJournalId = null;
+    closeModal(modalId);
+    showToast(
+      cloudCommitted
+        ? (editId ? "Cập nhật phiếu kế toán thành công!" : "Lập phiếu kế toán thành công!")
+        : "Phiếu kế toán đã lưu trên máy này và đang chờ đồng bộ sang máy khác.",
+      cloudCommitted ? "success" : "warning"
+    );
+    if (typeof filterCash === "function") filterCash();
+  } catch (err) {
+    if (!localSaved && stagedVoucher) {
+      const idx = state.vouchers.indexOf(stagedVoucher);
+      if (idx >= 0) {
+        if (oldVoucher) state.vouchers[idx] = oldVoucher;
+        else state.vouchers.splice(idx, 1);
+      }
+      recalculateAccounting(false);
+    }
+    console.error("[Cash] Lưu phiếu kế toán thất bại:", err);
+    setVoucherFormStatus(modalId, "Không thể lưu phiếu kế toán. Vui lòng thử lại.", "error");
+    showToast("Không thể lưu phiếu kế toán. Vui lòng thử lại.", "danger");
   } finally {
     endVoucherSubmit(modalId);
   }
@@ -731,7 +892,7 @@ function exportCashToExcel() {
     const db = b.date || "";
     if (da < db) return 1;
     if (da > db) return -1;
-    return b.id.localeCompare(a.id, undefined, { numeric: true, sensitivity: 'base' });
+    return naturalCompare(b.id, a.id);
   });
 
   const cashMapper = (v, r) => {
@@ -769,277 +930,6 @@ function exportCashToExcel() {
   );
 }
 
-function exportSalesToExcel(detailed = true) {
-  if (typeof XLSX === "undefined") {
-    showToast("Thư viện SheetJS chưa được nạp!", "danger");
-    return;
-  }
-  let filteredSales = state.vouchers.filter(v => v.type === "sales" || v.type === "sales_return");
-
-  const query = document.getElementById("search-sales") ? document.getElementById("search-sales").value.toLowerCase() : "";
-  const fromDate = document.getElementById("search-sales-from") ? document.getElementById("search-sales-from").value : "";
-  const toDate = document.getElementById("search-sales-to") ? document.getElementById("search-sales-to").value : "";
-
-  if (query) filteredSales = filteredSales.filter(v =>
-    matchStr(v.id, query) ||
-    matchStr(v.partnerName, query) ||
-    matchStr(v.description, query)
-  );
-  if (fromDate) filteredSales = filteredSales.filter(v => v.date >= fromDate);
-  if (toDate) filteredSales = filteredSales.filter(v => v.date <= toDate);
-  filteredSales.sort((a, b) => new Date(a.date) - new Date(b.date) || a.id.localeCompare(b.id, undefined, { numeric: true }));
-
-  try {
-    const wb = XLSX.utils.book_new();
-    const ws = {};
-    const merges = [];
-    const today = formatDateDisplay(new Date());
-
-    const thin = { style: "thin", color: { rgb: "BBBBBB" } };
-    const b4 = { top: thin, bottom: thin, left: thin, right: thin };
-    const hdrBg = { patternType: "solid", fgColor: { rgb: "1F497D" } };
-    const altBg = { patternType: "solid", fgColor: { rgb: "F5F8FF" } };
-    const totBg = { patternType: "solid", fgColor: { rgb: "D9E1F2" } };
-    const fntT = { name: "Times New Roman", sz: 12, bold: true };
-    const fntSub = { name: "Times New Roman", sz: 10, italic: true };
-    const fntH = { name: "Times New Roman", sz: 10, bold: true, color: { rgb: "FFFFFF" } };
-    const fntB = { name: "Times New Roman", sz: 10, bold: true };
-    const fntN = { name: "Times New Roman", sz: 10 };
-    const cC = { horizontal: "center", vertical: "center" };
-    const cL = { horizontal: "left", vertical: "center", wrapText: true };
-    const cR = { horizontal: "right", vertical: "center" };
-    const numFmt = "#,##0 ;[Red](#,##0)";
-    const dateFmt = "dd/mm/yyyy";
-
-    const sc = (r, c, v, t, s, z) => {
-      const key = XLSX.utils.encode_cell({ r, c });
-      const cell = { v, t: t || (typeof v === 'number' ? 'n' : 's') };
-      if (s) cell.s = s;
-      if (z) cell.z = z;
-      ws[key] = cell;
-    };
-
-    if (detailed) {
-      // ── MISA SO_CHI_TIET_BAN_HANG format ──
-      // Col: Ngày HT | Ngày CT | Số CT | Ngày HĐ | Số HĐ | DG chung | DG riêng |
-      //      Mã KH | Tên KH | Mã hàng | Tên hàng | ĐVT | SL bán | Đơn giá |
-      //      Doanh số | CK | SL trả lại | GT trả lại | GT giảm giá
-      const NCOLS = 19;
-
-      // ROW 0: Tên công ty
-      sc(0, 0, state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông", 's', { font: fntT, alignment: cL });
-      merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: NCOLS - 1 } });
-
-      // ROW 1: Tiêu đề báo cáo (giống MISA)
-      sc(1, 0, "SỔ CHI TIẾT BÁN HÀNG", 's', { font: fntT, alignment: cC });
-      merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: NCOLS - 1 } });
-
-      // ROW 2: Phạm vi ngày
-      sc(2, 0, `Từ ngày: ${fromDate ? formatDateDisplay(fromDate) : 'đầu kỳ'}   Đến ngày: ${toDate ? formatDateDisplay(toDate) : today}`, 's', { font: fntSub, alignment: cC });
-      merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: NCOLS - 1 } });
-
-      // ROW 3: Headers (đúng tên cột MISA để có thể import lại)
-      const headers = [
-        "Ngày hạch toán", "Ngày chứng từ", "Số chứng từ", "Ngày hóa đơn", "Số hóa đơn",
-        "Diễn giải chung", "Diễn giải", "Mã khách hàng", "Tên khách hàng",
-        "Mã hàng", "Tên hàng", "ĐVT",
-        "Tổng số lượng bán", "Đơn giá", "Doanh số bán", "Chiết khấu",
-        "Tổng số lượng trả lại", "Giá trị trả lại", "Giá trị giảm giá"
-      ];
-      headers.forEach((h, c) => sc(3, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: b4 }));
-
-      // DATA ROWS — 1 dòng mỗi sản phẩm trong mỗi chứng từ
-      let rowIdx = 4;
-      let totalQty = 0, totalGross = 0, totalCK = 0;
-      let totalReturnQty = 0, totalReturnValue = 0;
-
-      filteredSales.forEach((v, vi) => {
-        const bg = vi % 2 === 0 ? null : altBg;
-        const bs = al => ({ font: fntN, fill: bg, alignment: al, border: b4 });
-        const ns = al => ({ font: fntN, fill: bg, alignment: al || cR, border: b4 });
-        const partnerId = v.partnerId || "";
-        const partnerName = v.partnerName || getPartnerNameForVoucher(v);
-        const descCommon = v.description || "";
-        const isReturn = v.type === "sales_return";
-
-        const writeRow = (productId, productName, unit, qty, price, grossAmt, ckAmt) => {
-          sc(rowIdx, 0, dateStrToSerial(v.date), 'n', bs(cC), dateFmt);
-          sc(rowIdx, 1, dateStrToSerial(v.date), 'n', bs(cC), dateFmt);
-          sc(rowIdx, 2, v.id, 's', bs(cC));
-          sc(rowIdx, 3, dateStrToSerial(v.date), 'n', bs(cC), dateFmt);
-          sc(rowIdx, 4, v.invoiceNo || "", 's', bs(cC));
-          sc(rowIdx, 5, descCommon, 's', bs(cL));
-          sc(rowIdx, 6, productName, 's', bs(cL));
-          sc(rowIdx, 7, partnerId, 's', bs(cC));
-          sc(rowIdx, 8, partnerName, 's', bs(cL));
-          sc(rowIdx, 9, productId, 's', bs(cC));
-          sc(rowIdx, 10, productName, 's', bs(cL));
-          sc(rowIdx, 11, unit, 's', bs(cC));
-          
-          if (isReturn) {
-            sc(rowIdx, 12, 0, 'n', ns(cR), "#,##0.##");  // SL bán
-            sc(rowIdx, 13, price, 'n', ns(cR), numFmt);    // Đơn giá
-            sc(rowIdx, 14, 0, 'n', ns(cR), numFmt);        // Doanh số bán
-            sc(rowIdx, 15, 0, 'n', ns(cR), numFmt);        // Chiết khấu
-            sc(rowIdx, 16, qty, 'n', ns(cR), "#,##0.##");  // SL trả lại
-            sc(rowIdx, 17, grossAmt, 'n', ns(cR), numFmt);  // GT trả lại
-            sc(rowIdx, 18, 0, 'n', ns(cR), numFmt);        // GT giảm giá
-            totalReturnQty += qty;
-            totalReturnValue += grossAmt;
-          } else {
-            sc(rowIdx, 12, qty, 'n', ns(cR), "#,##0.##");  // SL bán
-            sc(rowIdx, 13, price, 'n', ns(cR), numFmt);    // Đơn giá
-            sc(rowIdx, 14, grossAmt, 'n', ns(cR), numFmt); // Doanh số bán
-            sc(rowIdx, 15, ckAmt, 'n', ns(cR), numFmt);    // Chiết khấu
-            sc(rowIdx, 16, 0, 'n', ns(cR), "#,##0.##");    // SL trả lại
-            sc(rowIdx, 17, 0, 'n', ns(cR), numFmt);        // GT trả lại
-            sc(rowIdx, 18, 0, 'n', ns(cR), numFmt);        // GT giảm giá
-            totalQty += qty;
-            totalGross += grossAmt;
-            totalCK += ckAmt;
-          }
-          rowIdx++;
-        };
-
-        if (v.items && v.items.length > 0) {
-          v.items.forEach(item => {
-            const prod = (state.products || []).find(p => String(p.id) === String(item.productId));
-            const qty = item.qty || 0;
-            const price = item.price || 0;
-            const grossAmt = qty * price;
-            const ckAmt = grossAmt * ((item.discount || 0) / 100);
-            writeRow(
-              item.productId || "",
-              prod ? prod.name : (item.productName || item.productId || ""),
-              prod ? (prod.unit || "Cái") : (item.unit || "Cái"),
-              qty, price, grossAmt, ckAmt
-            );
-          });
-        } else {
-          // Voucher không có items → 1 dòng tổng
-          const gross = (v.totalAmount || 0) - (v.taxAmount || 0);
-          writeRow(v.id, descCommon, "", 0, 0, gross, 0);
-        }
-      });
-
-      // DÒNG TỔNG
-      const ts = al => ({ font: fntB, fill: totBg, alignment: al, border: b4 });
-      sc(rowIdx, 0, "TỔNG CỘNG", 's', ts(cL));
-      merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 11 } });
-      for (let c = 1; c <= 11; c++) sc(rowIdx, c, "", 's', ts(cL));
-      sc(rowIdx, 12, totalQty, 'n', ts(cR), "#,##0.##");
-      sc(rowIdx, 13, 0, 'n', ts(cR), numFmt);
-      sc(rowIdx, 14, totalGross, 'n', ts(cR), numFmt);
-      sc(rowIdx, 15, totalCK, 'n', ts(cR), numFmt);
-      sc(rowIdx, 16, totalReturnQty, 'n', ts(cR), "#,##0.##");
-      sc(rowIdx, 17, totalReturnValue, 'n', ts(cR), numFmt);
-      sc(rowIdx, 18, 0, 'n', ts(cR), numFmt);
-
-      ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: NCOLS - 1 } });
-      ws['!merges'] = merges;
-      ws['!cols'] = [
-        { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 12 },
-        { wch: 26 }, { wch: 26 }, { wch: 16 }, { wch: 28 },
-        { wch: 14 }, { wch: 28 }, { wch: 7 },
-        { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 12 },
-        { wch: 10 }, { wch: 14 }, { wch: 12 }
-      ];
-      ws['!rows'] = [{ hpt: 20 }, { hpt: 22 }, { hpt: 16 }, { hpt: 22 }];
-
-      XLSX.utils.book_append_sheet(wb, ws, "SO CHI TIET BAN HANG");
-      const suffix = fromDate || toDate ? `_${fromDate || ""}_${toDate || ""}` : "";
-      const outName = `SO_CHI_TIET_BAN_HANG_${getLocalDateString()}${suffix}.xlsx`;
-      XLSX.writeFile(wb, outName);
-      showToast(`Đã xuất Excel: ${outName}`, "success");
-    } else {
-      // ── Xuất danh sách hóa đơn bán hàng (chi tiet = false -> chi xuat thong tin phieu) ──
-      const NCOLS = 11;
-
-      // ROW 0: Tên công ty
-      sc(0, 0, state.companyName || "Công Ty Cổ Phần SX Và ĐT Phát Triển Rạng Đông", 's', { font: fntT, alignment: cL });
-      merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: NCOLS - 1 } });
-
-      // ROW 1: Tiêu đề báo cáo
-      sc(1, 0, "DANH SÁCH HÓA ĐƠN BÁN HÀNG", 's', { font: fntT, alignment: cC });
-      merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: NCOLS - 1 } });
-
-      // ROW 2: Phạm vi ngày
-      sc(2, 0, `Từ ngày: ${fromDate ? formatDateDisplay(fromDate) : 'đầu kỳ'}   Đến ngày: ${toDate ? formatDateDisplay(toDate) : today}`, 's', { font: fntSub, alignment: cC });
-      merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: NCOLS - 1 } });
-
-      // ROW 3: Headers
-      const headers = [
-        "Ngày hạch toán", "Ngày chứng từ", "Số chứng từ", "Ngày hóa đơn", "Số hóa đơn",
-        "Khách hàng", "Diễn giải chung", "Doanh số bán", "Thuế GTGT", "Tổng cộng thanh toán", "Phương thức thanh toán"
-      ];
-      headers.forEach((h, c) => sc(3, c, h, 's', { font: fntH, fill: hdrBg, alignment: cC, border: b4 }));
-
-      let rowIdx = 4;
-      let totalAmountGross = 0;
-      let totalAmountTax = 0;
-      let totalAmountTotal = 0;
-
-      filteredSales.forEach((v, vi) => {
-        const bg = vi % 2 === 0 ? null : altBg;
-        const bs = al => ({ font: fntN, fill: bg, alignment: al, border: b4 });
-        const ns = al => ({ font: fntN, fill: bg, alignment: al || cR, border: b4 });
-
-        const isReturn = v.type === "sales_return";
-        const sign = isReturn ? -1 : 1;
-
-        const taxAmt = (v.taxAmount || 0) * sign;
-        const totalAmt = (v.totalAmount || 0) * sign;
-        const grossAmt = totalAmt - taxAmt;
-        const partnerName = v.partnerName || getPartnerNameForVoucher(v);
-
-        sc(rowIdx, 0,  dateStrToSerial(v.date), 'n', bs(cC), dateFmt);  // Ngày HT
-        sc(rowIdx, 1,  dateStrToSerial(v.date), 'n', bs(cC), dateFmt);  // Ngày CT
-        sc(rowIdx, 2,  v.id,              's',  bs(cC));                 // Số CT
-        sc(rowIdx, 3,  dateStrToSerial(v.date), 'n', bs(cC), dateFmt);  // Ngày HĐ
-        sc(rowIdx, 4,  v.invoiceNo || "", 's',  bs(cC));                 // Số HĐ
-        sc(rowIdx, 5,  partnerName,       's',  bs(cL));                 // Khách hàng
-        sc(rowIdx, 6,  v.description || "", 's', bs(cL));                 // Diễn giải chung
-        sc(rowIdx, 7,  grossAmt,          'n',  ns(cR), numFmt);         // Doanh số bán (BTL hiển thị số âm)
-        sc(rowIdx, 8,  taxAmt,            'n',  ns(cR), numFmt);         // Tiền thuế
-        sc(rowIdx, 9,  totalAmt,          'n',  ns(cR), numFmt);         // Tổng cộng
-        sc(rowIdx, 10, isReturn ? 'Trả hàng' : (v.paymentMethod === '131' ? 'Công nợ (131)' : v.paymentMethod === '111' ? 'Tiền mặt (111)' : 'Ngân hàng (112)'), 's', bs(cC));
-
-        totalAmountGross += grossAmt;
-        totalAmountTax += taxAmt;
-        totalAmountTotal += totalAmt;
-        rowIdx++;
-      });
-
-      // DÒNG TỔNG CỘNG
-      const ts = al => ({ font: fntB, fill: totBg, alignment: al, border: b4 });
-      sc(rowIdx, 0, "TỔNG CỘNG", 's', ts(cL));
-      merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 6 } });
-      for (let c = 1; c <= 6; c++) sc(rowIdx, c, "", 's', ts(cL));
-      sc(rowIdx, 7,  totalAmountGross,  'n', ts(cR), numFmt);
-      sc(rowIdx, 8,  totalAmountTax,    'n', ts(cR), numFmt);
-      sc(rowIdx, 9,  totalAmountTotal,  'n', ts(cR), numFmt);
-      sc(rowIdx, 10, "",                's', ts(cC));
-
-      ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rowIdx, c: NCOLS - 1 } });
-      ws['!merges'] = merges;
-      ws['!cols'] = [
-        { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 12 },
-        { wch: 30 }, { wch: 30 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 18 }
-      ];
-      ws['!rows'] = [{ hpt: 20 }, { hpt: 22 }, { hpt: 16 }, { hpt: 22 }];
-
-      XLSX.utils.book_append_sheet(wb, ws, "Danh sach");
-      const suffix = fromDate || toDate ? `_${fromDate || ""}_${toDate || ""}` : "";
-      const outName = `DANH_SACH_BAN_HANG_${getLocalDateString()}${suffix}.xlsx`;
-      XLSX.writeFile(wb, outName);
-      showToast(`Đã xuất Excel: ${outName}`, "success");
-    }
-  } catch (err) {
-    console.error(err);
-    showToast(`Lỗi xuất Excel bán hàng: ${err.message}`, "danger");
-  }
-}
-
 function toggleSelectAllCash(masterCheckbox) {
   const checkboxes = document.querySelectorAll(".cash-checkbox");
   checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
@@ -1069,6 +959,7 @@ function updateBatchCashUI() {
 }
 
 async function batchDeleteCash() {
+  if (window.assertCanWriteRole?.() === false) return; // utils.js có thể chưa nạp (sandbox test)
   const checked = Array.from(document.querySelectorAll(".cash-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
 
@@ -1088,7 +979,7 @@ async function batchDeleteCash() {
   let localSaved = false;
   try {
     state.vouchers = state.vouchers.filter(v => !deleteSet.has(String(v.id)));
-    recalculateAccounting(false, true);
+    recalculateAccounting(false);
     const cloudCommitted = await saveStateAndSyncVoucher();
     localSaved = true;
     if (typeof resetBatchSelectionUI === "function") {
@@ -1100,7 +991,7 @@ async function batchDeleteCash() {
       const active = new Set(state.vouchers.map(v => String(v.id)));
       state.vouchers.push(...removed.filter(v => !active.has(String(v.id))));
       if (typeof rollbackTrackedDeletedIds === "function") rollbackTrackedDeletedIds(deletionToken);
-      recalculateAccounting(false, true);
+      recalculateAccounting(false);
     }
     console.error("[Cash] Không thể xóa phiếu thu chi:", err);
     showToast("Không thể lưu thao tác xóa phiếu thu chi. Vui lòng thử lại.", "danger");
@@ -1123,3 +1014,8 @@ window.openAddPaymentModal = openAddPaymentModal;
 window.onPaymentPartnerChange = onPaymentPartnerChange;
 window.markPaymentDebitChosen = markPaymentDebitChosen;
 window.syncCashDepositAccountOptions = syncCashDepositAccountOptions;
+window.validateGeneralJournalEntries = validateGeneralJournalEntries;
+window.addGeneralJournalRow = addGeneralJournalRow;
+window.openGeneralJournalModal = openGeneralJournalModal;
+window.editGeneralJournalVoucher = editGeneralJournalVoucher;
+window.handleGeneralJournalSubmit = handleGeneralJournalSubmit;

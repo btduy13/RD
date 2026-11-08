@@ -104,7 +104,11 @@ function testPlatformWiring() {
   assert(settings.includes('window.electronAPI.openBackupFolder()'));
   assert(!settings.includes('openExternalUrl("file://"'), 'backup folders must not use the web URL IPC');
   assert(main.includes("ipcMain.handle('open-backup-folder'"));
-  assert(main.includes('readLatestValidJsonBackup(BACKUP_DIR)'));
+  for (const dead of ['get-backup-dir', 'trigger-auto-update', 'list-template-files', 'read-latest-backup']) {
+    assert(!main.includes(`'${dead}'`) && !preload.includes(`'${dead}'`), `IPC ${dead} has no renderer caller and must stay removed`);
+  }
+  assert(main.includes('.xlsx$/i.test(safeName)'), 'save-excel-and-open must refuse non-.xlsx names before shell.openPath');
+  assert(main.includes('await sha256File(destPath) !== expectedSha256'), 'installer must be hash-checked before launch');
   assert(main.includes("app.on('will-quit'"));
   assert(main.includes('app.requestSingleInstanceLock()'), 'desktop app must prevent two processes from writing the same local database');
   assert(main.includes("app.on('second-instance'"), 'a second launch must focus the existing window');
@@ -113,14 +117,42 @@ function testPlatformWiring() {
     main.includes("if (migratedLegacyState && fs.existsSync(oldBackupDir)"),
     'legacy backup files must only be copied when a legacy state/database was actually migrated'
   );
-  assert(main.includes("stmtMetadata.run('_pendingCloudWrite'"));
-  assert(main.includes("row.key === '_pendingCloudWrite'"));
-  assert(main.includes("stmtMetadata.run('_cloudDatasetIdentity'"));
-  assert(main.includes("row.key === '_cloudDatasetIdentity'"));
+  const { STATE_METADATA_KEYS } = require('../js/core/state-diff');
+  for (const key of ['_pendingCloudWrite', '_cloudDatasetIdentity', '_deletedCloudKeyTs', 'taxSettings', 'employees', 'payrolls']) {
+    assert(STATE_METADATA_KEYS.includes(key), `${key} must be persisted to SQLite`);
+  }
+  assert(main.includes('for (const key of STATE_METADATA_KEYS)'), 'main.js must write the shared metadata key list');
+  assert(main.includes('STATE_METADATA_KEYS.includes(row.key)'), 'main.js must read the shared metadata key list');
+}
+
+async function testInstallerDigest() {
+  const { parseReleaseAssetUrl, expectedSha256FromRelease, sha256File } = require('../js/core/url-security');
+  assert.deepEqual(
+    parseReleaseAssetUrl('https://github.com/btduy13/RD/releases/download/v3.4.22/rd-accounting-setup-3.4.22.exe'),
+    { tag: 'v3.4.22', name: 'rd-accounting-setup-3.4.22.exe' }
+  );
+  assert.equal(parseReleaseAssetUrl('https://github.com/btduy13/RD/releases/latest'), null);
+  assert.equal(parseReleaseAssetUrl('https://evil.example/btduy13/RD/releases/download/v1/a.exe'), null);
+  const hex = 'ab'.repeat(32);
+  const release = { assets: [{ name: 'a.exe', digest: `sha256:${hex.toUpperCase()}` }, { name: 'b.exe', digest: null }] };
+  assert.equal(expectedSha256FromRelease(release, 'a.exe'), hex);
+  assert.equal(expectedSha256FromRelease(release, 'b.exe'), null, 'missing digest must not verify');
+  assert.equal(expectedSha256FromRelease(release, 'c.exe'), null);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rd-digest-test-'));
+  try {
+    const file = path.join(dir, 'x.exe');
+    fs.writeFileSync(file, 'abc');
+    assert.equal(await sha256File(file), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 testBackupStore();
 testPackagedExcelPaths();
 testSqliteMigrationGuard();
 testPlatformWiring();
-console.log('platform regression tests passed');
+testInstallerDigest().then(() => console.log('platform regression tests passed'), err => {
+  console.error(err);
+  process.exit(1);
+});

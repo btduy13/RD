@@ -29,7 +29,7 @@ async function main() {
   assert.equal((await run('electronAPI.getDatabaseHealth()')).ok, true);
   assert.equal(await run('cloudSyncSettings.enabled'), false);
   const login = await run(`(async () => {
-    showLoginForm(); document.getElementById('login-username').value = 'cash-integrity-test';
+    showLoginForm(); state.users = (state.users || []).filter(u => u.username !== 'cash-integrity-test').concat([{ username: 'cash-integrity-test', name: 'cash-integrity-test', role: 'accountant', password: 'test-pass' }]); document.getElementById('login-username').value = 'cash-integrity-test'; document.getElementById('login-password').value = 'test-pass';
     await submitLogin({ preventDefault() {} });
     return getComputedStyle(document.getElementById('login-overlay')).display === 'none';
   })()`);
