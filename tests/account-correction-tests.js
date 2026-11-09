@@ -83,7 +83,9 @@ async function main() {
     assert.equal(s('payment', '333', 'Chi nộp thuế môn bài 2025', null, '', null).to, '3338');
     assert.equal(s('payment', '333', 'Chi nộp thuế GTGT + phí lô hàng nhập khẩu', null, '', null), null, 'mixed tax+fee payments are left for manual split');
     assert.equal(s('payment', '341', 'tất toán tiền nợ QTM', { name: 'CTY QUÁCH TUẤN MINH' }, 'TUANMINH', supplier).to, '331');
-    assert.equal(s('payment', '341', 'Chi khác 149 thùy vân tất toán không thu được', { name: 'Mua lẻ' }, 'ML1', supplier), null);
+    assert.equal(s('payment', '341', 'Chi khác 149 thùy vân tất toán không thu được', { name: 'Mua lẻ' }, 'ML1', supplier).to, '642', 'bad-debt write-off is an expense, not a loan repayment');
+    assert.equal(s('payment', '331', 'Chi thầu anh chinh nhà 64/4 ngyễn hới', undefined, 'DT_8061', null).to, '641', 'commission to a partner missing from the catalog');
+    assert.equal(s('payment', '331', 'Trích thầu nhà 50', { name: 'Thầu' }, 'SP_9304', supplier), null, 'existing payee keeps 331');
     assert.equal(s('payment', '341', 'Trả nợ vay ngân hàng', { name: 'Ngân hàng Sacombank' }, 'SACOMBANK', supplier), null);
     assert.equal(s('payment', '156', 'Chi Ck tiền mua hàng', { name: 'NHẬP HÀNG TQ' }, 'TQ', supplier).to, '331');
     assert.equal(s('payment', '156', 'Chi Ck tiền mua hàng', { name: 'NCC mới' }, 'NEW', { salesOn131: 0, purchasesOn331: 0 }), null);
@@ -92,6 +94,7 @@ async function main() {
     assert.equal(s('receipt', '341', 'Nhận tiền vay anh Hai', { name: 'Anh Hai' }, 'KH2', null), null, '"vay" in description keeps 341');
     assert.equal(s('receipt', '511', 'Thu tiền bán hàng', { name: 'Anh Thiện' }, 'KH3', customer).to, '131');
     assert.equal(s('receipt', '511', 'Thu tiền bán hàng', { name: 'CH Thành Công' }, 'KH4', { salesOn131: 0, purchasesOn331: 0 }), null);
+    assert.equal(s('receipt', '511', 'Thu tiền bán hàng', { name: 'A' }, 'KH4', { salesOn131: 1, purchasesOn331: 0, firstSale131: '2026-01-16' }, '2025-04-03'), null, 'a later credit sale is no evidence for an earlier receipt');
     assert.equal(s('receipt', '131', 'Thu nợ', { name: 'A' }, 'KH5', customer), null, 'correct entries stay untouched');
   });
 
@@ -207,6 +210,67 @@ async function main() {
     assert.equal(byId('BH5').partnerId, 'kh1', 'case-insensitive id already resolves, untouched');
     assert.equal(saved, 1);
     assert.equal(c.computeOrphanPartnerRelinks().length, 0);
+  });
+
+  await test('orphan codes with debt and no catalog match get a new partner, never a same-name one', async () => {
+    const state = {
+      accountingStandard: 'TT133', products: [], initialBalances: {}, partnerOpeningBalances: {},
+      deletedIds: ['KL_CHIHUONG'],
+      partners: [{ id: 'H1', name: 'Chị Hương', type: 'retail' }, { id: 'H2', name: 'Chị Hương', type: 'retail' }],
+      vouchers: [
+        { id: 'BH1', type: 'sales', date: '2025-05-19', partnerId: 'DT_4231', partnerName: 'Chị Hương', paymentMethod: '131', totalAmount: 100, entries: [{ debit: '131', credit: '511', amount: 100 }] },
+        { id: 'PT1', type: 'receipt', date: '2025-05-20', partnerId: 'DT_4231', partnerName: 'Chị Hương', amount: 40, entries: [{ debit: '111', credit: '131', amount: 40 }] },
+        { id: 'BH2', type: 'sales', date: '2025-05-21', partnerId: 'DT_9', partnerName: 'Khách lẻ', paymentMethod: '111', totalAmount: 5, entries: [{ debit: '111', credit: '511', amount: 5 }] },
+        { id: 'BH3', type: 'sales', date: '2026-07-01', partnerName: 'BẮC KỊNH (CH; A Tự)', paymentMethod: '131', totalAmount: 7, entries: [{ debit: '131', credit: '511', amount: 7 }] },
+        { id: 'PC1', type: 'payment', date: '2025-05-29', partnerId: 'DT_8061', partnerName: 'BÁN HÀNG THU TIỀN MẶT', amount: 3, description: 'Chi thầu anh chinh', entries: [{ debit: '331', credit: '111', amount: 3, desc: 'Chi thầu anh chinh' }] }
+      ]
+    };
+    const c = makeContext(state, ['js/utils.js', 'js/core/partner-identity.js', 'js/core/chart-of-accounts.js', 'js/core/accounting-engine.js', 'js/excel-integration.js', 'js/modules/debts.js']);
+    c.showConfirmModal = async () => true;
+    c.saveStateAndSyncVoucher = async () => true;
+    c.recalculateAccounting = () => {};
+    c.logUserAction = () => {};
+    c.filterDebts = () => {};
+    const rows = c.computeOrphanPartnerRelinks();
+    assert.deepEqual(rows.map(r => `${r.id}>${r.to}`), ['BH1>KL_CHIHUONG_1', 'PT1>KL_CHIHUONG_1', 'BH3>KL_BACKINHCHATU'],
+      'tombstoned id skipped; cash-only code and voucher awaiting an account fix get no partner');
+    await c.applyOrphanPartnerRelinks();
+    assert.equal(state.partners.filter(x => x.id === 'KL_CHIHUONG_1' && x.name === 'Chị Hương').length, 1, 'one partner per lost code');
+    assert.equal(state.vouchers.find(v => v.id === 'BH3').partnerId, 'KL_BACKINHCHATU');
+    assert.equal(state.vouchers.find(v => v.id === 'PC1').partnerId, 'DT_8061');
+    assert.equal(c.computeOrphanPartnerRelinks().length, 0);
+  });
+
+  await test('receipt carrying goods on Có 511 becomes credit sale + receipt on 131', async () => {
+    const state = {
+      accountingStandard: 'TT133', initialBalances: {}, partnerOpeningBalances: {},
+      products: [{ id: 'P1', name: 'Ống', unit: 'cây', stock: 0, avgCost: 0 }],
+      partners: [{ id: 'KH', name: 'CH Thành Công', type: 'retail' }],
+      vouchers: [
+        { id: 'NK1', type: 'purchase', date: '2026-01-01', partnerId: 'KH', paymentMethod: '111', items: [{ productId: 'P1', qty: 10, price: 50, amount: 500 }] },
+        { id: 'PT1', type: 'receipt', date: '2026-01-16', partnerId: 'KH', partnerName: 'CH Thành Công', amount: 300, paymentMethod: '111', taxRate: 0, taxAmount: 0, totalAmount: 300, _updatedAt: 2,
+          items: [{ productId: 'P1', qty: 4, price: 75, amount: 300, discount: 0 }], entries: [{ debit: '111', credit: '511', amount: 300, desc: 'Thu tiền bán hàng' }] },
+        { id: 'PT2', type: 'receipt', date: '2025-01-20', partnerId: 'KH', amount: 9, entries: [{ debit: '111', credit: '511', amount: 9 }] }
+      ]
+    };
+    const c = makeContext(state, ['js/core/chart-of-accounts.js', 'js/core/tax-rules.js', 'js/core/accounting-engine.js', 'js/accounting.js', 'js/modules/debts.js']);
+    c.showConfirmModal = async () => true;
+    c.saveStateAndSyncVoucher = async () => true;
+    c.logUserAction = () => {};
+    c.filterDebts = () => {};
+    c.getCloudSafeVoucherId = async () => 'BH9';
+    assert.deepEqual(c.computeCashSaleReceiptSplits().map(r => r.id), ['PT1'], 'receipt without goods is not split');
+    assert.match(c.renderCashSaleReceiptSplitBlock(c.computeCashSaleReceiptSplits(), d => d), /Lập hóa đơn bán hàng \(1\)/);
+    await c.applyCashSaleReceiptSplits();
+    const sale = state.vouchers.find(v => v.id === 'BH9');
+    const pt = state.vouchers.find(v => v.id === 'PT1');
+    assert.equal(sale.paymentMethod, '131');
+    assert.deepEqual(sale.entries.map(e => `${e.debit}/${e.credit}/${e.amount}`), ['131/511/300', '632/156/200'], 'revenue and cost of goods');
+    assert.deepEqual(pt.entries.map(e => `${e.debit}/${e.credit}/${e.amount}`), ['111/131/300']);
+    assert.equal(pt.items, undefined, 'goods moved to the invoice');
+    assert.ok(pt._updatedAt > 2, 'receipt edit is stamped for sync');
+    assert.equal(sale.remainingDebt, 0, 'receipt settles the new invoice');
+    assert.equal(c.computeCashSaleReceiptSplits().length, 0);
   });
 
   await test('resync 131/331 openings to partner detail totals', async () => {

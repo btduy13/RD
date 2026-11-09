@@ -3254,6 +3254,7 @@ function computeDebt131Reconciliation(allDebts, fromDate = "", toDate = "") {
     partnerCashWithoutDebt: computePartnerCashWithoutDebtLines(fromDate, toDate),
     cashAccountFixes: computeCashAccountFixSuggestions(),
     orphanPartnerRelinks: computeOrphanPartnerRelinks(),
+    cashSaleReceiptSplits: computeCashSaleReceiptSplits(),
     possibleDoubleRefunds: computePossibleDoubleRefunds(rows, fromDate, toDate)
   };
 }
@@ -3349,7 +3350,8 @@ async function applyCashAccountFixes() {
 // Chứng từ trỏ tới mã đối tác không còn trong danh mục (vd. mã DT_ ngẫu nhiên do bản nhập Excel cũ
 // tự sinh, sau đó đã bị xóa) → gợi ý gán lại theo TÊN trên chứng từ bằng đúng bộ khớp tên của luồng
 // nhập Excel (createImportPartnerResolver: mã, cùng thương hiệu, tên chính xác duy nhất, tiền tố dài nhất).
-// Không tạo đối tác mới; tên mơ hồ/không khớp để kế toán tự xử lý.
+// Tên không khớp/khớp nhiều đối tác: tạo lại MỘT đối tác mới cho mỗi mã mất (mã mới, không dùng lại mã đã xóa
+// vì cloud còn dấu xóa), không gán sang người trùng tên — công nợ giữ nguyên chủ, kế toán gộp sau nếu cần.
 const PARTNER_RELINK_TYPES = new Set(["sales", "sales_return", "purchase", "purchase_return", "receipt", "payment"]);
 function computeOrphanPartnerRelinks() {
   if (typeof createImportPartnerResolver !== "function") return [];
@@ -3357,7 +3359,9 @@ function computeOrphanPartnerRelinks() {
   const resolveExisting = createVoucherPartnerResolver(partners);
   const idSet = new Set(partners.map(p => String(p.id)));
   const resolveByName = createImportPartnerResolver(partners);
+  const pendingCashFixes = new Set(computeCashAccountFixSuggestions().map(r => String(r.id)));
   const rows = [];
+  const lost = new Map(); // mã mất (hoặc tên khi thiếu mã) → chứng từ chưa gán được
   (state.vouchers || []).forEach(v => {
     if (!v || !PARTNER_RELINK_TYPES.has(v.type)) return;
     const current = v.partnerId ? resolveExisting(v) : "";
@@ -3365,10 +3369,18 @@ function computeOrphanPartnerRelinks() {
     const name = String(v.partnerName || "").trim();
     if (!name) return;
     const target = resolveByName(name);
-    if (!target) return;
-    const isSupplier = target.type === "supplier";
-    if ((v.type === "sales" || v.type === "sales_return") && isSupplier) return;
-    if ((v.type === "purchase" || v.type === "purchase_return") && !isSupplier) return;
+    const isSupplier = target && target.type === "supplier";
+    const wrongSide = target && (((v.type === "sales" || v.type === "sales_return") && isSupplier) ||
+      ((v.type === "purchase" || v.type === "purchase_return") && !isSupplier));
+    if (!target || wrongSide) {
+      // Phiếu sắp được sửa TK (vd. chi trích thầu ghi nhầm 331) không phải lý do để tạo đối tác.
+      if (!wrongSide && !pendingCashFixes.has(String(v.id))) {
+        const key = v.partnerId ? `id:${v.partnerId}` : `name:${name.toLowerCase()}`;
+        if (!lost.has(key)) lost.set(key, []);
+        lost.get(key).push(v);
+      }
+      return;
+    }
     rows.push({
       id: v.id, date: v.date || "", type: v.type,
       from: v.partnerId ? String(v.partnerId) : "",
@@ -3376,6 +3388,27 @@ function computeOrphanPartnerRelinks() {
       partnerName: name,
       amount: Number(v.totalAmount ?? v.amount) || 0
     });
+  });
+  const taken = new Set([...partners.map(p => String(p.id).trim().toUpperCase()),
+    ...(state.deletedIds || []).map(id => String(id).trim().toUpperCase())]);
+  lost.forEach(vouchers => {
+    // Chỉ tạo khi mã thật sự có công nợ 131/331 — đúng nhóm "Chứng từ chưa khớp đối tác".
+    if (!vouchers.some(v => getVoucherDebtEntries(v).length > 0)) return;
+    const counts = new Map();
+    vouchers.forEach(v => { const n = String(v.partnerName).trim(); counts.set(n, (counts.get(n) || 0) + 1); });
+    const name = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    const type = vouchers.every(v => v.type === "purchase" || v.type === "purchase_return" || v.type === "payment") ? "supplier" : "retail";
+    const base = (type === "supplier" ? "NCC_" : "KL_") + removeAccents(name).toUpperCase().replace(/[^A-Z0-9/]/g, "");
+    let id = base, n = 1;
+    while (taken.has(id)) id = `${base}_${n++}`;
+    taken.add(id);
+    vouchers.forEach(v => rows.push({
+      id: v.id, date: v.date || "", type: v.type,
+      from: v.partnerId ? String(v.partnerId) : "",
+      to: id, toName: name, create: { id, name, type },
+      partnerName: String(v.partnerName).trim(),
+      amount: Number(v.totalAmount ?? v.amount) || 0
+    }));
   });
   rows.sort((a, b) => (a.date || "").localeCompare(b.date || "") || String(a.id).localeCompare(String(b.id)));
   return rows;
@@ -3389,14 +3422,17 @@ async function applyOrphanPartnerRelinks() {
   const rows = computeOrphanPartnerRelinks();
   if (!rows.length) { showToast("Không còn chứng từ nào gán lại được theo tên.", "info"); return; }
   const targets = new Set(rows.map(r => r.to));
+  const creates = new Map(rows.filter(r => r.create).map(r => [r.create.id, r.create]));
   const ok = typeof showConfirmModal === "function" ? await showConfirmModal({
     title: "Gán lại đối tác theo tên",
-    message: `Gán ${rows.length} chứng từ chưa khớp đối tác vào ${targets.size} đối tác có trong danh mục (khớp theo tên trên chứng từ)? Công nợ từng đối tác sẽ được tính lại.`,
+    message: `Gán ${rows.length} chứng từ chưa khớp đối tác vào ${targets.size} đối tác (khớp theo tên trên chứng từ${creates.size ? `; tạo mới ${creates.size} đối tác không có trong danh mục` : ""})? Công nợ từng đối tác sẽ được tính lại.`,
     confirmText: "Gán lại",
     cancelText: "Hủy bỏ",
     type: "warning"
   }) : true;
   if (!ok) return;
+  const now = Date.now();
+  creates.forEach(c => state.partners.push({ id: c.id, name: c.name, type: c.type, phone: "", email: "", address: "", taxCode: "", inactive: false, _updatedAt: now }));
   const byVoucher = new Map(rows.map(r => [String(r.id), r]));
   const changed = [];
   (state.vouchers || []).forEach(v => {
@@ -3418,7 +3454,7 @@ async function applyOrphanPartnerRelinks() {
     return;
   }
   if (typeof logUserAction === "function") {
-    logUserAction("Gán lại đối tác", `Gán lại ${changed.length} chứng từ: ${changed.slice(0, 30).join("; ")}${changed.length > 30 ? "…" : ""}`);
+    logUserAction("Gán lại đối tác", `${creates.size ? `Tạo đối tác ${[...creates.keys()].join(", ")}. ` : ""}Gán lại ${changed.length} chứng từ: ${changed.slice(0, 30).join("; ")}${changed.length > 30 ? "…" : ""}`);
   }
   showToast(`Đã gán lại đối tác cho ${changed.length} chứng từ.`, "success");
   if (typeof filterDebts === "function") filterDebts();
@@ -3434,7 +3470,7 @@ function renderOrphanPartnerRelinkBlock(rows, showDate) {
               <td>${showDate(r.date)}</td>
               <td>${esc(r.partnerName)}</td>
               <td>${esc(r.from || "-")}</td>
-              <td><strong>${esc(r.to)}</strong> — ${esc(r.toName)}</td>
+              <td><strong>${esc(r.to)}</strong> — ${esc(r.toName)}${r.create ? ' <span class="badge badge-warning">tạo mới</span>' : ""}</td>
               <td class="text-right font-numeric">${formatVND(r.amount)}</td>
             </tr>`).join("");
   const more = rows.length > shown.length ? `<p class="debt-alert-warning-note">Hiển thị ${shown.length}/${rows.length} chứng từ đầu tiên.</p>` : "";
@@ -3446,7 +3482,7 @@ function renderOrphanPartnerRelinkBlock(rows, showDate) {
         </div>
         <div class="debt-alert-warning-body">
           <div class="debt-audit-line"><span class="debt-audit-line-label">Tổng giá trị</span><span class="debt-audit-line-value font-numeric text-danger">${formatVND(total)}</span></div>
-          <p class="debt-alert-warning-note">Mã đối tác trên các chứng từ này không còn trong danh mục (thường là mã DT_ do bản nhập Excel cũ tự sinh). Tên trên chứng từ khớp duy nhất một đối tác hiện có theo cùng quy tắc của luồng nhập Excel. Tên không khớp hoặc khớp nhiều đối tác không được gán.</p>
+          <p class="debt-alert-warning-note">Mã đối tác trên các chứng từ này không còn trong danh mục (thường là mã DT_ do bản nhập Excel cũ tự sinh). Tên trên chứng từ khớp duy nhất một đối tác hiện có theo cùng quy tắc của luồng nhập Excel thì gán vào đối tác đó. Tên không khớp hoặc khớp nhiều đối tác: tạo lại một đối tác mới (đánh dấu "tạo mới") cho mỗi mã, không gán sang người trùng tên; có thể gộp sau ở danh mục đối tác.</p>
           <details>
             <summary>Xem ${rows.length} chứng từ</summary>
             <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
@@ -3541,6 +3577,124 @@ function renderCashAccountFixBlock(rows, showDate) {
       </div>`;
 }
 
+
+// Phiếu thu có danh sách hàng nhưng ghi thẳng Nợ 111/Có 511 (bán hàng nhập từ sổ quỹ): có doanh thu
+// nhưng không có hóa đơn bán, không xuất kho, không ghi giá vốn. Tách thành hóa đơn bán hàng ghi nợ
+// (recalc sinh Nợ 131/Có 511 và Nợ 632/Có 156 từ mặt hàng) + phiếu thu Có 131 — doanh thu và tiền không đổi.
+function isCashSaleReceipt(v) {
+  if (!v || v.type !== "receipt" || !v.partnerId || !Array.isArray(v.items) || !v.items.length) return false;
+  if (!Array.isArray(v.entries) || !v.entries.length || !v.entries.every(e => e && String(e.credit || "").startsWith("511"))) return false;
+  const itemsTotal = v.items.reduce((sum, it) => sum + (Number(it && it.amount) || 0), 0) + (Number(v.taxAmount) || 0);
+  return Math.abs(itemsTotal - (Number(v.amount) || 0)) <= 1;
+}
+
+function computeCashSaleReceiptSplits() {
+  return (state.vouchers || []).filter(isCashSaleReceipt)
+    .map(v => ({ id: v.id, date: v.date || "", partnerId: String(v.partnerId), partnerName: v.partnerName || "", description: v.description || "", amount: Number(v.amount) || 0, itemCount: v.items.length }))
+    .sort((a, b) => a.date.localeCompare(b.date) || String(a.id).localeCompare(String(b.id)));
+}
+
+async function applyCashSaleReceiptSplits() {
+  if (window.currentUser && window.currentUser.role === "viewer") {
+    showToast("Tài khoản chỉ xem không được sửa chứng từ.", "error");
+    return;
+  }
+  const receipts = (state.vouchers || []).filter(isCashSaleReceipt);
+  if (!receipts.length) { showToast("Không còn phiếu thu bán hàng nào cần tách.", "info"); return; }
+  const ok = typeof showConfirmModal === "function" ? await showConfirmModal({
+    title: "Lập hóa đơn bán hàng cho phiếu thu",
+    message: `Lập ${receipts.length} hóa đơn bán hàng (ghi nợ 131, xuất kho, ghi giá vốn) từ mặt hàng trên phiếu thu, và đổi phiếu thu sang Có 131? Doanh thu và tiền mặt không đổi; giá vốn và tồn kho được tính lại.`,
+    confirmText: "Lập hóa đơn",
+    cancelText: "Hủy bỏ",
+    type: "warning"
+  }) : true;
+  if (!ok) return;
+  const created = [];
+  try {
+    for (const v of receipts) {
+      // Đẩy từng hóa đơn vào state ngay để số kế tiếp (tính theo state) không trùng khi offline.
+      const saleId = typeof getCloudSafeVoucherId === "function"
+        ? await getCloudSafeVoucherId({ prefix: "BH", fallbackBase: 44340 })
+        : generateNextSalesVoucherId();
+      const sale = {
+        id: saleId, type: "sales", date: v.date,
+        partnerId: v.partnerId, partnerName: v.partnerName || "",
+        paymentMethod: "131",
+        description: `Bán hàng ${v.partnerName || v.partnerId} (thu tiền ${v.id})`,
+        items: v.items.map(({ cogsUnit, cogsAmount, ...item }) => ({ ...item })),
+        taxRate: Number(v.taxRate) || 0,
+        _updatedAt: Date.now()
+      };
+      if (typeof clientSessionId !== "undefined") sale._sessionId = clientSessionId;
+      state.vouchers.push(sale);
+      created.push([v, sale]);
+    }
+  } catch (err) {
+    const ids = new Set(created.map(([, sale]) => sale.id));
+    state.vouchers = state.vouchers.filter(x => !ids.has(x.id));
+    console.error("[Debts] Không cấp được số hóa đơn:", err);
+    showToast("Không cấp được số hóa đơn bán hàng: " + err.message, "error");
+    return;
+  }
+  created.forEach(([v]) => {
+    v.entries = v.entries.map(e => ({ ...e, credit: "131" }));
+    delete v.items; delete v.taxRate; delete v.taxAmount; delete v.totalAmount;
+    v._updatedAt = Math.max(Date.now(), (Number(v._updatedAt) || 0) + 1);
+    if (typeof clientSessionId !== "undefined") v._sessionId = clientSessionId;
+  });
+  if (typeof recalculateAccounting === "function") recalculateAccounting(false);
+  try {
+    if (typeof saveStateAndSyncVoucher === "function") await saveStateAndSyncVoucher();
+    else saveState();
+  } catch (err) {
+    console.error("[Debts] Lưu hóa đơn tách từ phiếu thu thất bại:", err);
+    showToast("Không lưu được thay đổi: " + err.message, "error");
+    return;
+  }
+  const log = created.map(([v, sale]) => `${v.id}→${sale.id}`);
+  if (typeof logUserAction === "function") {
+    logUserAction("Lập hóa đơn từ phiếu thu", `Tách ${log.length} phiếu thu Có 511: ${log.slice(0, 30).join("; ")}${log.length > 30 ? "…" : ""}`);
+  }
+  showToast(`Đã lập ${log.length} hóa đơn bán hàng từ phiếu thu.`, "success");
+  if (typeof filterDebts === "function") filterDebts();
+}
+
+function renderCashSaleReceiptSplitBlock(rows, showDate) {
+  if (!rows || !rows.length) return "";
+  const esc = escapeDebtAuditText;
+  const shown = rows.slice(0, PARTNER_CASH_NO_DEBT_LIST_LIMIT);
+  const total = rows.reduce((sum, r) => sum + r.amount, 0);
+  const body = shown.map(r => `<tr>
+              <td>${esc(r.id)}</td>
+              <td>${showDate(r.date)}</td>
+              <td>${esc(r.partnerName ? `${r.partnerName} (${r.partnerId})` : r.partnerId)}</td>
+              <td class="text-right font-numeric">${formatVND(r.amount)}</td>
+              <td class="text-right">${r.itemCount}</td>
+              <td class="cell-clip" title="${esc(r.description)}">${esc(r.description)}</td>
+            </tr>`).join("");
+  const more = rows.length > shown.length ? `<p class="debt-alert-warning-note">Hiển thị ${shown.length}/${rows.length} phiếu đầu tiên.</p>` : "";
+  return `
+      <div class="debt-alert-warning" id="cash-sale-receipt-split-block">
+        <div class="debt-alert-warning-header">
+          <span>Phiếu thu bán hàng chưa có hóa đơn, chưa xuất kho</span>
+          <span class="badge badge-danger">${rows.length.toLocaleString('vi-VN')} phiếu</span>
+        </div>
+        <div class="debt-alert-warning-body">
+          <div class="debt-audit-line"><span class="debt-audit-line-label">Tổng doanh thu đã ghi Có 511 trên phiếu thu</span><span class="debt-audit-line-value font-numeric text-danger">${formatVND(total)}</span></div>
+          <p class="debt-alert-warning-note">Phiếu thu có mặt hàng nhưng ghi thẳng Nợ 111/Có 511: hàng chưa xuất kho, chưa ghi giá vốn 632. Sửa: lập hóa đơn bán hàng ghi nợ 131 từ đúng mặt hàng trên phiếu (Nợ 131/Có 511, Nợ 632/Có 156), phiếu thu đổi sang Nợ 111/Có 131. Doanh thu và tiền không đổi.</p>
+          <details>
+            <summary>Xem ${rows.length} phiếu</summary>
+            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+              <table class="data-table" style="font-size: 12px; width: 100%;">
+                <thead><tr><th>Số chứng từ</th><th>Ngày</th><th>Đối tác</th><th class="text-right">Số tiền</th><th class="text-right">Số mặt hàng</th><th>Diễn giải</th></tr></thead>
+                <tbody>${body}</tbody>
+              </table>
+            </div>${more}
+          </details>
+          <button type="button" class="btn btn-primary btn-sm" data-role-required="write" onclick="applyCashSaleReceiptSplits()" style="margin-top: 8px;">Lập hóa đơn bán hàng (${rows.length})</button>
+        </div>
+      </div>`;
+}
 
 function renderPartnerCashWithoutDebtBlock(diag, showDate) {
   if (!diag) return "";
@@ -3828,6 +3982,7 @@ function renderDebtOverview(allDebts, dateRange) {
       </div>
       ${renderOrphanPartnerRelinkBlock(rec.orphanPartnerRelinks, showDate)}
       ${renderCashAccountFixBlock(rec.cashAccountFixes, showDate)}
+      ${renderCashSaleReceiptSplitBlock(rec.cashSaleReceiptSplits, showDate)}
       ${renderPartnerCashWithoutDebtBlock(rec.partnerCashWithoutDebt, showDate)}
       ${renderPossibleDoubleRefundBlock(rec.possibleDoubleRefunds, showDate)}
       ${unmatchedBucket ? `
@@ -4451,6 +4606,8 @@ window.computeDebt131Reconciliation = computeDebt131Reconciliation;
 window.computePartnerCashWithoutDebtLines = computePartnerCashWithoutDebtLines;
 window.computeCashAccountFixSuggestions = computeCashAccountFixSuggestions;
 window.applyCashAccountFixes = applyCashAccountFixes;
+window.computeCashSaleReceiptSplits = computeCashSaleReceiptSplits;
+window.applyCashSaleReceiptSplits = applyCashSaleReceiptSplits;
 window.computeOrphanPartnerRelinks = computeOrphanPartnerRelinks;
 window.applyOrphanPartnerRelinks = applyOrphanPartnerRelinks;
 window.resyncPartnerOpeningTotals = resyncPartnerOpeningTotals;

@@ -206,14 +206,18 @@ function buildPartnerDebtVoucherStats(vouchers) {
     const method = String(v.paymentMethod ?? "").trim();
     let s = stats.get(pid);
     if (!s) { s = { salesOn131: 0, purchasesOn331: 0 }; stats.set(pid, s); }
-    if (v.type === "sales" && method === "131") s.salesOn131++;
+    if (v.type === "sales" && method === "131") {
+      s.salesOn131++;
+      if (v.date && (!s.firstSale131 || v.date < s.firstSale131)) s.firstSale131 = v.date;
+    }
     if (v.type === "purchase" && method === "331") s.purchasesOn331++;
   });
   return stats;
 }
 
 // Trả về { from, to, reason } hoặc null. account: TK ghi Có (phiếu thu) / ghi Nợ (phiếu chi).
-function suggestCashAccountFix(type, account, description, partner, partnerId, stats) {
+// date (tùy chọn): ngày phiếu — chỉ tính hóa đơn bán chịu lập từ ngày đó trở về trước.
+function suggestCashAccountFix(type, account, description, partner, partnerId, stats, date) {
   const acc = String(account ?? "").trim();
   const desc = foldAccountingText(description);
   const st = stats || { salesOn131: 0, purchasesOn331: 0 };
@@ -225,6 +229,14 @@ function suggestCashAccountFix(type, account, description, partner, partnerId, s
     if (acc === "333" && desc.includes("gtgt") && !mixedTaxPayment) return fix("3331", "Nộp thuế GTGT ghi giảm TK 3331 (thuế GTGT phải nộp), không ghi TK tổng hợp 333");
     if (acc === "333" && desc.includes("mon bai")) return fix("3338", "Lệ phí môn bài hạch toán TK 3338");
     if (!partnerId) return null;
+    // Cặp "thu khác Có 131 / chi khác" tất toán khoản khách không trả: xóa nợ khó đòi (chưa lập dự phòng 2293) vào 642.
+    if (acc === "341" && !hasLoanWord && /khong thu duoc|kho doi|xoa no/.test(desc)) {
+      return fix("642", "Xóa nợ phải thu không thu được: ghi chi phí quản lý (Nợ 642), không phải trả nợ vay 341");
+    }
+    // Đối tác không còn trong danh mục nên không thể là khoản nợ NCC; trích thầu cho thợ/thầu giới thiệu khách là chi phí bán hàng.
+    if (acc === "331" && !partner && /(^|[^a-z])(chi|trich) thau/.test(desc)) {
+      return fix("641", "Chi trích thầu (hoa hồng) cho thợ/thầu giới thiệu khách: chi phí bán hàng 641, không phải trả nợ NCC 331");
+    }
     if (acc === "341" && !hasLoanWord && !isBankLikePartner(partner, partnerId) && /(^|[^a-z0-9])no([^a-z0-9]|$)/.test(desc) && st.purchasesOn331 > 0) {
       return fix("331", "Trả nợ nhà cung cấp (đối tác có phiếu nhập ghi Có 331), không phải trả nợ vay 341");
     }
@@ -238,7 +250,7 @@ function suggestCashAccountFix(type, account, description, partner, partnerId, s
     if (acc === "341" && !hasLoanWord && !isBankLikePartner(partner, partnerId)) {
       return fix("131", "Tiền khách trả (ngân hàng trong diễn giải chỉ là kênh chuyển khoản), không phải tiền vay 341");
     }
-    if (acc === "511" && st.salesOn131 > 0) {
+    if (acc === "511" && st.salesOn131 > 0 && !(date && st.firstSale131 && st.firstSale131 > date)) {
       return fix("131", "Khách đã có hóa đơn bán chịu ghi Nợ 131 — thu tiền ghi Có 511 lần nữa làm doanh thu tăng hai lần");
     }
   }
@@ -252,7 +264,7 @@ function suggestCashVoucherAccountFixes(v, partner, stats) {
   const out = [];
   v.entries.forEach((e, index) => {
     if (!e) return;
-    const s = suggestCashAccountFix(v.type, e[side], e.desc || v.description, partner, v.partnerId, stats);
+    const s = suggestCashAccountFix(v.type, e[side], e.desc || v.description, partner, v.partnerId, stats, v.date);
     if (s) out.push({ ...s, index, side, amount: Number(e.amount) || 0 });
   });
   return out;
