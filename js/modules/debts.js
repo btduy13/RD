@@ -240,7 +240,7 @@ function getVoucherDebtEntries(v) {
             {
                 if (amt > 0) {
                     const creditAcc = pm && pm !== "131" ? pm : "131";
-                    return [{ debit: "511", credit: creditAcc, amount: amt }];
+                    return [{ debit: typeof salesReturnAccount === "function" ? salesReturnAccount(state.accountingStandard) : "511", credit: creditAcc, amount: amt }];
                 }
                 break;
             }
@@ -2466,7 +2466,7 @@ function promptEditPartnerOpeningDebt(partnerId) {
   }
 }
 
-function handleEditDebtSubmit(e) {
+async function handleEditDebtSubmit(e) {
   try {
     e.preventDefault();
 
@@ -2515,6 +2515,7 @@ function handleEditDebtSubmit(e) {
         showToast("Số dư đầu kỳ phải lớn hơn hoặc bằng 0đ!", "danger");
         return;
       }
+      if (!(await confirmOpeningBalanceEdit())) return;
 
       state.partnerOpeningBalances = state.partnerOpeningBalances || {};
       state.partnerOpeningBalances[targetId] = { debit: newDebit, credit: newCredit };
@@ -2941,6 +2942,7 @@ function stampPartnerOpeningBalanceTs(id) {
 async function batchDeleteDebts() {
   const checked = Array.from(document.querySelectorAll(".debt-checkbox")).filter(cb => cb.checked);
   if (checked.length === 0) return;
+  if (!(await confirmOpeningBalanceEdit())) return;
 
   const ok = await showConfirmModal({
     title: "Xác nhận xóa số dư công nợ",
@@ -3298,6 +3300,10 @@ function computeCashAccountFixSuggestions() {
   return rows;
 }
 
+// Khóa sổ: thao tác hàng loạt bỏ qua chứng từ thuộc kỳ đã khóa thay vì hủy cả lô.
+const isDebtVoucherLocked = v => typeof isVoucherInLockedPeriod === "function" && isVoucherInLockedPeriod(state, v);
+const lockedSkipNote = n => (n ? ` Bỏ qua ${n} chứng từ thuộc kỳ đã khóa sổ.` : "");
+
 async function applyCashAccountFixes() {
   if (window.currentUser && window.currentUser.role === "viewer") {
     showToast("Tài khoản chỉ xem không được sửa chứng từ.", "error");
@@ -3318,11 +3324,13 @@ async function applyCashAccountFixes() {
   const partnersById = new Map();
   (state.partners || []).forEach(p => { if (p) partnersById.set(String(p.id), p); });
   const changed = [];
+  let skipped = 0;
   (state.vouchers || []).forEach(v => {
     if (!v || (v.type !== "receipt" && v.type !== "payment")) return;
     const pid = v.partnerId ? String(v.partnerId) : "";
     const fixes = suggestCashVoucherAccountFixes(v, pid ? partnersById.get(pid) : null, pid ? stats.get(pid) : null);
     if (!fixes.length) return;
+    if (isDebtVoucherLocked(v)) { skipped++; return; }
     const entries = v.entries.map(e => ({ ...e }));
     fixes.forEach(f => { entries[f.index][f.side] = f.to; });
     v.entries = entries;
@@ -3330,7 +3338,7 @@ async function applyCashAccountFixes() {
     v._updatedAt = Math.max(Date.now(), (Number(v._updatedAt) || 0) + 1);
     changed.push(`${v.id}: ${fixes.map(f => `${f.from}→${f.to}`).join(", ")}`);
   });
-  if (!changed.length) return;
+  if (!changed.length) { if (skipped) showToast(lockedSkipNote(skipped).trim(), "warning"); return; }
   if (typeof recalculateAccounting === "function") recalculateAccounting(false);
   try {
     if (typeof saveStateAndSyncVoucher === "function") await saveStateAndSyncVoucher();
@@ -3343,7 +3351,7 @@ async function applyCashAccountFixes() {
   if (typeof logUserAction === "function") {
     logUserAction("Sửa tài khoản", `Sửa TK đối ứng ${changed.length} phiếu: ${changed.slice(0, 30).join("; ")}${changed.length > 30 ? "…" : ""}`);
   }
-  showToast(`Đã sửa tài khoản cho ${changed.length} phiếu thu/chi.`, "success");
+  showToast(`Đã sửa tài khoản cho ${changed.length} phiếu thu/chi.${lockedSkipNote(skipped)}`, "success");
   if (typeof filterDebts === "function") filterDebts();
 }
 
@@ -3435,15 +3443,17 @@ async function applyOrphanPartnerRelinks() {
   creates.forEach(c => state.partners.push({ id: c.id, name: c.name, type: c.type, phone: "", email: "", address: "", taxCode: "", inactive: false, _updatedAt: now }));
   const byVoucher = new Map(rows.map(r => [String(r.id), r]));
   const changed = [];
+  let skipped = 0;
   (state.vouchers || []).forEach(v => {
     const r = v && byVoucher.get(String(v.id));
     if (!r || String(v.partnerId || "") !== r.from) return;
+    if (isDebtVoucherLocked(v)) { skipped++; return; }
     v.partnerId = r.to;
     delete v.needsReview;
     v._updatedAt = Math.max(Date.now(), (Number(v._updatedAt) || 0) + 1);
     changed.push(`${v.id}: ${r.from || "(trống)"}→${r.to}`);
   });
-  if (!changed.length) return;
+  if (!changed.length) { if (skipped) showToast(lockedSkipNote(skipped).trim(), "warning"); return; }
   if (typeof recalculateAccounting === "function") recalculateAccounting(false);
   try {
     if (typeof saveStateAndSyncVoucher === "function") await saveStateAndSyncVoucher();
@@ -3456,7 +3466,7 @@ async function applyOrphanPartnerRelinks() {
   if (typeof logUserAction === "function") {
     logUserAction("Gán lại đối tác", `${creates.size ? `Tạo đối tác ${[...creates.keys()].join(", ")}. ` : ""}Gán lại ${changed.length} chứng từ: ${changed.slice(0, 30).join("; ")}${changed.length > 30 ? "…" : ""}`);
   }
-  showToast(`Đã gán lại đối tác cho ${changed.length} chứng từ.`, "success");
+  showToast(`Đã gán lại đối tác cho ${changed.length} chứng từ.${lockedSkipNote(skipped)}`, "success");
   if (typeof filterDebts === "function") filterDebts();
 }
 
@@ -3599,8 +3609,11 @@ async function applyCashSaleReceiptSplits() {
     showToast("Tài khoản chỉ xem không được sửa chứng từ.", "error");
     return;
   }
-  const receipts = (state.vouchers || []).filter(isCashSaleReceipt);
-  if (!receipts.length) { showToast("Không còn phiếu thu bán hàng nào cần tách.", "info"); return; }
+  const candidates = (state.vouchers || []).filter(isCashSaleReceipt);
+  // Hóa đơn mới cùng ngày phiếu thu nên chỉ cần xét kỳ khóa của phiếu thu.
+  const receipts = candidates.filter(v => !isDebtVoucherLocked(v));
+  const skipped = candidates.length - receipts.length;
+  if (!receipts.length) { showToast(skipped ? lockedSkipNote(skipped).trim() : "Không còn phiếu thu bán hàng nào cần tách.", skipped ? "warning" : "info"); return; }
   const ok = typeof showConfirmModal === "function" ? await showConfirmModal({
     title: "Lập hóa đơn bán hàng cho phiếu thu",
     message: `Lập ${receipts.length} hóa đơn bán hàng (ghi nợ 131, xuất kho, ghi giá vốn) từ mặt hàng trên phiếu thu, và đổi phiếu thu sang Có 131? Doanh thu và tiền mặt không đổi; giá vốn và tồn kho được tính lại.`,
@@ -3655,7 +3668,7 @@ async function applyCashSaleReceiptSplits() {
   if (typeof logUserAction === "function") {
     logUserAction("Lập hóa đơn từ phiếu thu", `Tách ${log.length} phiếu thu Có 511: ${log.slice(0, 30).join("; ")}${log.length > 30 ? "…" : ""}`);
   }
-  showToast(`Đã lập ${log.length} hóa đơn bán hàng từ phiếu thu.`, "success");
+  showToast(`Đã lập ${log.length} hóa đơn bán hàng từ phiếu thu.${lockedSkipNote(skipped)}`, "success");
   if (typeof filterDebts === "function") filterDebts();
 }
 

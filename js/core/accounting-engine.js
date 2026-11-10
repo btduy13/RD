@@ -231,7 +231,7 @@ function suggestCashAccountFix(type, account, description, partner, partnerId, s
     if (!partnerId) return null;
     // Cặp "thu khác Có 131 / chi khác" tất toán khoản khách không trả: xóa nợ khó đòi (chưa lập dự phòng 2293) vào 642.
     if (acc === "341" && !hasLoanWord && /khong thu duoc|kho doi|xoa no/.test(desc)) {
-      return fix("642", "Xóa nợ phải thu không thu được: ghi chi phí quản lý (Nợ 642), không phải trả nợ vay 341");
+      return fix("642", "Xóa nợ phải thu không thu được: ghi chi phí quản lý (Nợ 642), không phải trả nợ vay 341. Cách đúng: lập Phiếu kế toán xóa nợ (Nợ 2293/642 / Có 131) ở tab Tài sản & dự phòng");
     }
     // Đối tác không còn trong danh mục nên không thể là khoản nợ NCC; trích thầu cho thợ/thầu giới thiệu khách là chi phí bán hàng.
     if (acc === "331" && !partner && /(^|[^a-z])(chi|trich) thau/.test(desc)) {
@@ -514,6 +514,71 @@ function buildPeriodCloseEntries(st, from, to) {
   return ledger.close(from, to);
 }
 
+// Khóa sổ (Luật Kế toán Đ26, TT99 Đ13): chứng từ ngày ≤ st.lockedThrough không được thêm, sửa, xóa.
+// Chỉ chặn thao tác người dùng — recalculateAccounting vẫn tính lại trường suy diễn của kỳ đã khóa.
+// Báo giá, đơn đặt hàng không ghi sổ nên không bị khóa.
+const UNPOSTED_VOUCHER_TYPES = ["sales_quotation", "purchase_order"];
+function isVoucherInLockedPeriod(st, v) {
+  const lock = String((st && st.lockedThrough) || "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(lock) || !v || !v.date || UNPOSTED_VOUCHER_TYPES.includes(v.type)) return false;
+  return String(v.date).slice(0, 10) <= lock;
+}
+
+// NĐ 181/2025 Đ26.2.g (sửa bởi NĐ 144/2026): hóa đơn mua chịu (Có 331) từ ngưỡng tiền mặt (gồm thuế) đến khi
+// trả bằng tiền mặt (Có 111) thì thuế GTGT đầu vào tương ứng phần trả tiền mặt không được khấu trừ, điều chỉnh
+// giảm vào kỳ thanh toán. Chỉ liệt kê để cảnh báo, không tự ghi sổ. Tất toán FIFO theo NCC như recalculateAccounting.
+// shortcut: bỏ qua phiếu chi Nợ 331 cho đối tác vai trò khách (recalc đọc thành 131) — hiếm, chỉ làm lệch cảnh báo.
+function getNonDeductibleCashSettlements(st) {
+  const resolvePid = createVoucherPartnerResolver(st && st.partners);
+  const openingCredit = Object.create(null);
+  ((st && st.partners) || []).forEach(p => {
+    const op = p && p.type === "supplier" && ((st.partnerOpeningBalances || {})[p.id]);
+    if (op) openingCredit[p.id] = Math.max((Number(op.credit) || 0) - (Number(op.debit) || 0), 0);
+  });
+  const invoices = Object.create(null), advances = Object.create(null), out = [];
+  const record = (inv, pay, amount) => {
+    const v = inv.v, rule = typeof getTaxRule === "function" ? getTaxRule("vat.cashThreshold", v.date) : null;
+    const total = Number(v.totalAmount) || 0, tax = Number(v.taxAmount) || 0;
+    if (!rule || total < rule.value || !(tax > 0) || v.vatNonDeductible) return;
+    out.push({ paymentId: pay.id, paymentDate: pay.date, purchaseId: v.id, partnerId: inv.pid, amount, vat: Math.round(tax * amount / total) });
+  };
+  // Trả trước rồi mới có hóa đơn: phần trả trước bằng tiền mặt cũng là trả tiền mặt cho hóa đơn đó.
+  const settle = (queue, amount, onUse) => {
+    let left = amount;
+    while (left > 0 && queue.length) {
+      const used = Math.min(queue[0].remaining, left);
+      queue[0].remaining -= used;
+      left -= used;
+      if (used > 0) onUse(queue[0], used);
+      if (queue[0].remaining <= 0) queue.shift();
+    }
+    return left;
+  };
+  ((st && st.vouchers) || []).filter(v => v && Array.isArray(v.entries)).sort(compareVouchersForAccounting).forEach(v => {
+    const pid = resolvePid(v);
+    if (!pid) return;
+    const invQ = invoices[pid] || (invoices[pid] = []), advQ = advances[pid] || (advances[pid] = []);
+    if (v.type === "purchase") {
+      const credit = v.entries.reduce((s, e) => s + (e && String(e.credit || "").startsWith("331") ? Number(e.amount) || 0 : 0), 0);
+      if (!(credit > 0)) return;
+      const inv = { v, pid, remaining: credit };
+      inv.remaining = settle(advQ, credit, (adv, used) => { if (adv.cash) record(inv, adv.v, used); });
+      if (inv.remaining > 0) invQ.push(inv);
+      return;
+    }
+    v.entries.forEach(e => {
+      if (!e || !String(e.debit || "").startsWith("331")) return;
+      const cash = String(e.credit || "").startsWith("111");
+      let left = Number(e.amount) || 0;
+      const fromOpening = Math.min(openingCredit[pid] || 0, left);
+      openingCredit[pid] = (openingCredit[pid] || 0) - fromOpening;
+      left = settle(invQ, left - fromOpening, (inv, used) => { if (cash) record(inv, v, used); });
+      if (left > 0) advQ.push({ v, cash, remaining: left });
+    });
+  });
+  return out;
+}
+
 window.computeVatBreakdown = computeVatBreakdown;
 window.getAccountTurnover = getAccountTurnover;
 window.buildPeriodCloseEntries = buildPeriodCloseEntries;
@@ -530,3 +595,5 @@ window.compareVouchersForAccounting = compareVouchersForAccounting;
 window.calculateInventoryValueAt = calculateInventoryValueAt;
 window.findNegativeStockProducts = findNegativeStockProducts;
 window.negativeStockProductsAt = negativeStockProductsAt;
+window.isVoucherInLockedPeriod = isVoucherInLockedPeriod;
+window.getNonDeductibleCashSettlements = getNonDeductibleCashSettlements;

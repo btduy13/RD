@@ -25,6 +25,7 @@ function updateCompanyUI() {
   });
   const allowNegative = document.getElementById("setting-allow-negative-stock");
   if (allowNegative) allowNegative.checked = state.allowNegativeStock === true;
+  renderTaxLockSettings();
 
   const sidebarLabel = document.getElementById("sidebar-standard-label");
   const tt99 = isTT99Family(state.accountingStandard);
@@ -54,6 +55,100 @@ function saveCompanySettings() {
   saveState();
   updateCompanyUI();
   showToast("Lưu thông tin doanh nghiệp thành công!", "success");
+}
+
+// Thẻ "Thuế GTGT và khóa sổ" dựng bằng JS ngay sau thẻ Chế độ kế toán. Lưu ở state.taxSettings.{vatMethod, defaultVatRate}
+// và state.lockedThrough (+ lockedThroughInfo: ai, lúc nào) — đồng bộ như metadata công ty.
+const VAT_METHOD_OPTIONS = [["khau_tru", "Khấu trừ"], ["truc_tiep", "Trực tiếp trên doanh thu"], ["khong_chiu", "Không chịu thuế GTGT"]];
+const DEFAULT_VAT_RATE_OPTIONS = [["", "Tự động (8% trong thời gian giảm thuế, sau đó 10%)"], ["10", "10%"], ["8", "8%"], ["5", "5%"], ["0", "0% (hàng xuất khẩu)"], ["KCT", "KCT"], ["KKKNT", "KKKNT"]];
+
+function renderTaxLockSettings() {
+  const anchor = document.getElementById("btn-standard-200")?.closest?.(".chart-card");
+  if (!anchor) return;
+  let card = document.getElementById("settings-tax-lock-card");
+  if (!card) {
+    card = document.createElement("div");
+    card.id = "settings-tax-lock-card";
+    card.className = "chart-card";
+    card.style.minHeight = "auto";
+    anchor.insertAdjacentElement("afterend", card);
+  }
+  const s = state.taxSettings || {};
+  const esc = escapeHtmlText;
+  const options = (list, selected) => list.map(([value, label]) => `<option value="${esc(value)}"${value === selected ? " selected" : ""}>${esc(label)}</option>`).join("");
+  const info = state.lockedThroughInfo || {};
+  const who = info.by ? ` — ${esc(info.by)}${info.at ? `, ${esc(new Date(info.at).toLocaleString("vi-VN"))}` : ""}` : "";
+  card.innerHTML = `
+    <span class="card-title">Thuế GTGT và khóa sổ</span>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label" for="setting-vat-method">Phương pháp tính thuế GTGT</label>
+        <select id="setting-vat-method" class="form-control">${options(s.vatMethod ? VAT_METHOD_OPTIONS : [["", "— Chưa chọn —"], ...VAT_METHOD_OPTIONS], s.vatMethod || "")}</select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="setting-default-vat-rate">Thuế suất mặc định cho dòng hàng mới</label>
+        <select id="setting-default-vat-rate" class="form-control">${options(DEFAULT_VAT_RATE_OPTIONS, String(s.defaultVatRate ?? ""))}</select>
+      </div>
+    </div>
+    ${s.vatMethod ? "" : `<p class="header-subtitle" style="color: var(--color-warning); margin: 4px 0;">Doanh nghiệp cần chọn phương pháp tính thuế GTGT. Khi chưa chọn, dòng hàng mới mặc định 0% như dữ liệu cũ.</p>`}
+    <button class="btn btn-secondary" onclick="saveVatSettings()" style="margin-top: 8px; align-self: flex-start;">Lưu thiết lập thuế</button>
+    <hr style="border: none; border-top: 1px solid var(--border-color); margin: 16px 0 12px;">
+    <p class="header-subtitle" style="margin-bottom: 8px;">Khóa sổ (Luật Kế toán Điều 26, TT99 Điều 13): chứng từ đến hết ngày khóa không được thêm, sửa, xóa. Chỉ quản trị viên được đổi.</p>
+    <div class="form-group">
+      <label class="form-label" for="setting-locked-through">Khóa sổ đến hết ngày</label>
+      <input type="date" id="setting-locked-through" class="form-control" value="${esc(state.lockedThrough || "")}">
+    </div>
+    <p id="setting-lock-status" style="font-size: 13px; margin: 8px 0;">${state.lockedThrough ? `Đã khóa sổ đến ngày <strong>${esc(formatDateDisplay(state.lockedThrough))}</strong>${who}` : `Chưa khóa sổ${who}`}</p>
+    <div style="display: flex; gap: 10px;">
+      <button class="btn btn-primary" onclick="savePeriodLock(false)">Khóa sổ</button>
+      <button class="btn btn-secondary" onclick="savePeriodLock(true)"${state.lockedThrough ? "" : " disabled"}>Mở khóa</button>
+    </div>`;
+}
+
+function saveVatSettings() {
+  if (!window.currentUser || window.currentUser.role !== "admin") {
+    showToast("Chỉ quản trị viên được đổi thiết lập thuế GTGT.", "danger");
+    return;
+  }
+  const vatMethod = document.getElementById("setting-vat-method").value;
+  const defaultVatRate = document.getElementById("setting-default-vat-rate").value;
+  state.taxSettings = { ...(state.taxSettings || {}), vatMethod, defaultVatRate };
+  saveState();
+  renderTaxLockSettings();
+  showToast("Đã lưu thiết lập thuế GTGT. Áp dụng cho chứng từ lập mới; chứng từ đã lưu giữ nguyên.", "success");
+}
+
+async function savePeriodLock(unlock) {
+  const user = window.currentUser;
+  if (!user || user.role !== "admin") {
+    showToast("Chỉ quản trị viên được khóa hoặc mở khóa sổ.", "danger");
+    return;
+  }
+  const date = unlock ? "" : document.getElementById("setting-locked-through").value;
+  if (!unlock && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    showToast("Vui lòng chọn ngày khóa sổ.", "danger");
+    return;
+  }
+  if (!unlock && date > getLocalDateString()) {
+    showToast("Không khóa sổ đến ngày trong tương lai.", "danger");
+    return;
+  }
+  const ok = await showConfirmModal({
+    title: unlock ? "Mở khóa sổ" : "Khóa sổ kế toán",
+    message: unlock
+      ? `Mở khóa sổ (đang khóa đến ngày ${formatDateDisplay(state.lockedThrough)})? Chứng từ các kỳ đã khóa sẽ sửa được.`
+      : `Khóa sổ đến hết ngày ${formatDateDisplay(date)}? Mọi máy trạm sẽ không thêm, sửa, xóa được chứng từ đến ngày này.`,
+    confirmText: unlock ? "Mở khóa" : "Khóa sổ",
+    cancelText: "Hủy bỏ",
+    type: "warning"
+  });
+  if (!ok) return;
+  state.lockedThrough = date;
+  state.lockedThroughInfo = { by: user.name || user.username || "", at: new Date().toISOString() };
+  if (typeof logUserAction === "function") logUserAction(unlock ? "Mở khóa sổ" : "Khóa sổ", unlock ? "Mở khóa sổ kế toán" : `Khóa sổ đến ngày ${formatDateDisplay(date)}`);
+  saveState();
+  renderTaxLockSettings();
+  showToast(unlock ? "Đã mở khóa sổ." : `Đã khóa sổ đến ngày ${formatDateDisplay(date)}.`, "success");
 }
 
 // Thay đổi chế độ kế toán (TT99 — thay TT200 — / TT133)

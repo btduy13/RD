@@ -55,6 +55,22 @@ assert.equal(computePayslip(casual, { gross: 3000000, payDate: "2026-06-15" }).p
 assert.equal(computePayslip(casual, { gross: 3000000, payDate: "2026-07-15" }).pit, 0);
 assert.equal(computePayslip(casual, { gross: 5000000, payDate: "2026-07-15" }).pit, 500000);
 assert.equal(computePayslip(casual, { gross: 5000000, payDate: "2026-07-15" }).insEmployee, 0);
+// Ngưỡng so trên TỔNG chi trả (gồm phụ cấp): 5,5 tr có 1 tr phụ cấp miễn thuế vẫn khấu trừ 10% × 4,5 tr
+assert.equal(computePayslip(casual, { gross: 5500000, allowancesTaxFree: 1000000, payDate: "2026-07-15" }).pit, 450000);
+// HĐLĐ 1 đến dưới 3 tháng: vẫn đóng BH (Luật BHXH 2024 Đ2.1.a), thuế 10%
+slip = computePayslip({ shortContract: true, insSalary: 10000000, region: "I" }, { gross: 10000000, payDate: "2026-07-15" });
+assert.equal(slip.insEmployee, 1050000);
+assert.equal(slip.pit, 1000000);
+assert.equal(computeAnnualSettlement({ shortContract: true }, [{ gross: 10, allowancesTaxFree: 0, pit: 1 }], 2026).eligible, false);
+// Bảo hiểm tra theo THÁNG LƯƠNG: lương tháng 6/2026 trả 05/7 → trần 46,8 tr; thuế vẫn theo ngày trả
+const rich = { resident: true, insSalary: 60000000, region: "I" };
+assert.equal(computePayslip(rich, { gross: 60000000, payDate: "2026-07-05", period: "2026-06" }).ins.employee.bhxh, 3744000);
+assert.equal(computePayslip(rich, { gross: 60000000, payDate: "2026-07-05" }).ins.employee.bhxh, 4048000); // không có period → theo ngày trả
+// Lương tháng 12/2026 trả tháng 01/2027: sàn vẫn 5,31 tr (NĐ 293), không phải 5,7 tr
+assert.equal(computePayslip({ insSalary: 3000000, region: "I" }, { gross: 3000000, payDate: "2027-01-10", period: "2026-12" }).ins.base, 5310000);
+// Không trọn thời gian, lương dưới sàn: không nâng lên sàn, không đóng; trên sàn thì đóng bình thường
+assert.equal(computeInsurance(3000000, "I", "2026-05-31", { partTime: true }).employee.total, 0);
+assert.equal(computeInsurance(6000000, "I", "2026-05-31", { partTime: true }).base, 6000000);
 
 // --- Bút toán: TT99 (lưu là "TT200") dùng 3386 và 641 cho bộ phận bán hàng; TT133 dùng 3385, chỉ 642 ---
 const line = { employeeId: "NV1", dept: "sales", ...computePayslip(emp, { gross: 30000000, payDate: "2026-07-31" }) };
@@ -83,6 +99,11 @@ assert.equal(settle.diff, 0);
 settle = computeAnnualSettlement(emp, months.map((l, i) => i < 6 ? { ...l, pit: 967500 } : l), 2026);
 assert.equal(settle.diff, -6 * (967500 - 257500));
 assert.equal(computeAnnualSettlement({ resident: false }, [{ gross: 10, allowancesTaxFree: 0, pit: 2 }], 2026).eligible, false);
+// Người phụ thuộc theo tháng: 1 NPT chỉ 6 tháng đầu → giảm trừ 12 × 15,5 + 6 × 6,2 tr
+settle = computeAnnualSettlement(emp, months.map((l, i) => i < 6 ? l : { ...l, deductionDependants: 0 }), 2026);
+assert.equal(settle.deduction, 12 * 15500000 + 6 * 6200000);
+// Dòng lương cũ không có deductionDependants → lấy hồ sơ hiện tại
+assert.equal(computeAnnualSettlement(emp, [{ gross: 1, allowancesTaxFree: 0, pit: 0 }], 2026).deduction, 12 * 15500000 + 6200000);
 
 // --- Đồng bộ cloud: employees/payrolls gộp theo từng phần tử và tôn trọng tombstone emp_/pay_ ---
 const cloudSyncPath = path.join(__dirname, "..", "js", "cloud-sync.js");

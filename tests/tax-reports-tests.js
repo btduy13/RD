@@ -192,11 +192,123 @@ for (const std of ["TT99", "TT133"]) {
   });
 }
 
-test("TK không ánh xạ được vẫn hiện và vẫn cộng vào tổng", () => {
+test("TK chưa phân loại hiện cảnh báo, KHÔNG cộng vào tổng (không tự cân)", () => {
   const c = context("TT99", [gj("X1", "2026-01-05", "3799", "111", 100)], { initialBalances: { "111": { type: "debit", balance: 1000 }, "4111": { type: "credit", balance: 1000 } } });
   const b01 = c.buildBalanceSheet(c.state, "2026-12-31");
   assert.deepStrictEqual(plain(b01.unmapped), [{ code: "3799", net: 100 }]);
-  assert.ok(b01.balanced);
+  assert.strictEqual(b01.totalAssets, 900);
+  assert.strictEqual(b01.totalSources, 1000);
+  assert.ok(!b01.balanced);
+  assert.ok(b01.warnings.some(w => w.includes("TK chưa phân loại") && w.includes("3799")));
+  const html = c.renderTaxReportHTML(c.state, { kind: "year", year: 2026, n: 1, report: "b01" });
+  assert.ok(html.includes("TK chưa phân loại") && html.includes("Giả định trình bày"));
+});
+
+const DEBT_PARTNERS = [{ id: "KH1", name: "Khách 1", type: "customer" }, { id: "KH2", name: "Khách 2", type: "customer" },
+  { id: "NCC1", name: "NCC 1", type: "supplier" }, { id: "NCC2", name: "NCC 2", type: "supplier" }];
+const pj = (id, date, debit, credit, amount, partnerId) => ({ ...gj(id, date, debit, credit, amount), partnerId });
+const DEBT_VOUCHERS = () => [
+  pj("D1", "2026-03-01", "131", "511", 1000, "KH1"), pj("D2", "2026-03-02", "111", "131", 300, "KH2"),
+  pj("D3", "2026-03-03", "156", "331", 500, "NCC1"), pj("D4", "2026-03-04", "331", "111", 200, "NCC2"),
+  gj("D5", "2026-03-05", "6426", "2293", 100)
+];
+const withDebts = c => {
+  c.document = { getElementById() { return null; }, addEventListener() {}, querySelectorAll() { return []; } };
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "js/modules/debts.js"), "utf8"), c, { filename: "debts.js" });
+  return c;
+};
+for (const std of ["TT99", "TT133"]) {
+  test(`${std}: B01 không bù trừ công nợ giữa các đối tượng; dự phòng 2293 ghi âm bên tài sản`, () => {
+    const opening = { initialBalances: { "111": { type: "debit", balance: 10000 }, "4111": { type: "credit", balance: 10000 } }, partners: DEBT_PARTNERS };
+    const c = withDebts(context(std, DEBT_VOUCHERS(), opening));
+    const b01 = c.buildBalanceSheet(c.state, "2026-12-31");
+    const line = code => b01.rows.find(r => r.code === code).value;
+    assert.ok(b01.partnerBased && b01.balanced, `${b01.totalAssets} vs ${b01.totalSources}`);
+    assert.deepStrictEqual([line("131"), line("312"), line("132"), line("311"), line("136")], [1000, 300, 200, 500, -100]);
+    assert.deepStrictEqual(plain(b01.warnings), []);
+    // Không có debts.js: bù trừ cấp tài khoản (dự phòng)
+    const fc = context(std, DEBT_VOUCHERS(), opening);
+    const f = fc.buildBalanceSheet(fc.state, "2026-12-31");
+    assert.ok(!f.partnerBased && f.balanced);
+    assert.deepStrictEqual(["131", "311"].map(code => f.rows.find(r => r.code === code).value), [700, 300]);
+    // Bút toán 131 không gắn đối tượng: phần lệch hiện cảnh báo, báo cáo vẫn cân
+    c.state.vouchers.push(gj("D6", "2026-03-06", "131", "511", 50));
+    c.recalculateAccounting(false);
+    const b2 = c.buildBalanceSheet(c.state, "2026-12-31");
+    assert.ok(b2.balanced);
+    assert.ok(b2.warnings.some(w => w.includes("lệch tổng công nợ theo đối tượng")), JSON.stringify(b2.warnings));
+  });
+}
+
+test("Mọi TK trong bảng ánh xạ B01 đều hợp lệ theo danh mục của chế độ", () => {
+  const c = context("TT99", []);
+  for (const [std, def] of [["TT99", "TR_B01_TT99"], ["TT133", "TR_B01A_TT133"]]) {
+    const keys = Object.keys(vm.runInContext(def, c).map).filter(k => k.length >= 3 && !(std === "TT133" && k === "113")); // TT133 không có 113: giữ để đọc dữ liệu cũ
+    keys.forEach(k => assert.ok(c.isValidAccount(k, std), `${std} ${k}`));
+  }
+});
+
+const CF_VOUCHERS = () => [
+  gj("C0", "2025-12-01", "111", "511", 700),
+  gj("C1", "2026-01-05", "112", "4111", 5000), gj("C2", "2026-01-06", "156", "331", 3000), gj("C3", "2026-01-07", "331", "111", 2000),
+  gj("C4", "2026-02-01", "131", "511", 4000), gj("C5", "2026-02-01", "632", "156", 2500), gj("C6", "2026-02-02", "111", "131", 1500),
+  gj("C7", "2026-03-01", "211", "112", 1200), gj("C8", "2026-03-31", "642", "214", 100), gj("C9", "2026-04-01", "111", "341", 800),
+  gj("C10", "2026-06-30", "821", "3334", 50), gj("C11", "2026-07-10", "3334", "111", 30)
+];
+for (const std of ["TT99", "TT133"]) {
+  test(`${std}: B03 gián tiếp — tiền đầu kỳ + lưu chuyển thuần = tiền cuối kỳ; F01 cân; B09 lấy số sổ cái`, () => {
+    const c = context(std, CF_VOUCHERS(), { initialBalances: { "111": { type: "debit", balance: 10000 }, "4111": { type: "credit", balance: 10000 } } });
+    const check = () => {
+      const r = c.buildCashFlowStatement(c.state, "2026-01-01", "2026-12-31");
+      const line = code => Math.round(r.rows.find(x => x.code === code).value);
+      assert.strictEqual(r.form, std === "TT99" ? "B03-DN" : "B03-DNN");
+      assert.deepStrictEqual([r.opening, r.closing, line("50"), line("60"), line("70")], [10700, 14770, 4070, 10700, 14770]);
+      assert.ok(r.reconciled);
+      assert.deepStrictEqual([line("01"), line("02"), line("09"), line("10"), line("11"), line("15")], [1400, 100, -2500, -500, 1000, -30]);
+      assert.deepStrictEqual([line("20"), line("21"), line("30"), line("31"), line("33"), line("40")], [-530, -1200, -1200, 5000, 800, 5800]);
+      assert.deepStrictEqual(plain(r.warnings), []);
+    };
+    check();
+    c.state.vouchers.push({ id: "KC1", ...c.buildPeriodCloseVoucher("2026-01-01", "2026-12-31") });
+    c.recalculateAccounting(false);
+    check(); // chứng từ kết chuyển không làm đổi B03
+    const html = c.renderTaxReportHTML(c.state, { kind: "year", year: 2026, n: 1, report: "b03" });
+    assert.ok(html.includes("khớp") && html.includes(std === "TT99" ? "B03-DN" : "B03-DNN") && html.includes("KẾ TOÁN TRƯỞNG"));
+    // F01-DNN / S06-DN
+    const t = c.buildAccountBalanceTable(c.state, "2026-01-01", "2026-12-31");
+    assert.strictEqual(t.form, std === "TT99" ? "S06-DN" : "F01-DNN");
+    assert.ok(t.balanced);
+    const r111 = t.rows.find(r => r.code === "111");
+    assert.deepStrictEqual([r111.openDebit, r111.debit, r111.credit, r111.closeDebit], [10700, 2300, 2030, 10970]);
+    assert.ok(c.renderTaxReportHTML(c.state, { kind: "year", year: 2026, n: 1, report: "f01" }).includes(std === "TT99" ? "S06-DN" : "F01-DNN"));
+    // B09
+    const n = c.buildFinancialNotes(c.state, "2026-01-01", "2026-12-31");
+    const total = title => n.tables.find(x => x.title === title).rows.find(r => r.total);
+    assert.deepStrictEqual([total("Tiền").open, total("Tiền").close], [10700, 14770]);
+    assert.strictEqual(total("Tài sản cố định").close, 1100);
+    assert.strictEqual(total("Hàng tồn kho").close, 500);
+    const b09 = c.renderTaxReportHTML(c.state, { kind: "year", year: 2026, n: 1, report: "b09" });
+    assert.ok(b09.includes(std === "TT99" ? "Thông tư 99/2025" : "Thông tư 133/2016") && b09.includes("bình quân gia quyền") && b09.includes("đường thẳng"));
+  });
+}
+
+test("B03 TT99: tiền gồm tương đương tiền 1281 → cuối kỳ = B01 mã 110", () => {
+  const c = context("TT99", [gj("E1", "2026-03-01", "1281", "112", 400), gj("E2", "2026-05-01", "1288", "111", 100)],
+    { initialBalances: { "111": { type: "debit", balance: 1000 }, "1281": { type: "debit", balance: 200 }, "4111": { type: "credit", balance: 1200 } } });
+  const r = c.buildCashFlowStatement(c.state, "2026-01-01", "2026-12-31");
+  const b01 = c.buildBalanceSheet(c.state, "2026-12-31");
+  const b110 = Math.round(b01.rows.find(x => x.code === "110").value);
+  assert.deepStrictEqual([r.opening, r.closing, b110], [1200, 1100, 1100]);
+  assert.ok(r.reconciled);
+  assert.strictEqual(Math.round(r.rows.find(x => x.code === "23").value), -100, "128 khác 1281 vẫn là đầu tư");
+});
+
+test("B03: TK chưa phân loại vào mã 07 có cảnh báo, vẫn khớp tiền", () => {
+  const c = context("TT99", [gj("S1", "2026-02-01", "3799", "111", 100)], { initialBalances: { "111": { type: "debit", balance: 1000 }, "4111": { type: "credit", balance: 1000 } } });
+  const r = c.buildCashFlowStatement(c.state, "2026-01-01", "2026-12-31");
+  assert.ok(r.reconciled);
+  assert.strictEqual(r.rows.find(x => x.code === "07").value, -100);
+  assert.ok(r.warnings[0].includes("3799"));
 });
 
 test("D: [33] = 10% × [32] − tổng số giảm trên phụ lục NĐ 174", () => {

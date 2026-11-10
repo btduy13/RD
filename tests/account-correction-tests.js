@@ -84,6 +84,7 @@ async function main() {
     assert.equal(s('payment', '333', 'Chi nộp thuế GTGT + phí lô hàng nhập khẩu', null, '', null), null, 'mixed tax+fee payments are left for manual split');
     assert.equal(s('payment', '341', 'tất toán tiền nợ QTM', { name: 'CTY QUÁCH TUẤN MINH' }, 'TUANMINH', supplier).to, '331');
     assert.equal(s('payment', '341', 'Chi khác 149 thùy vân tất toán không thu được', { name: 'Mua lẻ' }, 'ML1', supplier).to, '642', 'bad-debt write-off is an expense, not a loan repayment');
+    assert.ok(s('payment', '341', 'Chi khác 149 thùy vân tất toán không thu được', { name: 'Mua lẻ' }, 'ML1', supplier).reason.includes('Tài sản & dự phòng'), 'reason points to the write-off voucher flow');
     assert.equal(s('payment', '331', 'Chi thầu anh chinh nhà 64/4 ngyễn hới', undefined, 'DT_8061', null).to, '641', 'commission to a partner missing from the catalog');
     assert.equal(s('payment', '331', 'Trích thầu nhà 50', { name: 'Thầu' }, 'SP_9304', supplier), null, 'existing payee keeps 331');
     assert.equal(s('payment', '341', 'Trả nợ vay ngân hàng', { name: 'Ngân hàng Sacombank' }, 'SACOMBANK', supplier), null);

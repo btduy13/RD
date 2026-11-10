@@ -550,6 +550,10 @@ async function handleSalesSubmit(e) {
     return;
   }
 
+  if (window.blockLockedPeriodEdit?.({ type: "sales", date: document.getElementById("sale-date").value }, editingSalesId && state.vouchers.find(v => v.id === editingSalesId))) return;
+  const zeroVatWarning = getZeroVatSaleWarning(voucherItems);
+  if (zeroVatWarning && !(await showConfirmModal({ title: "Thuế suất 0%", message: zeroVatWarning, confirmText: "Vẫn lưu", cancelText: "Quay lại sửa", type: "warning" }))) return;
+
   const modalId = "modal-add-sales";
   if (!beginVoucherSubmit(modalId, "Đang kiểm tra dữ liệu...")) return;
 
@@ -600,7 +604,7 @@ async function handleSalesSubmit(e) {
     description: document.getElementById("sale-desc").value,
     note: document.getElementById("sale-note") ? document.getElementById("sale-note").value.trim() : "",
     items: voucherItems,
-    taxRate: parseInt(document.getElementById("sale-tax-rate").value),
+    taxRate: parseVatRateValue(document.getElementById("sale-tax-rate").value),
     ...readVoucherInvoiceFields("sale", { date: document.getElementById("sale-date").value, partner: resolvedPartner }).fields,
     isManual: true,
     _updatedAt: Date.now(),
@@ -795,6 +799,7 @@ async function batchDeleteSales() {
 
   const idsToDelete = checked.map(cb => String(cb.value));
   const deleteSet = new Set(idsToDelete);
+  if (window.blockLockedPeriodEdit?.(null, state.vouchers.filter(v => deleteSet.has(String(v.id))))) return;
   trackDeletedIds(idsToDelete);
   state.vouchers = state.vouchers.filter(v => !deleteSet.has(String(v.id)));
 
@@ -1265,6 +1270,8 @@ async function handleSalesReturnSubmit(e) {
     return;
   }
 
+  if (window.blockLockedPeriodEdit?.({ type: "sales_return", date: document.getElementById("sales-ret-date").value }, editingSalesReturnId && state.vouchers.find(v => v.id === editingSalesReturnId))) return;
+
   const modalId = "modal-add-sales-return";
   if (!beginVoucherSubmit(modalId, "Đang kiểm tra dữ liệu...")) return;
 
@@ -1297,7 +1304,7 @@ async function handleSalesReturnSubmit(e) {
     paymentMethod: document.getElementById("sales-ret-payment").value,
     description: document.getElementById("sales-ret-desc").value,
     items: voucherItems,
-    taxRate: parseInt(document.getElementById("sales-ret-tax-rate").value) || 0,
+    taxRate: parseVatRateValue(document.getElementById("sales-ret-tax-rate").value),
     ...readVoucherInvoiceFields("sales-ret", { date: document.getElementById("sales-ret-date").value, partner: resolvedPartner, originalType: "sales" }).fields,
     isManual: true,
     _updatedAt: Date.now(),
@@ -1447,6 +1454,7 @@ async function batchDeleteSalesReturns() {
 
   const idsToDelete = checked.map(cb => String(cb.value));
   const deleteSet = new Set(idsToDelete);
+  if (window.blockLockedPeriodEdit?.(null, state.vouchers.filter(v => deleteSet.has(String(v.id))))) return;
   trackDeletedIds(idsToDelete);
   state.vouchers = state.vouchers.filter(v => !deleteSet.has(String(v.id)));
 
@@ -2003,7 +2011,7 @@ async function handleQuotationSubmit(e) {
       paymentMethod: document.getElementById("quotation-payment").value,
       description: document.getElementById("quotation-desc").value,
       items: voucherItems,
-      taxRate: parseInt(document.getElementById("quotation-tax-rate").value),
+      taxRate: parseVatRateValue(document.getElementById("quotation-tax-rate").value),
       isManual: true,
       _updatedAt: Date.now(),
       _sessionId: clientSessionId
@@ -2124,11 +2132,12 @@ const quotationConversionsInProgress = new Set();
 
 window.convertQuotationToOrder = async function(id) {
   const quotationId = String(id || "");
-  const quotationExists = state.vouchers.some(v => String(v.id) === quotationId && v.type === "sales_quotation");
+  const quotationExists = state.vouchers.find(v => String(v.id) === quotationId && v.type === "sales_quotation");
   if (!quotationExists) {
     if (typeof showToast === "function") showToast("Không tìm thấy báo giá!", "danger");
     return;
   }
+  if (window.blockLockedPeriodEdit?.({ ...quotationExists, type: "sales" })) return;
 
   if (quotationConversionsInProgress.size > 0) return false;
   quotationConversionsInProgress.add(quotationId);
@@ -2304,6 +2313,7 @@ async function batchDeleteQuotations() {
   try {
     const idsToDelete = ids.map(id => String(id));
     const deleteSet = new Set(idsToDelete);
+  if (window.blockLockedPeriodEdit?.(null, state.vouchers.filter(v => deleteSet.has(String(v.id))))) return;
     trackDeletedIds(idsToDelete);
       state.vouchers = state.vouchers.filter(v => !deleteSet.has(String(v.id)));
       if (typeof resetBatchSelectionUI === "function") {
@@ -3001,7 +3011,7 @@ if (typeof registerDynamicFormTable === "function") {
     onProductInput: autoFillProductPrice,
     totals: { taxRateId: "sale-tax-rate", subtotalId: "sale-subtotal-display", taxId: "sale-tax-display", totalId: "sale-total-display" },
     fieldIds: { id: "sale-id", partner: "sale-partner", date: "sale-date", payment: "sale-payment", desc: "sale-desc", note: "sale-note", taxRate: "sale-tax-rate", ...voucherInvoiceFieldIds("sale") },
-    fieldDefaults: { payment: "131", desc: "Bán hàng xuất kho", taxRate: "0", invoiceForm: "1" },
+    fieldDefaults: { payment: "131", desc: "Bán hàng xuất kho", get taxRate() { return getDefaultVatRate(); }, invoiceForm: "1" },
     getEditingId: () => editingSalesId,
     setEditingId: value => { editingSalesId = value || null; }
   }));
@@ -3018,7 +3028,7 @@ if (typeof registerDynamicFormTable === "function") {
     hasVat: true,
     totals: { taxRateId: "sales-ret-tax-rate", subtotalId: "sales-ret-subtotal-display", taxId: "sales-ret-tax-display", totalId: "sales-ret-total-display" },
     fieldIds: { id: "sales-ret-id", partner: "sales-ret-partner", date: "sales-ret-date", payment: "sales-ret-payment", desc: "sales-ret-desc", taxRate: "sales-ret-tax-rate", ...voucherInvoiceFieldIds("sales-ret", true) },
-    fieldDefaults: { payment: "131", desc: "Nhập hàng bán trả lại", taxRate: "0", invoiceForm: "1" },
+    fieldDefaults: { payment: "131", desc: "Nhập hàng bán trả lại", get taxRate() { return getDefaultVatRate(); }, invoiceForm: "1" },
     getEditingId: () => editingSalesReturnId,
     setEditingId: value => { editingSalesReturnId = value || null; }
   }));
@@ -3037,7 +3047,7 @@ if (typeof registerDynamicFormTable === "function") {
     onProductInput: autoFillQuotationPrice,
     totals: { taxRateId: "quotation-tax-rate", subtotalId: "quotation-subtotal-display", taxId: "quotation-tax-display", totalId: "quotation-total-display" },
     fieldIds: { id: "quotation-id", partner: "quotation-partner", date: "quotation-date", payment: "quotation-payment", desc: "quotation-desc", taxRate: "quotation-tax-rate" },
-    fieldDefaults: { payment: "131", desc: "Báo giá hàng hóa", taxRate: "0" },
+    fieldDefaults: { payment: "131", desc: "Báo giá hàng hóa", get taxRate() { return getDefaultVatRate(); } },
     getEditingId: () => editingQuotationId,
     setEditingId: value => { editingQuotationId = value || null; }
   }));

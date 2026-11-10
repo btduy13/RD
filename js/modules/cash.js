@@ -496,6 +496,7 @@ async function handleReceiptSubmit(e) {
     return;
   }
 
+  if (window.blockLockedPeriodEdit?.({ type: "receipt", date }, editingReceiptId && state.vouchers.find(v => v.id === editingReceiptId))) return;
   if (!beginVoucherSubmit(modalId, "Đang lưu phiếu thu...")) return;
 
   // Sync may have renumbered/replaced the voucher while this form was open.
@@ -610,6 +611,7 @@ async function handlePaymentSubmit(e) {
     return;
   }
 
+  if (window.blockLockedPeriodEdit?.({ type: "payment", date }, editingPaymentId && state.vouchers.find(v => v.id === editingPaymentId))) return;
   if (!beginVoucherSubmit(modalId, "Đang lưu phiếu chi...")) return;
 
   // Sync may have renumbered/replaced the voucher while this form was open.
@@ -677,6 +679,8 @@ async function handlePaymentSubmit(e) {
         : "Phiếu chi đã lưu trên máy này và đang chờ đồng bộ sang máy khác.",
       cloudCommitted ? "success" : "warning"
     );
+    const cashVatWarning = getCashSettlementVatWarning(id);
+    if (cashVatWarning) showToast(cashVatWarning, "warning");
     document.getElementById("form-payment").reset();
 
     filterCash();
@@ -696,6 +700,17 @@ async function handlePaymentSubmit(e) {
   } finally {
     endVoucherSubmit(modalId);
   }
+}
+
+// Phiếu chi tiền mặt tất toán hóa đơn mua chịu từ ngưỡng: thuế GTGT đầu vào phần trả tiền mặt không được khấu trừ.
+// Chỉ cảnh báo, kế toán tự lập bút toán điều chỉnh giảm 1331 ở kỳ thanh toán.
+function getCashSettlementVatWarning(paymentId) {
+  if (typeof getNonDeductibleCashSettlements !== "function") return "";
+  const hits = getNonDeductibleCashSettlements(state).filter(s => s.paymentId === paymentId);
+  if (!hits.length) return "";
+  const vat = hits.reduce((sum, s) => sum + s.vat, 0);
+  const ids = [...new Set(hits.map(s => s.purchaseId))].join(", ");
+  return `Phiếu chi tiền mặt trả hóa đơn mua chịu thuộc diện phải thanh toán không dùng tiền mặt (${ids}): thuế GTGT đầu vào khoảng ${formatVND(vat)} không được khấu trừ, cần điều chỉnh giảm trong kỳ thanh toán (NĐ 181/2025 Điều 26). Nên trả qua ngân hàng.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -780,6 +795,7 @@ async function handleGeneralJournalSubmit(e) {
     showToast(error, "danger");
     return;
   }
+  if (window.blockLockedPeriodEdit?.({ type: "general_journal", date }, editingJournalId && state.vouchers.find(v => v.id === editingJournalId))) return;
   if (!beginVoucherSubmit(modalId, "Đang lưu phiếu kế toán...")) return;
 
   if (typeof reconcileVoucherEditForm === "function") reconcileVoucherEditForm("general_journal");
@@ -974,6 +990,7 @@ async function batchDeleteCash() {
 
   const idsToDelete = checked.map(cb => String(cb.value));
   const deleteSet = new Set(idsToDelete);
+  if (window.blockLockedPeriodEdit?.(null, state.vouchers.filter(v => deleteSet.has(String(v.id))))) return;
   const removed = state.vouchers.filter(v => deleteSet.has(String(v.id)));
   const deletionToken = trackDeletedIds(idsToDelete, 'voucher');
   let localSaved = false;

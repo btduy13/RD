@@ -20,6 +20,8 @@ const TAX_RULES = [
     ref: "Luật Thuế TNDN 67/2025/QH15; NĐ 320/2025/NĐ-CP Điều 11 — ≤3 tỷ 15%, >3 đến 50 tỷ 17%, còn lại 20%" },
   { key: "cit.reduction30", value: { percent: 30, maxRevenue: 10000000000 }, from: "2026-01-01", to: "2027-12-31",
     ref: "NĐ 398/2026/NĐ-CP Điều 3 (NQ 43/2026/QH16) — giảm 30% thuế TNDN năm 2026, 2027 nếu doanh thu chính năm đó ≤ 10 tỷ" },
+  { key: "cit.exemptRevenue", value: 1000000000, from: "2026-01-01", to: null,
+    ref: "NĐ 141/2026/NĐ-CP Điều 2 (thêm khoản 15 Điều 4 NĐ 320/2025) — DN tổng doanh thu năm ≤ 01 tỷ được miễn thuế TNDN, không tạm nộp" },
 
   // ---- Thuế TNCN (tra theo NGÀY CHI TRẢ; bậc tính theo tháng, upTo null = phần còn lại) ----
   { key: "pit.brackets", value: [
@@ -69,9 +71,11 @@ const TAX_RULES = [
       { date: "2025-09-01", name: "Quốc khánh (ngày liền kề)" }, { date: "2025-09-02", name: "Quốc khánh" }
     ] },
   { key: "holidays", from: "2026-01-01", to: "2026-12-31",
-    ref: "BLLĐ 2019 Điều 112; NQ 28/2026/QH16 Điều 2 (24/11); lịch nghỉ công chức 2026 (Tết 14–22/02, Quốc khánh 29/8–02/9)",
+    ref: "BLLĐ 2019 Điều 112; NQ 28/2026/QH16 Điều 2 (24/11); lịch nghỉ công chức 2026 (01–04/01, Tết 14–22/02, Quốc khánh 29/8–02/9)",
     value: [
       { date: "2026-01-01", name: "Tết Dương lịch" },
+      // Công chức hoán đổi: nghỉ thứ Sáu 02/01, làm bù thứ Bảy 10/01 (computeDueDate vẫn bỏ qua thứ Bảy, có lợi cho người nộp thuế).
+      { date: "2026-01-02", name: "Nghỉ hoán đổi Tết Dương lịch (làm bù thứ Bảy 10/01)" },
       // Mùng 1 Tết Bính Ngọ = 17/02/2026; công chức nghỉ 14–22/02 (14–15, 21–22 là cuối tuần)
       { date: "2026-02-16", name: "Tết Nguyên đán" }, { date: "2026-02-17", name: "Tết Nguyên đán (mùng 1)" },
       { date: "2026-02-18", name: "Tết Nguyên đán" }, { date: "2026-02-19", name: "Tết Nguyên đán" },

@@ -56,5 +56,24 @@ assert.deepEqual([lateFilingPenaltyTier(31).min, lateFilingPenaltyTier(60).max],
 assert.deepEqual([lateFilingPenaltyTier(61).min, lateFilingPenaltyTier(90).max], [8e6, 15e6]);
 assert.deepEqual([lateFilingPenaltyTier(91).min, lateFilingPenaltyTier(91).max], [15e6, 25e6]);
 assert.deepEqual([lateFilingPenaltyTier(45, true).min, lateFilingPenaltyTier(45, true).max], [2.5e6, 4e6]);
+// Quá 90 ngày, không phát sinh thuế phải nộp → 8–15 tr
+assert.deepEqual([lateFilingPenaltyTier(91, false, false).min, lateFilingPenaltyTier(91, false, false).max], [8e6, 15e6]);
+assert.deepEqual([lateFilingPenaltyTier(120, true, false).min, lateFilingPenaltyTier(120, true, true).max], [4e6, 12.5e6]);
+
+// 02/01/2026 nghỉ hoán đổi
+assert.equal(computeDueDate("2026-01-02"), "2026-01-05");
+// BHXH: ngày cuối tháng sau; tháng 12/2026 → 31/01/2027 (Chủ nhật) lùi 01/02/2027
+const bhxh = p => cal.find(it => it.tax === "BHXH" && it.period === p);
+assert.equal(cal.filter(it => it.tax === "BHXH").length, 12);
+assert.equal(bhxh("2026-10").dueDate, "2026-11-30");
+assert.equal(bhxh("2026-12").rawDate, "2027-01-31");
+assert.equal(bhxh("2026-12").dueDate, "2027-02-01");
+// NĐ 141/2026: doanh thu năm trước ≤ 1 tỷ → không tạm nộp TNDN; quyết toán vẫn còn
+const citQ = c => c.filter(it => it.tax === "TNDN" && /^Tạm nộp/.test(it.label)).length;
+assert.equal(citQ(buildTaxCalendar(2026, { prevYearRevenue: { 2026: 1000000000 } })), 0);
+assert.ok(buildTaxCalendar(2026, { prevYearRevenue: { 2026: 900000000 } }).some(it => it.label === "Quyết toán TNDN năm 2026"));
+assert.equal(citQ(buildTaxCalendar(2026, { prevYearRevenue: { 2026: 1000000001 } })), 4);
+assert.equal(citQ(buildTaxCalendar(2026, { prevYearRevenue: { 2027: 0 } })), 4); // chưa nhập năm 2026
+assert.equal(citQ(buildTaxCalendar(2025, { prevYearRevenue: { 2025: 0 } })), 4); // trước 2026 không có miễn
 
 console.log("tax-calendar-tests: all passed");

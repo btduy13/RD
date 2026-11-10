@@ -496,17 +496,41 @@ function createDynamicVatSelect(column, value, config) {
   VAT_RATE_OPTIONS.forEach(rate => select.add(new Option(/^\d+$/.test(rate) ? `${rate}%` : rate, rate)));
   const own = value === undefined || value === null || value === "" ? "" : String(value).trim().toUpperCase();
   const headerRate = config.totals && config.totals.taxRateId ? document.getElementById(config.totals.taxRateId)?.value : "";
-  select.value = own || String(headerRate || "0");
+  select.value = own || String(headerRate || getDefaultVatRate());
   if (!select.value) select.value = "0";
   select.addEventListener("change", () => refreshDynamicFormTable(config.tbodyId));
   return select;
+}
+
+// Thuế suất cho dòng hàng mới (Thiết lập → Thuế GTGT). 0% là thuế suất hàng xuất khẩu nên không làm mặc định:
+// tự động 8% trong thời gian giảm thuế (NĐ 174/2025), sau đó 10%; DN không chịu thuế / nộp trực tiếp mặc định KCT.
+// Chưa chọn phương pháp (dữ liệu cũ gần như toàn 0%): giữ mặc định "0" như trước, chỉ đổi khi DN chọn khấu trừ.
+function getDefaultVatRate(date, st = typeof state !== "undefined" ? state : null) {
+  const s = (st && st.taxSettings) || {};
+  const saved = String(s.defaultVatRate ?? "").trim().toUpperCase();
+  if (VAT_RATE_OPTIONS.includes(saved)) return saved;
+  if (s.vatMethod === "khong_chiu" || s.vatMethod === "truc_tiep") return "KCT";
+  if (s.vatMethod !== "khau_tru") return "0";
+  return typeof getTaxRule === "function" && getTaxRule("vat.reduced8.window", date || new Date()) ? "8" : "10";
+}
+
+// Cảnh báo (người dùng xác nhận) khi DN khấu trừ lập hóa đơn bán có dòng 0%: 0% chỉ dành cho hàng xuất khẩu.
+function getZeroVatSaleWarning(items, st = typeof state !== "undefined" ? state : null) {
+  const method = ((st && st.taxSettings) || {}).vatMethod;
+  if (method !== "khau_tru" || !(items || []).some(item => item && item.vatRate !== undefined && vatRateKey(item.vatRate) === "0")) return "";
+  return "Có dòng hàng thuế suất 0%. 0% chỉ áp dụng cho hàng xuất khẩu (Luật Thuế GTGT 48/2024 Điều 9); bán trong nước dùng 8% hoặc 10%. Vẫn lưu với thuế suất 0%?";
 }
 
 // Giá trị lưu vào item.vatRate: số (0|5|8|10) hoặc "KCT"/"KKKNT"; undefined khi form không có cột thuế.
 function readDynamicVatRate(row) {
   const value = row && row.querySelector(".item-vatrate")?.value;
   if (value === undefined || value === "") return undefined;
-  return /^\d+$/.test(value) ? Number(value) : value;
+  return parseVatRateValue(value);
+}
+
+// Thuế suất từ ô chọn: số giữ dạng số, "KCT"/"KKKNT" giữ nguyên (parseInt ra NaN).
+function parseVatRateValue(value) {
+  return /^\d+$/.test(String(value)) ? Number(value) : (value || 0);
 }
 
 function createDynamicFormInput(column, value, config) {
@@ -692,7 +716,10 @@ function resetDynamicVoucherForm(formId, fieldOverrides = {}) {
     if (Object.prototype.hasOwnProperty.call(fieldOverrides, key)) {
       element.value = fieldOverrides[key];
     } else if (config.fieldDefaults && Object.prototype.hasOwnProperty.call(config.fieldDefaults, key)) {
-      element.value = config.fieldDefaults[key];
+      const value = String(config.fieldDefaults[key]);
+      // Ô thuế suất chung chỉ có 0/5/8/10: thêm KCT/KKKNT khi thuế suất mặc định là các loại này
+      if (element.options && ![...element.options].some(option => option.value === value)) element.add(new Option(value, value));
+      element.value = value;
     } else {
       element.value = "";
     }
@@ -1040,6 +1067,7 @@ window.parseDynamicMoney = parseDynamicMoney;
 window.parseDynamicDiscount = parseDynamicDiscount;
 window.validateDynamicVoucherLine = validateDynamicVoucherLine;
 window.readDynamicVatRate = readDynamicVatRate;
+window.parseVatRateValue = parseVatRateValue;
 window.getCashPaymentVatWarning = getCashPaymentVatWarning;
 window.voucherInvoiceFieldIds = voucherInvoiceFieldIds;
 window.isValidInvoiceSymbol = isValidInvoiceSymbol;

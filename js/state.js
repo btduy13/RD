@@ -17,6 +17,7 @@ let state = {
   initialBalances: {},
   vouchers: [],
   employees: [],
+  fixedAssets: [],
   payrolls: []
 };
 
@@ -130,6 +131,7 @@ async function initApp() {
     };
   }
   if (!Array.isArray(state.employees)) state.employees = [];
+  if (!Array.isArray(state.fixedAssets)) state.fixedAssets = [];
   if (!Array.isArray(state.payrolls)) state.payrolls = [];
 
   // Đảm bảo khởi tạo các tài khoản số dư đầu kỳ và số dư đối tác

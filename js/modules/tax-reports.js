@@ -237,13 +237,14 @@ function buildPeriodCloseVoucher(from, to) {
 // ---- Báo cáo tình hình tài chính ----
 // Ánh xạ TK → mã số theo tiền tố dài nhất; [dư Nợ, dư Có] khi TK lưỡng tính đổi dòng theo chiều số dư.
 // Dòng tài sản (mã < 300) lấy dư Nợ − dư Có; dòng nguồn vốn lấy dư Có − dư Nợ. TK loại 5–9 chưa kết chuyển → LNST chưa phân phối.
-// shortcut: 131/331 bù trừ ở cấp tài khoản, chưa theo từng đối tượng (bút toán không mang mã đối tác) và coi mọi khoản là ngắn hạn
-// — tách khi bút toán có partnerId / kỳ hạn.
+// 131/331 trình bày theo số dư từng đối tượng (calculatePartnerDebts, debts.js): dư Nợ 131 → 131, dư Có 131 → 312,
+// dư Nợ 331 → 132, dư Có 331 → 311; thiếu debts.js thì quay về bù trừ cấp tài khoản theo bảng map.
+// shortcut: mọi khoản phải thu/phải trả/vay/chi phí chờ phân bổ coi là ngắn hạn (chưa có ngày đáo hạn) — tách khi có kỳ hạn.
 const TR_B01_TT99 = {
   map: {
     "111": "111", "112": "111", "113": "111", "1281": "112", "121": "121", "2291": "122", "128": "123",
     "131": ["131", "312"], "331": ["132", "311"], "136": "133", "337": ["134", "318"], "138": ["135", "320"], "1381": "137",
-    "141": "135", "244": "135", "2293": "136", "15": "141", "2294": "142", "242": "161", "133": "162", "333": ["163", "314"], "171": "164",
+    "141": "135", "244": "135", "2293": "136", "15": "141", "2294": "142", "2295": "153", "242": "161", "133": "162", "333": ["163", "314"], "171": "164",
     "211": "222", "214": "223", "2141": "223", "212": "225", "2142": "226", "213": "228", "2143": "229", "217": "241", "2147": "242",
     "241": "252", "221": "261", "222": "262", "228": "263", "2292": "264", "243": "272",
     "332": "313", "334": "315", "335": "316", "336": "317", "3387": "319", "338": ["135", "320"], "344": "320", "341": "321",
@@ -451,28 +452,47 @@ function trSheetValues(rowsText, leafValues) {
   return { rows, byCode };
 }
 
+// Tổng số dư cuối kỳ theo từng đối tượng (getDebtKpiParts: phải thu, khách trả trước, phải trả, trả trước NCC); null khi không có debts.js.
+function trPartnerDebtSides(st, to) {
+  if (typeof calculatePartnerDebts !== "function" || typeof getDebtKpiParts !== "function" || typeof state === "undefined" || st !== state) return null;
+  const sum = { receivable: 0, overpaid: 0, payable: 0, supplierReceivable: 0 };
+  calculatePartnerDebts("", to).forEach(d => { const k = getDebtKpiParts(d); Object.keys(sum).forEach(x => { sum[x] += Number(k[x]) || 0; }); });
+  return sum;
+}
+const TR_B01_NOTE = "Giả định trình bày: chưa có dữ liệu kỳ hạn nên phải thu, phải trả, vay, chi phí và doanh thu chờ phân bổ xếp ngắn hạn; TSCĐ (211–214), XDCB dở dang, đầu tư và tài sản thuế hoãn lại xếp dài hạn.";
+
 function buildBalanceSheet(st, to) {
   const tt99 = isTT99Family(st && st.accountingStandard);
   const def = tt99 ? TR_B01_TT99 : TR_B01A_TT133;
-  const leaf = {}, unmapped = [];
+  const leaf = {}, unmapped = [], warnings = [];
+  const add = (line, value) => { leaf[line] = (leaf[line] || 0) + value; };
+  const debt = trPartnerDebtSides(st, to);
+  let debtLedger = 0;
   Object.entries(trClosingNets(st, to)).forEach(([code, raw]) => {
     const net = Math.round(raw * 100) / 100;
     if (!net || code[0] === "0") return; // loại 0: TK ngoài bảng
+    if (debt && /^[13]31/.test(code)) { debtLedger += net; return; }
     let m = null;
     for (let i = code.length; i > 0 && !m; i--) m = def.map[code.slice(0, i)] || null;
     if (!m) { unmapped.push({ code, net }); return; }
     const line = Array.isArray(m) ? (net > 0 ? m[0] : m[1]) : m;
-    leaf[line] = (leaf[line] || 0) + (/^\d+$/.test(line) && +line < 300 ? net : -net);
+    add(line, /^\d+$/.test(line) && +line < 300 ? net : -net);
   });
+  if (debt) {
+    // Mã dòng 131/132/311/312 giống nhau ở B01-DN và B01a-DNN.
+    add("131", debt.receivable); add("312", debt.overpaid); add("132", debt.supplierReceivable); add("311", debt.payable);
+    const diff = Math.round((debtLedger - (debt.receivable - debt.overpaid + debt.supplierReceivable - debt.payable)) * 100) / 100;
+    if (Math.abs(diff) >= 1) {
+      if (diff > 0) add("131", diff); else add("311", -diff);
+      warnings.push(`Số dư TK 131/331 trên sổ cái lệch tổng công nợ theo đối tượng ${trMoney(diff)} — phần lệch trình bày ở mã ${diff > 0 ? "131" : "311"}; kiểm tra chứng từ thiếu đối tượng hoặc số dư đầu kỳ.`);
+    }
+  }
   const { rows, byCode } = trSheetValues(def.rows, leaf);
-  // Không ẩn số liệu: TK chưa ánh xạ được hiện riêng và cộng vào tổng để báo cáo vẫn cân.
-  const extraAssets = unmapped.filter(u => u.net > 0).reduce((s, u) => s + u.net, 0);
-  const extraSources = unmapped.filter(u => u.net < 0).reduce((s, u) => s - u.net, 0);
+  // Không ẩn và không tự cân: TK chưa phân loại KHÔNG cộng vào tổng, chỉ liệt kê để kế toán xử lý.
+  if (unmapped.length) warnings.push(`TK chưa phân loại (chưa cộng vào tổng): ${unmapped.map(u => `${u.code} (${u.net > 0 ? "dư Nợ" : "dư Có"} ${trMoney(Math.abs(u.net))})`).join(", ")}.`);
   const [assetCode, sourceCode] = tt99 ? ["280", "440"] : ["200", "500"];
-  byCode[assetCode].value += extraAssets;
-  byCode[sourceCode].value += extraSources;
   return {
-    form: tt99 ? "B01-DN" : "B01a-DNN", to, rows, unmapped,
+    form: tt99 ? "B01-DN" : "B01a-DNN", to, rows, unmapped, warnings, notes: [TR_B01_NOTE], partnerBased: !!debt,
     totalAssets: byCode[assetCode].value, totalSources: byCode[sourceCode].value,
     balanced: Math.abs(byCode[assetCode].value - byCode[sourceCode].value) < 1
   };
@@ -525,13 +545,197 @@ function buildIncomeStatement(st, from, to) {
   return { form: tt99 ? "B02-DN" : "B02-DNN", from, to, rows: rows.map(([code, name, value]) => ({ code, name, value })), pl: p, warnings: p.warnings };
 }
 
+// ---- Báo cáo lưu chuyển tiền tệ (phương pháp gián tiếp) ----
+// Mỗi dòng = −(phát sinh Nợ − Có trong kỳ) của nhóm TK không phải tiền, bỏ chứng từ kết chuyển (cân, không chạm tiền) —
+// nên tổng luôn bằng biến động tiền 111+112+113; dòng kiểm tra đối chiếu với số dư sổ cái. Mảng [âm, dương] = dòng theo chiều.
+// shortcut: lãi/cổ tức nhận (27), lãi vay trả (14) và CLTG (04) chưa tách khỏi lợi nhuận — cần TK chi tiết lãi vay/ngoại tệ.
+const TR_CF_COMMON = {
+  "5": "01", "6": "01", "7": "01", "8": "01", "9": "01", "214": "02", "229": "03", "352": "03",
+  "131": "09", "133": "09", "136": "09", "138": "09", "141": "09", "171": "09", "15": "10",
+  "331": "11", "333": "11", "334": "11", "335": "11", "336": "11", "337": "11", "338": "11", "353": "11", "356": "11", "357": "11",
+  "242": "12", "121": "13", "3334": "15", "821": "15", "243": "15", "347": "15",
+  "211": ["21", "22"], "212": ["21", "22"], "213": ["21", "22"], "215": ["21", "22"], "217": ["21", "22"], "241": ["21", "22"],
+  "411": ["32", "31"], "419": ["32", "31"], "341": ["34", "33"], "343": ["34", "33"], "412": "07", "413": "07", "414": "07", "418": "07"
+};
+const TR_B03_OPERATING = `01|1. Lợi nhuận trước thuế
+02|- Khấu hao TSCĐ và BĐSĐT
+03|- Các khoản dự phòng
+04|- Lãi, lỗ chênh lệch tỷ giá hối đoái do đánh giá lại các khoản mục tiền tệ có gốc ngoại tệ
+05|- Lãi, lỗ từ hoạt động đầu tư
+06|- Chi phí đi vay
+07|- Các khoản điều chỉnh khác
+08|3. Lợi nhuận từ hoạt động kinh doanh trước thay đổi vốn lưu động|01-07
+09|- Tăng, giảm các khoản phải thu
+10|- Tăng, giảm hàng tồn kho
+11|- Tăng, giảm các khoản phải trả (không kể lãi vay phải trả, thuế TNDN phải nộp)
+12|- Tăng, giảm chi phí `;
+const TR_B03_TAIL = `50|Lưu chuyển tiền thuần trong kỳ (50 = 20 + 30 + 40)|20+30+40
+60|Tiền và tương đương tiền đầu kỳ
+61|Ảnh hưởng của thay đổi tỷ giá hối đoái quy đổi ngoại tệ
+70|Tiền và tương đương tiền cuối kỳ (70 = 50 + 60 + 61)|50+60+61`;
+const TR_B03_TT99 = {
+  map: { ...TR_CF_COMMON, "244": "09", "344": "11", "128": ["23", "24"], "221": ["25", "26"], "222": ["25", "26"], "228": ["25", "26"], "421": "36", "332": "36" },
+  rows: `${TR_B03_OPERATING}chờ phân bổ
+13|- Tăng, giảm chứng khoán kinh doanh
+14|- Chi phí đi vay đã trả
+15|- Thuế thu nhập doanh nghiệp đã nộp
+16|- Tiền thu khác từ hoạt động kinh doanh
+17|- Tiền chi khác cho hoạt động kinh doanh
+20|Lưu chuyển tiền thuần từ hoạt động kinh doanh|08-17
+21|1. Tiền chi để mua sắm, xây dựng TSCĐ và các tài sản dài hạn khác
+22|2. Tiền thu từ thanh lý, nhượng bán TSCĐ và các tài sản dài hạn khác
+23|3. Tiền chi cho vay, mua các công cụ nợ của đơn vị khác
+24|4. Tiền thu hồi cho vay, bán lại các công cụ nợ của đơn vị khác
+25|5. Tiền chi đầu tư góp vốn vào đơn vị khác
+26|6. Tiền thu hồi đầu tư góp vốn vào đơn vị khác
+27|7. Tiền thu lãi cho vay, cổ tức và lợi nhuận được chia
+30|Lưu chuyển tiền thuần từ hoạt động đầu tư|21-27
+31|1. Tiền thu từ phát hành cổ phiếu, nhận vốn góp của chủ sở hữu
+32|2. Tiền trả lại vốn góp cho các chủ sở hữu, mua lại cổ phiếu của doanh nghiệp đã phát hành
+33|3. Tiền thu từ đi vay
+34|4. Tiền trả nợ gốc vay
+35|5. Tiền trả nợ gốc thuê tài chính
+36|6. Cổ tức, lợi nhuận đã trả cho chủ sở hữu
+40|Lưu chuyển tiền thuần từ hoạt động tài chính|31-36
+${TR_B03_TAIL}`
+};
+// B03-DNN (TT133, khuyến khích lập) — [UNVERIFIED] mã số theo mẫu đã biết; ghi chú nghiên cứu chưa trích được bố cục.
+const TR_B03_TT133 = {
+  map: { ...TR_CF_COMMON, "128": ["23", "24"], "228": ["23", "24"], "421": "35", "332": "35" },
+  rows: `${TR_B03_OPERATING}trả trước
+13|- Tăng, giảm chứng khoán kinh doanh
+14|- Tiền lãi vay đã trả
+15|- Thuế thu nhập doanh nghiệp đã nộp
+16|- Tiền thu khác từ hoạt động kinh doanh
+17|- Tiền chi khác cho hoạt động kinh doanh
+20|Lưu chuyển tiền thuần từ hoạt động kinh doanh|08-17
+21|1. Tiền chi để mua sắm, xây dựng TSCĐ, BĐSĐT và các tài sản dài hạn khác
+22|2. Tiền thu từ thanh lý, nhượng bán TSCĐ, BĐSĐT và các tài sản dài hạn khác
+23|3. Tiền chi cho vay, đầu tư góp vốn vào đơn vị khác
+24|4. Tiền thu hồi cho vay, đầu tư góp vốn vào đơn vị khác
+25|5. Tiền thu lãi cho vay, cổ tức và lợi nhuận được chia
+30|Lưu chuyển tiền thuần từ hoạt động đầu tư|21-25
+31|1. Tiền thu từ phát hành cổ phiếu, nhận vốn góp của chủ sở hữu
+32|2. Tiền trả lại vốn góp cho các chủ sở hữu, mua lại cổ phiếu của doanh nghiệp đã phát hành
+33|3. Tiền thu từ đi vay
+34|4. Tiền trả nợ gốc vay và nợ thuê tài chính
+35|5. Cổ tức, lợi nhuận đã trả cho chủ sở hữu
+40|Lưu chuyển tiền thuần từ hoạt động tài chính|31-35
+${TR_B03_TAIL}`
+};
+// TT99: tiền gồm cả tương đương tiền 1281 (B01 mã 110 = 111 + 112), để B03 cuối kỳ khớp B01; B01-DNN (TT133) mã 110 chỉ 111–113.
+const trCashTest = tt99 => code => /^11[123]/.test(code) || (tt99 && code.startsWith("1281"));
+const trDayBefore = date => new Date(Date.parse(date) - 864e5).toISOString().slice(0, 10);
+const trSum = (nets, test) => Object.entries(nets).reduce((s, [c, v]) => s + (test(c) ? v : 0), 0);
+
+function buildCashFlowStatement(st, from, to) {
+  const tt99 = isTT99Family(st && st.accountingStandard);
+  const def = tt99 ? TR_B03_TT99 : TR_B03_TT133;
+  const trIsCash = trCashTest(tt99);
+  const move = {};
+  ((st && st.vouchers) || []).forEach(v => {
+    const d = trDate(v);
+    if (!v || v.type === "period_close" || d < from || d > to || !Array.isArray(v.entries)) return;
+    v.entries.forEach(e => {
+      if (!e) return;
+      const amount = Number(e.amount) || 0;
+      [[e.debit, amount], [e.credit, -amount]].forEach(([c, a]) => { c = String(c ?? "").trim(); move[c] = (move[c] || 0) + a; });
+    });
+  });
+  const groups = {}, stray = [];
+  Object.entries(move).forEach(([code, m]) => {
+    if (trIsCash(code) || !Math.round(m * 100)) return;
+    let line = null;
+    for (let i = code.length; i > 0 && !line; i--) line = def.map[code.slice(0, i)] || null;
+    if (!line) { stray.push(code || "(trống)"); line = "07"; }
+    const key = [].concat(line).join("/");
+    groups[key] = (groups[key] || 0) - m;
+  });
+  const leaf = {};
+  Object.entries(groups).forEach(([key, value]) => {
+    const [neg, pos] = key.split("/");
+    const line = pos && value > 0 ? pos : neg;
+    leaf[line] = (leaf[line] || 0) + value;
+  });
+  const opening = trSum(trClosingNets(st, trDayBefore(from)), trIsCash);
+  const closing = trSum(trClosingNets(st, to), trIsCash);
+  leaf["60"] = opening;
+  const { rows, byCode } = trSheetValues(def.rows, leaf);
+  const reconciled = Math.abs(byCode["70"].value - closing) < 1;
+  const warnings = [];
+  if (stray.length) warnings.push(`TK ${stray.sort().join(", ")} chưa phân loại vào dòng lưu chuyển tiền — tạm đưa vào mã 07, kiểm tra lại.`);
+  if (!reconciled) warnings.push(`Tiền cuối kỳ theo báo cáo ${trMoney(byCode["70"].value)} ≠ số dư ${tt99 ? "111+112+113+1281" : "111+112+113"} trên sổ cái ${trMoney(closing)} — có bút toán thiếu tài khoản đối ứng.`);
+  return {
+    form: tt99 ? "B03-DN" : "B03-DNN", from, to, rows, opening, closing, netFlow: byCode["50"].value, reconciled, warnings,
+    notes: [`Phương pháp gián tiếp. Tiền gồm TK 111, 112, 113${tt99 ? " và tương đương tiền 1281" : ""}; tiền gửi có kỳ hạn (128) trình bày ở hoạt động đầu tư. Lãi vay đã trả, lãi/cổ tức nhận và chênh lệch tỷ giá chưa tách khỏi lợi nhuận.`]
+  };
+}
+
+// ---- Bảng cân đối tài khoản (F01-DNN; với TT99 dùng như Bảng cân đối số phát sinh S06-DN) — TK cấp 1, gồm kết chuyển ----
+function buildAccountBalanceTable(st, from, to) {
+  const std = st && st.accountingStandard;
+  const level1 = new Map(getChartOfAccounts(std).filter(a => a.code.length === 3).map(a => [a.code, a.name]));
+  const seen = c => { c = String(c ?? "").trim().slice(0, 3); if (/^[1-9]\d\d$/.test(c) && !level1.has(c)) level1.set(c, "(Ngoài danh mục)"); };
+  ((st && st.vouchers) || []).forEach(v => (v && Array.isArray(v.entries) ? v.entries : []).forEach(e => { if (e) { seen(e.debit); seen(e.credit); } }));
+  Object.keys((st && st.initialBalances) || {}).forEach(seen);
+  const rows = [...level1].sort(([a], [b]) => a.localeCompare(b)).map(([code, name]) => ({ code, name, ...getAccountTurnover(st, code, from, to) }))
+    .filter(r => r.openDebit || r.openCredit || r.debit || r.credit || r.closeDebit || r.closeCredit);
+  const keys = ["openDebit", "openCredit", "debit", "credit", "closeDebit", "closeCredit"];
+  const total = Object.fromEntries(keys.map(k => [k, rows.reduce((s, r) => s + r[k], 0)]));
+  const balanced = [["openDebit", "openCredit"], ["debit", "credit"], ["closeDebit", "closeCredit"]].every(([a, b]) => Math.abs(total[a] - total[b]) < 1);
+  return { form: isTT99Family(std) ? "S06-DN" : "F01-DNN", from, to, rows, total, balanced };
+}
+
+// ---- Thuyết minh BCTC (B09-DN / B09-DNN) — khung rút gọn, số liệu từ sổ cái ----
+// [tiền tố, tên, hàm lọc (mặc định theo tiền tố), true = TK nguồn vốn (lấy dư Có − dư Nợ)]
+const TR_B09_TABLES = [
+  ["Tiền", [["111", "Tiền mặt"], ["112", "Tiền gửi ngân hàng không kỳ hạn"], ["113", "Tiền đang chuyển"]]],
+  ["Các khoản phải thu", [["131", "Phải thu của khách hàng (số dư thuần)"], ["136", "Phải thu nội bộ"], ["138", "Phải thu khác"], ["141", "Tạm ứng"], ["2293", "Dự phòng phải thu khó đòi (*)"]]],
+  ["Hàng tồn kho", [["151", "Hàng mua đang đi đường"], ["152", "Nguyên liệu, vật liệu"], ["153", "Công cụ, dụng cụ"], ["154", "Chi phí SXKD dở dang"],
+    ["155", "Thành phẩm, sản phẩm"], ["156", "Hàng hóa"], ["157", "Hàng gửi đi bán"], ["2294", "Dự phòng giảm giá hàng tồn kho (*)"]]],
+  ["Tài sản cố định", [["21", "Nguyên giá (TK 211, 212, 213)", c => /^21[123]/.test(c)], ["214", "Giá trị hao mòn lũy kế (*)"]]],
+  ["Các khoản phải trả", [["331", "Phải trả người bán (số dư thuần)", null, true], ["333", "Thuế và các khoản phải nộp Nhà nước", null, true],
+    ["334", "Phải trả người lao động", null, true], ["335", "Chi phí phải trả", null, true], ["338", "Phải trả, phải nộp khác", null, true],
+    ["341", "Vay và nợ thuê tài chính", null, true]]],
+  ["Vốn chủ sở hữu", [["411", "Vốn đầu tư của chủ sở hữu", null, true], ["419", "Cổ phiếu mua lại của chính mình (*)", null, true],
+    ["421", "Lợi nhuận sau thuế chưa phân phối (đã kết chuyển)", null, true], ["5", "Kết quả kinh doanh chưa kết chuyển (TK loại 5–9)", c => /^[5-9]/.test(c), true]]]
+];
+function buildFinancialNotes(st, from, to) {
+  const tt99 = isTT99Family(st && st.accountingStandard);
+  const nets = [trClosingNets(st, trDayBefore(from)), trClosingNets(st, to)];
+  const tables = TR_B09_TABLES.map(([title, lines]) => {
+    const rows = lines.map(([prefix, name, test, credit]) => {
+      const [open, close] = nets.map(n => (credit ? -1 : 1) * trSum(n, test || (c => c.startsWith(prefix))));
+      return { name, open, close };
+    });
+    rows.push({ name: "Cộng", open: rows.reduce((s, r) => s + r.open, 0), close: rows.reduce((s, r) => s + r.close, 0), total: true });
+    return { title, rows };
+  });
+  return {
+    form: tt99 ? "B09-DN" : "B09-DNN", from, to,
+    info: [
+      `Tên doanh nghiệp: ${(st && st.companyName) || ""}`, `Mã số thuế: ${(st && st.taxCode) || ""}`, `Địa chỉ: ${(st && st.address) || ""}`,
+      `Kỳ kế toán: từ ${from} đến ${to}. Đơn vị tiền tệ sử dụng trong kế toán: đồng Việt Nam (VND).`
+    ],
+    policies: [
+      `Chế độ kế toán áp dụng: ${tt99 ? "Chế độ kế toán doanh nghiệp ban hành theo Thông tư 99/2025/TT-BTC" : "Chế độ kế toán doanh nghiệp nhỏ và vừa ban hành theo Thông tư 133/2016/TT-BTC (sửa đổi bởi Thông tư 46/2025/TT-BTC)"}.`,
+      "Hàng tồn kho: ghi nhận theo giá gốc; giá xuất kho tính theo phương pháp bình quân gia quyền sau mỗi lần nhập; hạch toán theo phương pháp kê khai thường xuyên.",
+      "Tài sản cố định: ghi nhận theo nguyên giá; khấu hao theo phương pháp đường thẳng (Thông tư 45/2013/TT-BTC).",
+      "Doanh thu: ghi nhận khi chuyển giao phần lớn rủi ro và lợi ích gắn với quyền sở hữu hàng hóa cho người mua."
+    ],
+    tables
+  };
+}
+
 /* ==========================================================================
    GIAO DIỆN (DOM) — renderTaxTab() do ui-framework gọi khi mở tab "tax"
    ========================================================================== */
 const trMoney = value => value === null || value === undefined ? ""
   : (typeof formatVNDNoSymbol === "function" ? formatVNDNoSymbol(trRound(value)) : trRound(value).toLocaleString("vi-VN"));
 const TR_CELL = "border:1px solid #000; padding:5px; color:#000;";
-const TR_REPORTS = { list: "Bảng kê hóa đơn bán ra, mua vào", vat01: "Tờ khai thuế GTGT 01/GTGT", cit: "Thuế TNDN tạm tính", b01: "Báo cáo tình hình tài chính", b02: "Báo cáo kết quả hoạt động kinh doanh" };
+const TR_REPORTS = { list: "Bảng kê hóa đơn bán ra, mua vào", vat01: "Tờ khai thuế GTGT 01/GTGT", cit: "Thuế TNDN tạm tính", b01: "Báo cáo tình hình tài chính", b02: "Báo cáo kết quả hoạt động kinh doanh",
+  b03: "Báo cáo lưu chuyển tiền tệ", f01: "Bảng cân đối tài khoản (F01-DNN)", b09: "Thuyết minh báo cáo tài chính" };
+const TR_STATEMENTS = ["b01", "b02", "b03", "f01", "b09"];
 
 const taxUi = (() => {
   const now = new Date();
@@ -543,6 +747,7 @@ function trTable(head, body, size = 12) {
     <thead><tr style="background-color:#f3f4f6;">${head.map(h => `<th style="${TR_CELL}">${escapeReportText(h)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table>`;
 }
 const trRow = (cells, bold) => `<tr${bold ? ' style="font-weight:bold;"' : ""}>${cells.map(c => `<td style="${TR_CELL}${c.num ? " text-align:right;" : ""}">${c.num ? trMoney(c.v) : escapeReportText(c.v)}</td>`).join("")}</tr>`;
+const trNotes = list => (list || []).map(n => `<p style="font-style:italic; font-size:11px; color:#444;">${escapeReportText(n)}</p>`).join("");
 const trWarn = list => (list || []).map(w => `<p style="color:#b91c1c; font-size:12px;">⚠ ${escapeReportText(w)}</p>`).join("");
 
 function trHeader(st, title, sub) {
@@ -641,9 +846,37 @@ function renderCitHTML(st, p) {
 
 function renderStatementHTML(st, rep, title, sub) {
   const body = rep.rows.map(r => trRow([{ v: r.name }, { v: r.code }, { v: r.value, num: true }], !!r.formula || ["10", "20", "30", "40", "50", "60"].includes(r.code))).join("")
-    + (rep.unmapped || []).map(u => trRow([{ v: `Chưa ánh xạ vào mã số nào — TK ${u.code} (${u.net > 0 ? "dư Nợ, đã cộng vào tổng tài sản" : "dư Có, đã cộng vào tổng nguồn vốn"})` }, { v: "" }, { v: Math.abs(u.net), num: true }])).join("");
-  const check = rep.form.startsWith("B01") ? `<p style="font-size:12px; color:${rep.balanced ? "#15803d" : "#b91c1c"};">${rep.balanced ? "Tổng tài sản bằng tổng nguồn vốn." : `Lệch: tổng tài sản ${trMoney(rep.totalAssets)} ≠ tổng nguồn vốn ${trMoney(rep.totalSources)}`}</p>` : "";
-  return trHeader(st, title, sub) + trWarn(rep.warnings) + check + trTable(["Chỉ tiêu", "Mã số", "Số cuối kỳ / kỳ này"], body);
+    + (rep.unmapped || []).map(u => trRow([{ v: `TK chưa phân loại — TK ${u.code} (${u.net > 0 ? "dư Nợ" : "dư Có"}, chưa cộng vào tổng)` }, { v: "" }, { v: Math.abs(u.net), num: true }])).join("");
+  const ok = (good, text) => `<p style="font-size:12px; color:${good ? "#15803d" : "#b91c1c"};">${text}</p>`;
+  const check = rep.form.startsWith("B01") ? ok(rep.balanced, rep.balanced ? "Tổng tài sản bằng tổng nguồn vốn." : `Lệch: tổng tài sản ${trMoney(rep.totalAssets)} ≠ tổng nguồn vốn ${trMoney(rep.totalSources)}`)
+    : rep.form.startsWith("B03") ? ok(rep.reconciled, `Kiểm tra: tiền đầu kỳ ${trMoney(rep.opening)} + lưu chuyển thuần ${trMoney(rep.netFlow)} = ${trMoney(rep.opening + rep.netFlow)}; số dư 111+112+113 cuối kỳ trên sổ cái ${trMoney(rep.closing)} — ${rep.reconciled ? "khớp" : "LỆCH"}.`) : "";
+  return trHeader(st, title, sub) + trWarn(rep.warnings) + check + trTable(["Chỉ tiêu", "Mã số", "Số cuối kỳ / kỳ này"], body) + trNotes(rep.notes);
+}
+
+function renderAccountBalanceHTML(st, p) {
+  const t = buildAccountBalanceTable(st, p.from, p.to);
+  const keys = ["openDebit", "openCredit", "debit", "credit", "closeDebit", "closeCredit"];
+  const body = t.rows.map(r => trRow([{ v: r.code }, { v: r.name }, ...keys.map(k => ({ v: r[k], num: true }))])).join("")
+    + trRow([{ v: "" }, { v: "Tổng cộng" }, ...keys.map(k => ({ v: t.total[k], num: true }))], true);
+  const th = (h, span = "") => `<th${span} style="${TR_CELL}">${h}</th>`;
+  const table = `<table class="data-table" style="width:100%; font-family:'Times New Roman', serif; border:1px solid #000; border-collapse:collapse; font-size:11px;"><thead>
+    <tr style="background-color:#f3f4f6;">${th("Số hiệu TK", ' rowspan="2"')}${th("Tên tài khoản", ' rowspan="2"')}${th("Số dư đầu kỳ", ' colspan="2"')}${th("Số phát sinh trong kỳ", ' colspan="2"')}${th("Số dư cuối kỳ", ' colspan="2"')}</tr>
+    <tr style="background-color:#f3f4f6;">${["Nợ", "Có", "Nợ", "Có", "Nợ", "Có"].map(h => th(h)).join("")}</tr></thead><tbody>${body}</tbody></table>`;
+  const f01 = t.form === "F01-DNN";
+  return trHeader(st, f01 ? "Bảng cân đối tài khoản" : "Bảng cân đối số phát sinh",
+    `Mẫu ${f01 ? "F01-DNN (Thông tư 133/2016/TT-BTC)" : "S06-DN (Thông tư 99/2025/TT-BTC, tham khảo)"} — ${p.label}`) +
+    `<p style="font-size:12px; color:${t.balanced ? "#15803d" : "#b91c1c"};">${t.balanced ? "Tổng Nợ bằng tổng Có ở cả ba cặp cột." : "Tổng Nợ khác tổng Có — kiểm tra bút toán."}</p>` + table;
+}
+
+function renderFinancialNotesHTML(st, p) {
+  const n = buildFinancialNotes(st, p.from, p.to);
+  const list = items => `<ul style="font-family:'Times New Roman', serif; font-size:13px; color:#000;">${items.map(x => `<li>${escapeReportText(x)}</li>`).join("")}</ul>`;
+  const h3 = t => `<h3 style="font-size:15px; margin:14px 0 6px;">${escapeReportText(t)}</h3>`;
+  return trHeader(st, "Bản thuyết minh báo cáo tài chính", `Mẫu ${n.form === "B09-DN" ? "B09-DN (Thông tư 99/2025/TT-BTC)" : "B09-DNN (Thông tư 133/2016/TT-BTC)"} — ${p.label}`) +
+    h3("I. Đặc điểm hoạt động của doanh nghiệp") + list(n.info) + h3("II. Chế độ và chính sách kế toán áp dụng") + list(n.policies) +
+    h3("III. Thông tin bổ sung cho các khoản mục trên Báo cáo tình hình tài chính") +
+    n.tables.map((t, i) => `<p style="font-weight:bold; font-size:13px; margin:10px 0 4px;">${i + 1}. ${escapeReportText(t.title)}</p>` +
+      trTable(["Chỉ tiêu", "Đầu kỳ", "Cuối kỳ"], t.rows.map(r => trRow([{ v: r.name }, { v: r.open, num: true }, { v: r.close, num: true }], r.total)).join(""))).join("");
 }
 
 function renderTaxReportHTML(st, ui) {
@@ -656,12 +889,16 @@ function renderTaxReportHTML(st, ui) {
     `Mẫu ${tt99 ? "B01-DN (Thông tư 99/2025/TT-BTC)" : "B01a-DNN (Thông tư 133/2016/TT-BTC)"} — tại ngày ${p.to}`);
   else if (ui.report === "b02") html = renderStatementHTML(st, buildIncomeStatement(st, p.from, p.to), "Báo cáo kết quả hoạt động kinh doanh",
     `Mẫu ${tt99 ? "B02-DN (Thông tư 99/2025/TT-BTC)" : "B02-DNN (Thông tư 133/2016/TT-BTC)"} — ${p.label}`);
+  else if (ui.report === "b03") html = renderStatementHTML(st, buildCashFlowStatement(st, p.from, p.to), "Báo cáo lưu chuyển tiền tệ",
+    `Mẫu ${tt99 ? "B03-DN (Thông tư 99/2025/TT-BTC)" : "B03-DNN (Thông tư 133/2016/TT-BTC)"} — Phương pháp gián tiếp — ${p.label}`);
+  else if (ui.report === "f01") html = renderAccountBalanceHTML(st, p);
+  else if (ui.report === "b09") html = renderFinancialNotesHTML(st, p);
   else {
     // [22] gợi ý tính lại mỗi lần lập (số liệu kỳ trước có thể đã đổi); chỉ tiêu nhập tay lưu ở taxSettings.vatInputs.
     const saved = (((st && st.taxSettings) || {}).vatInputs || {})[trVatInputsKey(p)] || {};
     html = renderVat01HTML(st, p, { 22: suggestVatCarryForward(st, p), ...saved });
   }
-  return html + getReportSignaturesHTML(ui.report === "b01" || ui.report === "b02" ? "statement" : "tax");
+  return html + getReportSignaturesHTML(TR_STATEMENTS.includes(ui.report) ? "statement" : "tax");
 }
 
 function renderTaxTab() {
@@ -737,6 +974,7 @@ function printTaxReport() {
 async function upsertTaxVoucher(voucher, matches, prefix) {
   const idx = state.vouchers.findIndex(v => v && matches(v));
   const old = idx >= 0 ? state.vouchers[idx] : null;
+  if (typeof blockLockedPeriodEdit === "function" && blockLockedPeriodEdit(voucher, old)) return;
   let id = old && old.id;
   if (!id) {
     const local = typeof getMaxLocalVoucherSequence === "function" ? getMaxLocalVoucherSequence(prefix)
@@ -789,6 +1027,7 @@ async function runPeriodClose() {
 const TAX_REPORTS_API = {
   taxReportPeriod, shiftTaxReportPeriod, buildVatInvoiceList, computeVat01, suggestVatCarryForward, buildVatReductionAppendix,
   computeProfitLoss, computeCitEstimate, buildCitProvisionVoucher, buildPeriodCloseVoucher, buildBalanceSheet, buildIncomeStatement,
+  buildCashFlowStatement, buildAccountBalanceTable, buildFinancialNotes,
   renderTaxReportHTML, renderTaxTab, setTaxUi, setTaxInput, setVat01Form, setCitPrevRevenue, printTaxReport, createCitProvisionVoucher, runPeriodClose
 };
 if (typeof window !== "undefined") Object.assign(window, TAX_REPORTS_API);

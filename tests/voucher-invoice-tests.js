@@ -149,6 +149,36 @@ test("form totals: per-line VAT rates grouped and rounded like the ledger; legac
   assert.strictEqual(elements["l-body-tax-note"], undefined, "no note on forms without per-line VAT");
 });
 
+test("new form: header tax rate comes from settings (getter), KCT option added to the 0/5/8/10 select", () => {
+  const c = sandbox();
+  c.state.taxSettings = { vatMethod: "khong_chiu" };
+  c.registerDynamicFormTable(c.createStandardDynamicFormTableConfig({
+    tbodyId: "n-body", formId: "form-n", hasVat: true, fieldIds: { taxRate: "n-rate" },
+    fieldDefaults: { get taxRate() { return c.getDefaultVatRate(); } }
+  }));
+  const options = [{ value: "0" }, { value: "8" }];
+  input("n-rate", "0", { options, add(option) { options.push(option); } });
+  c.replaceDynamicFormTableRows = () => {}; // rows need a real DOM; header field is what this test checks
+  c.Option = class { constructor(text, value) { this.text = text; this.value = value; } };
+  c.resetDynamicVoucherForm("form-n");
+  assert.strictEqual(elements["n-rate"].value, "KCT");
+  assert(options.some(o => o.value === "KCT"));
+  // Chưa chọn phương pháp GTGT (dữ liệu cũ): mặc định 0 như trước.
+  c.state.taxSettings = {};
+  c.resetDynamicVoucherForm("form-n");
+  assert.strictEqual(elements["n-rate"].value, "0");
+});
+
+test("header tax rate: KCT/KKKNT kept as code (parseInt gave NaN), numbers stay numbers", () => {
+  const c = sandbox();
+  assert.strictEqual(c.parseVatRateValue("KCT"), "KCT");
+  assert.strictEqual(c.parseVatRateValue("KKKNT"), "KKKNT");
+  assert.strictEqual(c.parseVatRateValue("10"), 10);
+  assert.strictEqual(c.parseVatRateValue(""), 0);
+  const sales = fs.readFileSync(path.join(__dirname, "..", "js", "modules", "sales.js"), "utf8");
+  assert(!/taxRate: parseInt\(/.test(sales), "sales/quotation header rate must not use parseInt");
+});
+
 test("cash-payment warning: purchases paid in cash (111) from the dated threshold incl. VAT", () => {
   const c = sandbox();
   assert.match(c.getCashPaymentVatWarning("111", 5000000, "2026-11-07"), /^Thanh toán tiền mặt từ 5\.000\.000đ: thuế GTGT không được khấu trừ.*NĐ 181\/2025 Đ26, NĐ 320\/2025 Đ9/);

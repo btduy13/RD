@@ -211,7 +211,7 @@ function recalculateAccounting(shouldSave = true) {
     } else if (v.type === "sales_return") {
       // Bán hàng trả lại:
       // 1. Cộng lại kho (stock +)
-      // 2. Giảm doanh thu (Nợ 511)
+      // 2. Giảm trừ doanh thu (Nợ 5212 / TT133 Nợ 511)
       // 3. Giảm công nợ phải thu khách hàng (Có 131)
       let totalCogs = 0;
       let itemSubtotal = 0, negAdjust = 0;
@@ -237,11 +237,10 @@ function recalculateAccounting(shouldSave = true) {
       v.totalAmount = totalAmountSR;
       // Bug C: remainingDebt suy diễn ở BƯỚC C2 (FIFO)
 
-      // Bút toán:
-      // Nợ 511: Giảm doanh thu / Có 131: Giảm công nợ phải thu
+      // Bút toán: Nợ 5212 (TT99 TK 521 chi tiết hàng bán bị trả lại; TT133 không có 521 nên ghi thẳng Nợ 511) / Có 131
       const creditAccSR = v.paymentMethod && v.paymentMethod !== "131" ? v.paymentMethod : "131";
       v.entries = [
-        { debit: "511", credit: creditAccSR, amount: itemSubtotal, desc: `Giảm doanh thu bán hàng trả lại: ${v.description || v.notes || v.id || ""}` }
+        { debit: salesReturnAccount(state.accountingStandard), credit: creditAccSR, amount: itemSubtotal, desc: `Giảm doanh thu bán hàng trả lại: ${v.description || v.notes || v.id || ""}` }
       ];
       if (taxAmountSR > 0) {
         v.entries.push({ debit: "3331", credit: creditAccSR, amount: taxAmountSR, desc: "Giảm thuế GTGT đầu ra" });
@@ -636,9 +635,38 @@ function blockNegativeStockIssue(voucher) {
   return true;
 }
 
+function salesReturnAccount(standard) {
+  return isTT99Family(standard) ? "5212" : "511";
+}
+
+// Chặn thao tác chạm kỳ đã khóa sổ (next: bản mới khi thêm/sửa; prev: bản cũ hoặc mảng chứng từ khi sửa/xóa).
+// Trả về true nếu đã chặn.
+function blockLockedPeriodEdit(next, prev) {
+  const hit = [next].concat(prev).find(v => isVoucherInLockedPeriod(state, v));
+  if (!hit) return false;
+  showToast(`Sổ kế toán đã khóa đến ngày ${formatDateDisplay(state.lockedThrough)}: không được thêm, sửa hoặc xóa chứng từ ngày ${formatDateDisplay(hit.date)} (Luật Kế toán Điều 26). Quản trị viên mở khóa trong Thiết lập.`, "danger");
+  return true;
+}
+
+// Số dư đầu kỳ đứng trước mọi kỳ: khi đã khóa sổ, sửa nó làm đổi số liệu kỳ đã khóa.
+// Không phải quản trị viên thì chặn; quản trị viên phải xác nhận. Trả về true nếu được sửa.
+async function confirmOpeningBalanceEdit() {
+  if (!state.lockedThrough) return true;
+  if (!window.currentUser || window.currentUser.role !== "admin") {
+    showToast(`Sổ kế toán đã khóa đến ngày ${formatDateDisplay(state.lockedThrough)}: chỉ quản trị viên được sửa số dư đầu kỳ.`, "danger");
+    return false;
+  }
+  return !!(await showConfirmModal({
+    title: "Sửa số dư đầu kỳ khi đã khóa sổ",
+    message: `Sổ đã khóa đến ngày ${formatDateDisplay(state.lockedThrough)}. Sửa số dư đầu kỳ sẽ làm thay đổi số liệu các kỳ đã khóa. Vẫn sửa?`,
+    confirmText: "Vẫn sửa", cancelText: "Hủy bỏ", type: "warning"
+  }));
+}
+
 // Xóa chứng từ khỏi sổ cái
 async function deleteVoucher(id) {
   if (window.assertCanWriteRole?.() === false) return;
+  if (blockLockedPeriodEdit(null, state.vouchers.find(v => v.id === id))) return;
   const ok = await showConfirmModal({
     title: "Xác nhận xóa chứng từ",
     message: `Bạn có chắc chắn muốn xóa và hủy ghi sổ chứng từ "${id}"? Việc này sẽ tính toán lại toàn bộ giá trị tồn kho và công nợ.`,

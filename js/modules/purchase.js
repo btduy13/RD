@@ -444,6 +444,8 @@ async function handlePurchaseSubmit(e) {
     return;
   }
 
+  if (window.blockLockedPeriodEdit?.({ type: "purchase", date: document.getElementById("pur-date").value }, editingPurchaseId && state.vouchers.find(v => v.id === editingPurchaseId))) return;
+
   const modalId = "modal-add-purchase";
   if (!beginVoucherSubmit(modalId, "Đang kiểm tra dữ liệu...")) return;
 
@@ -685,6 +687,7 @@ async function batchDeletePurchases() {
 
   const idsToDelete = checked.map(cb => String(cb.value));
   const deleteSet = new Set(idsToDelete);
+  if (window.blockLockedPeriodEdit?.(null, state.vouchers.filter(v => deleteSet.has(String(v.id))))) return;
   trackDeletedIds(idsToDelete);
   state.vouchers = state.vouchers.filter(v => !deleteSet.has(String(v.id)));
 
@@ -1570,6 +1573,7 @@ async function batchDeletePurchaseOrders() {
 
   const idsToDelete = checked.map(cb => String(cb.value));
   const deleteSet = new Set(idsToDelete);
+  if (window.blockLockedPeriodEdit?.(null, state.vouchers.filter(v => deleteSet.has(String(v.id))))) return;
   trackDeletedIds(idsToDelete);
   state.vouchers = state.vouchers.filter(v => !deleteSet.has(String(v.id)));
 
@@ -2145,6 +2149,8 @@ async function handlePurchaseReturnSubmit(e) {
     return;
   }
 
+  if (window.blockLockedPeriodEdit?.({ type: "purchase_return", date: document.getElementById("ret-date").value }, editingPurchaseReturnId && state.vouchers.find(v => v.id === editingPurchaseReturnId))) return;
+
   const modalId = "modal-add-purchase-return";
   if (!beginVoucherSubmit(modalId, "Đang kiểm tra dữ liệu...")) return;
 
@@ -2339,6 +2345,7 @@ async function batchDeletePurchaseReturns() {
 
   const idsToDelete = checked.map(cb => String(cb.value));
   const deleteSet = new Set(idsToDelete);
+  if (window.blockLockedPeriodEdit?.(null, state.vouchers.filter(v => deleteSet.has(String(v.id))))) return;
   trackDeletedIds(idsToDelete);
   state.vouchers = state.vouchers.filter(v => !deleteSet.has(String(v.id)));
 
@@ -2550,7 +2557,7 @@ if (typeof registerDynamicFormTable === "function") {
     cashThresholdWarning: true,
     totals: { taxRateId: "pur-tax-rate", subtotalId: "pur-subtotal-display", taxId: "pur-tax-display", totalId: "pur-total-display" },
     fieldIds: { id: "pur-id", partner: "pur-partner", date: "pur-date", payment: "pur-payment", desc: "pur-desc", taxRate: "pur-tax-rate", ...voucherInvoiceFieldIds("pur") },
-    fieldDefaults: { payment: "331", desc: "Mua vật tư hàng hóa nhập kho", taxRate: "0", invoiceForm: "1" },
+    fieldDefaults: { payment: "331", desc: "Mua vật tư hàng hóa nhập kho", get taxRate() { return getDefaultVatRate(); }, invoiceForm: "1" },
     getEditingId: () => editingPurchaseId,
     setEditingId: value => { editingPurchaseId = value || null; }
   }));
@@ -2566,7 +2573,7 @@ if (typeof registerDynamicFormTable === "function") {
     onProductInput: autoFillPurchaseOrderPrice,
     totals: { fixedTaxRate: 0, subtotalId: "pur-order-subtotal-display", taxId: "pur-order-tax-display", totalId: "pur-order-total-display" },
     fieldIds: { id: "pur-order-id", partner: "pur-order-partner", date: "pur-order-date", payment: "pur-order-payment", desc: "pur-order-desc", taxRate: "pur-order-tax-rate" },
-    fieldDefaults: { payment: "331", desc: "Đơn đặt hàng mua vật tư hàng hóa", taxRate: "0" },
+    fieldDefaults: { payment: "331", desc: "Đơn đặt hàng mua vật tư hàng hóa", get taxRate() { return getDefaultVatRate(); } },
     getEditingId: () => editingPurchaseOrderId,
     setEditingId: value => { editingPurchaseOrderId = value || null; }
   }));
@@ -2583,7 +2590,7 @@ if (typeof registerDynamicFormTable === "function") {
     hasVat: true,
     totals: { taxRateId: "ret-tax-rate", subtotalId: "ret-subtotal-display", taxId: "ret-tax-display", totalId: "ret-total-display" },
     fieldIds: { id: "pur-return-id", partner: "ret-partner", date: "ret-date", payment: "ret-payment", desc: "ret-desc", taxRate: "ret-tax-rate", ...voucherInvoiceFieldIds("ret", true) },
-    fieldDefaults: { payment: "331", desc: "Trả lại hàng mua cho nhà cung cấp", taxRate: "0", invoiceForm: "1" },
+    fieldDefaults: { payment: "331", desc: "Trả lại hàng mua cho nhà cung cấp", get taxRate() { return getDefaultVatRate(); }, invoiceForm: "1" },
     getEditingId: () => editingPurchaseReturnId,
     setEditingId: value => { editingPurchaseReturnId = value || null; }
   }));

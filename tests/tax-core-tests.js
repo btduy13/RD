@@ -84,6 +84,19 @@ test("isValidAccount allows self-opened details only under accounts without pres
   assert.ok(chart.isValidAccount("1386", "TT133"));
 });
 
+test("prescribed sub-accounts (TT99 Phụ lục II, TT133 Phụ lục 1) are valid; siblings outside the list are not", () => {
+  ["2291", "2292", "2293", "2294", "2295", "2141", "2142", "2143", "2147", "3336", "3337", "33381", "4111", "41111", "4112", "4113", "4118",
+    "1281", "1288", "1361", "2411", "2414", "3361", "3411", "3412", "3431", "3525", "3534", "3562", "6275", "215122"]
+    .forEach(code => assert.ok(chart.isValidAccount(code, "TT99"), "TT99 " + code));
+  ["2291", "2292", "2293", "2294", "2142", "2147", "4111", "4112", "4118", "1281", "1361", "2413", "3361", "3411", "3524", "3531"]
+    .forEach(code => assert.ok(chart.isValidAccount(code, "TT133"), "TT133 " + code));
+  assert.strictEqual(chart.getAccountName("2292", "TT99"), "Dự phòng tổn thất đầu tư vào đơn vị khác");
+  assert.strictEqual(chart.getAccountName("4112", "TT133"), "Thặng dư vốn cổ phần");
+  assert.ok(!chart.isValidAccount("2296", "TT99"), "229 has a closed list");
+  assert.ok(!chart.isValidAccount("4113", "TT133"), "TT133 411 has no 4113");
+  assert.ok(!chart.isValidAccount("3523", "TT133"));
+});
+
 test("TT200 is an alias of TT99", () => {
   assert.strictEqual(chart.normalizeAccountingStandard("TT200"), "TT99");
   assert.strictEqual(chart.normalizeAccountingStandard(undefined), "TT99");
@@ -127,6 +140,9 @@ test("getTaxRule looks rules up by date", () => {
   assert.deepStrictEqual(v("ins.regionMinWage", "2027-01-01"), { I: 5700000, II: 5080000, III: 4450000, IV: 4040000 });
   assert.ok(v("holidays", "2026-03-01").some(h => h.date === "2026-11-24"));
   assert.ok(!v("holidays", "2025-03-01").some(h => h.date.endsWith("-11-24")));
+  assert.ok(v("holidays", "2026-03-01").some(h => h.date === "2026-01-02"), "02/01/2026 hoán đổi");
+  assert.strictEqual(v("cit.exemptRevenue", "2026-12-31"), 1000000000);
+  assert.strictEqual(rules.getTaxRule("cit.exemptRevenue", "2025-12-31"), null);
   assert.ok(rules.getTaxRule("vat.cashThreshold", new Date(2025, 6, 1)).value === 5000000, "accepts Date");
   rules.TAX_RULES.forEach(r => assert.ok(r.ref, "every rule cites a legal reference: " + r.key));
 });

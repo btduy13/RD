@@ -10,7 +10,8 @@ const STATE_METADATA_KEYS = [
   "preparerName", "chiefAccountantName", "directorName", "allowNegativeStock",
   "initialBalances", "partnerOpeningBalances", "partnerOpeningBalanceTs",
   "deletedIds", "deletedCloudKeys", "_deletedCloudKeyTs", "_lastPulledCloudTs", "_cloudDatasetIdentity", "_pendingCloudWrite",
-  "cashEntries", "escrowItems", "employees", "payrolls", "taxSettings", "salesTemplatesData", "users", "actionLogs",
+  "cashEntries", "escrowItems", "employees", "payrolls", "fixedAssets", "taxSettings", "salesTemplatesData", "users", "actionLogs",
+  "provisionEvidence", "writtenOffDebts", "lockedThrough", "lockedThroughInfo",
   "schemaVersion"
 ];
 
@@ -87,6 +88,7 @@ function pruneResolvedDeletionMarkers(currentState, now = Date.now()) {
   addActive(currentState.cashEntries, "cash_");
   addActive(currentState.escrowItems, "escrow_");
   addActive(currentState.employees, "emp_");
+  addActive(currentState.fixedAssets, "fa_");
   addActive(currentState.payrolls, "pay_");
 
   if (Array.isArray(currentState.deletedIds)) {

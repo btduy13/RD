@@ -119,6 +119,23 @@ function keepExistingImportPartner(vObj, existing) {
     return vObj;
 }
 
+// Khóa sổ (Luật Kế toán Đ26): nạp Excel không được thêm/ghi đè chứng từ thuộc kỳ đã khóa.
+// Đếm số dòng bỏ qua để báo một lần cuối lượt nạp.
+let lockedImportSkips = 0;
+function skipLockedImport(vObj, existing) {
+    if (typeof isVoucherInLockedPeriod !== "function" || ![vObj, existing].some(v => isVoucherInLockedPeriod(state, v))) return false;
+    lockedImportSkips++;
+    return true;
+}
+function reportLockedImportSkips() {
+    const n = lockedImportSkips;
+    lockedImportSkips = 0;
+    if (n > 0 && typeof showToast === "function") {
+        const date = typeof formatDateDisplay === "function" ? formatDateDisplay(state.lockedThrough) : state.lockedThrough;
+        showToast(`Bỏ qua ${n} chứng từ thuộc kỳ đã khóa sổ (đến ${date})`, "warning");
+    }
+}
+
 // Phiếu chi không khớp từ khóa nào: chỉ hạch toán Nợ 331 khi đối tác là nhà cung cấp;
 // còn lại Nợ 1388 (phải thu khác — có ở cả TT133 và TT200) và cần kế toán rà soát.
 // % chiết khấu lưu chính xác, không làm tròn: CK 1.500 trên 100.000 là 1,5%; làm tròn thành 2% thì
@@ -281,6 +298,7 @@ async function autoIntegrateVouchersExcel() {
                 entries: [{ debit: debitAccount, credit: creditAccount, amount, desc: description }]
             };
             if (needsReview) vObj.needsReview = true;
+            if (skipLockedImport(vObj, existingVoucher)) continue;
             if (idx !== -1) {
                 state.vouchers[idx] = vObj;
             } else {
@@ -291,10 +309,12 @@ async function autoIntegrateVouchersExcel() {
 
         saveState();
         recalculateAccounting();
+        reportLockedImportSkips();
         console.log(`[AutoIntegration] Successfully integrated ${count} cash vouchers.`);
         if (typeof renderDashboard === "function") renderDashboard();
         if (typeof filterCash === "function") filterCash();
     } catch (err) {
+        reportLockedImportSkips();
         console.warn("Lỗi tự động tích hợp quỹ thu/chi:", err.message);
     }
 }
@@ -389,6 +409,7 @@ async function autoIntegrateSalesExcel() {
             };
 
             const existingIdx = voucherMap.get(id);
+            if (skipLockedImport(vObj, state.vouchers[existingIdx])) continue;
             if (existingIdx !== undefined) {
                 state.vouchers[existingIdx] = keepExistingImportPartner(vObj, state.vouchers[existingIdx]);
             } else {
@@ -401,10 +422,12 @@ async function autoIntegrateSalesExcel() {
         state.salesExcelIntegrated = true;
         saveState();
         recalculateAccounting();
+        reportLockedImportSkips();
         console.log(`Successfully auto-integrated ${count} sales vouchers from Ban_hang.xlsx!`);
         if (typeof filterSales === "function") filterSales();
         if (typeof renderDashboard === "function") renderDashboard();
     } catch (err) {
+        reportLockedImportSkips();
         console.error("Error auto-integrating sales Excel:", err);
     }
 }
@@ -560,6 +583,7 @@ async function autoIntegrateSoChiTietBanHangExcel() {
 
             // Smart merge: ghi đè nếu trùng, thêm mới nếu chưa có
             const existingIdx = voucherMap.get(voucherId);
+            if (skipLockedImport(vObj, state.vouchers[existingIdx])) continue;
             if (existingIdx !== undefined) {
                 state.vouchers[existingIdx] = keepExistingImportPartner(vObj, state.vouchers[existingIdx]);
             } else {
@@ -573,6 +597,7 @@ async function autoIntegrateSoChiTietBanHangExcel() {
         state.salesExcelIntegrated = true; // Mark sales also integrated to bypass the Ban_hang.xlsx old loader
         saveState();
         recalculateAccounting();
+        reportLockedImportSkips();
 
         console.log(`Successfully integrated ${count} detailed sales vouchers from SO_CHI_TIET_BAN_HANG.xlsx!`);
 
@@ -584,6 +609,7 @@ async function autoIntegrateSoChiTietBanHangExcel() {
         if (typeof filterSales === "function") filterSales();
         if (typeof renderDashboard === "function") renderDashboard();
     } catch (err) {
+        reportLockedImportSkips();
         console.error("Error auto-integrating detailed sales Excel:", err);
         if (typeof showToast === "function") {
             showToast("Lỗi tích hợp Sổ chi tiết bán hàng Excel: " + err.message, "danger");
@@ -796,6 +822,7 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
             };
 
             const existingIdx = voucherMap.get(voucherId);
+            if (skipLockedImport(vObj, state.vouchers[existingIdx])) continue;
             if (existingIdx !== undefined) {
                 // Bảo lưu đối tác thực tế đã được ánh xạ (ví dụ từ file công nợ phải trả theo hóa đơn)
                 const oldPartnerId = state.vouchers[existingIdx].partnerId;
@@ -815,6 +842,7 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
         state.soChiTietMuaHangIntegrated = true;
         saveState();
         recalculateAccounting();
+        reportLockedImportSkips();
 
         console.log(`Successfully integrated ${count} detailed purchase vouchers from ${loadedFilename}!`);
 
@@ -827,6 +855,7 @@ async function autoIntegrateSoChiTietMuaHangExcel(force = false) {
         if (typeof renderPurchaseTable === "function") renderPurchaseTable();
         if (typeof renderDashboard === "function") renderDashboard();
     } catch (err) {
+        reportLockedImportSkips();
         console.error("Error auto-integrating detailed purchase Excel:", err);
         if (typeof showToast === "function") {
             showToast("Lỗi tích hợp Sổ chi tiết mua hàng Excel: " + err.message, "danger");
@@ -1189,8 +1218,8 @@ function getVNAccountingAccounts(nature) {
     let cogsAccount = "";
     let revenueAccount = "";
     let discountAccount = "5211";
-    let rebateAccount = "5212";
-    let returnAccount = "5213";
+    let rebateAccount = "5213"; // TT99/TT200: 5213 giảm giá hàng bán, 5212 hàng bán bị trả lại
+    let returnAccount = "5212";
 
     if (nat === "Vật tư hàng hóa" || nat === "Hàng hóa") {
         defaultWarehouse = "1561";
@@ -1883,6 +1912,7 @@ function parseExcelFile(file, type) {
                             if (existingIdx !== undefined) {
                                 // Không ghi đè đối tác đã gán bằng mã rỗng khi tên NCC không khớp
                                 if (!resolvedPartner) continue;
+                                if (skipLockedImport(null, state.vouchers[existingIdx])) continue;
                                 // Cập nhật nhà cung cấp cho chứng từ đã tồn tại
                                 const existingVoucher = state.vouchers[existingIdx];
                                 existingVoucher.partnerId = pId;
@@ -1913,6 +1943,7 @@ function parseExcelFile(file, type) {
                                     ...(pId ? {} : { needsReview: true }),
                                     items: [{ productId: "SP_GENERIC", qty: 1, price: amount, amount: amount }]
                                 };
+                                if (skipLockedImport(vObj)) continue;
                                 state.vouchers.push(vObj);
                                 voucherMap.set(voucherId, state.vouchers.length - 1);
                                 countCreated++;
@@ -1923,6 +1954,7 @@ function parseExcelFile(file, type) {
 
                 saveState();
                 recalculateAccounting();
+                reportLockedImportSkips();
                 if (typeof filterPurchases === "function") filterPurchases();
                 if (typeof filterVouchers === "function") filterVouchers();
                 showToast(`Đã xử lý Công nợ phải trả: Cập nhật ${countUpdated} chứng từ, tạo mới ${countCreated} chứng từ!`, "success");
@@ -2040,6 +2072,7 @@ function parseExcelFile(file, type) {
                 }
                 saveState();
                 recalculateAccounting();
+                reportLockedImportSkips();
                 showToast(`Đã nạp thành công ${count} sản phẩm từ file Excel (${isNewFormat ? 'định dạng mới' : 'định dạng cũ'})!`, "success");
             } else if (type === 'partners') {
                 let count = 0;
@@ -2097,6 +2130,7 @@ function parseExcelFile(file, type) {
                 showToast(`Đã nạp thành công ${count} đối tác từ file Excel!`, "success");
                 filterPartners();
             } else if (type === 'debts_opening') {
+                if (!(await confirmOpeningBalanceEdit())) return;
                 let count = 0;
                 state.partnerOpeningBalances = state.partnerOpeningBalances || {};
 
@@ -2189,6 +2223,7 @@ function parseExcelFile(file, type) {
 
                 saveState();
                 recalculateAccounting();
+                reportLockedImportSkips();
                 showToast(`Đã nạp số dư đầu kỳ cho ${count} đối tác (${isNewDebtFormat ? 'định dạng mới' : 'định dạng cũ'})!`, "success");
                 filterDebts();
             } else if (type === 'vouchers') {
@@ -2308,6 +2343,7 @@ function parseExcelFile(file, type) {
                         entries: [{ debit: debitAccount, credit: creditAccount, amount, desc: description }]
                     };
                     if (needsReview) vObj.needsReview = true;
+                    if (skipLockedImport(vObj, existingVoucher)) continue;
                     if (idx !== -1) {
                         state.vouchers[idx] = vObj;
                     } else {
@@ -2317,6 +2353,7 @@ function parseExcelFile(file, type) {
                 }
                 saveState();
                 recalculateAccounting();
+                reportLockedImportSkips();
                 showToast(`Đã nạp thành công ${count} chứng từ vào sổ cái!`, "success");
             } else if (type === 'sales') {
                 let isDetailed = false;
@@ -2487,6 +2524,7 @@ function parseExcelFile(file, type) {
 
                         // Smart merge: ghi đè nếu trùng, thêm mới nếu chưa có
                         const existingIdx = voucherMap.get(voucherId);
+                        if (skipLockedImport(vObj, state.vouchers[existingIdx])) continue;
                         if (existingIdx !== undefined) {
                             state.vouchers[existingIdx] = keepExistingImportPartner(vObj, state.vouchers[existingIdx]);
                         } else {
@@ -2504,6 +2542,7 @@ function parseExcelFile(file, type) {
                         ? await saveStateAndSyncVoucher()
                         : (saveState(), true);
                     recalculateAccounting();
+                    reportLockedImportSkips();
 
                     // Báo cáo chi tiết theo loại
                     const typeSummary = Object.entries(typeCount)
@@ -2581,6 +2620,7 @@ function parseExcelFile(file, type) {
                         };
 
                         const existingIdx = voucherMap.get(id);
+                        if (skipLockedImport(vObj, state.vouchers[existingIdx])) continue;
                         if (existingIdx !== undefined) {
                             state.vouchers[existingIdx] = keepExistingImportPartner(vObj, state.vouchers[existingIdx]);
                         } else {
@@ -2591,6 +2631,7 @@ function parseExcelFile(file, type) {
                     }
                     saveState();
                     recalculateAccounting();
+                    reportLockedImportSkips();
                     showToast(`Đã nạp thành công ${count} hóa đơn bán hàng vào lịch sử!`, "success");
                     if (typeof filterSales === "function") filterSales();
                 }
@@ -2747,6 +2788,7 @@ function parseExcelFile(file, type) {
                         };
 
                         const existingIdx = voucherMap.get(voucherId);
+                        if (skipLockedImport(vObj, state.vouchers[existingIdx])) continue;
                         if (existingIdx !== undefined) {
                             state.vouchers[existingIdx] = keepExistingImportPartner(vObj, state.vouchers[existingIdx]);
                         } else {
@@ -2758,6 +2800,7 @@ function parseExcelFile(file, type) {
 
                     saveState();
                     recalculateAccounting();
+                    reportLockedImportSkips();
                     showToast(`Đã nạp thành công ${count} báo giá chi tiết từ file Excel!`, "success");
                     if (typeof filterQuotationTable === "function") filterQuotationTable();
                 } else {
@@ -2819,6 +2862,7 @@ function parseExcelFile(file, type) {
                         };
 
                         const existingIdx = voucherMap.get(id);
+                        if (skipLockedImport(vObj, state.vouchers[existingIdx])) continue;
                         if (existingIdx !== undefined) {
                             state.vouchers[existingIdx] = keepExistingImportPartner(vObj, state.vouchers[existingIdx]);
                         } else {
@@ -2829,6 +2873,7 @@ function parseExcelFile(file, type) {
                     }
                     saveState();
                     recalculateAccounting();
+                    reportLockedImportSkips();
                     showToast(`Đã nạp thành công ${count} báo giá vào lịch sử!`, "success");
                     if (typeof filterQuotationTable === "function") filterQuotationTable();
                 }
@@ -2997,6 +3042,7 @@ function parseExcelFile(file, type) {
 
                     // Smart merge
                     const existingIdx = voucherMap.get(voucherId);
+                    if (skipLockedImport(vObj, state.vouchers[existingIdx])) continue;
                     if (existingIdx !== undefined) {
                         state.vouchers[existingIdx] = keepExistingImportPartner(vObj, state.vouchers[existingIdx]);
                     } else {
@@ -3008,6 +3054,7 @@ function parseExcelFile(file, type) {
 
                 saveState();
                 recalculateAccounting();
+                reportLockedImportSkips();
                 showToast(`Đã nạp thành công ${count} chứng từ ${type === 'purchase' ? 'mua hàng' : (type === 'sales_return' ? 'hàng bán trả lại' : 'trả lại hàng')} từ file Excel!`, "success");
                 if (type === 'purchase') {
                     if (typeof filterPurchaseTable === "function") filterPurchaseTable();
@@ -3183,6 +3230,7 @@ function parseExcelFile(file, type) {
                         };
 
                         const existingIdx = voucherMap.get(voucherId);
+                        if (skipLockedImport(vObj, state.vouchers[existingIdx])) continue;
                         if (existingIdx !== undefined) {
                             state.vouchers[existingIdx] = vObj;
                         } else {
@@ -3281,6 +3329,7 @@ function parseExcelFile(file, type) {
                         };
 
                         const existingIdx = voucherMap.get(voucherId);
+                        if (skipLockedImport(vObj, state.vouchers[existingIdx])) continue;
                         if (existingIdx !== undefined) {
                             state.vouchers[existingIdx] = keepExistingImportPartner(vObj, state.vouchers[existingIdx]);
                         } else {
@@ -3293,11 +3342,13 @@ function parseExcelFile(file, type) {
 
                 saveState();
                 recalculateAccounting();
+                reportLockedImportSkips();
                 showToast(`Đã nạp thành công ${count} đơn đặt hàng từ file Excel!`, "success");
                 if (typeof filterPurchaseOrderTable === "function") filterPurchaseOrderTable();
                 if (typeof renderPurchaseOrderTable === "function") renderPurchaseOrderTable();
             }
         } catch (err) {
+            reportLockedImportSkips();
             console.error(err);
             showToast("Lỗi phân tích file Excel. Định dạng không tương thích!", "danger");
         }

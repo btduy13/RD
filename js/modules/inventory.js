@@ -619,7 +619,7 @@ function exportStockLedgerToExcel() {
 }
 
 // Xử lý nộp form Thêm mặt hàng mới
-function handleProductSubmit(e) {
+async function handleProductSubmit(e) {
   e.preventDefault();
 
   const modal = document.getElementById("modal-add-product");
@@ -649,6 +649,8 @@ function handleProductSubmit(e) {
     showToast(`Mã sản phẩm "${id}" đã tồn tại!`, "danger");
     return;
   }
+  // Tồn đầu kỳ cộng vào số dư đầu kỳ TK 156.
+  if (initialStock * initialCost && !(await confirmOpeningBalanceEdit())) return;
 
   const newProduct = {
     id,
@@ -816,6 +818,7 @@ function handleQuickImportSubmit(e) {
       ]
     };
 
+    if (typeof blockLockedPeriodEdit === "function" && blockLockedPeriodEdit(voucher)) return;
     state.vouchers.push(voucher);
 
     saveState();
@@ -942,6 +945,7 @@ function handleAdjustStockSubmit(e) {
       return;
     }
 
+    if (typeof blockLockedPeriodEdit === "function" && blockLockedPeriodEdit(voucher)) return;
     state.vouchers.push(voucher);
 
     saveState();
@@ -1052,7 +1056,7 @@ function copyProduct(productId) {
   }
 }
 
-function handleEditProductPriceSubmit(e) {
+async function handleEditProductPriceSubmit(e) {
   try {
     e.preventDefault();
 
@@ -1077,6 +1081,9 @@ function handleEditProductPriceSubmit(e) {
 
     const p = state.products.find(x => String(x.id) === String(prodId));
     if (!p) return;
+    // Tồn/giá đầu kỳ quyết định số dư đầu kỳ TK 156.
+    const openingChanged = Number(p.initialCost || 0) !== initialCost || Number(p.initialStock || 0) !== initialStock;
+    if (openingChanged && !(await confirmOpeningBalanceEdit())) return;
 
     p.name = name;
     p.unit = unit;
@@ -1341,7 +1348,7 @@ function openQuickAddProductModal() {
  * 3. Điền mã sản phẩm vào ô cuối cùng của bảng bán hàng
  * 4. Cập nhật datalist để autocomplete biết mặt hàng mới
  */
-function handleQuickAddProductSubmit(e) {
+async function handleQuickAddProductSubmit(e) {
   try {
     e.preventDefault();
 
@@ -1365,6 +1372,8 @@ function handleQuickAddProductSubmit(e) {
       showToast("Vui lòng nhập đơn vị tính!", "danger");
       return;
     }
+    // Tồn đầu kỳ cộng vào số dư đầu kỳ TK 156.
+    if (initStock * initCost && !(await confirmOpeningBalanceEdit())) return;
 
     // Sinh mã tự động nếu để trống
     if (!rawId) {

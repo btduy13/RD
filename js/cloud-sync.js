@@ -120,13 +120,14 @@ const CLOUD_SYNC_ENTITY_DEFS = [
   { stateKey: "partners", rowPrefix: "part_", deleteType: "partner" }
 ];
 
-const CLOUD_SYNC_MERGE_ENTITY_KEYS = ["vouchers", "products", "partners", "cashEntries", "escrowItems", "employees", "payrolls"];
+const CLOUD_SYNC_MERGE_ENTITY_KEYS = ["vouchers", "products", "partners", "cashEntries", "escrowItems", "employees", "payrolls", "fixedAssets"];
 const CLOUD_SYNC_DELETE_DEFS = [
   ...CLOUD_SYNC_ENTITY_DEFS,
   { stateKey: "cashEntries", rowPrefix: "cash_", deleteType: "cashEntry" },
   { stateKey: "escrowItems", rowPrefix: "escrow_", deleteType: "escrowItem" },
   // Lương: ride inside the metadata row like cashEntries; typed tombstone rows only for deletions.
   { stateKey: "employees", rowPrefix: "emp_", deleteType: "employee" },
+  { stateKey: "fixedAssets", rowPrefix: "fa_", deleteType: "fixedAsset" },
   { stateKey: "payrolls", rowPrefix: "pay_", deleteType: "payroll" }
 ];
 
@@ -331,6 +332,7 @@ function cloudSyncDefaultState() {
     cashEntries: [],
     escrowItems: [],
     employees: [],
+    fixedAssets: [],
     payrolls: [],
     deletedIds: [],
     deletedCloudKeys: []
@@ -420,6 +422,7 @@ function cloudSyncPrefixForEntity(entityType) {
   if (entityType === "cashEntry") return "cash_";
   if (entityType === "escrowItem") return "escrow_";
   if (entityType === "employee") return "emp_";
+  if (entityType === "fixedAsset") return "fa_";
   if (entityType === "payroll") return "pay_";
   return "v_";
 }
@@ -1595,6 +1598,7 @@ function cloudSyncMetaComparable(meta) {
   delete comparable.cashEntries;
   delete comparable.escrowItems;
   delete comparable.employees;
+  delete comparable.fixedAssets;
   delete comparable.payrolls;
   return cloudSyncStableStringify(comparable);
 }
@@ -1813,6 +1817,7 @@ function cloudSyncMergeStatesCore(localState, cloudState, options = {}) {
   delete mergedMeta.cashEntries;
   delete mergedMeta.escrowItems;
   delete mergedMeta.employees;
+  delete mergedMeta.fixedAssets;
   delete mergedMeta.payrolls;
   if (stats && !stats.changed) {
     stats.changed = cloudSyncMetaComparable(mergedMeta) !== cloudSyncMetaComparable(cloudSyncSplitMetadata(localState));

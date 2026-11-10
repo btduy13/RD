@@ -1,7 +1,7 @@
 /* ==========================================================================
    PHÂN HỆ TIỀN LƯƠNG & THUẾ TNCN — renderPayrollTab() vào #payroll-root
    state.employees: [{ id, name, taxCode, idNo, dept "admin"|"sales", region "I"–"IV", dependants,
-                       resident, foreign, casual, insSalary, baseSalary, active, _updatedAt }]
+                       resident, foreign, casual, shortContract, partTime, insSalary, baseSalary, active, _updatedAt }]
    state.payrolls:  [{ id = period "YYYY-MM", period, payDate, locked, voucherId,
                        lines: [{ employeeId, name, dept, gross, allowancesTaxFree, ...computePayslip }], _updatedAt }]
    ========================================================================== */
@@ -49,7 +49,7 @@ function payrollEmployeeForm(e) {
     <label>Số người phụ thuộc<input id="pe-dependants" type="number" min="0" class="form-control" value="${Number(v.dependants) || 0}"></label>
     <label>Lương đóng BH<input id="pe-insSalary" type="number" min="0" class="form-control" value="${Number(v.insSalary) || 0}"></label>
     <label>Lương cơ bản (gợi ý bảng lương)<input id="pe-baseSalary" type="number" min="0" class="form-control" value="${Number(v.baseSalary) || 0}"></label>
-    <div style="display:flex;flex-direction:column;gap:4px;">${chk("pe-resident", v.resident !== false, "Cá nhân cư trú")}${chk("pe-foreign", v.foreign, "Lao động nước ngoài (không BHTN)")}${chk("pe-casual", v.casual, "Vãng lai / HĐ dưới 3 tháng (khấu trừ 10%)")}${chk("pe-active", v.active !== false, "Đang làm việc")}</div>
+    <div style="display:flex;flex-direction:column;gap:4px;">${chk("pe-resident", v.resident !== false, "Cá nhân cư trú")}${chk("pe-foreign", v.foreign, "Lao động nước ngoài (không BHTN)")}${chk("pe-casual", v.casual, "Không HĐLĐ / HĐ dưới 1 tháng (khấu trừ 10%, không BH)")}${chk("pe-shortContract", v.shortContract, "HĐLĐ 1 đến dưới 3 tháng (khấu trừ 10%, có BH)")}${chk("pe-partTime", v.partTime, "Không trọn thời gian (lương dưới sàn thì không đóng BH)")}${chk("pe-active", v.active !== false, "Đang làm việc")}</div>
     <div style="display:flex;gap:8px;align-items:end;"><button type="submit" class="btn btn-primary">Lưu</button><button type="button" class="btn btn-secondary" onclick="editPayrollEmployee(null)">Hủy</button></div>
   </form>`;
 }
@@ -69,7 +69,8 @@ function savePayrollEmployee(ev) {
     name: prEl("pe-name").value.trim(), taxCode: prEl("pe-taxCode").value.trim(), idNo: prEl("pe-idNo").value.trim(),
     dept: prEl("pe-dept").value, region: prEl("pe-region").value, dependants: Math.max(0, parseInt(prEl("pe-dependants").value, 10) || 0),
     insSalary: Math.max(0, Number(prEl("pe-insSalary").value) || 0), baseSalary: Math.max(0, Number(prEl("pe-baseSalary").value) || 0),
-    resident: prEl("pe-resident").checked, foreign: prEl("pe-foreign").checked, casual: prEl("pe-casual").checked, active: prEl("pe-active").checked,
+    resident: prEl("pe-resident").checked, foreign: prEl("pe-foreign").checked, casual: prEl("pe-casual").checked,
+    shortContract: prEl("pe-shortContract").checked && !prEl("pe-casual").checked, partTime: prEl("pe-partTime").checked, active: prEl("pe-active").checked,
     _updatedAt: Date.now()
   });
   if (!existing) state.employees.push(emp);
@@ -94,9 +95,9 @@ async function deletePayrollEmployee(id) {
 
 /* ---------------------------- Bảng lương ---------------------------- */
 
-function payrollComputeLine(line, payDate) {
+function payrollComputeLine(line, payDate, period) {
   const emp = state.employees.find(e => e.id === line.employeeId) || {};
-  const slip = computePayslip(emp, { gross: line.gross, allowancesTaxFree: line.allowancesTaxFree, payDate });
+  const slip = computePayslip(emp, { gross: line.gross, allowancesTaxFree: line.allowancesTaxFree, payDate, period });
   return { employeeId: line.employeeId, name: emp.name || line.name || "", dept: emp.dept || line.dept || "admin", ...slip };
 }
 
@@ -111,9 +112,10 @@ function createPayroll() {
   if (!/^\d{4}-\d{2}$/.test(period)) { showToast("Chọn tháng lương.", "warning"); return; }
   if (state.payrolls.some(p => p.id === period)) { payrollUi.period = period; renderPayrollTab(); return; }
   const [y, m] = period.split("-").map(Number);
+  // Mặc định ngày cuối tháng lương; người dùng sửa thành ngày trả thực tế (thuế TNCN tra theo ngày này).
   const payDate = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
   const lines = state.employees.filter(e => e.active !== false)
-    .map(e => payrollComputeLine({ employeeId: e.id, gross: Number(e.baseSalary) || 0, allowancesTaxFree: 0 }, payDate));
+    .map(e => payrollComputeLine({ employeeId: e.id, gross: Number(e.baseSalary) || 0, allowancesTaxFree: 0 }, payDate, period));
   state.payrolls.push({ id: period, period, payDate, locked: false, lines, _updatedAt: Date.now() });
   payrollUi.period = period;
   saveState();
@@ -128,7 +130,7 @@ function payrollReadForm(p) {
     ...l,
     gross: Math.max(0, Number(prEl(`pr-gross-${i}`).value) || 0),
     allowancesTaxFree: Math.max(0, Number(prEl(`pr-allow-${i}`).value) || 0)
-  }, payDate));
+  }, payDate, p.period));
   p._updatedAt = Date.now();
 }
 
@@ -153,6 +155,7 @@ async function savePayroll(post = false) {
     const v = payrollVoucher(p);
     if (!v.entries.length) { showToast("Bảng lương không có số liệu để ghi sổ.", "warning"); return; }
     const idx = state.vouchers.findIndex(x => x.id === v.id);
+    if (typeof blockLockedPeriodEdit === "function" && blockLockedPeriodEdit(v, state.vouchers[idx])) return;
     if (idx >= 0) state.vouchers[idx] = { ...state.vouchers[idx], ...v };
     else state.vouchers.push(v);
     p.voucherId = v.id;
@@ -188,6 +191,7 @@ async function deletePayroll() {
   const p = state.payrolls.find(x => x.id === payrollUi.period);
   if (!p) return;
   if (p.locked) { showToast("Bảng lương đã khóa — mở khóa trước khi xóa.", "warning"); return; }
+  if (p.voucherId && typeof blockLockedPeriodEdit === "function" && blockLockedPeriodEdit(null, state.vouchers.find(v => v.id === p.voucherId))) return;
   if (!await showConfirmModal({ title: "Xóa bảng lương", message: `Xóa bảng lương ${p.period}${p.voucherId ? " và chứng từ " + p.voucherId : ""}?`, confirmText: "Xóa" })) return;
   state.payrolls = state.payrolls.filter(x => x !== p);
   if (typeof trackDeletedIds === "function") trackDeletedIds([p.id], "payroll");
@@ -222,7 +226,7 @@ function payrollQuarterAoa(year, q) {
   const all = () => true;
   return [["Chỉ tiêu", "Giá trị"],
     ["Tổng số người lao động", ids(all)],
-    ["Trong đó: cá nhân cư trú có hợp đồng lao động", ids(l => isRes(l) && !payrollEmp(l.employeeId).casual)],
+    ["Trong đó: cá nhân cư trú có hợp đồng lao động", ids(l => isRes(l) && !payrollEmp(l.employeeId).casual)], // gồm cả HĐLĐ 1–3 tháng
     ["Tổng số cá nhân đã khấu trừ thuế", ids(l => l.pit > 0)],
     ["Tổng thu nhập chịu thuế trả cho cá nhân", sum(all, "tnct")],
     ["Trong đó: cá nhân cư trú", sum(isRes, "tnct")],
@@ -306,7 +310,7 @@ function renderPayrollTab() {
 
   const empRows = state.employees.map(e => `<tr${e.active === false ? ' style="opacity:.55;"' : ""}>
     <td>${prEsc(e.id)}</td><td>${prEsc(e.name)}</td><td>${prEsc(e.taxCode || "")}</td><td>${e.dept === "sales" ? "Bán hàng" : "Quản lý"}</td><td>${prEsc(e.region || "I")}</td>
-    <td style="text-align:right;">${Number(e.dependants) || 0}</td><td>${e.casual ? "Vãng lai" : e.resident === false ? "Không cư trú" : "Cư trú"}${e.foreign ? ", nước ngoài" : ""}</td>
+    <td style="text-align:right;">${Number(e.dependants) || 0}</td><td>${e.casual ? "Vãng lai" : e.shortContract ? "HĐ 1–3 tháng" : e.resident === false ? "Không cư trú" : "Cư trú"}${e.foreign ? ", nước ngoài" : ""}</td>
     <td style="text-align:right;">${prNum(e.insSalary)}</td><td>${e.active === false ? "Nghỉ việc" : "Đang làm"}</td>
     <td style="white-space:nowrap;">${btn("Sửa", `editPayrollEmployee('${escapeHtmlAttr(e.id)}')`)} ${btn("Xóa", `deletePayrollEmployee('${escapeHtmlAttr(e.id)}')`)}</td></tr>`).join("");
 
@@ -333,7 +337,8 @@ function renderPayrollTab() {
           <td style="text-align:right;">${prNum(tot("insEmployee"))}</td><td style="text-align:right;">${prNum(tot("insEmployer"))}</td><td></td><td></td>
           <td style="text-align:right;">${prNum(tot("pit"))}</td><td style="text-align:right;">${prNum(tot("net"))}</td></tr></tfoot>
       </table></div>
-      <p style="font-size:12px;opacity:.8;">Biểu thuế, giảm trừ, trần/sàn bảo hiểm tra theo ngày chi trả. Nhân viên mới thêm sau khi tạo bảng lương: xóa và tạo lại bảng lương tháng.</p>`;
+      ${p.payDate && p.payDate.slice(0, 4) !== p.period.slice(0, 4) ? `<p style="font-size:12px;color:var(--color-warning,#b45309);">Ngày chi trả khác năm với tháng lương: thuế TNCN tính theo biểu và giảm trừ của năm ${prEsc(p.payDate.slice(0, 4))}.</p>` : ""}
+      <p style="font-size:12px;opacity:.8;">Ngày chi trả mặc định là ngày cuối tháng lương — sửa thành ngày trả thực tế. Thuế TNCN (biểu, giảm trừ, ngưỡng 10%) tra theo ngày chi trả; trần/sàn/tỷ lệ bảo hiểm tra theo tháng lương. Nhân viên mới thêm sau khi tạo bảng lương: xóa và tạo lại bảng lương tháng.</p>`;
   }
 
   const [qy, qq] = payrollUi.quarter.split("-Q");
@@ -358,7 +363,7 @@ function renderPayrollTab() {
   </div>
   <div class="card" style="margin-top:16px;"><div class="card-header-bar"><span class="card-title">Số liệu quyết toán 05/QTT-TNCN (năm)</span>
       <span><input type="number" class="form-control" style="display:inline-block;width:90px;" value="${escapeHtmlText(payrollUi.year)}" onchange="payrollUi.year=this.value;renderPayrollTab()">${outBtns("annual")}</span></div>
-    <p style="font-size:12px;opacity:.8;">Tính lại cả năm theo biểu năm (ngưỡng bậc × 12), giảm trừ gia cảnh 12 tháng. Mẫu 05/QTT-TNCN cho năm 2026 chưa xác minh (TT 87/2026, TT 89/2026).</p>
+    <p style="font-size:12px;opacity:.8;">Tính lại cả năm theo biểu năm (ngưỡng bậc × 12); giảm trừ bản thân 12 tháng, người phụ thuộc theo số tháng đã giảm trừ trên bảng lương. Mẫu 05/QTT-TNCN cho năm 2026 chưa xác minh (TT 87/2026, TT 89/2026).</p>
     <div style="overflow-x:auto;">${prTable(payrollAnnualAoa(Number(payrollUi.year)))}</div>
   </div>`;
 }

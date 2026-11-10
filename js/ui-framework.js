@@ -86,6 +86,9 @@ function renderTabIfNeeded(tabId) {
       if (typeof renderTaxCalendar === "function") renderTaxCalendar();
     } else if (tabId === "payroll") {
       if (typeof renderPayrollTab === "function") renderPayrollTab();
+    } else if (tabId === "assets") {
+      if (typeof renderFixedAssetsTab === "function") renderFixedAssetsTab();
+      if (typeof renderProvisionsTab === "function") renderProvisionsTab();
     } else if (tabId === "settings") {
       if (typeof updateErrorLogsUI === "function") {
         updateErrorLogsUI();
@@ -860,7 +863,7 @@ function viewVoucher(id) {
           <div style="grid-column:span 2;"><strong>Địa chỉ:</strong> <span>${escapeHtmlText(partner_sr.address || '-')}</span></div>
           <div style="grid-column:span 2;"><strong>Lý do trả:</strong> ${escapeHtmlText(v.description)}</div>
           <div style="grid-column:span 2; font-size: 14px; color:#555;">
-            Nợ TK: <strong>511</strong>${v.taxAmount > 0 ? ', <strong>3331</strong>' : ''} &nbsp;|&nbsp; Có TK: <strong>${escapeHtmlText(creditAccSR)}</strong>
+            Nợ TK: <strong>${escapeHtmlText((v.entries && v.entries[0] && v.entries[0].debit) || (typeof salesReturnAccount === "function" ? salesReturnAccount(state.accountingStandard) : "511"))}</strong>${v.taxAmount > 0 ? ', <strong>3331</strong>' : ''} &nbsp;|&nbsp; Có TK: <strong>${escapeHtmlText(creditAccSR)}</strong>
             &nbsp;&nbsp; Nợ TK: <strong>156</strong> / Có TK: <strong>632</strong> (nhập lại kho)
           </div>
         </div>
