@@ -197,6 +197,11 @@ function isBankLikePartner(partner, partnerId) {
   return /ngan hang|bank|sacom/.test(text);
 }
 
+// Đối tác "gộp" vãng lai (Mua lẻ, Khách lẻ, Khách hàng/NCC vãng lai): không phải một chủ nợ cụ thể — nhận theo tên, không theo mã.
+function isWalkInBucketPartner(partner) {
+  return /^(mua le|khach le)$|vang lai/.test(foldAccountingText(partner && partner.name).trim());
+}
+
 // Số chứng từ ghi công nợ theo đối tác: hóa đơn bán chịu (131) và phiếu nhập mua chịu (331).
 function buildPartnerDebtVoucherStats(vouchers) {
   const stats = new Map();
@@ -228,14 +233,37 @@ function suggestCashAccountFix(type, account, description, partner, partnerId, s
     const mixedTaxPayment = /\+|van chuyen|boc xep|(^|[^a-z0-9])phi([^a-z0-9]|$)/.test(desc);
     if (acc === "333" && desc.includes("gtgt") && !mixedTaxPayment) return fix("3331", "Nộp thuế GTGT ghi giảm TK 3331 (thuế GTGT phải nộp), không ghi TK tổng hợp 333");
     if (acc === "333" && desc.includes("mon bai")) return fix("3338", "Lệ phí môn bài hạch toán TK 3338");
+    // Lãi vay là chi phí tài chính, không giảm nợ gốc. Chịu lỗi gõ Telex ("lZaxi vay"); phiếu gộp gốc + lãi cần tách tay;
+    // "trả lại"/"nộp lại" là hoàn trả, không phải trả lãi — hai cụm này chỉ tính khi diễn giải có dấu ("lãi").
+    const rawDesc = String(description || "").toLowerCase().normalize("NFC");
+    if (acc === "341" && !desc.includes("goc") && !rawDesc.includes("lại")
+      && (/(^|[^a-z])l[zsfrxj]?a[zsfrxj]?i vay|tien lai([^a-z]|$)/.test(desc) || /(trả|nộp) lãi/.test(rawDesc))) {
+      return fix("635", "Trả lãi vay: chi phí tài chính 635, không ghi giảm nợ gốc vay 341");
+    }
+    const walkIn = isWalkInBucketPartner(partner);
+    const supplier = !!partner && !walkIn && (partner.type === "supplier" || st.purchasesOn331 > 0);
+    // Hoa hồng/trích thầu cho thợ, thầu giới thiệu khách là chi phí bán hàng. Chỉ khi người nhận không phải một NCC cụ thể
+    // (mã đã mất, nhóm vãng lai, khách); TK 334 chỉ xét nhóm vãng lai/mã mất vì hoa hồng nhân viên có thể đã trích qua lương.
+    if ((acc === "331" ? !supplier : acc === "334" && (!partner || walkIn)) && /ho+a hong|(^|[^a-z])(chi|trich) thau/.test(desc)) {
+      return fix("641", `Chi hoa hồng/trích thầu cho thợ, thầu giới thiệu khách: chi phí bán hàng 641, không phải ${acc === "334" ? "trả lương 334" : "trả nợ NCC 331"}`);
+    }
+    if (acc === "331" && !supplier && /hoc phi|ky tuc xa|dam cuoi/.test(desc)) {
+      return fix("1388", "Chi tiêu cá nhân của chủ (học phí, ký túc xá, đám cưới): không phải nợ NCC, không là chi phí được trừ — treo phải thu khác 1388 chờ chủ doanh nghiệp quyết định");
+    }
+    // Chỉ nhóm vãng lai và chỉ khi diễn giải nêu đúng khoản chi: sau "tiền điện"/"tiền nước" phải hết câu, dấu/số, hoặc từ chỉ kỳ,
+    // nơi dùng ("tiền nước lavi", "tiền điện T2") — không phải "ống nước"/"thợ nước"/"tiền nước rửa chén"/"tiền điện máy".
+    if (acc === "331" && walkIn && /(^|[^a-z])do (xang|dau)|tien (dien thoai|dt|internet)([^a-z]|$)|tien (dien|nuoc)( (dien|nuoc|lavie?|uong|sinh hoat|thang|t\d+|ky|nam|quy|vp|van phong|cty|cong ty)([^a-z]|$)| ?[^a-z ]|$)/.test(desc)) {
+      return fix("642", "Chi phí vận hành (xăng dầu, điện thoại, internet, điện, nước): chi phí quản lý 642, không phải trả nợ NCC 331");
+    }
     if (!partnerId) return null;
     // Cặp "thu khác Có 131 / chi khác" tất toán khoản khách không trả: xóa nợ khó đòi (chưa lập dự phòng 2293) vào 642.
     if (acc === "341" && !hasLoanWord && /khong thu duoc|kho doi|xoa no/.test(desc)) {
       return fix("642", "Xóa nợ phải thu không thu được: ghi chi phí quản lý (Nợ 642), không phải trả nợ vay 341. Cách đúng: lập Phiếu kế toán xóa nợ (Nợ 2293/642 / Có 131) ở tab Tài sản & dự phòng");
     }
-    // Đối tác không còn trong danh mục nên không thể là khoản nợ NCC; trích thầu cho thợ/thầu giới thiệu khách là chi phí bán hàng.
-    if (acc === "331" && !partner && /(^|[^a-z])(chi|trich) thau/.test(desc)) {
-      return fix("641", "Chi trích thầu (hoa hồng) cho thợ/thầu giới thiệu khách: chi phí bán hàng 641, không phải trả nợ NCC 331");
+    // Form phiếu chi mặc định diễn giải "Trả tiền mua hàng cho nhà cung cấp" nên diễn giải chưa đủ: đối tác phải là NCC
+    // và chưa có hóa đơn bán chịu (chi cho khách ghi Nợ 131 là hoàn tiền hợp lệ).
+    if (acc === "131" && supplier && !st.salesOn131 && /mua hang|tien hang|nha cung cap|(^|[^a-z0-9])ncc([^a-z0-9]|$)/.test(desc)) {
+      return fix("331", "Trả tiền mua hàng cho nhà cung cấp (đối tác là NCC, không có hóa đơn bán chịu): ghi giảm nợ phải trả 331, không phải 131");
     }
     if (acc === "341" && !hasLoanWord && !isBankLikePartner(partner, partnerId) && /(^|[^a-z0-9])no([^a-z0-9]|$)/.test(desc) && st.purchasesOn331 > 0) {
       return fix("331", "Trả nợ nhà cung cấp (đối tác có phiếu nhập ghi Có 331), không phải trả nợ vay 341");
@@ -257,6 +285,15 @@ function suggestCashAccountFix(type, account, description, partner, partnerId, s
   return null;
 }
 
+// Diễn giải nêu rõ kênh ngân hàng (ck, chuyển khoản, BIDV, SCB, UNC; "sacombank" chỉ tính khi đối tác không phải chính
+// ngân hàng) và không có dấu hiệu tiền mặt. "ck 5%" là chiết khấu; phiếu có chữ "vay" (giải ngân trả thẳng NCC) để kế toán tự xét.
+function isBankChannelDescription(description, partner, partnerId) {
+  const desc = foldAccountingText(description);
+  if (/(^|[^a-z0-9])(tm|tien mat|vay)([^a-z0-9]|$)/.test(desc)) return false;
+  return /(^|[^a-z0-9])(ck(?!\s*\d+([.,]\d+)?\s*%)|chuyen khoan|bidv|scb|unc)([^a-z0-9]|$)/.test(desc)
+    || (desc.includes("sacombank") && !isBankLikePartner(partner, partnerId));
+}
+
 // Gợi ý cho cả một phiếu thu/chi: chỉ xét vế đối ứng (Có của phiếu thu, Nợ của phiếu chi).
 function suggestCashVoucherAccountFixes(v, partner, stats) {
   if (!v || (v.type !== "receipt" && v.type !== "payment") || !Array.isArray(v.entries)) return [];
@@ -267,6 +304,115 @@ function suggestCashVoucherAccountFixes(v, partner, stats) {
     const s = suggestCashAccountFix(v.type, e[side], e.desc || v.description, partner, v.partnerId, stats, v.date);
     if (s) out.push({ ...s, index, side, amount: Number(e.amount) || 0 });
   });
+  return out;
+}
+
+// Vế tiền (Nợ của phiếu thu, Có của phiếu chi) ghi quỹ 111 nhưng diễn giải nêu rõ kênh ngân hàng → 112. Tách khỏi gợi ý vế
+// đối ứng và không dùng khi nhập Excel sổ quỹ: sửa xong TK 112 chỉ đúng sau khi kế toán ghi đủ phiếu nộp tiền theo sổ phụ.
+function suggestBankChannelFixes(v, partner) {
+  if (!v || (v.type !== "receipt" && v.type !== "payment") || !Array.isArray(v.entries)) return [];
+  const side = v.type === "receipt" ? "debit" : "credit";
+  const out = [];
+  v.entries.forEach((e, index) => {
+    if (e && String(e[side] ?? "").trim() === "111" && isBankChannelDescription(e.desc || v.description, partner, v.partnerId)) {
+      out.push({ from: "111", to: "112", index, side, amount: Number(e.amount) || 0,
+        reason: "Diễn giải nêu rõ chuyển khoản/ngân hàng: tiền qua TK ngân hàng 112, không qua quỹ 111. Sau khi sửa cần lập phiếu nộp tiền mặt vào ngân hàng (Nợ 112/Có 111) theo sổ phụ" });
+    }
+  });
+  return out;
+}
+
+// Bán lẻ ghi tiền hai lần: hóa đơn (và phiếu trả lại) ghi thẳng quỹ — paymentMethod "111", Nợ 111/Có 511 — trong khi tiền của
+// chính các hóa đơn đó lại vào quỹ lần nữa qua phiếu thu Nợ 111/Có 131. Sửa đúng: chuyển hóa đơn/phiếu trả lại sang 131,
+// giữ phiếu thu. Xét theo tổng từng đối tác, không theo mã hay tên:
+//   S = bán ghi 111 − trả lại ghi 111;  X = phiếu thu ghi Có 131 − bán chịu thuần (phần thu không có hóa đơn 131 để trừ).
+// Đủ bằng chứng khi sai lệch ≤ tolerance × S (mặc định 2%) theo một trong hai phép khớp:
+//   a. Đối tác không có số dư đầu kỳ và X ≈ S: phiếu thu vừa bằng số hóa đơn ghi quỹ.
+//   b. Dư Nợ đầu kỳ ≈ S và X ≥ S: "đầu kỳ" chính là doanh số của các hóa đơn đã ghi sổ trong kỳ (số dư ở ngày mở sổ không thể
+//      gồm hóa đơn lập sau ngày đó) — xóa dư Nợ đầu kỳ, nếu không chuyển hóa đơn sang 131 sẽ ghi Nợ 131 hai lần.
+// Đối tác có phiếu thu vượt bán chịu nhưng không khớp → review ("cần xem"), không đổi gì.
+function classifyRetailDoubleCash(st, tolerance = 0.02) {
+  const out = { fixes: [], openings: [], review: [] };
+  const groups = new Map();
+  const method = v => String(v.paymentMethod ?? "").trim();
+  const total = v => Number(v.totalAmount ?? v.amount) || (v.items || []).reduce((sum, i) => sum + (Number(i && i.amount) || 0), 0);
+  ((st && st.vouchers) || []).forEach(v => {
+    if (!v || !v.partnerId) return;
+    const sign = v.type === "sales" ? 1 : v.type === "sales_return" ? -1 : 0;
+    if (!sign && v.type !== "receipt") return;
+    const pid = String(v.partnerId);
+    let g = groups.get(pid);
+    if (!g) { g = { cashSales: 0, creditSales: 0, receipts131: 0, vouchers: [] }; groups.set(pid, g); }
+    if (!sign) {
+      (v.entries || []).forEach(e => { if (e && String(e.credit ?? "").trim().startsWith("131")) g.receipts131 += Number(e.amount) || 0; });
+    } else if (method(v) === "111") {
+      g.cashSales += sign * total(v);
+      g.vouchers.push(v);
+    } else if (!method(v) || method(v).startsWith("131")) {
+      g.creditSales += sign * total(v);
+    }
+  });
+  const names = new Map();
+  ((st && st.partners) || []).forEach(p => { if (p) names.set(String(p.id), p.name || ""); });
+  const round2 = n => Math.round(n * 100) / 100;
+  groups.forEach((g, pid) => {
+    const sales = round2(g.cashSales);
+    const unbacked = round2(g.receipts131 - Math.max(0, g.creditSales));
+    if (!(sales > 0) || !(unbacked > 0)) return;
+    const op = ((st && st.partnerOpeningBalances) || {})[pid] || {};
+    const openingDebit = Number(op.debit) || 0, openingCredit = Number(op.credit) || 0;
+    const tol = sales * tolerance;
+    const partnerName = names.get(pid) || (g.vouchers[0] && g.vouchers[0].partnerName) || "";
+    const phantomOpening = openingDebit > 0 && Math.abs(openingDebit - sales) <= tol && unbacked >= sales - tol;
+    const receiptsMatch = !openingDebit && !openingCredit && Math.abs(unbacked - sales) <= tol;
+    if (!phantomOpening && !receiptsMatch) {
+      out.review.push({ partnerId: pid, partnerName, count: g.vouchers.length, cashSales: sales, receipts131: round2(g.receipts131),
+        creditSales: round2(g.creditSales), openingDebit, gap: round2(openingDebit ? openingDebit - sales : unbacked - sales) });
+      return;
+    }
+    // amount mang dấu theo tác động lên quỹ ghi trùng: hóa đơn dương, phiếu trả lại âm — tổng là số tiền 111 sẽ giảm.
+    g.vouchers.forEach(v => out.fixes.push({ id: v.id, date: v.date || "", type: v.type, partnerId: pid, partnerName,
+      amount: v.type === "sales_return" ? -total(v) : total(v) }));
+    if (phantomOpening) out.openings.push({ partnerId: pid, partnerName, debit: openingDebit, cashSales: sales, receipts131: round2(g.receipts131) });
+  });
+  out.fixes.sort((a, b) => a.date.localeCompare(b.date) || String(a.id).localeCompare(String(b.id)));
+  const byPartner = (a, b) => a.partnerId.localeCompare(b.partnerId);
+  out.openings.sort(byPartner);
+  out.review.sort(byPartner);
+  return out;
+}
+
+// Phiếu kiểm kê cũ chưa có nguyên nhân (không có adjustCause, đang ghi 632/711). fixes: đổi được sang "chưa rõ nguyên nhân"
+// (thiếu Nợ 1381, thừa Có 3381 — TT99 TK 152 điểm 3.13). excluded: phiếu chạm tồn âm (trước hoặc sau phiếu) là lỗi số lượng,
+// không phải thiếu/thừa kiểm kê — lần nhập bù tồn âm đã ghi đảo 632, đổi TK sẽ để lại Có 632 treo; cần sửa số lượng.
+function classifyLegacyInventoryAdjusts(st) {
+  const legacyPairs = ["632/156", "156/711", "156/632"];
+  // Phiếu có bút toán ngoài cặp 632/711 (dữ liệu ngoài) không thuộc diện này — không đụng tới.
+  const legacy = ((st && st.vouchers) || []).filter(v => v && v.type === "inventory_adjust" && !v.adjustCause
+    && Array.isArray(v.items) && v.items.length
+    && (v.entries || []).every(e => e && legacyPairs.includes(`${String(e.debit ?? "").trim()}/${String(e.credit ?? "").trim()}`)));
+  const out = { fixes: [], excluded: [] };
+  if (!legacy.length) return out;
+  const ids = new Set();
+  legacy.forEach(v => v.items.forEach(i => { if (i) ids.add(String(i.productId)); }));
+  const stock = new Map();
+  (st.products || []).forEach(p => { if (p && ids.has(String(p.id))) stock.set(String(p.id), stockOpening(p).stock); });
+  const negative = new Set();
+  st.vouchers.filter(v => v && Array.isArray(v.items)).sort(compareVouchersForAccounting).forEach(v => v.items.forEach(item => {
+    const id = item && String(item.productId);
+    if (!stock.has(id)) return;
+    const before = stock.get(id);
+    const after = Number((before + stockDirection(v.type, item) * (Number(item.qty) || 0)).toFixed(3));
+    stock.set(id, after);
+    if (before < -0.0005 || after < -0.0005) negative.add(v);
+  }));
+  legacy.forEach(v => (negative.has(v) ? out.excluded : out.fixes).push({
+    id: v.id, date: v.date || "", amount: Number(v.totalAmount ?? v.amount) || 0,
+    direction: v.items[0] && v.items[0].adjustDir === "in" ? "in" : "out", description: v.description || ""
+  }));
+  const byDate = (a, b) => a.date.localeCompare(b.date) || String(a.id).localeCompare(String(b.id));
+  out.fixes.sort(byDate);
+  out.excluded.sort(byDate);
   return out;
 }
 
@@ -589,6 +735,9 @@ window.partnerOpeningTotalsInputKey = partnerOpeningTotalsInputKey;
 window.buildPartnerDebtVoucherStats = buildPartnerDebtVoucherStats;
 window.suggestCashAccountFix = suggestCashAccountFix;
 window.suggestCashVoucherAccountFixes = suggestCashVoucherAccountFixes;
+window.suggestBankChannelFixes = suggestBankChannelFixes;
+window.classifyRetailDoubleCash = classifyRetailDoubleCash;
+window.classifyLegacyInventoryAdjusts = classifyLegacyInventoryAdjusts;
 window.isBankLikePartner = isBankLikePartner;
 window.createVoucherPartnerResolver = createVoucherPartnerResolver;
 window.compareVouchersForAccounting = compareVouchersForAccounting;

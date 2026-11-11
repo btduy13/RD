@@ -18,7 +18,7 @@
   /* Typography */
   --text-primary: #fafafa;
   --text-secondary: #a1a1aa;
-  --text-muted: #71717a;
+  --text-muted: #8b8b95;
   --text-inverse: #09090b;
 
   /* Brand — Indigo / Violet */
@@ -853,7 +853,6 @@ button.sync-chip:focus-visible {
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
-  outline: none;
   padding-right: 12px;
   -webkit-appearance: none;
   appearance: none;
@@ -3473,7 +3472,8 @@ body.light-theme .dynamic-items-table td {
     overflow: visible !important;
   }
 
-  body.printing-report .report-selector-bar {
+  body.printing-report .report-selector-bar,
+  body.printing-report #opening-plug-root {
     display: none !important;
   }
 
@@ -4616,7 +4616,6 @@ button {
   color: var(--text-primary);
   font-size: 13px;
   padding: 0;
-  outline: none;
   width: 120px;
   font-family: inherit;
 }
@@ -5359,7 +5358,6 @@ body.light-theme .table-card .data-table thead tr.filter-row th {
   color: var(--text-primary);
   border-radius: var(--radius-sm);
   width: 100%;
-  outline: none;
   box-sizing: border-box;
   transition: border-color var(--transition-fast);
 }
@@ -5656,7 +5654,7 @@ body.light-theme {
   --border-color: #e2e6ef;
   --border-subtle: #edf0f6;
   --border-strong: #cbd2df;
-  --text-muted: #7b8495;
+  --text-muted: #636c80;
 }
 
 .header {
@@ -7400,3 +7398,29 @@ body.light-theme .custom-confirm-overlay.is-active {
 }
 .user-menu-list button:hover, .user-menu-list button:focus-visible { background: var(--bg-tertiary); }
 .user-menu-list .user-menu-danger { color: var(--color-danger); }
+
+/* UI hardening: gaps not covered by the rules above */
+.table-responsive .data-table thead tr:first-child th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.data-table td.text-right {
+  font-variant-numeric: tabular-nums;
+}
+
+.ledger-product-list {
+  scrollbar-gutter: stable;
+}
+
+/* 18px glyph, 24px hit target without shifting the tab layout */
+.workspace-tab-close {
+  position: relative;
+}
+
+.workspace-tab-close::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+}

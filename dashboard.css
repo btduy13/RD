@@ -1,0 +1,312 @@
+/* Bàn làm việc (view-dashboard). Chỉ dùng biến trong styles.css :root — tự đổi theo body.light-theme. */
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.dash-span-12 { grid-column: span 12; }
+.dash-span-8 { grid-column: span 8; }
+.dash-span-6 { grid-column: span 6; }
+.dash-span-4 { grid-column: span 4; }
+.dash-span-3 { grid-column: span 3; }
+
+/* .list-card giới hạn 380px cho danh sách cuộn; thẻ dashboard cao theo nội dung */
+.dash-card {
+  max-height: none;
+  min-width: 0;
+  gap: var(--space-3);
+}
+
+.dash-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* 1. Việc cần xử lý */
+.dash-health-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dash-health-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.dash-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-info);
+}
+
+.dash-sev-danger .dash-dot { background: var(--color-danger); }
+.dash-sev-warning .dash-dot { background: var(--color-warning); }
+
+.dash-health-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-health-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dash-health-detail {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-health-ok {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+
+/* 2. KPI */
+.dash-kpi {
+  gap: var(--space-1);
+}
+
+.dash-kpi-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.dash-kpi-value {
+  font-size: 26px;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.dash-kpi-sub {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.dash-delta {
+  display: block;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-delta-up { color: var(--color-success); }
+.dash-delta-down { color: var(--color-danger); }
+
+.dash-text-danger { color: var(--color-danger); font-weight: 700; }
+.dash-text-warning { color: var(--color-warning); font-weight: 700; }
+.dash-text-muted { color: var(--text-secondary); font-style: italic; }
+
+/* 3. Dải công nợ & ký quỹ */
+.dash-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+}
+
+.dash-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: 0 var(--space-4);
+  border-left: 1px solid var(--border-color);
+  min-width: 0;
+}
+
+.dash-stat:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.dash-stat-value {
+  font-size: var(--text-lg);
+  font-weight: 650;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* 4. Biểu đồ */
+.dash-chart-wrap {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.dash-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Khi xếp chồng (<1100px) biểu đồ tuổi nợ không phóng to theo cả chiều ngang */
+.dash-span-4 .dash-chart {
+  max-width: 520px;
+}
+
+.dash-chart text {
+  font-size: 11px;
+  fill: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-chart .dash-chart-value { fill: var(--text-primary); font-weight: 600; }
+.dash-chart-grid { stroke: var(--border-color); stroke-width: 1; }
+.dash-chart-axis { stroke: var(--border-strong); stroke-width: 1; }
+.dash-chart-revenue, .dash-chart-aging { fill: var(--color-primary); }
+.dash-chart-cogs { fill: var(--color-info); }
+.dash-chart-track { fill: var(--bg-tertiary); }
+
+.dash-chart-line {
+  fill: none;
+  stroke: var(--color-success);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+/* Viền màu nền thẻ để điểm tách khỏi cột phía sau */
+.dash-chart-dot {
+  fill: var(--color-success);
+  stroke: var(--bg-secondary);
+  stroke-width: 2;
+}
+
+.dash-chart rect:hover,
+.dash-chart circle:hover {
+  opacity: 0.8;
+}
+
+.dash-chart-empty {
+  width: 100%;
+  margin: 0;
+  padding: var(--space-6) 0;
+  text-align: center;
+  font-size: var(--text-base);
+  color: var(--text-muted);
+}
+
+.dash-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.dash-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.dash-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.dash-swatch-revenue { background: var(--color-primary); }
+.dash-swatch-cogs { background: var(--color-info); }
+.dash-swatch-gross { height: 2px; background: var(--color-success); }
+
+/* 5. Danh sách công việc */
+.dash-table-wrap {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.dash-table {
+  width: 100%;
+  font-size: var(--text-sm);
+}
+
+.dash-table .btn-sm {
+  padding: 2px 6px;
+  font-size: var(--text-xs);
+}
+
+.dash-cell-center { text-align: center; }
+.dash-cell-strong { font-weight: 600; }
+
+.dash-link {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.dash-link-strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.dash-activity-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+
+.dash-badge-sm {
+  font-size: 9px;
+  padding: 2px 6px;
+}
+
+.dash-card .btn:focus-visible,
+.dash-link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1100px) {
+  .dash-span-3 { grid-column: span 6; }
+  .dash-span-8,
+  .dash-span-4 { grid-column: span 12; }
+}
+
+@media (max-width: 720px) {
+  .dash-span-6,
+  .dash-span-3 { grid-column: span 12; }
+
+  .dash-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: var(--space-4);
+  }
+
+  .dash-stat:nth-child(odd) {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-chart rect,
+  .dash-chart circle {
+    transition: none;
+  }
+}

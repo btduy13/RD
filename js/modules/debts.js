@@ -3255,6 +3255,9 @@ function computeDebt131Reconciliation(allDebts, fromDate = "", toDate = "") {
     initialOpeningMatched: Math.abs(initialOpeningDiff) <= 1,
     partnerCashWithoutDebt: computePartnerCashWithoutDebtLines(fromDate, toDate),
     cashAccountFixes: computeCashAccountFixSuggestions(),
+    bankChannelFixes: computeBankChannelFixes(),
+    retailDoubleCash: scanRetailDoubleCash(),
+    inventoryAdjustCauses: scanLegacyInventoryAdjusts(),
     orphanPartnerRelinks: computeOrphanPartnerRelinks(),
     cashSaleReceiptSplits: computeCashSaleReceiptSplits(),
     possibleDoubleRefunds: computePossibleDoubleRefunds(rows, fromDate, toDate)
@@ -3272,10 +3275,8 @@ function escapeDebtAuditText(value) {
 
 const PARTNER_CASH_NO_DEBT_LIST_LIMIT = 200;
 
-// Đề xuất sửa TK đối ứng trên phiếu thu/chi (quy tắc trong accounting-engine.js: suggestCashAccountFix).
-// Chỉ đọc; áp dụng qua applyCashAccountFixes() sau khi kế toán xác nhận.
-function computeCashAccountFixSuggestions() {
-  if (typeof suggestCashVoucherAccountFixes !== "function") return [];
+// Dòng đề xuất sửa tài khoản trên phiếu thu/chi theo một bộ quy tắc của accounting-engine.js (suggest(v, partner, stats)).
+function collectCashVoucherFixRows(suggest) {
   const stats = buildPartnerDebtVoucherStats(state.vouchers);
   const partnersById = new Map();
   (state.partners || []).forEach(p => { if (p) partnersById.set(String(p.id), p); });
@@ -3284,7 +3285,7 @@ function computeCashAccountFixSuggestions() {
     if (!v || (v.type !== "receipt" && v.type !== "payment")) return;
     const pid = v.partnerId ? String(v.partnerId) : "";
     const partner = pid ? partnersById.get(pid) : null;
-    const fixes = suggestCashVoucherAccountFixes(v, partner, pid ? stats.get(pid) : null);
+    const fixes = suggest(v, partner, pid ? stats.get(pid) : null);
     if (!fixes.length) return;
     rows.push({
       id: v.id, date: v.date || "", type: v.type,
@@ -3300,21 +3301,37 @@ function computeCashAccountFixSuggestions() {
   return rows;
 }
 
+// Đề xuất sửa TK đối ứng trên phiếu thu/chi (quy tắc trong accounting-engine.js: suggestCashAccountFix).
+// Chỉ đọc; áp dụng qua applyCashAccountFixes() sau khi kế toán xác nhận.
+function computeCashAccountFixSuggestions() {
+  return typeof suggestCashVoucherAccountFixes === "function" ? collectCashVoucherFixRows(suggestCashVoucherAccountFixes) : [];
+}
+
+// Phiếu thu/chi ghi quỹ 111 nhưng diễn giải nêu rõ chuyển khoản/ngân hàng (suggestBankChannelFixes) → vế tiền 112.
+// Tách riêng khỏi sửa TK đối ứng: áp dụng xong TK 112 chỉ đúng khi đã ghi đủ phiếu nộp tiền vào ngân hàng theo sổ phụ.
+// Chỉ đọc; áp dụng qua applyBankChannelFixes() sau khi kế toán xác nhận.
+function computeBankChannelFixes() {
+  return typeof suggestBankChannelFixes === "function" ? collectCashVoucherFixRows(suggestBankChannelFixes) : [];
+}
+
 // Khóa sổ: thao tác hàng loạt bỏ qua chứng từ thuộc kỳ đã khóa thay vì hủy cả lô.
 const isDebtVoucherLocked = v => typeof isVoucherInLockedPeriod === "function" && isVoucherInLockedPeriod(state, v);
 const lockedSkipNote = n => (n ? ` Bỏ qua ${n} chứng từ thuộc kỳ đã khóa sổ.` : "");
 
-async function applyCashAccountFixes() {
+// Áp dụng một bộ đề xuất sửa tài khoản phiếu thu/chi.
+// opts: { suggest, cashLeg, emptyText, title, message(n), confirmText, logLabel, doneText(n) }.
+async function applyCashVoucherFixes(opts) {
+  const suggest = opts.suggest;
   if (window.currentUser && window.currentUser.role === "viewer") {
     showToast("Tài khoản chỉ xem không được sửa chứng từ.", "error");
     return;
   }
-  const rows = computeCashAccountFixSuggestions();
-  if (!rows.length) { showToast("Không còn phiếu nào cần sửa tài khoản.", "info"); return; }
+  const rows = collectCashVoucherFixRows(suggest);
+  if (!rows.length) { showToast(opts.emptyText, "info"); return; }
   const ok = typeof showConfirmModal === "function" ? await showConfirmModal({
-    title: "Sửa tài khoản đối ứng",
-    message: `Sửa tài khoản cho ${rows.length} phiếu thu/chi theo đề xuất? Số tiền không đổi, chỉ đổi TK đối ứng; Sổ cái, công nợ và báo cáo được tính lại.`,
-    confirmText: "Sửa tài khoản",
+    title: opts.title,
+    message: opts.message(rows.length),
+    confirmText: opts.confirmText,
     cancelText: "Hủy bỏ",
     type: "warning"
   }) : true;
@@ -3328,11 +3345,15 @@ async function applyCashAccountFixes() {
   (state.vouchers || []).forEach(v => {
     if (!v || (v.type !== "receipt" && v.type !== "payment")) return;
     const pid = v.partnerId ? String(v.partnerId) : "";
-    const fixes = suggestCashVoucherAccountFixes(v, pid ? partnersById.get(pid) : null, pid ? stats.get(pid) : null);
+    const fixes = suggest(v, pid ? partnersById.get(pid) : null, pid ? stats.get(pid) : null);
     if (!fixes.length) return;
     if (isDebtVoucherLocked(v)) { skipped++; return; }
     const entries = v.entries.map(e => ({ ...e }));
-    fixes.forEach(f => { entries[f.index][f.side] = f.to; });
+    fixes.forEach(f => {
+      entries[f.index][f.side] = f.to;
+      // Sổ quỹ lọc/hiện theo paymentMethod: đổi vế tiền thì đổi theo.
+      if (opts.cashLeg && String(v.paymentMethod ?? "").trim() === f.from) v.paymentMethod = f.to;
+    });
     v.entries = entries;
     v.needsReview = false;
     v._updatedAt = Math.max(Date.now(), (Number(v._updatedAt) || 0) + 1);
@@ -3349,9 +3370,90 @@ async function applyCashAccountFixes() {
     return;
   }
   if (typeof logUserAction === "function") {
-    logUserAction("Sửa tài khoản", `Sửa TK đối ứng ${changed.length} phiếu: ${changed.slice(0, 30).join("; ")}${changed.length > 30 ? "…" : ""}`);
+    logUserAction("Sửa tài khoản", `${opts.logLabel} ${changed.length} phiếu: ${changed.slice(0, 30).join("; ")}${changed.length > 30 ? "…" : ""}`);
   }
-  showToast(`Đã sửa tài khoản cho ${changed.length} phiếu thu/chi.${lockedSkipNote(skipped)}`, "success");
+  showToast(`${opts.doneText(changed.length)}${lockedSkipNote(skipped)}`, "success");
+  if (typeof filterDebts === "function") filterDebts();
+}
+
+function applyCashAccountFixes() {
+  if (typeof suggestCashVoucherAccountFixes !== "function") return Promise.resolve();
+  return applyCashVoucherFixes({
+    suggest: suggestCashVoucherAccountFixes,
+    emptyText: "Không còn phiếu nào cần sửa tài khoản.",
+    title: "Sửa tài khoản đối ứng",
+    message: n => `Sửa tài khoản cho ${n} phiếu thu/chi theo đề xuất? Số tiền không đổi, chỉ đổi TK đối ứng; Sổ cái, công nợ và báo cáo được tính lại.`,
+    confirmText: "Sửa tài khoản",
+    logLabel: "Sửa TK đối ứng",
+    doneText: n => `Đã sửa tài khoản cho ${n} phiếu thu/chi.`
+  });
+}
+
+function applyBankChannelFixes() {
+  if (typeof suggestBankChannelFixes !== "function") return Promise.resolve();
+  return applyCashVoucherFixes({
+    suggest: suggestBankChannelFixes,
+    cashLeg: true,
+    emptyText: "Không còn phiếu nào cần chuyển từ quỹ 111 sang ngân hàng 112.",
+    title: "Chuyển quỹ 111 sang ngân hàng 112",
+    message: n => `Chuyển vế tiền của ${n} phiếu thu/chi từ quỹ 111 sang ngân hàng 112? Số tiền và TK đối ứng không đổi. Số dư TK 112 chỉ đúng sau khi ghi đủ các phiếu nộp tiền mặt vào ngân hàng (Nợ 112/Có 111) theo sổ phụ — nếu chưa ghi, TK 112 sẽ âm thêm.`,
+    confirmText: "Chuyển sang 112",
+    logLabel: "Chuyển quỹ 111 → ngân hàng 112",
+    doneText: n => `Đã chuyển ${n} phiếu thu/chi sang TK 112. Cần ghi phiếu nộp tiền vào ngân hàng theo sổ phụ.`
+  });
+}
+
+// Phiếu kiểm kê cũ chưa ghi nguyên nhân (quy tắc trong accounting-engine.js: classifyLegacyInventoryAdjusts).
+// Chỉ đọc; áp dụng qua applyInventoryAdjustCauseFixes() sau khi kế toán xác nhận.
+function scanLegacyInventoryAdjusts() {
+  return typeof classifyLegacyInventoryAdjusts === "function" ? classifyLegacyInventoryAdjusts(state) : { fixes: [], excluded: [] };
+}
+function computeInventoryAdjustCauseFixes() {
+  return scanLegacyInventoryAdjusts().fixes;
+}
+
+async function applyInventoryAdjustCauseFixes() {
+  if (window.currentUser && window.currentUser.role === "viewer") {
+    showToast("Tài khoản chỉ xem không được sửa chứng từ.", "error");
+    return;
+  }
+  if (typeof recalculateAccounting !== "function") return; // bút toán 1381/3381 do recalculateAccounting sinh lại
+  const rows = computeInventoryAdjustCauseFixes();
+  if (!rows.length) { showToast("Không còn phiếu kiểm kê nào cần ghi nguyên nhân.", "info"); return; }
+  const ok = typeof showConfirmModal === "function" ? await showConfirmModal({
+    title: "Ghi nguyên nhân kiểm kê",
+    message: `Ghi "chưa rõ nguyên nhân" cho ${rows.length} phiếu kiểm kê? Số lượng và giá trị không đổi; hàng thiếu chuyển từ giá vốn 632 sang TK 1381, hàng thừa từ thu nhập khác 711 sang TK 3381, chờ biên bản xử lý. Sổ cái và báo cáo được tính lại.`,
+    confirmText: "Ghi nguyên nhân",
+    cancelText: "Hủy bỏ",
+    type: "warning"
+  }) : true;
+  if (!ok) return;
+
+  const ids = new Set(rows.map(r => String(r.id)));
+  const changed = [];
+  let skipped = 0;
+  (state.vouchers || []).forEach(v => {
+    if (!v || v.type !== "inventory_adjust" || v.adjustCause || !ids.has(String(v.id))) return;
+    if (isDebtVoucherLocked(v)) { skipped++; return; }
+    v.adjustCause = "unknown";
+    v.entries = []; // recalculateAccounting sinh lại bút toán 1381/3381 từ adjustCause
+    v._updatedAt = Math.max(Date.now(), (Number(v._updatedAt) || 0) + 1);
+    changed.push(v.id);
+  });
+  if (!changed.length) { if (skipped) showToast(lockedSkipNote(skipped).trim(), "warning"); return; }
+  if (typeof recalculateAccounting === "function") recalculateAccounting(false);
+  try {
+    if (typeof saveStateAndSyncVoucher === "function") await saveStateAndSyncVoucher();
+    else saveState();
+  } catch (err) {
+    console.error("[Debts] Lưu nguyên nhân kiểm kê thất bại:", err);
+    showToast("Không lưu được thay đổi: " + err.message, "error");
+    return;
+  }
+  if (typeof logUserAction === "function") {
+    logUserAction("Sửa tài khoản", `Ghi nguyên nhân kiểm kê "chưa rõ" (1381/3381) cho ${changed.length} phiếu: ${changed.slice(0, 30).join("; ")}${changed.length > 30 ? "…" : ""}`);
+  }
+  showToast(`Đã ghi nguyên nhân cho ${changed.length} phiếu kiểm kê.${lockedSkipNote(skipped)}`, "success");
   if (typeof filterDebts === "function") filterDebts();
 }
 
@@ -3548,11 +3650,10 @@ async function resyncPartnerOpeningTotals() {
   if (typeof filterDebts === "function") filterDebts();
 }
 
-function renderCashAccountFixBlock(rows, showDate) {
-  if (!rows || !rows.length) return "";
+// Bảng "Xem n phiếu đề xuất" dùng chung cho các khối sửa tài khoản phiếu thu/chi.
+function renderCashFixTable(rows, showDate) {
   const esc = escapeDebtAuditText;
   const shown = rows.slice(0, PARTNER_CASH_NO_DEBT_LIST_LIMIT);
-  const total = rows.reduce((sum, r) => sum + r.amount, 0);
   const body = shown.map(r => `<tr>
               <td>${esc(r.id)}</td>
               <td>${showDate(r.date)}</td>
@@ -3564,6 +3665,20 @@ function renderCashAccountFixBlock(rows, showDate) {
               <td>${esc(r.reason)}</td>
             </tr>`).join("");
   const more = rows.length > shown.length ? `<p class="debt-alert-warning-note">Hiển thị ${shown.length}/${rows.length} phiếu đầu tiên.</p>` : "";
+  return `<details>
+            <summary>Xem ${rows.length} phiếu đề xuất</summary>
+            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+              <table class="data-table" style="font-size: 12px; width: 100%;">
+                <thead><tr><th>Số chứng từ</th><th>Ngày</th><th>Loại</th><th>Đối tác</th><th class="text-right">Số tiền</th><th>Tài khoản</th><th>Diễn giải</th><th>Lý do</th></tr></thead>
+                <tbody>${body}</tbody>
+              </table>
+            </div>${more}
+          </details>`;
+}
+
+function renderCashAccountFixBlock(rows, showDate) {
+  if (!rows || !rows.length) return "";
+  const total = rows.reduce((sum, r) => sum + r.amount, 0);
   return `
       <div class="debt-alert-warning" id="cash-account-fix-block">
         <div class="debt-alert-warning-header">
@@ -3572,21 +3687,197 @@ function renderCashAccountFixBlock(rows, showDate) {
         </div>
         <div class="debt-alert-warning-body">
           <div class="debt-audit-line"><span class="debt-audit-line-label">Tổng số tiền đề xuất sửa</span><span class="debt-audit-line-value font-numeric text-danger">${formatVND(total)}</span></div>
-          <p class="debt-alert-warning-note">Chỉ đề xuất khi có bằng chứng rõ (đối tác đã có hóa đơn/phiếu nhập ghi công nợ, diễn giải nêu rõ thuế GTGT…). Phiếu mơ hồ vẫn nằm ở nhóm "Cần xem" để sửa tay.</p>
-          <details>
-            <summary>Xem ${rows.length} phiếu đề xuất</summary>
-            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
-              <table class="data-table" style="font-size: 12px; width: 100%;">
-                <thead><tr><th>Số chứng từ</th><th>Ngày</th><th>Loại</th><th>Đối tác</th><th class="text-right">Số tiền</th><th>Tài khoản</th><th>Diễn giải</th><th>Lý do</th></tr></thead>
-                <tbody>${body}</tbody>
-              </table>
-            </div>${more}
-          </details>
+          <p class="debt-alert-warning-note">Chỉ đề xuất khi có bằng chứng rõ (đối tác đã có hóa đơn/phiếu nhập ghi công nợ, diễn giải nêu rõ thuế GTGT, lãi vay, hoa hồng…). Phiếu mơ hồ vẫn nằm ở nhóm "Cần xem" để sửa tay.</p>
+          ${renderCashFixTable(rows, showDate)}
           <button type="button" class="btn btn-primary btn-sm" data-role-required="write" onclick="applyCashAccountFixes()" style="margin-top: 8px;">Sửa tài khoản theo đề xuất (${rows.length})</button>
         </div>
       </div>`;
 }
 
+function renderBankChannelFixBlock(rows, showDate) {
+  if (!rows || !rows.length) return "";
+  const total = rows.reduce((sum, r) => sum + r.amount, 0);
+  return `
+      <div class="debt-alert-warning" id="bank-channel-fix-block">
+        <div class="debt-alert-warning-header">
+          <span>Phiếu chuyển khoản đang ghi quỹ tiền mặt 111</span>
+          <span class="badge badge-danger">${rows.length.toLocaleString('vi-VN')} phiếu</span>
+        </div>
+        <div class="debt-alert-warning-body">
+          <div class="debt-audit-line"><span class="debt-audit-line-label">Tổng số tiền chuyển từ quỹ 111 sang ngân hàng 112</span><span class="debt-audit-line-value font-numeric text-danger">${formatVND(total)}</span></div>
+          <p class="debt-alert-warning-note">Diễn giải nêu rõ chuyển khoản/ngân hàng (ck, chuyển khoản, BIDV, SCB, UNC…) nhưng vế tiền ghi TK 111. Chỉ đổi vế tiền sang TK 112; số tiền và TK đối ứng giữ nguyên.</p>
+          <p class="debt-alert-warning-note"><strong>Lưu ý:</strong> sau khi chuyển phải ghi các phiếu nộp tiền mặt vào ngân hàng (Nợ 112/Có 111) theo sổ phụ ngân hàng. Chưa ghi thì số dư TK 112 âm thêm bằng phần chi chuyển khoản lớn hơn thu chuyển khoản.</p>
+          ${renderCashFixTable(rows, showDate)}
+          <button type="button" class="btn btn-primary btn-sm" data-role-required="write" onclick="applyBankChannelFixes()" style="margin-top: 8px;">Chuyển sang TK 112 (${rows.length})</button>
+        </div>
+      </div>`;
+}
+
+function renderInventoryAdjustCauseBlock(scan, showDate) {
+  const fixes = (scan && scan.fixes) || [], excluded = (scan && scan.excluded) || [];
+  if (!fixes.length && !excluded.length) return "";
+  const esc = escapeDebtAuditText;
+  const sum = (rows, dir) => rows.reduce((total, r) => total + (r.direction === dir ? r.amount : 0), 0);
+  const table = rows => `<div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+              <table class="data-table" style="font-size: 12px; width: 100%;">
+                <thead><tr><th>Số chứng từ</th><th>Ngày</th><th>Loại</th><th class="text-right">Giá trị</th><th>Diễn giải</th></tr></thead>
+                <tbody>${rows.slice(0, PARTNER_CASH_NO_DEBT_LIST_LIMIT).map(r => `<tr>
+              <td>${esc(r.id)}</td>
+              <td>${showDate(r.date)}</td>
+              <td>${r.direction === "in" ? "Thừa" : "Thiếu"}</td>
+              <td class="text-right font-numeric">${formatVND(r.amount)}</td>
+              <td class="cell-clip" title="${esc(r.description)}">${esc(r.description)}</td>
+            </tr>`).join("")}</tbody>
+              </table>
+            </div>${rows.length > PARTNER_CASH_NO_DEBT_LIST_LIMIT ? `<p class="debt-alert-warning-note">Hiển thị ${PARTNER_CASH_NO_DEBT_LIST_LIMIT}/${rows.length} phiếu đầu tiên.</p>` : ""}`;
+  return `
+      <div class="debt-alert-warning" id="inventory-adjust-cause-block">
+        <div class="debt-alert-warning-header">
+          <span>Phiếu kiểm kê chưa ghi nguyên nhân</span>
+          <span class="badge badge-danger">${(fixes.length + excluded.length).toLocaleString('vi-VN')} phiếu</span>
+        </div>
+        <div class="debt-alert-warning-body">
+          <div class="debt-audit-line"><span class="debt-audit-line-label">Thiếu đang ghi giá vốn 632 → 1381 (${fixes.filter(r => r.direction !== "in").length} phiếu)</span><span class="debt-audit-line-value font-numeric text-danger">${formatVND(sum(fixes, "out"))}</span></div>
+          <div class="debt-audit-line"><span class="debt-audit-line-label">Thừa đang ghi thu nhập 711 → 3381 (${fixes.filter(r => r.direction === "in").length} phiếu)</span><span class="debt-audit-line-value font-numeric text-danger">${formatVND(sum(fixes, "in"))}</span></div>
+          <p class="debt-alert-warning-note">Chênh lệch kiểm kê chưa rõ nguyên nhân phải treo TK 1381 (thiếu) / 3381 (thừa) đến khi có biên bản xử lý, không ghi thẳng giá vốn hay thu nhập khác. Số lượng và giá trị không đổi.</p>
+          ${fixes.length ? `<details>
+            <summary>Xem ${fixes.length} phiếu đề xuất</summary>
+            ${table(fixes)}
+          </details>` : ""}
+          ${excluded.length ? `<details>
+            <summary>${excluded.length} phiếu cần sửa số lượng — không đổi tài khoản (thiếu ${formatVND(sum(excluded, "out"))}, thừa ${formatVND(sum(excluded, "in"))})</summary>
+            <p class="debt-alert-warning-note">Các phiếu này điều chỉnh khi tồn kho đang âm hoặc làm tồn kho âm: đó là sai số lượng (nhập/xuất thiếu chứng từ, gõ nhầm), không phải thừa/thiếu kiểm kê. Cần sửa số lượng hoặc bổ sung phiếu nhập; đổi tài khoản sẽ để lại bút toán đảo giá vốn 632 treo.</p>
+            ${table(excluded)}
+          </details>` : ""}
+          ${fixes.length ? `<button type="button" class="btn btn-primary btn-sm" data-role-required="write" onclick="applyInventoryAdjustCauseFixes()" style="margin-top: 8px;">Ghi nguyên nhân "chưa rõ" (${fixes.length})</button>` : ""}
+        </div>
+      </div>`;
+}
+
+// Bán lẻ ghi tiền hai lần (quy tắc và phép khớp trong accounting-engine.js: classifyRetailDoubleCash).
+// Chỉ đọc; áp dụng qua applyRetailDoubleCashFixes() sau khi kế toán xác nhận.
+function scanRetailDoubleCash() {
+  return typeof classifyRetailDoubleCash === "function" ? classifyRetailDoubleCash(state) : { fixes: [], openings: [], review: [] };
+}
+function computeRetailDoubleCashFixes() {
+  return scanRetailDoubleCash().fixes;
+}
+
+async function applyRetailDoubleCashFixes() {
+  if (window.currentUser && window.currentUser.role === "viewer") {
+    showToast("Tài khoản chỉ xem không được sửa chứng từ.", "error");
+    return;
+  }
+  if (typeof recalculateAccounting !== "function") return; // bút toán Nợ 131 do recalculateAccounting sinh lại từ paymentMethod
+  const scan = scanRetailDoubleCash();
+  if (!scan.fixes.length) { showToast("Không còn hóa đơn bán lẻ nào ghi tiền hai lần.", "info"); return; }
+  const net = scan.fixes.reduce((sum, r) => sum + r.amount, 0);
+  const openingTotal = scan.openings.reduce((sum, o) => sum + o.debit, 0);
+  const ok = typeof showConfirmModal === "function" ? await showConfirmModal({
+    title: "Sửa bán lẻ ghi tiền hai lần",
+    message: `Chuyển ${scan.fixes.length} hóa đơn/phiếu trả lại bán lẻ từ tiền mặt 111 sang công nợ 131 (giữ nguyên phiếu thu cuối tháng)${scan.openings.length ? ` và xóa dư Nợ đầu kỳ ảo của ${scan.openings.length} đối tác (${formatVND(openingTotal)})` : ""}? Quỹ 111 giảm ${formatVND(net)}; doanh thu không đổi. Sổ cái, công nợ và báo cáo được tính lại.`,
+    confirmText: "Sửa bán lẻ",
+    cancelText: "Hủy bỏ",
+    type: "warning"
+  }) : true;
+  if (!ok) return;
+  // Xóa đầu kỳ làm đổi số liệu các kỳ đã khóa: cần quyền như sửa số dư đầu kỳ bằng tay.
+  if (scan.openings.length && typeof confirmOpeningBalanceEdit === "function" && !(await confirmOpeningBalanceEdit())) return;
+
+  // Sửa theo cả đối tác: chuyển hóa đơn sang 131 mà không xóa đầu kỳ (hoặc ngược lại) sẽ ghi Nợ 131 hai lần,
+  // nên đối tác có chứng từ thuộc kỳ đã khóa được bỏ qua toàn bộ.
+  const ids = new Set(scan.fixes.map(r => String(r.id)));
+  const targets = (state.vouchers || []).filter(v => v && (v.type === "sales" || v.type === "sales_return")
+    && String(v.paymentMethod ?? "").trim() === "111" && ids.has(String(v.id)));
+  const lockedPartners = new Set(targets.filter(isDebtVoucherLocked).map(v => String(v.partnerId)));
+  const changed = [], clearedOpenings = [];
+  let skipped = 0;
+  targets.forEach(v => {
+    if (lockedPartners.has(String(v.partnerId))) { skipped++; return; }
+    v.paymentMethod = "131";
+    v._updatedAt = Math.max(Date.now(), (Number(v._updatedAt) || 0) + 1);
+    changed.push(v.id);
+  });
+  scan.openings.forEach(o => {
+    const op = state.partnerOpeningBalances && state.partnerOpeningBalances[o.partnerId];
+    if (!op || lockedPartners.has(o.partnerId) || Math.abs((Number(op.debit) || 0) - o.debit) > 0.005) return;
+    state.partnerOpeningBalances[o.partnerId] = { ...op, debit: 0 };
+    stampPartnerOpeningBalanceTs(o.partnerId);
+    clearedOpenings.push(`${o.partnerId} ${Math.round(o.debit)}`);
+  });
+  if (!changed.length && !clearedOpenings.length) { if (skipped) showToast(lockedSkipNote(skipped).trim(), "warning"); return; }
+  if (clearedOpenings.length) {
+    if (typeof syncPartnerOpeningAccounts === "function") syncPartnerOpeningAccounts();
+    else if (typeof applyPartnerOpeningTotals === "function") applyPartnerOpeningTotals(state);
+  }
+  recalculateAccounting(false);
+  try {
+    if (typeof saveStateAndSyncVoucher === "function") await saveStateAndSyncVoucher();
+    else saveState();
+  } catch (err) {
+    console.error("[Debts] Lưu sửa bán lẻ thất bại:", err);
+    showToast("Không lưu được thay đổi: " + err.message, "error");
+    return;
+  }
+  if (typeof logUserAction === "function") {
+    logUserAction("Sửa tài khoản", `Bán lẻ ghi tiền hai lần: ${changed.length} chứng từ 111 → 131 (${changed.slice(0, 30).join("; ")}${changed.length > 30 ? "…" : ""}); xóa dư Nợ đầu kỳ: ${clearedOpenings.join("; ") || "không"}`);
+  }
+  showToast(`Đã chuyển ${changed.length} chứng từ bán lẻ sang 131${clearedOpenings.length ? `, xóa đầu kỳ ảo của ${clearedOpenings.length} đối tác` : ""}.${lockedSkipNote(skipped)}`, "success");
+  if (typeof filterDebts === "function") filterDebts();
+}
+
+function renderRetailDoubleCashBlock(scan, showDate) {
+  const fixes = (scan && scan.fixes) || [], openings = (scan && scan.openings) || [], review = (scan && scan.review) || [];
+  if (!fixes.length && !review.length) return "";
+  const esc = escapeDebtAuditText;
+  const net = fixes.reduce((sum, r) => sum + r.amount, 0);
+  const openingTotal = openings.reduce((sum, o) => sum + o.debit, 0);
+  const shown = fixes.slice(0, PARTNER_CASH_NO_DEBT_LIST_LIMIT);
+  const partnerCell = r => esc(r.partnerName ? `${r.partnerName} (${r.partnerId})` : r.partnerId);
+  return `
+      <div class="debt-alert-warning" id="retail-double-cash-block">
+        <div class="debt-alert-warning-header">
+          <span>Bán lẻ ghi tiền mặt hai lần (hóa đơn Nợ 111 và phiếu thu Có 131)</span>
+          <span class="badge badge-danger">${fixes.length.toLocaleString('vi-VN')} chứng từ</span>
+        </div>
+        <div class="debt-alert-warning-body">
+          <div class="debt-audit-line"><span class="debt-audit-line-label">Quỹ 111 ghi trùng (hóa đơn − trả lại)</span><span class="debt-audit-line-value font-numeric text-danger">${formatVND(net)}</span></div>
+          ${openings.length ? `<div class="debt-audit-line"><span class="debt-audit-line-label">Dư Nợ đầu kỳ ảo cần xóa (${openings.length} đối tác)</span><span class="debt-audit-line-value font-numeric text-danger">${formatVND(openingTotal)}</span></div>` : ""}
+          <p class="debt-alert-warning-note">Hóa đơn bán lẻ ghi thẳng tiền mặt (Nợ 111/Có 511), rồi phiếu thu cuối tháng lại ghi Nợ 111/Có 131 cho cùng số tiền. Sửa: chuyển hóa đơn và phiếu trả lại sang công nợ 131, giữ phiếu thu (mang số chứng từ gốc). Chỉ đề xuất khi tổng theo đối tác khớp trong 2%: phiếu thu Có 131 (trừ bán chịu) ≈ bán ghi 111 khi không có đầu kỳ, hoặc dư Nợ đầu kỳ ≈ bán ghi 111 — khi đó "đầu kỳ" chính là doanh số các hóa đơn lập sau ngày mở sổ và được xóa để 131 không ghi Nợ hai lần. Doanh thu không đổi.</p>
+          ${fixes.length ? `<details>
+            <summary>Xem ${fixes.length} chứng từ đề xuất</summary>
+            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+              <table class="data-table" style="font-size: 12px; width: 100%;">
+                <thead><tr><th>Số chứng từ</th><th>Ngày</th><th>Loại</th><th>Đối tác</th><th class="text-right">Số tiền</th></tr></thead>
+                <tbody>${shown.map(r => `<tr>
+              <td>${esc(r.id)}</td>
+              <td>${showDate(r.date)}</td>
+              <td>${r.type === "sales_return" ? "Trả lại" : "Hóa đơn"}</td>
+              <td>${partnerCell(r)}</td>
+              <td class="text-right font-numeric">${formatVND(r.amount)}</td>
+            </tr>`).join("")}</tbody>
+              </table>
+            </div>${fixes.length > shown.length ? `<p class="debt-alert-warning-note">Hiển thị ${shown.length}/${fixes.length} chứng từ đầu tiên.</p>` : ""}
+          </details>` : ""}
+          ${openings.length ? `<details>
+            <summary>${openings.length} số dư đầu kỳ sẽ xóa</summary>
+            <table class="data-table" style="font-size: 12px; width: 100%;">
+              <thead><tr><th>Đối tác</th><th class="text-right">Dư Nợ đầu kỳ</th><th class="text-right">Bán ghi 111 (thuần)</th><th class="text-right">Phiếu thu Có 131</th></tr></thead>
+              <tbody>${openings.map(o => `<tr><td>${partnerCell(o)}</td><td class="text-right font-numeric">${formatVND(o.debit)}</td><td class="text-right font-numeric">${formatVND(o.cashSales)}</td><td class="text-right font-numeric">${formatVND(o.receipts131)}</td></tr>`).join("")}</tbody>
+            </table>
+          </details>` : ""}
+          ${review.length ? `<details>
+            <summary>${review.length} đối tác cần xem — số liệu không khớp, không tự sửa</summary>
+            <p class="debt-alert-warning-note">Có phiếu thu Có 131 nhưng tổng không khớp hóa đơn ghi 111 (hoặc đầu kỳ). Cần đối chiếu chứng từ gốc rồi sửa tay.</p>
+            <table class="data-table" style="font-size: 12px; width: 100%;">
+              <thead><tr><th>Đối tác</th><th class="text-right">Bán ghi 111 (thuần)</th><th class="text-right">Phiếu thu Có 131</th><th class="text-right">Bán chịu 131</th><th class="text-right">Dư Nợ đầu kỳ</th><th class="text-right">Chênh lệch</th></tr></thead>
+              <tbody>${review.map(r => `<tr><td>${partnerCell(r)}</td><td class="text-right font-numeric">${formatVND(r.cashSales)}</td><td class="text-right font-numeric">${formatVND(r.receipts131)}</td><td class="text-right font-numeric">${formatVND(r.creditSales)}</td><td class="text-right font-numeric">${formatVND(r.openingDebit)}</td><td class="text-right font-numeric">${formatVND(r.gap)}</td></tr>`).join("")}</tbody>
+            </table>
+          </details>` : ""}
+          ${fixes.length ? `<button type="button" class="btn btn-primary btn-sm" data-role-required="write" onclick="applyRetailDoubleCashFixes()" style="margin-top: 8px;">Chuyển sang 131${openings.length ? " và xóa đầu kỳ ảo" : ""} (${fixes.length})</button>` : ""}
+        </div>
+      </div>`;
+}
 
 // Phiếu thu có danh sách hàng nhưng ghi thẳng Nợ 111/Có 511 (bán hàng nhập từ sổ quỹ): có doanh thu
 // nhưng không có hóa đơn bán, không xuất kho, không ghi giá vốn. Tách thành hóa đơn bán hàng ghi nợ
@@ -3995,6 +4286,9 @@ function renderDebtOverview(allDebts, dateRange) {
       </div>
       ${renderOrphanPartnerRelinkBlock(rec.orphanPartnerRelinks, showDate)}
       ${renderCashAccountFixBlock(rec.cashAccountFixes, showDate)}
+      ${renderBankChannelFixBlock(rec.bankChannelFixes, showDate)}
+      ${renderRetailDoubleCashBlock(rec.retailDoubleCash, showDate)}
+      ${renderInventoryAdjustCauseBlock(rec.inventoryAdjustCauses, showDate)}
       ${renderCashSaleReceiptSplitBlock(rec.cashSaleReceiptSplits, showDate)}
       ${renderPartnerCashWithoutDebtBlock(rec.partnerCashWithoutDebt, showDate)}
       ${renderPossibleDoubleRefundBlock(rec.possibleDoubleRefunds, showDate)}
@@ -4619,6 +4913,12 @@ window.computeDebt131Reconciliation = computeDebt131Reconciliation;
 window.computePartnerCashWithoutDebtLines = computePartnerCashWithoutDebtLines;
 window.computeCashAccountFixSuggestions = computeCashAccountFixSuggestions;
 window.applyCashAccountFixes = applyCashAccountFixes;
+window.computeBankChannelFixes = computeBankChannelFixes;
+window.applyBankChannelFixes = applyBankChannelFixes;
+window.computeRetailDoubleCashFixes = computeRetailDoubleCashFixes;
+window.applyRetailDoubleCashFixes = applyRetailDoubleCashFixes;
+window.computeInventoryAdjustCauseFixes = computeInventoryAdjustCauseFixes;
+window.applyInventoryAdjustCauseFixes = applyInventoryAdjustCauseFixes;
 window.computeCashSaleReceiptSplits = computeCashSaleReceiptSplits;
 window.applyCashSaleReceiptSplits = applyCashSaleReceiptSplits;
 window.computeOrphanPartnerRelinks = computeOrphanPartnerRelinks;

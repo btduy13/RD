@@ -81,11 +81,13 @@ function renderTabIfNeeded(tabId) {
       if (typeof populateReportAccountDropdown === "function") populateReportAccountDropdown();
       if (typeof resetReportRowLimit === "function") resetReportRowLimit();
       if (typeof generateReport === "function") generateReport();
+      if (typeof renderOpeningBalancePlugBanner === "function") renderOpeningBalancePlugBanner();
     } else if (tabId === "tax") {
       if (typeof renderTaxTab === "function") renderTaxTab();
       if (typeof renderTaxCalendar === "function") renderTaxCalendar();
     } else if (tabId === "payroll") {
       if (typeof renderPayrollTab === "function") renderPayrollTab();
+      if (typeof renderPayrollAccrualBlock === "function") renderPayrollAccrualBlock();
     } else if (tabId === "assets") {
       if (typeof renderFixedAssetsTab === "function") renderFixedAssetsTab();
       if (typeof renderProvisionsTab === "function") renderProvisionsTab();
@@ -615,7 +617,7 @@ function viewVoucher(id) {
           </div>
           <div style="padding:0 8px 0 74px; color:#000;">
             <div style="font-weight:bold; font-size: 13px; text-transform:uppercase; white-space:nowrap;">${companyName}</div>
-            <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">Mật số: ${state.accountingStandard === 'TT133' ? 'Mẫu số C21-DN (TT133)' : 'Mẫu số 01-VT (TT200)'}</div>
+            <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">Mật số: ${state.accountingStandard === 'TT133' ? 'Mẫu số C21-DN (TT133)' : 'Mẫu số 01-VT (TT99)'}</div>
             <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">Địa chỉ: ${companyAddr}</div>
             <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">MST: ${companyTax}</div>
           </div>
@@ -740,7 +742,7 @@ function viewVoucher(id) {
           </div>
           <div style="padding:0 8px 0 74px; color:#000;">
             <div style="font-weight:bold; font-size: 13px; text-transform:uppercase; white-space:nowrap;">${companyName}</div>
-            <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">${isTT133pr ? 'Mẫu số C21-DN (TT133)' : 'Mẫu số 02-VT (TT200)'}</div>
+            <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">${isTT133pr ? 'Mẫu số C21-DN (TT133)' : 'Mẫu số 02-VT (TT99)'}</div>
             <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">Địa chỉ: ${companyAddr}</div>
             <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">MST: ${companyTax}</div>
           </div>
@@ -844,7 +846,7 @@ function viewVoucher(id) {
           </div>
           <div style="padding:0 8px 0 74px; color:#000;">
             <div style="font-weight:bold; font-size: 13px; text-transform:uppercase; white-space:nowrap;">${companyName}</div>
-            <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">Mẫu số 01-VT (TT200) — Phục hồi hàng bán trả lại</div>
+            <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">Mẫu số 01-VT (TT99) — Phục hồi hàng bán trả lại</div>
             <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">Địa chỉ: ${companyAddr}</div>
             <div style="font-size: 10.5px; margin-top:1px; white-space:nowrap;">MST: ${companyTax}</div>
           </div>
@@ -1337,7 +1339,7 @@ function viewVoucher(id) {
             </div>
           </div>
           <div style="text-align:right; font-size: 12px; min-width:140px; flex-shrink:0;">
-            <div style="font-size: 12px; color:#555;">${templateCode} &nbsp;(TT 200/2014/TT-BTC)</div>
+            <div style="font-size: 12px; color:#555;">${templateCode} &nbsp;(${state.accountingStandard === 'TT133' ? 'TT 133/2016/TT-BTC' : 'TT 99/2025/TT-BTC'})</div>
             <div style="margin-top:3px;">Quyển số: <span style="border-bottom:1px dotted #000; display:inline-block; min-width:50px;">&nbsp;</span></div>
             <div>Số: <strong>${escapeHtmlText(v.id)}</strong></div>
             <div>Nợ: <strong>${escapeHtmlText(e.debit)}</strong></div>
